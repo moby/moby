@@ -18,10 +18,10 @@ import (
 	"crypto/sha256"
 	"bytes"
 	"text/tabwriter"
+	"sort"
 )
 
 func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	log.Printf("Help %s\n", args)
 	if len(args) == 0 {
 		fmt.Fprintf(stdout, "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n")
 		for _, cmd := range [][]interface{}{
@@ -52,6 +52,7 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout, "layers", "[OPTIONS] [NAME]", "Show available filesystem layers")
 	quiet := flags.Bool("q", false, "Quiet mode")
+	limit := flags.Int("l", 0, "Only show the N most recent versions of each layer")
 	flags.Parse(args)
 	if flags.NArg() > 1 {
 		flags.Usage()
@@ -61,22 +62,31 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 	if flags.NArg() == 1 {
 		nameFilter = flags.Arg(0)
 	}
-	if *quiet {
-		for id, layer := range docker.layers {
-			if nameFilter != "" && nameFilter != layer.Name {
-				continue
-			}
-			stdout.Write([]byte(id+ "\n"))
-		}
-	} else {
-		w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	var names []string
+	for name := range docker.layersByName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	if (!*quiet) {
 		fmt.Fprintf(w, "ID\tNAME\tSIZE\tADDED\tSOURCE\n")
-		for _, layer := range docker.layers {
-			if nameFilter != "" && nameFilter != layer.Name {
-				continue
-			}
-			fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\t%s\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)), layer.Source)
+	}
+	for _, name := range names {
+		if nameFilter != "" && nameFilter != name {
+			continue
 		}
+		for idx, layer := range *docker.layersByName[name] {
+			if *limit > 0 && idx >= *limit {
+				break
+			}
+			if !*quiet {
+				fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\t%s\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)), layer.Source)
+			} else {
+				stdout.Write([]byte(layer.Id + "\n"))
+			}
+		}
+	}
+	if (!*quiet) {
 		w.Flush()
 	}
 	return nil
@@ -124,12 +134,42 @@ func (docker *Docker) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...s
 }
 
 
+// ByDate wraps an array of layers so they can be sorted by date (most recent first)
+
+type ByDate []*Layer
+
+func (l *ByDate) Len() int {
+	return len(*l)
+}
+
+func (l *ByDate) Less(i, j int) bool {
+	layers := *l
+	return layers[j].Added.Before(layers[i].Added)
+}
+
+func (l *ByDate) Swap(i, j int) {
+	layers := *l
+	tmp := layers[i]
+	layers[i] = layers[j]
+	layers[j] = tmp
+}
+
+func (l *ByDate) Add(layer *Layer) {
+	*l = append(*l, layer)
+	sort.Sort(l)
+}
+
+
 func (docker *Docker) addLayer(name string, source string, size uint) Layer {
 	if size == 0 {
 		size = uint(rand.Int31n(142 * 1024 * 1024))
 	}
 	layer := Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
 	docker.layers[layer.Id] = layer
+	if _, exists := docker.layersByName[layer.Name]; !exists {
+		docker.layersByName[layer.Name] = new(ByDate)
+	}
+	docker.layersByName[layer.Name].Add(&layer)
 	return layer
 }
 
@@ -275,6 +315,7 @@ func main() {
 func New() *Docker {
 	return &Docker{
 		layers: make(map[string]Layer),
+		layersByName: make(map[string]*ByDate),
 		containers: make(map[string]Container),
 	}
 }
@@ -346,6 +387,7 @@ func Go(f func() error) chan error {
 
 type Docker struct {
 	layers		map[string]Layer
+	layersByName	map[string]*ByDate
 	containers	map[string]Container
 }
 
