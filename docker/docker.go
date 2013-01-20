@@ -30,7 +30,15 @@ func CallToURL(host string, cmd string, args []string) *url.URL {
 
 func main() {
 	flag.Parse()
-	u := CallToURL(os.Getenv("DOCKER"), flag.Args()[0], flag.Args()[1:])
+	var cmd string
+	var args []string
+	if len(flag.Args()) >= 1 {
+		cmd = flag.Args()[0]
+	}
+	if len(flag.Args()) >= 2 {
+		args = flag.Args()[1:]
+	}
+	u := CallToURL(os.Getenv("DOCKER"), cmd, args)
 	resp, err := http.Get(u.String())
 	if err != nil {
 		log.Fatal(err)
