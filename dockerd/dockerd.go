@@ -160,6 +160,18 @@ func main() {
 	}
 }
 
+type AutoFlush struct {
+	http.ResponseWriter
+}
+
+func (w *AutoFlush) Write(data []byte) (int, error) {
+	ret, err := w.ResponseWriter.Write(data)
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	return ret, err
+}
+
 func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmd, args := URLToCall(r.URL)
 	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args...), " "))
@@ -171,7 +183,7 @@ func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if method == nil {
 		docker.CmdUsage(r.Body, w, cmd)
 	} else {
-		err := method(r.Body, w, args...)
+		err := method(r.Body, &AutoFlush{w}, args...)
 		if err != nil {
 			fmt.Fprintf(w, "Error: %s\n", err)
 		}
