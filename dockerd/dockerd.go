@@ -51,9 +51,20 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 	return nil
 }
 
+func (docker *Docker) CmdDownload(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	if len(args) < 1 {
+		return errors.New("Not enough arguments")
+	}
+	fmt.Fprintf(stdout, "Downloading from %s...\n", args[0])
+	time.Sleep(2 * time.Second)
+	return docker.CmdUpload(stdin, stdout, args...)
+	return nil
+}
+
 func (docker *Docker) CmdUpload(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	layer := Layer{Id: randomId(), Name: args[0], Added: time.Now(), Size: uint(rand.Int31n(142 * 1024 * 1024))}
 	docker.layers = append(docker.layers, layer)
+	time.Sleep(1 * time.Second)
 	fmt.Fprintf(stdout, "New layer: %s %s %.1fM\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024)
 	return nil
 }
