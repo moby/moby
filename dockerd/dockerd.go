@@ -21,22 +21,31 @@ import (
 	"text/tabwriter"
 )
 
-func (docker *Docker) CmdUsage(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	fmt.Fprintf(stdout, "Usage: docker COMMAND [arg...]\n\nCommands:\n")
-	for _, cmd := range [][]interface{}{
-		{"run", "Run a command in a container"},
-		{"list", "Display a list of containers"},
-		{"layers", "Display a list of layers"},
-		{"download", "Download a layer from a remote location"},
-		{"upload", "Upload a layer"},
-		{"wait", "Wait for the state of a container to change"},
-		{"stop", "Stop a running container"},
-		{"logs", "Fetch the logs of a container"},
-		{"export", "Extract changes to a container's filesystem into a new layer"},
-		{"attach", "Attach to the standard inputs and outputs of a running container"},
-		{"info", "Display system-wide information"},
-	} {
-		fmt.Fprintf(stdout, "    %-10.10s%s\n", cmd...)
+func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	log.Printf("Help %s\n", args)
+	if len(args) == 0 {
+		fmt.Fprintf(stdout, "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n")
+		for _, cmd := range [][]interface{}{
+			{"run", "Run a command in a container"},
+			{"clone", "Duplicate a container"},
+			{"list", "Display a list of containers"},
+			{"layers", "Display a list of layers"},
+			{"get", "Download a layer from a remote location"},
+			{"wait", "Wait for the state of a container to change"},
+			{"stop", "Stop a running container"},
+			{"logs", "Fetch the logs of a container"},
+			{"export", "Extract changes to a container's filesystem into a new layer"},
+			{"attach", "Attach to the standard inputs and outputs of a running container"},
+			{"info", "Display system-wide information"},
+		} {
+			fmt.Fprintf(stdout, "    %-10.10s%s\n", cmd...)
+		}
+	} else {
+		if method := docker.getMethod(args[0]); method == nil {
+			return errors.New("No such command: " + args[0])
+		} else {
+			method(stdin, stdout, "--help")
+		}
 	}
 	return nil
 }
