@@ -229,6 +229,9 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 }
 
 func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "list", "[OPTIONS]", "Show all containers")
+	numeric := flags.Bool("n", false, "Display absolute layer IDs instead of names")
+	flags.Parse(args)
 	var longestCol int
 	for _, container := range docker.containers {
 		if l := len(container.CmdString()); l > longestCol {
@@ -245,7 +248,11 @@ func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...str
 	for _, container := range docker.containers {
 		var layers []string
 		for _, layer := range container.Layers {
-			layers = append(layers, layer.Name)
+			if *numeric {
+				layers = append(layers, layer.Id)
+			} else {
+				layers = append(layers, layer.Name)
+			}
 		}
 		fmt.Fprintf(stdout, tpl,
 			/* ID */	container.Id,
