@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"text/tabwriter"
 	"sort"
+	"os"
 )
 
 func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -36,6 +37,7 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 			{"export", "Extract changes to a container's filesystem into a new layer"},
 			{"attach", "Attach to the standard inputs and outputs of a running container"},
 			{"info", "Display system-wide information"},
+			{"web", "Generate a web UI"},
 		} {
 			fmt.Fprintf(stdout, "    %-10.10s%s\n", cmd...)
 		}
@@ -350,6 +352,8 @@ func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args...), " "))
 	if cmd == "" {
 		cmd = "help"
+	} else if cmd == "web" {
+		w.Header().Set("content-type", "text/html")
 	}
 	method := docker.getMethod(cmd)
 	if method == nil {
@@ -360,6 +364,15 @@ func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(stdout, "Error: %s\n", err)
 		}
 	}
+}
+
+func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	if file, err := os.Open("dockerweb.html"); err != nil {
+		return err
+	} else if _, err := io.Copy(stdout, file); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (docker *Docker) getMethod(name string) Cmd {
