@@ -211,8 +211,13 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
 	}
 	for _, name := range *fl_layers {
+		// 1: look for layer by ID
 		if layer, exists := docker.layers[name]; !exists {
-			if srcContainer, exists := docker.containers[name]; exists {
+			// 2: look for a layer by name (and pick the most recent)
+			if layers, exists := docker.layersByName[name]; exists {
+				container.Layers = append(container.Layers, *(*layers)[0])
+			// 3: look for container by name (and copy its layers)
+			} else if srcContainer, exists := docker.containers[name]; exists {
 				for _, layer := range srcContainer.Layers {
 					container.Layers = append(container.Layers, layer)
 				}
