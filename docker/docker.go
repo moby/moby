@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"flag"
 	"net/http"
 	"net/url"
 )
@@ -29,14 +28,13 @@ func CallToURL(host string, cmd string, args []string) *url.URL {
 
 
 func main() {
-	flag.Parse()
 	var cmd string
 	var args []string
-	if len(flag.Args()) >= 1 {
-		cmd = flag.Args()[0]
+	if len(os.Args) >= 2 {
+		cmd = os.Args[1]
 	}
-	if len(flag.Args()) >= 2 {
-		args = flag.Args()[1:]
+	if len(os.Args) >= 3 {
+		args = os.Args[2:]
 	}
 	u := CallToURL(os.Getenv("DOCKER"), cmd, args)
 	resp, err := http.Get(u.String())
