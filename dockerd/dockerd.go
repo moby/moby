@@ -162,6 +162,7 @@ func main() {
 
 func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmd, args := URLToCall(r.URL)
+	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args...), " "))
 	if cmd == "" {
 		docker.CmdUsage(r.Body, w, "")
 		return
