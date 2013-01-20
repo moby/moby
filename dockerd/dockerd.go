@@ -86,10 +86,9 @@ func (docker *Docker) CmdGet(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	fmt.Fprintf(stdout, "Downloading from %s...\n", args[0])
 	time.Sleep(2 * time.Second)
 	layer := docker.addLayer(args[0], "download", 0)
-	fmt.Fprintf(stdout, "New layer: %s %s %.1fM\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024)
+	fmt.Fprintln(stdout, layer.Id)
 	return nil
 }
 
@@ -99,7 +98,7 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	time.Sleep(1 * time.Second)
 	layer := docker.addLayer(args[0], "upload", 0)
-	fmt.Fprintf(stdout, "New layer: %s %s %.1fM\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024)
+	fmt.Fprintln(stdout, layer.Id)
 	return nil
 }
 
@@ -119,7 +118,7 @@ func (docker *Docker) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...s
 	} else {
 		// Extract actual changes here
 		layer := docker.addLayer(flags.Arg(1), "export:" + container.Id, container.BytesChanged)
-		fmt.Fprintf(stdout, "New layer: %s %s %.1fM\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024)
+		fmt.Fprintln(stdout, layer.Id)
 	}
 	return nil
 }
