@@ -260,7 +260,7 @@ func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...str
 			/* RUNNING */	fmt.Sprintf("%v", container.Running),
 			/* CREATED */	humanDuration(time.Now().Sub(container.Created)) + " ago",
 			/* CHANGES */	fmt.Sprintf("%.1fM", float32(container.BytesChanged) / 1024 / 1024),
-			/* LAYERS */	strings.Join(layers, ", "))
+			/* LAYERS */	strings.Join(layers, ","))
 	}
 	return nil
 }
