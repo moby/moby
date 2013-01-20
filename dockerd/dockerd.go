@@ -43,18 +43,18 @@ func (docker *Docker) CmdUsage(stdin io.ReadCloser, stdout io.Writer, args ...st
 
 func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "ID\tSOURCE\tADDED\n")
+	fmt.Fprintf(w, "ID\tNAME\tSIZE\tADDED\n")
 	for _, layer := range docker.layers {
-		fmt.Fprintf(w, "%s\t%s\t%s ago\n", layer.Id, layer.Name, time.Now().Sub(layer.Added))
+		fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)))
 	}
 	w.Flush()
 	return nil
 }
 
 func (docker *Docker) CmdUpload(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	layer := Layer{Id: randomId(), Name: args[0], Added: time.Now()}
+	layer := Layer{Id: randomId(), Name: args[0], Added: time.Now(), Size: uint(rand.Int31n(142 * 1024 * 1024))}
 	docker.layers = append(docker.layers, layer)
-	fmt.Fprintf(stdout, "New layer: %s (%s)\n", layer.Id, layer.Name)
+	fmt.Fprintf(stdout, "New layer: %s %s %.1fM\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024)
 	return nil
 }
 
@@ -66,7 +66,10 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		Id:	randomId(),
 		Cmd:	args[0],
 		Args:	args[1:],
+		Created: time.Now(),
 		Layers:	docker.layers[:1],
+		FilesChanged: uint(rand.Int31n(42)),
+		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
 	}
 	docker.containers = append(docker.containers, container)
 	cmd := exec.Command(args[0], args[1:]...)
@@ -120,20 +123,32 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 }
 
 func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "ID\tCMD\tSTATUS\tLAYERS\n")
+	var longestCol int
+	for _, container := range docker.containers {
+		if l := len(container.CmdString()); l > longestCol {
+			longestCol = l
+		}
+	}
+	if longestCol > 50 {
+		longestCol = 50
+	} else if longestCol < 5 {
+		longestCol = 8
+	}
+	tpl := "%-16s   %-*.*s   %-6s   %-25s   %10s   %-s\n"
+	fmt.Fprintf(stdout, tpl, "ID", longestCol, longestCol, "CMD", "STATUS", "CREATED", "CHANGES", "LAYERS")
 	for _, container := range docker.containers {
 		var layers []string
 		for _, layer := range container.Layers {
 			layers = append(layers, layer.Name)
 		}
-		fmt.Fprintf(w, "%s\t%s %s\t?\t%s\n",
-			container.Id,
-			container.Cmd,
-			strings.Join(container.Args, " "),
-			strings.Join(layers, ", "))
+		fmt.Fprintf(stdout, tpl,
+			/* ID */	container.Id,
+			/* CMD */	longestCol, longestCol, container.CmdString(),
+			/* STATUS */	"?",
+			/* CREATED */	humanDuration(time.Now().Sub(container.Created)) + " ago",
+			/* CHANGES */	fmt.Sprintf("%.1fM", float32(container.BytesChanged) / 1024 / 1024),
+			/* LAYERS */	strings.Join(layers, ", "))
 	}
-	w.Flush()
 	return nil
 }
 
@@ -147,6 +162,10 @@ func main() {
 
 func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmd, args := URLToCall(r.URL)
+	if cmd == "" {
+		docker.CmdUsage(r.Body, w, "")
+		return
+	}
 	method := docker.getMethod(cmd)
 	if method == nil {
 		docker.CmdUsage(r.Body, w, cmd)
@@ -196,6 +215,7 @@ type Layer struct {
 	Id	string
 	Name	string
 	Added	time.Time
+	Size	uint
 }
 
 type Container struct {
@@ -203,6 +223,13 @@ type Container struct {
 	Cmd	string
 	Args	[]string
 	Layers	[]Layer
+	Created	time.Time
+	FilesChanged uint
+	BytesChanged uint
+}
+
+func (c *Container) CmdString() string {
+	return strings.Join(append([]string{c.Cmd}, c.Args...), " ")
 }
 
 type Cmd func(io.ReadCloser, io.Writer, ...string) error
@@ -232,4 +259,28 @@ func ComputeId(content io.Reader) (string, error) {
 func randomId() string {
 	id, _ := ComputeId(randomBytes()) // can't fail
 	return id
+}
+
+
+func humanDuration(d time.Duration) string {
+	if seconds := int(d.Seconds()); seconds < 1 {
+		return "Less than a second"
+	} else if seconds < 60 {
+		return fmt.Sprintf("%d seconds", seconds)
+	} else if minutes := int(d.Minutes()); minutes == 1 {
+		return "About a minute"
+	} else if minutes < 60 {
+		return fmt.Sprintf("%d minutes", minutes)
+	} else if hours := int(d.Hours()); hours  == 1{
+		return "About an hour"
+	} else if hours < 48 {
+		return fmt.Sprintf("%d hours", hours)
+	} else if hours < 24 * 7 * 2 {
+		return fmt.Sprintf("%d days", hours / 24)
+	} else if hours < 24 * 30 * 3 {
+		return fmt.Sprintf("%d weeks", hours / 24 / 7)
+	} else if hours < 24 * 365 * 2 {
+		return fmt.Sprintf("%d months", hours / 24 / 30)
+	}
+	return fmt.Sprintf("%d years", d.Hours() / 24 / 365)
 }
