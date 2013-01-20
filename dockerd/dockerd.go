@@ -51,12 +51,35 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 }
 
 func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "ID\tNAME\tSIZE\tADDED\n")
-	for _, layer := range docker.layers {
-		fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)))
+	flags := Subcmd(stdout, "layers", "[OPTIONS] [NAME]", "Show available filesystem layers")
+	quiet := flags.Bool("q", false, "Quiet mode")
+	flags.Parse(args)
+	if flags.NArg() > 1 {
+		flags.Usage()
+		return nil
 	}
-	w.Flush()
+	var nameFilter string
+	if flags.NArg() == 1 {
+		nameFilter = flags.Arg(0)
+	}
+	if *quiet {
+		for id, layer := range docker.layers {
+			if nameFilter != "" && nameFilter != layer.Name {
+				continue
+			}
+			stdout.Write([]byte(id+ "\n"))
+		}
+	} else {
+		w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+		fmt.Fprintf(w, "ID\tNAME\tSIZE\tADDED\tSOURCE\n")
+		for _, layer := range docker.layers {
+			if nameFilter != "" && nameFilter != layer.Name {
+				continue
+			}
+			fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\t%s\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)), layer.Source)
+		}
+		w.Flush()
+	}
 	return nil
 }
 
