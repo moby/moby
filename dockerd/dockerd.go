@@ -244,7 +244,7 @@ func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...str
 		longestCol = 8
 	}
 	tpl := "%-16s   %-*.*s   %-6s   %-25s   %10s   %-s\n"
-	fmt.Fprintf(stdout, tpl, "ID", longestCol, longestCol, "CMD", "STATUS", "CREATED", "CHANGES", "LAYERS")
+	fmt.Fprintf(stdout, tpl, "ID", longestCol, longestCol, "CMD", "RUNNING", "CREATED", "CHANGES", "LAYERS")
 	for _, container := range docker.containers {
 		var layers []string
 		for _, layer := range container.Layers {
@@ -257,7 +257,7 @@ func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...str
 		fmt.Fprintf(stdout, tpl,
 			/* ID */	container.Id,
 			/* CMD */	longestCol, longestCol, container.CmdString(),
-			/* STATUS */	"?",
+			/* RUNNING */	fmt.Sprintf("%v", container.Running),
 			/* CREATED */	humanDuration(time.Now().Sub(container.Created)) + " ago",
 			/* CHANGES */	fmt.Sprintf("%.1fM", float32(container.BytesChanged) / 1024 / 1024),
 			/* LAYERS */	strings.Join(layers, ", "))
