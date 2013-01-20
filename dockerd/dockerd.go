@@ -293,23 +293,29 @@ func (w *AutoFlush) Write(data []byte) (int, error) {
 }
 
 func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	stdout := &AutoFlush{w}
+	stdin := r.Body
+	flags := flag.NewFlagSet("docker", flag.ContinueOnError)
+	flags.SetOutput(stdout)
+	flags.Usage = func() { docker.CmdHelp(stdin, stdout) }
 	cmd, args := URLToCall(r.URL)
+	if err := flags.Parse(append([]string{cmd}, args...)); err != nil {
+		return
+	}
 	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args...), " "))
 	if cmd == "" {
-		docker.CmdUsage(r.Body, w, "")
-		return
+		cmd = "help"
 	}
 	method := docker.getMethod(cmd)
 	if method == nil {
-		docker.CmdUsage(r.Body, w, cmd)
+		fmt.Fprintf(stdout, "Error: no such command: %s\n", cmd)
 	} else {
-		err := method(r.Body, &AutoFlush{w}, args...)
+		err := method(stdin, stdout, args...)
 		if err != nil {
-			fmt.Fprintf(w, "Error: %s\n", err)
+			fmt.Fprintf(stdout, "Error: %s\n", err)
 		}
 	}
 }
-
 
 func (docker *Docker) getMethod(name string) Cmd {
 	methodName := "Cmd"+strings.ToUpper(name[:1])+strings.ToLower(name[1:])
