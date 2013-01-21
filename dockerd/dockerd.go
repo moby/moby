@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -237,6 +238,7 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	flags := Subcmd(stdout, "run", "-l LAYER [-l LAYER...] COMMAND {ARG...]", "Run a command in a container")
 	fl_layers := new(ArgList)
 	flags.Var(fl_layers, "l", "Add a layer to the filesystem. Multiple layers are added in the order they are defined")
+	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -278,7 +280,13 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 	}
 	docker.containers[container.Id] = container
-	return container.Run(stdin, stdout)
+	if *fl_attach {
+		return container.Run(stdin, stdout)
+	} else {
+		go container.Run(ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard)
+		fmt.Fprintln(stdout, container.Id)
+	}
+	return nil
 }
 
 func (docker *Docker) CmdClone(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
