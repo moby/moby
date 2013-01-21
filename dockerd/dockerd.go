@@ -414,10 +414,19 @@ func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	if file, err := os.Open("dockerweb.html"); err != nil {
-		return err
-	} else if _, err := io.Copy(stdout, file); err != nil {
-		return err
+	flags := Subcmd(stdout, "web", "[OPTIONS]", "A web UI for docker")
+	showurl := flags.Bool("u", false, "Return the URL of the web UI")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if *showurl {
+		fmt.Fprintln(stdout, "http://localhost:4242/web")
+	} else {
+		if file, err := os.Open("dockerweb.html"); err != nil {
+			return err
+		} else if _, err := io.Copy(stdout, file); err != nil {
+			return err
+		}
 	}
 	return nil
 }
