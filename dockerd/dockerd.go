@@ -20,6 +20,7 @@ import (
 	"text/tabwriter"
 	"sort"
 	"os"
+	"archive/tar"
 )
 
 func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -34,7 +35,7 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 			{"wait", "Wait for the state of a container to change"},
 			{"stop", "Stop a running container"},
 			{"logs", "Fetch the logs of a container"},
-			{"export", "Extract changes to a container's filesystem into a new layer"},
+			{"diff", "Inspect changes on a container's filesystem"},
 			{"attach", "Attach to the standard inputs and outputs of a running container"},
 			{"info", "Display system-wide information"},
 			{"web", "Generate a web UI"},
@@ -114,23 +115,69 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
-func (docker *Docker) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout,
-		"export", "CONTAINER LAYER",
-		"Create a new layer from the changes on a container's filesystem")
-	_ = flags.Bool("s", false, "Stream the new layer to the client intead of storing it on the docker")
+		"diff", "CONTAINER [OPTIONS]",
+		"Inspect changes on a container's filesystem")
+	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
+	fl_list := flags.Bool("l", false, "Show a list of changed files")
+	fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
+	fl_create := flags.String("c", "", "Create a new layer from the changes")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() < 2 {
+	if flags.NArg() < 1 {
 		return errors.New("Not enough arguments")
+	}
+	if !(*fl_bytes || *fl_list || *fl_download || *fl_create != "") {
+		flags.Usage()
+		return nil
 	}
 	if container, exists := docker.containers[flags.Arg(0)]; !exists {
 		return errors.New("No such container")
-	} else {
-		// Extract actual changes here
-		layer := docker.addLayer(flags.Arg(1), "export:" + container.Id, container.BytesChanged)
+	} else if *fl_bytes {
+		if *fl_list || *fl_download || *fl_create != "" {
+			flags.Usage()
+			return nil
+		}
+		fmt.Fprintf(stdout, "%d\n", container.BytesChanged)
+	} else if *fl_list {
+		if *fl_bytes || *fl_download || *fl_create != "" {
+			flags.Usage()
+			return nil
+		}
+		// FAKE
+		fmt.Fprintf(stdout, strings.Join([]string{
+			"/etc/postgres/pg.conf",
+			"/etc/passwd",
+			"/var/lib/postgres",
+			"/usr/bin/postgres",
+			"/usr/bin/psql",
+			"/var/log/postgres",
+			"/var/log/postgres/postgres.log",
+			"/var/log/postgres/postgres.log.0",
+			"/var/log/postgres/postgres.log.1.gz"}, "\n"))
+	} else if *fl_download {
+		if *fl_bytes || *fl_list || *fl_create != "" {
+			flags.Usage()
+			return nil
+		}
+		if data, err := FakeTar(); err != nil {
+			return err
+		} else if _, err := io.Copy(stdout, data); err != nil {
+			return err
+		}
+		return nil
+	} else if *fl_create != "" {
+		if *fl_bytes || *fl_list || *fl_download {
+			flags.Usage()
+			return nil
+		}
+		layer := docker.addLayer(*fl_create, "export:" + container.Id, container.BytesChanged)
 		fmt.Fprintln(stdout, layer.Id)
+	} else {
+		flags.Usage()
+		return nil
 	}
 	return nil
 }
@@ -530,3 +577,20 @@ func Subcmd(output io.Writer, name, signature, description string) *flag.FlagSet
 	return flags
 }
 
+
+func FakeTar() (io.Reader, error) {
+	content := []byte("Hello world!\n")
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	for _, name := range []string {"/etc/postgres/postgres.conf", "/etc/passwd", "/var/log/postgres", "/var/log/postgres/postgres.conf"} {
+		hdr := new(tar.Header)
+		hdr.Size = int64(len(content))
+		hdr.Name = name
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+		tw.Write([]byte(content))
+	}
+	tw.Close()
+	return buf, nil
+}
