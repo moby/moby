@@ -172,10 +172,10 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) monitor() {
+	// Wait for the program to exit
 	container.cmd.Wait()
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
-	// Cleanup container
+	// Cleanup
 	container.stdout.Close()
 	container.stderr.Close()
 	if err := container.Filesystem.Umount(); err != nil {
@@ -183,6 +183,7 @@ func (container *Container) monitor() {
 	}
 
 	// Report status back
+	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	container.State.setStopped(exitCode)
 	container.save()
 }
@@ -224,6 +225,16 @@ func (container *Container) Stop() error {
 
 	// 3. Force kill
 	if err := container.kill(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (container *Container) Restart() error {
+	if err := container.Stop(); err != nil {
+		return err
+	}
+	if err := container.Start(); err != nil {
 		return err
 	}
 	return nil
