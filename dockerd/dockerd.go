@@ -33,6 +33,7 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 			{"list", "Display a list of containers"},
 			{"layers", "Display a list of layers"},
 			{"get", "Download a layer from a remote location"},
+			{"rm", "Remove layers"},
 			{"wait", "Wait for the state of a container to change"},
 			{"stop", "Stop a running container"},
 			{"logs", "Fetch the logs of a container"},
@@ -92,6 +93,43 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 	}
 	if (!*quiet) {
 		w.Flush()
+	}
+	return nil
+}
+
+func (docker *Docker) findLayer(name string) (*Layer, bool) {
+	// 1: look for layer by ID
+	if layer, exists := docker.layers[name]; exists {
+		return layer, true
+	}
+	// 2: look for a layer by name (and pick the most recent)
+	if layers, exists := docker.layersByName[name]; exists {
+		return (*layers)[0], true
+	}
+	return nil, false
+}
+
+func (docker *Docker) usingLayer(layer *Layer) []*Container {
+	var containers []*Container
+	for _, container := range docker.containers {
+		for _, l := range container.Layers {
+			if l.Id == layer.Id {
+				containers = append(containers, &container)
+			}
+		}
+	}
+	return containers
+}
+
+func (docker *Docker) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "rm", "[OPTIONS LAYER", "Remove a layer")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range flags.Args() {
+		if _, err := docker.rmLayer(name); err != nil {
+			fmt.Fprintln(stdout, "Error: " + err.Error())
+		}
 	}
 	return nil
 }
@@ -209,18 +247,41 @@ func (l *ByDate) Add(layer *Layer) {
 	sort.Sort(l)
 }
 
+func (l *ByDate) Del(id string) {
+	for idx, layer := range *l {
+		if layer.Id == id {
+			*l = append((*l)[:idx], (*l)[idx + 1:]...)
+		}
+	}
+}
 
-func (docker *Docker) addLayer(name string, source string, size uint) Layer {
+
+func (docker *Docker) addLayer(name string, source string, size uint) *Layer {
 	if size == 0 {
 		size = uint(rand.Int31n(142 * 1024 * 1024))
 	}
-	layer := Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
+	layer := &Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
 	docker.layers[layer.Id] = layer
 	if _, exists := docker.layersByName[layer.Name]; !exists {
 		docker.layersByName[layer.Name] = new(ByDate)
 	}
-	docker.layersByName[layer.Name].Add(&layer)
+	docker.layersByName[layer.Name].Add(layer)
 	return layer
+}
+
+func (docker *Docker) rmLayer(id string) (*Layer, error) {
+	if layer, exists := docker.layers[id]; exists {
+		if containers := docker.usingLayer(layer); len(containers) > 0 {
+			return nil, errors.New(fmt.Sprintf("Layer is in use: %s", id))
+		} else {
+			// Remove from name lookup
+			docker.layersByName[layer.Name].Del(layer.Id)
+			// Remove from id lookup
+			delete(docker.layers, layer.Id)
+			return layer, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("No such layer: %s", id))
 }
 
 type ArgList []string
@@ -262,21 +323,14 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
 	}
 	for _, name := range *fl_layers {
-		// 1: look for layer by ID
-		if layer, exists := docker.layers[name]; !exists {
-			// 2: look for a layer by name (and pick the most recent)
-			if layers, exists := docker.layersByName[name]; exists {
-				container.Layers = append(container.Layers, *(*layers)[0])
-			// 3: look for container by name (and copy its layers)
-			} else if srcContainer, exists := docker.containers[name]; exists {
-				for _, layer := range srcContainer.Layers {
-					container.Layers = append(container.Layers, layer)
-				}
-			} else {
-				return errors.New("No such layer or container: " + name)
+		if layer, exists := docker.findLayer(name); exists {
+			container.Layers = append(container.Layers, layer)
+		} else if srcContainer, exists := docker.containers[name]; exists {
+			for _, layer := range srcContainer.Layers {
+				container.Layers = append(container.Layers, layer)
 			}
 		} else {
-			container.Layers = append(container.Layers, layer)
+			return errors.New("No such layer or container: " + name)
 		}
 	}
 	docker.containers[container.Id] = container
@@ -376,7 +430,7 @@ func main() {
 
 func New() *Docker {
 	return &Docker{
-		layers: make(map[string]Layer),
+		layers: make(map[string]*Layer),
 		layersByName: make(map[string]*ByDate),
 		containers: make(map[string]Container),
 	}
@@ -468,7 +522,7 @@ func Go(f func() error) chan error {
 }
 
 type Docker struct {
-	layers		map[string]Layer
+	layers		map[string]*Layer
 	layersByName	map[string]*ByDate
 	containers	map[string]Container
 }
@@ -485,7 +539,7 @@ type Container struct {
 	Id	string
 	Cmd	string
 	Args	[]string
-	Layers	[]Layer
+	Layers	[]*Layer
 	Created	time.Time
 	FilesChanged uint
 	BytesChanged uint
