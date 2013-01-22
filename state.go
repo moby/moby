@@ -2,12 +2,14 @@ package docker
 
 import (
 	"sync"
+	"time"
 )
 
 type State struct {
 	Running  bool
 	Pid      int
 	ExitCode int
+	StartedAt time.Time
 
 	stateChangeLock *sync.Mutex
 	stateChangeCond *sync.Cond
@@ -25,6 +27,7 @@ func (s *State) setRunning(pid int) {
 	s.Running = true
 	s.ExitCode = 0
 	s.Pid = pid
+	s.StartedAt = time.Now()
 	s.broadcast()
 }
 
