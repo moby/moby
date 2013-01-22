@@ -14,7 +14,7 @@ import (
 )
 
 type Container struct {
-	Name string
+	Id   string
 	Root string
 	Path string
 	Args []string
@@ -34,9 +34,9 @@ type Config struct {
 	Ram      int64
 }
 
-func createContainer(name string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
+func createContainer(id string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
 	container := &Container{
-		Name:       name,
+		Id:         id,
 		Root:       root,
 		Path:       command,
 		Args:       args,
@@ -110,7 +110,7 @@ func (container *Container) Start() error {
 	}
 
 	params := []string{
-		"-n", container.Name,
+		"-n", container.Id,
 		"-f", container.lxcConfigPath,
 		"--",
 		container.Path,
@@ -134,7 +134,7 @@ func (container *Container) Start() error {
 	//
 	// This is a rare race condition that happens for short lived programs
 	for retries := 0; retries < 3; retries++ {
-		err := exec.Command("/usr/bin/lxc-wait", "-n", container.Name, "-s", "RUNNING|STOPPED").Run()
+		err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "RUNNING|STOPPED").Run()
 		if err == nil {
 			return nil
 		}
@@ -184,7 +184,7 @@ func (container *Container) monitor() {
 	container.stdout.Close()
 	container.stderr.Close()
 	if err := container.Filesystem.Umount(); err != nil {
-		log.Printf("%v: Failed to umount filesystem: %v", container.Name, err)
+		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
 
 	// Report status back
@@ -193,12 +193,12 @@ func (container *Container) monitor() {
 
 func (container *Container) kill() error {
 	// This will cause the main container process to receive a SIGKILL
-	if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Name).Run(); err != nil {
+	if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Id).Run(); err != nil {
 		return err
 	}
 
 	// Wait for the container to be actually stopped
-	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Name, "-s", "STOPPED").Run(); err != nil {
+	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "STOPPED").Run(); err != nil {
 		return err
 	}
 	return nil
@@ -217,13 +217,13 @@ func (container *Container) Stop() error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := exec.Command("/usr/bin/lxc-kill", "-n", container.Name, "15").Run(); err != nil {
+	if err := exec.Command("/usr/bin/lxc-kill", "-n", container.Id, "15").Run(); err != nil {
 		return err
 	}
 
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM", container.Name)
+		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM", container.Id)
 	}
 
 	// 3. Force kill

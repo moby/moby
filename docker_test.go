@@ -51,7 +51,7 @@ func TestCreate(t *testing.T) {
 	}
 
 	// Make sure the container List() returns is the right one
-	if docker.List()[0].Name != "test_create" {
+	if docker.List()[0].Id != "test_create" {
 		t.Errorf("Unexpected container %v returned by List", docker.List()[0])
 	}
 

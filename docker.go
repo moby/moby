@@ -22,34 +22,34 @@ func (docker *Docker) List() []*Container {
 	return containers
 }
 
-func (docker *Docker) getContainerElement(name string) *list.Element {
+func (docker *Docker) getContainerElement(id string) *list.Element {
 	for e := docker.containers.Front(); e != nil; e = e.Next() {
 		container := e.Value.(*Container)
-		if container.Name == name {
+		if container.Id == id {
 			return e
 		}
 	}
 	return nil
 }
 
-func (docker *Docker) Get(name string) *Container {
-	e := docker.getContainerElement(name)
+func (docker *Docker) Get(id string) *Container {
+	e := docker.getContainerElement(id)
 	if e == nil {
 		return nil
 	}
 	return e.Value.(*Container)
 }
 
-func (docker *Docker) Exists(name string) bool {
-	return docker.Get(name) != nil
+func (docker *Docker) Exists(id string) bool {
+	return docker.Get(id) != nil
 }
 
-func (docker *Docker) Create(name string, command string, args []string, layers []string, config *Config) (*Container, error) {
-	if docker.Exists(name) {
-		return nil, fmt.Errorf("Container %v already exists", name)
+func (docker *Docker) Create(id string, command string, args []string, layers []string, config *Config) (*Container, error) {
+	if docker.Exists(id) {
+		return nil, fmt.Errorf("Container %v already exists", id)
 	}
-	root := path.Join(docker.repository, name)
-	container, err := createContainer(name, root, command, args, layers, config)
+	root := path.Join(docker.repository, id)
+	container, err := createContainer(id, root, command, args, layers, config)
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +58,9 @@ func (docker *Docker) Create(name string, command string, args []string, layers 
 }
 
 func (docker *Docker) Destroy(container *Container) error {
-	element := docker.getContainerElement(container.Name)
+	element := docker.getContainerElement(container.Id)
 	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Name)
+		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
 	}
 
 	if err := container.Stop(); err != nil {

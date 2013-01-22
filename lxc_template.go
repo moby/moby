@@ -9,7 +9,7 @@ const LxcTemplate = `
 {{if .Config.Hostname}}
 lxc.utsname = {{.Config.Hostname}}
 {{else}}
-lxc.utsname = {{.Name}}
+lxc.utsname = {{.Id}}
 {{end}}
 #lxc.aa_profile = unconfined
 
