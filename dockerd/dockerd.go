@@ -38,6 +38,7 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 			{"stop", "Stop a running container"},
 			{"logs", "Fetch the logs of a container"},
 			{"diff", "Inspect changes on a container's filesystem"},
+			{"snapshot", "Create a new layer from a container's filesystem"},
 			{"attach", "Attach to the standard inputs and outputs of a running container"},
 			{"info", "Display system-wide information"},
 			{"web", "Generate a web UI"},
@@ -154,37 +155,61 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
+func (docker *Docker) CmdSnapshot(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout,
+		"snapshot", "[OPTIONS] CONTAINER IMAGE",
+		"Crete a new layer from a container's filesystem")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if flags.NArg() != 2 {
+		flags.Usage()
+		return nil
+	}
+	containerName, layerName := flags.Arg(0), flags.Arg(1)
+	if container, exists := docker.containers[containerName]; exists {
+		layer := docker.addLayer(layerName, "snapshot:" + container.Id, container.BytesChanged)
+		fmt.Fprintln(stdout, layer.Id)
+		return nil
+	}
+	return errors.New("No such container: " + flags.Arg(0))
+}
+
+func (docker *Docker) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout,
+		"tar", "CONTAINER|LAYER [OPTIONS]",
+		"Stream the contents of a container or a layer as a tar archive")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	name := flags.Arg(0)
+	if _, exists := docker.containers[name]; exists {
+		// Stream the entire contents of the container (basically a volatile snapshot)
+		return WriteFakeTar(stdout)
+	} else if _, exists := docker.findLayer(name); exists {
+		return WriteFakeTar(stdout)
+	}
+	return errors.New("No such layer or container: " + name)
+}
+
 func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout,
 		"diff", "CONTAINER [OPTIONS]",
 		"Inspect changes on a container's filesystem")
-	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
+	fl_diff := flags.Bool("d", true, "Show changes in diff format")
+	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changed")
 	fl_list := flags.Bool("l", false, "Show a list of changed files")
-	fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
-	fl_create := flags.String("c", "", "Create a new layer from the changes")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
 	if flags.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if !(*fl_bytes || *fl_list || *fl_download || *fl_create != "") {
-		flags.Usage()
-		return nil
-	}
 	if container, exists := docker.containers[flags.Arg(0)]; !exists {
 		return errors.New("No such container")
 	} else if *fl_bytes {
-		if *fl_list || *fl_download || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
 		fmt.Fprintf(stdout, "%d\n", container.BytesChanged)
 	} else if *fl_list {
-		if *fl_bytes || *fl_download || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
 		// FAKE
 		fmt.Fprintf(stdout, strings.Join([]string{
 			"/etc/postgres/pg.conf",
@@ -196,24 +221,23 @@ func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
 			"/var/log/postgres/postgres.log",
 			"/var/log/postgres/postgres.log.0",
 			"/var/log/postgres/postgres.log.1.gz"}, "\n"))
-	} else if *fl_download {
-		if *fl_bytes || *fl_list || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
-		if data, err := FakeTar(); err != nil {
-			return err
-		} else if _, err := io.Copy(stdout, data); err != nil {
-			return err
-		}
+	} else if *fl_diff {
+		// Achievement unlocked: embed a diff of your code as a string in your code
+		fmt.Fprintf(stdout, `
+diff --git a/dockerd/dockerd.go b/dockerd/dockerd.go
+index 2dae694..e43caca 100644
+--- a/dockerd/dockerd.go
++++ b/dockerd/dockerd.go
+@@ -158,6 +158,7 @@ func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
+        flags := Subcmd(stdout,
+                "diff", "CONTAINER [OPTIONS]",
+                "Inspect changes on a container's filesystem")
++       fl_diff := flags.Bool("d", true, "Show changes in diff format")
+        fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
+        fl_list := flags.Bool("l", false, "Show a list of changed files")
+        fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
+`)
 		return nil
-	} else if *fl_create != "" {
-		if *fl_bytes || *fl_list || *fl_download {
-			flags.Usage()
-			return nil
-		}
-		layer := docker.addLayer(*fl_create, "export:" + container.Id, container.BytesChanged)
-		fmt.Fprintln(stdout, layer.Id)
 	} else {
 		flags.Usage()
 		return nil
@@ -677,6 +701,15 @@ func Subcmd(output io.Writer, name, signature, description string) *flag.FlagSet
 	return flags
 }
 
+
+func WriteFakeTar(dst io.Writer) error {
+	if data, err := FakeTar(); err != nil {
+		return err
+	} else if _, err := io.Copy(dst, data); err != nil {
+		return err
+	}
+	return nil
+}
 
 func FakeTar() (io.Reader, error) {
 	content := []byte("Hello world!\n")
