@@ -16,12 +16,15 @@ import (
 type Container struct {
 	Id   string
 	Root string
+
+	Created time.Time
+
 	Path string
 	Args []string
 
-	*Config
-	*Filesystem
-	*State
+	Config     *Config
+	Filesystem *Filesystem
+	State      *State
 
 	lxcConfigPath string
 	cmd           *exec.Cmd
@@ -38,6 +41,7 @@ func createContainer(id string, root string, command string, args []string, laye
 	container := &Container{
 		Id:         id,
 		Root:       root,
+		Created:    time.Now(),
 		Path:       command,
 		Args:       args,
 		Config:     config,
@@ -52,7 +56,6 @@ func createContainer(id string, root string, command string, args []string, laye
 	if err := os.Mkdir(root, 0700); err != nil {
 		return nil, err
 	}
-
 	if err := container.save(); err != nil {
 		return nil, err
 	}
@@ -63,32 +66,23 @@ func createContainer(id string, root string, command string, args []string, laye
 }
 
 func loadContainer(containerPath string) (*Container, error) {
-	configPath := path.Join(containerPath, "config.json")
-	fi, err := os.Open(configPath)
+	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
 	if err != nil {
 		return nil, err
 	}
-	defer fi.Close()
-	enc := json.NewDecoder(fi)
-	container := &Container{}
-	if err := enc.Decode(container); err != nil {
+	var container *Container
+	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
-func (container *Container) save() error {
-	configPath := path.Join(container.Root, "config.json")
-	fo, err := os.Create(configPath)
+func (container *Container) save() (err error) {
+	data, err := json.Marshal(container)
 	if err != nil {
-		return err
+		return
 	}
-	defer fo.Close()
-	enc := json.NewEncoder(fo)
-	if err := enc.Encode(container); err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(path.Join(container.Root, "config.json"), data, 0700)
 }
 
 func (container *Container) generateLXCConfig() error {
@@ -125,6 +119,7 @@ func (container *Container) Start() error {
 		return err
 	}
 	container.State.setRunning(container.cmd.Process.Pid)
+	container.save()
 	go container.monitor()
 
 	// Wait until we are out of the STARTING state before returning
@@ -189,6 +184,7 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
+	container.save()
 }
 
 func (container *Container) kill() error {
