@@ -1,9 +1,10 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
+	"syscall"
 )
 
 type Filesystem struct {
@@ -23,6 +24,9 @@ func (fs *Filesystem) createMountPoints() error {
 }
 
 func (fs *Filesystem) Mount() error {
+	if fs.IsMounted() {
+		return errors.New("Mount: Filesystem already mounted")
+	}
 	if err := fs.createMountPoints(); err != nil {
 		return err
 	}
@@ -32,15 +36,33 @@ func (fs *Filesystem) Mount() error {
 		roBranches += fmt.Sprintf("%v=ro:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	cmd := exec.Command("mount", "-t", "aufs", "-o", branches, "none", fs.RootFS)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return nil
+	return syscall.Mount("none", fs.RootFS, "aufs", 0, branches)
 }
 
 func (fs *Filesystem) Umount() error {
-	return exec.Command("umount", fs.RootFS).Run()
+	if !fs.IsMounted() {
+		return errors.New("Umount: Filesystem not mounted")
+	}
+	return syscall.Unmount(fs.RootFS, 0)
+}
+
+func (fs *Filesystem) IsMounted() bool {
+	f, err := os.Open(fs.RootFS)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		panic(err)
+	}
+	list, err := f.Readdirnames(1)
+	f.Close()
+	if err != nil {
+		return false
+	}
+	if len(list) > 0 {
+		return true
+	}
+	return false
 }
 
 func newFilesystem(rootfs string, rwpath string, layers []string) *Filesystem {
