@@ -98,15 +98,15 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-func TestStop(t *testing.T) {
+func TestKill(t *testing.T) {
 	docker, err := newTestDocker()
 	if err != nil {
 		t.Fatal(err)
 	}
 	container, err := docker.Create(
 		"stop_test",
-		"sleep",
-		[]string{"300"},
+		"cat",
+		[]string{"/dev/zero"},
 		[]string{"/var/lib/docker/images/ubuntu"},
 		&Config{},
 	)
@@ -124,7 +124,7 @@ func TestStop(t *testing.T) {
 	if !container.State.Running {
 		t.Errorf("Container should be running")
 	}
-	if err := container.Stop(); err != nil {
+	if err := container.Kill(); err != nil {
 		t.Fatal(err)
 	}
 	if container.State.Running {
@@ -135,7 +135,7 @@ func TestStop(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 	// Try stopping twice
-	if err := container.Stop(); err != nil {
+	if err := container.Kill(); err != nil {
 		t.Fatal(err)
 	}
 }

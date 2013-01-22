@@ -5,10 +5,12 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
 	"syscall"
+	"time"
 )
 
 type Container struct {
@@ -176,22 +178,57 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 
 func (container *Container) monitor() {
 	container.cmd.Wait()
+	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+
+	// Cleanup container
 	container.stdout.Close()
 	container.stderr.Close()
-	container.State.setStopped(container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus())
+	if err := container.Filesystem.Umount(); err != nil {
+		log.Printf("%v: Failed to umount filesystem: %v", container.Name, err)
+	}
+
+	// Report status back
+	container.State.setStopped(exitCode)
+}
+
+func (container *Container) kill() error {
+	// This will cause the main container process to receive a SIGKILL
+	if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Name).Run(); err != nil {
+		return err
+	}
+
+	// Wait for the container to be actually stopped
+	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Name, "-s", "STOPPED").Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (container *Container) Kill() error {
+	if !container.State.Running {
+		return nil
+	}
+	return container.kill()
 }
 
 func (container *Container) Stop() error {
-	if container.State.Running {
-		if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Name).Run(); err != nil {
-			return err
-		}
-		//FIXME: We should lxc-wait for the container to stop
+	if !container.State.Running {
+		return nil
 	}
 
-	if err := container.Filesystem.Umount(); err != nil {
-		// FIXME: Do not abort, probably already umounted?
-		return nil
+	// 1. Send a SIGTERM
+	if err := exec.Command("/usr/bin/lxc-kill", "-n", container.Name, "15").Run(); err != nil {
+		return err
+	}
+
+	// 2. Wait for the process to exit on its own
+	if err := container.WaitTimeout(10 * time.Second); err != nil {
+		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM", container.Name)
+	}
+
+	// 3. Force kill
+	if err := container.kill(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -200,4 +237,20 @@ func (container *Container) Wait() {
 	for container.State.Running {
 		container.State.wait()
 	}
+}
+
+func (container *Container) WaitTimeout(timeout time.Duration) error {
+	done := make(chan bool)
+	go func() {
+		container.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-time.After(timeout):
+		return errors.New("Timed Out")
+	case <-done:
+		return nil
+	}
+	return nil
 }
