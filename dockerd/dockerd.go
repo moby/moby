@@ -295,6 +295,23 @@ func (l *ArgList) String() string {
 	return strings.Join(*l, ",")
 }
 
+func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if flags.NArg() != 1 {
+		flags.Usage()
+		return nil
+	}
+	if container, exists := docker.containers[flags.Arg(0)]; exists {
+		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
+			return err
+		}
+	}
+	return errors.New("No such container: " + flags.Arg(0))
+}
+
 func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout, "run", "-l LAYER [-l LAYER...] COMMAND {ARG...]", "Run a command in a container")
 	fl_layers := new(ArgList)
@@ -321,6 +338,8 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		Created: time.Now(),
 		FilesChanged: uint(rand.Int31n(42)),
 		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
+		stdinLog: new(bytes.Buffer),
+		stdoutLog: new(bytes.Buffer),
 	}
 	for _, name := range *fl_layers {
 		if layer, exists := docker.findLayer(name); exists {
@@ -544,6 +563,8 @@ type Container struct {
 	FilesChanged uint
 	BytesChanged uint
 	Running	bool
+	stdoutLog *bytes.Buffer
+	stdinLog *bytes.Buffer
 }
 
 func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
@@ -559,11 +580,11 @@ func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
 		return err
 	}
 	copy_out := Go(func() error {
-		_, err := io.Copy(stdout, cmd_stdout)
+		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
 		return err
 	})
 	copy_in := Go(func() error {
-		//_, err := io.Copy(cmd_stdin, stdin)
+		//_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
 		cmd_stdin.Close()
 		stdin.Close()
 		//return err
@@ -579,6 +600,14 @@ func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Container) StdoutLog() io.Reader {
+	return strings.NewReader(c.stdoutLog.String())
+}
+
+func (c *Container) StdinLog() io.Reader {
+	return strings.NewReader(c.stdinLog.String())
 }
 
 func (c *Container) CmdString() string {
