@@ -33,10 +33,12 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 			{"list", "Display a list of containers"},
 			{"layers", "Display a list of layers"},
 			{"get", "Download a layer from a remote location"},
+			{"rm", "Remove layers"},
 			{"wait", "Wait for the state of a container to change"},
 			{"stop", "Stop a running container"},
 			{"logs", "Fetch the logs of a container"},
 			{"diff", "Inspect changes on a container's filesystem"},
+			{"snapshot", "Create a new layer from a container's filesystem"},
 			{"attach", "Attach to the standard inputs and outputs of a running container"},
 			{"info", "Display system-wide information"},
 			{"web", "Generate a web UI"},
@@ -96,6 +98,43 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 	return nil
 }
 
+func (docker *Docker) findLayer(name string) (*Layer, bool) {
+	// 1: look for layer by ID
+	if layer, exists := docker.layers[name]; exists {
+		return layer, true
+	}
+	// 2: look for a layer by name (and pick the most recent)
+	if layers, exists := docker.layersByName[name]; exists {
+		return (*layers)[0], true
+	}
+	return nil, false
+}
+
+func (docker *Docker) usingLayer(layer *Layer) []*Container {
+	var containers []*Container
+	for _, container := range docker.containers {
+		for _, l := range container.Layers {
+			if l.Id == layer.Id {
+				containers = append(containers, &container)
+			}
+		}
+	}
+	return containers
+}
+
+func (docker *Docker) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "rm", "[OPTIONS LAYER", "Remove a layer")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range flags.Args() {
+		if _, err := docker.rmLayer(name); err != nil {
+			fmt.Fprintln(stdout, "Error: " + err.Error())
+		}
+	}
+	return nil
+}
+
 func (docker *Docker) CmdGet(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
@@ -116,37 +155,61 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
+func (docker *Docker) CmdSnapshot(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout,
+		"snapshot", "[OPTIONS] CONTAINER IMAGE",
+		"Crete a new layer from a container's filesystem")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if flags.NArg() != 2 {
+		flags.Usage()
+		return nil
+	}
+	containerName, layerName := flags.Arg(0), flags.Arg(1)
+	if container, exists := docker.containers[containerName]; exists {
+		layer := docker.addLayer(layerName, "snapshot:" + container.Id, container.BytesChanged)
+		fmt.Fprintln(stdout, layer.Id)
+		return nil
+	}
+	return errors.New("No such container: " + flags.Arg(0))
+}
+
+func (docker *Docker) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout,
+		"tar", "CONTAINER|LAYER [OPTIONS]",
+		"Stream the contents of a container or a layer as a tar archive")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	name := flags.Arg(0)
+	if _, exists := docker.containers[name]; exists {
+		// Stream the entire contents of the container (basically a volatile snapshot)
+		return WriteFakeTar(stdout)
+	} else if _, exists := docker.findLayer(name); exists {
+		return WriteFakeTar(stdout)
+	}
+	return errors.New("No such layer or container: " + name)
+}
+
 func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout,
 		"diff", "CONTAINER [OPTIONS]",
 		"Inspect changes on a container's filesystem")
-	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
+	fl_diff := flags.Bool("d", true, "Show changes in diff format")
+	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changed")
 	fl_list := flags.Bool("l", false, "Show a list of changed files")
-	fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
-	fl_create := flags.String("c", "", "Create a new layer from the changes")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
 	if flags.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if !(*fl_bytes || *fl_list || *fl_download || *fl_create != "") {
-		flags.Usage()
-		return nil
-	}
 	if container, exists := docker.containers[flags.Arg(0)]; !exists {
 		return errors.New("No such container")
 	} else if *fl_bytes {
-		if *fl_list || *fl_download || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
 		fmt.Fprintf(stdout, "%d\n", container.BytesChanged)
 	} else if *fl_list {
-		if *fl_bytes || *fl_download || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
 		// FAKE
 		fmt.Fprintf(stdout, strings.Join([]string{
 			"/etc/postgres/pg.conf",
@@ -158,24 +221,23 @@ func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
 			"/var/log/postgres/postgres.log",
 			"/var/log/postgres/postgres.log.0",
 			"/var/log/postgres/postgres.log.1.gz"}, "\n"))
-	} else if *fl_download {
-		if *fl_bytes || *fl_list || *fl_create != "" {
-			flags.Usage()
-			return nil
-		}
-		if data, err := FakeTar(); err != nil {
-			return err
-		} else if _, err := io.Copy(stdout, data); err != nil {
-			return err
-		}
+	} else if *fl_diff {
+		// Achievement unlocked: embed a diff of your code as a string in your code
+		fmt.Fprintf(stdout, `
+diff --git a/dockerd/dockerd.go b/dockerd/dockerd.go
+index 2dae694..e43caca 100644
+--- a/dockerd/dockerd.go
++++ b/dockerd/dockerd.go
+@@ -158,6 +158,7 @@ func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
+        flags := Subcmd(stdout,
+                "diff", "CONTAINER [OPTIONS]",
+                "Inspect changes on a container's filesystem")
++       fl_diff := flags.Bool("d", true, "Show changes in diff format")
+        fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
+        fl_list := flags.Bool("l", false, "Show a list of changed files")
+        fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
+`)
 		return nil
-	} else if *fl_create != "" {
-		if *fl_bytes || *fl_list || *fl_download {
-			flags.Usage()
-			return nil
-		}
-		layer := docker.addLayer(*fl_create, "export:" + container.Id, container.BytesChanged)
-		fmt.Fprintln(stdout, layer.Id)
 	} else {
 		flags.Usage()
 		return nil
@@ -209,18 +271,41 @@ func (l *ByDate) Add(layer *Layer) {
 	sort.Sort(l)
 }
 
+func (l *ByDate) Del(id string) {
+	for idx, layer := range *l {
+		if layer.Id == id {
+			*l = append((*l)[:idx], (*l)[idx + 1:]...)
+		}
+	}
+}
 
-func (docker *Docker) addLayer(name string, source string, size uint) Layer {
+
+func (docker *Docker) addLayer(name string, source string, size uint) *Layer {
 	if size == 0 {
 		size = uint(rand.Int31n(142 * 1024 * 1024))
 	}
-	layer := Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
+	layer := &Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
 	docker.layers[layer.Id] = layer
 	if _, exists := docker.layersByName[layer.Name]; !exists {
 		docker.layersByName[layer.Name] = new(ByDate)
 	}
-	docker.layersByName[layer.Name].Add(&layer)
+	docker.layersByName[layer.Name].Add(layer)
 	return layer
+}
+
+func (docker *Docker) rmLayer(id string) (*Layer, error) {
+	if layer, exists := docker.layers[id]; exists {
+		if containers := docker.usingLayer(layer); len(containers) > 0 {
+			return nil, errors.New(fmt.Sprintf("Layer is in use: %s", id))
+		} else {
+			// Remove from name lookup
+			docker.layersByName[layer.Name].Del(layer.Id)
+			// Remove from id lookup
+			delete(docker.layers, layer.Id)
+			return layer, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("No such layer: %s", id))
 }
 
 type ArgList []string
@@ -232,6 +317,23 @@ func (l *ArgList) Set(value string) error {
 
 func (l *ArgList) String() string {
 	return strings.Join(*l, ",")
+}
+
+func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if flags.NArg() != 1 {
+		flags.Usage()
+		return nil
+	}
+	if container, exists := docker.containers[flags.Arg(0)]; exists {
+		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
+			return err
+		}
+	}
+	return errors.New("No such container: " + flags.Arg(0))
 }
 
 func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -260,23 +362,18 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		Created: time.Now(),
 		FilesChanged: uint(rand.Int31n(42)),
 		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
+		stdinLog: new(bytes.Buffer),
+		stdoutLog: new(bytes.Buffer),
 	}
 	for _, name := range *fl_layers {
-		// 1: look for layer by ID
-		if layer, exists := docker.layers[name]; !exists {
-			// 2: look for a layer by name (and pick the most recent)
-			if layers, exists := docker.layersByName[name]; exists {
-				container.Layers = append(container.Layers, *(*layers)[0])
-			// 3: look for container by name (and copy its layers)
-			} else if srcContainer, exists := docker.containers[name]; exists {
-				for _, layer := range srcContainer.Layers {
-					container.Layers = append(container.Layers, layer)
-				}
-			} else {
-				return errors.New("No such layer or container: " + name)
+		if layer, exists := docker.findLayer(name); exists {
+			container.Layers = append(container.Layers, layer)
+		} else if srcContainer, exists := docker.containers[name]; exists {
+			for _, layer := range srcContainer.Layers {
+				container.Layers = append(container.Layers, layer)
 			}
 		} else {
-			container.Layers = append(container.Layers, layer)
+			return errors.New("No such layer or container: " + name)
 		}
 	}
 	docker.containers[container.Id] = container
@@ -376,7 +473,7 @@ func main() {
 
 func New() *Docker {
 	return &Docker{
-		layers: make(map[string]Layer),
+		layers: make(map[string]*Layer),
 		layersByName: make(map[string]*ByDate),
 		containers: make(map[string]Container),
 	}
@@ -468,7 +565,7 @@ func Go(f func() error) chan error {
 }
 
 type Docker struct {
-	layers		map[string]Layer
+	layers		map[string]*Layer
 	layersByName	map[string]*ByDate
 	containers	map[string]Container
 }
@@ -485,11 +582,13 @@ type Container struct {
 	Id	string
 	Cmd	string
 	Args	[]string
-	Layers	[]Layer
+	Layers	[]*Layer
 	Created	time.Time
 	FilesChanged uint
 	BytesChanged uint
 	Running	bool
+	stdoutLog *bytes.Buffer
+	stdinLog *bytes.Buffer
 }
 
 func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
@@ -505,11 +604,11 @@ func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
 		return err
 	}
 	copy_out := Go(func() error {
-		_, err := io.Copy(stdout, cmd_stdout)
+		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
 		return err
 	})
 	copy_in := Go(func() error {
-		//_, err := io.Copy(cmd_stdin, stdin)
+		//_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
 		cmd_stdin.Close()
 		stdin.Close()
 		//return err
@@ -525,6 +624,14 @@ func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Container) StdoutLog() io.Reader {
+	return strings.NewReader(c.stdoutLog.String())
+}
+
+func (c *Container) StdinLog() io.Reader {
+	return strings.NewReader(c.stdinLog.String())
 }
 
 func (c *Container) CmdString() string {
@@ -594,6 +701,15 @@ func Subcmd(output io.Writer, name, signature, description string) *flag.FlagSet
 	return flags
 }
 
+
+func WriteFakeTar(dst io.Writer) error {
+	if data, err := FakeTar(); err != nil {
+		return err
+	} else if _, err := io.Copy(dst, data); err != nil {
+		return err
+	}
+	return nil
+}
 
 func FakeTar() (io.Reader, error) {
 	content := []byte("Hello world!\n")
