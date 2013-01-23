@@ -6,9 +6,9 @@ import (
 )
 
 type State struct {
-	Running  bool
-	Pid      int
-	ExitCode int
+	Running   bool
+	Pid       int
+	ExitCode  int
 	StartedAt time.Time
 
 	stateChangeLock *sync.Mutex
