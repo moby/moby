@@ -29,16 +29,15 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 		fmt.Fprintf(stdout, "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n")
 		for _, cmd := range [][]interface{}{
 			{"run", "Run a command in a container"},
-			{"clone", "Duplicate a container"},
 			{"list", "Display a list of containers"},
-			{"layers", "Display a list of layers"},
-			{"get", "Download a layer from a remote location"},
-			{"rm", "Remove layers"},
+			{"get", "Download a tarball and create a container from it"},
+			{"put", "Upload a tarball and create a container from it"},
+			{"rm", "Remove containers"},
 			{"wait", "Wait for the state of a container to change"},
 			{"stop", "Stop a running container"},
 			{"logs", "Fetch the logs of a container"},
 			{"diff", "Inspect changes on a container's filesystem"},
-			{"snapshot", "Create a new layer from a container's filesystem"},
+			{"fork", "Duplicate a container"},
 			{"attach", "Attach to the standard inputs and outputs of a running container"},
 			{"info", "Display system-wide information"},
 			{"web", "Generate a web UI"},
@@ -55,10 +54,10 @@ func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...str
 	return nil
 }
 
-func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := Subcmd(stdout, "layers", "[OPTIONS] [NAME]", "Show available filesystem layers")
-	quiet := flags.Bool("q", false, "Quiet mode")
-	limit := flags.Int("l", 0, "Only show the N most recent versions of each layer")
+func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := Subcmd(stdout, "list", "[OPTIONS] [NAME]", "List containers")
+	limit := flags.Int("l", 0, "Only show the N most recent versions of each name")
+	quiet := flags.Bool("q", false, "only show numeric IDs")
 	flags.Parse(args)
 	if flags.NArg() > 1 {
 		flags.Usage()
@@ -69,26 +68,42 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 		nameFilter = flags.Arg(0)
 	}
 	var names []string
-	for name := range docker.layersByName {
+	for name := range docker.containersByName {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if (!*quiet) {
-		fmt.Fprintf(w, "ID\tNAME\tSIZE\tADDED\tSOURCE\n")
+		fmt.Fprintf(w, "NAME\tID\tCREATED\tSOURCE\tSIZE\tCHANGES\tRUNNING\tCOMMAND\n")
 	}
 	for _, name := range names {
 		if nameFilter != "" && nameFilter != name {
 			continue
 		}
-		for idx, layer := range *docker.layersByName[name] {
+		for idx, container := range *docker.containersByName[name] {
 			if *limit > 0 && idx >= *limit {
 				break
 			}
 			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%.1fM\t%s ago\t%s\n", layer.Id, layer.Name, float32(layer.Size) / 1024 / 1024, humanDuration(time.Now().Sub(layer.Added)), layer.Source)
+				for idx, field := range []string{
+					/* NAME */	container.Name,
+					/* ID */	container.Id,
+					/* CREATED */	humanDuration(time.Now().Sub(container.Created)) + " ago",
+					/* SOURCE */	container.Source,
+					/* SIZE */	fmt.Sprintf("%.1fM", float32(container.Size) / 1024 / 1024),
+					/* CHANGES */	fmt.Sprintf("%.1fM", float32(container.BytesChanged) / 1024 / 1024),
+					/* RUNNING */	fmt.Sprintf("%v", container.Running),
+					/* COMMAND */	container.CmdString(),
+				} {
+					if idx == 0 {
+						w.Write([]byte(field))
+					} else {
+						w.Write([]byte("\t" + field))
+					}
+				}
+				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(layer.Id + "\n"))
+				stdout.Write([]byte(container.Id + "\n"))
 			}
 		}
 	}
@@ -98,37 +113,26 @@ func (docker *Docker) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...s
 	return nil
 }
 
-func (docker *Docker) findLayer(name string) (*Layer, bool) {
-	// 1: look for layer by ID
-	if layer, exists := docker.layers[name]; exists {
-		return layer, true
+func (docker *Docker) findContainer(name string) (*Container, bool) {
+	// 1: look for container by ID
+	if container, exists := docker.containers[name]; exists {
+		return container, true
 	}
-	// 2: look for a layer by name (and pick the most recent)
-	if layers, exists := docker.layersByName[name]; exists {
-		return (*layers)[0], true
+	// 2: look for a container by name (and pick the most recent)
+	if containers, exists := docker.containersByName[name]; exists {
+		return (*containers)[0], true
 	}
 	return nil, false
 }
 
-func (docker *Docker) usingLayer(layer *Layer) []*Container {
-	var containers []*Container
-	for _, container := range docker.containers {
-		for _, l := range container.Layers {
-			if l.Id == layer.Id {
-				containers = append(containers, &container)
-			}
-		}
-	}
-	return containers
-}
 
 func (docker *Docker) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := Subcmd(stdout, "rm", "[OPTIONS LAYER", "Remove a layer")
+	flags := Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
 	for _, name := range flags.Args() {
-		if _, err := docker.rmLayer(name); err != nil {
+		if _, err := docker.rm(name); err != nil {
 			fmt.Fprintln(stdout, "Error: " + err.Error())
 		}
 	}
@@ -140,7 +144,7 @@ func (docker *Docker) CmdGet(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return errors.New("Not enough arguments")
 	}
 	time.Sleep(2 * time.Second)
-	layer := docker.addLayer(args[0], "download", 0)
+	layer := docker.addContainer(args[0], "download", 0)
 	fmt.Fprintln(stdout, layer.Id)
 	return nil
 }
@@ -150,46 +154,48 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return errors.New("Not enough arguments")
 	}
 	time.Sleep(1 * time.Second)
-	layer := docker.addLayer(args[0], "upload", 0)
+	layer := docker.addContainer(args[0], "upload", 0)
 	fmt.Fprintln(stdout, layer.Id)
 	return nil
 }
 
-func (docker *Docker) CmdSnapshot(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (docker *Docker) CmdFork(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout,
-		"snapshot", "[OPTIONS] CONTAINER IMAGE",
-		"Crete a new layer from a container's filesystem")
+		"fork", "[OPTIONS] CONTAINER [DEST]",
+		"Duplicate a container")
+	// FIXME "-r" to reset changes in the new container
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() != 2 {
+	srcName, dstName := flags.Arg(0), flags.Arg(1)
+	if srcName == "" {
 		flags.Usage()
 		return nil
 	}
-	containerName, layerName := flags.Arg(0), flags.Arg(1)
-	if container, exists := docker.containers[containerName]; exists {
-		layer := docker.addLayer(layerName, "snapshot:" + container.Id, container.BytesChanged)
-		fmt.Fprintln(stdout, layer.Id)
+	if dstName == "" {
+		dstName = srcName
+	}
+	if src, exists := docker.findContainer(srcName); exists {
+		dst := docker.addContainer(dstName, "snapshot:" + src.Id, src.Size)
+		fmt.Fprintln(stdout, dst.Id)
 		return nil
 	}
-	return errors.New("No such container: " + flags.Arg(0))
+	return errors.New("No such container: " + srcName)
 }
 
 func (docker *Docker) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout,
-		"tar", "CONTAINER|LAYER [OPTIONS]",
-		"Stream the contents of a container or a layer as a tar archive")
+		"tar", "CONTAINER",
+		"Stream the contents of a container as a tar archive")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
 	name := flags.Arg(0)
-	if _, exists := docker.containers[name]; exists {
+	if _, exists := docker.findContainer(name); exists {
 		// Stream the entire contents of the container (basically a volatile snapshot)
 		return WriteFakeTar(stdout)
-	} else if _, exists := docker.findLayer(name); exists {
-		return WriteFakeTar(stdout)
 	}
-	return errors.New("No such layer or container: " + name)
+	return errors.New("No such container: " + name)
 }
 
 func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -205,7 +211,7 @@ func (docker *Docker) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if flags.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if container, exists := docker.containers[flags.Arg(0)]; !exists {
+	if container, exists := docker.findContainer(flags.Arg(0)); !exists {
 		return errors.New("No such container")
 	} else if *fl_bytes {
 		fmt.Fprintf(stdout, "%d\n", container.BytesChanged)
@@ -248,76 +254,77 @@ index 2dae694..e43caca 100644
 
 // ByDate wraps an array of layers so they can be sorted by date (most recent first)
 
-type ByDate []*Layer
+type ByDate []*Container
 
-func (l *ByDate) Len() int {
-	return len(*l)
+func (c *ByDate) Len() int {
+	return len(*c)
 }
 
-func (l *ByDate) Less(i, j int) bool {
-	layers := *l
-	return layers[j].Added.Before(layers[i].Added)
+func (c *ByDate) Less(i, j int) bool {
+	containers := *c
+	return containers[j].Created.Before(containers[i].Created)
 }
 
-func (l *ByDate) Swap(i, j int) {
-	layers := *l
-	tmp := layers[i]
-	layers[i] = layers[j]
-	layers[j] = tmp
+func (c *ByDate) Swap(i, j int) {
+	containers := *c
+	tmp := containers[i]
+	containers[i] = containers[j]
+	containers[j] = tmp
 }
 
-func (l *ByDate) Add(layer *Layer) {
-	*l = append(*l, layer)
-	sort.Sort(l)
+func (c *ByDate) Add(container *Container) {
+	*c = append(*c, container)
+	sort.Sort(c)
 }
 
-func (l *ByDate) Del(id string) {
-	for idx, layer := range *l {
-		if layer.Id == id {
-			*l = append((*l)[:idx], (*l)[idx + 1:]...)
+func (c *ByDate) Del(id string) {
+	for idx, container := range *c {
+		if container.Id == id {
+			*c = append((*c)[:idx], (*c)[idx + 1:]...)
 		}
 	}
 }
 
 
-func (docker *Docker) addLayer(name string, source string, size uint) *Layer {
+func (docker *Docker) addContainer(name string, source string, size uint) *Container {
+	// Generate a fake random size
 	if size == 0 {
 		size = uint(rand.Int31n(142 * 1024 * 1024))
 	}
-	layer := &Layer{Id: randomId(), Name: name, Source: source, Added: time.Now(), Size: size}
-	docker.layers[layer.Id] = layer
-	if _, exists := docker.layersByName[layer.Name]; !exists {
-		docker.layersByName[layer.Name] = new(ByDate)
+	c := &Container{
+		Id:		randomId(),
+		Name:		name,
+		Created:	time.Now(),
+		Source:		source,
+		Size:		size,
+		stdinLog: new(bytes.Buffer),
+		stdoutLog: new(bytes.Buffer),
 	}
-	docker.layersByName[layer.Name].Add(layer)
-	return layer
+	docker.containers[c.Id] = c
+	if _, exists := docker.containersByName[c.Name]; !exists {
+		docker.containersByName[c.Name] = new(ByDate)
+	}
+	docker.containersByName[c.Name].Add(c)
+	return c
+
 }
 
-func (docker *Docker) rmLayer(id string) (*Layer, error) {
-	if layer, exists := docker.layers[id]; exists {
-		if containers := docker.usingLayer(layer); len(containers) > 0 {
-			return nil, errors.New(fmt.Sprintf("Layer is in use: %s", id))
+
+func (docker *Docker) rm(id string) (*Container, error) {
+	if container, exists := docker.containers[id]; exists {
+		if container.Running {
+			return nil, errors.New("Container is running: " + id)
 		} else {
 			// Remove from name lookup
-			docker.layersByName[layer.Name].Del(layer.Id)
+			docker.containersByName[container.Name].Del(container.Id)
 			// Remove from id lookup
-			delete(docker.layers, layer.Id)
-			return layer, nil
+			delete(docker.containers, container.Id)
+			return container, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("No such layer: %s", id))
+	return nil, errors.New(fmt.Sprintf("No such container: %s", id))
 }
 
-type ArgList []string
-
-func (l *ArgList) Set(value string) error {
-	*l = append(*l, value)
-	return nil
-}
-
-func (l *ArgList) String() string {
-	return strings.Join(*l, ",")
-}
 
 func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
@@ -328,80 +335,40 @@ func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...str
 		flags.Usage()
 		return nil
 	}
-	if container, exists := docker.containers[flags.Arg(0)]; exists {
+	name := flags.Arg(0)
+	if container, exists := docker.findContainer(name); exists {
 		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
 			return err
 		}
+		return nil
 	}
 	return errors.New("No such container: " + flags.Arg(0))
 }
 
 func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := Subcmd(stdout, "run", "-l LAYER [-l LAYER...] COMMAND {ARG...]", "Run a command in a container")
-	fl_layers := new(ArgList)
-	flags.Var(fl_layers, "l", "Add a layer to the filesystem. Multiple layers are added in the order they are defined")
+	flags := Subcmd(stdout, "run", "[OPTIONS] CONTAINER COMMAND [ARG...]", "Run a command in a container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
-	if len(*fl_layers) < 1 {
-		return errors.New("Please specify at least one layer")
-	}
-	if flags.NArg() < 1 {
-		return errors.New("No command specified")
-	}
-	cmd := flags.Arg(0)
-	var cmd_args []string
-	if flags.NArg() > 1 {
-		cmd_args = flags.Args()[1:]
-	}
-	container := Container{
-		Id:	randomId(),
-		Cmd:	cmd,
-		Args:	cmd_args,
-		Created: time.Now(),
-		FilesChanged: uint(rand.Int31n(42)),
-		BytesChanged: uint(rand.Int31n(24 * 1024 * 1024)),
-		stdinLog: new(bytes.Buffer),
-		stdoutLog: new(bytes.Buffer),
-	}
-	for _, name := range *fl_layers {
-		if layer, exists := docker.findLayer(name); exists {
-			container.Layers = append(container.Layers, layer)
-		} else if srcContainer, exists := docker.containers[name]; exists {
-			for _, layer := range srcContainer.Layers {
-				container.Layers = append(container.Layers, layer)
-			}
-		} else {
-			return errors.New("No such layer or container: " + name)
-		}
-	}
-	docker.containers[container.Id] = container
-	if *fl_attach {
-		return container.Run(stdin, stdout)
-	} else {
-		go container.Run(ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard)
-		fmt.Fprintln(stdout, container.Id)
-	}
-	return nil
-}
-
-func (docker *Docker) CmdClone(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := Subcmd(stdout, "Clone", "[OPTIONS] CONTAINER_ID", "Duplicate a container")
-	reset := flags.Bool("r", true, "Reset: don't keep filesystem changes from the source container")
-	flags.Parse(args)
-	if !*reset {
-		return errors.New("Only reset mode is available for now. Please use -r")
-	}
-	if flags.NArg() != 1 {
+	if flags.NArg() < 2 {
 		flags.Usage()
 		return nil
 	}
-	container, exists := docker.containers[flags.Arg(0)];
-	if !exists {
-		return errors.New("No such container: " + flags.Arg(0))
+	name, cmd := flags.Arg(0), flags.Args()[1:]
+	if container, exists := docker.findContainer(name); exists {
+		if container.Running {
+			return errors.New("Already running: " + name)
+		}
+		if *fl_attach {
+			return container.Run(cmd[0], cmd[1:], stdin, stdout)
+		} else {
+			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard)
+			fmt.Fprintln(stdout, container.Id)
+			return nil
+		}
 	}
-	return docker.CmdRun(stdin, stdout, append([]string{"-l", container.Id, "--", container.Cmd}, container.Args...)...)
+	return errors.New("No such container: " + name)
 }
 
 func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadCloser, error) {
@@ -426,43 +393,6 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 	return stdin, stdout, nil
 }
 
-func (docker *Docker) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := Subcmd(stdout, "list", "[OPTIONS]", "Show all containers")
-	numeric := flags.Bool("n", false, "Display absolute layer IDs instead of names")
-	flags.Parse(args)
-	var longestCol int
-	for _, container := range docker.containers {
-		if l := len(container.CmdString()); l > longestCol {
-			longestCol = l
-		}
-	}
-	if longestCol > 50 {
-		longestCol = 50
-	} else if longestCol < 5 {
-		longestCol = 8
-	}
-	tpl := "%-16s   %-*.*s   %-6s   %-25s   %10s   %-s\n"
-	fmt.Fprintf(stdout, tpl, "ID", longestCol, longestCol, "CMD", "RUNNING", "CREATED", "CHANGES", "LAYERS")
-	for _, container := range docker.containers {
-		var layers []string
-		for _, layer := range container.Layers {
-			if *numeric {
-				layers = append(layers, layer.Id)
-			} else {
-				layers = append(layers, layer.Name)
-			}
-		}
-		fmt.Fprintf(stdout, tpl,
-			/* ID */	container.Id,
-			/* CMD */	longestCol, longestCol, container.CmdString(),
-			/* RUNNING */	fmt.Sprintf("%v", container.Running),
-			/* CREATED */	humanDuration(time.Now().Sub(container.Created)) + " ago",
-			/* CHANGES */	fmt.Sprintf("%.1fM", float32(container.BytesChanged) / 1024 / 1024),
-			/* LAYERS */	strings.Join(layers, ","))
-	}
-	return nil
-}
-
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	flag.Parse()
@@ -473,9 +403,8 @@ func main() {
 
 func New() *Docker {
 	return &Docker{
-		layers: make(map[string]*Layer),
-		layersByName: make(map[string]*ByDate),
-		containers: make(map[string]Container),
+		containersByName: make(map[string]*ByDate),
+		containers: make(map[string]*Container),
 	}
 }
 
@@ -565,41 +494,42 @@ func Go(f func() error) chan error {
 }
 
 type Docker struct {
-	layers		map[string]*Layer
-	layersByName	map[string]*ByDate
-	containers	map[string]Container
-}
-
-type Layer struct {
-	Id	string
-	Name	string
-	Added	time.Time
-	Size	uint
-	Source	string
+	containers		map[string]*Container
+	containersByName	map[string]*ByDate
 }
 
 type Container struct {
 	Id	string
-	Cmd	string
-	Args	[]string
-	Layers	[]*Layer
+	Name	string
 	Created	time.Time
+	Source	string
+	Size	uint
 	FilesChanged uint
 	BytesChanged uint
 	Running	bool
+	Cmd	string
+	Args	[]string
 	stdoutLog *bytes.Buffer
 	stdinLog *bytes.Buffer
 }
 
-func (c *Container) Run(stdin io.ReadCloser, stdout io.Writer) error {
+func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer) error {
 	// Not thread-safe
 	if c.Running {
 		return errors.New("Already running")
 	}
+	c.Cmd = command
+	c.Args = args
+	// Reset logs
+	c.stdoutLog.Reset()
+	c.stdinLog.Reset()
 	c.Running = true
 	defer func() { c.Running = false }()
 	cmd := exec.Command(c.Cmd, c.Args...)
 	cmd_stdin, cmd_stdout, err := startCommand(cmd, false)
+	// ADD FAKE RANDOM CHANGES
+	c.FilesChanged = uint(rand.Int31n(42))
+	c.BytesChanged = uint(rand.Int31n(24 * 1024 * 1024))
 	if err != nil {
 		return err
 	}
