@@ -184,3 +184,59 @@ func TestExitCode(t *testing.T) {
 		t.Errorf("Unexpected exit code %v", falseContainer.State.ExitCode)
 	}
 }
+
+func TestMultipleContainers(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container1, err := docker.Create(
+		"container1",
+		"cat",
+		[]string{"/dev/zero"},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container1)
+
+	container2, err := docker.Create(
+		"container2",
+		"cat",
+		[]string{"/dev/zero"},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container2)
+
+	// Start both containers
+	if err := container1.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// If we are here, both containers should be running
+	if !container1.State.Running {
+		t.Fatal("Container not running")
+	}
+	if !container2.State.Running {
+		t.Fatal("Container not running")
+	}
+
+	// Kill them
+	if err := container1.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := container2.Kill(); err != nil {
+		t.Fatal(err)
+	}
+}
