@@ -121,20 +121,19 @@ func (container *Container) Start() error {
 	container.State.setRunning(container.cmd.Process.Pid)
 	container.save()
 	go container.monitor()
-
-	// Wait until we are out of the STARTING state before returning
-	//
-	// Even though lxc-wait blocks until the container reaches a given state,
-	// sometimes it returns an error code, which is why we have to retry.
-	//
-	// This is a rare race condition that happens for short lived programs
-	for retries := 0; retries < 3; retries++ {
-		err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "RUNNING|STOPPED").Run()
-		if err == nil {
+	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "RUNNING|STOPPED").Run(); err != nil {
+		// lxc-wait might return an error if by the time we call it,
+		// the container we just started is already STOPPED.
+		// This is a rare race condition that happens for short living programs.
+		//
+		// A workaround is to discard lxc-wait errors if the container is not
+		// running anymore.
+		if !container.State.Running {
 			return nil
 		}
+		return errors.New("Container failed to start")
 	}
-	return errors.New("Container failed to start")
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -174,6 +173,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	container.cmd.Wait()
+	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
 	container.stdout.Close()
@@ -183,7 +183,6 @@ func (container *Container) monitor() {
 	}
 
 	// Report status back
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	container.State.setStopped(exitCode)
 	container.save()
 }
@@ -191,13 +190,18 @@ func (container *Container) monitor() {
 func (container *Container) kill() error {
 	// This will cause the main container process to receive a SIGKILL
 	if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Id).Run(); err != nil {
+		log.Printf("Failed to lxc-stop %v", container.Id)
 		return err
 	}
 
 	// Wait for the container to be actually stopped
-	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "STOPPED").Run(); err != nil {
-		return err
-	}
+	container.Wait()
+
+	// Make sure the underlying LXC thinks it's stopped too
+	// LXC Issue: lxc-wait MIGHT say that the container doesn't exist
+	// That's probably because it was destroyed and it cannot find it anymore
+	// We are going to ignore lxc-wait's error
+	exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "STOPPED").Run()
 	return nil
 }
 
