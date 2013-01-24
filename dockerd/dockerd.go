@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"log"
 	"io"
 	"io/ioutil"
-	"net/http"
+	"net"
 	"net/url"
+	"net/http"
 	"os/exec"
 	"flag"
 	"reflect"
@@ -22,6 +24,7 @@ import (
 	"sort"
 	"os"
 	"archive/tar"
+	"encoding/json"
 )
 
 func (docker *Docker) CmdHelp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -393,12 +396,58 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 	return stdin, stdout, nil
 }
 
+func (docker *Docker) ListenAndServeTCP(addr string) error {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	for {
+		if conn, err := listener.Accept(); err != nil {
+			return err
+		} else {
+			go func() {
+				if err := docker.serve(conn); err != nil {
+					log.Printf("Error: " + err.Error() + "\n")
+					fmt.Fprintf(conn, "Error: " + err.Error() + "\n")
+				}
+				conn.Close()
+			}()
+		}
+	}
+	return nil
+}
+
+func (docker *Docker) ListenAndServeHTTP(addr string) error {
+	return http.ListenAndServe(addr, docker)
+}
+
+
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	flag.Parse()
-	if err := http.ListenAndServe(":4242", New()); err != nil {
+	docker := New()
+	go func() {
+		if err := docker.ListenAndServeHTTP(":8080"); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	if err := docker.ListenAndServeTCP(":4242"); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (docker *Docker) serve(conn net.Conn) error {
+	r := bufio.NewReader(conn)
+	var args []string
+	if line, err := r.ReadString('\n'); err != nil {
+		return err
+	} else if err := json.Unmarshal([]byte(line), &args); err != nil {
+		return err
+	} else {
+		return docker.Call(ioutil.NopCloser(r), conn, args...)
+	}
+	return nil
 }
 
 func New() *Docker {
@@ -421,30 +470,50 @@ func (w *AutoFlush) Write(data []byte) (int, error) {
 }
 
 func (docker *Docker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stdout := &AutoFlush{w}
-	stdin := r.Body
+	cmd, args := URLToCall(r.URL)
+	if err := docker.Call(r.Body, &AutoFlush{w}, append([]string{cmd}, args...)...); err != nil {
+		fmt.Fprintf(w, "Error: " + err.Error() + "\n")
+	}
+}
+
+func (docker *Docker) Call(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := flag.NewFlagSet("docker", flag.ContinueOnError)
 	flags.SetOutput(stdout)
 	flags.Usage = func() { docker.CmdHelp(stdin, stdout) }
-	cmd, args := URLToCall(r.URL)
-	if err := flags.Parse(append([]string{cmd}, args...)); err != nil {
-		return
+	if err := flags.Parse(args); err != nil {
+		return err
 	}
-	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args...), " "))
+	cmd := flags.Arg(0)
+	log.Printf("%s\n", strings.Join(append(append([]string{"docker"}, cmd), args[1:]...), " "))
 	if cmd == "" {
 		cmd = "help"
-	} else if cmd == "web" {
-		w.Header().Set("content-type", "text/html")
 	}
 	method := docker.getMethod(cmd)
-	if method == nil {
-		fmt.Fprintf(stdout, "Error: no such command: %s\n", cmd)
-	} else {
-		err := method(stdin, stdout, args...)
-		if err != nil {
-			fmt.Fprintf(stdout, "Error: %s\n", err)
+	if method != nil {
+		return method(stdin, stdout, args[1:]...)
+	}
+	return errors.New("No such command: " + cmd)
+}
+
+func (docker *Docker) CmdMirror(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	_, err := io.Copy(stdout, stdin)
+	return err
+}
+
+func (docker *Docker) CmdDebug(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	for {
+		if line, err := bufio.NewReader(stdin).ReadString('\n'); err == nil {
+			fmt.Printf("--- %s", line)
+		} else if err == io.EOF {
+			if len(line) > 0 {
+				fmt.Printf("--- %s\n", line)
+			}
+			break
+		} else {
+			return err
 		}
 	}
+	return nil
 }
 
 func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -524,9 +593,8 @@ func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdo
 	c.stdoutLog.Reset()
 	c.stdinLog.Reset()
 	c.Running = true
-	defer func() { c.Running = false }()
 	cmd := exec.Command(c.Cmd, c.Args...)
-	cmd_stdin, cmd_stdout, err := startCommand(cmd, false)
+	cmd_stdin, cmd_stdout, err := startCommand(cmd, true)
 	// ADD FAKE RANDOM CHANGES
 	c.FilesChanged = uint(rand.Int31n(42))
 	c.BytesChanged = uint(rand.Int31n(24 * 1024 * 1024))
@@ -537,20 +605,27 @@ func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdo
 		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
 		return err
 	})
-	copy_in := Go(func() error {
-		//_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
+	Go(func() error {
+		_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
 		cmd_stdin.Close()
 		stdin.Close()
-		//return err
-		return nil
+		return err
 	})
-	if err := cmd.Wait(); err != nil {
+	wait := Go(func() error {
+		err := cmd.Wait()
+		c.Running = false
 		return err
-	}
-	if err := <-copy_in; err != nil {
-		return err
-	}
+	})
 	if err := <-copy_out; err != nil {
+		if c.Running {
+			return err
+		}
+	}
+	if err := <-wait; err != nil {
+		if status, ok := err.(*exec.ExitError); ok {
+			fmt.Fprintln(stdout, status)
+			return nil
+		}
 		return err
 	}
 	return nil
