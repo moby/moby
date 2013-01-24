@@ -8,18 +8,21 @@ import (
 	"testing"
 )
 
-func TestFilesystem(t *testing.T) {
+func newTestFilesystem(t *testing.T, layers []string) (rootfs string, rwpath string, fs *Filesystem) {
 	rootfs, err := ioutil.TempDir("", "docker-test-root")
 	if err != nil {
 		t.Fatal(err)
 	}
-	rwpath, err := ioutil.TempDir("", "docker-test-rw")
+	rwpath, err = ioutil.TempDir("", "docker-test-rw")
 	if err != nil {
 		t.Fatal(err)
 	}
+	fs = newFilesystem(rootfs, rwpath, layers)
+	return
+}
 
-	filesystem := newFilesystem(rootfs, rwpath, []string{"/var/lib/docker/images/ubuntu"})
-
+func TestFilesystem(t *testing.T) {
+	_, _, filesystem := newTestFilesystem(t, []string{"/var/lib/docker/images/ubuntu"})
 	if err := filesystem.Umount(); err == nil {
 		t.Errorf("Umount succeeded even though the filesystem was not mounted")
 	}
@@ -53,15 +56,7 @@ func TestFilesystemMultiLayer(t *testing.T) {
 	}
 
 	// Create the layered filesystem and add our fake layer on top
-	rootfs, err := ioutil.TempDir("", "docker-test-root")
-	if err != nil {
-		t.Fatal(err)
-	}
-	rwpath, err := ioutil.TempDir("", "docker-test-rw")
-	if err != nil {
-		t.Fatal(err)
-	}
-	filesystem := newFilesystem(rootfs, rwpath, []string{"/var/lib/docker/images/ubuntu", fakeLayer})
+	rootfs, _, filesystem := newTestFilesystem(t, []string{"/var/lib/docker/images/ubuntu", fakeLayer})
 
 	// Mount it
 	if err := filesystem.Mount(); err != nil {
