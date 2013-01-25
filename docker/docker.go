@@ -1,14 +1,12 @@
 package main
 
 import (
+	"github.com/dotcloud/docker/rcli"
 	"io"
-	"encoding/json"
 	"log"
 	"os"
-	"net"
-	"fmt"
 	"syscall"
-"unsafe"
+	"unsafe"
 )
 
 
@@ -172,15 +170,8 @@ func main() {
 		}
 		defer Restore(0, oldState)
 	}
-	cmd, err := json.Marshal(os.Args[1:])
+	conn, err := rcli.CallTCP(os.Getenv("DOCKER"), os.Args[1:]...)
 	if err != nil {
-		Fatal(err)
-	}
-	conn, err := net.Dial("tcp", os.Getenv("DOCKER"))
-	if err != nil {
-		Fatal(err)
-	}
-	if _, err := fmt.Fprintln(conn, string(cmd)); err != nil {
 		Fatal(err)
 	}
 	go func() {
