@@ -77,6 +77,50 @@ func loadContainer(containerPath string) (*Container, error) {
 	return container, nil
 }
 
+func (container *Container) loadUserData() (map[string]string, error) {
+	jsonData, err := ioutil.ReadFile(path.Join(container.Root, "userdata.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]string), nil
+		}
+		return nil, err
+	}
+	data := make(map[string]string)
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (container *Container) saveUserData(data map[string]string) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path.Join(container.Root, "userdata.json"), jsonData, 0700)
+}
+
+func (container *Container) SetUserData(key, value string) error {
+	data, err := container.loadUserData()
+	if err != nil {
+		return err
+	}
+	data[key] = value
+	return container.saveUserData(data)
+}
+
+func (container *Container) GetUserData(key string) (string) {
+	data, err := container.loadUserData()
+	if err != nil {
+		return ""
+	}
+	if value, exists := data[key]; exists {
+		return value
+	}
+	return ""
+}
+
+
 func (container *Container) save() (err error) {
 	data, err := json.Marshal(container)
 	if err != nil {
