@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/dotcloud/docker/rcli"
+	"github.com/dotcloud/docker/future"
 	"io"
 	"log"
 	"os"
@@ -174,15 +175,25 @@ func main() {
 	if err != nil {
 		Fatal(err)
 	}
-	go func() {
-		if _, err := io.Copy(os.Stdout, conn); err != nil {
-			Fatal(err)
+	receive_stdout := future.Go(func() error {
+		_, err := io.Copy(os.Stdout, conn)
+		return err
+	})
+	send_stdin := future.Go(func() error {
+		_, err := io.Copy(conn, os.Stdin)
+		if err := conn.CloseWrite(); err != nil {
+			log.Printf("Couldn't send EOF: " + err.Error())
 		}
-		Restore(0, oldState)
-		os.Exit(0)
-	}()
-	if _, err := io.Copy(conn, os.Stdin); err != nil {
+		return err
+	})
+	if err := <-receive_stdout; err != nil {
 		Fatal(err)
 	}
-	Restore(0, oldState)
+	if IsTerminal(0) {
+		Restore(0, oldState)
+	} else {
+		if err := <-send_stdin; err != nil {
+			Fatal(err)
+		}
+	}
 }
