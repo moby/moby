@@ -121,18 +121,6 @@ func (container *Container) Start() error {
 	container.State.setRunning(container.cmd.Process.Pid)
 	container.save()
 	go container.monitor()
-	if err := exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "RUNNING|STOPPED").Run(); err != nil {
-		// lxc-wait might return an error if by the time we call it,
-		// the container we just started is already STOPPED.
-		// This is a rare race condition that happens for short living programs.
-		//
-		// A workaround is to discard lxc-wait errors if the container is not
-		// running anymore.
-		if !container.State.Running {
-			return nil
-		}
-		return errors.New("Container failed to start")
-	}
 	return nil
 }
 
@@ -188,20 +176,11 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	// This will cause the main container process to receive a SIGKILL
-	if err := exec.Command("/usr/bin/lxc-stop", "-n", container.Id).Run(); err != nil {
-		log.Printf("Failed to lxc-stop %v", container.Id)
+	if err := container.cmd.Process.Kill(); err != nil {
 		return err
 	}
-
 	// Wait for the container to be actually stopped
 	container.Wait()
-
-	// Make sure the underlying LXC thinks it's stopped too
-	// LXC Issue: lxc-wait MIGHT say that the container doesn't exist
-	// That's probably because it was destroyed and it cannot find it anymore
-	// We are going to ignore lxc-wait's error
-	exec.Command("/usr/bin/lxc-wait", "-n", container.Id, "-s", "STOPPED").Run()
 	return nil
 }
 
@@ -218,18 +197,20 @@ func (container *Container) Stop() error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := exec.Command("/usr/bin/lxc-kill", "-n", container.Id, "15").Run(); err != nil {
-		return err
+	if output, err := exec.Command("/usr/bin/lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
+		log.Printf(string(output))
+		log.Printf("Failed to send SIGTERM to the process, force killing")
+		if err := container.Kill(); err != nil {
+			return err
+		}
 	}
 
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM", container.Id)
-	}
-
-	// 3. Force kill
-	if err := container.kill(); err != nil {
-		return err
+		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
+		if err := container.Kill(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -245,6 +226,7 @@ func (container *Container) Restart() error {
 }
 
 func (container *Container) Wait() {
+
 	for container.State.Running {
 		container.State.wait()
 	}
