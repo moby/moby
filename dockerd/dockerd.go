@@ -286,7 +286,7 @@ func (docker *Docker) addContainer(name string, source string, size uint) *Conta
 		size = fake.RandomContainerSize()
 	}
 	c := &Container{
-		Id:		fake.RandomId(),
+		Id:		future.RandomId(),
 		Name:		name,
 		Created:	time.Now(),
 		Source:		source,
@@ -389,7 +389,7 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 
 
 func main() {
-	fake.Seed()
+	future.Seed()
 	flag.Parse()
 	docker := New()
 	go func() {
@@ -450,14 +450,6 @@ func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 
-func Go(f func() error) chan error {
-	ch := make(chan error)
-	go func() {
-		ch <- f()
-	}()
-	return ch
-}
-
 type Docker struct {
 	containers		map[string]*Container
 	containersByName	map[string]*ByDate
@@ -488,26 +480,26 @@ func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdo
 	// Reset logs
 	c.stdoutLog.Reset()
 	c.stdinLog.Reset()
-	c.Running = true
 	cmd := exec.Command(c.Cmd, c.Args...)
-	cmd_stdin, cmd_stdout, err := startCommand(cmd, true)
-	// ADD FAKE RANDOM CHANGES
-	c.FilesChanged = fake.RandomFilesChanged()
-	c.BytesChanged = fake.RandomBytesChanged()
+	cmd_stdin, cmd_stdout, err := startCommand(cmd, tty)
 	if err != nil {
 		return err
 	}
-	copy_out := Go(func() error {
+	c.Running = true
+	// ADD FAKE RANDOM CHANGES
+	c.FilesChanged = fake.RandomFilesChanged()
+	c.BytesChanged = fake.RandomBytesChanged()
+	copy_out := future.Go(func() error {
 		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
 		return err
 	})
-	Go(func() error {
+	future.Go(func() error {
 		_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
 		cmd_stdin.Close()
 		stdin.Close()
 		return err
 	})
-	wait := Go(func() error {
+	wait := future.Go(func() error {
 		err := cmd.Wait()
 		c.Running = false
 		return err

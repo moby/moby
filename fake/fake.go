@@ -1,22 +1,12 @@
 package fake
 
 import (
-	"github.com/dotcloud/docker/future"
 	"bytes"
 	"math/rand"
-	"time"
 	"io"
 	"archive/tar"
-	"fmt"
 )
 
-func Seed() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
-
-func randomBytes() io.Reader {
-	return bytes.NewBuffer([]byte(fmt.Sprintf("%x", rand.Int())))
-}
 
 func FakeTar() (io.Reader, error) {
 	content := []byte("Hello world!\n")
@@ -43,12 +33,6 @@ func WriteFakeTar(dst io.Writer) error {
 		return err
 	}
 	return nil
-}
-
-
-func RandomId() string {
-	id, _ := future.ComputeId(randomBytes()) // can't fail
-	return id
 }
 
 
