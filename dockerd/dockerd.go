@@ -19,6 +19,7 @@ import (
 	"sort"
 	"os"
 	"time"
+	"net/http"
 )
 
 
@@ -138,9 +139,16 @@ func (docker *Docker) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	time.Sleep(2 * time.Second)
-	layer := docker.addContainer(args[0], "download", 0)
-	fmt.Fprintln(stdout, layer.Id)
+	resp, err := http.Get(args[0])
+	if err != nil {
+		return err
+	}
+	layer, err := docker.layers.AddLayer(resp.Body, stdout)
+	if err != nil {
+		return err
+	}
+	docker.addContainer(args[0], "download", 0)
+	fmt.Fprintln(stdout, layer.Id())
 	return nil
 }
 
@@ -148,11 +156,16 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	time.Sleep(1 * time.Second)
-	layer := docker.addContainer(args[0], "upload", 0)
-	fmt.Fprintln(stdout, layer.Id)
+	fmt.Printf("Adding layer\n")
+	layer, err := docker.layers.AddLayer(stdin, stdout)
+	if err != nil {
+		return err
+	}
+	docker.addContainer(args[0], "upload", 0)
+	fmt.Fprintln(stdout, layer.Id())
 	return nil
 }
+
 
 func (docker *Docker) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
@@ -391,7 +404,10 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 func main() {
 	future.Seed()
 	flag.Parse()
-	docker := New()
+	docker, err := New()
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
 		if err := rcli.ListenAndServeHTTP(":8080", docker); err != nil {
 			log.Fatal(err)
@@ -402,11 +418,19 @@ func main() {
 	}
 }
 
-func New() *Docker {
+func New() (*Docker, error) {
+	store, err := future.NewStore("/var/lib/docker/layers")
+	if err != nil {
+		return nil, err
+	}
+	if err := store.Init(); err != nil {
+		return nil, err
+	}
 	return &Docker{
 		containersByName: make(map[string]*ByDate),
 		containers: make(map[string]*Container),
-	}
+		layers: store,
+	}, nil
 }
 
 
@@ -453,6 +477,7 @@ func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...stri
 type Docker struct {
 	containers		map[string]*Container
 	containersByName	map[string]*ByDate
+	layers			*future.Store
 }
 
 type Container struct {
