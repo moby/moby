@@ -173,3 +173,34 @@ func TestGet(t *testing.T) {
 	}
 
 }
+
+func TestRestore(t *testing.T) {
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	docker, err := NewFromDirectory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"test",
+		"ls",
+		[]string{"-al"},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{},
+	)
+	if len(docker.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(docker.List()))
+	}
+
+	defer docker.Destroy(container)
+
+	docker2, err := NewFromDirectory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docker2.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
+	}
+}

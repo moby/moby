@@ -70,7 +70,7 @@ func loadContainer(containerPath string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	var container *Container
+	container := &Container{}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}

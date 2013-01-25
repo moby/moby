@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 )
@@ -82,7 +83,7 @@ func (docker *Docker) restore() error {
 	for _, v := range dir {
 		container, err := loadContainer(path.Join(docker.repository, v.Name()))
 		if err != nil {
-			fmt.Errorf("Failed to load %v: %v", v.Name(), err)
+			log.Printf("Failed to load container %v: %v", v.Name(), err)
 			continue
 		}
 		docker.containers.PushBack(container)
