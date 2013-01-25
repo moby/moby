@@ -355,6 +355,7 @@ func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] CONTAINER COMMAND [ARG...]", "Run a command in a container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
+	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -368,9 +369,9 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return errors.New("Already running: " + name)
 		}
 		if *fl_attach {
-			return container.Run(cmd[0], cmd[1:], stdin, stdout)
+			return container.Run(cmd[0], cmd[1:], stdin, stdout, *fl_tty)
 		} else {
-			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard)
+			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard, *fl_tty)
 			fmt.Fprintln(stdout, container.Id)
 			return nil
 		}
@@ -495,7 +496,7 @@ type Container struct {
 	stdinLog *bytes.Buffer
 }
 
-func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer) error {
+func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer, tty bool) error {
 	// Not thread-safe
 	if c.Running {
 		return errors.New("Already running")
