@@ -10,7 +10,7 @@ import (
 	"bufio"
 )
 
-func CallTCP(addr string, args ...string) (io.ReadWriteCloser, error) {
+func CallTCP(addr string, args ...string) (*net.TCPConn, error) {
 	cmd, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func CallTCP(addr string, args ...string) (io.ReadWriteCloser, error) {
 	if _, err := fmt.Fprintln(conn, string(cmd)); err != nil {
 		return nil, err
 	}
-	return conn, nil
+	return conn.(*net.TCPConn), nil
 }
 
 func ListenAndServeTCP(addr string, service Service) error {
