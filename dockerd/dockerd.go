@@ -19,6 +19,7 @@ import (
 	"sort"
 	"os"
 	"time"
+	"net/http"
 )
 
 
@@ -138,9 +139,16 @@ func (docker *Docker) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	time.Sleep(2 * time.Second)
-	layer := docker.addContainer(args[0], "download", 0)
-	fmt.Fprintln(stdout, layer.Id)
+	resp, err := http.Get(args[0])
+	if err != nil {
+		return err
+	}
+	layer, err := docker.layers.AddLayer(resp.Body, stdout)
+	if err != nil {
+		return err
+	}
+	docker.addContainer(args[0], "download", 0)
+	fmt.Fprintln(stdout, layer.Id())
 	return nil
 }
 
@@ -148,11 +156,16 @@ func (docker *Docker) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	time.Sleep(1 * time.Second)
-	layer := docker.addContainer(args[0], "upload", 0)
-	fmt.Fprintln(stdout, layer.Id)
+	fmt.Printf("Adding layer\n")
+	layer, err := docker.layers.AddLayer(stdin, stdout)
+	if err != nil {
+		return err
+	}
+	docker.addContainer(args[0], "upload", 0)
+	fmt.Fprintln(stdout, layer.Id())
 	return nil
 }
+
 
 func (docker *Docker) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
@@ -286,7 +299,7 @@ func (docker *Docker) addContainer(name string, source string, size uint) *Conta
 		size = fake.RandomContainerSize()
 	}
 	c := &Container{
-		Id:		fake.RandomId(),
+		Id:		future.RandomId(),
 		Name:		name,
 		Created:	time.Now(),
 		Source:		source,
@@ -342,6 +355,7 @@ func (docker *Docker) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] CONTAINER COMMAND [ARG...]", "Run a command in a container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
+	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -355,9 +369,9 @@ func (docker *Docker) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return errors.New("Already running: " + name)
 		}
 		if *fl_attach {
-			return container.Run(cmd[0], cmd[1:], stdin, stdout)
+			return container.Run(cmd[0], cmd[1:], stdin, stdout, *fl_tty)
 		} else {
-			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard)
+			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard, *fl_tty)
 			fmt.Fprintln(stdout, container.Id)
 			return nil
 		}
@@ -389,9 +403,12 @@ func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 
 
 func main() {
-	fake.Seed()
+	future.Seed()
 	flag.Parse()
-	docker := New()
+	docker, err := New()
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
 		if err := rcli.ListenAndServeHTTP(":8080", docker); err != nil {
 			log.Fatal(err)
@@ -402,11 +419,19 @@ func main() {
 	}
 }
 
-func New() *Docker {
+func New() (*Docker, error) {
+	store, err := future.NewStore("/var/lib/docker/layers")
+	if err != nil {
+		return nil, err
+	}
+	if err := store.Init(); err != nil {
+		return nil, err
+	}
 	return &Docker{
 		containersByName: make(map[string]*ByDate),
 		containers: make(map[string]*Container),
-	}
+		layers: store,
+	}, nil
 }
 
 
@@ -450,17 +475,10 @@ func (docker *Docker) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 
-func Go(f func() error) chan error {
-	ch := make(chan error)
-	go func() {
-		ch <- f()
-	}()
-	return ch
-}
-
 type Docker struct {
 	containers		map[string]*Container
 	containersByName	map[string]*ByDate
+	layers			*future.Store
 }
 
 type Container struct {
@@ -478,7 +496,7 @@ type Container struct {
 	stdinLog *bytes.Buffer
 }
 
-func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer) error {
+func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer, tty bool) error {
 	// Not thread-safe
 	if c.Running {
 		return errors.New("Already running")
@@ -488,26 +506,26 @@ func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdo
 	// Reset logs
 	c.stdoutLog.Reset()
 	c.stdinLog.Reset()
-	c.Running = true
 	cmd := exec.Command(c.Cmd, c.Args...)
-	cmd_stdin, cmd_stdout, err := startCommand(cmd, true)
-	// ADD FAKE RANDOM CHANGES
-	c.FilesChanged = fake.RandomFilesChanged()
-	c.BytesChanged = fake.RandomBytesChanged()
+	cmd_stdin, cmd_stdout, err := startCommand(cmd, tty)
 	if err != nil {
 		return err
 	}
-	copy_out := Go(func() error {
+	c.Running = true
+	// ADD FAKE RANDOM CHANGES
+	c.FilesChanged = fake.RandomFilesChanged()
+	c.BytesChanged = fake.RandomBytesChanged()
+	copy_out := future.Go(func() error {
 		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
 		return err
 	})
-	Go(func() error {
+	future.Go(func() error {
 		_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
 		cmd_stdin.Close()
 		stdin.Close()
 		return err
 	})
-	wait := Go(func() error {
+	wait := future.Go(func() error {
 		err := cmd.Wait()
 		c.Running = false
 		return err

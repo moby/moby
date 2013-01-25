@@ -5,7 +5,13 @@ import (
 	"io"
 	"fmt"
 	"time"
+	"bytes"
+	"math/rand"
 )
+
+func Seed() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 func ComputeId(content io.Reader) (string, error) {
 	h := sha256.New()
@@ -37,3 +43,21 @@ func HumanDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%d years", d.Hours() / 24 / 365)
 }
+
+func randomBytes() io.Reader {
+	return bytes.NewBuffer([]byte(fmt.Sprintf("%x", rand.Int())))
+}
+
+func RandomId() string {
+	id, _ := ComputeId(randomBytes()) // can't fail
+	return id
+}
+
+func Go(f func() error) chan error {
+	ch := make(chan error)
+	go func() {
+		ch <- f()
+	}()
+	return ch
+}
+
