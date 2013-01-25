@@ -188,7 +188,7 @@ b)}catch(f){i(f,"onCommandChange");throw f;}t()},commands:x});O.append(b);l.enab
 		if (command !== '') {
 		    console.log(command);
 		    try {
-			var url = "http://localhost:4242/" + command.split(" ")[0] + "?" + $.param(command.split(" ").slice(1).map(function(e) { return {name: "q", value: e} }))
+			var url = "http://localhost:8080/" + command.split(" ")[0] + "?" + $.param(command.split(" ").slice(1).map(function(e) { return {name: "q", value: e} }))
 			console.log(url);
 		    	$.ajax(url).done(function(data) {
 				term.echo(new String(data));
