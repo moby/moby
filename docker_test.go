@@ -179,28 +179,44 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	docker, err := NewFromDirectory(root)
+
+	// Create a container with one instance of docker
+	docker1, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, err := docker.Create(
-		"test",
+	container1, err := docker1.Create(
+		"restore_test",
 		"ls",
 		[]string{"-al"},
 		[]string{"/var/lib/docker/images/ubuntu"},
 		&Config{},
 	)
-	if len(docker.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(docker.List()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker1.Destroy(container1)
+	if len(docker1.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(docker1.List()))
+	}
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
 	}
 
-	defer docker.Destroy(container)
-
+	// Here are are simulating a docker restart - that is, reloading all containers
+	// from scratch
 	docker2, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(docker2.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
+	}
+	container2 := docker2.Get("restore_test")
+	if container2 == nil {
+		t.Fatal("Unable to Get container")
+	}
+	if err := container2.Run(); err != nil {
+		t.Fatal(err)
 	}
 }
