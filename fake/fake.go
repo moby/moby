@@ -6,11 +6,8 @@ import (
 	"io"
 	"archive/tar"
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/future"
-	"errors"
 	"os/exec"
 	"strings"
-	"fmt"
 	"github.com/kr/pty"
 )
 
@@ -66,77 +63,14 @@ type Container struct {
 	Size	uint
 	FilesChanged uint
 	BytesChanged uint
-	Running	bool
-	stdoutLog *bytes.Buffer
-	stdinLog *bytes.Buffer
 }
 
 func NewContainer(c *docker.Container) *Container {
 	return &Container{
 		Container:	c,
 		Name:		c.GetUserData("name"),
-		stdoutLog:	new(bytes.Buffer),
-		stdinLog:	new(bytes.Buffer),
 	}
 }
-
-func (c *Container) Run(command string, args []string, stdin io.ReadCloser, stdout io.Writer, tty bool) error {
-	// Not thread-safe
-	if c.Running {
-		return errors.New("Already running")
-	}
-	c.Path = command
-	c.Args = args
-	// Reset logs
-	c.stdoutLog.Reset()
-	c.stdinLog.Reset()
-	cmd := exec.Command(c.Path, c.Args...)
-	cmd_stdin, cmd_stdout, err := startCommand(cmd, tty)
-	if err != nil {
-		return err
-	}
-	c.Running = true
-	// ADD FAKE RANDOM CHANGES
-	c.FilesChanged = RandomFilesChanged()
-	c.BytesChanged = RandomBytesChanged()
-	copy_out := future.Go(func() error {
-		_, err := io.Copy(io.MultiWriter(stdout, c.stdoutLog), cmd_stdout)
-		return err
-	})
-	future.Go(func() error {
-		_, err := io.Copy(io.MultiWriter(cmd_stdin, c.stdinLog), stdin)
-		cmd_stdin.Close()
-		stdin.Close()
-		return err
-	})
-	wait := future.Go(func() error {
-		err := cmd.Wait()
-		c.Running = false
-		return err
-	})
-	if err := <-copy_out; err != nil {
-		if c.Running {
-			return err
-		}
-	}
-	if err := <-wait; err != nil {
-		if status, ok := err.(*exec.ExitError); ok {
-			fmt.Fprintln(stdout, status)
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-func (c *Container) StdoutLog() io.Reader {
-	return strings.NewReader(c.stdoutLog.String())
-}
-
-func (c *Container) StdinLog() io.Reader {
-	return strings.NewReader(c.stdinLog.String())
-}
-
 func (c *Container) CmdString() string {
 	return strings.Join(append([]string{c.Path}, c.Args...), " ")
 }

@@ -11,6 +11,8 @@ import (
 	"path"
 	"syscall"
 	"time"
+	"strings"
+	"bytes"
 )
 
 type Container struct {
@@ -30,6 +32,9 @@ type Container struct {
 	cmd           *exec.Cmd
 	stdout        *writeBroadcaster
 	stderr        *writeBroadcaster
+
+	stdoutLog	*bytes.Buffer
+	stderrLog	*bytes.Buffer
 }
 
 type Config struct {
@@ -51,7 +56,12 @@ func createContainer(id string, root string, command string, args []string, laye
 		lxcConfigPath: path.Join(root, "config.lxc"),
 		stdout:        newWriteBroadcaster(),
 		stderr:        newWriteBroadcaster(),
+		stdoutLog:	new(bytes.Buffer),
+		stderrLog:	new(bytes.Buffer),
 	}
+
+	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
+	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
 	if err := os.Mkdir(root, 0700); err != nil {
 		return nil, err
@@ -73,12 +83,19 @@ func loadContainer(containerPath string) (*Container, error) {
 	container := &Container{
 		stdout: newWriteBroadcaster(),
 		stderr: newWriteBroadcaster(),
+		stdoutLog: new(bytes.Buffer),
+		stderrLog: new(bytes.Buffer),
 	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
 	container.State = newState()
 	return container, nil
+}
+
+
+func (container *Container) Cmd() *exec.Cmd {
+	return container.cmd
 }
 
 func (container *Container) loadUserData() (map[string]string, error) {
@@ -200,10 +217,19 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	return newBufReader(reader), nil
 }
 
+func (container *Container) StdoutLog() io.Reader {
+	return strings.NewReader(container.stdoutLog.String())
+}
+
+
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer)
 	return newBufReader(reader), nil
+}
+
+func (container *Container) StderrLog() io.Reader {
+	return strings.NewReader(container.stderrLog.String())
 }
 
 func (container *Container) monitor() {

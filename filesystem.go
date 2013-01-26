@@ -80,6 +80,16 @@ type Change struct {
 	Kind ChangeType
 }
 
+func (change *Change) String() string {
+	var kind string
+	switch change.Kind {
+		case ChangeModify:	kind = "C"
+		case ChangeAdd:		kind = "A"
+		case ChangeDelete:	kind = "D"
+	}
+	return fmt.Sprintf("%s %s", kind, change.Path)
+}
+
 func (fs *Filesystem) Changes() ([]Change, error) {
 	var changes []Change
 	err := filepath.Walk(fs.RWPath, func(path string, f os.FileInfo, err error) error {
@@ -150,6 +160,16 @@ func (fs *Filesystem) Changes() ([]Change, error) {
 		return nil, err
 	}
 	return changes, nil
+}
+
+func (fs *Filesystem) Reset() error {
+	if err := os.RemoveAll(fs.RWPath); err != nil {
+		return err
+	}
+	if err := fs.createMountPoints(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func newFilesystem(rootfs string, rwpath string, layers []string) *Filesystem {

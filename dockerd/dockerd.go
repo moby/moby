@@ -9,11 +9,9 @@ import (
 	"errors"
 	"log"
 	"io"
-	"io/ioutil"
 	"flag"
 	"fmt"
 	"strings"
-	"bytes"
 	"text/tabwriter"
 	"sort"
 	"os"
@@ -48,6 +46,29 @@ func (srv *Server) Help() string {
 	return help
 }
 
+
+func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container := srv.docker.Get(name); container != nil {
+			if err := container.Stop(); err != nil {
+				return err
+			}
+			fmt.Fprintln(stdout, container.Id)
+		} else {
+			return errors.New("No such container: " + container.Id)
+		}
+	}
+	return nil
+}
 
 func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "list", "[OPTIONS] [NAME]", "List containers")
@@ -87,7 +108,7 @@ func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string
 					/* SOURCE */	container.GetUserData("source"),
 					/* SIZE */	fmt.Sprintf("%.1fM", float32(fake.RandomContainerSize()) / 1024 / 1024),
 					/* CHANGES */	fmt.Sprintf("%.1fM", float32(fake.RandomBytesChanged() / 1024 / 1024)),
-					/* RUNNING */	fmt.Sprintf("%v", fake.ContainerRunning()),
+					/* RUNNING */	fmt.Sprintf("%v", container.State.Running),
 					/* COMMAND */	fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")),
 				} {
 					if idx == 0 {
@@ -193,11 +214,14 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if dstName == "" {
 		dstName = srcName
 	}
-	if _, exists := srv.findContainer(srcName); exists {
+	/*
+	if src, exists := srv.findContainer(srcName); exists {
+		baseLayer := src.Filesystem.Layers[0]
 		//dst := srv.addContainer(dstName, "snapshot:" + src.Id, src.Size)
 		//fmt.Fprintln(stdout, dst.Id)
 		return nil
 	}
+	*/
 	return errors.New("No such container: " + srcName)
 }
 
@@ -220,9 +244,6 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 	flags := rcli.Subcmd(stdout,
 		"diff", "CONTAINER [OPTIONS]",
 		"Inspect changes on a container's filesystem")
-	fl_diff := flags.Bool("d", true, "Show changes in diff format")
-	fl_bytes := flags.Bool("b", false, "Show how many bytes have been changed")
-	fl_list := flags.Bool("l", false, "Show a list of changed files")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -231,44 +252,37 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	if container, exists := srv.findContainer(flags.Arg(0)); !exists {
 		return errors.New("No such container")
-	} else if *fl_bytes {
-		fmt.Fprintf(stdout, "%d\n", container.BytesChanged)
-	} else if *fl_list {
-		// FAKE
-		fmt.Fprintf(stdout, strings.Join([]string{
-			"/etc/postgres/pg.conf",
-			"/etc/passwd",
-			"/var/lib/postgres",
-			"/usr/bin/postgres",
-			"/usr/bin/psql",
-			"/var/log/postgres",
-			"/var/log/postgres/postgres.log",
-			"/var/log/postgres/postgres.log.0",
-			"/var/log/postgres/postgres.log.1.gz"}, "\n"))
-	} else if *fl_diff {
-		// Achievement unlocked: embed a diff of your code as a string in your code
-		fmt.Fprintf(stdout, `
-diff --git a/dockerd/dockerd.go b/dockerd/dockerd.go
-index 2dae694..e43caca 100644
---- a/dockerd/dockerd.go
-+++ b/dockerd/dockerd.go
-@@ -158,6 +158,7 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...str
-        flags := rcli.Subcmd(stdout,
-                "diff", "CONTAINER [OPTIONS]",
-                "Inspect changes on a container's filesystem")
-+       fl_diff := flags.Bool("d", true, "Show changes in diff format")
-        fl_bytes := flags.Bool("b", false, "Show how many bytes have been changes")
-        fl_list := flags.Bool("l", false, "Show a list of changed files")
-        fl_download := flags.Bool("d", false, "Download the changes as gzipped tar stream")
-`)
-		return nil
 	} else {
-		flags.Usage()
-		return nil
+		changes, err := container.Filesystem.Changes()
+		if err != nil {
+			return err
+		}
+		for _, change := range changes {
+			fmt.Fprintln(stdout, change.String())
+		}
 	}
 	return nil
 }
 
+func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := rcli.Subcmd(stdout,
+		"reset", "CONTAINER [OPTIONS]",
+		"Reset changes to a container's filesystem")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	if flags.NArg() < 1 {
+		return errors.New("Not enough arguments")
+	}
+	for _, name := range flags.Args() {
+		if container, exists := srv.findContainer(name); exists {
+			if err := container.Filesystem.Reset(); err != nil {
+				return errors.New("Reset " + container.Id + ": " + err.Error())
+			}
+		}
+	}
+	return nil
+}
 
 // ByDate wraps an array of layers so they can be sorted by date (most recent first)
 
@@ -349,15 +363,19 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
 			return err
 		}
+		if _, err := io.Copy(stdout, container.StderrLog()); err != nil {
+			return err
+		}
 		return nil
 	}
 	return errors.New("No such container: " + flags.Arg(0))
 }
 
+
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] CONTAINER COMMAND [ARG...]", "Run a command in a container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
-	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
+	//fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -367,16 +385,37 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	}
 	name, cmd := flags.Arg(0), flags.Args()[1:]
 	if container, exists := srv.findContainer(name); exists {
-		if container.Running {
-			return errors.New("Already running: " + name)
-		}
+		log.Printf("Running container %#v\n", container)
+		container.Path = cmd[0]
+		container.Args  = cmd[1:]
 		if *fl_attach {
-			return container.Run(cmd[0], cmd[1:], stdin, stdout, *fl_tty)
+			cmd_stdout, err := container.StdoutPipe()
+			if err != nil {
+				return err
+			}
+			cmd_stderr, err := container.StderrPipe()
+			if err != nil {
+				return err
+			}
+			if err := container.Start(); err != nil {
+				return err
+			}
+			sending_stdout := future.Go(func() error { _, err := io.Copy(stdout, cmd_stdout); return err })
+			sending_stderr := future.Go(func() error { _, err := io.Copy(stdout, cmd_stderr); return err })
+			err_sending_stdout := <-sending_stdout
+			err_sending_stderr := <-sending_stderr
+			if err_sending_stdout != nil {
+				return err_sending_stdout
+			}
+			return err_sending_stderr
 		} else {
-			go container.Run(cmd[0], cmd[1:], ioutil.NopCloser(new(bytes.Buffer)), ioutil.Discard, *fl_tty)
-			fmt.Fprintln(stdout, container.Id)
-			return nil
+			if output, err := container.Output(); err != nil {
+				return err
+			} else {
+				fmt.Printf("-->|%s|\n", output)
+			}
 		}
+		return nil
 	}
 	return errors.New("No such container: " + name)
 }
@@ -415,10 +454,7 @@ func New() (*Server, error) {
 		layers: store,
 		docker: d,
 	}
-	// Update name index
-	log.Printf("Building name index from %s...\n")
 	for _, container := range srv.docker.List() {
-		log.Printf("Indexing %s to %s\n", container.Id, container.GetUserData("name"))
 		name := container.GetUserData("name")
 		if _, exists := srv.containersByName[name]; !exists {
 			srv.containersByName[name] = new(ByDate)
