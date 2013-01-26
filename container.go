@@ -70,10 +70,14 @@ func loadContainer(containerPath string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	container := &Container{}
+	container := &Container{
+		stdout: newWriteBroadcaster(),
+		stderr: newWriteBroadcaster(),
+	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
+	container.State = newState()
 	return container, nil
 }
 
