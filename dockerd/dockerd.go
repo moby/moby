@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/rcli"
-	"github.com/dotcloud/docker/fake"
 	"github.com/dotcloud/docker/future"
 	"bufio"
 	"errors"
@@ -91,7 +90,7 @@ func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string
 	sort.Strings(names)
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if (!*quiet) {
-		fmt.Fprintf(w, "NAME\tID\tCREATED\tSOURCE\tSIZE\tCHANGES\tRUNNING\tCOMMAND\n")
+		fmt.Fprintf(w, "NAME\tID\tCREATED\tSOURCE\tRUNNING\tMOUNTED\tCOMMAND\tPID\tEXIT\n")
 	}
 	for _, name := range names {
 		if nameFilter != "" && nameFilter != name {
@@ -107,10 +106,11 @@ func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string
 					/* ID */	container.Id,
 					/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
 					/* SOURCE */	container.GetUserData("source"),
-					/* SIZE */	fmt.Sprintf("%.1fM", float32(fake.RandomContainerSize()) / 1024 / 1024),
-					/* CHANGES */	fmt.Sprintf("%.1fM", float32(fake.RandomBytesChanged() / 1024 / 1024)),
 					/* RUNNING */	fmt.Sprintf("%v", container.State.Running),
+					/* MOUNTED */	fmt.Sprintf("%v", container.Filesystem.IsMounted()),
 					/* COMMAND */	fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")),
+					/* PID */	fmt.Sprintf("%v", container.State.Pid),
+					/* EXIT CODE */	fmt.Sprintf("%v", container.State.ExitCode),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -130,14 +130,14 @@ func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return nil
 }
 
-func (srv *Server) findContainer(name string) (*fake.Container, bool) {
+func (srv *Server) findContainer(name string) (*docker.Container, bool) {
 	// 1: look for container by ID
 	if container := srv.docker.Get(name); container != nil {
-		return fake.NewContainer(container), true
+		return container, true
 	}
 	// 2: look for a container by name (and pick the most recent)
 	if containers, exists := srv.containersByName[name]; exists {
-		return fake.NewContainer((*containers)[0]), true
+		return (*containers)[0], true
 	}
 	return nil, false
 }
@@ -326,7 +326,7 @@ func (c *ByDate) Del(id string) {
 }
 
 
-func (srv *Server) addContainer(id string, layers []string, name string, source string) (*fake.Container, error) {
+func (srv *Server) addContainer(id string, layers []string, name string, source string) (*docker.Container, error) {
 	c, err := srv.docker.Create(id, "", nil, layers, &docker.Config{Hostname: id, Ram: 512 * 1024 * 1024})
 	if err != nil {
 		return nil, err
@@ -339,7 +339,7 @@ func (srv *Server) addContainer(id string, layers []string, name string, source 
 		srv.containersByName[name] = new(ByDate)
 	}
 	srv.containersByName[name].Add(c)
-	return fake.NewContainer(c), nil
+	return c, nil
 }
 
 
