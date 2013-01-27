@@ -5,7 +5,27 @@ import (
 	"container/list"
 	"io"
 	"sync"
+	"os/exec"
 )
+
+// Tar generates a tar archive from a filesystem path, and returns it as a stream.
+// Path must point to a directory.
+
+func Tar(path string) (io.Reader, error) {
+	cmd := exec.Command("tar", "-C", path, "-c", ".")
+	output, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	// FIXME: errors will not be passed because we don't wait for the command.
+	// Instead, consumers will hit EOF right away.
+	// This can be fixed by waiting for the process to exit, or for the first write
+	// on stdout, whichever comes first.
+	return output, nil
+}
 
 type nopWriteCloser struct {
 	io.Writer

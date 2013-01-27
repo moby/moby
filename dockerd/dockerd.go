@@ -39,6 +39,7 @@ func (srv *Server) Help() string {
 		{"commit", "Save the state of a container"},
 		{"attach", "Attach to the standard inputs and outputs of a running container"},
 		{"info", "Display system-wide information"},
+		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
@@ -233,9 +234,16 @@ func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	name := flags.Arg(0)
-	if _, exists := srv.findContainer(name); exists {
+	if container, exists := srv.findContainer(name); exists {
+		data, err := container.Filesystem.Tar()
+		if err != nil {
+			return err
+		}
 		// Stream the entire contents of the container (basically a volatile snapshot)
-		return fake.WriteFakeTar(stdout)
+		if _, err := io.Copy(stdout, data); err != nil {
+			return err
+		}
+		return nil
 	}
 	return errors.New("No such container: " + name)
 }

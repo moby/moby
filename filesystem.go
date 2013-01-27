@@ -67,6 +67,24 @@ func (fs *Filesystem) IsMounted() bool {
 	return false
 }
 
+// Tar returns the contents of the filesystem as an uncompressed tar stream
+func (fs *Filesystem) Tar() (io.Reader, error) {
+	if err := fs.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return Tar(fs.RootFS)
+}
+
+
+func (fs *Filesystem) EnsureMounted() error {
+	if !fs.IsMounted() {
+		if err := fs.Mount(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type ChangeType int
 
 const (
