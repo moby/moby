@@ -59,6 +59,9 @@ func createContainer(id string, root string, command string, args []string, laye
 		stdoutLog:	new(bytes.Buffer),
 		stderrLog:	new(bytes.Buffer),
 	}
+	if err := container.Filesystem.createMountPoints(); err != nil {
+		return nil, err
+	}
 
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
@@ -87,6 +90,9 @@ func loadContainer(containerPath string) (*Container, error) {
 		stderrLog: new(bytes.Buffer),
 	}
 	if err := json.Unmarshal(data, container); err != nil {
+		return nil, err
+	}
+	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
 	container.State = newState()
