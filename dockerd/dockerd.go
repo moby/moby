@@ -16,6 +16,8 @@ import (
 	"os"
 	"time"
 	"net/http"
+	"encoding/json"
+	"bytes"
 )
 
 
@@ -69,6 +71,152 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return nil
 }
+
+func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "umount a container's filesystem (debug only)")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container, exists := srv.findContainer(name); exists {
+			if err := container.Filesystem.Umount(); err != nil {
+				return err
+			}
+			fmt.Fprintln(stdout, container.Id)
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
+}
+
+func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container, exists := srv.findContainer(name); exists {
+			if err := container.Filesystem.Mount(); err != nil {
+				return err
+			}
+			fmt.Fprintln(stdout, container.Id)
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
+}
+
+func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container, exists := srv.findContainer(name); exists {
+		if f, err := container.Filesystem.OpenFile(path, os.O_RDONLY, 0); err != nil {
+			return err
+		} else if _, err := io.Copy(stdout, f); err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
+
+func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container, exists := srv.findContainer(name); exists {
+		if f, err := container.Filesystem.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600); err != nil {
+			return err
+		} else if _, err := io.Copy(f, stdin); err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
+
+
+func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container, exists := srv.findContainer(name); exists {
+		if files, err := container.Filesystem.ReadDir(path); err != nil {
+			return err
+		} else {
+			for _, f := range files {
+				fmt.Fprintln(stdout, f.Name())
+			}
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
+
+func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	if container, exists := srv.findContainer(name); exists {
+		data, err := json.Marshal(container)
+		if err != nil {
+			return err
+		}
+		indented := new(bytes.Buffer)
+		if err = json.Indent(indented, data, "", "    "); err != nil {
+			return err
+		}
+		if _, err := io.Copy(stdout, indented); err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
+
+
+
 
 func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "list", "[OPTIONS] [NAME]", "List containers")
