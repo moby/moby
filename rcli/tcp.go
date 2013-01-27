@@ -30,6 +30,7 @@ func ListenAndServeTCP(addr string, service Service) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Listening for RCLI/TCP on %s\n", addr)
 	defer listener.Close()
 	for {
 		if conn, err := listener.Accept(); err != nil {
