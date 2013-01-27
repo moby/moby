@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/rcli"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/future"
 	"bufio"
 	"errors"
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"strings"
 	"text/tabwriter"
-	"sort"
 	"os"
 	"time"
 	"net/http"
@@ -60,7 +60,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.docker.Get(name); container != nil {
+		if container := srv.containers.Get(name); container != nil {
 			if err := container.Stop(); err != nil {
 				return err
 			}
@@ -83,7 +83,7 @@ func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container, exists := srv.findContainer(name); exists {
+		if container := srv.containers.Get(name); container != nil {
 			if err := container.Filesystem.Umount(); err != nil {
 				return err
 			}
@@ -106,7 +106,7 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container, exists := srv.findContainer(name); exists {
+		if container := srv.containers.Get(name); container != nil {
 			if err := container.Filesystem.Mount(); err != nil {
 				return err
 			}
@@ -129,7 +129,7 @@ func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		if f, err := container.Filesystem.OpenFile(path, os.O_RDONLY, 0); err != nil {
 			return err
 		} else if _, err := io.Copy(stdout, f); err != nil {
@@ -151,7 +151,7 @@ func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		return nil
 	}
 	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		if f, err := container.Filesystem.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600); err != nil {
 			return err
 		} else if _, err := io.Copy(f, stdin); err != nil {
@@ -174,7 +174,7 @@ func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		return nil
 	}
 	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		if files, err := container.Filesystem.ReadDir(path); err != nil {
 			return err
 		} else {
@@ -198,7 +198,7 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 		return nil
 	}
 	name := cmd.Arg(0)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		data, err := json.Marshal(container)
 		if err != nil {
 			return err
@@ -215,90 +215,18 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	return errors.New("No such container: " + name)
 }
 
-
-
-
-func (srv *Server) CmdList(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "list", "[OPTIONS] [NAME]", "List containers")
-	limit := flags.Int("l", 0, "Only show the N most recent versions of each name")
-	quiet := flags.Bool("q", false, "only show numeric IDs")
-	flags.Parse(args)
-	if flags.NArg() > 1 {
-		flags.Usage()
-		return nil
-	}
-	var nameFilter string
-	if flags.NArg() == 1 {
-		nameFilter = flags.Arg(0)
-	}
-	var names []string
-	for name := range srv.containersByName {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	if (!*quiet) {
-		fmt.Fprintf(w, "NAME\tID\tCREATED\tSOURCE\tRUNNING\tMOUNTED\tCOMMAND\tPID\tEXIT\n")
-	}
-	for _, name := range names {
-		if nameFilter != "" && nameFilter != name {
-			continue
-		}
-		for idx, container := range *srv.containersByName[name] {
-			if *limit > 0 && idx >= *limit {
-				break
-			}
-			if !*quiet {
-				for idx, field := range []string{
-					/* NAME */	container.GetUserData("name"),
-					/* ID */	container.Id,
-					/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
-					/* SOURCE */	container.GetUserData("source"),
-					/* RUNNING */	fmt.Sprintf("%v", container.State.Running),
-					/* MOUNTED */	fmt.Sprintf("%v", container.Filesystem.IsMounted()),
-					/* COMMAND */	fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")),
-					/* PID */	fmt.Sprintf("%v", container.State.Pid),
-					/* EXIT CODE */	fmt.Sprintf("%v", container.State.ExitCode),
-				} {
-					if idx == 0 {
-						w.Write([]byte(field))
-					} else {
-						w.Write([]byte("\t" + field))
-					}
-				}
-				w.Write([]byte{'\n'})
-			} else {
-				stdout.Write([]byte(container.Id + "\n"))
-			}
-		}
-	}
-	if (!*quiet) {
-		w.Flush()
-	}
-	return nil
-}
-
-func (srv *Server) findContainer(name string) (*docker.Container, bool) {
-	// 1: look for container by ID
-	if container := srv.docker.Get(name); container != nil {
-		return container, true
-	}
-	// 2: look for a container by name (and pick the most recent)
-	if containers, exists := srv.containersByName[name]; exists {
-		return (*containers)[0], true
-	}
-	return nil, false
-}
-
-
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
 	for _, name := range flags.Args() {
-		if _, err := srv.rm(name); err != nil {
-			fmt.Fprintln(stdout, "Error: " + err.Error())
+		container := srv.containers.Get(name)
+		if container == nil {
+			return errors.New("No such container: " + name)
+		}
+		if err := srv.containers.Destroy(container); err != nil {
+			fmt.Fprintln(stdout, "Error destroying container " + name + ": " + err.Error())
 		}
 	}
 	return nil
@@ -312,15 +240,11 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if err != nil {
 		return err
 	}
-	layer, err := srv.layers.AddLayer(resp.Body, stdout)
+	img, err := srv.images.Import(args[0], resp.Body, stdout, nil)
 	if err != nil {
 		return err
 	}
-	container, err := srv.addContainer(layer.Id(), []string{layer.Path}, args[0], "download")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(stdout, container.Id)
+	fmt.Fprintln(stdout, img.Id)
 	return nil
 }
 
@@ -328,61 +252,180 @@ func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if len(args) < 1 {
 		return errors.New("Not enough arguments")
 	}
-	fmt.Printf("Adding layer\n")
-	layer, err := srv.layers.AddLayer(stdin, stdout)
+	img, err := srv.images.Import(args[0], stdin, stdout, nil)
 	if err != nil {
 		return err
 	}
-	id := layer.Id()
-	if !srv.docker.Exists(id) {
-		log.Println("Creating new container: " + id)
-		log.Printf("%v\n", srv.docker.List())
-		_, err := srv.addContainer(id, []string{layer.Path}, args[0], "upload")
-		if err != nil {
-			return err
+	fmt.Fprintln(stdout, img.Id)
+	return nil
+}
+
+func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
+	limit := flags.Int("l", 0, "Only show the N most recent versions of each image")
+	quiet := flags.Bool("q", false, "only show numeric IDs")
+	flags.Parse(args)
+	if flags.NArg() > 1 {
+		flags.Usage()
+		return nil
+	}
+	var nameFilter string
+	if flags.NArg() == 1 {
+		nameFilter = flags.Arg(0)
+	}
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	if (!*quiet) {
+		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\n")
+	}
+	for _, name := range srv.images.Names() {
+		if nameFilter != "" && nameFilter != name {
+			continue
+		}
+		for idx, img := range *srv.images.ByName[name] {
+			if *limit > 0 && idx >= *limit {
+				break
+			}
+			if !*quiet {
+				id := img.Id
+				if !img.IdIsFinal() {
+					id += "..."
+				}
+				for idx, field := range []string{
+					/* NAME */	name,
+					/* ID */	id,
+					/* CREATED */	future.HumanDuration(time.Now().Sub(img.Created)) + " ago",
+					/* PARENT */	img.Parent,
+				} {
+					if idx == 0 {
+						w.Write([]byte(field))
+					} else {
+						w.Write([]byte("\t" + field))
+					}
+				}
+				w.Write([]byte{'\n'})
+			} else {
+				stdout.Write([]byte(img.Id + "\n"))
+			}
 		}
 	}
-	fmt.Fprintln(stdout, id)
+	if (!*quiet) {
+		w.Flush()
+	}
+	return nil
+
+}
+
+func (srv *Server) CmdContainers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout,
+		"containers", "[OPTIONS]",
+		"List containers")
+	quiet := cmd.Bool("q", false, "Only display numeric IDs")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	if (!*quiet) {
+		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\n")
+	}
+	for _, container := range srv.containers.List() {
+		if !*quiet {
+			for idx, field := range[]string {
+				/* ID */	container.Id,
+				/* IMAGE */	container.GetUserData("image"),
+				/* COMMAND */	fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")),
+				/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
+				/* STATUS */	container.State.String(),
+			} {
+				if idx == 0 {
+					w.Write([]byte(field))
+				} else {
+					w.Write([]byte("\t" + field))
+				}
+			}
+			w.Write([]byte{'\n'})
+		} else {
+			stdout.Write([]byte(container.Id + "\n"))
+		}
+	}
+	if (!*quiet) {
+		w.Flush()
+	}
+	return nil
+}
+
+func (srv *Server) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := rcli.Subcmd(stdout,
+		"layers", "[OPTIONS]",
+		"List filesystem layers (debug only)")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	for _, layer := range srv.images.Layers.List() {
+		fmt.Fprintln(stdout, layer)
+	}
 	return nil
 }
 
 
-func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
-		"fork", "[OPTIONS] CONTAINER [DEST]",
-		"Duplicate a container")
-	// FIXME "-r" to reset changes in the new container
+		"cp", "[OPTIONS] IMAGE NAME",
+		"Create a copy of IMAGE and call it NAME")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
-	srcName, dstName := flags.Arg(0), flags.Arg(1)
-	if srcName == "" {
+	if newImage, err := srv.images.Copy(flags.Arg(0), flags.Arg(1)); err != nil {
+		return err
+	} else {
+		fmt.Fprintln(stdout, newImage.Id)
+	}
+	return nil
+}
+
+func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	flags := rcli.Subcmd(stdout,
+		"commit", "[OPTIONS] CONTAINER [DEST]",
+		"Create a new image from a container's changes")
+	if err := flags.Parse(args); err != nil {
+		return nil
+	}
+	containerName, imgName := flags.Arg(0), flags.Arg(1)
+	if containerName == "" || imgName == "" {
 		flags.Usage()
 		return nil
 	}
-	if dstName == "" {
-		dstName = srcName
-	}
-	/*
-	if src, exists := srv.findContainer(srcName); exists {
-		baseLayer := src.Filesystem.Layers[0]
-		//dst := srv.addContainer(dstName, "snapshot:" + src.Id, src.Size)
-		//fmt.Fprintln(stdout, dst.Id)
+	if container := srv.containers.Get(containerName); container != nil {
+		// FIXME: freeze the container before copying it to avoid data corruption?
+		rwTar, err := docker.Tar(container.Filesystem.RWPath)
+		if err != nil {
+			return err
+		}
+		// Create a new image from the container's base layers + a new layer from container changes
+		parentImg := srv.images.Find(container.GetUserData("image"))
+		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, img.Id)
 		return nil
 	}
-	*/
-	return errors.New("No such container: " + srcName)
+	return errors.New("No such container: " + containerName)
 }
+
 
 func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
 		"tar", "CONTAINER",
 		"Stream the contents of a container as a tar archive")
+	fl_sparse := flags.Bool("s", false, "Generate a sparse tar stream (top layer + reference to bottom layers)")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
+	if *fl_sparse {
+		return errors.New("Sparse mode not yet implemented") // FIXME
+	}
 	name := flags.Arg(0)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		data, err := container.Filesystem.Tar()
 		if err != nil {
 			return err
@@ -406,7 +449,7 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if flags.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if container, exists := srv.findContainer(flags.Arg(0)); !exists {
+	if container := srv.containers.Get(flags.Arg(0)); container == nil {
 		return errors.New("No such container")
 	} else {
 		changes, err := container.Filesystem.Changes()
@@ -431,77 +474,13 @@ func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		return errors.New("Not enough arguments")
 	}
 	for _, name := range flags.Args() {
-		if container, exists := srv.findContainer(name); exists {
+		if container := srv.containers.Get(name); container != nil {
 			if err := container.Filesystem.Reset(); err != nil {
 				return errors.New("Reset " + container.Id + ": " + err.Error())
 			}
 		}
 	}
 	return nil
-}
-
-// ByDate wraps an array of layers so they can be sorted by date (most recent first)
-
-type ByDate []*docker.Container
-
-func (c *ByDate) Len() int {
-	return len(*c)
-}
-
-func (c *ByDate) Less(i, j int) bool {
-	containers := *c
-	return containers[j].Created.Before(containers[i].Created)
-}
-
-func (c *ByDate) Swap(i, j int) {
-	containers := *c
-	tmp := containers[i]
-	containers[i] = containers[j]
-	containers[j] = tmp
-}
-
-func (c *ByDate) Add(container *docker.Container) {
-	*c = append(*c, container)
-	sort.Sort(c)
-}
-
-func (c *ByDate) Del(id string) {
-	for idx, container := range *c {
-		if container.Id == id {
-			*c = append((*c)[:idx], (*c)[idx + 1:]...)
-		}
-	}
-}
-
-
-func (srv *Server) addContainer(id string, layers []string, name string, source string) (*docker.Container, error) {
-	c, err := srv.docker.Create(id, "", nil, layers, &docker.Config{Hostname: id, Ram: 512 * 1024 * 1024})
-	if err != nil {
-		return nil, err
-	}
-	if err := c.SetUserData("name", name); err != nil {
-		srv.docker.Destroy(c)
-		return nil, err
-	}
-	if _, exists := srv.containersByName[name]; !exists {
-		srv.containersByName[name] = new(ByDate)
-	}
-	srv.containersByName[name].Add(c)
-	return c, nil
-}
-
-
-func (srv *Server) rm(id string) (*docker.Container, error) {
-	container := srv.docker.Get(id)
-	if container == nil {
-		return nil, errors.New("No such continer: " + id)
-	}
-	// Remove from name lookup
-	srv.containersByName[container.GetUserData("name")].Del(container.Id)
-	if err := srv.docker.Destroy(container); err != nil {
-		return container, err
-	}
-	return container, nil
 }
 
 
@@ -515,7 +494,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	name := flags.Arg(0)
-	if container, exists := srv.findContainer(name); exists {
+	if container := srv.containers.Get(name); container != nil {
 		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
 			return err
 		}
@@ -528,8 +507,21 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 
+func (srv *Server) CreateContainer(img *image.Image, cmd string, args ...string) (*docker.Container, error) {
+	id := future.RandomId()
+	container, err := srv.containers.Create(id, cmd, args, img.Layers, &docker.Config{Hostname: id})
+	if err != nil {
+		return nil, err
+	}
+	if err := container.SetUserData("image", img.Id); err != nil {
+		srv.containers.Destroy(container)
+		return nil, errors.New("Error setting container userdata: " + err.Error())
+	}
+	return container, nil
+}
+
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] CONTAINER COMMAND [ARG...]", "Run a command in a container")
+	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
 	//fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
 	if err := flags.Parse(args); err != nil {
@@ -540,40 +532,44 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	name, cmd := flags.Arg(0), flags.Args()[1:]
-	if container, exists := srv.findContainer(name); exists {
-		log.Printf("Running container %#v\n", container)
-		container.Path = cmd[0]
-		container.Args  = cmd[1:]
-		if *fl_attach {
-			cmd_stdout, err := container.StdoutPipe()
-			if err != nil {
-				return err
-			}
-			cmd_stderr, err := container.StderrPipe()
-			if err != nil {
-				return err
-			}
-			if err := container.Start(); err != nil {
-				return err
-			}
-			sending_stdout := future.Go(func() error { _, err := io.Copy(stdout, cmd_stdout); return err })
-			sending_stderr := future.Go(func() error { _, err := io.Copy(stdout, cmd_stderr); return err })
-			err_sending_stdout := <-sending_stdout
-			err_sending_stderr := <-sending_stderr
-			if err_sending_stdout != nil {
-				return err_sending_stdout
-			}
-			return err_sending_stderr
-		} else {
-			if output, err := container.Output(); err != nil {
-				return err
-			} else {
-				fmt.Printf("-->|%s|\n", output)
-			}
-		}
-		return nil
+	// Find the image
+	img := srv.images.Find(name)
+	if img == nil {
+		return errors.New("No such image: " + name)
 	}
-	return errors.New("No such container: " + name)
+	// Create new container
+	container, err := srv.CreateContainer(img, cmd[0], cmd[1:]...)
+	if err != nil {
+		return errors.New("Error creating container: " + err.Error())
+	}
+	// Run the container
+	if *fl_attach {
+		cmd_stdout, err := container.StdoutPipe()
+		if err != nil {
+			return err
+		}
+		cmd_stderr, err := container.StderrPipe()
+		if err != nil {
+			return err
+		}
+		if err := container.Start(); err != nil {
+			return err
+		}
+		sending_stdout := future.Go(func() error { _, err := io.Copy(stdout, cmd_stdout); return err })
+		sending_stderr := future.Go(func() error { _, err := io.Copy(stdout, cmd_stderr); return err })
+		err_sending_stdout := <-sending_stdout
+		err_sending_stderr := <-sending_stderr
+		if err_sending_stdout != nil {
+			return err_sending_stdout
+		}
+		return err_sending_stderr
+	} else {
+		if err := container.Start(); err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, container.Id)
+	}
+	return nil
 }
 
 func main() {
@@ -594,30 +590,18 @@ func main() {
 }
 
 func New() (*Server, error) {
-	store, err := future.NewStore("/var/lib/docker/layers")
+	images, err := image.New("/var/lib/docker/images")
 	if err != nil {
 		return nil, err
 	}
-	if err := store.Init(); err != nil {
-		return nil, err
-	}
-	d, err := docker.New()
+	containers, err := docker.New()
 	if err != nil {
 		return nil, err
 	}
 	srv := &Server{
-		containersByName: make(map[string]*ByDate),
-		layers: store,
-		docker: d,
+		images: images,
+		containers: containers,
 	}
-	for _, container := range srv.docker.List() {
-		name := container.GetUserData("name")
-		if _, exists := srv.containersByName[name]; !exists {
-			srv.containersByName[name] = new(ByDate)
-		}
-		srv.containersByName[name].Add(container)
-	}
-	log.Printf("Done building index\n")
 	return srv, nil
 }
 
@@ -662,8 +646,7 @@ func (srv *Server) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string)
 
 
 type Server struct {
-	containersByName	map[string]*ByDate
-	layers			*future.Store
-	docker			*docker.Docker
+	containers	*docker.Docker
+	images		*image.Store
 }
 

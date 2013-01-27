@@ -1,38 +1,52 @@
-package future
+package image
 
 import (
 	"errors"
 	"path"
 	"path/filepath"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"github.com/dotcloud/docker/future"
 )
 
-type Store struct {
+type LayerStore struct {
 	Root	string
 }
 
-
-func NewStore(root string) (*Store, error) {
+func NewLayerStore(root string) (*LayerStore, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
-	return &Store{
+	return &LayerStore{
 		Root: abspath,
 	}, nil
 }
 
-func (store *Store) Get(id string) (*Layer, bool) {
-	layer := &Layer{Path: store.layerPath(id)}
-	if !layer.Exists() {
-		return nil, false
+func (store *LayerStore) List() []string {
+	files, err := ioutil.ReadDir(store.Root)
+	if err != nil {
+		return []string{}
 	}
-	return layer, true
+	var layers []string
+	for _, st := range files {
+		if st.IsDir() {
+			layers = append(layers, path.Join(store.Root, st.Name()))
+		}
+	}
+	return layers
 }
 
-func (store *Store) Exists() (bool, error) {
+func (store *LayerStore) Get(id string) string {
+	if !store.Exists(id) {
+		return ""
+	}
+	return store.layerPath(id)
+}
+
+func (store *LayerStore) rootExists() (bool, error) {
 	if stat, err := os.Stat(store.Root); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -44,8 +58,8 @@ func (store *Store) Exists() (bool, error) {
 	return true, nil
 }
 
-func (store *Store) Init() error {
-	if exists, err := store.Exists(); err != nil {
+func (store *LayerStore) Init() error {
+	if exists, err := store.rootExists(); err != nil {
 		return err
 	} else if exists {
 		return nil
@@ -54,8 +68,8 @@ func (store *Store) Init() error {
 }
 
 
-func (store *Store) Mktemp() (string, error) {
-	tmpName := RandomId()
+func (store *LayerStore) Mktemp() (string, error) {
+	tmpName := future.RandomId()
 	tmpPath := path.Join(store.Root, "tmp-" + tmpName)
 	if err := os.Mkdir(tmpPath, 0700); err != nil {
 		return "", err
@@ -63,73 +77,63 @@ func (store *Store) Mktemp() (string, error) {
 	return tmpPath, nil
 }
 
-func (store *Store) layerPath(id string) string {
+func (store *LayerStore) layerPath(id string) string {
 	return path.Join(store.Root, id)
 }
 
 
-func (store *Store) AddLayer(archive io.Reader, stderr io.Writer) (*Layer, error) {
+func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer) (string, error) {
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	untarCmd := exec.Command("tar", "-C", tmp, "-x")
 	untarW, err := untarCmd.StdinPipe()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	untarStderr, err := untarCmd.StderrPipe()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	go io.Copy(stderr, untarStderr)
 	untarStdout, err := untarCmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	go io.Copy(stderr, untarStdout)
 	untarCmd.Start()
 	hashR, hashW := io.Pipe()
-	job_copy := Go(func() error {
+	job_copy := future.Go(func() error {
 		_, err := io.Copy(io.MultiWriter(hashW, untarW), archive)
 		hashW.Close()
 		untarW.Close()
 		return err
 	})
-	id, err := ComputeId(hashR)
+	id, err := future.ComputeId(hashR)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if err := untarCmd.Wait(); err != nil {
-		return nil, err
+		return "", err
 	}
 	if err := <-job_copy; err != nil {
-		return nil, err
+		return "", err
 	}
-	layer := &Layer{Path: store.layerPath(id)}
-	if !layer.Exists() {
-		if err := os.Rename(tmp, layer.Path); err != nil {
-			return nil, err
+	layer := store.layerPath(id)
+	if !store.Exists(id) {
+		if err := os.Rename(tmp, layer); err != nil {
+			return "", err
 		}
 	}
-
 	return layer, nil
 }
 
-
-type Layer struct {
-	Path	string
-}
-
-func (layer *Layer) Exists() bool {
-	st, err := os.Stat(layer.Path)
+func (store *LayerStore) Exists(id string) bool {
+	st, err := os.Stat(store.layerPath(id))
 	if err != nil {
 		return false
 	}
 	return st.IsDir()
-}
-
-func (layer *Layer) Id() string {
-	return path.Base(layer.Path)
 }

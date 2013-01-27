@@ -59,14 +59,13 @@ func createContainer(id string, root string, command string, args []string, laye
 		stdoutLog:	new(bytes.Buffer),
 		stderrLog:	new(bytes.Buffer),
 	}
-	if err := container.Filesystem.createMountPoints(); err != nil {
-		return nil, err
-	}
-
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
 	if err := os.Mkdir(root, 0700); err != nil {
+		return nil, err
+	}
+	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
 	if err := container.save(); err != nil {
