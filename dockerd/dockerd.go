@@ -64,7 +64,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 			}
 			fmt.Fprintln(stdout, container.Id)
 		} else {
-			return errors.New("No such container: " + container.Id)
+			return errors.New("No such container: " + name)
 		}
 	}
 	return nil
