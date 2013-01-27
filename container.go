@@ -170,7 +170,7 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) Start() error {
-	if err := container.Filesystem.Mount(); err != nil {
+	if err := container.Filesystem.EnsureMounted(); err != nil {
 		return err
 	}
 
