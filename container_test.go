@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 func TestStart(t *testing.T) {
@@ -238,5 +240,89 @@ func TestMultipleContainers(t *testing.T) {
 
 	if err := container2.Kill(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func BenchmarkRunSequencial(b *testing.B) {
+	docker, err := newTestDocker()
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		container, err := docker.Create(
+			fmt.Sprintf("bench_%v", i),
+			"echo",
+			[]string{"-n", "foo"},
+			[]string{"/var/lib/docker/images/ubuntu"},
+			&Config{},
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer docker.Destroy(container)
+		output, err := container.Output()
+		if err != nil {
+			b.Fatal(err)
+		}
+		if string(output) != "foo" {
+			b.Fatalf("Unexecpted output: %v", string(output))
+		}
+		if err := docker.Destroy(container); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRunParallel(b *testing.B) {
+	docker, err := newTestDocker()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var tasks []chan error
+
+	for i := 0; i < b.N; i++ {
+		complete := make(chan error)
+		tasks = append(tasks, complete)
+		go func(i int, complete chan error) {
+			container, err := docker.Create(
+				fmt.Sprintf("bench_%v", i),
+				"echo",
+				[]string{"-n", "foo"},
+				[]string{"/var/lib/docker/images/ubuntu"},
+				&Config{},
+			)
+			if err != nil {
+				complete <- err
+				return
+			}
+			defer docker.Destroy(container)
+			if err := container.Start(); err != nil {
+				complete <- err
+				return
+			}
+			if err := container.WaitTimeout(15 * time.Second); err != nil {
+				complete <- err
+				return
+			}
+			// if string(output) != "foo" {
+			// 	complete <- fmt.Errorf("Unexecpted output: %v", string(output))
+			// }
+			if err := docker.Destroy(container); err != nil {
+				complete <- err
+				return
+			}
+			complete <- nil
+		}(i, complete)
+	}
+	var errors []error
+	for _, task := range tasks {
+		err := <-task
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) > 0 {
+		b.Fatal(errors)
 	}
 }
