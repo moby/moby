@@ -11,6 +11,8 @@ import (
 	"path"
 	"syscall"
 	"time"
+	"strings"
+	"bytes"
 )
 
 type Container struct {
@@ -30,6 +32,9 @@ type Container struct {
 	cmd           *exec.Cmd
 	stdout        *writeBroadcaster
 	stderr        *writeBroadcaster
+
+	stdoutLog	*bytes.Buffer
+	stderrLog	*bytes.Buffer
 }
 
 type Config struct {
@@ -51,7 +56,15 @@ func createContainer(id string, root string, command string, args []string, laye
 		lxcConfigPath: path.Join(root, "config.lxc"),
 		stdout:        newWriteBroadcaster(),
 		stderr:        newWriteBroadcaster(),
+		stdoutLog:	new(bytes.Buffer),
+		stderrLog:	new(bytes.Buffer),
 	}
+	if err := container.Filesystem.createMountPoints(); err != nil {
+		return nil, err
+	}
+
+	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
+	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
 	if err := os.Mkdir(root, 0700); err != nil {
 		return nil, err
@@ -73,13 +86,67 @@ func loadContainer(containerPath string) (*Container, error) {
 	container := &Container{
 		stdout: newWriteBroadcaster(),
 		stderr: newWriteBroadcaster(),
+		stdoutLog: new(bytes.Buffer),
+		stderrLog: new(bytes.Buffer),
 	}
 	if err := json.Unmarshal(data, container); err != nil {
+		return nil, err
+	}
+	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
 	container.State = newState()
 	return container, nil
 }
+
+
+func (container *Container) Cmd() *exec.Cmd {
+	return container.cmd
+}
+
+func (container *Container) loadUserData() (map[string]string, error) {
+	jsonData, err := ioutil.ReadFile(path.Join(container.Root, "userdata.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]string), nil
+		}
+		return nil, err
+	}
+	data := make(map[string]string)
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (container *Container) saveUserData(data map[string]string) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path.Join(container.Root, "userdata.json"), jsonData, 0700)
+}
+
+func (container *Container) SetUserData(key, value string) error {
+	data, err := container.loadUserData()
+	if err != nil {
+		return err
+	}
+	data[key] = value
+	return container.saveUserData(data)
+}
+
+func (container *Container) GetUserData(key string) (string) {
+	data, err := container.loadUserData()
+	if err != nil {
+		return ""
+	}
+	if value, exists := data[key]; exists {
+		return value
+	}
+	return ""
+}
+
 
 func (container *Container) save() (err error) {
 	data, err := json.Marshal(container)
@@ -103,7 +170,7 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) Start() error {
-	if err := container.Filesystem.Mount(); err != nil {
+	if err := container.Filesystem.EnsureMounted(); err != nil {
 		return err
 	}
 
@@ -156,10 +223,19 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	return newBufReader(reader), nil
 }
 
+func (container *Container) StdoutLog() io.Reader {
+	return strings.NewReader(container.stdoutLog.String())
+}
+
+
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer)
 	return newBufReader(reader), nil
+}
+
+func (container *Container) StderrLog() io.Reader {
+	return strings.NewReader(container.stderrLog.String())
 }
 
 func (container *Container) monitor() {

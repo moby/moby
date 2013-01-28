@@ -8,6 +8,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"io"
+	"io/ioutil"
 )
 
 type Filesystem struct {
@@ -94,6 +96,24 @@ func (fs *Filesystem) IsMounted() bool {
 	return mntpointSt.Dev != parentSt.Dev
 }
 
+// Tar returns the contents of the filesystem as an uncompressed tar stream
+func (fs *Filesystem) Tar() (io.Reader, error) {
+	if err := fs.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return Tar(fs.RootFS)
+}
+
+
+func (fs *Filesystem) EnsureMounted() error {
+	if !fs.IsMounted() {
+		if err := fs.Mount(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type ChangeType int
 
 const (
@@ -105,6 +125,16 @@ const (
 type Change struct {
 	Path string
 	Kind ChangeType
+}
+
+func (change *Change) String() string {
+	var kind string
+	switch change.Kind {
+		case ChangeModify:	kind = "C"
+		case ChangeAdd:		kind = "A"
+		case ChangeDelete:	kind = "D"
+	}
+	return fmt.Sprintf("%s %s", kind, change.Path)
 }
 
 func (fs *Filesystem) Changes() ([]Change, error) {
@@ -177,6 +207,35 @@ func (fs *Filesystem) Changes() ([]Change, error) {
 		return nil, err
 	}
 	return changes, nil
+}
+
+// Reset removes all changes to the filesystem, reverting it to its initial state.
+func (fs *Filesystem) Reset() error {
+	if err := os.RemoveAll(fs.RWPath); err != nil {
+		return err
+	}
+	// We removed the RW directory itself along with its content: let's re-create an empty one.
+	if err := fs.createMountPoints(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Open opens the named file for reading.
+func (fs *Filesystem) OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	if err := fs.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(filepath.Join(fs.RootFS, path), flag, perm)
+}
+
+// ReadDir reads the directory named by dirname, relative to the Filesystem's root,
+// and returns a list of sorted directory entries
+func (fs *Filesystem) ReadDir(dirname string) ([]os.FileInfo, error) {
+	if err := fs.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadDir(filepath.Join(fs.RootFS, dirname))
 }
 
 func newFilesystem(rootfs string, rwpath string, layers []string) *Filesystem {
