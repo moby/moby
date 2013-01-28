@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Filesystem struct {
@@ -38,33 +39,57 @@ func (fs *Filesystem) Mount() error {
 		roBranches += fmt.Sprintf("%v=ro:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	return syscall.Mount("none", fs.RootFS, "aufs", 0, branches)
+	if err := syscall.Mount("none", fs.RootFS, "aufs", 0, branches); err != nil {
+		return err
+	}
+	if !fs.IsMounted() {
+		return errors.New("Mount failed")
+	}
+	return nil
 }
 
 func (fs *Filesystem) Umount() error {
 	if !fs.IsMounted() {
 		return errors.New("Umount: Filesystem not mounted")
 	}
-	return syscall.Unmount(fs.RootFS, 0)
+	if err := syscall.Unmount(fs.RootFS, 0); err != nil {
+		return err
+	}
+	if fs.IsMounted() {
+		return fmt.Errorf("Umount: Filesystem still mounted after calling umount(%v)", fs.RootFS)
+	}
+	for retries := 0; retries < 1000; retries++ {
+		err := os.Remove(fs.RootFS)
+		if err == nil {
+			// rm mntpoint succeeded
+			return nil
+		}
+		if os.IsNotExist(err) {
+			// mntpoint doesn't exist anymore. Success.
+			return nil
+		}
+		// fmt.Printf("(%v) Remove %v returned: %v\n", retries, fs.RootFS, err)
+		time.Sleep(10 * time.Millisecond)
+	}
+	return fmt.Errorf("Umount: Failed to umount %v", fs.RootFS)
 }
 
 func (fs *Filesystem) IsMounted() bool {
-	f, err := os.Open(fs.RootFS)
+	mntpoint, err := os.Stat(fs.RootFS)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false
 		}
 		panic(err)
 	}
-	list, err := f.Readdirnames(1)
-	f.Close()
+	parent, err := os.Stat(filepath.Join(fs.RootFS, ".."))
 	if err != nil {
-		return false
+		panic(err)
 	}
-	if len(list) > 0 {
-		return true
-	}
-	return false
+
+	mntpointSt := mntpoint.Sys().(*syscall.Stat_t)
+	parentSt := parent.Sys().(*syscall.Stat_t)
+	return mntpointSt.Dev != parentSt.Dev
 }
 
 type ChangeType int
