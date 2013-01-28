@@ -27,20 +27,40 @@ func TestFilesystem(t *testing.T) {
 		t.Errorf("Umount succeeded even though the filesystem was not mounted")
 	}
 
+	if filesystem.IsMounted() {
+		t.Fatal("Filesystem should not be mounted")
+	}
+
 	if err := filesystem.Mount(); err != nil {
 		t.Fatal(err)
+	}
+
+	if !filesystem.IsMounted() {
+		t.Fatal("Filesystem should be mounted")
 	}
 
 	if err := filesystem.Mount(); err == nil {
 		t.Errorf("Double mount succeeded")
 	}
 
+	if !filesystem.IsMounted() {
+		t.Fatal("Filesystem should be mounted")
+	}
+
 	if err := filesystem.Umount(); err != nil {
 		t.Fatal(err)
 	}
 
+	if filesystem.IsMounted() {
+		t.Fatal("Filesystem should not be mounted")
+	}
+
 	if err := filesystem.Umount(); err == nil {
 		t.Errorf("Umount succeeded even though the filesystem was already umounted")
+	}
+
+	if filesystem.IsMounted() {
+		t.Fatal("Filesystem should not be mounted")
 	}
 }
 
