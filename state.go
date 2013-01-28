@@ -1,10 +1,10 @@
 package docker
 
 import (
-	"sync"
-	"time"
 	"fmt"
 	"github.com/dotcloud/docker/future"
+	"sync"
+	"time"
 )
 
 type State struct {
@@ -16,7 +16,6 @@ type State struct {
 	stateChangeLock *sync.Mutex
 	stateChangeCond *sync.Cond
 }
-
 
 func newState() *State {
 	lock := new(sync.Mutex)

@@ -3,13 +3,13 @@ package docker
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-	"io"
-	"io/ioutil"
 )
 
 type Filesystem struct {
@@ -104,7 +104,6 @@ func (fs *Filesystem) Tar() (io.Reader, error) {
 	return Tar(fs.RootFS)
 }
 
-
 func (fs *Filesystem) EnsureMounted() error {
 	if !fs.IsMounted() {
 		if err := fs.Mount(); err != nil {
@@ -130,9 +129,12 @@ type Change struct {
 func (change *Change) String() string {
 	var kind string
 	switch change.Kind {
-		case ChangeModify:	kind = "C"
-		case ChangeAdd:		kind = "A"
-		case ChangeDelete:	kind = "D"
+	case ChangeModify:
+		kind = "C"
+	case ChangeAdd:
+		kind = "A"
+	case ChangeDelete:
+		kind = "D"
 	}
 	return fmt.Sprintf("%s %s", kind, change.Path)
 }

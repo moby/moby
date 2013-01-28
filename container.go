@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,10 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"syscall"
 	"time"
-	"strings"
-	"bytes"
 )
 
 type Container struct {
@@ -33,8 +33,8 @@ type Container struct {
 	stdout        *writeBroadcaster
 	stderr        *writeBroadcaster
 
-	stdoutLog	*bytes.Buffer
-	stderrLog	*bytes.Buffer
+	stdoutLog *bytes.Buffer
+	stderrLog *bytes.Buffer
 }
 
 type Config struct {
@@ -56,8 +56,8 @@ func createContainer(id string, root string, command string, args []string, laye
 		lxcConfigPath: path.Join(root, "config.lxc"),
 		stdout:        newWriteBroadcaster(),
 		stderr:        newWriteBroadcaster(),
-		stdoutLog:	new(bytes.Buffer),
-		stderrLog:	new(bytes.Buffer),
+		stdoutLog:     new(bytes.Buffer),
+		stderrLog:     new(bytes.Buffer),
 	}
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
@@ -83,8 +83,8 @@ func loadContainer(containerPath string) (*Container, error) {
 		return nil, err
 	}
 	container := &Container{
-		stdout: newWriteBroadcaster(),
-		stderr: newWriteBroadcaster(),
+		stdout:    newWriteBroadcaster(),
+		stderr:    newWriteBroadcaster(),
 		stdoutLog: new(bytes.Buffer),
 		stderrLog: new(bytes.Buffer),
 	}
@@ -97,7 +97,6 @@ func loadContainer(containerPath string) (*Container, error) {
 	container.State = newState()
 	return container, nil
 }
-
 
 func (container *Container) Cmd() *exec.Cmd {
 	return container.cmd
@@ -135,7 +134,7 @@ func (container *Container) SetUserData(key, value string) error {
 	return container.saveUserData(data)
 }
 
-func (container *Container) GetUserData(key string) (string) {
+func (container *Container) GetUserData(key string) string {
 	data, err := container.loadUserData()
 	if err != nil {
 		return ""
@@ -145,7 +144,6 @@ func (container *Container) GetUserData(key string) (string) {
 	}
 	return ""
 }
-
 
 func (container *Container) save() (err error) {
 	data, err := json.Marshal(container)
@@ -225,7 +223,6 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 func (container *Container) StdoutLog() io.Reader {
 	return strings.NewReader(container.stdoutLog.String())
 }
-
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()

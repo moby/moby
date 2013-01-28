@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"container/list"
 	"io"
-	"sync"
 	"os/exec"
+	"sync"
 )
 
 // Tar generates a tar archive from a filesystem path, and returns it as a stream.
