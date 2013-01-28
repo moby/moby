@@ -67,10 +67,14 @@ func (docker *Docker) Destroy(container *Container) error {
 	if err := container.Stop(); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(container.Root); err != nil {
-		return err
+	if container.Filesystem.IsMounted() {
+		if err := container.Filesystem.Umount(); err != nil {
+			log.Printf("Unable to umount container %v: %v", container.Id, err)
+		}
 	}
-
+	if err := os.RemoveAll(container.Root); err != nil {
+		log.Printf("Unable to remove filesystem for %v: %v", container.Id, err)
+	}
 	docker.containers.Remove(element)
 	return nil
 }

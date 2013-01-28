@@ -58,6 +58,8 @@ func (fs *Filesystem) Umount() error {
 	if fs.IsMounted() {
 		return fmt.Errorf("Umount: Filesystem still mounted after calling umount(%v)", fs.RootFS)
 	}
+	// Even though we just unmounted the filesystem, AUFS will prevent deleting the mntpoint
+	// for some time. We'll just keep retrying until it succeeds.
 	for retries := 0; retries < 1000; retries++ {
 		err := os.Remove(fs.RootFS)
 		if err == nil {
