@@ -141,9 +141,6 @@ func (index *Index) Copy(srcNameOrId, dstName string) (*Image, error) {
 	if src == nil {
 		return nil, errors.New("No such image: " + srcNameOrId)
 	}
-	if index.Find(dstName) != nil {
-		return nil, errors.New(dstName + ": image already exists.")
-	}
 	dst, err := NewImage(dstName, src.Layers, src.Id)
 	if err != nil {
 		return nil, err
