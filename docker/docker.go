@@ -185,9 +185,10 @@ func main() {
 	if err := <-receive_stdout; err != nil {
 		Fatal(err)
 	}
-	if IsTerminal(0) && os.Getenv("NORAW") == "" {
+	if oldState != nil {
 		Restore(0, oldState)
-	} else {
+	}
+	if !IsTerminal(0) {
 		if err := <-send_stdin; err != nil {
 			Fatal(err)
 		}
