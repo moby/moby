@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"github.com/kr/pty"
 )
 
 type Container struct {
@@ -41,10 +41,10 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname string
-	Ram      int64
-	Tty	 bool		// Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin	bool	// Open stdin
+	Hostname  string
+	Ram       int64
+	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin bool // Open stdin
 }
 
 func createContainer(id string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
@@ -67,7 +67,7 @@ func createContainer(id string, root string, command string, args []string, laye
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard)	// Silently drop stdin
+		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
@@ -107,7 +107,7 @@ func loadContainer(containerPath string) (*Container, error) {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard)	// Silently drop stdin
+		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	container.State = newState()
 	return container, nil
