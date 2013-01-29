@@ -526,7 +526,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 
 func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
-	id := future.RandomId()
+	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img.Layers,
 		&docker.Config{Hostname: id, Tty: tty, OpenStdin: openStdin})
 	if err != nil {
