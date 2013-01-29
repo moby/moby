@@ -185,6 +185,73 @@ func (container *Container) generateLXCConfig() error {
 	return nil
 }
 
+func (container *Container) startPty() error {
+	stdout_master, stdout_slave, err := pty.Open()
+	if err != nil {
+		return err
+	}
+	container.cmd.Stdout = stdout_slave
+
+	stderr_master, stderr_slave, err := pty.Open()
+	if err != nil {
+		return err
+	}
+	container.cmd.Stderr = stderr_slave
+
+	// Copy the PTYs to our broadcasters
+	go func() {
+		defer container.stdout.Close()
+		io.Copy(container.stdout, stdout_master)
+	}()
+
+	go func() {
+		defer container.stderr.Close()
+		io.Copy(container.stderr, stderr_master)
+	}()
+
+	// stdin
+	var stdin_slave io.ReadCloser
+	if container.Config.OpenStdin {
+		stdin_master, stdin_slave, err := pty.Open()
+		if err != nil {
+			return err
+		}
+		container.cmd.Stdin = stdin_slave
+		// FIXME: The following appears to be broken.
+		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
+		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		go func() {
+			defer container.stdin.Close()
+			io.Copy(stdin_master, container.stdin)
+		}()
+	}
+	if err := container.cmd.Start(); err != nil {
+		return err
+	}
+	stdout_slave.Close()
+	stderr_slave.Close()
+	if stdin_slave != nil {
+		stdin_slave.Close()
+	}
+	return nil
+}
+
+func (container *Container) start() error {
+	container.cmd.Stdout = container.stdout
+	container.cmd.Stderr = container.stderr
+	if container.Config.OpenStdin {
+		stdin, err := container.cmd.StdinPipe()
+		if err != nil {
+			return err
+		}
+		go func() {
+			defer stdin.Close()
+			io.Copy(stdin, container.stdin)
+		}()
+	}
+	return container.cmd.Start()
+}
+
 func (container *Container) Start() error {
 	if err := container.Filesystem.EnsureMounted(); err != nil {
 		return err
@@ -200,67 +267,13 @@ func (container *Container) Start() error {
 
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
 
+	var err error
 	if container.Config.Tty {
-		Pty, tty, err := pty.Open()
-		if err != nil {
-			return err
-		}
-		container.cmd.Stdout = tty
-		container.cmd.Stderr = tty
-		if container.stdin != nil {
-			container.cmd.Stdin = tty
-		}
-		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
-		if err := container.cmd.Start(); err != nil {
-			Pty.Close()
-			return err
-		}
-		tty.Close()
-		// Attach Pty to stdout
-		go func() {
-			defer container.stdout.Close()
-			for {
-				data := make([]byte, 1024)
-				n, err := Pty.Read(data)
-				if err != nil {
-					return
-				}
-				log.Printf("STDOUT <%s>\n", data)
-				if _, err = container.stdout.Write(data[:n]); err != nil {
-					return
-				}
-				log.Printf("STDOUT SENT\n")
-			}
-			//io.Copy(container.stdout, Pty)
-			//container.stdout.Close()
-		}()
-		// Attach Pty to stderr
-		go func() {
-			io.Copy(container.stderr, Pty)
-			container.stderr.Close()
-		}()
-		// Attach Pty to stdin
-		if container.stdin != nil {
-			go func() {
-				defer Pty.Close()
-				io.Copy(Pty, container.stdin)
-			}()
-		}
+		err = container.startPty()
 	} else {
-		container.cmd.Stdout = container.stdout
-		container.cmd.Stderr = container.stderr
-		if container.stdin != nil {
-			stdin, err := container.cmd.StdinPipe()
-			if err != nil {
-				return err
-			}
-			go func() {
-				defer stdin.Close()
-				io.Copy(stdin, container.stdin)
-			}()
-		}
+		err = container.start()
 	}
-	if err := container.cmd.Start(); err != nil {
+	if err != nil {
 		return err
 	}
 	container.State.setRunning(container.cmd.Process.Pid)
