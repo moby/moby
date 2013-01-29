@@ -333,9 +333,10 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if (!*quiet) {
-		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\n")
+		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
 	}
 	for _, container := range srv.containers.List() {
+		comment := container.GetUserData("comment")
 		if !container.State.Running && !*fl_all {
 			continue
 		}
@@ -350,6 +351,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				/* COMMAND */	command,
 				/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */	container.State.String(),
+				/* COMMENT */	comment,
 			} {
 				if idx == 0 {
 					w.Write([]byte(field))
@@ -522,7 +524,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 
-func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()
 	container, err := srv.containers.Create(id, cmd, args, img.Layers,
 		&docker.Config{Hostname: id, Tty: tty, OpenStdin: openStdin})
@@ -530,6 +532,10 @@ func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, c
 		return nil, err
 	}
 	if err := container.SetUserData("image", img.Id); err != nil {
+		srv.containers.Destroy(container)
+		return nil, errors.New("Error setting container userdata: " + err.Error())
+	}
+	if err := container.SetUserData("comment", comment); err != nil {
 		srv.containers.Destroy(container)
 		return nil, errors.New("Error setting container userdata: " + err.Error())
 	}
@@ -587,6 +593,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
 	fl_stdin := flags.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
+	fl_comment := flags.String("c", "", "Comment")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -601,7 +608,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, cmd[0], cmd[1:]...)
+	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, *fl_comment, cmd[0], cmd[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
