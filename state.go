@@ -28,9 +28,9 @@ func newState() *State {
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
-		return fmt.Sprintf("Running for %s", future.HumanDuration(time.Now().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", future.HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
-	return fmt.Sprintf("Exited with %d", s.ExitCode)
+	return fmt.Sprintf("Exit %d", s.ExitCode)
 }
 
 func (s *State) setRunning(pid int) {

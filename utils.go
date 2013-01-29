@@ -8,6 +8,13 @@ import (
 	"sync"
 )
 
+func Trunc(s string, maxlen int) string {
+	if len(s) <= maxlen {
+		return s
+	}
+	return s[:maxlen]
+}
+
 // Tar generates a tar archive from a filesystem path, and returns it as a stream.
 // Path must point to a directory.
 

@@ -327,10 +327,11 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		"ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	fl_all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
+	fl_full := cmd.Bool("notrunc", false, "Don't truncate output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if (!*quiet) {
 		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\n")
 	}
@@ -339,10 +340,14 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			continue
 		}
 		if !*quiet {
+			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+			if !*fl_full {
+				command = docker.Trunc(command, 20)
+			}
 			for idx, field := range[]string {
 				/* ID */	container.Id,
 				/* IMAGE */	container.GetUserData("image"),
-				/* COMMAND */	fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")),
+				/* COMMAND */	command,
 				/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */	container.State.String(),
 			} {
