@@ -5,9 +5,7 @@ import (
 	"math/rand"
 	"io"
 	"archive/tar"
-	"github.com/dotcloud/docker"
 	"os/exec"
-	"strings"
 	"github.com/kr/pty"
 )
 
@@ -56,27 +54,8 @@ func ContainerRunning() bool {
 	return false
 }
 
-type Container struct {
-	*docker.Container
-	Name	string
-	Source	string
-	Size	uint
-	FilesChanged uint
-	BytesChanged uint
-}
 
-func NewContainer(c *docker.Container) *Container {
-	return &Container{
-		Container:	c,
-		Name:		c.GetUserData("name"),
-	}
-}
-func (c *Container) CmdString() string {
-	return strings.Join(append([]string{c.Path}, c.Args...), " ")
-}
-
-
-func startCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadCloser, error) {
+func StartCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadCloser, error) {
 	if interactive {
 		term, err := pty.Start(cmd)
 		if err != nil {
