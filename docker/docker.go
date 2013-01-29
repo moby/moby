@@ -21,10 +21,6 @@ type Termios struct {
 	Ospeed uintptr
 }
 
-const (
-	getTermios = syscall.TIOCGETA
-	setTermios = syscall.TIOCSETA
-)
 
 const (
 	// Input flags
