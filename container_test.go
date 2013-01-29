@@ -2,6 +2,8 @@ package docker
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -88,9 +90,6 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer docker.Destroy(container)
-
-	pipe, err := container.StdoutPipe()
-	defer pipe.Close()
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -240,6 +239,76 @@ func TestMultipleContainers(t *testing.T) {
 
 	if err := container2.Kill(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStdin(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"stdin_test",
+		"cat",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+
+	stdin, err := container.StdinPipe()
+	stdout, err := container.StdoutPipe()
+	defer stdin.Close()
+	defer stdout.Close()
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(stdin, "hello world")
+	stdin.Close()
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if string(output) != "hello world" {
+		t.Fatal(string(output))
+	}
+}
+
+func TestTty(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"tty_test",
+		"cat",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+
+	stdin, err := container.StdinPipe()
+	stdout, err := container.StdoutPipe()
+	defer stdin.Close()
+	defer stdout.Close()
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(stdin, "hello world")
+	stdin.Close()
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if string(output) != "hello world" {
+		t.Fatal(string(output))
 	}
 }
 
