@@ -22,10 +22,10 @@ type Filesystem struct {
 }
 
 func (fs *Filesystem) createMountPoints() error {
-	if err := os.Mkdir(fs.RootFS, 0700); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(fs.RootFS, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	if err := os.Mkdir(fs.RWPath, 0700); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(fs.RWPath, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	return nil
