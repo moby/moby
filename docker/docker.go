@@ -160,7 +160,7 @@ func Fatal(err error) {
 
 func main() {
 	var err error
-	if IsTerminal(0) {
+	if IsTerminal(0) && os.Getenv("NORAW") == "" {
 		oldState, err = MakeRaw(0)
 		if err != nil {
 			panic(err)
@@ -185,9 +185,10 @@ func main() {
 	if err := <-receive_stdout; err != nil {
 		Fatal(err)
 	}
-	if IsTerminal(0) {
+	if oldState != nil {
 		Restore(0, oldState)
-	} else {
+	}
+	if !IsTerminal(0) {
 		if err := <-send_stdin; err != nil {
 			Fatal(err)
 		}

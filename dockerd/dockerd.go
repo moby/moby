@@ -597,11 +597,21 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() < 2 {
-		flags.Usage()
-		return nil
+	name := flag.Arg(0)
+	var cmd[]string
+	if len(flag.Args()) >= 2 {
+		cmd = flag.Args()[1:]
 	}
-	name, cmd := flags.Arg(0), flags.Args()[1:]
+	// Choose a default image if needed
+	if name == "" {
+		name = "base"
+	}
+	// Choose a default command if needed
+	if len(cmd) == 0 {
+		*fl_stdin = true
+		*fl_tty = false
+		cmd = []string{"/bin/sh"}
+	}
 	// Find the image
 	img := srv.images.Find(name)
 	if img == nil {
