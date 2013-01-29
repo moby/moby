@@ -15,6 +15,9 @@ import (
 type Filesystem struct {
 	RootFS string
 	RWPath string
+	// The layers to be mounted on top of each other via aufs.
+	// Layers are ordered top-to-bottom: the first layer in the list will be mounted on top of the others.
+	// In other words, THE BASE IMAGE SHOULD BE LAST!
 	Layers []string
 }
 

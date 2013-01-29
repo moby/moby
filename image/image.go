@@ -49,7 +49,7 @@ func (store *Store) Import(name string, archive io.Reader, stderr io.Writer, par
 	}
 	layers := []string{layer}
 	if parent != nil {
-		layers = append(parent.Layers, layers...)
+		layers = append(layers, parent.Layers...)
 	}
 	var parentId string
 	if parent != nil {
