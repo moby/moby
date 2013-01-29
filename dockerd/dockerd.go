@@ -288,8 +288,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		if nameFilter != "" && nameFilter != name {
 			continue
 		}
-		for idx, evt := range *srv.images.ByName[name] {
-			img := evt.(*image.Image)
+		for idx, img := range *srv.images.ByName[name] {
 			if *limit > 0 && idx >= *limit {
 				break
 			}
