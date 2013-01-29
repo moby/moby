@@ -73,6 +73,9 @@ lxc.mount.entry = devpts {{.Filesystem.RootFS}}/dev/pts devpts newinstance,ptmxm
 #lxc.mount.entry = varlock {{.Filesystem.RootFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
 #lxc.mount.entry = shm {{.Filesystem.RootFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
+# In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
+lxc.mount.entry = /etc/resolv.conf {{.Filesystem.RootFS}}/etc/resolv.conf none bind,ro 0 0
+
 
 # drop linux capabilities (apply mainly to the user root in the container)
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
