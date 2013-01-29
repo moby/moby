@@ -200,21 +200,26 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 		return nil
 	}
 	name := cmd.Arg(0)
+	var obj interface{}
 	if container := srv.containers.Get(name); container != nil {
-		data, err := json.Marshal(container)
-		if err != nil {
-			return err
-		}
-		indented := new(bytes.Buffer)
-		if err = json.Indent(indented, data, "", "    "); err != nil {
-			return err
-		}
-		if _, err := io.Copy(stdout, indented); err != nil {
-			return err
-		}
-		return nil
+		obj = container
+	} else if image := srv.images.Find(name); image != nil {
+		obj = image
+	} else {
+		return errors.New("No such container or image: " + name)
 	}
-	return errors.New("No such container: " + name)
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	indented := new(bytes.Buffer)
+	if err = json.Indent(indented, data, "", "    "); err != nil {
+		return err
+	}
+	if _, err := io.Copy(stdout, indented); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
