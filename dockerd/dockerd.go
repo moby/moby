@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"bytes"
+	"sync"
 )
 
 
@@ -42,6 +43,7 @@ func (srv *Server) Help() string {
 		{"info", "Display system-wide information"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
+		{"attach", "Attach to a running container"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
@@ -507,9 +509,10 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 
-func (srv *Server) CreateContainer(img *image.Image, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()
-	container, err := srv.containers.Create(id, cmd, args, img.Layers, &docker.Config{Hostname: id})
+	container, err := srv.containers.Create(id, cmd, args, img.Layers,
+		&docker.Config{Hostname: id, Tty: tty, OpenStdin: openStdin})
 	if err != nil {
 		return nil, err
 	}
@@ -520,10 +523,57 @@ func (srv *Server) CreateContainer(img *image.Image, cmd string, args ...string)
 	return container, nil
 }
 
+func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "attach", "[OPTIONS]", "Attach to a running container")
+	fl_i := cmd.Bool("i", false, "Attach to stdin")
+	fl_o := cmd.Bool("o", true, "Attach to stdout")
+	fl_e := cmd.Bool("e", true, "Attach to stderr")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	container := srv.containers.Get(name)
+	if container == nil {
+		return errors.New("No such container: " + name)
+	}
+	var wg sync.WaitGroup
+	if *fl_i {
+		c_stdin, err := container.StdinPipe()
+		if err != nil {
+			return err
+		}
+		wg.Add(1)
+		go func() { io.Copy(c_stdin, stdin); wg.Add(-1); }()
+	}
+	if *fl_o {
+		c_stdout, err := container.StdoutPipe()
+		if err != nil {
+			return err
+		}
+		wg.Add(1)
+		go func() { io.Copy(stdout, c_stdout); wg.Add(-1); }()
+	}
+	if *fl_e {
+		c_stderr, err := container.StderrPipe()
+		if err != nil {
+			return err
+		}
+		wg.Add(1)
+		go func() { io.Copy(stdout, c_stderr); wg.Add(-1); }()
+	}
+	wg.Wait()
+	return nil
+}
+
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
-	//fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
+	fl_stdin := flags.Bool("i", false, "Keep stdin open even if not attached")
+	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
 	if err := flags.Parse(args); err != nil {
 		return nil
 	}
@@ -538,31 +588,55 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, cmd[0], cmd[1:]...)
+	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, cmd[0], cmd[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
-	// Run the container
-	if *fl_attach {
-		cmd_stdout, err := container.StdoutPipe()
+	if *fl_stdin {
+		cmd_stdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
+		if *fl_attach {
+			future.Go(func() error {
+				log.Printf("CmdRun(): start receiving stdin\n")
+				_, err := io.Copy(cmd_stdin, stdin);
+				log.Printf("CmdRun(): done receiving stdin\n")
+				cmd_stdin.Close()
+				return err
+			})
+		}
+	}
+	// Run the container
+	if *fl_attach {
 		cmd_stderr, err := container.StderrPipe()
+		if err != nil {
+			return err
+		}
+		cmd_stdout, err := container.StdoutPipe()
 		if err != nil {
 			return err
 		}
 		if err := container.Start(); err != nil {
 			return err
 		}
-		sending_stdout := future.Go(func() error { _, err := io.Copy(stdout, cmd_stdout); return err })
-		sending_stderr := future.Go(func() error { _, err := io.Copy(stdout, cmd_stderr); return err })
+		sending_stdout := future.Go(func() error {
+			_, err := io.Copy(stdout, cmd_stdout);
+			return err
+		})
+		sending_stderr := future.Go(func() error {
+			_, err := io.Copy(stdout, cmd_stderr);
+			return err
+		})
 		err_sending_stdout := <-sending_stdout
 		err_sending_stderr := <-sending_stderr
 		if err_sending_stdout != nil {
 			return err_sending_stdout
 		}
-		return err_sending_stderr
+		if err_sending_stderr != nil {
+			return err_sending_stderr
+		}
+		container.Wait()
 	} else {
 		if err := container.Start(); err != nil {
 			return err

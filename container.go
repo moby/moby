@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"github.com/kr/pty"
 )
 
 type Container struct {
@@ -32,6 +33,8 @@ type Container struct {
 	cmd           *exec.Cmd
 	stdout        *writeBroadcaster
 	stderr        *writeBroadcaster
+	stdin         io.ReadCloser
+	stdinPipe     io.WriteCloser
 
 	stdoutLog *bytes.Buffer
 	stderrLog *bytes.Buffer
@@ -40,6 +43,8 @@ type Container struct {
 type Config struct {
 	Hostname string
 	Ram      int64
+	Tty	 bool		// Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin	bool	// Open stdin
 }
 
 func createContainer(id string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
@@ -58,6 +63,11 @@ func createContainer(id string, root string, command string, args []string, laye
 		stderr:        newWriteBroadcaster(),
 		stdoutLog:     new(bytes.Buffer),
 		stderrLog:     new(bytes.Buffer),
+	}
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	} else {
+		container.stdinPipe = NopWriteCloser(ioutil.Discard)	// Silently drop stdin
 	}
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
@@ -93,6 +103,11 @@ func loadContainer(containerPath string) (*Container, error) {
 	}
 	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
+	}
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	} else {
+		container.stdinPipe = NopWriteCloser(ioutil.Discard)	// Silently drop stdin
 	}
 	container.State = newState()
 	return container, nil
@@ -180,9 +195,67 @@ func (container *Container) Start() error {
 	params = append(params, container.Args...)
 
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
-	container.cmd.Stdout = container.stdout
-	container.cmd.Stderr = container.stderr
 
+	if container.Config.Tty {
+		Pty, tty, err := pty.Open()
+		if err != nil {
+			return err
+		}
+		container.cmd.Stdout = tty
+		container.cmd.Stderr = tty
+		if container.stdin != nil {
+			container.cmd.Stdin = tty
+		}
+		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		if err := container.cmd.Start(); err != nil {
+			Pty.Close()
+			return err
+		}
+		tty.Close()
+		// Attach Pty to stdout
+		go func() {
+			defer container.stdout.Close()
+			for {
+				data := make([]byte, 1024)
+				n, err := Pty.Read(data)
+				if err != nil {
+					return
+				}
+				log.Printf("STDOUT <%s>\n", data)
+				if _, err = container.stdout.Write(data[:n]); err != nil {
+					return
+				}
+				log.Printf("STDOUT SENT\n")
+			}
+			//io.Copy(container.stdout, Pty)
+			//container.stdout.Close()
+		}()
+		// Attach Pty to stderr
+		go func() {
+			io.Copy(container.stderr, Pty)
+			container.stderr.Close()
+		}()
+		// Attach Pty to stdin
+		if container.stdin != nil {
+			go func() {
+				defer Pty.Close()
+				io.Copy(Pty, container.stdin)
+			}()
+		}
+	} else {
+		container.cmd.Stdout = container.stdout
+		container.cmd.Stderr = container.stderr
+		if container.stdin != nil {
+			stdin, err := container.cmd.StdinPipe()
+			if err != nil {
+				return err
+			}
+			go func() {
+				defer stdin.Close()
+				io.Copy(stdin, container.stdin)
+			}()
+		}
+	}
 	if err := container.cmd.Start(); err != nil {
 		return err
 	}
@@ -212,6 +285,13 @@ func (container *Container) Output() (output []byte, err error) {
 	output, err = ioutil.ReadAll(pipe)
 	container.Wait()
 	return output, err
+}
+
+// StdinPipe() returns a pipe connected to the standard input of the container's
+// active process.
+//
+func (container *Container) StdinPipe() (io.WriteCloser, error) {
+	return container.stdinPipe, nil
 }
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
