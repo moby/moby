@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"github.com/dotcloud/docker/image"	// For sorting utility
 )
 
 type Docker struct {
@@ -16,9 +17,13 @@ type Docker struct {
 }
 
 func (docker *Docker) List() []*Container {
-	containers := []*Container{}
+	history := new(image.History)
 	for e := docker.containers.Front(); e != nil; e = e.Next() {
-		containers = append(containers, e.Value.(*Container))
+		history.Add(e.Value.(*Container))
+	}
+	containers := make([]*Container, len(*history))
+	for i := range *history {
+		containers[i] = (*history)[i].(*Container)
 	}
 	return containers
 }

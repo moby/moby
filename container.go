@@ -117,6 +117,10 @@ func (container *Container) Cmd() *exec.Cmd {
 	return container.cmd
 }
 
+func (container *Container) When() time.Time {
+	return container.Created
+}
+
 func (container *Container) loadUserData() (map[string]string, error) {
 	jsonData, err := ioutil.ReadFile(path.Join(container.Root, "userdata.json"))
 	if err != nil {

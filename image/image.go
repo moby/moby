@@ -102,7 +102,7 @@ func (index *Index) Find(idOrName string) *Image {
 	}
 	// Lookup by name
 	if history, exists := index.ByName[idOrName]; exists && history.Len() > 0 {
-		return (*history)[0]
+		return (*history)[0].(*Image)
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func (index *Index) Add(name string, image *Image) error {
 		index.ByName[name] = new(History)
 	} else {
 		// If this image is already the latest version, don't add it.
-		if (*index.ByName[name])[0].Id == image.Id {
+		if (*index.ByName[name])[0].(*Image).Id == image.Id {
 			return nil
 		}
 	}
@@ -169,7 +169,8 @@ func (index *Index) Rename(oldName, newName string) error {
 	index.ByName[newName] = index.ByName[oldName]
 	delete(index.ByName, oldName)
 	// Change the ID of all images, since they include the name
-	for _, image := range *index.ByName[newName] {
+	for _, event := range *index.ByName[newName] {
+		image := event.(*Image)
 		if id, err := generateImageId(newName, image.Layers); err != nil {
 			return err
 		} else {
@@ -227,35 +228,31 @@ func (index *Index) save() error {
 
 // History wraps an array of images so they can be sorted by date (most recent first)
 
-type History []*Image
+type Event interface {
+	When() time.Time
+}
+
+type History []Event
 
 func (history *History) Len() int {
 	return len(*history)
 }
 
 func (history *History) Less(i, j int) bool {
-	images := *history
-	return images[j].Created.Before(images[i].Created)
+	events := *history
+	return events[j].When().Before(events[i].When())
 }
 
 func (history *History) Swap(i, j int) {
-	images := *history
-	tmp := images[i]
-	images[i] = images[j]
-	images[j] = tmp
+	events := *history
+	tmp := events[i]
+	events[i] = events[j]
+	events[j] = tmp
 }
 
-func (history *History) Add(image *Image) {
-	*history = append(*history, image)
+func (history *History) Add(event Event) {
+	*history = append(*history, event)
 	sort.Sort(history)
-}
-
-func (history *History) Del(id string) {
-	for idx, image := range *history {
-		if image.Id == id {
-			*history = append((*history)[:idx], (*history)[idx + 1:]...)
-		}
-	}
 }
 
 type Image struct {
@@ -263,6 +260,10 @@ type Image struct {
 	Layers	[]string	// Absolute paths
 	Created	time.Time
 	Parent	string
+}
+
+func (image *Image) When() time.Time {
+	return image.Created
 }
 
 func (image *Image) IdParts() (string, string) {
