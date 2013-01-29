@@ -117,7 +117,6 @@ func NewFromDirectory(root string) (*Docker, error) {
 	return docker, nil
 }
 
-
 type History []*Container
 
 func (history *History) Len() int {
@@ -140,4 +139,3 @@ func (history *History) Add(container *Container) {
 	*history = append(*history, container)
 	sort.Sort(history)
 }
-
