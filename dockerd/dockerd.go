@@ -30,7 +30,7 @@ func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]interface{}{
 		{"run", "Run a command in a container"},
-		{"list", "Display a list of containers"},
+		{"ps", "Display a list of containers"},
 		{"pull", "Download a tarball and create a container from it"},
 		{"put", "Upload a tarball and create a container from it"},
 		{"rm", "Remove containers"},
@@ -317,11 +317,11 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 
 }
 
-func (srv *Server) CmdContainers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
-		"containers", "[OPTIONS]",
-		"List containers")
+		"ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
+	fl_all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -330,6 +330,9 @@ func (srv *Server) CmdContainers(stdin io.ReadCloser, stdout io.Writer, args ...
 		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\n")
 	}
 	for _, container := range srv.containers.List() {
+		if !container.State.Running && !*fl_all {
+			continue
+		}
 		if !*quiet {
 			for idx, field := range[]string {
 				/* ID */	container.Id,
