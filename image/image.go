@@ -186,6 +186,28 @@ func (index *Index) Rename(oldName, newName string) error {
 	return nil
 }
 
+// Delete deletes all images with the name `name`
+func (index *Index) Delete(name string) error {
+	// Load
+	if err := index.load(); err != nil {
+		return err
+	}
+	if _, exists := index.ByName[name]; !exists {
+		return errors.New("No such image: " + name)
+	}
+	// Remove from index lookup
+	for _, image := range *index.ByName[name] {
+		delete(index.ById, image.Id)
+	}
+	// Remove from name lookup
+	delete(index.ByName, name)
+	// Save
+	if err := index.save(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (index *Index) Names() []string {
 	if err := index.load(); err != nil {
 		return []string{}

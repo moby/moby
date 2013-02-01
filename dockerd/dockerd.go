@@ -222,6 +222,29 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	return nil
 }
 
+// 'docker rmi NAME' removes all images with the name NAME
+func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		image := srv.images.Find(name)
+		if image == nil {
+			return errors.New("No such image: " + name)
+		}
+		if err := srv.images.Delete(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
 	if err := flags.Parse(args); err != nil {
