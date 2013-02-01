@@ -1,5 +1,3 @@
-Docker
-======
 
 Setup instructions
 ==================
@@ -20,9 +18,10 @@ Step by step host setup
 2. Assume root identity on your newly installed environment (`sudo -s`)
 3. Type the following commands:
 
-    apt-get update
-    apt-get install lxc wget
-    debootstrap --arch=amd64 quantal /var/lib/docker/images/ubuntu/
+        apt-get update
+        apt-get install lxc wget
+        debootstrap --arch=amd64 quantal /var/lib/docker/images/ubuntu/
+
 4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`)
 5. Extract the contents of the tar file `tar -xf docker.tar.gz`
 6. Launch the docker daemon `./dockerd`
