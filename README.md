@@ -1,6 +1,8 @@
 Docker: a self-sufficient runtime for linux containers
 ======================================================
 
+<img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
+
 Docker is a runtime for Standard Containers. More specifically, it is a daemon which automates the creation of and deployment of linux Standard Containers (SCs) via a remote API.
 
 Standard Containers are a fundamental unit of software delivery, in much the same way that shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.
