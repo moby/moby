@@ -127,7 +127,8 @@ notice: /Stage[main]/Docker/Service[dockerd]/ensure: ensure changed 'stopped' to
 
 notice: Finished catalog run in 329.74 seconds
 ```
-When this has successfully completed, you should be albe to get into your new system with `vagrant ssh` and use `docker`:
+
+When this has successfully completed, you should be able to get into your new system with `vagrant ssh` and use `docker`:
 
 ```bash
 $ vagrant ssh
