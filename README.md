@@ -78,3 +78,84 @@ Client installation
 4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`)
 5. Extract the contents of the tar file `tar -xf docker.tar.gz`
 6. You can now use the docker client binary `./docker`. Consider adding it to your `PATH` for simplicity.
+
+Vagrant Usage
+-------------
+
+1. Install Vagrant from http://vagrantup.com
+2. Run `vagrant up`. This will take a few minutes as it does the following:
+    - Download Quantal64 base box
+    - Kick off Puppet to do:
+        - Download & untar most recent docker binary tarball to vagrant homedir.
+        - Debootstrap to /var/lib/docker/images/ubuntu.
+        - Install & run dockerd as service.
+        - Put docker in /usr/local/bin.
+        - Put latest Go toolchain in /usr/local/go.
+
+Sample run output:
+
+```bash
+$ vagrant up
+[default] Importing base box 'quantal64'...
+[default] Matching MAC address for NAT networking...
+[default] Clearing any previously set forwarded ports...
+[default] Forwarding ports...
+[default] -- 22 => 2222 (adapter 1)
+[default] Creating shared folders metadata...
+[default] Clearing any previously set network interfaces...
+[default] Booting VM...
+[default] Waiting for VM to boot. This can take a few minutes.
+[default] VM booted and ready for use!
+[default] Mounting shared folders...
+[default] -- v-root: /vagrant
+[default] -- manifests: /tmp/vagrant-puppet/manifests
+[default] -- v-pp-m0: /tmp/vagrant-puppet/modules-0
+[default] Running provisioner: Vagrant::Provisioners::Puppet...
+[default] Running Puppet with /tmp/vagrant-puppet/manifests/quantal64.pp...
+stdin: is not a tty
+notice: /Stage[main]//Node[default]/Exec[apt_update]/returns: executed successfully
+
+notice: /Stage[main]/Docker/Exec[fetch-docker]/returns: executed successfully
+notice: /Stage[main]/Docker/Package[lxc]/ensure: ensure changed 'purged' to 'present'
+notice: /Stage[main]/Docker/Exec[fetch-go]/returns: executed successfully
+
+notice: /Stage[main]/Docker/Exec[copy-docker-bin]/returns: executed successfully
+notice: /Stage[main]/Docker/Exec[debootstrap]/returns: executed successfully
+notice: /Stage[main]/Docker/File[/etc/init/dockerd.conf]/ensure: defined content as '{md5}78a593d38dd9919af14d8f0545ac95e9'
+
+notice: /Stage[main]/Docker/Service[dockerd]/ensure: ensure changed 'stopped' to 'running'
+
+notice: Finished catalog run in 329.74 seconds
+```
+3. When this has successfully completed, you should be albe to get into your new system with `vagrant ssh` and use `docker`:
+
+```bash
+$ vagrant ssh
+Welcome to Ubuntu 12.10 (GNU/Linux 3.5.0-17-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+Last login: Sun Feb  3 19:37:37 2013
+vagrant@vagrant-ubuntu-12:~$ DOCKER=localhost:4242 docker help
+Usage: docker COMMAND [arg...]
+
+A self-sufficient runtime for linux containers.
+
+Commands:
+    run       Run a command in a container
+    ps        Display a list of containers
+    pull      Download a tarball and create a container from it
+    put       Upload a tarball and create a container from it
+    rm        Remove containers
+    wait      Wait for the state of a container to change
+    stop      Stop a running container
+    logs      Fetch the logs of a container
+    diff      Inspect changes on a container's filesystem
+    commit    Save the state of a container
+    attach    Attach to the standard inputs and outputs of a running container
+    info      Display system-wide information
+    tar       Stream the contents of a container as a tar archive
+    web       Generate a web UI
+    attach    Attach to a running container
+```
+    
