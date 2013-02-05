@@ -21,6 +21,7 @@ import (
 	"sync"
 )
 
+const VERSION = "0.0.1"
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -50,6 +51,14 @@ func (srv *Server) Help() string {
 	return help
 }
 
+// 'docker info': display system-wide information.
+func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
+		len(srv.containers.List()),
+		VERSION,
+		len(srv.images.ById))
+	return nil
+}
 
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
