@@ -1,7 +1,6 @@
 class docker {
 
     # update this with latest docker binary distro
-    # XXX: this is actually a bzip2 file rather than gzip despite extension
     $docker_url = "https://dl.dropbox.com/u/20637798/docker.tar.gz"
     # update this with latest go binary distry
     $go_url = "http://go.googlecode.com/files/go1.0.3.linux-amd64.tar.gz"
@@ -26,7 +25,7 @@ class docker {
 
     exec { "fetch-docker" :
         require => Package["wget"],
-        command => "/usr/bin/wget -O - $docker_url | /bin/tar xj -C /home/vagrant",
+        command => "/usr/bin/wget -O - $docker_url | /bin/tar xz -C /home/vagrant",
         creates => "/home/vagrant/docker/dockerd"
     }
 
