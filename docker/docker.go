@@ -8,6 +8,7 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+	"fmt"
 )
 
 
@@ -160,6 +161,10 @@ func Fatal(err error) {
 
 func main() {
 	var err error
+	if os.Getenv("DOCKER") == "" {
+		fmt.Printf("Can't connect. Please set environment variable DOCKER to ip:port, eg. 'localhost:4242'.\n")
+		os.Exit(1)
+	}
 	if IsTerminal(0) && os.Getenv("NORAW") == "" {
 		oldState, err = MakeRaw(0)
 		if err != nil {
