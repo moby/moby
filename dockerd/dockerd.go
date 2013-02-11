@@ -35,6 +35,7 @@ func (srv *Server) Help() string {
 		{"pull", "Download a tarball and create a container from it"},
 		{"put", "Upload a tarball and create a container from it"},
 		{"rm", "Remove containers"},
+		{"kill", "Kill a running container"},
 		{"wait", "Wait for the state of a container to change"},
 		{"stop", "Stop a running container"},
 		{"logs", "Fetch the logs of a container"},
@@ -266,6 +267,24 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		}
 		if err := srv.containers.Destroy(container); err != nil {
 			fmt.Fprintln(stdout, "Error destroying container " + name + ": " + err.Error())
+		}
+	}
+	return nil
+}
+
+// 'docker kill NAME' kills a running container
+func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "kill", "[OPTIONS] CONTAINER [CONTAINER...]", "Kill a running container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		container := srv.containers.Get(name)
+		if container == nil {
+			return errors.New("No such container: " + name)
+		}
+		if err := container.Kill(); err != nil {
+			fmt.Fprintln(stdout, "Error killing container " + name + ": " + err.Error())
 		}
 	}
 	return nil
