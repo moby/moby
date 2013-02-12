@@ -740,7 +740,11 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	if err := rcli.ListenAndServeTCP(":4242", d); err != nil {
+	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
+	// CloseWrite(), which we need to cleanly signal that stdin is closed without
+	// closing the connection.
+	// See http://code.google.com/p/go/issues/detail?id=3345
+	if err := rcli.ListenAndServe("tcp", "127.0.0.1:4242", d); err != nil {
 		log.Fatal(err)
 	}
 }

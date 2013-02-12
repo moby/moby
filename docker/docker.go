@@ -8,7 +8,6 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
-	"fmt"
 )
 
 
@@ -161,10 +160,6 @@ func Fatal(err error) {
 
 func main() {
 	var err error
-	if os.Getenv("DOCKER") == "" {
-		fmt.Printf("Can't connect. Please set environment variable DOCKER to ip:port, eg. 'localhost:4242'.\n")
-		os.Exit(1)
-	}
 	if IsTerminal(0) && os.Getenv("NORAW") == "" {
 		oldState, err = MakeRaw(0)
 		if err != nil {
@@ -172,7 +167,11 @@ func main() {
 		}
 		defer Restore(0, oldState)
 	}
-	conn, err := rcli.CallTCP(os.Getenv("DOCKER"), os.Args[1:]...)
+	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
+	// CloseWrite(), which we need to cleanly signal that stdin is closed without
+	// closing the connection.
+	// See http://code.google.com/p/go/issues/detail?id=3345
+	conn, err := rcli.Call("tcp", "127.0.0.1:4242", os.Args[1:]...)
 	if err != nil {
 		Fatal(err)
 	}
