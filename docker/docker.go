@@ -4,10 +4,15 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/future"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"syscall"
 	"unsafe"
+	"path"
+	"path/filepath"
+	"flag"
 )
 
 
@@ -159,6 +164,23 @@ func Fatal(err error) {
 
 
 func main() {
+	if cmd := path.Base(os.Args[0]); cmd == "docker" {
+		fl_shell := flag.Bool("i", false, "Interactive mode")
+		flag.Parse()
+		if *fl_shell {
+			if err := InteractiveMode(); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			SimpleMode(os.Args[1:])
+		}
+	} else {
+		SimpleMode(append([]string{cmd}, os.Args[1:]...))
+	}
+}
+
+// Run docker in "simple mode": run a single command and return.
+func SimpleMode(args []string) {
 	var err error
 	if IsTerminal(0) && os.Getenv("NORAW") == "" {
 		oldState, err = MakeRaw(0)
@@ -171,7 +193,7 @@ func main() {
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
 	// closing the connection.
 	// See http://code.google.com/p/go/issues/detail?id=3345
-	conn, err := rcli.Call("tcp", "127.0.0.1:4242", os.Args[1:]...)
+	conn, err := rcli.Call("tcp", "127.0.0.1:4242", args...)
 	if err != nil {
 		Fatal(err)
 	}
@@ -197,4 +219,69 @@ func main() {
 			Fatal(err)
 		}
 	}
+}
+
+// Run docker in "interactive mode": run a bash-compatible shell capable of running docker commands.
+func InteractiveMode() error {
+	// Determine path of current docker binary
+	dockerPath, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		return err
+	}
+	dockerPath, err = filepath.Abs(dockerPath)
+	if err != nil {
+		return err
+	}
+
+	// Create a temp directory
+	tmp, err := ioutil.TempDir("", "docker-shell")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	// For each command, create an alias in temp directory
+	// FIXME: generate this list dynamically with introspection of some sort
+	// It might make sense to merge docker and dockerd to keep that introspection
+	// within a single binary.
+	for _, cmd := range []string{
+		"help",
+		"run",
+		"ps",
+		"pull",
+		"put",
+		"rm",
+		"kill",
+		"wait",
+		"stop",
+		"logs",
+		"diff",
+		"commit",
+		"attach",
+		"info",
+		"tar",
+		"web",
+		"docker",
+	} {
+		if err := os.Symlink(dockerPath, path.Join(tmp, cmd)); err != nil {
+			return err
+		}
+	}
+
+	// Run $SHELL with PATH set to temp directory
+	rcfile, err := ioutil.TempFile("", "docker-shell-rc")
+	if err != nil {
+		return err
+	}
+	io.WriteString(rcfile, "enable -n help\n")
+	os.Setenv("PATH", tmp)
+	os.Setenv("PS1", "\\h docker> ")
+	shell := exec.Command("/bin/bash", "--rcfile", rcfile.Name())
+	shell.Stdin = os.Stdin
+	shell.Stdout = os.Stdout
+	shell.Stderr = os.Stderr
+	if err := shell.Run(); err != nil {
+		return err
+	}
+	return nil
 }
