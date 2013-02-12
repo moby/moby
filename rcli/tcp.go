@@ -53,6 +53,9 @@ func ListenAndServe(proto, addr string, service Service) error {
 	return nil
 }
 
+
+// Parse an rcli call on a new connection, and pass it to `service` if it
+// is valid.
 func Serve(conn io.ReadWriter, service Service) error {
 	r := bufio.NewReader(conn)
 	var args []string

@@ -1,5 +1,12 @@
 package rcli
 
+// rcli (Remote Command-Line Interface) is a simple protocol for...
+// serving command-line interfaces remotely.
+//
+// rcli can be used over any transport capable of a) sending binary streams in
+// both directions, and b) capable of half-closing a connection. TCP and Unix sockets
+// are the usual suspects.
+
 import (
 	"fmt"
 	"io"
