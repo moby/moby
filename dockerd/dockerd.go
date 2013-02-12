@@ -736,7 +736,7 @@ func main() {
 		log.Fatal(err)
 	}
 	go func() {
-		if err := rcli.ListenAndServeHTTP(":8080", d); err != nil {
+		if err := rcli.ListenAndServeHTTP("127.0.0.1:8080", d); err != nil {
 			log.Fatal(err)
 		}
 	}()
