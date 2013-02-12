@@ -27,6 +27,9 @@ type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
 
 
 func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	if len(args) == 0 {
+		args = []string{"help"}
+	}
 	flags := flag.NewFlagSet("main", flag.ContinueOnError)
 	flags.SetOutput(stdout)
 	flags.Usage = func() { stdout.Write([]byte(service.Help())) }
@@ -40,7 +43,7 @@ func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	method := getMethod(service, cmd)
 	if method != nil {
-		return method(stdin, stdout, args[1:]...)
+		return method(stdin, stdout, flags.Args()[1:]...)
 	}
 	return errors.New("No such command: " + cmd)
 }
