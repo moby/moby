@@ -10,12 +10,15 @@ import (
 	"bufio"
 )
 
-func CallTCP(addr string, args ...string) (*net.TCPConn, error) {
+// Connect to a remote endpoint using protocol `proto` and address `addr`,
+// issue a single call, and return the result.
+// `proto` may be "tcp", "unix", etc. See the `net` package for available protocols.
+func Call(proto, addr string, args ...string) (*net.TCPConn, error) {
 	cmd, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.Dial(proto, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -25,12 +28,14 @@ func CallTCP(addr string, args ...string) (*net.TCPConn, error) {
 	return conn.(*net.TCPConn), nil
 }
 
-func ListenAndServeTCP(addr string, service Service) error {
-	listener, err := net.Listen("tcp", addr)
+// Listen on `addr`, using protocol `proto`, for incoming rcli calls,
+// and pass them to `service`.
+func ListenAndServe(proto, addr string, service Service) error {
+	listener, err := net.Listen(proto, addr)
 	if err != nil {
 		return err
 	}
-	log.Printf("Listening for RCLI/TCP on %s\n", addr)
+	log.Printf("Listening for RCLI/%s on %s\n", proto, addr)
 	defer listener.Close()
 	for {
 		if conn, err := listener.Accept(); err != nil {
@@ -48,6 +53,9 @@ func ListenAndServeTCP(addr string, service Service) error {
 	return nil
 }
 
+
+// Parse an rcli call on a new connection, and pass it to `service` if it
+// is valid.
 func Serve(conn io.ReadWriter, service Service) error {
 	r := bufio.NewReader(conn)
 	var args []string

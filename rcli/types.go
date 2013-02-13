@@ -1,5 +1,12 @@
 package rcli
 
+// rcli (Remote Command-Line Interface) is a simple protocol for...
+// serving command-line interfaces remotely.
+//
+// rcli can be used over any transport capable of a) sending binary streams in
+// both directions, and b) capable of half-closing a connection. TCP and Unix sockets
+// are the usual suspects.
+
 import (
 	"fmt"
 	"io"
@@ -20,6 +27,9 @@ type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
 
 
 func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	if len(args) == 0 {
+		args = []string{"help"}
+	}
 	flags := flag.NewFlagSet("main", flag.ContinueOnError)
 	flags.SetOutput(stdout)
 	flags.Usage = func() { stdout.Write([]byte(service.Help())) }
@@ -33,7 +43,7 @@ func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	method := getMethod(service, cmd)
 	if method != nil {
-		return method(stdin, stdout, args[1:]...)
+		return method(stdin, stdout, flags.Args()[1:]...)
 	}
 	return errors.New("No such command: " + cmd)
 }

@@ -82,13 +82,19 @@ func (store *LayerStore) layerPath(id string) string {
 }
 
 
-func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer) (string, error) {
+func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer, compression Compression) (string, error) {
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return "", err
 	}
-	untarCmd := exec.Command("tar", "-C", tmp, "-x")
+	extractFlags := "-x"
+	if compression == Bzip2 {
+		extractFlags += "j"
+	} else if compression == Gzip {
+		extractFlags += "z"
+	}
+	untarCmd := exec.Command("tar", "-C", tmp, extractFlags)
 	untarW, err := untarCmd.StdinPipe()
 	if err != nil {
 		return "", err

@@ -41,9 +41,16 @@ func New(root string) (*Store, error) {
 	}, nil
 }
 
+type Compression uint32
 
-func (store *Store) Import(name string, archive io.Reader, stderr io.Writer, parent *Image) (*Image, error) {
-	layer, err := store.Layers.AddLayer(archive, stderr)
+const (
+	Uncompressed	Compression = iota
+	Bzip2
+	Gzip
+)
+
+func (store *Store) Import(name string, archive io.Reader, stderr io.Writer, parent *Image, compression Compression) (*Image, error) {
+	layer, err := store.Layers.AddLayer(archive, stderr, compression)
 	if err != nil {
 		return nil, err
 	}

@@ -14,7 +14,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -35,6 +37,7 @@ func (srv *Server) Help() string {
 		{"pull", "Download a tarball and create a container from it"},
 		{"put", "Upload a tarball and create a container from it"},
 		{"rm", "Remove containers"},
+		{"kill", "Kill a running container"},
 		{"wait", "Wait for the state of a container to change"},
 		{"stop", "Stop a running container"},
 		{"logs", "Fetch the logs of a container"},
@@ -44,7 +47,7 @@ func (srv *Server) Help() string {
 		{"info", "Display system-wide information"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
-		{"attach", "Attach to a running container"},
+		{"images", "List images"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
@@ -254,11 +257,11 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
-	if err := flags.Parse(args); err != nil {
+	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	for _, name := range flags.Args() {
+	for _, name := range cmd.Args() {
 		container := srv.containers.Get(name)
 		if container == nil {
 			return errors.New("No such container: " + name)
@@ -270,15 +273,59 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	return nil
 }
 
+// 'docker kill NAME' kills a running container
+func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "kill", "[OPTIONS] CONTAINER [CONTAINER...]", "Kill a running container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		container := srv.containers.Get(name)
+		if container == nil {
+			return errors.New("No such container: " + name)
+		}
+		if err := container.Kill(); err != nil {
+			fmt.Fprintln(stdout, "Error killing container "+name+": "+err.Error())
+		}
+	}
+	return nil
+}
+
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	if len(args) < 1 {
+	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] NAME", "Download a new image from a remote location")
+	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
+	fl_gzip := cmd.Bool("z", false, "Gzip compression")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	var compression image.Compression
+	if *fl_bzip2 {
+		compression = image.Bzip2
+	} else if *fl_gzip {
+		compression = image.Gzip
+	}
+	name := cmd.Arg(0)
+	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	resp, err := http.Get(args[0])
+	u, err := url.Parse(name)
 	if err != nil {
 		return err
 	}
-	img, err := srv.images.Import(args[0], resp.Body, stdout, nil)
+	if u.Scheme == "" {
+		u.Scheme = "http"
+	}
+	// FIXME: hardcode a mirror URL that does not depend on a single provider.
+	if u.Host == "" {
+		u.Host = "s3.amazonaws.com"
+		u.Path = path.Join("/docker.io/images", u.Path)
+	}
+	fmt.Fprintf(stdout, "Downloading %s from %s...\n", name, u.String())
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return err
+	}
+	img, err := srv.images.Import(name, resp.Body, stdout, nil, compression)
 	if err != nil {
 		return err
 	}
@@ -287,10 +334,23 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	if len(args) < 1 {
+	cmd := rcli.Subcmd(stdout, "put", "[OPTIONS] NAME", "Import a new image from a local archive.")
+	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
+	fl_gzip := cmd.Bool("z", false, "Gzip compression")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	var compression image.Compression
+	if *fl_bzip2 {
+		compression = image.Bzip2
+	} else if *fl_gzip {
+		compression = image.Gzip
+	}
+	name := cmd.Arg(0)
+	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	img, err := srv.images.Import(args[0], stdin, stdout, nil)
+	img, err := srv.images.Import(name, stdin, stdout, nil, compression)
 	if err != nil {
 		return err
 	}
@@ -299,17 +359,17 @@ func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
-	limit := flags.Int("l", 0, "Only show the N most recent versions of each image")
-	quiet := flags.Bool("q", false, "only show numeric IDs")
-	flags.Parse(args)
-	if flags.NArg() > 1 {
-		flags.Usage()
+	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
+	limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
+	quiet := cmd.Bool("q", false, "only show numeric IDs")
+	cmd.Parse(args)
+	if cmd.NArg() > 1 {
+		cmd.Usage()
 		return nil
 	}
 	var nameFilter string
-	if flags.NArg() == 1 {
-		nameFilter = flags.Arg(0)
+	if cmd.NArg() == 1 {
+		nameFilter = cmd.Arg(0)
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
@@ -402,10 +462,10 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 }
 
 func (srv *Server) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"layers", "[OPTIONS]",
 		"List filesystem layers (debug only)")
-	if err := flags.Parse(args); err != nil {
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	for _, layer := range srv.images.Layers.List() {
@@ -415,13 +475,13 @@ func (srv *Server) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"cp", "[OPTIONS] IMAGE NAME",
 		"Create a copy of IMAGE and call it NAME")
-	if err := flags.Parse(args); err != nil {
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if newImage, err := srv.images.Copy(flags.Arg(0), flags.Arg(1)); err != nil {
+	if newImage, err := srv.images.Copy(cmd.Arg(0), cmd.Arg(1)); err != nil {
 		return err
 	} else {
 		fmt.Fprintln(stdout, newImage.Id)
@@ -430,15 +490,15 @@ func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 }
 
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"commit", "[OPTIONS] CONTAINER [DEST]",
 		"Create a new image from a container's changes")
-	if err := flags.Parse(args); err != nil {
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	containerName, imgName := flags.Arg(0), flags.Arg(1)
+	containerName, imgName := cmd.Arg(0), cmd.Arg(1)
 	if containerName == "" || imgName == "" {
-		flags.Usage()
+		cmd.Usage()
 		return nil
 	}
 	if container := srv.containers.Get(containerName); container != nil {
@@ -449,7 +509,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		// Create a new image from the container's base layers + a new layer from container changes
 		parentImg := srv.images.Find(container.GetUserData("image"))
-		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg)
+		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg, image.Uncompressed)
 		if err != nil {
 			return err
 		}
@@ -460,17 +520,17 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"tar", "CONTAINER",
 		"Stream the contents of a container as a tar archive")
-	fl_sparse := flags.Bool("s", false, "Generate a sparse tar stream (top layer + reference to bottom layers)")
-	if err := flags.Parse(args); err != nil {
+	fl_sparse := cmd.Bool("s", false, "Generate a sparse tar stream (top layer + reference to bottom layers)")
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	if *fl_sparse {
 		return errors.New("Sparse mode not yet implemented") // FIXME
 	}
-	name := flags.Arg(0)
+	name := cmd.Arg(0)
 	if container := srv.containers.Get(name); container != nil {
 		data, err := container.Filesystem.Tar()
 		if err != nil {
@@ -486,16 +546,16 @@ func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"diff", "CONTAINER [OPTIONS]",
 		"Inspect changes on a container's filesystem")
-	if err := flags.Parse(args); err != nil {
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() < 1 {
+	if cmd.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if container := srv.containers.Get(flags.Arg(0)); container == nil {
+	if container := srv.containers.Get(cmd.Arg(0)); container == nil {
 		return errors.New("No such container")
 	} else {
 		changes, err := container.Filesystem.Changes()
@@ -510,16 +570,16 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout,
+	cmd := rcli.Subcmd(stdout,
 		"reset", "CONTAINER [OPTIONS]",
 		"Reset changes to a container's filesystem")
-	if err := flags.Parse(args); err != nil {
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() < 1 {
+	if cmd.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	for _, name := range flags.Args() {
+	for _, name := range cmd.Args() {
 		if container := srv.containers.Get(name); container != nil {
 			if err := container.Filesystem.Reset(); err != nil {
 				return errors.New("Reset " + container.Id + ": " + err.Error())
@@ -530,15 +590,15 @@ func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...strin
 }
 
 func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
-	if err := flags.Parse(args); err != nil {
+	cmd := rcli.Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if flags.NArg() != 1 {
-		flags.Usage()
+	if cmd.NArg() != 1 {
+		cmd.Usage()
 		return nil
 	}
-	name := flags.Arg(0)
+	name := cmd.Arg(0)
 	if container := srv.containers.Get(name); container != nil {
 		if _, err := io.Copy(stdout, container.StdoutLog()); err != nil {
 			return err
@@ -548,7 +608,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		return nil
 	}
-	return errors.New("No such container: " + flags.Arg(0))
+	return errors.New("No such container: " + cmd.Arg(0))
 }
 
 func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
@@ -616,29 +676,29 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
-	fl_attach := flags.Bool("a", false, "Attach stdin and stdout")
-	fl_stdin := flags.Bool("i", false, "Keep stdin open even if not attached")
-	fl_tty := flags.Bool("t", false, "Allocate a pseudo-tty")
-	fl_comment := flags.String("c", "", "Comment")
-	if err := flags.Parse(args); err != nil {
+	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
+	fl_attach := cmd.Bool("a", false, "Attach stdin and stdout")
+	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
+	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
+	fl_comment := cmd.String("c", "", "Comment")
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := flags.Arg(0)
-	var cmd []string
-	if len(flags.Args()) >= 2 {
-		cmd = flags.Args()[1:]
+	name := cmd.Arg(0)
+	var cmdline []string
+	if len(cmd.Args()) >= 2 {
+		cmdline = cmd.Args()[1:]
 	}
 	// Choose a default image if needed
 	if name == "" {
 		name = "base"
 	}
 	// Choose a default command if needed
-	if len(cmd) == 0 {
+	if len(cmdline) == 0 {
 		*fl_stdin = true
 		*fl_tty = true
 		*fl_attach = true
-		cmd = []string{"/bin/bash", "-i"}
+		cmdline = []string{"/bin/bash", "-i"}
 	}
 	// Find the image
 	img := srv.images.Find(name)
@@ -646,7 +706,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, *fl_comment, cmd[0], cmd[1:]...)
+	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
@@ -717,11 +777,15 @@ func main() {
 		log.Fatal(err)
 	}
 	go func() {
-		if err := rcli.ListenAndServeHTTP(":8080", d); err != nil {
+		if err := rcli.ListenAndServeHTTP("127.0.0.1:8080", d); err != nil {
 			log.Fatal(err)
 		}
 	}()
-	if err := rcli.ListenAndServeTCP(":4242", d); err != nil {
+	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
+	// CloseWrite(), which we need to cleanly signal that stdin is closed without
+	// closing the connection.
+	// See http://code.google.com/p/go/issues/detail?id=3345
+	if err := rcli.ListenAndServe("tcp", "127.0.0.1:4242", d); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -764,9 +828,9 @@ func (srv *Server) CmdDebug(stdin io.ReadCloser, stdout io.Writer, args ...strin
 }
 
 func (srv *Server) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	flags := rcli.Subcmd(stdout, "web", "[OPTIONS]", "A web UI for docker")
-	showurl := flags.Bool("u", false, "Return the URL of the web UI")
-	if err := flags.Parse(args); err != nil {
+	cmd := rcli.Subcmd(stdout, "web", "[OPTIONS]", "A web UI for docker")
+	showurl := cmd.Bool("u", false, "Return the URL of the web UI")
+	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	if *showurl {
