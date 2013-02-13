@@ -1,24 +1,24 @@
 package main
 
 import (
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/rcli"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/future"
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
-	"log"
-	"io"
 	"flag"
 	"fmt"
-	"strings"
-	"text/tabwriter"
-	"os"
-	"time"
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/rcli"
+	"io"
+	"log"
 	"net/http"
-	"encoding/json"
-	"bytes"
+	"os"
+	"strings"
 	"sync"
+	"text/tabwriter"
+	"time"
 )
 
 const VERSION = "0.0.1"
@@ -173,7 +173,6 @@ func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return errors.New("No such container: " + name)
 }
 
-
 func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
 	if err := cmd.Parse(args); err != nil {
@@ -265,7 +264,7 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			return errors.New("No such container: " + name)
 		}
 		if err := srv.containers.Destroy(container); err != nil {
-			fmt.Fprintln(stdout, "Error destroying container " + name + ": " + err.Error())
+			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
 		}
 	}
 	return nil
@@ -313,7 +312,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		nameFilter = flags.Arg(0)
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	if (!*quiet) {
+	if !*quiet {
 		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\n")
 	}
 	for _, name := range srv.images.Names() {
@@ -330,10 +329,10 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					id += "..."
 				}
 				for idx, field := range []string{
-					/* NAME */	name,
-					/* ID */	id,
-					/* CREATED */	future.HumanDuration(time.Now().Sub(img.Created)) + " ago",
-					/* PARENT */	img.Parent,
+					/* NAME */ name,
+					/* ID */ id,
+					/* CREATED */ future.HumanDuration(time.Now().Sub(img.Created)) + " ago",
+					/* PARENT */ img.Parent,
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -347,7 +346,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			}
 		}
 	}
-	if (!*quiet) {
+	if !*quiet {
 		w.Flush()
 	}
 	return nil
@@ -364,7 +363,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		return nil
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
-	if (!*quiet) {
+	if !*quiet {
 		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
 	}
 	for _, container := range srv.containers.List() {
@@ -377,13 +376,13 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			if !*fl_full {
 				command = docker.Trunc(command, 20)
 			}
-			for idx, field := range[]string {
-				/* ID */	container.Id,
-				/* IMAGE */	container.GetUserData("image"),
-				/* COMMAND */	command,
-				/* CREATED */	future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
-				/* STATUS */	container.State.String(),
-				/* COMMENT */	comment,
+			for idx, field := range []string{
+				/* ID */ container.Id,
+				/* IMAGE */ container.GetUserData("image"),
+				/* COMMAND */ command,
+				/* CREATED */ future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
+				/* STATUS */ container.State.String(),
+				/* COMMENT */ comment,
 			} {
 				if idx == 0 {
 					w.Write([]byte(field))
@@ -396,7 +395,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			stdout.Write([]byte(container.Id + "\n"))
 		}
 	}
-	if (!*quiet) {
+	if !*quiet {
 		w.Flush()
 	}
 	return nil
@@ -414,7 +413,6 @@ func (srv *Server) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	return nil
 }
-
 
 func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
@@ -460,7 +458,6 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	return errors.New("No such container: " + containerName)
 }
-
 
 func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout,
@@ -532,7 +529,6 @@ func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return nil
 }
 
-
 func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	flags := rcli.Subcmd(stdout, "logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
 	if err := flags.Parse(args); err != nil {
@@ -554,7 +550,6 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return errors.New("No such container: " + flags.Arg(0))
 }
-
 
 func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
@@ -598,7 +593,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(c_stdin, stdin); wg.Add(-1); }()
+		go func() { io.Copy(c_stdin, stdin); wg.Add(-1) }()
 	}
 	if *fl_o {
 		c_stdout, err := container.StdoutPipe()
@@ -606,7 +601,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(stdout, c_stdout); wg.Add(-1); }()
+		go func() { io.Copy(stdout, c_stdout); wg.Add(-1) }()
 	}
 	if *fl_e {
 		c_stderr, err := container.StderrPipe()
@@ -614,7 +609,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(stdout, c_stderr); wg.Add(-1); }()
+		go func() { io.Copy(stdout, c_stderr); wg.Add(-1) }()
 	}
 	wg.Wait()
 	return nil
@@ -630,7 +625,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	name := flags.Arg(0)
-	var cmd[]string
+	var cmd []string
 	if len(flags.Args()) >= 2 {
 		cmd = flags.Args()[1:]
 	}
@@ -663,7 +658,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if *fl_attach {
 			future.Go(func() error {
 				log.Printf("CmdRun(): start receiving stdin\n")
-				_, err := io.Copy(cmd_stdin, stdin);
+				_, err := io.Copy(cmd_stdin, stdin)
 				log.Printf("CmdRun(): done receiving stdin\n")
 				cmd_stdin.Close()
 				return err
@@ -684,11 +679,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 		sending_stdout := future.Go(func() error {
-			_, err := io.Copy(stdout, cmd_stdout);
+			_, err := io.Copy(stdout, cmd_stdout)
 			return err
 		})
 		sending_stderr := future.Go(func() error {
-			_, err := io.Copy(stdout, cmd_stderr);
+			_, err := io.Copy(stdout, cmd_stderr)
 			return err
 		})
 		err_sending_stdout := <-sending_stdout
@@ -736,7 +731,7 @@ func New() (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		images: images,
+		images:     images,
 		containers: containers,
 	}
 	return srv, nil
@@ -781,9 +776,7 @@ func (srv *Server) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	return nil
 }
 
-
 type Server struct {
-	containers	*docker.Docker
-	images		*image.Store
+	containers *docker.Docker
+	images     *image.Store
 }
-
