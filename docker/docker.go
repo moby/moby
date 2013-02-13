@@ -168,7 +168,7 @@ func main() {
 		fl_shell := flag.Bool("i", false, "Interactive mode")
 		flag.Parse()
 		if *fl_shell {
-			if err := InteractiveMode(); err != nil {
+			if err := InteractiveMode(flag.Args()...); err != nil {
 				log.Fatal(err)
 			}
 		} else {
@@ -222,7 +222,7 @@ func SimpleMode(args []string) {
 }
 
 // Run docker in "interactive mode": run a bash-compatible shell capable of running docker commands.
-func InteractiveMode() error {
+func InteractiveMode(scripts ...string) error {
 	// Determine path of current docker binary
 	dockerPath, err := exec.LookPath(os.Args[0])
 	if err != nil {
@@ -277,7 +277,7 @@ func InteractiveMode() error {
 	io.WriteString(rcfile, "enable -n help\n")
 	os.Setenv("PATH", tmp)
 	os.Setenv("PS1", "\\h docker> ")
-	shell := exec.Command("/bin/bash", "--rcfile", rcfile.Name())
+	shell := exec.Command("/bin/bash", append([]string{"--rcfile", rcfile.Name()}, scripts...)...)
 	shell.Stdin = os.Stdin
 	shell.Stdout = os.Stdout
 	shell.Stderr = os.Stderr
