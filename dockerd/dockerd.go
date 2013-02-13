@@ -291,7 +291,20 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	if len(args) < 1 {
+	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] NAME", "Download a new image from a remote location")
+	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
+	fl_gzip := cmd.Bool("z", false, "Gzip compression")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	var compression image.Compression
+	if *fl_bzip2 {
+		compression = image.Bzip2
+	} else if *fl_gzip {
+		compression = image.Gzip
+	}
+	name := cmd.Arg(0)
+	if name == "" {
 		return errors.New("Not enough arguments")
 	}
 	resp, err := http.Get(args[0])
@@ -307,10 +320,23 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	if len(args) < 1 {
+	cmd := rcli.Subcmd(stdout, "put", "[OPTIONS] NAME", "Import a new image from a local archive.")
+	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
+	fl_gzip := cmd.Bool("z", false, "Gzip compression")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	var compression image.Compression
+	if *fl_bzip2 {
+		compression = image.Bzip2
+	} else if *fl_gzip {
+		compression = image.Gzip
+	}
+	name := cmd.Arg(0)
+	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	img, err := srv.images.Import(args[0], stdin, stdout, nil)
+	img, err := srv.images.Import(name, stdin, stdout, nil, compression)
 	if err != nil {
 		return err
 	}
@@ -470,7 +496,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		// Create a new image from the container's base layers + a new layer from container changes
 		parentImg := srv.images.Find(container.GetUserData("image"))
-		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg)
+		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg, image.Uncompressed)
 		if err != nil {
 			return err
 		}
