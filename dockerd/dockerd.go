@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"bytes"
 	"sync"
+	"net/url"
+	"path"
 )
 
 const VERSION = "0.0.1"
@@ -307,11 +309,24 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	resp, err := http.Get(args[0])
+	u, err := url.Parse(name)
 	if err != nil {
 		return err
 	}
-	img, err := srv.images.Import(args[0], resp.Body, stdout, nil)
+	if u.Scheme == "" {
+		u.Scheme = "http"
+	}
+	// FIXME: hardcode a mirror URL that does not depend on a single provider.
+	if u.Host == "" {
+		u.Host = "s3.amazonaws.com"
+		u.Path = path.Join("/docker.io/images", u.Path)
+	}
+	fmt.Fprintf(stdout, "Downloading %s from %s...\n", name, u.String())
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return err
+	}
+	img, err := srv.images.Import(name, resp.Body, stdout, nil, compression)
 	if err != nil {
 		return err
 	}
