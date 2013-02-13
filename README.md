@@ -1,11 +1,11 @@
 Docker is a process manager with superpowers
 ============================================
 
+It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.
+
+Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
+
 <img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
-
-Docker is a process manager with superpowers. It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.
-
-It is designed to be used as a reliable building block for the automation of distributed systems: large web deployments, database clusters, continuous deployment, private PaaS, service-oriented architectures, etc.
 
 * *Heterogeneous payloads*: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.
 
