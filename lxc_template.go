@@ -22,7 +22,8 @@ lxc.utsname = {{.Id}}
 #lxc.network.ipv4 = {ip_address}/{ip_prefix_len}
 
 # root filesystem
-lxc.rootfs = {{.Filesystem.RootFS}}
+{{$ROOTFS := .Filesystem.RootFS}}
+lxc.rootfs = {{$ROOTFS}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal
 # available)
@@ -66,15 +67,18 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 
 
 # standard mount point
-lxc.mount.entry = proc {{.Filesystem.RootFS}}/proc proc nosuid,nodev,noexec 0 0
-lxc.mount.entry = sysfs {{.Filesystem.RootFS}}/sys sysfs nosuid,nodev,noexec 0 0
-lxc.mount.entry = devpts {{.Filesystem.RootFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
-#lxc.mount.entry = varrun {{.Filesystem.RootFS}}/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0
-#lxc.mount.entry = varlock {{.Filesystem.RootFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
-#lxc.mount.entry = shm {{.Filesystem.RootFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
+lxc.mount.entry = proc {{$ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
+lxc.mount.entry = sysfs {{$ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
+lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
+#lxc.mount.entry = varrun {{$ROOTFS}}/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0
+#lxc.mount.entry = varlock {{$ROOTFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
+#lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
+
+# Inject docker-init
+lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
-lxc.mount.entry = /etc/resolv.conf {{.Filesystem.RootFS}}/etc/resolv.conf none bind,ro 0 0
+lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 
 
 # drop linux capabilities (apply mainly to the user root in the container)

@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+// Hack to run sys init during unit testing
+func init() {
+	if SelfPath() == "/sbin/init" {
+		SysInit()
+	}
+}
+
 func newTestDocker() (*Docker, error) {
 	root, err := ioutil.TempDir("", "docker-test")
 	if err != nil {

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"container/list"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 )
 
@@ -32,6 +34,19 @@ func Tar(path string) (io.Reader, error) {
 	// This can be fixed by waiting for the process to exit, or for the first write
 	// on stdout, whichever comes first.
 	return output, nil
+}
+
+// Figure out the absolute path of our own binary
+func SelfPath() string {
+	path, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		panic(err)
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		panic(err)
+	}
+	return path
 }
 
 type nopWriteCloser struct {

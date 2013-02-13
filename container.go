@@ -16,6 +16,12 @@ import (
 	"time"
 )
 
+var sysInitPath string
+
+func init() {
+	sysInitPath = SelfPath()
+}
+
 type Container struct {
 	Id   string
 	Root string
@@ -29,6 +35,7 @@ type Container struct {
 	Filesystem *Filesystem
 	State      *State
 
+	SysInitPath   string
 	lxcConfigPath string
 	cmd           *exec.Cmd
 	stdout        *writeBroadcaster
@@ -58,6 +65,7 @@ func createContainer(id string, root string, command string, args []string, laye
 		Filesystem: newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
 		State:      newState(),
 
+		SysInitPath:   sysInitPath,
 		lxcConfigPath: path.Join(root, "config.lxc"),
 		stdout:        newWriteBroadcaster(),
 		stderr:        newWriteBroadcaster(),
@@ -261,6 +269,7 @@ func (container *Container) Start() error {
 		"-n", container.Id,
 		"-f", container.lxcConfigPath,
 		"--",
+		"/sbin/init",
 		container.Path,
 	}
 	params = append(params, container.Args...)
