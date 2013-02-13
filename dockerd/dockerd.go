@@ -705,6 +705,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func main() {
+	if docker.SelfPath() == "/sbin/init" {
+		// Running in init mode
+		docker.SysInit()
+		return
+	}
 	future.Seed()
 	flag.Parse()
 	d, err := New()
