@@ -1,19 +1,19 @@
-Docker: a self-sufficient runtime for linux containers
-======================================================
+Docker is a process manager with superpowers
+============================================
 
 <img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
 
-Docker is a process manager with superpowers. It is designed to run heterogeneous payloads on an heterogenous fleet of servers, with strong guarantees of isolation and repeatability.
+Docker is a process manager with superpowers. It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.
+
 It is designed to be used as a reliable building block for the automation of distributed systems: large web deployments, database clusters, continuous deployment, private PaaS, service-oriented architectures, etc.
 
-* Heterogeneous payloads: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.
+* *Heterogeneous payloads*: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.
 
-* Heterogeneous set of servers: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.
+* *Any server*: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.
 
-* Isolation: docker isolates processes from each other and from the underlying host, using lightweight containers. 
+* *Isolation*: docker isolates processes from each other and from the underlying host, using lightweight containers. 
 
-* Repeatability: because containers start from a known filesystem state, and are highly isolated, their behavior will be the same regardless of where they run, when they run,  and what else is running.
-
+* *Repeatability*: because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.
 
 
 Notable features
