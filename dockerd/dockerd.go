@@ -45,7 +45,7 @@ func (srv *Server) Help() string {
 		{"info", "Display system-wide information"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
-		{"attach", "Attach to a running container"},
+		{"images", "List images"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}

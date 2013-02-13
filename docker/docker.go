@@ -261,6 +261,7 @@ func InteractiveMode() error {
 		"info",
 		"tar",
 		"web",
+		"images",
 		"docker",
 	} {
 		if err := os.Symlink(dockerPath, path.Join(tmp, cmd)); err != nil {
