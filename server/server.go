@@ -619,10 +619,10 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *image.Image, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *image.Image, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img.Layers,
-		&docker.Config{Hostname: id, Tty: tty, OpenStdin: openStdin})
+		&docker.Config{Hostname: id, User: user, Tty: tty, OpenStdin: openStdin})
 	if err != nil {
 		return nil, err
 	}
@@ -685,6 +685,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
+	fl_user := cmd.String("u", "", "Username or UID")
 	fl_attach := cmd.Bool("a", false, "Attach stdin and stdout")
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
@@ -714,7 +715,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
+	container, err := srv.CreateContainer(img, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
