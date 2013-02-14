@@ -187,6 +187,40 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
+func TestRestart(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"restart_test",
+		"echo",
+		[]string{"-n", "foobar"},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "foobar" {
+		t.Error(string(output))
+	}
+
+	// Run the container again and check the output
+	output, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "foobar" {
+		t.Error(string(output))
+	}
+}
+
 func TestUser(t *testing.T) {
 	docker, err := newTestDocker()
 	if err != nil {
