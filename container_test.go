@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 )
@@ -183,6 +184,121 @@ func TestExitCode(t *testing.T) {
 
 	if falseContainer.State.ExitCode != 1 {
 		t.Errorf("Unexpected exit code %v", falseContainer.State.ExitCode)
+	}
+}
+
+func TestUser(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Default user must be root
+	container, err := docker.Create(
+		"user_default",
+		"id",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
+		t.Error(string(output))
+	}
+
+	// Set a username
+	container, err = docker.Create(
+		"user_root",
+		"id",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			User: "root",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
+		t.Error(string(output))
+	}
+
+	// Set a UID
+	container, err = docker.Create(
+		"user_uid0",
+		"id",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			User: "0",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
+		t.Error(string(output))
+	}
+
+	// Set a different user by uid
+	container, err = docker.Create(
+		"user_uid1",
+		"id",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			User: "1",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
+		t.Error(string(output))
+	}
+
+	// Set a different user by username
+	container, err = docker.Create(
+		"user_daemon",
+		"id",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			User: "daemon",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	output, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
+		t.Error(string(output))
 	}
 }
 

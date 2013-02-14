@@ -49,6 +49,7 @@ type Container struct {
 
 type Config struct {
 	Hostname  string
+	User      string
 	Ram       int64
 	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin bool // Open stdin
@@ -270,10 +271,12 @@ func (container *Container) Start() error {
 		"-f", container.lxcConfigPath,
 		"--",
 		"/sbin/init",
-		container.Path,
 	}
+	if container.Config.User != "" {
+		params = append(params, "-u", container.Config.User)
+	}
+	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
-
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
 
 	var err error
