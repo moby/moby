@@ -44,7 +44,7 @@ func (fs *Filesystem) Mount() error {
 		roBranches += fmt.Sprintf("%v=ro:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	if err := syscall.Mount("none", fs.RootFS, "aufs", 0, branches); err != nil {
+	if err := mount("none", fs.RootFS, "aufs", 0, branches); err != nil {
 		return err
 	}
 	if !fs.IsMounted() {
