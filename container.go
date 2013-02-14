@@ -90,9 +90,6 @@ func createContainer(id string, root string, command string, args []string, laye
 	if err := container.save(); err != nil {
 		return nil, err
 	}
-	if err := container.generateLXCConfig(); err != nil {
-		return nil, err
-	}
 	return container, nil
 }
 
@@ -102,10 +99,11 @@ func loadContainer(containerPath string) (*Container, error) {
 		return nil, err
 	}
 	container := &Container{
-		stdout:    newWriteBroadcaster(),
-		stderr:    newWriteBroadcaster(),
-		stdoutLog: new(bytes.Buffer),
-		stderrLog: new(bytes.Buffer),
+		stdout:        newWriteBroadcaster(),
+		stderr:        newWriteBroadcaster(),
+		stdoutLog:     new(bytes.Buffer),
+		stderrLog:     new(bytes.Buffer),
+		lxcConfigPath: path.Join(containerPath, "config.lxc"),
 	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
@@ -178,7 +176,7 @@ func (container *Container) save() (err error) {
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(path.Join(container.Root, "config.json"), data, 0700)
+	return ioutil.WriteFile(path.Join(container.Root, "config.json"), data, 0666)
 }
 
 func (container *Container) generateLXCConfig() error {
@@ -265,7 +263,9 @@ func (container *Container) Start() error {
 	if err := container.Filesystem.EnsureMounted(); err != nil {
 		return err
 	}
-
+	if err := container.generateLXCConfig(); err != nil {
+		return err
+	}
 	params := []string{
 		"-n", container.Id,
 		"-f", container.lxcConfigPath,
