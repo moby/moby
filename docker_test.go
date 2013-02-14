@@ -1,15 +1,41 @@
 package docker
 
 import (
+	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"testing"
 )
 
-// Hack to run sys init during unit testing
+const testLayerPath string = "/var/lib/docker/images/docker-ut"
+
 func init() {
+	// Hack to run sys init during unit testing
 	if SelfPath() == "/sbin/init" {
 		SysInit()
+	}
+
+	// Make sure the unit test image is there, download otherwise
+	_, err := os.Stat(testLayerPath)
+	// The image is already there
+	if err == nil {
+		return
+	}
+	// Otherwise, we'll have to fetch it
+	if !os.IsNotExist(err) {
+		panic(err)
+	}
+	log.Printf("Test image not found. Downloading and extracting for the first time.")
+	if err := os.MkdirAll(testLayerPath, 0755); err != nil {
+		panic(err)
+	}
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("wget https://s3.amazonaws.com/docker.io/images/base -O - | tar -jx -C %v/", testLayerPath))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+	if err := cmd.Run(); err != nil {
+		panic(err)
 	}
 }
 
@@ -39,7 +65,7 @@ func TestCreate(t *testing.T) {
 		"test_create",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -87,7 +113,7 @@ func TestDestroy(t *testing.T) {
 		"test_destroy",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -135,7 +161,7 @@ func TestGet(t *testing.T) {
 		"test1",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -147,7 +173,7 @@ func TestGet(t *testing.T) {
 		"test2",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -159,7 +185,7 @@ func TestGet(t *testing.T) {
 		"test3",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -196,7 +222,7 @@ func TestRestore(t *testing.T) {
 		"restore_test",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {

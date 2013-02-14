@@ -18,7 +18,7 @@ func TestStart(t *testing.T) {
 		"start_test",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			Ram: 33554432,
 		},
@@ -54,7 +54,7 @@ func TestRun(t *testing.T) {
 		"run_test",
 		"ls",
 		[]string{"-al"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			Ram: 33554432,
 		},
@@ -84,7 +84,7 @@ func TestOutput(t *testing.T) {
 		"output_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestKill(t *testing.T) {
 		"stop_test",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -152,7 +152,7 @@ func TestExitCode(t *testing.T) {
 		"exit_test_1",
 		"/bin/true",
 		[]string{""},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -167,7 +167,7 @@ func TestExitCode(t *testing.T) {
 		"exit_test_2",
 		"/bin/false",
 		[]string{""},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -196,7 +196,7 @@ func TestRestart(t *testing.T) {
 		"restart_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -230,7 +230,7 @@ func TestRestartStdin(t *testing.T) {
 		"restart_stdin_test",
 		"cat",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			OpenStdin: true,
 		},
@@ -281,7 +281,7 @@ func TestUser(t *testing.T) {
 		"user_default",
 		"id",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -301,7 +301,7 @@ func TestUser(t *testing.T) {
 		"user_root",
 		"id",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			User: "root",
 		},
@@ -323,7 +323,7 @@ func TestUser(t *testing.T) {
 		"user_uid0",
 		"id",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			User: "0",
 		},
@@ -345,7 +345,7 @@ func TestUser(t *testing.T) {
 		"user_uid1",
 		"id",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			User: "1",
 		},
@@ -367,7 +367,7 @@ func TestUser(t *testing.T) {
 		"user_daemon",
 		"id",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			User: "daemon",
 		},
@@ -395,7 +395,7 @@ func TestMultipleContainers(t *testing.T) {
 		"container1",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -407,7 +407,7 @@ func TestMultipleContainers(t *testing.T) {
 		"container2",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{},
 	)
 	if err != nil {
@@ -450,7 +450,7 @@ func TestStdin(t *testing.T) {
 		"stdin_test",
 		"cat",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			OpenStdin: true,
 		},
@@ -485,7 +485,7 @@ func TestTty(t *testing.T) {
 		"tty_test",
 		"cat",
 		[]string{},
-		[]string{"/var/lib/docker/images/ubuntu"},
+		[]string{testLayerPath},
 		&Config{
 			OpenStdin: true,
 		},
@@ -521,7 +521,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			fmt.Sprintf("bench_%v", i),
 			"echo",
 			[]string{"-n", "foo"},
-			[]string{"/var/lib/docker/images/ubuntu"},
+			[]string{testLayerPath},
 			&Config{},
 		)
 		if err != nil {
@@ -557,7 +557,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				fmt.Sprintf("bench_%v", i),
 				"echo",
 				[]string{"-n", "foo"},
-				[]string{"/var/lib/docker/images/ubuntu"},
+				[]string{testLayerPath},
 				&Config{},
 			)
 			if err != nil {

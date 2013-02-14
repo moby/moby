@@ -22,7 +22,7 @@ func newTestFilesystem(t *testing.T, layers []string) (rootfs string, fs *Filesy
 }
 
 func TestFilesystem(t *testing.T) {
-	_, filesystem := newTestFilesystem(t, []string{"/var/lib/docker/images/ubuntu"})
+	_, filesystem := newTestFilesystem(t, []string{testLayerPath})
 	if err := filesystem.Umount(); err == nil {
 		t.Errorf("Umount succeeded even though the filesystem was not mounted")
 	}
@@ -76,7 +76,7 @@ func TestFilesystemMultiLayer(t *testing.T) {
 	}
 
 	// Create the layered filesystem and add our fake layer on top
-	rootfs, filesystem := newTestFilesystem(t, []string{"/var/lib/docker/images/ubuntu", fakeLayer})
+	rootfs, filesystem := newTestFilesystem(t, []string{testLayerPath, fakeLayer})
 
 	// Mount it
 	if err := filesystem.Mount(); err != nil {
@@ -102,7 +102,7 @@ func TestFilesystemMultiLayer(t *testing.T) {
 }
 
 func TestChanges(t *testing.T) {
-	rootfs, filesystem := newTestFilesystem(t, []string{"/var/lib/docker/images/ubuntu"})
+	rootfs, filesystem := newTestFilesystem(t, []string{testLayerPath})
 	// Mount it
 	if err := filesystem.Mount(); err != nil {
 		t.Fatal(err)
