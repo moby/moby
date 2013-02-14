@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"flag"
-	"github.com/dotcloud/docker/server"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/server"
+	"log"
 )
 
 func main() {
