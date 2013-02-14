@@ -221,6 +221,55 @@ func TestRestart(t *testing.T) {
 	}
 }
 
+func TestRestartStdin(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"restart_stdin_test",
+		"cat",
+		[]string{},
+		[]string{"/var/lib/docker/images/ubuntu"},
+		&Config{
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+
+	stdin, err := container.StdinPipe()
+	stdout, err := container.StdoutPipe()
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(stdin, "hello world")
+	stdin.Close()
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	stdout.Close()
+	if string(output) != "hello world" {
+		t.Fatal(string(output))
+	}
+
+	// Restart and try again
+	stdin, err = container.StdinPipe()
+	stdout, err = container.StdoutPipe()
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(stdin, "hello world #2")
+	stdin.Close()
+	container.Wait()
+	output, err = ioutil.ReadAll(stdout)
+	stdout.Close()
+	if string(output) != "hello world #2" {
+		t.Fatal(string(output))
+	}
+}
+
 func TestUser(t *testing.T) {
 	docker, err := newTestDocker()
 	if err != nil {

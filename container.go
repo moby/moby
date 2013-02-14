@@ -355,6 +355,11 @@ func (container *Container) monitor() {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
 
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
 	// Report status back
 	container.State.setStopped(exitCode)
 	container.save()
