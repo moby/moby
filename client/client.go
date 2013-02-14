@@ -89,6 +89,8 @@ func InteractiveMode(scripts ...string) error {
 		"kill",
 		"wait",
 		"stop",
+		"start",
+		"restart",
 		"logs",
 		"diff",
 		"commit",
