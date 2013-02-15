@@ -1,11 +1,9 @@
 package docker
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"testing"
 )
 
@@ -17,25 +15,12 @@ func init() {
 		SysInit()
 	}
 
-	// Make sure the unit test image is there, download otherwise
-	_, err := os.Stat(testLayerPath)
-	// The image is already there
-	if err == nil {
-		return
-	}
-	// Otherwise, we'll have to fetch it
-	if !os.IsNotExist(err) {
-		panic(err)
-	}
-	log.Printf("Test image not found. Downloading and extracting for the first time.")
-	if err := os.MkdirAll(testLayerPath, 0755); err != nil {
-		panic(err)
-	}
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("wget https://s3.amazonaws.com/docker.io/images/base -O - | tar -jx -C %v/", testLayerPath))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stdout
-	if err := cmd.Run(); err != nil {
-		panic(err)
+	// Make sure the unit test image is there
+	if _, err := os.Stat(testLayerPath); err != nil {
+		if !os.IsNotExist(err) {
+			panic(err)
+		}
+		log.Fatalf("Unit test base image not found. Please fix the problem by running \"debootstrap --arch=amd64 quantal %v\"", testLayerPath)
 	}
 }
 
