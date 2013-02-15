@@ -311,7 +311,7 @@ func TestUser(t *testing.T) {
 	}
 	defer docker.Destroy(container)
 	output, err = container.Output()
-	if err != nil {
+	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
@@ -328,12 +328,12 @@ func TestUser(t *testing.T) {
 			User: "0",
 		},
 	)
-	if err != nil {
+	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
 	defer docker.Destroy(container)
 	output, err = container.Output()
-	if err != nil {
+	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
@@ -355,7 +355,7 @@ func TestUser(t *testing.T) {
 	}
 	defer docker.Destroy(container)
 	output, err = container.Output()
-	if err != nil {
+	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
@@ -377,7 +377,7 @@ func TestUser(t *testing.T) {
 	}
 	defer docker.Destroy(container)
 	output, err = container.Output()
-	if err != nil {
+	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
