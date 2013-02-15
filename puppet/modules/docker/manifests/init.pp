@@ -12,8 +12,8 @@ class docker {
 
     exec { "debootstrap" :
         require => Package["debootstrap"],
-        command => "/usr/sbin/debootstrap --arch=amd64 quantal /var/lib/docker/images/ubuntu",
-        creates => "/var/lib/docker/images/ubuntu",
+        command => "/usr/sbin/debootstrap --arch=amd64 quantal /var/lib/docker/images/docker-ut",
+        creates => "/var/lib/docker/images/docker-ut",
         timeout => 0
     }
 
