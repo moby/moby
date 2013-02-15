@@ -48,6 +48,8 @@ func (srv *Server) Help() string {
 		{"kill", "Kill a running container"},
 		{"wait", "Wait for the state of a container to change"},
 		{"stop", "Stop a running container"},
+		{"start", "Start a stopped container"},
+		{"restart", "Restart a running container"},
 		{"logs", "Fetch the logs of a container"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"commit", "Save the state of a container"},
@@ -84,6 +86,52 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 	for _, name := range cmd.Args() {
 		if container := srv.containers.Get(name); container != nil {
 			if err := container.Stop(); err != nil {
+				return err
+			}
+			fmt.Fprintln(stdout, container.Id)
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
+}
+
+func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "restart", "[OPTIONS] NAME", "Restart a running container")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container := srv.containers.Get(name); container != nil {
+			if err := container.Restart(); err != nil {
+				return err
+			}
+			fmt.Fprintln(stdout, container.Id)
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
+}
+
+func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "start", "[OPTIONS] NAME", "Start a stopped container")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container := srv.containers.Get(name); container != nil {
+			if err := container.Start(); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.Id)
