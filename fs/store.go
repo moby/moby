@@ -115,6 +115,7 @@ func (store *Store) Create(layer Archive, parent *Image, pth, comment string) (*
 }
 
 func (store *Store) Register(image *Image, pth string) error {
+	image.store = store
 	// FIXME: import layer
 	trans, err := store.orm.Begin()
 	if err != nil {
