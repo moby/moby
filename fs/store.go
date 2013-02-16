@@ -29,6 +29,7 @@ func New(root string) (*Store, error) {
 	orm := &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}
 	orm.AddTableWithName(Image{}, "images").SetKeys(false, "Id")
 	orm.AddTableWithName(Path{}, "paths").SetKeys(false, "Path", "Image")
+	orm.AddTableWithName(Mountpoint{}, "mountpoints").SetKeys(false, "Root")
 	if err := orm.CreateTables(); err != nil {
 		return nil, err
 	}
@@ -142,6 +143,32 @@ func (image *Image) Copy(pth string) (*Image, error) {
 		return nil, err
 	}
 	return image, nil
+}
+
+type Mountpoint struct {
+	Image	string
+	Root	string
+	Rw	string
+}
+
+func (image *Image) Mountpoint(root, rw string) (*Mountpoint, error) {
+	mountpoint := &Mountpoint{Root: path.Clean(root), Rw: path.Clean(rw), Image: image.Id}
+	if err := image.store.orm.Insert(mountpoint); err != nil {
+		return nil, err
+	}
+	return mountpoint, nil
+}
+
+func (image *Image) Mountpoints() ([]*Mountpoint, error) {
+	var mountpoints []*Mountpoint
+	res, err := image.store.orm.Select(Mountpoint{}, "select * from mountpoints where Image=?", image.Id)
+	if err != nil {
+		return nil, err
+	}
+	for _, mp := range res {
+		mountpoints = append(mountpoints, mp.(*Mountpoint))
+	}
+	return mountpoints, nil
 }
 
 

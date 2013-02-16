@@ -113,6 +113,55 @@ func TestCopySameName(t *testing.T) {
 	}
 }
 
+func TestMountPoint(t *testing.T) {
+	store, err := TempStore("test-mountpoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(store)
+	archive, err := fake.FakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	image, err := store.Create(archive, nil, "foo", "Testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mountpoint, err := image.Mountpoint("/tmp/a", "/tmp/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mountpoint.Root != "/tmp/a" {
+		t.Fatal("Wrong mountpoint root (should be %s, not %s)", "/tmp/a", mountpoint.Root)
+	}
+	if mountpoint.Rw!= "/tmp/b" {
+		t.Fatal("Wrong mountpoint root (should be %s, not %s)", "/tmp/b", mountpoint.Rw)
+	}
+}
+
+func TestMountpointDuplicateRoot(t *testing.T) {
+	store, err := TempStore("test-mountpoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(store)
+	archive, err := fake.FakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	image, err := store.Create(archive, nil, "foo", "Testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = image.Mountpoint("/tmp/a", "/tmp/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = image.Mountpoint("/tmp/a", "/tmp/foobar"); err == nil {
+		t.Fatal("Duplicate mountpoint root should fail")
+	}
+}
+
 /*
 func TestMount(t *testing.T) {
 	store, err := TempStore()
