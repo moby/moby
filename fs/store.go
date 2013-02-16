@@ -83,14 +83,8 @@ func (store *Store) List(pth string) ([]*Image, error) {
 }
 
 func (store *Store) Get(id string) (*Image, error) {
-	images, err := store.orm.Select(Image{}, "select * from images where Id=?", id)
-	if err != nil {
-		return nil, err
-	}
-	if len(images) < 1 {
-		return nil, os.ErrNotExist
-	}
-	return images[0].(*Image), nil
+	img, err := store.orm.Get(Image{}, id)
+	return img.(*Image), err
 }
 
 func (store *Store) Create(layer Archive, parent *Image, pth, comment string) (*Image, error) {
