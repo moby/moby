@@ -1,8 +1,0 @@
-COPYRIGHT (c) 2013 dotCloud, inc.
-
-All rights reserved.
-
-Our intention is to release this software under an open-source licence at a future date.
-Until then, please do not share it without written consent of the authors.
-
-If you have an opinion on the best choice of licence, please voice it at https://github.com/dotcloud/docker/issues/7 .
