@@ -1,4 +1,4 @@
-package image
+package fs
 
 import (
 	"errors"
@@ -18,6 +18,10 @@ type LayerStore struct {
 func NewLayerStore(root string) (*LayerStore, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
+		return nil, err
+	}
+	// Create the root directory if it doesn't exists
+	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	return &LayerStore{
@@ -82,7 +86,10 @@ func (store *LayerStore) layerPath(id string) string {
 }
 
 
-func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer, compression Compression) (string, error) {
+func (store *LayerStore) AddLayer(id string, archive Archive, stderr io.Writer, compression Compression) (string, error) {
+	if _, err := os.Stat(store.layerPath(id)); err == nil {
+		return "", errors.New("Layer already exists: " + id)
+	}
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
@@ -110,14 +117,11 @@ func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer, compressi
 	}
 	go io.Copy(stderr, untarStdout)
 	untarCmd.Start()
-	hashR, hashW := io.Pipe()
 	job_copy := future.Go(func() error {
-		_, err := io.Copy(io.MultiWriter(hashW, untarW), archive)
-		hashW.Close()
+		_, err := io.Copy(untarW, archive)
 		untarW.Close()
 		return err
 	})
-	id, err := future.ComputeId(hashR)
 	if err != nil {
 		return "", err
 	}

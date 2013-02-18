@@ -14,6 +14,7 @@ type Store struct {
 	Root	string
 	db	*sql.DB
 	orm	*gorp.DbMap
+	layers	*LayerStore
 }
 
 type Archive io.Reader
@@ -33,10 +34,15 @@ func New(root string) (*Store, error) {
 	if err := orm.CreateTables(); err != nil {
 		return nil, err
 	}
+	layers, err := NewLayerStore(path.Join(root, "layers"))
+	if err != nil {
+		return nil, err
+	}
 	return &Store{
 		Root: root,
 		db: db,
 		orm: orm,
+		layers: layers,
 	}, nil
 }
 
@@ -88,12 +94,18 @@ func (store *Store) Get(id string) (*Image, error) {
 	return img.(*Image), err
 }
 
-func (store *Store) Create(layer Archive, parent *Image, pth, comment string) (*Image, error) {
+func (store *Store) Create(layerData Archive, parent *Image, pth, comment string) (*Image, error) {
 	// FIXME: actually do something with the layer...
 	img := &Image{
 		Id :		future.RandomId(),
 		Comment:	comment,
 		store:		store,
+	}
+	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
+	// FIXME: Archive should contain compression info. For now we only support uncompressed.
+	_, err := store.layers.AddLayer(img.Id, layerData, os.Stderr, Uncompressed)
+	if err != nil {
+		return nil, err
 	}
 	path := &Path{
 		Path:		path.Clean(pth),
