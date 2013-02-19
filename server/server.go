@@ -11,7 +11,6 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
