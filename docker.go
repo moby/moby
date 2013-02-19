@@ -107,7 +107,7 @@ func NewFromDirectory(root string) (*Docker, error) {
 		containers: list.New(),
 	}
 
-	if err := os.Mkdir(docker.repository, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(docker.repository, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 

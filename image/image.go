@@ -27,6 +27,9 @@ func New(root string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := os.MkdirAll(abspath, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
 	layers, err := NewLayerStore(path.Join(root, "layers"))
 	if err != nil {
 		return nil, err
