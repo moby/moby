@@ -8,6 +8,8 @@ import (
 	"io"
 	"path"
 	"github.com/dotcloud/docker/future"
+	"fmt"
+	"errors"
 )
 
 type Store struct {
@@ -31,6 +33,7 @@ func New(root string) (*Store, error) {
 	orm.AddTableWithName(Image{}, "images").SetKeys(false, "Id")
 	orm.AddTableWithName(Path{}, "paths").SetKeys(false, "Path", "Image")
 	orm.AddTableWithName(Mountpoint{}, "mountpoints").SetKeys(false, "Root")
+	orm.AddTableWithName(Tag{}, "tags").SetKeys(false, "TagName")
 	if err := orm.CreateTables(); err != nil {
 		return nil, err
 	}
@@ -105,7 +108,7 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
 	_, err := store.layers.AddLayer(img.Id, layerData, os.Stderr, Uncompressed)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Could not add layer: %s", err))
 	}
 	path := &Path{
 		Path:		path.Clean(pth),
@@ -113,16 +116,16 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	}
 	trans, err := store.orm.Begin()
 	if err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Could not begin transaction:", err))
 	}
 	if err := trans.Insert(img); err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Could not insert image info: %s", err))
 	}
 	if err := trans.Insert(path); err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Could not insert path info: %s", err))
 	}
 	if err := trans.Commit(); err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Could not commit transaction: %s", err))
 	}
 	return img, nil
 }
@@ -183,8 +186,47 @@ func (image *Image) Mountpoints() ([]*Mountpoint, error) {
 	return mountpoints, nil
 }
 
+func (store *Store) AddTag(imageId, tagName string) error {
+	if image, err := store.Get(imageId); err != nil {
+		return err
+	} else if image == nil {
+		return errors.New("No image with ID " + imageId)
+	}
+
+	err2 := store.orm.Insert(&Tag{
+		TagName:	tagName,
+		Image:		imageId,
+	})
+
+	return err2
+}
+
+func (store *Store) GetByTag(tagName string) (*Image, error) {
+	res, err := store.orm.Get(Tag{}, tagName)
+	if err != nil {
+		return nil, err
+	} else if res == nil {
+		return nil, errors.New("No image associated to tag \"" + tagName + "\"")
+	}
+
+	tag := res.(*Tag)
+
+	img, err2 := store.Get(tag.Image)
+	if err2 != nil {
+		return nil, err2
+	} else if img == nil {
+		return nil, errors.New("Tag was found but image seems to be inexistent.")
+	}
+
+	return img, nil
+}
 
 type Path struct {
 	Path	string
+	Image	string
+}
+
+type Tag struct {
+	TagName	string
 	Image	string
 }

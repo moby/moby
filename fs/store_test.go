@@ -52,6 +52,37 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+func TestTag(t *testing.T) {
+	store, err := TempStore("testtag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(store)
+	archive, err := fake.FakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	image, err := store.Create(archive, nil, "foo", "Testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if images, err := store.Images(); err != nil {
+		t.Fatal(err)
+	} else if l := len(images); l != 1 {
+		t.Fatalf("Wrong number of images. Should be %d, not %d", 1, l)
+	}
+
+	if err := store.AddTag(image.Id, "baz"); err != nil {
+		t.Fatalf("Error while adding a tag to created image: %s", err)
+	}
+
+	if taggedImage, err := store.GetByTag("baz"); err != nil {
+		t.Fatalf("Error while trying to retrieve image for tag 'baz': %s", err)
+	} else if taggedImage.Id != image.Id {
+		t.Fatalf("Expected to retrieve image %s but found %s instead", image.Id, taggedImage.Id)
+	}
+}
+
 // Copy an image to a new path
 func TestCopyNewPath(t *testing.T) {
 	store, err := TempStore("testcopynewpath")

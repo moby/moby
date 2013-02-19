@@ -8,12 +8,21 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"fmt"
 	"github.com/dotcloud/docker/future"
 )
 
 type LayerStore struct {
 	Root	string
 }
+
+type Compression uint32
+
+const (
+	Uncompressed	Compression = iota
+	Bzip2
+	Gzip
+)
 
 func NewLayerStore(root string) (*LayerStore, error) {
 	abspath, err := filepath.Abs(root)
@@ -93,7 +102,7 @@ func (store *LayerStore) AddLayer(id string, archive Archive, stderr io.Writer, 
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Mktemp failed: %s", err))
 	}
 	extractFlags := "-x"
 	if compression == Bzip2 {
@@ -104,16 +113,16 @@ func (store *LayerStore) AddLayer(id string, archive Archive, stderr io.Writer, 
 	untarCmd := exec.Command("tar", "-C", tmp, extractFlags)
 	untarW, err := untarCmd.StdinPipe()
 	if err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Could not obtain stdin pipe: %s", err))
 	}
 	untarStderr, err := untarCmd.StderrPipe()
 	if err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Could not obtain stderr pipe: %s", err))
 	}
 	go io.Copy(stderr, untarStderr)
 	untarStdout, err := untarCmd.StdoutPipe()
 	if err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Could not obtain stdout pipe: %s", err))
 	}
 	go io.Copy(stderr, untarStdout)
 	untarCmd.Start()
@@ -122,19 +131,17 @@ func (store *LayerStore) AddLayer(id string, archive Archive, stderr io.Writer, 
 		untarW.Close()
 		return err
 	})
-	if err != nil {
-		return "", err
-	}
+
 	if err := untarCmd.Wait(); err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Error while waiting for untar command to complete: %s", err))
 	}
 	if err := <-job_copy; err != nil {
-		return "", err
+		return "", errors.New(fmt.Sprintf("Error while copying: %s", err))
 	}
 	layer := store.layerPath(id)
 	if !store.Exists(id) {
 		if err := os.Rename(tmp, layer); err != nil {
-			return "", err
+			return "", errors.New(fmt.Sprintf("Could not rename temp dir to layer %s: %s", layer, err))
 		}
 	}
 	return layer, nil
