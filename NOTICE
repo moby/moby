@@ -2,3 +2,5 @@ Docker
 Copyright 2012-2013 dotCloud, inc.
 
 This product includes software developed at dotCloud, inc. (http://www.dotcloud.com).
+
+This product contains software (https://github.com/kr/pty) developed by Keith Rarick, licensed under the MIT License.
