@@ -33,6 +33,7 @@ type Container struct {
 
 	Config     *Config
 	Filesystem *Filesystem
+	Network    *NetworkInterface
 	State      *State
 
 	SysInitPath   string
@@ -85,6 +86,10 @@ func createContainer(id string, root string, command string, args []string, laye
 		return nil, err
 	}
 	if err := container.Filesystem.createMountPoints(); err != nil {
+		return nil, err
+	}
+	var err error
+	if container.Network, err = allocateNetwork(); err != nil {
 		return nil, err
 	}
 	if err := container.save(); err != nil {
@@ -272,11 +277,19 @@ func (container *Container) Start() error {
 		"--",
 		"/sbin/init",
 	}
+
+	// Networking
+	params = append(params, "-g", container.Network.Gateway.String())
+
+	// User
 	if container.Config.User != "" {
 		params = append(params, "-u", container.Config.User)
 	}
+
+	// Program
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
+
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
 
 	var err error

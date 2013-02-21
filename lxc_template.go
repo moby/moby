@@ -14,12 +14,12 @@ lxc.utsname = {{.Id}}
 #lxc.aa_profile = unconfined
 
 # network configuration
-#lxc.network.type = veth
-#lxc.network.flags = up
-#lxc.network.link = br0
-#lxc.network.name = eth0  # Internal container network interface name
-#lxc.network.mtu = 1500
-#lxc.network.ipv4 = {ip_address}/{ip_prefix_len}
+lxc.network.type = veth
+lxc.network.flags = up
+lxc.network.link = lxcbr0
+lxc.network.name = eth0
+lxc.network.mtu = 1500
+lxc.network.ipv4 = {{.Network.IpAddress}}/{{.Network.IpPrefixLen}}
 
 # root filesystem
 {{$ROOTFS := .Filesystem.RootFS}}
@@ -82,7 +82,7 @@ lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 
 
 # drop linux capabilities (apply mainly to the user root in the container)
-lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
+#lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 
 # limits
 {{if .Config.Ram}}
