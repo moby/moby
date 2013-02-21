@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 )
 
@@ -15,8 +16,10 @@ type NetworkInterface struct {
 	Gateway     net.IP
 }
 
-func allocateIPAddress() string {
-	return "10.0.3.2"
+func allocateIPAddress(network *net.IPNet) net.IP {
+	ip := network.IP.Mask(network.Mask)
+	ip[3] = byte(rand.Intn(254))
+	return ip
 }
 
 func getBridgeAddr(name string) (net.Addr, error) {
@@ -52,7 +55,7 @@ func allocateNetwork() (*NetworkInterface, error) {
 	bridge := bridgeAddr.(*net.IPNet)
 	ipPrefixLen, _ := bridge.Mask.Size()
 	iface := &NetworkInterface{
-		IpAddress:   allocateIPAddress(),
+		IpAddress:   allocateIPAddress(bridge).String(),
 		IpPrefixLen: ipPrefixLen,
 		Gateway:     bridge.IP,
 	}
