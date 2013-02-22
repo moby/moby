@@ -1,12 +1,12 @@
 package fs
 
 import (
-	"testing"
-	"io/ioutil"
-	"github.com/dotcloud/docker/fake"
-	"os"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/fake"
+	"io/ioutil"
+	"os"
+	"testing"
 )
 
 func TestInit(t *testing.T) {
@@ -165,7 +165,7 @@ func TestMountPoint(t *testing.T) {
 	if mountpoint.Root != "/tmp/a" {
 		t.Fatal("Wrong mountpoint root (should be %s, not %s)", "/tmp/a", mountpoint.Root)
 	}
-	if mountpoint.Rw!= "/tmp/b" {
+	if mountpoint.Rw != "/tmp/b" {
 		t.Fatal("Wrong mountpoint root (should be %s, not %s)", "/tmp/b", mountpoint.Rw)
 	}
 }
@@ -193,9 +193,8 @@ func TestMountpointDuplicateRoot(t *testing.T) {
 	}
 }
 
-/*
 func TestMount(t *testing.T) {
-	store, err := TempStore()
+	store, err := TempStore("test-mount")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,8 +226,10 @@ func TestMount(t *testing.T) {
 		t.Fatal("Mountpoint not mounted")
 	}
 	// There should be one mountpoint registered
-	if l := len(image.Mountpoints()); l != 1 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 1, l)
+	if mps, err := image.Mountpoints(); err != nil {
+		t.Fatal(err)
+	} else if len(mps) != 1 {
+		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 1, len(mps))
 	}
 	// Unmounting should work
 	if err := mountpoint.Umount(); err != nil {
@@ -238,18 +239,19 @@ func TestMount(t *testing.T) {
 	if err := mountpoint.Deregister(); err != nil {
 		t.Fatal(err)
 	}
-	if l := len(image.Mountpoints()); l != 0 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 0, l)
+	if mps, err := image.Mountpoints(); err != nil {
+		t.Fatal(err)
+	} else if len(mps) != 0 {
+		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 0, len(mps))
 	}
 	// General health check
-	if err := healthCheck(); err != nil {
+	if err := healthCheck(store); err != nil {
 		t.Fatal(err)
 	}
 }
-*/
 
 func TempStore(prefix string) (*Store, error) {
-	dir, err := ioutil.TempDir("", "docker-fs-test-" + prefix)
+	dir, err := ioutil.TempDir("", "docker-fs-test-"+prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -294,4 +296,3 @@ func healthCheck(store *Store) error {
 	}
 	return nil
 }
-

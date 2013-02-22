@@ -2,21 +2,24 @@ package fs
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/coopernurse/gorp"
-	"os"
-	"io"
-	"path"
-	"github.com/dotcloud/docker/future"
-	"fmt"
 	"errors"
+	"fmt"
+	"github.com/coopernurse/gorp"
+	"github.com/dotcloud/docker/future"
+	_ "github.com/mattn/go-sqlite3"
+	"io"
+	"os"
+	"path"
+	"syscall"
+	"time"
+	"path/filepath"
 )
 
 type Store struct {
-	Root	string
-	db	*sql.DB
-	orm	*gorp.DbMap
-	layers	*LayerStore
+	Root   string
+	db     *sql.DB
+	orm    *gorp.DbMap
+	layers *LayerStore
 }
 
 type Archive io.Reader
@@ -42,14 +45,14 @@ func New(root string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{
-		Root: root,
-		db: db,
-		orm: orm,
+		Root:   root,
+		db:     db,
+		orm:    orm,
 		layers: layers,
 	}, nil
 }
 
-func (store *Store) imageList(src []interface{}) ([]*Image) {
+func (store *Store) imageList(src []interface{}) []*Image {
 	var images []*Image
 	for _, i := range src {
 		img := i.(*Image)
@@ -60,7 +63,7 @@ func (store *Store) imageList(src []interface{}) ([]*Image) {
 }
 
 func (store *Store) Images() ([]*Image, error) {
-	images , err := store.orm.Select(Image{}, "select * from images")
+	images, err := store.orm.Select(Image{}, "select * from images")
 	if err != nil {
 		return nil, err
 	}
@@ -94,15 +97,18 @@ func (store *Store) List(pth string) ([]*Image, error) {
 
 func (store *Store) Get(id string) (*Image, error) {
 	img, err := store.orm.Get(Image{}, id)
+	if img == nil {
+		return nil, err
+	}
 	return img.(*Image), err
 }
 
 func (store *Store) Create(layerData Archive, parent *Image, pth, comment string) (*Image, error) {
 	// FIXME: actually do something with the layer...
 	img := &Image{
-		Id :		future.RandomId(),
-		Comment:	comment,
-		store:		store,
+		Id:      future.RandomId(),
+		Comment: comment,
+		store:   store,
 	}
 	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
@@ -111,8 +117,8 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 		return nil, errors.New(fmt.Sprintf("Could not add layer: %s", err))
 	}
 	path := &Path{
-		Path:		path.Clean(pth),
-		Image:		img.Id,
+		Path:  path.Clean(pth),
+		Image: img.Id,
 	}
 	trans, err := store.orm.Begin()
 	if err != nil {
@@ -142,14 +148,11 @@ func (store *Store) Register(image *Image, pth string) error {
 	return trans.Commit()
 }
 
-
-
-
 type Image struct {
-	Id		string
-	Parent		string
-	Comment		string
-	store		*Store	`db:"-"`
+	Id      string
+	Parent  string
+	Comment string
+	store   *Store `db:"-"`
 }
 
 
@@ -161,17 +164,39 @@ func (image *Image) Copy(pth string) (*Image, error) {
 }
 
 type Mountpoint struct {
-	Image	string
-	Root	string
-	Rw	string
+	Image string
+	Root  string
+	Rw    string
 }
 
 func (image *Image) Mountpoint(root, rw string) (*Mountpoint, error) {
-	mountpoint := &Mountpoint{Root: path.Clean(root), Rw: path.Clean(rw), Image: image.Id}
+	mountpoint := &Mountpoint{
+		Root:  path.Clean(root),
+		Rw:    path.Clean(rw),
+		Image: image.Id,
+	}
 	if err := image.store.orm.Insert(mountpoint); err != nil {
 		return nil, err
 	}
 	return mountpoint, nil
+}
+
+func (image *Image) layers() ([]string, error) {
+	var list []string
+	var err  error
+	currentImg := image
+	for currentImg != nil {
+		if layer := image.store.layers.Get(image.Id); layer != "" {
+			list = append(list, layer)
+		} else {
+			return list, fmt.Errorf("Layer not found for image %s", image.Id)
+		}
+		currentImg, err = currentImg.store.Get(currentImg.Parent)
+		if err != nil {
+			return list, fmt.Errorf("Error while getting parent image: %v", err)
+		}
+	}
+	return list, nil
 }
 
 func (image *Image) Mountpoints() ([]*Mountpoint, error) {
@@ -186,6 +211,123 @@ func (image *Image) Mountpoints() ([]*Mountpoint, error) {
 	return mountpoints, nil
 }
 
+func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
+	var mountpoint *Mountpoint
+	if mp, err := image.fetchMountpoint(root, rw); err != nil {
+		return nil, err
+	} else if mp == nil {
+		mountpoint, err = image.Mountpoint(root, rw)
+		if err != nil {
+			return nil, fmt.Errorf("Could not create mountpoint: %s", err)
+		} else if mountpoint == nil {
+			return nil, errors.New("No mountpoint created")
+		}
+	} else {
+		mountpoint = mp
+	}
+
+	if err := mountpoint.createFolders(); err != nil {
+		return nil, err
+	}
+
+	// FIXME: Now mount the layers
+	rwBranch := fmt.Sprintf("%v=rw", mountpoint.Rw)
+	roBranches := ""
+	layers, err := image.layers()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, layer := range layers {
+		roBranches += fmt.Sprintf("%v=ro:", layer)
+	}
+	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
+	if err := mount("none", mountpoint.Root, "aufs", 0, branches); err != nil {
+		return mountpoint, err
+	}
+	if !mountpoint.Mounted() {
+		return mountpoint, errors.New("Mount failed")
+	}
+
+	return mountpoint, nil
+}
+
+func (mp *Mountpoint) createFolders() error {
+	if err := os.Mkdir(mp.Root, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if err := os.Mkdir(mp.Rw, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (mp *Mountpoint) Mounted() bool {
+	root, err := os.Stat(mp.Root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		panic(err)
+	}
+	parent, err := os.Stat(filepath.Join(mp.Root, ".."))
+	if err != nil {
+		panic(err)
+	}
+
+	rootSt := root.Sys().(*syscall.Stat_t)
+	parentSt := parent.Sys().(*syscall.Stat_t)
+	return rootSt.Dev != parentSt.Dev
+}
+
+func (mp *Mountpoint) Umount() error {
+	if !mp.Mounted() {
+		return errors.New("Mountpoint doesn't seem to be mounted")
+	}
+	if err := syscall.Unmount(mp.Root, 0); err != nil {
+		return fmt.Errorf("Unmount syscall failed: %v", err)
+	}
+	if mp.Mounted() {
+		return fmt.Errorf("Umount: Filesystem still mounted after calling umount(%v)", mp.Root)
+	}
+	// Even though we just unmounted the filesystem, AUFS will prevent deleting the mntpoint
+	// for some time. We'll just keep retrying until it succeeds.
+	for retries := 0; retries < 1000; retries++ {
+		err := os.Remove(mp.Root)
+		if err == nil {
+			// rm mntpoint succeeded
+			return nil
+		}
+		if os.IsNotExist(err) {
+			// mntpoint doesn't exist anymore. Success.
+			return nil
+		}
+		// fmt.Printf("(%v) Remove %v returned: %v\n", retries, mp.Root, err)
+		time.Sleep(10 * time.Millisecond)
+	}
+	return fmt.Errorf("Umount: Failed to umount %v", mp.Root)
+
+}
+
+func (mp *Mountpoint) Deregister() error {
+	if mp.Mounted() {
+		return errors.New("Mountpoint is currently mounted, can't deregister")
+	}
+
+	return errors.New("Not yet implemented")
+}
+
+func (image *Image) fetchMountpoint(root, rw string) (*Mountpoint, error) {
+	res, err := image.store.orm.Select(Mountpoint{}, "select * from mountpoints where Image=? and Root=? and Rw=?", image.Id, root, rw)
+	if err != nil {
+		return nil, err
+	} else if len(res) < 1 || res[0] == nil {
+		return nil, nil
+	}
+
+	return res[0].(*Mountpoint), nil
+}
+
 func (store *Store) AddTag(imageId, tagName string) error {
 	if image, err := store.Get(imageId); err != nil {
 		return err
@@ -194,8 +336,8 @@ func (store *Store) AddTag(imageId, tagName string) error {
 	}
 
 	err2 := store.orm.Insert(&Tag{
-		TagName:	tagName,
-		Image:		imageId,
+		TagName: tagName,
+		Image:   imageId,
 	})
 
 	return err2
@@ -222,11 +364,11 @@ func (store *Store) GetByTag(tagName string) (*Image, error) {
 }
 
 type Path struct {
-	Path	string
-	Image	string
+	Path  string
+	Image string
 }
 
 type Tag struct {
-	TagName	string
-	Image	string
+	TagName string
+	Image   string
 }
