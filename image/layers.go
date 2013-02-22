@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"github.com/dotcloud/docker/future"
 )
 
@@ -82,50 +81,42 @@ func (store *LayerStore) layerPath(id string) string {
 }
 
 
-func (store *LayerStore) AddLayer(archive io.Reader, stderr io.Writer, compression Compression) (string, error) {
+func (store *LayerStore) AddLayer(archive io.Reader) (string, error) {
+	errors := make(chan error)
+	// Untar
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return "", err
 	}
-	extractFlags := "-x"
-	if compression == Bzip2 {
-		extractFlags += "j"
-	} else if compression == Gzip {
-		extractFlags += "z"
-	}
-	untarCmd := exec.Command("tar", "-C", tmp, extractFlags)
-	untarW, err := untarCmd.StdinPipe()
-	if err != nil {
-		return "", err
-	}
-	untarStderr, err := untarCmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-	go io.Copy(stderr, untarStderr)
-	untarStdout, err := untarCmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-	go io.Copy(stderr, untarStdout)
-	untarCmd.Start()
+	untarR, untarW := io.Pipe()
+	go func() {
+		errors <- Untar(untarR, tmp)
+	}()
+	// Compute ID
+	var id string
 	hashR, hashW := io.Pipe()
-	job_copy := future.Go(func() error {
-		_, err := io.Copy(io.MultiWriter(hashW, untarW), archive)
-		hashW.Close()
-		untarW.Close()
-		return err
-	})
-	id, err := future.ComputeId(hashR)
+	go func() {
+		_id, err := future.ComputeId(hashR)
+		id = _id
+		errors <- err
+	}()
+	// Duplicate archive to each stream
+	_, err = io.Copy(io.MultiWriter(hashW, untarW), archive)
+	hashW.Close()
+	untarW.Close()
 	if err != nil {
 		return "", err
 	}
-	if err := untarCmd.Wait(); err != nil {
-		return "", err
-	}
-	if err := <-job_copy; err != nil {
-		return "", err
+	// Wait for goroutines
+	for i:=0; i<2; i+=1 {
+		select {
+			case err := <-errors: {
+				if err != nil {
+					return "", err
+				}
+			}
+		}
 	}
 	layer := store.layerPath(id)
 	if !store.Exists(id) {

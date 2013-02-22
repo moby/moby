@@ -44,16 +44,10 @@ func New(root string) (*Store, error) {
 	}, nil
 }
 
-type Compression uint32
-
-const (
-	Uncompressed	Compression = iota
-	Bzip2
-	Gzip
-)
-
-func (store *Store) Import(name string, archive io.Reader, stderr io.Writer, parent *Image, compression Compression) (*Image, error) {
-	layer, err := store.Layers.AddLayer(archive, stderr, compression)
+// Import creates a new image from the contents of `archive` and registers it in the store as `name`.
+// If `parent` is not nil, it will registered as the parent of the new image.
+func (store *Store) Import(name string, archive io.Reader, parent *Image) (*Image, error) {
+	layer, err := store.Layers.AddLayer(archive)
 	if err != nil {
 		return nil, err
 	}
