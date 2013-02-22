@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"net"
@@ -16,10 +18,61 @@ type NetworkInterface struct {
 	Gateway     net.IP
 }
 
-func allocateIPAddress(network *net.IPNet) net.IP {
-	ip := network.IP.Mask(network.Mask)
-	ip[3] = byte(rand.Intn(254))
-	return ip
+func networkRange(network *net.IPNet) (net.IP, net.IP) {
+	netIP := network.IP.To4()
+	firstIP := netIP.Mask(network.Mask)
+	lastIP := net.IPv4(0, 0, 0, 0).To4()
+	for i := 0; i < len(lastIP); i++ {
+		lastIP[i] = netIP[i] | ^network.Mask[i]
+	}
+	return firstIP, lastIP
+}
+
+func ipToInt(ip net.IP) (int32, error) {
+	buf := bytes.NewBuffer(ip.To4())
+	var n int32
+	if err := binary.Read(buf, binary.BigEndian, &n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func intToIp(n int32) (net.IP, error) {
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.BigEndian, &n); err != nil {
+		return net.IP{}, err
+	}
+	ip := net.IPv4(0, 0, 0, 0).To4()
+	for i := 0; i < net.IPv4len; i++ {
+		ip[i] = buf.Bytes()[i]
+	}
+	return ip, nil
+}
+
+func networkSize(mask net.IPMask) (int32, error) {
+	for i := 0; i < net.IPv4len; i++ {
+		mask[i] = ^mask[i]
+	}
+	buf := bytes.NewBuffer(mask)
+	var n int32
+	if err := binary.Read(buf, binary.BigEndian, &n); err != nil {
+		return 0, err
+	}
+	return n + 1, nil
+}
+
+func allocateIPAddress(network *net.IPNet) (net.IP, error) {
+	ip, _ := networkRange(network)
+	netSize, err := networkSize(network.Mask)
+	if err != nil {
+		return net.IP{}, err
+	}
+	numIp, err := ipToInt(ip)
+	if err != nil {
+		return net.IP{}, err
+	}
+	numIp += rand.Int31n(netSize)
+	return intToIp(numIp)
 }
 
 func getBridgeAddr(name string) (net.Addr, error) {
@@ -54,8 +107,12 @@ func allocateNetwork() (*NetworkInterface, error) {
 	}
 	bridge := bridgeAddr.(*net.IPNet)
 	ipPrefixLen, _ := bridge.Mask.Size()
+	ip, err := allocateIPAddress(bridge)
+	if err != nil {
+		return nil, err
+	}
 	iface := &NetworkInterface{
-		IpAddress:   allocateIPAddress(bridge).String(),
+		IpAddress:   ip.String(),
 		IpPrefixLen: ipPrefixLen,
 		Gateway:     bridge.IP,
 	}
