@@ -103,22 +103,22 @@ func TestConversion(t *testing.T) {
 func TestNetworkAllocator(t *testing.T) {
 	alloc := NetworkAllocator{}
 	_, n, _ := net.ParseCIDR("127.0.0.1/29")
-	alloc.PopulateFromNetwork(n)
+	alloc.populateFromNetwork(n)
 	var lastIP net.IP
 	for i := 0; i < 5; i++ {
-		ip, err := alloc.Acquire()
+		ip, err := alloc.acquireIP()
 		if err != nil {
 			t.Fatal(err)
 		}
 		lastIP = ip
 	}
-	ip, err := alloc.Acquire()
+	ip, err := alloc.acquireIP()
 	if err == nil {
 		t.Fatal("There shouldn't be any IP addresses at this point")
 	}
 	// Release 1 IP
-	alloc.Release(lastIP)
-	ip, err = alloc.Acquire()
+	alloc.releaseIP(lastIP)
+	ip, err = alloc.acquireIP()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 )
 
@@ -14,10 +13,11 @@ const (
 )
 
 type NetworkInterface struct {
-	IpAddress   string
-	IpPrefixLen int
-	Gateway     net.IP
+	IPNet   net.IPNet
+	Gateway net.IP
 }
+
+// IP utils
 
 func networkRange(network *net.IPNet) (net.IP, net.IP) {
 	netIP := network.IP.To4()
@@ -51,10 +51,11 @@ func intToIp(n int32) (net.IP, error) {
 }
 
 func networkSize(mask net.IPMask) (int32, error) {
+	m := net.IPv4Mask(0, 0, 0, 0)
 	for i := 0; i < net.IPv4len; i++ {
-		mask[i] = ^mask[i]
+		m[i] = ^mask[i]
 	}
-	buf := bytes.NewBuffer(mask)
+	buf := bytes.NewBuffer(m)
 	var n int32
 	if err := binary.Read(buf, binary.BigEndian, &n); err != nil {
 		return 0, err
@@ -62,21 +63,7 @@ func networkSize(mask net.IPMask) (int32, error) {
 	return n + 1, nil
 }
 
-func allocateIPAddress(network *net.IPNet) (net.IP, error) {
-	ip, _ := networkRange(network)
-	netSize, err := networkSize(network.Mask)
-	if err != nil {
-		return net.IP{}, err
-	}
-	numIp, err := ipToInt(ip)
-	if err != nil {
-		return net.IP{}, err
-	}
-	numIp += rand.Int31n(netSize)
-	return intToIp(numIp)
-}
-
-func getBridgeAddr(name string) (net.Addr, error) {
+func getIfaceAddr(name string) (net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, err
@@ -101,31 +88,31 @@ func getBridgeAddr(name string) (net.Addr, error) {
 	return addrs4[0], nil
 }
 
-func allocateNetwork() (*NetworkInterface, error) {
-	bridgeAddr, err := getBridgeAddr(networkBridgeIface)
+// Network allocator
+func newNetworkAllocator(iface string) (*NetworkAllocator, error) {
+	addr, err := getIfaceAddr(iface)
 	if err != nil {
 		return nil, err
 	}
-	bridge := bridgeAddr.(*net.IPNet)
-	ipPrefixLen, _ := bridge.Mask.Size()
-	ip, err := allocateIPAddress(bridge)
-	if err != nil {
+	network := addr.(*net.IPNet)
+
+	alloc := &NetworkAllocator{
+		iface: iface,
+		net:   network,
+	}
+	if err := alloc.populateFromNetwork(network); err != nil {
 		return nil, err
 	}
-	iface := &NetworkInterface{
-		IpAddress:   ip.String(),
-		IpPrefixLen: ipPrefixLen,
-		Gateway:     bridge.IP,
-	}
-	return iface, nil
+	return alloc, nil
 }
 
 type NetworkAllocator struct {
 	iface string
+	net   *net.IPNet
 	queue chan (net.IP)
 }
 
-func (alloc *NetworkAllocator) Acquire() (net.IP, error) {
+func (alloc *NetworkAllocator) acquireIP() (net.IP, error) {
 	select {
 	case ip := <-alloc.queue:
 		return ip, nil
@@ -135,7 +122,7 @@ func (alloc *NetworkAllocator) Acquire() (net.IP, error) {
 	return net.IP{}, nil
 }
 
-func (alloc *NetworkAllocator) Release(ip net.IP) error {
+func (alloc *NetworkAllocator) releaseIP(ip net.IP) error {
 	select {
 	case alloc.queue <- ip:
 		return nil
@@ -145,7 +132,7 @@ func (alloc *NetworkAllocator) Release(ip net.IP) error {
 	return nil
 }
 
-func (alloc *NetworkAllocator) PopulateFromNetwork(network *net.IPNet) error {
+func (alloc *NetworkAllocator) populateFromNetwork(network *net.IPNet) error {
 	firstIP, _ := networkRange(network)
 	size, err := networkSize(network.Mask)
 	if err != nil {
@@ -168,16 +155,24 @@ func (alloc *NetworkAllocator) PopulateFromNetwork(network *net.IPNet) error {
 		if ip.Equal(network.IP) {
 			continue
 		}
-		alloc.Release(ip)
+		alloc.releaseIP(ip)
 	}
 	return nil
 }
 
-func (alloc *NetworkAllocator) PopulateFromInterface(iface string) error {
-	addr, err := getBridgeAddr(iface)
+func (alloc *NetworkAllocator) Allocate() (*NetworkInterface, error) {
+	// ipPrefixLen, _ := alloc.net.Mask.Size()
+	ip, err := alloc.acquireIP()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	network := addr.(*net.IPNet)
-	return alloc.PopulateFromNetwork(network)
+	iface := &NetworkInterface{
+		IPNet:   net.IPNet{ip, alloc.net.Mask},
+		Gateway: alloc.net.IP,
+	}
+	return iface, nil
+}
+
+func (alloc *NetworkAllocator) Release(iface *NetworkInterface) error {
+	return alloc.releaseIP(iface.IPNet.IP)
 }

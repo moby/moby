@@ -33,8 +33,11 @@ type Container struct {
 
 	Config     *Config
 	Filesystem *Filesystem
-	Network    *NetworkInterface
 	State      *State
+
+	network          *NetworkInterface
+	networkAllocator *NetworkAllocator
+	NetworkConfig    *NetworkConfig
 
 	SysInitPath   string
 	lxcConfigPath string
@@ -56,16 +59,23 @@ type Config struct {
 	OpenStdin bool // Open stdin
 }
 
-func createContainer(id string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
+type NetworkConfig struct {
+	IpAddress   string
+	IpPrefixLen int
+}
+
+func createContainer(id string, root string, command string, args []string, layers []string, config *Config, netAllocator *NetworkAllocator) (*Container, error) {
 	container := &Container{
-		Id:         id,
-		Root:       root,
-		Created:    time.Now(),
-		Path:       command,
-		Args:       args,
-		Config:     config,
-		Filesystem: newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
-		State:      newState(),
+		Id:               id,
+		Root:             root,
+		Created:          time.Now(),
+		Path:             command,
+		Args:             args,
+		Config:           config,
+		Filesystem:       newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
+		State:            newState(),
+		networkAllocator: netAllocator,
+		NetworkConfig:    &NetworkConfig{},
 
 		SysInitPath:   sysInitPath,
 		lxcConfigPath: path.Join(root, "config.lxc"),
@@ -88,27 +98,25 @@ func createContainer(id string, root string, command string, args []string, laye
 	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
-	var err error
-	if container.Network, err = allocateNetwork(); err != nil {
-		return nil, err
-	}
 	if err := container.save(); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
-func loadContainer(containerPath string) (*Container, error) {
+func loadContainer(containerPath string, netAllocator *NetworkAllocator) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
 	if err != nil {
 		return nil, err
 	}
 	container := &Container{
-		stdout:        newWriteBroadcaster(),
-		stderr:        newWriteBroadcaster(),
-		stdoutLog:     new(bytes.Buffer),
-		stderrLog:     new(bytes.Buffer),
-		lxcConfigPath: path.Join(containerPath, "config.lxc"),
+		stdout:           newWriteBroadcaster(),
+		stderr:           newWriteBroadcaster(),
+		stdoutLog:        new(bytes.Buffer),
+		stderrLog:        new(bytes.Buffer),
+		lxcConfigPath:    path.Join(containerPath, "config.lxc"),
+		networkAllocator: netAllocator,
+		NetworkConfig:    &NetworkConfig{},
 	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
@@ -268,6 +276,9 @@ func (container *Container) Start() error {
 	if err := container.Filesystem.EnsureMounted(); err != nil {
 		return err
 	}
+	if err := container.allocateNetwork(); err != nil {
+		return err
+	}
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
@@ -279,7 +290,7 @@ func (container *Container) Start() error {
 	}
 
 	// Networking
-	params = append(params, "-g", container.Network.Gateway.String())
+	params = append(params, "-g", container.network.Gateway.String())
 
 	// User
 	if container.Config.User != "" {
@@ -356,12 +367,33 @@ func (container *Container) StderrLog() io.Reader {
 	return strings.NewReader(container.stderrLog.String())
 }
 
+func (container *Container) allocateNetwork() error {
+	iface, err := container.networkAllocator.Allocate()
+	if err != nil {
+		return err
+	}
+	container.network = iface
+	container.NetworkConfig.IpAddress = iface.IPNet.IP.String()
+	container.NetworkConfig.IpPrefixLen, _ = iface.IPNet.Mask.Size()
+	return nil
+}
+
+func (container *Container) releaseNetwork() error {
+	err := container.networkAllocator.Release(container.network)
+	container.network = nil
+	container.NetworkConfig = &NetworkConfig{}
+	return err
+}
+
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	container.cmd.Wait()
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
+	if err := container.releaseNetwork(); err != nil {
+		log.Printf("%v: Failed to release network: %v", container.Id, err)
+	}
 	container.stdout.Close()
 	container.stderr.Close()
 	if err := container.Filesystem.Umount(); err != nil {
@@ -429,7 +461,6 @@ func (container *Container) Restart() error {
 }
 
 func (container *Container) Wait() {
-
 	for container.State.Running {
 		container.State.wait()
 	}
