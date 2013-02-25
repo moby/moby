@@ -4,7 +4,7 @@
 cd /tmp
 
 echo "Ensuring dependencies are installed..."
-apt-get --yes install lxc wget 2>&1 > /dev/null
+apt-get --yes install lxc wget bsdtar 2>&1 > /dev/null
 
 echo "Downloading docker binary..."
 wget -q https://dl.dropbox.com/u/20637798/docker.tar.gz 2>&1 > /dev/null
