@@ -99,3 +99,30 @@ func TestConversion(t *testing.T) {
 		t.Error(conv.String())
 	}
 }
+
+func TestNetworkAllocator(t *testing.T) {
+	alloc := NetworkAllocator{}
+	_, n, _ := net.ParseCIDR("127.0.0.1/29")
+	alloc.PopulateFromNetwork(n)
+	var lastIP net.IP
+	for i := 0; i < 5; i++ {
+		ip, err := alloc.Acquire()
+		if err != nil {
+			t.Fatal(err)
+		}
+		lastIP = ip
+	}
+	ip, err := alloc.Acquire()
+	if err == nil {
+		t.Fatal("There shouldn't be any IP addresses at this point")
+	}
+	// Release 1 IP
+	alloc.Release(lastIP)
+	ip, err = alloc.Acquire()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ip.Equal(lastIP) {
+		t.Fatal(ip.String())
+	}
+}

@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -117,4 +118,66 @@ func allocateNetwork() (*NetworkInterface, error) {
 		Gateway:     bridge.IP,
 	}
 	return iface, nil
+}
+
+type NetworkAllocator struct {
+	iface string
+	queue chan (net.IP)
+}
+
+func (alloc *NetworkAllocator) Acquire() (net.IP, error) {
+	select {
+	case ip := <-alloc.queue:
+		return ip, nil
+	default:
+		return net.IP{}, errors.New("No more IP addresses available")
+	}
+	return net.IP{}, nil
+}
+
+func (alloc *NetworkAllocator) Release(ip net.IP) error {
+	select {
+	case alloc.queue <- ip:
+		return nil
+	default:
+		return errors.New("Too many IP addresses have been released")
+	}
+	return nil
+}
+
+func (alloc *NetworkAllocator) PopulateFromNetwork(network *net.IPNet) error {
+	firstIP, _ := networkRange(network)
+	size, err := networkSize(network.Mask)
+	if err != nil {
+		return err
+	}
+	// The queue size should be the network size - 3
+	// -1 for the network address, -1 for the broadcast address and
+	// -1 for the gateway address
+	alloc.queue = make(chan net.IP, size-3)
+	for i := int32(1); i < size-1; i++ {
+		ipNum, err := ipToInt(firstIP)
+		if err != nil {
+			return err
+		}
+		ip, err := intToIp(ipNum + int32(i))
+		if err != nil {
+			return err
+		}
+		// Discard the network IP (that's the host IP address)
+		if ip.Equal(network.IP) {
+			continue
+		}
+		alloc.Release(ip)
+	}
+	return nil
+}
+
+func (alloc *NetworkAllocator) PopulateFromInterface(iface string) error {
+	addr, err := getBridgeAddr(iface)
+	if err != nil {
+		return err
+	}
+	network := addr.(*net.IPNet)
+	return alloc.PopulateFromNetwork(network)
 }
