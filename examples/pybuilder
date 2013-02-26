@@ -49,7 +49,7 @@ if [ "$CMD" = "build" ]; then
 	fi
 
 	if attach $BUILD_JOB ; then
-		BUILD_STATUS=`docker ps -a | sed -E -n "s/^$BUILD_JOB.*Exit ([0-9]+) *$/\1/p"`
+		BUILD_STATUS=`docker wait $BUILD_JOB`
 		if [ -z "$BUILD_STATUS" -o "$BUILD_STATUS" != 0 ]; then
 			echo "Build failed"
 			exit 1
