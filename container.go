@@ -415,11 +415,13 @@ func (container *Container) Restart() error {
 	return nil
 }
 
-func (container *Container) Wait() {
+// Wait blocks until the container stops running, then returns its exit code.
+func (container *Container) Wait() int {
 
 	for container.State.Running {
 		container.State.wait()
 	}
+	return container.State.ExitCode
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {

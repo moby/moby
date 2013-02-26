@@ -53,6 +53,7 @@ func (srv *Server) Help() string {
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"commit", "Save the state of a container"},
 		{"attach", "Attach to the standard inputs and outputs of a running container"},
+		{"wait", "Block until a container exits, then print its exit code"},
 		{"info", "Display system-wide information"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
@@ -61,6 +62,27 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
 	return help
+}
+
+// 'docker wait': block until a container stops
+func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] NAME", "Block until a container stops, then print its exit code.")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container := srv.containers.Get(name); container != nil {
+			fmt.Fprintln(stdout, container.Wait())
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
 }
 
 // 'docker info': display system-wide information.
