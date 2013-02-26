@@ -138,14 +138,16 @@ Standard Container Specification
 Setup instructions
 ==================
 
-Supported hosts
----------------
+Requirements
+------------
 
-Right now, the officially supported hosts are:
+Right now, the officially supported distributions are:
+
+* Ubuntu 12.04 (precise LTS)
 * Ubuntu 12.10 (quantal)
 
-Hosts that might work with slight kernel modifications, but are not officially supported:
-* Ubuntu 12.04 (precise)
+Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
+
 
 Step by step host setup
 -----------------------
@@ -156,11 +158,11 @@ Step by step host setup
 
         apt-get update
         apt-get install lxc wget
-        debootstrap --arch=amd64 quantal /var/lib/docker/images/ubuntu/
 
-4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`)
+4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`) (warning: this may not be the most up-to-date build)
 5. Extract the contents of the tar file `tar -xf docker.tar.gz`
 6. Launch the docker daemon `./dockerd`
+7. Download a base image by running 'docker pull -j base'
 
 
 Client installation
