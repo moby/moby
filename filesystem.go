@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"github.com/dotcloud/docker/image"
 )
 
 type Filesystem struct {
@@ -104,7 +105,7 @@ func (fs *Filesystem) Tar() (io.Reader, error) {
 	if err := fs.EnsureMounted(); err != nil {
 		return nil, err
 	}
-	return Tar(fs.RootFS)
+	return image.Tar(fs.RootFS, image.Uncompressed)
 }
 
 func (fs *Filesystem) EnsureMounted() error {

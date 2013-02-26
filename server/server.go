@@ -348,16 +348,8 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] NAME", "Download a new image from a remote location")
-	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
-	fl_gzip := cmd.Bool("z", false, "Gzip compression")
 	if err := cmd.Parse(args); err != nil {
 		return nil
-	}
-	var compression image.Compression
-	if *fl_bzip2 {
-		compression = image.Bzip2
-	} else if *fl_gzip {
-		compression = image.Gzip
 	}
 	name := cmd.Arg(0)
 	if name == "" {
@@ -375,12 +367,13 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		u.Host = "s3.amazonaws.com"
 		u.Path = path.Join("/docker.io/images", u.Path)
 	}
-	fmt.Fprintf(stdout, "Downloading %s from %s...\n", name, u.String())
+	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return err
 	}
-	img, err := srv.images.Import(name, resp.Body, stdout, nil, compression)
+	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
+	img, err := srv.images.Import(name, resp.Body, nil)
 	if err != nil {
 		return err
 	}
@@ -390,22 +383,14 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "put", "[OPTIONS] NAME", "Import a new image from a local archive.")
-	fl_bzip2 := cmd.Bool("j", false, "Bzip2 compression")
-	fl_gzip := cmd.Bool("z", false, "Gzip compression")
 	if err := cmd.Parse(args); err != nil {
 		return nil
-	}
-	var compression image.Compression
-	if *fl_bzip2 {
-		compression = image.Bzip2
-	} else if *fl_gzip {
-		compression = image.Gzip
 	}
 	name := cmd.Arg(0)
 	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	img, err := srv.images.Import(name, stdin, stdout, nil, compression)
+	img, err := srv.images.Import(name, stdin, nil)
 	if err != nil {
 		return err
 	}
@@ -558,13 +543,13 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	if container := srv.containers.Get(containerName); container != nil {
 		// FIXME: freeze the container before copying it to avoid data corruption?
-		rwTar, err := docker.Tar(container.Filesystem.RWPath)
+		rwTar, err := image.Tar(container.Filesystem.RWPath, image.Uncompressed)
 		if err != nil {
 			return err
 		}
 		// Create a new image from the container's base layers + a new layer from container changes
 		parentImg := srv.images.Find(container.GetUserData("image"))
-		img, err := srv.images.Import(imgName, rwTar, stdout, parentImg, image.Uncompressed)
+		img, err := srv.images.Import(imgName, rwTar, parentImg)
 		if err != nil {
 			return err
 		}
