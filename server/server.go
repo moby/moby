@@ -390,12 +390,18 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		u.Path = path.Join("/docker.io/images", u.Path)
 	}
 	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
-	resp, err := http.Get(u.String())
+	// Download with curl (pretty progress bar)
+	// If curl is not available, fallback to http.Get()
+	archive, err := future.Curl(u.String(), stdout)
 	if err != nil {
-		return err
+		if resp, err := http.Get(u.String()); err != nil {
+			return err
+		} else {
+			archive = resp.Body
+		}
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
-	img, err := srv.images.Import(name, resp.Body, nil)
+	img, err := srv.images.Import(name, archive, nil)
 	if err != nil {
 		return err
 	}
