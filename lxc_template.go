@@ -22,7 +22,7 @@ lxc.utsname = {{.Id}}
 #lxc.network.ipv4 = {ip_address}/{ip_prefix_len}
 
 # root filesystem
-{{$ROOTFS := .Filesystem.RootFS}}
+{{$ROOTFS := .Mountpoint.Root}}
 lxc.rootfs = {{$ROOTFS}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal

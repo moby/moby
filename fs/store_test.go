@@ -3,7 +3,7 @@ package fs
 import (
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/fake"
+	"../fake"
 	"io/ioutil"
 	"os"
 	"testing"

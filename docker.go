@@ -8,12 +8,14 @@ import (
 	"os"
 	"path"
 	"sort"
+	"./fs"
 )
 
 type Docker struct {
-	root       string
-	repository string
-	containers *list.List
+	root       	string
+	repository 	string
+	containers 	*list.List
+	Store		*fs.Store
 }
 
 func (docker *Docker) List() []*Container {
@@ -46,12 +48,12 @@ func (docker *Docker) Exists(id string) bool {
 	return docker.Get(id) != nil
 }
 
-func (docker *Docker) Create(id string, command string, args []string, layers []string, config *Config) (*Container, error) {
+func (docker *Docker) Create(id string, command string, args []string, image *fs.Image, config *Config) (*Container, error) {
 	if docker.Exists(id) {
 		return nil, fmt.Errorf("Container %v already exists", id)
 	}
 	root := path.Join(docker.repository, id)
-	container, err := createContainer(id, root, command, args, layers, config)
+	container, err := createContainer(id, root, command, args, image, config)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +70,13 @@ func (docker *Docker) Destroy(container *Container) error {
 	if err := container.Stop(); err != nil {
 		return err
 	}
-	if container.Filesystem.IsMounted() {
-		if err := container.Filesystem.Umount(); err != nil {
+	if container.Mountpoint.Mounted() {
+		if err := container.Mountpoint.Umount(); err != nil {
 			log.Printf("Unable to umount container %v: %v", container.Id, err)
+		}
+
+		if err := container.Mountpoint.Deregister(); err != nil {
+			log.Printf("Unable to deregiser mountpoint %v: %v", container.Mountpoint.Root, err)
 		}
 	}
 	if err := os.RemoveAll(container.Root); err != nil {
@@ -91,6 +97,7 @@ func (docker *Docker) restore() error {
 			log.Printf("Failed to load container %v: %v", v.Name(), err)
 			continue
 		}
+		container.Mountpoint.Store = docker.Store
 		docker.containers.PushBack(container)
 	}
 	return nil
@@ -101,10 +108,16 @@ func New() (*Docker, error) {
 }
 
 func NewFromDirectory(root string) (*Docker, error) {
+	store, err := fs.New(path.Join(root, "images"))
+	if err != nil {
+		return nil, err
+	}
+
 	docker := &Docker{
 		root:       root,
 		repository: path.Join(root, "containers"),
 		containers: list.New(),
+		Store:		store,
 	}
 
 	if err := os.Mkdir(docker.repository, 0700); err != nil && !os.IsExist(err) {

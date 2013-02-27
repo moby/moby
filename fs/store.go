@@ -25,8 +25,12 @@ type Store struct {
 type Archive io.Reader
 
 func New(root string) (*Store, error) {
+	isNewStore := true
+
 	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
+	} else if os.IsExist(err) {
+		isNewStore = false
 	}
 	db, err := sql.Open("sqlite3", path.Join(root, "db"))
 	if err != nil {
@@ -37,9 +41,12 @@ func New(root string) (*Store, error) {
 	orm.AddTableWithName(Path{}, "paths").SetKeys(false, "Path", "Image")
 	orm.AddTableWithName(Mountpoint{}, "mountpoints").SetKeys(false, "Root")
 	orm.AddTableWithName(Tag{}, "tags").SetKeys(false, "TagName")
-	if err := orm.CreateTables(); err != nil {
-		return nil, err
+	if isNewStore {
+		if err := orm.CreateTables(); err != nil {
+			return nil, err
+		}
 	}
+
 	layers, err := NewLayerStore(path.Join(root, "layers"))
 	if err != nil {
 		return nil, err
@@ -100,7 +107,9 @@ func (store *Store) Get(id string) (*Image, error) {
 	if img == nil {
 		return nil, err
 	}
-	return img.(*Image), err
+	res := img.(*Image)
+	res.store = store
+	return res, err
 }
 
 func (store *Store) Create(layerData Archive, parent *Image, pth, comment string) (*Image, error) {
@@ -167,6 +176,7 @@ type Mountpoint struct {
 	Image string
 	Root  string
 	Rw    string
+	Store *Store `db:"-"`
 }
 
 func (image *Image) Mountpoint(root, rw string) (*Mountpoint, error) {
@@ -174,6 +184,7 @@ func (image *Image) Mountpoint(root, rw string) (*Mountpoint, error) {
 		Root:  path.Clean(root),
 		Rw:    path.Clean(rw),
 		Image: image.Id,
+		Store: image.store,
 	}
 	if err := image.store.orm.Insert(mountpoint); err != nil {
 		return nil, err
@@ -252,6 +263,19 @@ func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 	return mountpoint, nil
 }
 
+func (mp *Mountpoint) EnsureMounted() error {
+	if mp.Mounted() {
+		return nil
+	}
+	img, err := mp.Store.Get(mp.Image)
+	if err != nil {
+		return err
+	}
+
+	_, err = img.Mount(mp.Root, mp.Rw)
+	return err
+}
+
 func (mp *Mountpoint) createFolders() error {
 	if err := os.Mkdir(mp.Root, 0755); err != nil && !os.IsExist(err) {
 		return err
@@ -314,7 +338,8 @@ func (mp *Mountpoint) Deregister() error {
 		return errors.New("Mountpoint is currently mounted, can't deregister")
 	}
 
-	return errors.New("Not yet implemented")
+	_, err := mp.Store.orm.Delete(mp)
+	return err
 }
 
 func (image *Image) fetchMountpoint(root, rw string) (*Mountpoint, error) {
@@ -325,7 +350,9 @@ func (image *Image) fetchMountpoint(root, rw string) (*Mountpoint, error) {
 		return nil, nil
 	}
 
-	return res[0].(*Mountpoint), nil
+	mp := res[0].(*Mountpoint)
+	mp.Store = image.store
+	return mp, nil
 }
 
 func (store *Store) AddTag(imageId, tagName string) error {

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"./fs"
 )
 
 var sysInitPath string
@@ -32,7 +33,7 @@ type Container struct {
 	Args []string
 
 	Config     *Config
-	Filesystem *Filesystem
+	Mountpoint *fs.Mountpoint
 	State      *State
 
 	SysInitPath   string
@@ -55,7 +56,11 @@ type Config struct {
 	OpenStdin bool // Open stdin
 }
 
-func createContainer(id string, root string, command string, args []string, layers []string, config *Config) (*Container, error) {
+func createContainer(id string, root string, command string, args []string, image *fs.Image, config *Config) (*Container, error) {
+	mountpoint, err := image.Mountpoint(path.Join(root, "rootfs"), path.Join(root, "rw"))
+	if err != nil {
+		return nil, err
+	}
 	container := &Container{
 		Id:         id,
 		Root:       root,
@@ -63,7 +68,7 @@ func createContainer(id string, root string, command string, args []string, laye
 		Path:       command,
 		Args:       args,
 		Config:     config,
-		Filesystem: newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
+		Mountpoint: mountpoint,
 		State:      newState(),
 
 		SysInitPath:   sysInitPath,
@@ -84,9 +89,9 @@ func createContainer(id string, root string, command string, args []string, laye
 	if err := os.Mkdir(root, 0700); err != nil {
 		return nil, err
 	}
-	if err := container.Filesystem.createMountPoints(); err != nil {
+	/*if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
-	}
+	}*/
 	if err := container.save(); err != nil {
 		return nil, err
 	}
@@ -108,9 +113,9 @@ func loadContainer(containerPath string) (*Container, error) {
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
-	if err := container.Filesystem.createMountPoints(); err != nil {
-		return nil, err
-	}
+	// if err := container.Filesystem.createMountPoints(); err != nil {
+	// 	return nil, err
+	// }
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
@@ -260,7 +265,7 @@ func (container *Container) start() error {
 }
 
 func (container *Container) Start() error {
-	if err := container.Filesystem.EnsureMounted(); err != nil {
+	if err := container.Mountpoint.EnsureMounted(); err != nil {
 		return err
 	}
 	if err := container.generateLXCConfig(); err != nil {
@@ -351,7 +356,7 @@ func (container *Container) monitor() {
 	// Cleanup
 	container.stdout.Close()
 	container.stderr.Close()
-	if err := container.Filesystem.Umount(); err != nil {
+	if err := container.Mountpoint.Umount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
 

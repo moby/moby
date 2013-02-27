@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
-	"github.com/dotcloud/docker/future"
+	"../future"
 )
 
 type LayerStore struct {
