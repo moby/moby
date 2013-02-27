@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
+	"github.com/dotcloud/docker/client"
 	"log"
 	"os"
 	"path"
-	"github.com/dotcloud/docker/client"
 )
 
 func main() {
@@ -27,4 +27,3 @@ func main() {
 		}
 	}
 }
-

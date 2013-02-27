@@ -157,7 +157,7 @@ Step by step host setup
 3. Type the following commands:
 
         apt-get update
-        apt-get install lxc wget bsdtar
+        apt-get install lxc wget bsdtar curl
 
 4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`) (warning: this may not be the most up-to-date build)
 5. Extract the contents of the tar file `tar -xf docker.tar.gz`
