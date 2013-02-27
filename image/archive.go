@@ -1,30 +1,32 @@
 package image
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"os/exec"
-	"errors"
 )
 
 type Compression uint32
 
 const (
-	Uncompressed	Compression = iota
+	Uncompressed Compression = iota
 	Bzip2
 	Gzip
 )
 
 func (compression *Compression) Flag() string {
 	switch *compression {
-		case Bzip2: return "j"
-		case Gzip: return "z"
+	case Bzip2:
+		return "j"
+	case Gzip:
+		return "z"
 	}
 	return ""
 }
 
 func Tar(path string, compression Compression) (io.Reader, error) {
-	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-c" + compression.Flag(), ".")
+	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-c"+compression.Flag(), ".")
 	return CmdStream(cmd)
 }
 

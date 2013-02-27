@@ -2,16 +2,16 @@ package image
 
 import (
 	"errors"
-	"path"
-	"path/filepath"
+	"github.com/dotcloud/docker/future"
 	"io"
 	"io/ioutil"
 	"os"
-	"github.com/dotcloud/docker/future"
+	"path"
+	"path/filepath"
 )
 
 type LayerStore struct {
-	Root	string
+	Root string
 }
 
 func NewLayerStore(root string) (*LayerStore, error) {
@@ -66,10 +66,9 @@ func (store *LayerStore) Init() error {
 	return os.Mkdir(store.Root, 0700)
 }
 
-
 func (store *LayerStore) Mktemp() (string, error) {
 	tmpName := future.RandomId()
-	tmpPath := path.Join(store.Root, "tmp-" + tmpName)
+	tmpPath := path.Join(store.Root, "tmp-"+tmpName)
 	if err := os.Mkdir(tmpPath, 0700); err != nil {
 		return "", err
 	}
@@ -79,7 +78,6 @@ func (store *LayerStore) Mktemp() (string, error) {
 func (store *LayerStore) layerPath(id string) string {
 	return path.Join(store.Root, id)
 }
-
 
 func (store *LayerStore) AddLayer(archive io.Reader) (string, error) {
 	errors := make(chan error)
@@ -109,9 +107,10 @@ func (store *LayerStore) AddLayer(archive io.Reader) (string, error) {
 		return "", err
 	}
 	// Wait for goroutines
-	for i:=0; i<2; i+=1 {
+	for i := 0; i < 2; i += 1 {
 		select {
-			case err := <-errors: {
+		case err := <-errors:
+			{
 				if err != nil {
 					return "", err
 				}

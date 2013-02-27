@@ -1,10 +1,10 @@
 package image
 
 import (
-	"testing"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"io/ioutil"
+	"testing"
 )
 
 func TestCmdStreamBad(t *testing.T) {

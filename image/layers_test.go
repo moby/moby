@@ -1,12 +1,12 @@
 package image
 
 import (
+	"bytes"
+	"github.com/dotcloud/docker/fake"
+	"github.com/dotcloud/docker/future"
+	"io/ioutil"
 	"os"
 	"testing"
-	"io/ioutil"
-	"bytes"
-	"github.com/dotcloud/docker/future"
-	"github.com/dotcloud/docker/fake"
 )
 
 func TestAddLayer(t *testing.T) {
@@ -45,4 +45,3 @@ func TestComputeId(t *testing.T) {
 		t.Fatalf("Identical checksums for difference content (%s == %s)", id1, id2)
 	}
 }
-

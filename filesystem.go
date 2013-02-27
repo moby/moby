@@ -3,6 +3,7 @@ package docker
 import (
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/image"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"github.com/dotcloud/docker/image"
 )
 
 type Filesystem struct {

@@ -1,12 +1,12 @@
 package future
 
 import (
-	"crypto/sha256"
-	"io"
-	"fmt"
-	"time"
 	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"math/rand"
+	"time"
 )
 
 func Seed() {
@@ -30,18 +30,18 @@ func HumanDuration(d time.Duration) string {
 		return "About a minute"
 	} else if minutes < 60 {
 		return fmt.Sprintf("%d minutes", minutes)
-	} else if hours := int(d.Hours()); hours  == 1{
+	} else if hours := int(d.Hours()); hours == 1 {
 		return "About an hour"
 	} else if hours < 48 {
 		return fmt.Sprintf("%d hours", hours)
-	} else if hours < 24 * 7 * 2 {
-		return fmt.Sprintf("%d days", hours / 24)
-	} else if hours < 24 * 30 * 3 {
-		return fmt.Sprintf("%d weeks", hours / 24 / 7)
-	} else if hours < 24 * 365 * 2 {
-		return fmt.Sprintf("%d months", hours / 24 / 30)
+	} else if hours < 24*7*2 {
+		return fmt.Sprintf("%d days", hours/24)
+	} else if hours < 24*30*3 {
+		return fmt.Sprintf("%d weeks", hours/24/7)
+	} else if hours < 24*365*2 {
+		return fmt.Sprintf("%d months", hours/24/30)
 	}
-	return fmt.Sprintf("%d years", d.Hours() / 24 / 365)
+	return fmt.Sprintf("%d years", d.Hours()/24/365)
 }
 
 func randomBytes() io.Reader {
@@ -83,4 +83,3 @@ func Pv(src io.Reader, info io.Writer) io.Reader {
 	}()
 	return r
 }
-
