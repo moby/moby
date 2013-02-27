@@ -11,7 +11,6 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -774,9 +773,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 		if *fl_attach {
 			future.Go(func() error {
-				log.Printf("CmdRun(): start receiving stdin\n")
 				_, err := io.Copy(cmd_stdin, stdin)
-				log.Printf("CmdRun(): done receiving stdin\n")
 				cmd_stdin.Close()
 				return err
 			})

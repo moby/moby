@@ -112,7 +112,7 @@ func InteractiveMode(scripts ...string) error {
 		return err
 	}
 	io.WriteString(rcfile, "enable -n help\n")
-	os.Setenv("PATH", tmp)
+	os.Setenv("PATH", tmp + ":" + os.Getenv("PATH"))
 	os.Setenv("PS1", "\\h docker> ")
 	shell := exec.Command("/bin/bash", append([]string{"--rcfile", rcfile.Name()}, scripts...)...)
 	shell.Stdin = os.Stdin
