@@ -100,25 +100,27 @@ func TestConversion(t *testing.T) {
 	}
 }
 
-func TestNetworkAllocator(t *testing.T) {
-	alloc := NetworkAllocator{}
-	_, n, _ := net.ParseCIDR("127.0.0.1/29")
-	alloc.populateFromNetwork(n)
+func TestIPAllocator(t *testing.T) {
+	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
+	alloc, err := newIPAllocator(&net.IPNet{gwIP, n.Mask})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var lastIP net.IP
 	for i := 0; i < 5; i++ {
-		ip, err := alloc.acquireIP()
+		ip, err := alloc.Acquire()
 		if err != nil {
 			t.Fatal(err)
 		}
 		lastIP = ip
 	}
-	ip, err := alloc.acquireIP()
+	ip, err := alloc.Acquire()
 	if err == nil {
 		t.Fatal("There shouldn't be any IP addresses at this point")
 	}
 	// Release 1 IP
-	alloc.releaseIP(lastIP)
-	ip, err = alloc.acquireIP()
+	alloc.Release(lastIP)
+	ip, err = alloc.Acquire()
 	if err != nil {
 		t.Fatal(err)
 	}
