@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -35,9 +36,9 @@ type Container struct {
 	Filesystem *Filesystem
 	State      *State
 
-	network          *NetworkInterface
-	networkAllocator *NetworkAllocator
-	NetworkConfig    *NetworkConfig
+	network         *NetworkInterface
+	networkManager  *NetworkManager
+	NetworkSettings *NetworkSettings
 
 	SysInitPath   string
 	lxcConfigPath string
@@ -55,34 +56,36 @@ type Config struct {
 	Hostname  string
 	User      string
 	Ram       int64
+	Ports     []int
 	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin bool // Open stdin
 }
 
-type NetworkConfig struct {
+type NetworkSettings struct {
 	IpAddress   string
 	IpPrefixLen int
+	Gateway     string
+	PortMapping map[string]string
 }
 
-func createContainer(id string, root string, command string, args []string, layers []string, config *Config, netAllocator *NetworkAllocator) (*Container, error) {
+func createContainer(id string, root string, command string, args []string, layers []string, config *Config, netManager *NetworkManager) (*Container, error) {
 	container := &Container{
-		Id:               id,
-		Root:             root,
-		Created:          time.Now(),
-		Path:             command,
-		Args:             args,
-		Config:           config,
-		Filesystem:       newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
-		State:            newState(),
-		networkAllocator: netAllocator,
-		NetworkConfig:    &NetworkConfig{},
-
-		SysInitPath:   sysInitPath,
-		lxcConfigPath: path.Join(root, "config.lxc"),
-		stdout:        newWriteBroadcaster(),
-		stderr:        newWriteBroadcaster(),
-		stdoutLog:     new(bytes.Buffer),
-		stderrLog:     new(bytes.Buffer),
+		Id:              id,
+		Root:            root,
+		Created:         time.Now(),
+		Path:            command,
+		Args:            args,
+		Config:          config,
+		Filesystem:      newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
+		State:           newState(),
+		networkManager:  netManager,
+		NetworkSettings: &NetworkSettings{},
+		SysInitPath:     sysInitPath,
+		lxcConfigPath:   path.Join(root, "config.lxc"),
+		stdout:          newWriteBroadcaster(),
+		stderr:          newWriteBroadcaster(),
+		stdoutLog:       new(bytes.Buffer),
+		stderrLog:       new(bytes.Buffer),
 	}
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
@@ -104,19 +107,19 @@ func createContainer(id string, root string, command string, args []string, laye
 	return container, nil
 }
 
-func loadContainer(containerPath string, netAllocator *NetworkAllocator) (*Container, error) {
+func loadContainer(containerPath string, netManager *NetworkManager) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
 	if err != nil {
 		return nil, err
 	}
 	container := &Container{
-		stdout:           newWriteBroadcaster(),
-		stderr:           newWriteBroadcaster(),
-		stdoutLog:        new(bytes.Buffer),
-		stderrLog:        new(bytes.Buffer),
-		lxcConfigPath:    path.Join(containerPath, "config.lxc"),
-		networkAllocator: netAllocator,
-		NetworkConfig:    &NetworkConfig{},
+		stdout:          newWriteBroadcaster(),
+		stderr:          newWriteBroadcaster(),
+		stdoutLog:       new(bytes.Buffer),
+		stderrLog:       new(bytes.Buffer),
+		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
+		networkManager:  netManager,
+		NetworkSettings: &NetworkSettings{},
 	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
@@ -368,20 +371,30 @@ func (container *Container) StderrLog() io.Reader {
 }
 
 func (container *Container) allocateNetwork() error {
-	iface, err := container.networkAllocator.Allocate()
+	iface, err := container.networkManager.Allocate()
 	if err != nil {
 		return err
 	}
+	container.NetworkSettings.PortMapping = make(map[string]string)
+	for _, port := range container.Config.Ports {
+		if extPort, err := iface.AllocatePort(port); err != nil {
+			iface.Release()
+			return err
+		} else {
+			container.NetworkSettings.PortMapping[strconv.Itoa(port)] = strconv.Itoa(extPort)
+		}
+	}
 	container.network = iface
-	container.NetworkConfig.IpAddress = iface.IPNet.IP.String()
-	container.NetworkConfig.IpPrefixLen, _ = iface.IPNet.Mask.Size()
+	container.NetworkSettings.IpAddress = iface.IPNet.IP.String()
+	container.NetworkSettings.IpPrefixLen, _ = iface.IPNet.Mask.Size()
+	container.NetworkSettings.Gateway = iface.Gateway.String()
 	return nil
 }
 
 func (container *Container) releaseNetwork() error {
-	err := container.networkAllocator.Release(container.network)
+	err := container.network.Release()
 	container.network = nil
-	container.NetworkConfig = &NetworkConfig{}
+	container.NetworkSettings = &NetworkSettings{}
 	return err
 }
 
