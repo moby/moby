@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -679,10 +680,10 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *image.Image, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *image.Image, ports []int, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img.Layers,
-		&docker.Config{Hostname: id, User: user, Tty: tty, OpenStdin: openStdin})
+		&docker.Config{Hostname: id, Ports: ports, User: user, Tty: tty, OpenStdin: openStdin})
 	if err != nil {
 		return nil, err
 	}
@@ -743,6 +744,22 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
+// Ports type - Used to parse multiple -p flags
+type ports []int
+
+func (p *ports) String() string {
+	return fmt.Sprint(*p)
+}
+
+func (p *ports) Set(value string) error {
+	port, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Invalid port: %v", value)
+	}
+	*p = append(*p, port)
+	return nil
+}
+
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_user := cmd.String("u", "", "Username or UID")
@@ -750,6 +767,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_comment := cmd.String("c", "", "Comment")
+	var fl_ports ports
+	cmd.Var(&fl_ports, "p", "Map a network port to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -775,7 +794,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
+	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
