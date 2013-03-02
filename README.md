@@ -149,8 +149,8 @@ Right now, the officially supported distributions are:
 Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
 
 
-Step by step host setup
------------------------
+Installation
+---------------
 
 1. Set up your host of choice on a physical / virtual machine
 2. Assume root identity on your newly installed environment (`sudo -s`)
@@ -159,18 +159,14 @@ Step by step host setup
         apt-get update
         apt-get install lxc wget bsdtar curl
 
-4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`) (warning: this may not be the most up-to-date build)
-5. Extract the contents of the tar file `tar -xf docker.tar.gz`
-6. Launch the docker daemon `./dockerd`
-7. Download a base image by running 'docker pull base'
+4. Download the latest docker binaries: `wget http://docker.io.s3.amazonaws.com/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://docker.io.s3.amazonaws.com/builds/Linux/x86_64/docker-master.tgz) )
+5. Extract the contents of the tar file `tar -xf docker-master.tar.gz`
+6. Launch the docker daemon in the background `./dockerd &`
+7. Download a base image `./docker pull base`
+8. Run your first container! `./docker run -i -a -t base /bin/bash`
+9. Start exploring `./docker --help`
 
-
-Client installation
--------------------
-
-4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`)
-5. Extract the contents of the tar file `tar -xf docker.tar.gz`
-6. You can now use the docker client binary `./docker`. Consider adding it to your `PATH` for simplicity.
+Consider adding docker and dockerd to your `PATH` for simplicity.
 
 Vagrant Usage
 -------------
@@ -230,7 +226,7 @@ Welcome to Ubuntu 12.10 (GNU/Linux 3.5.0-17-generic x86_64)
  * Documentation:  https://help.ubuntu.com/
 
 Last login: Sun Feb  3 19:37:37 2013
-vagrant@vagrant-ubuntu-12:~$ DOCKER=localhost:4242 docker help
+vagrant@vagrant-ubuntu-12:~$ docker help
 Usage: docker COMMAND [arg...]
 
 A self-sufficient runtime for linux containers.
