@@ -23,7 +23,7 @@ Notable features
 
 * Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.
 
-* Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own (COMING SOON)
+* Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.
 
 * Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.
 
