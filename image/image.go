@@ -220,7 +220,6 @@ func (index *Index) DeleteMatch(pattern string) error {
 		if match, err := regexp.MatchString(pattern, name); err != nil {
 			return err
 		} else if match {
-			fmt.Printf("Match: %s %s\n", name, pattern)
 			// Remove from index lookup
 			for _, image := range *history {
 				delete(index.ById, image.Id)
