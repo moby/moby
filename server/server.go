@@ -44,6 +44,7 @@ func (srv *Server) Help() string {
 		{"ps", "Display a list of containers"},
 		{"pull", "Download a tarball and create a container from it"},
 		{"put", "Upload a tarball and create a container from it"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"rm", "Remove containers"},
 		{"kill", "Kill a running container"},
 		{"wait", "Wait for the state of a container to change"},
@@ -307,6 +308,30 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	if _, err := io.Copy(stdout, indented); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "port", "[OPTIONS] CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	privatePort := cmd.Arg(1)
+	if container := srv.containers.Get(name); container == nil {
+		return errors.New("No such container: " + name)
+	} else {
+		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
+			return fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
+		} else {
+			fmt.Fprintln(stdout, frontend)
+		}
 	}
 	return nil
 }
