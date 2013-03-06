@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -202,6 +203,32 @@ func (index *Index) Delete(name string) error {
 	}
 	// Remove from name lookup
 	delete(index.ByName, name)
+	// Save
+	if err := index.save(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteMatch deletes all images whose name matches `pattern`
+func (index *Index) DeleteMatch(pattern string) error {
+	// Load
+	if err := index.load(); err != nil {
+		return err
+	}
+	for name, history := range index.ByName {
+		if match, err := regexp.MatchString(pattern, name); err != nil {
+			return err
+		} else if match {
+			fmt.Printf("Match: %s %s\n", name, pattern)
+			// Remove from index lookup
+			for _, image := range *history {
+				delete(index.ById, image.Id)
+			}
+			// Remove from name lookup
+			delete(index.ByName, name)
+		}
+	}
 	// Save
 	if err := index.save(); err != nil {
 		return err
