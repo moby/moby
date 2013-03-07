@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -508,6 +509,55 @@ func TestTty(t *testing.T) {
 	output, err := ioutil.ReadAll(stdout)
 	if string(output) != "hello world" {
 		t.Fatal(string(output))
+	}
+}
+
+func TestEnv(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := docker.Create(
+		"env_test",
+		"/usr/bin/env",
+		[]string{},
+		[]string{testLayerPath},
+		&Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualEnv := strings.Split(string(output), "\n")
+	if actualEnv[len(actualEnv)-1] == "" {
+		actualEnv = actualEnv[:len(actualEnv)-1]
+	}
+	sort.Strings(actualEnv)
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
 	}
 }
 
