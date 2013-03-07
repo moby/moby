@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/kr/pty"
@@ -12,7 +11,6 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -48,8 +46,8 @@ type Container struct {
 	stdin         io.ReadCloser
 	stdinPipe     io.WriteCloser
 
-	stdoutLog *bytes.Buffer
-	stderrLog *bytes.Buffer
+	stdoutLog *os.File
+	stderrLog *os.File
 }
 
 type Config struct {
@@ -84,8 +82,20 @@ func createContainer(id string, root string, command string, args []string, laye
 		lxcConfigPath:   path.Join(root, "config.lxc"),
 		stdout:          newWriteBroadcaster(),
 		stderr:          newWriteBroadcaster(),
-		stdoutLog:       new(bytes.Buffer),
-		stderrLog:       new(bytes.Buffer),
+	}
+	if err := os.Mkdir(root, 0700); err != nil {
+		return nil, err
+	}
+	// Setup logging of stdout and stderr to disk
+	if stdoutLog, err := os.OpenFile(path.Join(container.Root, id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stdoutLog = stdoutLog
+	}
+	if stderrLog, err := os.OpenFile(path.Join(container.Root, id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stderrLog = stderrLog
 	}
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
@@ -95,9 +105,6 @@ func createContainer(id string, root string, command string, args []string, laye
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
-	if err := os.Mkdir(root, 0700); err != nil {
-		return nil, err
-	}
 	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
@@ -115,15 +122,29 @@ func loadContainer(containerPath string, netManager *NetworkManager) (*Container
 	container := &Container{
 		stdout:          newWriteBroadcaster(),
 		stderr:          newWriteBroadcaster(),
-		stdoutLog:       new(bytes.Buffer),
-		stderrLog:       new(bytes.Buffer),
 		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
 		networkManager:  netManager,
 		NetworkSettings: &NetworkSettings{},
 	}
+	// Load container settings
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
+	// Setup logging of stdout and stderr to disk
+	if stdoutLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stdoutLog = stdoutLog
+	}
+	if stderrLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stderrLog = stderrLog
+	}
+	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
+	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
+
+	// Create mountpoints
 	if err := container.Filesystem.createMountPoints(); err != nil {
 		return nil, err
 	}
@@ -357,7 +378,11 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) StdoutLog() io.Reader {
-	return strings.NewReader(container.stdoutLog.String())
+	r, err := os.Open(container.stdoutLog.Name())
+	if err != nil {
+		return nil
+	}
+	return r
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
@@ -367,7 +392,11 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) StderrLog() io.Reader {
-	return strings.NewReader(container.stderrLog.String())
+	r, err := os.Open(container.stderrLog.Name())
+	if err != nil {
+		return nil
+	}
+	return r
 }
 
 func (container *Container) allocateNetwork() error {
