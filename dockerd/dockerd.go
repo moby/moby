@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/server"
+	".."
+	"../server"
 	"log"
 )
 

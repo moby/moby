@@ -157,6 +157,10 @@ func (store *Store) Register(image *Image, pth string) error {
 	return trans.Commit()
 }
 
+func (store *Store) Layers() []string {
+	return store.layers.List()
+}
+
 type Image struct {
 	Id      string
 	Parent  string

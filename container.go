@@ -35,6 +35,7 @@ type Container struct {
 	Config     *Config
 	Mountpoint *fs.Mountpoint
 	State      *State
+	Image	   string
 
 	SysInitPath   string
 	lxcConfigPath string
@@ -68,6 +69,7 @@ func createContainer(id string, root string, command string, args []string, imag
 		Path:       command,
 		Args:       args,
 		Config:     config,
+		Image:		image.Id,
 		Mountpoint: mountpoint,
 		State:      newState(),
 
