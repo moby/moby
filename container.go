@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"./fs"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -14,7 +15,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"./fs"
 )
 
 var sysInitPath string
@@ -35,7 +35,7 @@ type Container struct {
 	Config     *Config
 	Mountpoint *fs.Mountpoint
 	State      *State
-	Image	   string
+	Image      string
 
 	SysInitPath   string
 	lxcConfigPath string
@@ -69,7 +69,7 @@ func createContainer(id string, root string, command string, args []string, imag
 		Path:       command,
 		Args:       args,
 		Config:     config,
-		Image:		image.Id,
+		Image:      image.Id,
 		Mountpoint: mountpoint,
 		State:      newState(),
 

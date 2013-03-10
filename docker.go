@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"./fs"
 	"container/list"
 	"fmt"
 	"io/ioutil"
@@ -8,14 +9,13 @@ import (
 	"os"
 	"path"
 	"sort"
-	"./fs"
 )
 
 type Docker struct {
-	root       	string
-	repository 	string
-	containers 	*list.List
-	Store		*fs.Store
+	root       string
+	repository string
+	containers *list.List
+	Store      *fs.Store
 }
 
 func (docker *Docker) List() []*Container {
@@ -117,7 +117,7 @@ func NewFromDirectory(root string) (*Docker, error) {
 		root:       root,
 		repository: path.Join(root, "containers"),
 		containers: list.New(),
-		Store:		store,
+		Store:      store,
 	}
 
 	if err := os.MkdirAll(docker.repository, 0700); err != nil && !os.IsExist(err) {

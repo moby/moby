@@ -1,9 +1,9 @@
 package fs
 
 import (
+	"../fake"
 	"errors"
 	"fmt"
-	"../fake"
 	"io/ioutil"
 	"os"
 	"testing"

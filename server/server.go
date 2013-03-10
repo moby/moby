@@ -1,15 +1,15 @@
 package server
 
 import (
+	".."
+	"../fs"
+	"../future"
+	"../rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	".."
-	"../future"
-	"../fs"
-	"../rcli"
 	"io"
 	"net/http"
 	"net/url"
@@ -269,8 +269,8 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	var obj interface{}
 	if container := srv.containers.Get(name); container != nil {
 		obj = container
-	//} else if image, err := srv.images.List(name); image != nil {
-	//	obj = image
+		//} else if image, err := srv.images.List(name); image != nil {
+		//	obj = image
 	} else {
 		return errors.New("No such container or image: " + name)
 	}

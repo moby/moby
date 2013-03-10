@@ -1,13 +1,11 @@
 package fs
 
 import (
-	"io/ioutil"
-	"testing"
-	"os"
 	"github.com/dotcloud/docker/fake"
+	"io/ioutil"
+	"os"
+	"testing"
 )
-
-
 
 func TestLayersInit(t *testing.T) {
 	store := tempStore(t)
@@ -53,7 +51,6 @@ func TestAddLayerDuplicate(t *testing.T) {
 		t.Fatalf("Creating duplicate layer should fail")
 	}
 }
-
 
 /*
  * HELPER FUNCTIONS
