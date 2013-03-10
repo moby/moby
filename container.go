@@ -100,8 +100,15 @@ func createContainer(id string, root string, command string, args []string, imag
 	return container, nil
 }
 
-func loadContainer(containerPath string) (*Container, error) {
+func loadContainer(store *fs.Store, containerPath string) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	mountpoint, err := store.FetchMountpoint(
+		path.Join(containerPath, "rootfs"),
+		path.Join(containerPath, "rw"),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +118,7 @@ func loadContainer(containerPath string) (*Container, error) {
 		stdoutLog:     new(bytes.Buffer),
 		stderrLog:     new(bytes.Buffer),
 		lxcConfigPath: path.Join(containerPath, "config.lxc"),
+		Mountpoint:    mountpoint,
 	}
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err

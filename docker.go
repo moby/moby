@@ -92,12 +92,11 @@ func (docker *Docker) restore() error {
 		return err
 	}
 	for _, v := range dir {
-		container, err := loadContainer(path.Join(docker.repository, v.Name()))
+		container, err := loadContainer(docker.Store, path.Join(docker.repository, v.Name()))
 		if err != nil {
 			log.Printf("Failed to load container %v: %v", v.Name(), err)
 			continue
 		}
-		container.Mountpoint.Store = docker.Store
 		docker.containers.PushBack(container)
 	}
 	return nil

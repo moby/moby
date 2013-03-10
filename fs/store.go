@@ -227,7 +227,7 @@ func (image *Image) Mountpoints() ([]*Mountpoint, error) {
 
 func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 	var mountpoint *Mountpoint
-	if mp, err := image.fetchMountpoint(root, rw); err != nil {
+	if mp, err := image.store.FetchMountpoint(root, rw); err != nil {
 		return nil, err
 	} else if mp == nil {
 		mountpoint, err = image.Mountpoint(root, rw)
@@ -345,8 +345,8 @@ func (mp *Mountpoint) Deregister() error {
 	return err
 }
 
-func (image *Image) fetchMountpoint(root, rw string) (*Mountpoint, error) {
-	res, err := image.store.orm.Select(Mountpoint{}, "select * from mountpoints where Image=? and Root=? and Rw=?", image.Id, root, rw)
+func (store *Store) FetchMountpoint(root, rw string) (*Mountpoint, error) {
+	res, err := store.orm.Select(Mountpoint{}, "select * from mountpoints where Root=? and Rw=?", root, rw)
 	if err != nil {
 		return nil, err
 	} else if len(res) < 1 || res[0] == nil {
@@ -354,7 +354,7 @@ func (image *Image) fetchMountpoint(root, rw string) (*Mountpoint, error) {
 	}
 
 	mp := res[0].(*Mountpoint)
-	mp.Store = image.store
+	mp.Store = store
 	return mp, nil
 }
 
