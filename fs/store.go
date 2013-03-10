@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/coopernurse/gorp"
 	"github.com/dotcloud/docker/future"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/shykes/gorp" //Forked to implement CreateTablesOpts
 	"io"
 	"os"
 	"path"
@@ -29,8 +29,6 @@ func New(root string) (*Store, error) {
 
 	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
-	} else if os.IsExist(err) {
-		isNewStore = false
 	}
 	db, err := sql.Open("sqlite3", path.Join(root, "db"))
 	if err != nil {
@@ -42,7 +40,7 @@ func New(root string) (*Store, error) {
 	orm.AddTableWithName(Mountpoint{}, "mountpoints").SetKeys(false, "Root")
 	orm.AddTableWithName(Tag{}, "tags").SetKeys(false, "TagName")
 	if isNewStore {
-		if err := orm.CreateTables(); err != nil {
+		if err := orm.CreateTablesOpts(true); err != nil {
 			return nil, err
 		}
 	}
