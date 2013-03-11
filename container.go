@@ -2,7 +2,6 @@ package docker
 
 import (
 	"./fs"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/kr/pty"

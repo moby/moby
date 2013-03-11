@@ -434,7 +434,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
-	img, err := srv.images.Create(resp.Body, nil, name, "")
+	img, err := srv.images.Create(archive, nil, name, "")
 	if err != nil {
 		return err
 	}
@@ -614,7 +614,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	if container := srv.containers.Get(containerName); container != nil {
 		// FIXME: freeze the container before copying it to avoid data corruption?
-		rwTar, err := docker.Tar(container.Mountpoint.Rw)
+		rwTar, err := fs.Tar(container.Mountpoint.Rw, fs.Uncompressed)
 		if err != nil {
 			return err
 		}
@@ -651,7 +651,7 @@ func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err := container.Mountpoint.EnsureMounted(); err != nil {
 			return err
 		}
-		data, err := docker.Tar(container.Mountpoint.Root)
+		data, err := fs.Tar(container.Mountpoint.Root, fs.Uncompressed)
 		if err != nil {
 			return err
 		}
