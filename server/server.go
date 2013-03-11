@@ -1,10 +1,10 @@
 package server
 
 import (
-	".."
-	"../fs"
-	"../future"
-	"../rcli"
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/fs"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"

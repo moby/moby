@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"./fs"
+	"github.com/dotcloud/docker/fs"
 	"encoding/json"
 	"errors"
 	"github.com/kr/pty"
