@@ -1,20 +1,19 @@
 package fake
 
 import (
-	"bytes"
-	"math/rand"
-	"io"
 	"archive/tar"
-	"os/exec"
+	"bytes"
 	"github.com/kr/pty"
+	"io"
+	"math/rand"
+	"os/exec"
 )
-
 
 func FakeTar() (io.Reader, error) {
 	content := []byte("Hello world!\n")
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
-	for _, name := range []string {"/etc/postgres/postgres.conf", "/etc/passwd", "/var/log/postgres/postgres.conf"} {
+	for _, name := range []string{"hello", "etc/postgres/postgres.conf", "etc/passwd", "var/log/postgres/postgres.conf"} {
 		hdr := new(tar.Header)
 		hdr.Size = int64(len(content))
 		hdr.Name = name
@@ -27,7 +26,6 @@ func FakeTar() (io.Reader, error) {
 	return buf, nil
 }
 
-
 func WriteFakeTar(dst io.Writer) error {
 	if data, err := FakeTar(); err != nil {
 		return err
@@ -36,7 +34,6 @@ func WriteFakeTar(dst io.Writer) error {
 	}
 	return nil
 }
-
 
 func RandomBytesChanged() uint {
 	return uint(rand.Int31n(24 * 1024 * 1024))
@@ -53,7 +50,6 @@ func RandomContainerSize() uint {
 func ContainerRunning() bool {
 	return false
 }
-
 
 func StartCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadCloser, error) {
 	if interactive {
@@ -76,5 +72,3 @@ func StartCommand(cmd *exec.Cmd, interactive bool) (io.WriteCloser, io.ReadClose
 	}
 	return stdin, stdout, nil
 }
-
-

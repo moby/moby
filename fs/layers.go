@@ -1,28 +1,19 @@
 package fs
 
 import (
+	"../future"
 	"errors"
-	"path"
-	"path/filepath"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"fmt"
-	"../future"
+	"path"
+	"path/filepath"
 )
 
 type LayerStore struct {
-	Root	string
+	Root string
 }
-
-type Compression uint32
-
-const (
-	Uncompressed	Compression = iota
-	Bzip2
-	Gzip
-)
 
 func NewLayerStore(root string) (*LayerStore, error) {
 	abspath, err := filepath.Abs(root)
@@ -80,10 +71,9 @@ func (store *LayerStore) Init() error {
 	return os.Mkdir(store.Root, 0700)
 }
 
-
 func (store *LayerStore) Mktemp() (string, error) {
 	tmpName := future.RandomId()
-	tmpPath := path.Join(store.Root, "tmp-" + tmpName)
+	tmpPath := path.Join(store.Root, "tmp-"+tmpName)
 	if err := os.Mkdir(tmpPath, 0700); err != nil {
 		return "", err
 	}
@@ -94,54 +84,42 @@ func (store *LayerStore) layerPath(id string) string {
 	return path.Join(store.Root, id)
 }
 
-
-func (store *LayerStore) AddLayer(id string, archive Archive, stderr io.Writer, compression Compression) (string, error) {
+func (store *LayerStore) AddLayer(id string, archive Archive) (string, error) {
 	if _, err := os.Stat(store.layerPath(id)); err == nil {
-		return "", errors.New("Layer already exists: " + id)
+		return "", fmt.Errorf("Layer already exists: %v", id)
 	}
+	errors := make(chan error)
+	// Untar
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Mktemp failed: %s", err))
+		return "", fmt.Errorf("Mktemp failed: %s", err)
 	}
-	extractFlags := "-x"
-	if compression == Bzip2 {
-		extractFlags += "j"
-	} else if compression == Gzip {
-		extractFlags += "z"
-	}
-	untarCmd := exec.Command("tar", "-C", tmp, extractFlags)
-	untarW, err := untarCmd.StdinPipe()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Could not obtain stdin pipe: %s", err))
-	}
-	untarStderr, err := untarCmd.StderrPipe()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Could not obtain stderr pipe: %s", err))
-	}
-	go io.Copy(stderr, untarStderr)
-	untarStdout, err := untarCmd.StdoutPipe()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Could not obtain stdout pipe: %s", err))
-	}
-	go io.Copy(stderr, untarStdout)
-	untarCmd.Start()
-	job_copy := future.Go(func() error {
-		_, err := io.Copy(untarW, archive)
-		untarW.Close()
-		return err
-	})
 
-	if err := untarCmd.Wait(); err != nil {
-		return "", errors.New(fmt.Sprintf("Error while waiting for untar command to complete: %s", err))
+	untarR, untarW := io.Pipe()
+	go func() {
+		errors <- Untar(untarR, tmp)
+	}()
+	_, err = io.Copy(untarW, archive)
+	untarW.Close()
+	if err != nil {
+		return "", err
 	}
-	if err := <-job_copy; err != nil {
-		return "", errors.New(fmt.Sprintf("Error while copying: %s", err))
+	// Wait for goroutines
+	for i := 0; i < 1; i += 1 {
+		select {
+		case err := <-errors:
+			{
+				if err != nil {
+					return "", err
+				}
+			}
+		}
 	}
 	layer := store.layerPath(id)
 	if !store.Exists(id) {
 		if err := os.Rename(tmp, layer); err != nil {
-			return "", errors.New(fmt.Sprintf("Could not rename temp dir to layer %s: %s", layer, err))
+			return "", fmt.Errorf("Could not rename temp dir to layer %s: %s", layer, err)
 		}
 	}
 	return layer, nil

@@ -8,7 +8,7 @@ class docker {
 
     Package { ensure => "installed" }
 
-    package { ["lxc", "debootstrap", "wget"]: }
+    package { ["lxc", "debootstrap", "wget", "bsdtar"]: }
 
     exec { "debootstrap" :
         require => Package["debootstrap"],

@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"./fs"
 	"container/list"
 	"fmt"
 	"io/ioutil"
@@ -8,14 +9,14 @@ import (
 	"os"
 	"path"
 	"sort"
-	"./fs"
 )
 
 type Docker struct {
-	root       	string
-	repository 	string
-	containers 	*list.List
-	Store		*fs.Store
+	root           string
+	repository     string
+	containers     *list.List
+	networkManager *NetworkManager
+	Store          *fs.Store
 }
 
 func (docker *Docker) List() []*Container {
@@ -53,7 +54,8 @@ func (docker *Docker) Create(id string, command string, args []string, image *fs
 		return nil, fmt.Errorf("Container %v already exists", id)
 	}
 	root := path.Join(docker.repository, id)
-	container, err := createContainer(id, root, command, args, image, config)
+
+	container, err := createContainer(id, root, command, args, image, config, docker.networkManager)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ func (docker *Docker) restore() error {
 		return err
 	}
 	for _, v := range dir {
-		container, err := loadContainer(path.Join(docker.repository, v.Name()))
+		container, err := loadContainer(path.Join(docker.repository, v.Name()), docker.networkManager)
 		if err != nil {
 			log.Printf("Failed to load container %v: %v", v.Name(), err)
 			continue
@@ -112,12 +114,17 @@ func NewFromDirectory(root string) (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+	netManager, err := newNetworkManager(networkBridgeIface)
+	if err != nil {
+		return nil, err
+	}
 
 	docker := &Docker{
-		root:       root,
-		repository: path.Join(root, "containers"),
-		containers: list.New(),
-		Store:		store,
+		root:           root,
+		repository:     path.Join(root, "containers"),
+		containers:     list.New(),
+		Store:          store,
+		networkManager: netManager,
 	}
 
 	if err := os.MkdirAll(docker.repository, 0700); err != nil && !os.IsExist(err) {

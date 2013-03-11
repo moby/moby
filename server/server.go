@@ -1,20 +1,21 @@
 package server
 
 import (
+	".."
+	"../fs"
+	"../future"
+	"../rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	".."
-	"../future"
-	"../fs"
-	"../rcli"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -43,6 +44,7 @@ func (srv *Server) Help() string {
 		{"ps", "Display a list of containers"},
 		{"pull", "Download a tarball and create a container from it"},
 		{"put", "Upload a tarball and create a container from it"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"rm", "Remove containers"},
 		{"kill", "Kill a running container"},
 		{"wait", "Wait for the state of a container to change"},
@@ -53,6 +55,7 @@ func (srv *Server) Help() string {
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"commit", "Save the state of a container"},
 		{"attach", "Attach to the standard inputs and outputs of a running container"},
+		{"wait", "Block until a container exits, then print its exit code"},
 		{"info", "Display system-wide information"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
@@ -61,6 +64,27 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
 	return help
+}
+
+// 'docker wait': block until a container stops
+func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] NAME", "Block until a container stops, then print its exit code.")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		if container := srv.containers.Get(name); container != nil {
+			fmt.Fprintln(stdout, container.Wait())
+		} else {
+			return errors.New("No such container: " + name)
+		}
+	}
+	return nil
 }
 
 // 'docker info': display system-wide information.
@@ -269,8 +293,8 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	var obj interface{}
 	if container := srv.containers.Get(name); container != nil {
 		obj = container
-	//} else if image, err := srv.images.List(name); image != nil {
-	//	obj = image
+		//} else if image, err := srv.images.List(name); image != nil {
+		//	obj = image
 	} else {
 		return errors.New("No such container or image: " + name)
 	}
@@ -288,9 +312,34 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	return nil
 }
 
+func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "port", "[OPTIONS] CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	privatePort := cmd.Arg(1)
+	if container := srv.containers.Get(name); container == nil {
+		return errors.New("No such container: " + name)
+	} else {
+		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
+			return fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
+		} else {
+			fmt.Fprintln(stdout, frontend)
+		}
+	}
+	return nil
+}
+
 // 'docker rmi NAME' removes all images with the name NAME
 // func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 // 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
+// 	fl_regexp := cmd.Bool("r", false, "Use IMAGE as a regular expression instead of an exact name")
 // 	if err := cmd.Parse(args); err != nil {
 // 		cmd.Usage()
 // 		return nil
@@ -300,11 +349,17 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 // 		return nil
 // 	}
 // 	for _, name := range cmd.Args() {
-// 		image := srv.images.Find(name)
-// 		if image == nil {
-// 			return errors.New("No such image: " + name)
+// 		var err error
+// 		if *fl_regexp {
+// 			err = srv.images.DeleteMatch(name)
+// 		} else {
+// 			image := srv.images.Find(name)
+// 			if image == nil {
+// 				return errors.New("No such image: " + name)
+// 			}
+// 			err = srv.images.Delete(name)
 // 		}
-// 		if err := srv.images.Delete(name); err != nil {
+// 		if err != nil {
 // 			return err
 // 		}
 // 	}
@@ -367,11 +422,18 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		u.Host = "s3.amazonaws.com"
 		u.Path = path.Join("/docker.io/images", u.Path)
 	}
-	fmt.Fprintf(stdout, "Downloading %s from %s...\n", name, u.String())
-	resp, err := http.Get(u.String())
+	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
+	// Download with curl (pretty progress bar)
+	// If curl is not available, fallback to http.Get()
+	archive, err := future.Curl(u.String(), stdout)
 	if err != nil {
-		return err
+		if resp, err := http.Get(u.String()); err != nil {
+			return err
+		} else {
+			archive = resp.Body
+		}
 	}
+	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
 	img, err := srv.images.Create(resp.Body, nil, name, "")
 	if err != nil {
 		return err
@@ -668,10 +730,10 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *fs.Image, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *fs.Image, ports []int, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img,
-		&docker.Config{Hostname: id, User: user, Tty: tty, OpenStdin: openStdin})
+		&docker.Config{Hostname: id, Ports: ports, User: user, Tty: tty, OpenStdin: openStdin})
 	if err != nil {
 		return nil, err
 	}
@@ -732,6 +794,22 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
+// Ports type - Used to parse multiple -p flags
+type ports []int
+
+func (p *ports) String() string {
+	return fmt.Sprint(*p)
+}
+
+func (p *ports) Set(value string) error {
+	port, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Invalid port: %v", value)
+	}
+	*p = append(*p, port)
+	return nil
+}
+
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_user := cmd.String("u", "", "Username or UID")
@@ -739,6 +817,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_comment := cmd.String("c", "", "Comment")
+	var fl_ports ports
+	cmd.Var(&fl_ports, "p", "Map a network port to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -766,7 +846,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
+	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}

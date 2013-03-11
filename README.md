@@ -23,7 +23,7 @@ Notable features
 
 * Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.
 
-* Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own (COMING SOON)
+* Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.
 
 * Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.
 
@@ -32,6 +32,56 @@ Notable features
 * Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.
 
 * Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throaway interactive shell.
+
+
+
+Under the hood
+--------------
+
+Under the hood, Docker is built on the following components:
+
+
+* The [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c) and [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part) capabilities of the Linux kernel;
+
+* [AUFS](http://aufs.sourceforge.net/aufs.html), a powerful union filesystem with copy-on-write capabilities;
+
+* The [Go](http://golang.org) programming language;
+
+* [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
+
+
+Setup instructions
+==================
+
+Requirements
+------------
+
+Right now, the officially supported distributions are:
+
+* Ubuntu 12.04 (precise LTS)
+* Ubuntu 12.10 (quantal)
+
+Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
+
+
+Installation
+---------------
+
+1. Set up your host of choice on a physical / virtual machine
+2. Assume root identity on your newly installed environment (`sudo -s`)
+3. Type the following commands:
+
+        apt-get update
+        apt-get install lxc wget bsdtar curl
+
+4. Download the latest docker binaries: `wget http://docker.io.s3.amazonaws.com/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://docker.io.s3.amazonaws.com/builds/Linux/x86_64/docker-master.tgz) )
+5. Extract the contents of the tar file `tar -xf docker-master.tar.gz`
+6. Launch the docker daemon in the background `./dockerd &`
+7. Download a base image `./docker pull base`
+8. Run your first container! `./docker run -i -a -t base /bin/bash`
+9. Start exploring `./docker --help`
+
+Consider adding docker and dockerd to your `PATH` for simplicity.
 
 
 What is a Standard Container?
@@ -75,20 +125,6 @@ There are 17 million shipping containers in existence, packed with every physica
 With Standard Containers we can put an end to that embarrassment, by making INDUSTRIAL-GRADE DELIVERY of software a reality.
 
 
-
-Under the hood
---------------
-
-Under the hood, Docker is built on the following components:
-
-
-* The [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c) and [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part) capabilities of the Linux kernel;
-
-* [AUFS](http://aufs.sourceforge.net/aufs.html), a powerful union filesystem with copy-on-write capabilities;
-
-* The [Go](http://golang.org) programming language;
-
-* [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
 
 
 Standard Container Specification
@@ -135,121 +171,3 @@ Standard Container Specification
 #### Security
 
 
-Setup instructions
-==================
-
-Requirements
-------------
-
-Right now, the officially supported distributions are:
-
-* Ubuntu 12.04 (precise LTS)
-* Ubuntu 12.10 (quantal)
-
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
-
-
-Step by step host setup
------------------------
-
-1. Set up your host of choice on a physical / virtual machine
-2. Assume root identity on your newly installed environment (`sudo -s`)
-3. Type the following commands:
-
-        apt-get update
-        apt-get install lxc wget
-
-4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`) (warning: this may not be the most up-to-date build)
-5. Extract the contents of the tar file `tar -xf docker.tar.gz`
-6. Launch the docker daemon `./dockerd`
-7. Download a base image by running 'docker pull -j base'
-
-
-Client installation
--------------------
-
-4. Download the latest version of the [docker binaries](https://dl.dropbox.com/u/20637798/docker.tar.gz) (`wget https://dl.dropbox.com/u/20637798/docker.tar.gz`)
-5. Extract the contents of the tar file `tar -xf docker.tar.gz`
-6. You can now use the docker client binary `./docker`. Consider adding it to your `PATH` for simplicity.
-
-Vagrant Usage
--------------
-
-1. Install Vagrant from http://vagrantup.com
-2. Run `vagrant up`. This will take a few minutes as it does the following:
-    - Download Quantal64 base box
-    - Kick off Puppet to do:
-        - Download & untar most recent docker binary tarball to vagrant homedir.
-        - Debootstrap to /var/lib/docker/images/ubuntu.
-        - Install & run dockerd as service.
-        - Put docker in /usr/local/bin.
-        - Put latest Go toolchain in /usr/local/go.
-
-Sample run output:
-
-```bash
-$ vagrant up
-[default] Importing base box 'quantal64'...
-[default] Matching MAC address for NAT networking...
-[default] Clearing any previously set forwarded ports...
-[default] Forwarding ports...
-[default] -- 22 => 2222 (adapter 1)
-[default] Creating shared folders metadata...
-[default] Clearing any previously set network interfaces...
-[default] Booting VM...
-[default] Waiting for VM to boot. This can take a few minutes.
-[default] VM booted and ready for use!
-[default] Mounting shared folders...
-[default] -- v-root: /vagrant
-[default] -- manifests: /tmp/vagrant-puppet/manifests
-[default] -- v-pp-m0: /tmp/vagrant-puppet/modules-0
-[default] Running provisioner: Vagrant::Provisioners::Puppet...
-[default] Running Puppet with /tmp/vagrant-puppet/manifests/quantal64.pp...
-stdin: is not a tty
-notice: /Stage[main]//Node[default]/Exec[apt_update]/returns: executed successfully
-
-notice: /Stage[main]/Docker/Exec[fetch-docker]/returns: executed successfully
-notice: /Stage[main]/Docker/Package[lxc]/ensure: ensure changed 'purged' to 'present'
-notice: /Stage[main]/Docker/Exec[fetch-go]/returns: executed successfully
-
-notice: /Stage[main]/Docker/Exec[copy-docker-bin]/returns: executed successfully
-notice: /Stage[main]/Docker/Exec[debootstrap]/returns: executed successfully
-notice: /Stage[main]/Docker/File[/etc/init/dockerd.conf]/ensure: defined content as '{md5}78a593d38dd9919af14d8f0545ac95e9'
-
-notice: /Stage[main]/Docker/Service[dockerd]/ensure: ensure changed 'stopped' to 'running'
-
-notice: Finished catalog run in 329.74 seconds
-```
-
-When this has successfully completed, you should be able to get into your new system with `vagrant ssh` and use `docker`:
-
-```bash
-$ vagrant ssh
-Welcome to Ubuntu 12.10 (GNU/Linux 3.5.0-17-generic x86_64)
-
- * Documentation:  https://help.ubuntu.com/
-
-Last login: Sun Feb  3 19:37:37 2013
-vagrant@vagrant-ubuntu-12:~$ DOCKER=localhost:4242 docker help
-Usage: docker COMMAND [arg...]
-
-A self-sufficient runtime for linux containers.
-
-Commands:
-    run       Run a command in a container
-    ps        Display a list of containers
-    pull      Download a tarball and create a container from it
-    put       Upload a tarball and create a container from it
-    rm        Remove containers
-    wait      Wait for the state of a container to change
-    stop      Stop a running container
-    logs      Fetch the logs of a container
-    diff      Inspect changes on a container's filesystem
-    commit    Save the state of a container
-    attach    Attach to the standard inputs and outputs of a running container
-    info      Display system-wide information
-    tar       Stream the contents of a container as a tar archive
-    web       Generate a web UI
-    attach    Attach to a running container
-```
-    

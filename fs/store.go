@@ -10,9 +10,9 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 	"time"
-	"path/filepath"
 )
 
 type Store struct {
@@ -121,7 +121,7 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	}
 	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
-	_, err := store.layers.AddLayer(img.Id, layerData, os.Stderr, Uncompressed)
+	_, err := store.layers.AddLayer(img.Id, layerData)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Could not add layer: %s", err))
 	}
@@ -168,7 +168,6 @@ type Image struct {
 	store   *Store `db:"-"`
 }
 
-
 func (image *Image) Copy(pth string) (*Image, error) {
 	if err := image.store.orm.Insert(&Path{Path: pth, Image: image.Id}); err != nil {
 		return nil, err
@@ -198,7 +197,7 @@ func (image *Image) Mountpoint(root, rw string) (*Mountpoint, error) {
 
 func (image *Image) layers() ([]string, error) {
 	var list []string
-	var err  error
+	var err error
 	currentImg := image
 	for currentImg != nil {
 		if layer := image.store.layers.Get(image.Id); layer != "" {

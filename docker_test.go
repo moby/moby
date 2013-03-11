@@ -1,17 +1,17 @@
 package docker
 
 import (
+	"./fs"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"testing"
-	"io"
-	"./fs"
 )
 
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
 
-func layerArchive(tarfile string)  (io.Reader, error) {
+func layerArchive(tarfile string) (io.Reader, error) {
 	// FIXME: need to close f somewhere
 	f, err := os.Open(tarfile)
 	if err != nil {
@@ -57,7 +57,7 @@ func newTestDocker() (*Docker, error) {
 	return docker, nil
 }
 
-func GetTestImage(docker *Docker) (*fs.Image) {
+func GetTestImage(docker *Docker) *fs.Image {
 	imgs, err := docker.Store.Images()
 	if err != nil {
 		panic(err)

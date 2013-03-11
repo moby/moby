@@ -1,0 +1,73 @@
+#!/usr/bin/env docker -i
+
+# Uncomment to debug:
+#set -x
+
+export NORAW=1
+
+IMG=shykes/pybuilder:11d4f58638a72935
+
+if [ $# -lt 3 ]; then
+	echo "Usage: $0 build|run USER/REPO REV"
+	echo "Example usage:"
+	echo ""
+	echo "		REV=7d5f035432fe1453eea389b0f1b02a2a93c8009e"
+	echo "		$0 build shykes/helloflask \$REV"
+	echo "		$0 run shykes/helloflask \$REV"
+	echo ""
+	exit 1
+fi
+
+CMD=$1
+
+FORCE=0
+if [ "$2" = "-f" ]; then
+	FORCE=1
+	shift
+fi
+
+REPO=$2
+REV=$3
+
+BUILD_IMAGE=builds/github.com/$REPO/$REV
+
+
+if [ "$CMD" = "build" ]; then
+	if [ ! -z "`images -q $BUILD_IMAGE`" ]; then
+		if [ "$FORCE" -ne 1 ]; then
+			echo "$BUILD_IMAGE already exists"
+			exit
+		fi
+	fi
+
+	# Allocate a TTY to work around python's aggressive buffering of stdout
+	BUILD_JOB=`run -t $IMG /usr/local/bin/buildapp http://github.com/$REPO/archive/$REV.tar.gz`
+
+	if [ -z "$BUILD_JOB" ]; then
+		echo "Build failed"
+		exit 1
+	fi
+
+	if attach $BUILD_JOB ; then
+		BUILD_STATUS=`docker wait $BUILD_JOB`
+		if [ -z "$BUILD_STATUS" -o "$BUILD_STATUS" != 0 ]; then
+			echo "Build failed"
+			exit 1
+		fi
+
+	else
+		echo "Build failed"
+		exit 1
+	fi
+
+	commit $BUILD_JOB $BUILD_IMAGE
+
+	echo "Build saved at $BUILD_IMAGE"
+elif [ "$CMD" = "run" ]; then
+	RUN_JOB=`run $BUILD_IMAGE /usr/local/bin/runapp`
+	if [ -z "$RUN_JOB" ]; then
+		echo "Run failed"
+		exit 1
+	fi
+	attach $RUN_JOB
+fi

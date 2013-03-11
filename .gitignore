@@ -1,4 +1,5 @@
-docker
-dockerd
+.vagrant
+docker/docker
+dockerd/dockerd
 .*.swp
 a.out

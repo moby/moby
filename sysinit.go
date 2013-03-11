@@ -11,6 +11,17 @@ import (
 	"syscall"
 )
 
+// Setup networking
+func setupNetworking(gw string) {
+	if gw == "" {
+		return
+	}
+	cmd := exec.Command("/sbin/route", "add", "default", "gw", gw)
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Unable to set up networking: %v", err)
+	}
+}
+
 // Takes care of dropping privileges to the desired user
 func changeUser(u string) {
 	if u == "" {
@@ -41,6 +52,13 @@ func changeUser(u string) {
 	}
 }
 
+// Set the environment to a known, repeatable state
+func setupEnv() {
+	os.Clearenv()
+	os.Setenv("HOME", "/")
+	os.Setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+}
+
 func executeProgram(name string, args []string) {
 	path, err := exec.LookPath(name)
 	if err != nil {
@@ -62,8 +80,12 @@ func SysInit() {
 		os.Exit(1)
 	}
 	var u = flag.String("u", "", "username or uid")
+	var gw = flag.String("g", "", "gateway address")
 
 	flag.Parse()
+
+	setupNetworking(*gw)
 	changeUser(*u)
+	setupEnv()
 	executeProgram(flag.Arg(0), flag.Args())
 }

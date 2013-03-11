@@ -14,12 +14,12 @@ lxc.utsname = {{.Id}}
 #lxc.aa_profile = unconfined
 
 # network configuration
-#lxc.network.type = veth
-#lxc.network.flags = up
-#lxc.network.link = br0
-#lxc.network.name = eth0  # Internal container network interface name
-#lxc.network.mtu = 1500
-#lxc.network.ipv4 = {ip_address}/{ip_prefix_len}
+lxc.network.type = veth
+lxc.network.flags = up
+lxc.network.link = lxcbr0
+lxc.network.name = eth0
+lxc.network.mtu = 1500
+lxc.network.ipv4 = {{.NetworkSettings.IpAddress}}/{{.NetworkSettings.IpPrefixLen}}
 
 # root filesystem
 {{$ROOTFS := .Mountpoint.Root}}

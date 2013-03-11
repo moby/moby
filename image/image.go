@@ -1,26 +1,25 @@
 package image
 
 import (
+	"encoding/json"
+	"errors"
+	"github.com/dotcloud/docker/future"
 	"io"
 	"io/ioutil"
-	"encoding/json"
-	"time"
+	"os"
 	"path"
 	"path/filepath"
-	"errors"
+	"regexp"
 	"sort"
-	"os"
-	"github.com/dotcloud/docker/future"
 	"strings"
+	"time"
 )
-
 
 type Store struct {
 	*Index
-	Root	string
-	Layers	*LayerStore
+	Root   string
+	Layers *LayerStore
 }
-
 
 func New(root string) (*Store, error) {
 	abspath, err := filepath.Abs(root)
@@ -38,22 +37,16 @@ func New(root string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{
-		Root: abspath,
-		Index: NewIndex(path.Join(root, "index.json")),
+		Root:   abspath,
+		Index:  NewIndex(path.Join(root, "index.json")),
 		Layers: layers,
 	}, nil
 }
 
-type Compression uint32
-
-const (
-	Uncompressed	Compression = iota
-	Bzip2
-	Gzip
-)
-
-func (store *Store) Import(name string, archive io.Reader, stderr io.Writer, parent *Image, compression Compression) (*Image, error) {
-	layer, err := store.Layers.AddLayer(archive, stderr, compression)
+// Import creates a new image from the contents of `archive` and registers it in the store as `name`.
+// If `parent` is not nil, it will registered as the parent of the new image.
+func (store *Store) Import(name string, archive io.Reader, parent *Image) (*Image, error) {
+	layer, err := store.Layers.AddLayer(archive)
 	if err != nil {
 		return nil, err
 	}
@@ -79,20 +72,19 @@ func (store *Store) Create(name string, source string, layers ...string) (*Image
 	return image, nil
 }
 
-
 // Index
 
 type Index struct {
-	Path	string
-	ByName	map[string]*History
-	ById	map[string]*Image
+	Path   string
+	ByName map[string]*History
+	ById   map[string]*Image
 }
 
 func NewIndex(path string) *Index {
 	return &Index{
-		Path: path,
+		Path:   path,
 		ByName: make(map[string]*History),
-		ById: make(map[string]*Image),
+		ById:   make(map[string]*Image),
 	}
 }
 
@@ -218,11 +210,36 @@ func (index *Index) Delete(name string) error {
 	return nil
 }
 
+// DeleteMatch deletes all images whose name matches `pattern`
+func (index *Index) DeleteMatch(pattern string) error {
+	// Load
+	if err := index.load(); err != nil {
+		return err
+	}
+	for name, history := range index.ByName {
+		if match, err := regexp.MatchString(pattern, name); err != nil {
+			return err
+		} else if match {
+			// Remove from index lookup
+			for _, image := range *history {
+				delete(index.ById, image.Id)
+			}
+			// Remove from name lookup
+			delete(index.ByName, name)
+		}
+	}
+	// Save
+	if err := index.save(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (index *Index) Names() []string {
 	if err := index.load(); err != nil {
 		return []string{}
 	}
-	var names[]string
+	var names []string
 	for name := range index.ByName {
 		names = append(names, name)
 	}
@@ -285,23 +302,23 @@ func (history *History) Add(image *Image) {
 func (history *History) Del(id string) {
 	for idx, image := range *history {
 		if image.Id == id {
-			*history = append((*history)[:idx], (*history)[idx + 1:]...)
+			*history = append((*history)[:idx], (*history)[idx+1:]...)
 		}
 	}
 }
 
 type Image struct {
-	Id	string		// Globally unique identifier
-	Layers	[]string	// Absolute paths
-	Created	time.Time
-	Parent	string
+	Id      string   // Globally unique identifier
+	Layers  []string // Absolute paths
+	Created time.Time
+	Parent  string
 }
 
 func (image *Image) IdParts() (string, string) {
 	if len(image.Id) < 8 {
 		return "", image.Id
 	}
-	hash := image.Id[len(image.Id)-8:len(image.Id)]
+	hash := image.Id[len(image.Id)-8 : len(image.Id)]
 	name := image.Id[:len(image.Id)-9]
 	return name, hash
 }
@@ -322,7 +339,7 @@ func generateImageId(name string, layers []string) (string, error) {
 		for _, layer := range layers {
 			ids += path.Base(layer)
 		}
-		if h, err := future.ComputeId(strings.NewReader(ids)); err != nil  {
+		if h, err := future.ComputeId(strings.NewReader(ids)); err != nil {
 			return "", err
 		} else {
 			hash = h
@@ -337,9 +354,9 @@ func NewImage(name string, layers []string, parent string) (*Image, error) {
 		return nil, err
 	}
 	return &Image{
-		Id:		id,
-		Layers:		layers,
-		Created:	time.Now(),
-		Parent:		parent,
+		Id:      id,
+		Layers:  layers,
+		Created: time.Now(),
+		Parent:  parent,
 	}, nil
 }

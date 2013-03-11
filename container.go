@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"bytes"
+	"./fs"
 	"encoding/json"
 	"errors"
 	"github.com/kr/pty"
@@ -11,10 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
+	"strconv"
 	"syscall"
 	"time"
-	"./fs"
 )
 
 var sysInitPath string
@@ -35,7 +34,11 @@ type Container struct {
 	Config     *Config
 	Mountpoint *fs.Mountpoint
 	State      *State
-	Image	   string
+	Image      string
+
+	network         *NetworkInterface
+	networkManager  *NetworkManager
+	NetworkSettings *NetworkSettings
 
 	SysInitPath   string
 	lxcConfigPath string
@@ -45,40 +48,61 @@ type Container struct {
 	stdin         io.ReadCloser
 	stdinPipe     io.WriteCloser
 
-	stdoutLog *bytes.Buffer
-	stderrLog *bytes.Buffer
+	stdoutLog *os.File
+	stderrLog *os.File
 }
 
 type Config struct {
 	Hostname  string
 	User      string
 	Ram       int64
+	Ports     []int
 	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin bool // Open stdin
 }
 
-func createContainer(id string, root string, command string, args []string, image *fs.Image, config *Config) (*Container, error) {
+type NetworkSettings struct {
+	IpAddress   string
+	IpPrefixLen int
+	Gateway     string
+	PortMapping map[string]string
+}
+
+func createContainer(id string, root string, command string, args []string, image *fs.Image, config *Config, netManager *NetworkManager) (*Container, error) {
 	mountpoint, err := image.Mountpoint(path.Join(root, "rootfs"), path.Join(root, "rw"))
 	if err != nil {
 		return nil, err
 	}
 	container := &Container{
-		Id:         id,
-		Root:       root,
-		Created:    time.Now(),
-		Path:       command,
-		Args:       args,
-		Config:     config,
-		Image:		image.Id,
-		Mountpoint: mountpoint,
-		State:      newState(),
-
-		SysInitPath:   sysInitPath,
-		lxcConfigPath: path.Join(root, "config.lxc"),
-		stdout:        newWriteBroadcaster(),
-		stderr:        newWriteBroadcaster(),
-		stdoutLog:     new(bytes.Buffer),
-		stderrLog:     new(bytes.Buffer),
+		Id:              id,
+		Root:            root,
+		Created:         time.Now(),
+		Path:            command,
+		Args:            args,
+		Config:          config,
+		Image:           image.Id,
+		Mountpoint:      mountpoint,
+		State:           newState(),
+		networkManager:  netManager,
+		NetworkSettings: &NetworkSettings{},
+		SysInitPath:     sysInitPath,
+		lxcConfigPath:   path.Join(root, "config.lxc"),
+		stdout:          newWriteBroadcaster(),
+		stderr:          newWriteBroadcaster(),
+	}
+	if err := os.Mkdir(root, 0700); err != nil {
+		return nil, err
+	}
+	// Setup logging of stdout and stderr to disk
+	if stdoutLog, err := os.OpenFile(path.Join(container.Root, id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stdoutLog = stdoutLog
+	}
+	if stderrLog, err := os.OpenFile(path.Join(container.Root, id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stderrLog = stderrLog
 	}
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
@@ -88,36 +112,43 @@ func createContainer(id string, root string, command string, args []string, imag
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
-	if err := os.Mkdir(root, 0700); err != nil {
-		return nil, err
-	}
-	/*if err := container.Filesystem.createMountPoints(); err != nil {
-		return nil, err
-	}*/
 	if err := container.save(); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
-func loadContainer(containerPath string) (*Container, error) {
+func loadContainer(containerPath string, netManager *NetworkManager) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
 	if err != nil {
 		return nil, err
 	}
 	container := &Container{
-		stdout:        newWriteBroadcaster(),
-		stderr:        newWriteBroadcaster(),
-		stdoutLog:     new(bytes.Buffer),
-		stderrLog:     new(bytes.Buffer),
-		lxcConfigPath: path.Join(containerPath, "config.lxc"),
+		stdout:          newWriteBroadcaster(),
+		stderr:          newWriteBroadcaster(),
+		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
+		networkManager:  netManager,
+		NetworkSettings: &NetworkSettings{},
 	}
+	// Load container settings
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
-	// if err := container.Filesystem.createMountPoints(); err != nil {
-	// 	return nil, err
-	// }
+
+	// Setup logging of stdout and stderr to disk
+	if stdoutLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stdoutLog = stdoutLog
+	}
+	if stderrLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
+		return nil, err
+	} else {
+		container.stderrLog = stderrLog
+	}
+	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
+	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
+
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
@@ -270,6 +301,9 @@ func (container *Container) Start() error {
 	if err := container.Mountpoint.EnsureMounted(); err != nil {
 		return err
 	}
+	if err := container.allocateNetwork(); err != nil {
+		return err
+	}
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
@@ -279,11 +313,19 @@ func (container *Container) Start() error {
 		"--",
 		"/sbin/init",
 	}
+
+	// Networking
+	params = append(params, "-g", container.network.Gateway.String())
+
+	// User
 	if container.Config.User != "" {
 		params = append(params, "-u", container.Config.User)
 	}
+
+	// Program
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
+
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
 
 	var err error
@@ -337,7 +379,11 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) StdoutLog() io.Reader {
-	return strings.NewReader(container.stdoutLog.String())
+	r, err := os.Open(container.stdoutLog.Name())
+	if err != nil {
+		return nil
+	}
+	return r
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
@@ -347,7 +393,39 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) StderrLog() io.Reader {
-	return strings.NewReader(container.stderrLog.String())
+	r, err := os.Open(container.stderrLog.Name())
+	if err != nil {
+		return nil
+	}
+	return r
+}
+
+func (container *Container) allocateNetwork() error {
+	iface, err := container.networkManager.Allocate()
+	if err != nil {
+		return err
+	}
+	container.NetworkSettings.PortMapping = make(map[string]string)
+	for _, port := range container.Config.Ports {
+		if extPort, err := iface.AllocatePort(port); err != nil {
+			iface.Release()
+			return err
+		} else {
+			container.NetworkSettings.PortMapping[strconv.Itoa(port)] = strconv.Itoa(extPort)
+		}
+	}
+	container.network = iface
+	container.NetworkSettings.IpAddress = iface.IPNet.IP.String()
+	container.NetworkSettings.IpPrefixLen, _ = iface.IPNet.Mask.Size()
+	container.NetworkSettings.Gateway = iface.Gateway.String()
+	return nil
+}
+
+func (container *Container) releaseNetwork() error {
+	err := container.network.Release()
+	container.network = nil
+	container.NetworkSettings = &NetworkSettings{}
+	return err
 }
 
 func (container *Container) monitor() {
@@ -356,6 +434,9 @@ func (container *Container) monitor() {
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
+	if err := container.releaseNetwork(); err != nil {
+		log.Printf("%v: Failed to release network: %v", container.Id, err)
+	}
 	container.stdout.Close()
 	container.stderr.Close()
 	if err := container.Mountpoint.Umount(); err != nil {
@@ -422,11 +503,13 @@ func (container *Container) Restart() error {
 	return nil
 }
 
-func (container *Container) Wait() {
+// Wait blocks until the container stops running, then returns its exit code.
+func (container *Container) Wait() int {
 
 	for container.State.Running {
 		container.State.wait()
 	}
+	return container.State.ExitCode
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
