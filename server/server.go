@@ -60,6 +60,7 @@ func (srv *Server) Help() string {
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"web", "Generate a web UI"},
 		{"images", "List images"},
+		{"inspect", "Return low-level information on a container"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
@@ -282,7 +283,6 @@ func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -463,7 +463,9 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
 	limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	cmd.Parse(args)
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
 	if cmd.NArg() > 1 {
 		cmd.Usage()
 		return nil
@@ -893,7 +895,7 @@ func New() (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		images:     images,
+		images:	 images,
 		containers: containers,
 	}
 	return srv, nil
