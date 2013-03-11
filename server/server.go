@@ -71,7 +71,6 @@ func (srv *Server) Help() string {
 func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] NAME", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -100,7 +99,6 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -123,7 +121,6 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "restart", "[OPTIONS] NAME", "Restart a running container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -146,7 +143,6 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "start", "[OPTIONS] NAME", "Start a stopped container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -169,7 +165,6 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "umount a container's filesystem (debug only)")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -192,7 +187,6 @@ func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...stri
 func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -215,7 +209,6 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -237,7 +230,6 @@ func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string)
 func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -259,7 +251,6 @@ func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -315,7 +306,6 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "port", "[OPTIONS] CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() != 2 {
@@ -341,7 +331,6 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
 	fl_regexp := cmd.Bool("r", false, "Use IMAGE as a regular expression instead of an exact name")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
