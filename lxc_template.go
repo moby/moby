@@ -87,6 +87,7 @@ lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw se
 # limits
 {{if .Config.Ram}}
 lxc.cgroup.memory.limit_in_bytes = {{.Config.Ram}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Ram}}
 {{end}}
 `
 
