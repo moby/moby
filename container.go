@@ -2,6 +2,7 @@ package docker
 
 import (
 	"./fs"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/kr/pty"
@@ -118,8 +119,15 @@ func createContainer(id string, root string, command string, args []string, imag
 	return container, nil
 }
 
-func loadContainer(containerPath string, netManager *NetworkManager) (*Container, error) {
+func loadContainer(store *fs.Store, containerPath string, netManager *NetworkManager) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	mountpoint, err := store.FetchMountpoint(
+		path.Join(containerPath, "rootfs"),
+		path.Join(containerPath, "rw"),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +137,7 @@ func loadContainer(containerPath string, netManager *NetworkManager) (*Container
 		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
 		networkManager:  netManager,
 		NetworkSettings: &NetworkSettings{},
+		Mountpoint:      mountpoint,
 	}
 	// Load container settings
 	if err := json.Unmarshal(data, container); err != nil {

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"flag"
 	".."
 	"../server"
+	"flag"
 	"log"
 )
 
