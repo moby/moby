@@ -1,13 +1,13 @@
 package rcli
 
 import (
+	"bufio"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"log"
-	"fmt"
-	"encoding/json"
-	"bufio"
+	"net"
 )
 
 // Connect to a remote endpoint using protocol `proto` and address `addr`,
@@ -44,7 +44,7 @@ func ListenAndServe(proto, addr string, service Service) error {
 			go func() {
 				if err := Serve(conn, service); err != nil {
 					log.Printf("Error: " + err.Error() + "\n")
-					fmt.Fprintf(conn, "Error: " + err.Error() + "\n")
+					fmt.Fprintf(conn, "Error: "+err.Error()+"\n")
 				}
 				conn.Close()
 			}()
@@ -52,7 +52,6 @@ func ListenAndServe(proto, addr string, service Service) error {
 	}
 	return nil
 }
-
 
 // Parse an rcli call on a new connection, and pass it to `service` if it
 // is valid.
@@ -68,4 +67,3 @@ func Serve(conn io.ReadWriter, service Service) error {
 	}
 	return nil
 }
-
