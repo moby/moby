@@ -712,10 +712,18 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *image.Image, ports []int, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *image.Image, ports []int, user string,
+	tty bool, openStdin bool, memory int64, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img.Layers,
-		&docker.Config{Hostname: id, Ports: ports, User: user, Tty: tty, OpenStdin: openStdin})
+		&docker.Config{
+			Hostname:  id,
+			Ports:     ports,
+			User:      user,
+			Tty:       tty,
+			OpenStdin: openStdin,
+			Memory:    memory,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -799,6 +807,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_comment := cmd.String("c", "", "Comment")
+	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 	var fl_ports ports
 	cmd.Var(&fl_ports, "p", "Map a network port to the container")
 	if err := cmd.Parse(args); err != nil {
@@ -826,7 +835,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("No such image: " + name)
 	}
 	// Create new container
-	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
+	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty,
+		*fl_stdin, *fl_memory, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
