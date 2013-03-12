@@ -117,6 +117,9 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 		Comment: comment,
 		store:   store,
 	}
+	if parent != nil {
+		img.Parent = parent.Id
+	}
 	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
 	_, err := store.layers.AddLayer(img.Id, layerData)
@@ -198,7 +201,7 @@ func (image *Image) layers() ([]string, error) {
 	var err error
 	currentImg := image
 	for currentImg != nil {
-		if layer := image.store.layers.Get(image.Id); layer != "" {
+		if layer := image.store.layers.Get(currentImg.Id); layer != "" {
 			list = append(list, layer)
 		} else {
 			return list, fmt.Errorf("Layer not found for image %s", image.Id)
@@ -249,7 +252,6 @@ func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, layer := range layers {
 		roBranches += fmt.Sprintf("%v=ro:", layer)
 	}
