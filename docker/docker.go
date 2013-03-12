@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/dotcloud/docker/client"
+	"../client"
 	"flag"
 	"log"
 	"os"
