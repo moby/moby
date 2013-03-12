@@ -53,7 +53,8 @@ type Container struct {
 type Config struct {
 	Hostname  string
 	User      string
-	Ram       int64
+	Ram       int64 // Memory limit (in bytes)
+	RamSwap   int64 // Total memory usage (ram + swap); set `-1' to disable swap
 	Ports     []int
 	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin bool // Open stdin

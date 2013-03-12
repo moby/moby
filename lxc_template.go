@@ -88,14 +88,29 @@ lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw se
 {{if .Config.Ram}}
 lxc.cgroup.memory.limit_in_bytes = {{.Config.Ram}}
 lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Ram}}
+{{with $ramSwap := getRamSwap .Config}}
+lxc.cgroup.memory.memsw.limit_in_bytes = {{$ramSwap}}
+{{end}}
 {{end}}
 `
 
 var LxcTemplateCompiled *template.Template
 
+func getRamSwap(config *Config) int64 {
+	// By default, RamSwap is set to twice the size of RAM.
+	// If you want to omit RamSwap, set it to `-1'.
+	if config.RamSwap < 0 {
+		return 0
+	}
+	return config.Ram * 2
+}
+
 func init() {
 	var err error
-	LxcTemplateCompiled, err = template.New("lxc").Parse(LxcTemplate)
+	funcMap := template.FuncMap{
+		"getRamSwap": getRamSwap,
+	}
+	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {
 		panic(err)
 	}
