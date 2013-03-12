@@ -125,20 +125,3 @@ func (mp *Mountpoint) Reset() error {
 	}
 	return nil
 }
-
-// Open opens the named file for reading.
-// func (fs *Filesystem) OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-//     if err := fs.EnsureMounted(); err != nil {
-//         return nil, err
-//     }
-//     return os.OpenFile(filepath.Join(fs.RootFS, path), flag, perm)
-// }
-
-// ReadDir reads the directory named by dirname, relative to the Filesystem's root,
-// and returns a list of sorted directory entries
-// func (fs *Filesystem) ReadDir(dirname string) ([]os.FileInfo, error) {
-//     if err := fs.EnsureMounted(); err != nil {
-//         return nil, err
-//     }
-//     return ioutil.ReadDir(filepath.Join(fs.RootFS, dirname))
-// }

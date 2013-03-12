@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shykes/gorp" //Forked to implement CreateTablesOpts
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -115,6 +116,7 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	img := &Image{
 		Id:      future.RandomId(),
 		Comment: comment,
+		Created: time.Now().Unix(),
 		store:   store,
 	}
 	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
@@ -163,6 +165,7 @@ type Image struct {
 	Id      string
 	Parent  string
 	Comment string
+	Created int64
 	store   *Store `db:"-"`
 }
 
@@ -354,6 +357,23 @@ func (store *Store) FetchMountpoint(root, rw string) (*Mountpoint, error) {
 	mp := res[0].(*Mountpoint)
 	mp.Store = store
 	return mp, nil
+}
+
+// OpenFile opens the named file for reading.
+func (mp *Mountpoint) OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	if err := mp.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(filepath.Join(mp.Root, path), flag, perm)
+}
+
+// ReadDir reads the directory named by dirname, relative to the Mountpoint's root,
+// and returns a list of sorted directory entries
+func (mp *Mountpoint) ReadDir(dirname string) ([]os.FileInfo, error) {
+	if err := mp.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadDir(filepath.Join(mp.Root, dirname))
 }
 
 func (store *Store) AddTag(imageId, tagName string) error {
