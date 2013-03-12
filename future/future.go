@@ -110,38 +110,42 @@ func Curl(url string, stderr io.Writer) (io.Reader, error) {
 func Download(url string, stderr io.Writer) (*http.Response, error) {
 	var resp *http.Response
 	var err error = nil
-
-	fmt.Fprintf(stderr, "Download start\n") // FIXME: Replace with progress bar
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
 		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
 	}
-	fmt.Fprintf(stderr, "Download end\n") // FIXME: Replace with progress bar
 	return resp, nil
 }
 
 // Reader with progress bar
 type progressReader struct {
-	reader io.ReadCloser   // Stream to read from
-	output io.Writer   // Where to send progress bar to
-	read_total   int    // Expected stream length (bytes)
-	read_progress int  // How much has been read so far (bytes)
+	reader         io.ReadCloser  // Stream to read from
+	output         io.Writer      // Where to send progress bar to
+	read_total     int            // Expected stream length (bytes)
+	read_progress  int            // How much has been read so far (bytes)
+	last_update    int            // How many bytes read at least update
 }
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
-	// FIXME: Don't print progress bar on every read
 	r.read_progress += read
-	fmt.Fprintf(r.output, "%d/%d (%.2f%%)\n", 
-		r.read_progress,
-		r.read_total,
-		float64(r.read_progress) / float64(r.read_total) * 100)
+
+	// Only update progress for every 1% read
+	update_every := int(0.01 * float64(r.read_total))
+    if r.read_progress - r.last_update > update_every {
+		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\n", 
+			r.read_progress,
+			r.read_total,
+			float64(r.read_progress) / float64(r.read_total) * 100)
+		r.last_update = r.read_progress
+	}
+
 	return read, err
 }
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
 func ProgressReader(r io.ReadCloser, size int, output io.Writer) *progressReader {
-	return &progressReader{r, output, size, 0}
+	return &progressReader{r, output, size, 0, 0}
 }

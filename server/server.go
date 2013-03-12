@@ -432,7 +432,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
+	fmt.Fprintf(stdout, "Downloading and unpacking to %s\n", name)
 	img, err := srv.images.Import(name, archive, nil)
 	if err != nil {
 		return err
