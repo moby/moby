@@ -1,15 +1,15 @@
 package server
 
 import (
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/fs"
-	"github.com/dotcloud/docker/future"
-	"github.com/dotcloud/docker/rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/fs"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/rcli"
 	"io"
 	"net/http"
 	"net/url"
@@ -42,8 +42,7 @@ func (srv *Server) Help() string {
 	for _, cmd := range [][]interface{}{
 		{"run", "Run a command in a container"},
 		{"ps", "Display a list of containers"},
-		{"pull", "Download a tarball and create a container from it"},
-		{"put", "Upload a tarball and create a container from it"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"rm", "Remove containers"},
 		{"kill", "Kill a running container"},
@@ -401,57 +400,46 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return nil
 }
 
-func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] NAME", "Download a new image from a remote location")
+func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "import", "[OPTIONS] NAME", "Create a new filesystem image from the contents of a tarball")
+	fl_stdin := cmd.Bool("stdin", false, "Read tarball from stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	var archive io.Reader
 	name := cmd.Arg(0)
 	if name == "" {
 		return errors.New("Not enough arguments")
 	}
-	u, err := url.Parse(name)
-	if err != nil {
-		return err
-	}
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-	// FIXME: hardcode a mirror URL that does not depend on a single provider.
-	if u.Host == "" {
-		u.Host = "s3.amazonaws.com"
-		u.Path = path.Join("/docker.io/images", u.Path)
-	}
-	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
-	// Download with curl (pretty progress bar)
-	// If curl is not available, fallback to http.Get()
-	archive, err := future.Curl(u.String(), stdout)
-	if err != nil {
-		if resp, err := http.Get(u.String()); err != nil {
+	if *fl_stdin {
+		archive = stdin
+	} else {
+		u, err := url.Parse(name)
+		if err != nil {
 			return err
-		} else {
-			archive = resp.Body
+		}
+		if u.Scheme == "" {
+			u.Scheme = "http"
+		}
+		// FIXME: hardcode a mirror URL that does not depend on a single provider.
+		if u.Host == "" {
+			u.Host = "s3.amazonaws.com"
+			u.Path = path.Join("/docker.io/images", u.Path)
+		}
+		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
+		// Download with curl (pretty progress bar)
+		// If curl is not available, fallback to http.Get()
+		archive, err = future.Curl(u.String(), stdout)
+		if err != nil {
+			if resp, err := http.Get(u.String()); err != nil {
+				return err
+			} else {
+				archive = resp.Body
+			}
 		}
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
 	img, err := srv.images.Create(archive, nil, name, "")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(stdout, img.Id)
-	return nil
-}
-
-func (srv *Server) CmdPut(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "put", "[OPTIONS] NAME", "Import a new image from a local archive.")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	name := cmd.Arg(0)
-	if name == "" {
-		return errors.New("Not enough arguments")
-	}
-	img, err := srv.images.Create(stdin, nil, name, "")
 	if err != nil {
 		return err
 	}
