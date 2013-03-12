@@ -428,12 +428,16 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 	// Download with curl (pretty progress bar)
-	// If curl is not available, fallback to http.Get()
+	// If curl is not available or receives a HTTP error, fallback
+	// to http.Get()
 	archive, err := future.Curl(u.String(), stdout)
 	if err != nil {
 		if resp, err := http.Get(u.String()); err != nil {
 			return err
 		} else {
+			if resp.StatusCode >= 400 {
+				return errors.New("Got HTTP status code >= 400: " + resp.Status)
+			}
 			archive = resp.Body
 		}
 	}
