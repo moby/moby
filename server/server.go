@@ -835,7 +835,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		cmdline = []string{"/bin/bash", "-i"}
 	}
 	// Find the image
-	img, err := srv.images.Get(name)
+	img, err := srv.images.Find(name)
 	if err != nil {
 		return err
 	} else if img == nil {

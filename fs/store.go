@@ -101,6 +101,26 @@ func (store *Store) List(pth string) ([]*Image, error) {
 	return store.imageList(images), nil
 }
 
+func (store *Store) Find(pth string) (*Image, error) {
+	pth = path.Clean(pth)
+	img, err := store.Get(pth)
+	if err != nil {
+		return nil, err
+	} else if img != nil {
+		return img, nil
+	}
+
+	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id order by images.Created desc limit 1", pth)
+	if err != nil {
+		return nil, err
+	} else if len(images) < 1 {
+		return nil, nil
+	}
+	img = images[0].(*Image)
+	img.store = store
+	return img, nil
+}
+
 func (store *Store) Get(id string) (*Image, error) {
 	img, err := store.orm.Get(Image{}, id)
 	if img == nil {
