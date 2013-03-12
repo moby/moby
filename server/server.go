@@ -88,10 +88,18 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 // 'docker info': display system-wide information.
 func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	images, _ := srv.images.Images()
+	var imgcount int
+	if images == nil {
+		imgcount = 0
+	} else {
+		imgcount = len(images)
+	}
+
 	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
 		len(srv.containers.List()),
 		VERSION,
-		0) // FIXME: Number of images
+		imgcount)
 	return nil
 }
 
@@ -210,73 +218,73 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return nil
 }
 
-// func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-// 	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
-// 	if err := cmd.Parse(args); err != nil {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	if cmd.NArg() < 2 {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	name, path := cmd.Arg(0), cmd.Arg(1)
-// 	if container := srv.containers.Get(name); container != nil {
-// 		if f, err := container.Mountpoint.OpenFile(path, os.O_RDONLY, 0); err != nil {
-// 			return err
-// 		} else if _, err := io.Copy(stdout, f); err != nil {
-// 			return err
-// 		}
-// 		return nil
-// 	}
-// 	return errors.New("No such container: " + name)
-// }
+func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container := srv.containers.Get(name); container != nil {
+		if f, err := container.Mountpoint.OpenFile(path, os.O_RDONLY, 0); err != nil {
+			return err
+		} else if _, err := io.Copy(stdout, f); err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
 
-// func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-// 	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
-// 	if err := cmd.Parse(args); err != nil {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	if cmd.NArg() < 2 {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	name, path := cmd.Arg(0), cmd.Arg(1)
-// 	if container := srv.containers.Get(name); container != nil {
-// 		if f, err := container.Mountpoint.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600); err != nil {
-// 			return err
-// 		} else if _, err := io.Copy(f, stdin); err != nil {
-// 			return err
-// 		}
-// 		return nil
-// 	}
-// 	return errors.New("No such container: " + name)
-// }
+func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container := srv.containers.Get(name); container != nil {
+		if f, err := container.Mountpoint.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600); err != nil {
+			return err
+		} else if _, err := io.Copy(f, stdin); err != nil {
+			return err
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
 
-// func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-// 	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
-// 	if err := cmd.Parse(args); err != nil {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	if cmd.NArg() < 2 {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	name, path := cmd.Arg(0), cmd.Arg(1)
-// 	if container := srv.containers.Get(name); container != nil {
-// 		if files, err := container.Mountpoint.ReadDir(path); err != nil {
-// 			return err
-// 		} else {
-// 			for _, f := range files {
-// 				fmt.Fprintln(stdout, f.Name())
-// 			}
-// 		}
-// 		return nil
-// 	}
-// 	return errors.New("No such container: " + name)
-// }
+func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name, path := cmd.Arg(0), cmd.Arg(1)
+	if container := srv.containers.Get(name); container != nil {
+		if files, err := container.Mountpoint.ReadDir(path); err != nil {
+			return err
+		} else {
+			for _, f := range files {
+				fmt.Fprintln(stdout, f.Name())
+			}
+		}
+		return nil
+	}
+	return errors.New("No such container: " + name)
+}
 
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
@@ -484,7 +492,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* NAME */ name,
 					/* ID */ img.Id,
-					/* CREATED */ future.HumanDuration(time.Now().Sub(time.Now())) + " ago", // FIXME: should be img.Created
+					/* CREATED */ future.HumanDuration(time.Now().Sub(time.Unix(img.Created, 0))) + " ago",
 					/* PARENT */ img.Parent,
 				} {
 					if idx == 0 {
@@ -827,7 +835,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		cmdline = []string{"/bin/bash", "-i"}
 	}
 	// Find the image
-	img, err := srv.images.Get(name)
+	img, err := srv.images.Find(name)
 	if err != nil {
 		return err
 	} else if img == nil {

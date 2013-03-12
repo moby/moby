@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shykes/gorp" //Forked to implement CreateTablesOpts
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -100,6 +101,26 @@ func (store *Store) List(pth string) ([]*Image, error) {
 	return store.imageList(images), nil
 }
 
+func (store *Store) Find(pth string) (*Image, error) {
+	pth = path.Clean(pth)
+	img, err := store.Get(pth)
+	if err != nil {
+		return nil, err
+	} else if img != nil {
+		return img, nil
+	}
+
+	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id order by images.Created desc limit 1", pth)
+	if err != nil {
+		return nil, err
+	} else if len(images) < 1 {
+		return nil, nil
+	}
+	img = images[0].(*Image)
+	img.store = store
+	return img, nil
+}
+
 func (store *Store) Get(id string) (*Image, error) {
 	img, err := store.orm.Get(Image{}, id)
 	if img == nil {
@@ -115,6 +136,7 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	img := &Image{
 		Id:      future.RandomId(),
 		Comment: comment,
+		Created: time.Now().Unix(),
 		store:   store,
 	}
 	if parent != nil {
@@ -166,6 +188,7 @@ type Image struct {
 	Id      string
 	Parent  string
 	Comment string
+	Created int64
 	store   *Store `db:"-"`
 }
 
@@ -356,6 +379,23 @@ func (store *Store) FetchMountpoint(root, rw string) (*Mountpoint, error) {
 	mp := res[0].(*Mountpoint)
 	mp.Store = store
 	return mp, nil
+}
+
+// OpenFile opens the named file for reading.
+func (mp *Mountpoint) OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	if err := mp.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(filepath.Join(mp.Root, path), flag, perm)
+}
+
+// ReadDir reads the directory named by dirname, relative to the Mountpoint's root,
+// and returns a list of sorted directory entries
+func (mp *Mountpoint) ReadDir(dirname string) ([]os.FileInfo, error) {
+	if err := mp.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadDir(filepath.Join(mp.Root, dirname))
 }
 
 func (store *Store) AddTag(imageId, tagName string) error {
