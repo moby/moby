@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"os/exec"
 	"time"
 )
 
@@ -85,25 +84,6 @@ func Pv(src io.Reader, info io.Writer) io.Reader {
 		}
 	}()
 	return r
-}
-
-// Curl makes an http request by executing the unix command 'curl', and returns
-// the body of the response. If `stderr` is not nil, a progress bar will be
-// written to it.
-func Curl(url string, stderr io.Writer) (io.Reader, error) {
-	curl := exec.Command("curl", "-#", "-L", "--fail", url)
-	output, err := curl.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	curl.Stderr = stderr
-	if err := curl.Start(); err != nil {
-		return nil, err
-	}
-	if err := curl.Wait(); err != nil {
-		return nil, err
-	}
-	return output, nil
 }
 
 // Request a given URL and return an io.Reader
