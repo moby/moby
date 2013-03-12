@@ -1,9 +1,12 @@
 package docker
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -21,7 +24,7 @@ func TestStart(t *testing.T) {
 		[]string{"-al"},
 		[]string{testLayerPath},
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -57,7 +60,7 @@ func TestRun(t *testing.T) {
 		[]string{"-al"},
 		[]string{testLayerPath},
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -559,6 +562,58 @@ func TestEnv(t *testing.T) {
 			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
 		}
 	}
+}
+
+func grepFile(t *testing.T, path string, pattern string) {
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	var (
+		line string
+	)
+	err = nil
+	for err == nil {
+		line, err = r.ReadString('\n')
+		if strings.Contains(line, pattern) == true {
+			return
+		}
+	}
+	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
+}
+
+func TestLXCConfig(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Memory is allocated randomly for testing
+	rand.Seed(time.Now().UTC().UnixNano())
+	memMin := 33554432
+	memMax := 536870912
+	mem := memMin + rand.Intn(memMax-memMin)
+	container, err := docker.Create(
+		"config_test",
+		"/bin/true",
+		[]string{},
+		[]string{testLayerPath},
+		&Config{
+			Hostname: "foobar",
+			Memory:   int64(mem),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	container.generateLXCConfig()
+	grepFile(t, container.lxcConfigPath, "lxc.utsname = foobar")
+	grepFile(t, container.lxcConfigPath,
+		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
+	grepFile(t, container.lxcConfigPath,
+		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
 }
 
 func BenchmarkRunSequencial(b *testing.B) {
