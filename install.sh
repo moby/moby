@@ -1,6 +1,10 @@
 #!/bin/sh
 # This script is meant for quick & easy install via 'curl URL-OF-SCRIPT | sh'
-# Courtesy of Jeff Lindsay <progrium@gmail.com>
+# Original version by Jeff Lindsay <progrium@gmail.com>
+# Revamped by Jerome Petazzoni <jerome@dotcloud.com>
+#
+# This script canonical location is http://get.docker.io/; to update it, run:
+# s3cmd put -m text/x-shellscript -P install.sh s3://get.docker.io/index
 
 echo "Ensuring basic dependencies are installed..."
 apt-get -qq update
@@ -47,5 +51,5 @@ fi
 echo "Starting dockerd..."
 start dockerd > /dev/null
 
-echo "Finished!"
+echo "Done."
 echo
