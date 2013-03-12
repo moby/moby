@@ -37,29 +37,40 @@ func (srv *Server) Name() string {
 	return "docker"
 }
 
+// FIXME: Stop violating DRY by repeating usage here and in Subcmd declarations
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]interface{}{
-		{"run", "Run a command in a container"},
-		{"ps", "Display a list of containers"},
-		{"pull", "Download a tarball and create a container from it"},
-		{"put", "Upload a tarball and create a container from it"},
-		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
-		{"rm", "Remove containers"},
-		{"kill", "Kill a running container"},
-		{"wait", "Wait for the state of a container to change"},
-		{"stop", "Stop a running container"},
-		{"start", "Start a stopped container"},
-		{"restart", "Restart a running container"},
-		{"logs", "Fetch the logs of a container"},
+		{"attach", "Attach to a running container"},
+		{"cat", "Write the contents of a container's file to standard output"},
+		{"commit", "Create a new image from a container's changes"},
+		{"cp", "Create a copy of IMAGE and call it NAME"},
+		{"debug", "(debug only) (No documentation available)"},
 		{"diff", "Inspect changes on a container's filesystem"},
-		{"commit", "Save the state of a container"},
-		{"attach", "Attach to the standard inputs and outputs of a running container"},
-		{"wait", "Block until a container exits, then print its exit code"},
-		{"info", "Display system-wide information"},
-		{"tar", "Stream the contents of a container as a tar archive"},
-		{"web", "Generate a web UI"},
 		{"images", "List images"},
+		{"info", "Display system-wide information"},
+		{"inspect", "Return low-level information on a container"},
+		{"kill", "Kill a running container"},
+		{"layers", "(debug only) List filesystem layers"},
+		{"logs", "Fetch the logs of a container"},
+		{"ls", "List the contents of a container's directory"},
+		{"mirror", "(debug only) (No documentation available)"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"ps", "List containers"},
+		{"pull", "Download a new image from a remote location"},
+		{"put", "Import a new image from a local archive"},
+		{"reset", "Reset changes to a container's filesystem"},
+		{"restart", "Restart a running container"},
+		{"rm", "Remove a container"},
+		{"rmimage", "Remove an image"},
+		{"run", "Run a command in a new container"},
+		{"start", "Start a stopped container"},
+		{"stop", "Stop a running container"},
+		{"tar", "Stream the contents of a container as a tar archive"},
+		{"umount", "(debug only) Mount a container's filesystem"},
+		{"wait", "Block until a container stops, then print its exit code"},
+		{"web", "A web UI for docker"},
+		{"write", "Write the contents of standard input to a container's file"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
@@ -70,7 +81,6 @@ func (srv *Server) Help() string {
 func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] NAME", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -89,6 +99,14 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 // 'docker info': display system-wide information.
 func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "info", "", "Display system-wide information.")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() > 1 {
+		cmd.Usage()
+		return nil
+	}
 	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
 		len(srv.containers.List()),
 		VERSION,
@@ -99,7 +117,6 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -122,7 +139,6 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "restart", "[OPTIONS] NAME", "Restart a running container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -145,7 +161,6 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "start", "[OPTIONS] NAME", "Start a stopped container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -168,7 +183,6 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "umount a container's filesystem (debug only)")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -191,7 +205,6 @@ func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...stri
 func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -214,7 +227,6 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -236,7 +248,6 @@ func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string)
 func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -258,7 +269,6 @@ func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...strin
 func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 2 {
@@ -282,7 +292,6 @@ func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -315,7 +324,6 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "port", "[OPTIONS] CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() != 2 {
@@ -341,7 +349,6 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
 	fl_regexp := cmd.Bool("r", false, "Use IMAGE as a regular expression instead of an exact name")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
 		return nil
 	}
 	if cmd.NArg() < 1 {
@@ -463,7 +470,9 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
 	limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	cmd.Parse(args)
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
 	if cmd.NArg() > 1 {
 		cmd.Usage()
 		return nil
@@ -893,7 +902,7 @@ func New() (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		images:     images,
+		images:	 images,
 		containers: containers,
 	}
 	return srv, nil
