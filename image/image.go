@@ -46,6 +46,9 @@ func New(root string) (*Store, error) {
 // Import creates a new image from the contents of `archive` and registers it in the store as `name`.
 // If `parent` is not nil, it will registered as the parent of the new image.
 func (store *Store) Import(name string, archive io.Reader, parent *Image) (*Image, error) {
+	if strings.Contains(name, ":") {
+		return nil, errors.New("Invalid image name: " + name)
+	}
 	layer, err := store.Layers.AddLayer(archive)
 	if err != nil {
 		return nil, err
@@ -62,6 +65,9 @@ func (store *Store) Import(name string, archive io.Reader, parent *Image) (*Imag
 }
 
 func (store *Store) Create(name string, source string, layers ...string) (*Image, error) {
+	if strings.Contains(name, ":") {
+		return nil, errors.New("Invalid image name: " + name)
+	}
 	image, err := NewImage(name, layers, source)
 	if err != nil {
 		return nil, err

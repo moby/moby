@@ -411,6 +411,9 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if name == "" {
 		return errors.New("Not enough arguments")
 	}
+    if strings.Contains(name, ":") {
+        return errors.New("Invalid image name: " + name)
+    }
 	u, err := url.Parse(name)
 	if err != nil {
 		return err
@@ -828,10 +831,13 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	img = srv.images.Find(name)
 	if img == nil {
 		stdin_noclose := ioutil.NopCloser(stdin)
-		if srv.CmdPull(stdin_noclose, stdout, name) != nil {
-			return errors.New("Error downloading image: " + name)
+		if err := srv.CmdPull(stdin_noclose, stdout, name); err != nil {
+			return err
 		}
 		img = srv.images.Find(name)
+		if img == nil {
+			return errors.New("Could not find image after downloading: " + name)
+		}
 	}
 
 	// Create new container
