@@ -7,7 +7,11 @@ class docker {
 
     Package { ensure => "installed" }
 
-    package { ["lxc", "debootstrap", "wget", "bsdtar", "git"]: }
+    package { ["lxc", "debootstrap", "wget", "bsdtar", "git",
+               "linux-image-3.5.0-25-generic",
+               "linux-image-extra-3.5.0-25-generic",
+               "virtualbox-guest-utils",
+               "linux-headers-3.5.0-25-generic"]: }
 
     notify { "docker_url = $docker_url": withpath => true }
 
@@ -48,6 +52,11 @@ class docker {
         require => Exec["fetch-docker"],
         command => "/bin/cp /home/vagrant/docker-master/dockerd /usr/local/bin",
         creates => "/usr/local/bin/dockerd"
+    }
+
+    exec { "vbox-add" :
+        require => Package["linux-headers-3.5.0-25-generic"],
+        command => "/etc/init.d/vboxadd setup",
     }
 
     service { "dockerd" :
