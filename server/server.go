@@ -800,6 +800,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_comment := cmd.String("c", "", "Comment")
 	var fl_ports ports
+    var img *image.Image
+
 	cmd.Var(&fl_ports, "p", "Map a network port to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -820,11 +822,20 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		*fl_attach = true
 		cmdline = []string{"/bin/bash", "-i"}
 	}
+
 	// Find the image
-	img := srv.images.Find(name)
+	img = srv.images.Find(name)
 	if img == nil {
-		return errors.New("No such image: " + name)
+		devnull, err := os.Open("/dev/null")
+		if err != nil {
+			return errors.New("Error opening /dev/null")
+		}
+		if srv.CmdPull(devnull, stdout, name) != nil {
+			return errors.New("Error downloading image: " + name)
+		}
+		img = srv.images.Find(name)
 	}
+
 	// Create new container
 	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty, *fl_stdin, *fl_comment, cmdline[0], cmdline[1:]...)
 	if err != nil {
