@@ -1,4 +1,5 @@
-# This script is meant for quick & easy install via 'curl URL-OF-SCRIPPT | bash'
+#!/bin/sh
+# This script is meant for quick & easy install via 'curl URL-OF-SCRIPT | bash'
 # Courtesy of Jeff Lindsay <progrium@gmail.com>
 
 cd /tmp
