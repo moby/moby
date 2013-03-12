@@ -12,7 +12,6 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -427,19 +426,11 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		u.Path = path.Join("/docker.io/images", u.Path)
 	}
 	fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
-	// Download with curl (pretty progress bar)
-	// If curl is not available or receives a HTTP error, fallback
-	// to http.Get()
-	archive, err := future.Curl(u.String(), stdout)
+	resp, err := future.Download(u.String(), stdout)
+	// FIXME: Validate ContentLength
+	archive := future.ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	if err != nil {
-		if resp, err := http.Get(u.String()); err != nil {
-			return err
-		} else {
-			if resp.StatusCode >= 400 {
-				return errors.New("Got HTTP status code >= 400: " + resp.Status)
-			}
-			archive = resp.Body
-		}
+		return err
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
 	img, err := srv.images.Import(name, archive, nil)
@@ -815,7 +806,10 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	name := cmd.Arg(0)
+	var img_name string
+	//var img_version string  // Only here for reference
 	var cmdline []string
+
 	if len(cmd.Args()) >= 2 {
 		cmdline = cmd.Args()[1:]
 	}
@@ -823,6 +817,13 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if name == "" {
 		name = "base"
 	}
+
+	// Separate the name:version tag
+    if strings.Contains(name, ":") {
+        parts := strings.SplitN(name, ":", 2)
+        img_name = parts[0]
+		//img_version = parts[1]   // Only here for reference
+    }
 	// Choose a default command if needed
 	if len(cmdline) == 0 {
 		*fl_stdin = true
@@ -835,7 +836,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	img = srv.images.Find(name)
 	if img == nil {
 		stdin_noclose := ioutil.NopCloser(stdin)
-		if err := srv.CmdPull(stdin_noclose, stdout, name); err != nil {
+		if err := srv.CmdPull(stdin_noclose, stdout, img_name); err != nil {
 			return err
 		}
 		img = srv.images.Find(name)

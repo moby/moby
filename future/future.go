@@ -107,9 +107,8 @@ func Curl(url string, stderr io.Writer) (io.Reader, error) {
 }
 
 // Request a given URL and return an io.Reader
-func Download(url string, stderr io.Writer) (io.Reader, error) {
+func Download(url string, stderr io.Writer) (*http.Response, error) {
 	var resp *http.Response
-	var archive io.ReadCloser = nil
 	var err error = nil
 
 	fmt.Fprintf(stderr, "Download start\n") // FIXME: Replace with progress bar
@@ -119,7 +118,30 @@ func Download(url string, stderr io.Writer) (io.Reader, error) {
 	if resp.StatusCode >= 400 {
 		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
 	}
-	archive = resp.Body
 	fmt.Fprintf(stderr, "Download end\n") // FIXME: Replace with progress bar
-	return archive, nil
+	return resp, nil
+}
+
+// Reader with progress bar
+type progressReader struct {
+	reader io.ReadCloser   // Stream to read from
+	output io.Writer   // Where to send progress bar to
+	read_total   int    // Expected stream length (bytes)
+	read_progress int  // How much has been read so far (bytes)
+}
+func (r *progressReader) Read(p []byte) (n int, err error) {
+	read, err := io.ReadCloser(r.reader).Read(p)
+	// FIXME: Don't print progress bar on every read
+	r.read_progress += read
+	fmt.Fprintf(r.output, "%d/%d (%.2f%%)\n", 
+		r.read_progress,
+		r.read_total,
+		float64(r.read_progress) / float64(r.read_total) * 100)
+	return read, err
+}
+func (r *progressReader) Close() error {
+	return io.ReadCloser(r.reader).Close()
+}
+func ProgressReader(r io.ReadCloser, size int, output io.Writer) *progressReader {
+	return &progressReader{r, output, size, 0}
 }
