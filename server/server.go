@@ -102,18 +102,25 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 // 'docker info': display system-wide information.
 func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	images, _ := srv.images.Images()
+	var imgcount int
+	if images == nil {
+		imgcount = 0
+	} else {
+		imgcount = len(images)
+	}
 	cmd := rcli.Subcmd(stdout, "info", "", "Display system-wide information.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() > 1 {
+	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
 	}
 	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
 		len(srv.containers.List()),
 		VERSION,
-		len(srv.images.ById))
+		imgcount)
 	return nil
 }
 
@@ -732,10 +739,17 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *fs.Image, ports []int, user string, tty bool, openStdin bool, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *fs.Image, ports []int, user string, tty bool, openStdin bool, memory int64, comment string, cmd string, args ...string) (*docker.Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img,
-		&docker.Config{Hostname: id, Ports: ports, User: user, Tty: tty, OpenStdin: openStdin})
+		&docker.Config{
+			Hostname:  id,
+			Ports:     ports,
+			User:      user,
+			Tty:       tty,
+			OpenStdin: openStdin,
+			Memory:    memory,
+		})
 	if err != nil {
 		return nil, err
 	}
