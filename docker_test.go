@@ -11,6 +11,10 @@ import (
 
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
 
+func nuke(docker *Docker) error {
+	return os.RemoveAll(docker.root)
+}
+
 func layerArchive(tarfile string) (io.Reader, error) {
 	// FIXME: need to close f somewhere
 	f, err := os.Open(tarfile)
@@ -72,6 +76,7 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	// Make sure we start we 0 containers
 	if len(docker.List()) != 0 {
@@ -125,6 +130,7 @@ func TestDestroy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"test_destroy",
 		"ls",
@@ -173,6 +179,7 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container1, err := docker.Create(
 		"test1",
 		"ls",
@@ -233,6 +240,7 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker1)
 
 	if layer, err := layerArchive(testLayerPath); err != nil {
 		panic(err)
@@ -268,6 +276,7 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker2)
 	if len(docker2.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
 	}

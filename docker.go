@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/fs"
+	"./fs"
 	"container/list"
 	"fmt"
 	"io/ioutil"

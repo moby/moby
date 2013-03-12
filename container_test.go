@@ -15,6 +15,7 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"start_test",
 		"ls",
@@ -51,6 +52,7 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"run_test",
 		"ls",
@@ -81,6 +83,7 @@ func TestOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"output_test",
 		"echo",
@@ -106,6 +109,7 @@ func TestKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"stop_test",
 		"cat",
@@ -148,6 +152,7 @@ func TestExitCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	trueContainer, err := docker.Create(
 		"exit_test_1",
@@ -193,6 +198,7 @@ func TestRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"restart_test",
 		"echo",
@@ -227,6 +233,7 @@ func TestRestartStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"restart_stdin_test",
 		"cat",
@@ -276,6 +283,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	// Default user must be root
 	container, err := docker.Create(
@@ -393,6 +401,7 @@ func TestMultipleContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	container1, err := docker.Create(
 		"container1",
@@ -449,6 +458,7 @@ func TestStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"stdin_test",
 		"cat",
@@ -484,6 +494,7 @@ func TestTty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"tty_test",
 		"cat",
@@ -519,6 +530,7 @@ func TestEnv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"env_test",
 		"/usr/bin/env",
@@ -568,6 +580,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	defer nuke(docker)
 	for i := 0; i < b.N; i++ {
 		container, err := docker.Create(
 			fmt.Sprintf("bench_%v", i),
@@ -598,6 +611,7 @@ func BenchmarkRunParallel(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	defer nuke(docker)
 
 	var tasks []chan error
 

@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/future"
+	"../future"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shykes/gorp" //Forked to implement CreateTablesOpts
 	"io"

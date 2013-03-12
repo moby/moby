@@ -3,7 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"errors"
-	"github.com/dotcloud/docker/fs"
+	"./fs"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"

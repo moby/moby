@@ -2,7 +2,7 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/future"
+	"./future"
 	"sync"
 	"time"
 )
