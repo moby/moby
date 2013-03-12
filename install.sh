@@ -18,8 +18,8 @@ else
   echo "exec /usr/local/bin/dockerd" > /etc/init/dockerd.conf
 fi
 
-echo "Restarting dockerd..."
-restart dockerd > /dev/null
+echo "Starting dockerd..."
+start dockerd > /dev/null
 
 echo "Finished!"
 echo
