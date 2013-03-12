@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"fmt"
 	"./future"
+	"fmt"
 	"sync"
 	"time"
 )

@@ -65,9 +65,9 @@ func TestCommitRun(t *testing.T) {
 		[]string{"/world"},
 		img,
 		&Config{
-		Ram: 33554432,
-	},
-		)
+			Ram: 33554432,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

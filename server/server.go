@@ -1,15 +1,15 @@
 package server
 
 import (
+	".."
+	"../fs"
+	"../future"
+	"../rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	".."
-	"../fs"
-	"../future"
-	"../rcli"
 	"io"
 	"net/http"
 	"net/url"

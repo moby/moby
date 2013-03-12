@@ -1,10 +1,10 @@
 package fs
 
 import (
+	"../future"
 	"database/sql"
 	"errors"
 	"fmt"
-	"../future"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shykes/gorp" //Forked to implement CreateTablesOpts
 	"io"
