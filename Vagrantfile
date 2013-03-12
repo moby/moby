@@ -7,11 +7,11 @@ Vagrant::Config.run do |config|
   # please see the online documentation at vagrantup.com.
 
   # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "quantal64"
+  config.vm.box = "quantal64_3.5.0-25"
 
   # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.
-  config.vm.box_url = "http://unworkable.org/~niallo/quantal64.box"
+  config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
 
   # Boot with a GUI so you can see the screen. (Default is headless)
   # config.vm.boot_mode = :gui
