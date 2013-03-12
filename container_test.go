@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"./fs"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,16 +11,16 @@ import (
 	"time"
 )
 
-func TestStart(t *testing.T) {
+func TestCommitRun(t *testing.T) {
 	docker, err := newTestDocker()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer nuke(docker)
-	container, err := docker.Create(
-		"start_test",
-		"ls",
-		[]string{"-al"},
+	container1, err := docker.Create(
+		"precommit_test",
+		"/bin/sh",
+		[]string{"-c", "echo hello > /world"},
 		GetTestImage(docker),
 		&Config{
 			Ram: 33554432,
@@ -28,22 +29,62 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker.Destroy(container)
+	defer docker.Destroy(container1)
 
-	if container.State.Running {
+	if container1.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	if err := container.Start(); err != nil {
+	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
-	if container.State.Running {
+	if container1.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	// We should be able to call Wait again
-	container.Wait()
-	if container.State.Running {
-		t.Errorf("Container shouldn't be running")
+
+	// FIXME: freeze the container before copying it to avoid data corruption?
+	rwTar, err := fs.Tar(container1.Mountpoint.Rw, fs.Uncompressed)
+	if err != nil {
+		t.Error(err)
+	}
+	// Create a new image from the container's base layers + a new layer from container changes
+	parentImg, err := docker.Store.Get(container1.Image)
+	if err != nil {
+		t.Error(err)
+	}
+
+	img, err := docker.Store.Create(rwTar, parentImg, "test_commitrun", "unit test commited image")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+
+	container2, err := docker.Create(
+		"postcommit_test",
+		"cat",
+		[]string{"/world"},
+		img,
+		&Config{
+		Ram: 33554432,
+	},
+		)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container2)
+
+	stdout, err := container2.StdoutPipe()
+	stderr, err := container2.StderrPipe()
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	container2.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	output2, err := ioutil.ReadAll(stderr)
+	stdout.Close()
+	stderr.Close()
+	if string(output) != "hello\n" {
+		t.Fatalf("\nout: %s\nerr: %s\n", string(output), string(output2))
 	}
 }
 
@@ -308,7 +349,7 @@ func TestUser(t *testing.T) {
 	// Set a username
 	container, err = docker.Create(
 		"user_root",
-		"id",
+		"/bin/id",
 		[]string{},
 		GetTestImage(docker),
 		&Config{
