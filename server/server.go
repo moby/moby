@@ -823,7 +823,10 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
         parts := strings.SplitN(name, ":", 2)
         img_name = parts[0]
 		//img_version = parts[1]   // Only here for reference
-    }
+    } else {
+		img_name = name
+	}
+
 	// Choose a default command if needed
 	if len(cmdline) == 0 {
 		*fl_stdin = true
