@@ -1,15 +1,15 @@
 package server
 
 import (
-	".."
-	"../fs"
-	"../future"
-	"../rcli"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/fs"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/rcli"
 	"io"
 	"net/http"
 	"net/url"
@@ -60,8 +60,6 @@ func (srv *Server) Help() string {
 		{"mirror", "(debug only) (No documentation available)"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
-		{"pull", "Download a new image from a remote location"},
-		{"put", "Import a new image from a local archive"},
 		{"reset", "Reset changes to a container's filesystem"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},

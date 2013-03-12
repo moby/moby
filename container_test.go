@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"./fs"
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker/fs"
 	"io"
 	"io/ioutil"
 	"math/rand"

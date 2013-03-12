@@ -1,8 +1,8 @@
 package client
 
 import (
-	"../future"
-	"../rcli"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
 	"log"
