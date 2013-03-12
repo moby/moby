@@ -24,7 +24,7 @@ func TestStart(t *testing.T) {
 		[]string{"-al"},
 		[]string{testLayerPath},
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -60,7 +60,7 @@ func TestRun(t *testing.T) {
 		[]string{"-al"},
 		[]string{testLayerPath},
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -589,11 +589,11 @@ func TestLXCConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Ram is allocated randomly for testing
+	// Memory is allocated randomly for testing
 	rand.Seed(time.Now().UTC().UnixNano())
-	ramMin := 33554432
-	ramMax := 536870912
-	ram := ramMin + rand.Intn(ramMax-ramMin)
+	memMin := 33554432
+	memMax := 536870912
+	mem := memMin + rand.Intn(memMax-memMin)
 	container, err := docker.Create(
 		"config_test",
 		"/bin/true",
@@ -601,7 +601,7 @@ func TestLXCConfig(t *testing.T) {
 		[]string{testLayerPath},
 		&Config{
 			Hostname: "foobar",
-			Ram:      int64(ram),
+			Memory:   int64(mem),
 		},
 	)
 	if err != nil {
@@ -611,9 +611,9 @@ func TestLXCConfig(t *testing.T) {
 	container.generateLXCConfig()
 	grepFile(t, container.lxcConfigPath, "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath,
-		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", ram))
+		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 	grepFile(t, container.lxcConfigPath,
-		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", ram*2))
+		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
 }
 
 func BenchmarkRunSequencial(b *testing.B) {
