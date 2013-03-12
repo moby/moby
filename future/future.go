@@ -3,9 +3,11 @@ package future
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"net/http"
 	"os/exec"
 	"time"
 )
@@ -102,4 +104,22 @@ func Curl(url string, stderr io.Writer) (io.Reader, error) {
 		return nil, err
 	}
 	return output, nil
+}
+
+// Request a given URL and return an io.Reader
+func Download(url string, stderr io.Writer) (io.Reader, error) {
+	var resp *http.Response
+	var archive io.ReadCloser = nil
+	var err error = nil
+
+	fmt.Fprintf(stderr, "Download start\n") // FIXME: Replace with progress bar
+	if resp, err = http.Get(url); err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
+	}
+	archive = resp.Body
+	fmt.Fprintf(stderr, "Download end\n") // FIXME: Replace with progress bar
+	return archive, nil
 }
