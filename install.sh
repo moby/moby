@@ -1,5 +1,5 @@
 #!/bin/sh
-# This script is meant for quick & easy install via 'curl URL-OF-SCRIPT | bash'
+# This script is meant for quick & easy install via 'curl URL-OF-SCRIPT | sh'
 # Courtesy of Jeff Lindsay <progrium@gmail.com>
 
 echo "Ensuring basic dependencies are installed..."
@@ -36,7 +36,7 @@ curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz |
 tar -C /usr/local/bin --strip-components=1 -zxf- \
 docker-master/docker docker-master/dockerd
 
-if [[ -f /etc/init/dockerd.conf ]]
+if [ -f /etc/init/dockerd.conf ]
 then
   echo "Upstart script already exists."
 else
