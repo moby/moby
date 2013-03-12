@@ -111,6 +111,7 @@ func InteractiveMode(scripts ...string) error {
 	if err != nil {
 		return err
 	}
+	defer os.Remove(rcfile.Name())
 	io.WriteString(rcfile, "enable -n help\n")
 	os.Setenv("PATH", tmp+":"+os.Getenv("PATH"))
 	os.Setenv("PS1", "\\h docker> ")

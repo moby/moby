@@ -53,12 +53,13 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname  string
-	User      string
-	Ram       int64
-	Ports     []int
-	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin bool // Open stdin
+	Hostname   string
+	User       string
+	Memory     int64 // Memory limit (in bytes)
+	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	Ports      []int
+	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin  bool // Open stdin
 }
 
 type NetworkSettings struct {

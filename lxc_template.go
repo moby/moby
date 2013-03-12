@@ -85,16 +85,32 @@ lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod net_raw setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 
 # limits
-{{if .Config.Ram}}
-lxc.cgroup.memory.limit_in_bytes = {{.Config.Ram}}
+{{if .Config.Memory}}
+lxc.cgroup.memory.limit_in_bytes = {{.Config.Memory}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Memory}}
+{{with $memSwap := getMemorySwap .Config}}
+lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
+{{end}}
 {{end}}
 `
 
 var LxcTemplateCompiled *template.Template
 
+func getMemorySwap(config *Config) int64 {
+	// By default, MemorySwap is set to twice the size of RAM.
+	// If you want to omit MemorySwap, set it to `-1'.
+	if config.MemorySwap < 0 {
+		return 0
+	}
+	return config.Memory * 2
+}
+
 func init() {
 	var err error
-	LxcTemplateCompiled, err = template.New("lxc").Parse(LxcTemplate)
+	funcMap := template.FuncMap{
+		"getMemorySwap": getMemorySwap,
+	}
+	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {
 		panic(err)
 	}
