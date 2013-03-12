@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/rcli"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -826,11 +827,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	// Find the image
 	img = srv.images.Find(name)
 	if img == nil {
-		devnull, err := os.Open("/dev/null")
-		if err != nil {
-			return errors.New("Error opening /dev/null")
-		}
-		if srv.CmdPull(devnull, stdout, name) != nil {
+		stdin_noclose := ioutil.NopCloser(stdin)
+		if srv.CmdPull(stdin_noclose, stdout, name) != nil {
 			return errors.New("Error downloading image: " + name)
 		}
 		img = srv.images.Find(name)
