@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"./fs"
 	"encoding/json"
 	"errors"
+	"github.com/dotcloud/docker/fs"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -129,6 +129,8 @@ func loadContainer(store *fs.Store, containerPath string, netManager *NetworkMan
 	)
 	if err != nil {
 		return nil, err
+	} else if mountpoint == nil {
+		return nil, errors.New("Couldn't load container: unregistered mountpoint.")
 	}
 	container := &Container{
 		stdout:          newWriteBroadcaster(),

@@ -1,7 +1,7 @@
 package fs
 
 import (
-	"../fake"
+	"github.com/dotcloud/docker/fake"
 	"errors"
 	"fmt"
 	"io/ioutil"

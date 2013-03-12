@@ -1,7 +1,7 @@
 package fs
 
 import (
-	"../future"
+	"github.com/dotcloud/docker/future"
 	"errors"
 	"fmt"
 	"io"
