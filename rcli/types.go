@@ -8,13 +8,13 @@ package rcli
 // are the usual suspects.
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"io"
-	"reflect"
-	"flag"
 	"log"
+	"reflect"
 	"strings"
-	"errors"
 )
 
 type Service interface {
@@ -24,7 +24,6 @@ type Service interface {
 
 type Cmd func(io.ReadCloser, io.Writer, ...string) error
 type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
-
 
 func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	if len(args) == 0 {
@@ -63,7 +62,7 @@ func getMethod(service Service, name string) Cmd {
 			return nil
 		}
 	}
-	methodName := "Cmd"+strings.ToUpper(name[:1])+strings.ToLower(name[1:])
+	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
 	method, exists := reflect.TypeOf(service).MethodByName(methodName)
 	if !exists {
 		return nil
@@ -91,4 +90,3 @@ func Subcmd(output io.Writer, name, signature, description string) *flag.FlagSet
 	}
 	return flags
 }
-
