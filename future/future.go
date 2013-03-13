@@ -3,10 +3,11 @@ package future
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
-	"os/exec"
+	"net/http"
 	"time"
 )
 
@@ -85,18 +86,46 @@ func Pv(src io.Reader, info io.Writer) io.Reader {
 	return r
 }
 
-// Curl makes an http request by executing the unix command 'curl', and returns
-// the body of the response. If `stderr` is not nil, a progress bar will be
-// written to it.
-func Curl(url string, stderr io.Writer) (io.Reader, error) {
-	curl := exec.Command("curl", "-#", "-L", url)
-	output, err := curl.StdoutPipe()
-	if err != nil {
+// Request a given URL and return an io.Reader
+func Download(url string, stderr io.Writer) (*http.Response, error) {
+	var resp *http.Response
+	var err error = nil
+	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
-	curl.Stderr = stderr
-	if err := curl.Start(); err != nil {
-		return nil, err
+	if resp.StatusCode >= 400 {
+		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
 	}
-	return output, nil
+	return resp, nil
+}
+
+// Reader with progress bar
+type progressReader struct {
+	reader         io.ReadCloser  // Stream to read from
+	output         io.Writer      // Where to send progress bar to
+	read_total     int            // Expected stream length (bytes)
+	read_progress  int            // How much has been read so far (bytes)
+	last_update    int            // How many bytes read at least update
+}
+func (r *progressReader) Read(p []byte) (n int, err error) {
+	read, err := io.ReadCloser(r.reader).Read(p)
+	r.read_progress += read
+
+	// Only update progress for every 1% read
+	update_every := int(0.01 * float64(r.read_total))
+    if r.read_progress - r.last_update > update_every {
+		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r", 
+			r.read_progress,
+			r.read_total,
+			float64(r.read_progress) / float64(r.read_total) * 100)
+		r.last_update = r.read_progress
+	}
+
+	return read, err
+}
+func (r *progressReader) Close() error {
+	return io.ReadCloser(r.reader).Close()
+}
+func ProgressReader(r io.ReadCloser, size int, output io.Writer) *progressReader {
+	return &progressReader{r, output, size, 0, 0}
 }
