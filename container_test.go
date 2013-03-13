@@ -1,48 +1,93 @@
 package docker
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker/fs"
 	"io"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 )
 
-func TestStart(t *testing.T) {
+func TestCommitRun(t *testing.T) {
 	docker, err := newTestDocker()
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, err := docker.Create(
-		"start_test",
-		"ls",
-		[]string{"-al"},
-		[]string{testLayerPath},
+	defer nuke(docker)
+	container1, err := docker.Create(
+		"precommit_test",
+		"/bin/sh",
+		[]string{"-c", "echo hello > /world"},
+		GetTestImage(docker),
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker.Destroy(container)
+	defer docker.Destroy(container1)
 
-	if container.State.Running {
+	if container1.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	if err := container.Start(); err != nil {
+	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
-	if container.State.Running {
+	if container1.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	// We should be able to call Wait again
-	container.Wait()
-	if container.State.Running {
-		t.Errorf("Container shouldn't be running")
+
+	// FIXME: freeze the container before copying it to avoid data corruption?
+	rwTar, err := fs.Tar(container1.Mountpoint.Rw, fs.Uncompressed)
+	if err != nil {
+		t.Error(err)
+	}
+	// Create a new image from the container's base layers + a new layer from container changes
+	parentImg, err := docker.Store.Get(container1.Image)
+	if err != nil {
+		t.Error(err)
+	}
+
+	img, err := docker.Store.Create(rwTar, parentImg, "test_commitrun", "unit test commited image")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+
+	container2, err := docker.Create(
+		"postcommit_test",
+		"cat",
+		[]string{"/world"},
+		img,
+		&Config{
+			Memory: 33554432,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container2)
+
+	stdout, err := container2.StdoutPipe()
+	stderr, err := container2.StderrPipe()
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	container2.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	output2, err := ioutil.ReadAll(stderr)
+	stdout.Close()
+	stderr.Close()
+	if string(output) != "hello\n" {
+		t.Fatalf("\nout: %s\nerr: %s\n", string(output), string(output2))
 	}
 }
 
@@ -51,13 +96,14 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"run_test",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
-			Ram: 33554432,
+			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -81,11 +127,12 @@ func TestOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"output_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -106,11 +153,12 @@ func TestKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"stop_test",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -148,12 +196,13 @@ func TestExitCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	trueContainer, err := docker.Create(
 		"exit_test_1",
 		"/bin/true",
 		[]string{""},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -168,7 +217,7 @@ func TestExitCode(t *testing.T) {
 		"exit_test_2",
 		"/bin/false",
 		[]string{""},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -193,11 +242,12 @@ func TestRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"restart_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -227,11 +277,12 @@ func TestRestartStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"restart_stdin_test",
 		"cat",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			OpenStdin: true,
 		},
@@ -276,13 +327,14 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	// Default user must be root
 	container, err := docker.Create(
 		"user_default",
 		"id",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -302,7 +354,7 @@ func TestUser(t *testing.T) {
 		"user_root",
 		"id",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			User: "root",
 		},
@@ -324,7 +376,7 @@ func TestUser(t *testing.T) {
 		"user_uid0",
 		"id",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			User: "0",
 		},
@@ -346,7 +398,7 @@ func TestUser(t *testing.T) {
 		"user_uid1",
 		"id",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			User: "1",
 		},
@@ -356,8 +408,10 @@ func TestUser(t *testing.T) {
 	}
 	defer docker.Destroy(container)
 	output, err = container.Output()
-	if err != nil || container.State.ExitCode != 0 {
+	if err != nil {
 		t.Fatal(err)
+	} else if container.State.ExitCode != 0 {
+		t.Fatalf("Container exit code is invalid: %d\nOutput:\n%s\n", container.State.ExitCode, output)
 	}
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
 		t.Error(string(output))
@@ -368,7 +422,7 @@ func TestUser(t *testing.T) {
 		"user_daemon",
 		"id",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			User: "daemon",
 		},
@@ -391,12 +445,13 @@ func TestMultipleContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	container1, err := docker.Create(
 		"container1",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -408,7 +463,7 @@ func TestMultipleContainers(t *testing.T) {
 		"container2",
 		"cat",
 		[]string{"/dev/zero"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -447,11 +502,12 @@ func TestStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"stdin_test",
 		"cat",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			OpenStdin: true,
 		},
@@ -482,11 +538,12 @@ func TestTty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"tty_test",
 		"cat",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{
 			OpenStdin: true,
 		},
@@ -517,11 +574,12 @@ func TestEnv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"env_test",
 		"/usr/bin/env",
 		[]string{},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -561,17 +619,71 @@ func TestEnv(t *testing.T) {
 	}
 }
 
+func grepFile(t *testing.T, path string, pattern string) {
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	var (
+		line string
+	)
+	err = nil
+	for err == nil {
+		line, err = r.ReadString('\n')
+		if strings.Contains(line, pattern) == true {
+			return
+		}
+	}
+	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
+}
+
+func TestLXCConfig(t *testing.T) {
+	docker, err := newTestDocker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(docker)
+	// Memory is allocated randomly for testing
+	rand.Seed(time.Now().UTC().UnixNano())
+	memMin := 33554432
+	memMax := 536870912
+	mem := memMin + rand.Intn(memMax-memMin)
+	container, err := docker.Create(
+		"config_test",
+		"/bin/true",
+		[]string{},
+		GetTestImage(docker),
+		&Config{
+			Hostname: "foobar",
+			Memory:   int64(mem),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer docker.Destroy(container)
+	container.generateLXCConfig()
+	grepFile(t, container.lxcConfigPath, "lxc.utsname = foobar")
+	grepFile(t, container.lxcConfigPath,
+		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
+	grepFile(t, container.lxcConfigPath,
+		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
+}
+
 func BenchmarkRunSequencial(b *testing.B) {
 	docker, err := newTestDocker()
 	if err != nil {
 		b.Fatal(err)
 	}
+	defer nuke(docker)
 	for i := 0; i < b.N; i++ {
 		container, err := docker.Create(
 			fmt.Sprintf("bench_%v", i),
 			"echo",
 			[]string{"-n", "foo"},
-			[]string{testLayerPath},
+			GetTestImage(docker),
 			&Config{},
 		)
 		if err != nil {
@@ -596,6 +708,7 @@ func BenchmarkRunParallel(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	defer nuke(docker)
 
 	var tasks []chan error
 
@@ -607,7 +720,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				fmt.Sprintf("bench_%v", i),
 				"echo",
 				[]string{"-n", "foo"},
-				[]string{testLayerPath},
+				GetTestImage(docker),
 				&Config{},
 			)
 			if err != nil {

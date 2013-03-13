@@ -1,7 +1,8 @@
-package image
+package fs
 
 import (
 	"errors"
+	"fmt"
 	"github.com/dotcloud/docker/future"
 	"io"
 	"io/ioutil"
@@ -17,6 +18,10 @@ type LayerStore struct {
 func NewLayerStore(root string) (*LayerStore, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
+		return nil, err
+	}
+	// Create the root directory if it doesn't exists
+	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	return &LayerStore{
@@ -79,35 +84,29 @@ func (store *LayerStore) layerPath(id string) string {
 	return path.Join(store.Root, id)
 }
 
-func (store *LayerStore) AddLayer(archive io.Reader) (string, error) {
+func (store *LayerStore) AddLayer(id string, archive Archive) (string, error) {
+	if _, err := os.Stat(store.layerPath(id)); err == nil {
+		return "", fmt.Errorf("Layer already exists: %v", id)
+	}
 	errors := make(chan error)
 	// Untar
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Mktemp failed: %s", err)
 	}
+
 	untarR, untarW := io.Pipe()
 	go func() {
 		errors <- Untar(untarR, tmp)
 	}()
-	// Compute ID
-	var id string
-	hashR, hashW := io.Pipe()
-	go func() {
-		_id, err := future.ComputeId(hashR)
-		id = _id
-		errors <- err
-	}()
-	// Duplicate archive to each stream
-	_, err = io.Copy(io.MultiWriter(hashW, untarW), archive)
-	hashW.Close()
+	_, err = io.Copy(untarW, archive)
 	untarW.Close()
 	if err != nil {
 		return "", err
 	}
 	// Wait for goroutines
-	for i := 0; i < 2; i += 1 {
+	for i := 0; i < 1; i += 1 {
 		select {
 		case err := <-errors:
 			{
@@ -120,7 +119,7 @@ func (store *LayerStore) AddLayer(archive io.Reader) (string, error) {
 	layer := store.layerPath(id)
 	if !store.Exists(id) {
 		if err := os.Rename(tmp, layer); err != nil {
-			return "", err
+			return "", fmt.Errorf("Could not rename temp dir to layer %s: %s", layer, err)
 		}
 	}
 	return layer, nil

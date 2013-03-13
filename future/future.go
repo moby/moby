@@ -114,7 +114,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	// Only update progress for every 1% read
 	update_every := int(0.01 * float64(r.read_total))
     if r.read_progress - r.last_update > update_every {
-		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\n", 
+		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r", 
 			r.read_progress,
 			r.read_total,
 			float64(r.read_progress) / float64(r.read_total) * 100)

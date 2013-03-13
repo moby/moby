@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"errors"
+	"github.com/dotcloud/docker/fs"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -31,8 +32,9 @@ type Container struct {
 	Args []string
 
 	Config     *Config
-	Filesystem *Filesystem
+	Mountpoint *fs.Mountpoint
 	State      *State
+	Image      string
 
 	network         *NetworkInterface
 	networkManager  *NetworkManager
@@ -51,12 +53,13 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname  string
-	User      string
-	Ram       int64
-	Ports     []int
-	Tty       bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin bool // Open stdin
+	Hostname   string
+	User       string
+	Memory     int64 // Memory limit (in bytes)
+	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	Ports      []int
+	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin  bool // Open stdin
 }
 
 type NetworkSettings struct {
@@ -66,7 +69,11 @@ type NetworkSettings struct {
 	PortMapping map[string]string
 }
 
-func createContainer(id string, root string, command string, args []string, layers []string, config *Config, netManager *NetworkManager) (*Container, error) {
+func createContainer(id string, root string, command string, args []string, image *fs.Image, config *Config, netManager *NetworkManager) (*Container, error) {
+	mountpoint, err := image.Mountpoint(path.Join(root, "rootfs"), path.Join(root, "rw"))
+	if err != nil {
+		return nil, err
+	}
 	container := &Container{
 		Id:              id,
 		Root:            root,
@@ -74,7 +81,8 @@ func createContainer(id string, root string, command string, args []string, laye
 		Path:            command,
 		Args:            args,
 		Config:          config,
-		Filesystem:      newFilesystem(path.Join(root, "rootfs"), path.Join(root, "rw"), layers),
+		Image:           image.Id,
+		Mountpoint:      mountpoint,
 		State:           newState(),
 		networkManager:  netManager,
 		NetworkSettings: &NetworkSettings{},
@@ -105,19 +113,25 @@ func createContainer(id string, root string, command string, args []string, laye
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
-	if err := container.Filesystem.createMountPoints(); err != nil {
-		return nil, err
-	}
 	if err := container.save(); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
-func loadContainer(containerPath string, netManager *NetworkManager) (*Container, error) {
+func loadContainer(store *fs.Store, containerPath string, netManager *NetworkManager) (*Container, error) {
 	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
 	if err != nil {
 		return nil, err
+	}
+	mountpoint, err := store.FetchMountpoint(
+		path.Join(containerPath, "rootfs"),
+		path.Join(containerPath, "rw"),
+	)
+	if err != nil {
+		return nil, err
+	} else if mountpoint == nil {
+		return nil, errors.New("Couldn't load container: unregistered mountpoint.")
 	}
 	container := &Container{
 		stdout:          newWriteBroadcaster(),
@@ -125,11 +139,13 @@ func loadContainer(containerPath string, netManager *NetworkManager) (*Container
 		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
 		networkManager:  netManager,
 		NetworkSettings: &NetworkSettings{},
+		Mountpoint:      mountpoint,
 	}
 	// Load container settings
 	if err := json.Unmarshal(data, container); err != nil {
 		return nil, err
 	}
+
 	// Setup logging of stdout and stderr to disk
 	if stdoutLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
 		return nil, err
@@ -144,10 +160,6 @@ func loadContainer(containerPath string, netManager *NetworkManager) (*Container
 	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
 	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
 
-	// Create mountpoints
-	if err := container.Filesystem.createMountPoints(); err != nil {
-		return nil, err
-	}
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
@@ -297,7 +309,7 @@ func (container *Container) start() error {
 }
 
 func (container *Container) Start() error {
-	if err := container.Filesystem.EnsureMounted(); err != nil {
+	if err := container.Mountpoint.EnsureMounted(); err != nil {
 		return err
 	}
 	if err := container.allocateNetwork(); err != nil {
@@ -438,7 +450,7 @@ func (container *Container) monitor() {
 	}
 	container.stdout.Close()
 	container.stderr.Close()
-	if err := container.Filesystem.Umount(); err != nil {
+	if err := container.Mountpoint.Umount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
 

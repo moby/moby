@@ -1,13 +1,28 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/fs"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"testing"
 )
 
-const testLayerPath string = "/var/lib/docker/images/docker-ut"
+const testLayerPath string = "/var/lib/docker/docker-ut.tar"
+
+func nuke(docker *Docker) error {
+	return os.RemoveAll(docker.root)
+}
+
+func layerArchive(tarfile string) (io.Reader, error) {
+	// FIXME: need to close f somewhere
+	f, err := os.Open(tarfile)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
 
 func init() {
 	// Hack to run sys init during unit testing
@@ -21,6 +36,7 @@ func init() {
 			panic(err)
 		}
 		log.Fatalf("Unit test base image not found. Please fix the problem by running \"debootstrap --arch=amd64 quantal %v\"", testLayerPath)
+		return
 	}
 }
 
@@ -33,7 +49,26 @@ func newTestDocker() (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if layer, err := layerArchive(testLayerPath); err != nil {
+		panic(err)
+	} else {
+		_, err = docker.Store.Create(layer, nil, "docker-ut", "unit tests")
+		if err != nil {
+			panic(err)
+		}
+	}
 	return docker, nil
+}
+
+func GetTestImage(docker *Docker) *fs.Image {
+	imgs, err := docker.Store.Images()
+	if err != nil {
+		panic(err)
+	} else if len(imgs) < 1 {
+		panic("GASP")
+	}
+	return imgs[0]
 }
 
 func TestCreate(t *testing.T) {
@@ -41,6 +76,7 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 
 	// Make sure we start we 0 containers
 	if len(docker.List()) != 0 {
@@ -50,7 +86,7 @@ func TestCreate(t *testing.T) {
 		"test_create",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -94,11 +130,12 @@ func TestDestroy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container, err := docker.Create(
 		"test_destroy",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -142,11 +179,12 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker)
 	container1, err := docker.Create(
 		"test1",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -158,7 +196,7 @@ func TestGet(t *testing.T) {
 		"test2",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -170,7 +208,7 @@ func TestGet(t *testing.T) {
 		"test3",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker),
 		&Config{},
 	)
 	if err != nil {
@@ -198,16 +236,27 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a container with one instance of docker
 	docker1, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker1)
+
+	if layer, err := layerArchive(testLayerPath); err != nil {
+		panic(err)
+	} else {
+		_, err = docker1.Store.Create(layer, nil, "docker-ut", "unit tests")
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Create a container with one instance of docker
 	container1, err := docker1.Create(
 		"restore_test",
 		"ls",
 		[]string{"-al"},
-		[]string{testLayerPath},
+		GetTestImage(docker1),
 		&Config{},
 	)
 	if err != nil {
@@ -227,6 +276,7 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer nuke(docker2)
 	if len(docker2.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
 	}
