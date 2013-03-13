@@ -11,8 +11,9 @@ import (
 	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	"net/http"
+	"io/ioutil"
 	"net/url"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -425,10 +426,12 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "import", "[OPTIONS] NAME", "Create a new filesystem image from the contents of a tarball")
 	fl_stdin := cmd.Bool("stdin", false, "Read tarball from stdin")
+	var archive io.Reader
+	var resp *http.Response
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	var archive io.Reader
 	name := cmd.Arg(0)
 	if name == "" {
 		return errors.New("Not enough arguments")
@@ -451,14 +454,11 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		archive, err = future.Curl(u.String(), stdout)
+		resp, err = future.Download(u.String(), stdout)
 		if err != nil {
-			if resp, err := http.Get(u.String()); err != nil {
-				return err
-			} else {
-				archive = resp.Body
-			}
+			return err
 		}
+		archive = future.ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
 	img, err := srv.images.Create(archive, nil, name, "")
@@ -838,12 +838,16 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	fl_comment := cmd.String("c", "", "Comment")
 	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 	var fl_ports ports
+
 	cmd.Var(&fl_ports, "p", "Map a network port to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	name := cmd.Arg(0)
+	var img_name string
+	//var img_version string  // Only here for reference
 	var cmdline []string
+
 	if len(cmd.Args()) >= 2 {
 		cmdline = cmd.Args()[1:]
 	}
@@ -851,6 +855,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if name == "" {
 		name = "base"
 	}
+
 	// Choose a default command if needed
 	if len(cmdline) == 0 {
 		*fl_stdin = true
@@ -858,13 +863,31 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		*fl_attach = true
 		cmdline = []string{"/bin/bash", "-i"}
 	}
+
 	// Find the image
 	img, err := srv.images.Find(name)
 	if err != nil {
 		return err
 	} else if img == nil {
-		return errors.New("No such image: " + name)
+		// Separate the name:version tag
+	    if strings.Contains(name, ":") {
+    	    parts := strings.SplitN(name, ":", 2)
+    	    img_name = parts[0]
+			//img_version = parts[1]   // Only here for reference
+   		} else {
+			img_name = name
+		}
+
+		stdin_noclose := ioutil.NopCloser(stdin)
+		if err := srv.CmdImport(stdin_noclose, stdout, img_name); err != nil {
+			return err
+		}
+		img, err = srv.images.Find(name)
+		if err != nil || img == nil {
+			return errors.New("Could not find image after downloading: " + name)
+		}
 	}
+
 	// Create new container
 	container, err := srv.CreateContainer(img, fl_ports, *fl_user, *fl_tty,
 		*fl_stdin, *fl_memory, *fl_comment, cmdline[0], cmdline[1:]...)
