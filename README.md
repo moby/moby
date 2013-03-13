@@ -74,7 +74,7 @@ Installation
         apt-get update
         apt-get install lxc wget bsdtar curl
 
-4. Download the latest docker binaries: `wget http://docker.io.s3.amazonaws.com/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://docker.io.s3.amazonaws.com/builds/Linux/x86_64/docker-master.tgz) )
+4. Download the latest docker binaries: `wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://get.docker.io/builds/Linux/x86_64/docker-master.tgz) )
 5. Extract the contents of the tar file `tar -xf docker-master.tar.gz`
 6. Launch the docker daemon in the background `./dockerd &`
 7. Download a base image `./docker pull base`
