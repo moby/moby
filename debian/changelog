@@ -1,5 +1,5 @@
-dockerd (0.1-1) unstable; urgency=low
+docker-dev (0.1-1) precise; urgency=low
 
   * Initial release (Closes: #30)
 
- -- DotCloud Inc <opensource@dotcloud.com>  Mon, 11 Mar 2013 21:05:56 -0700
+ -- dotCloud <noise+ppa@dotcloud.com>  Mon, 11 Mar 2013 21:05:56 -0700

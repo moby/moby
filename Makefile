@@ -14,7 +14,7 @@ install: all
 	mkdir -p $(DESTDIR)/etc/init
 	install -m 0755 $(BUILD_PATH)/src/github.com/dotcloud/docker/docker/docker $(DESTDIR)/$(INSDIR)
 	install -o root -m 0755 $(BUILD_PATH)/src/github.com/dotcloud/docker/dockerd/dockerd $(DESTDIR)/$(INSDIR)
-	install -o root -m 0755 $(BUILD_PATH)/../debian/dockerd.upstart $(DESTDIR)/etc/init/dockerd.conf
+	install -o root -m 0755 $(BUILD_PATH)/../debian/docker-dev.upstart $(DESTDIR)/etc/init/docker-dev.conf
 
 clean:
-	rm -rf build debian/dockerd
+	rm -rf build debian/docker-dev
