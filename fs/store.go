@@ -92,6 +92,24 @@ func (store *Store) Paths() ([]string, error) {
 	return paths, nil
 }
 
+func (store *Store) RemoveInPath(pth string) error {
+	images, err := store.List(pth)
+	if err != nil {
+		return err
+	}
+	for _, img := range images {
+		if err = store.Remove(img); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (store *Store) Remove(img *Image) error {
+	_, err := store.orm.Delete(img)
+	return err
+}
+
 func (store *Store) List(pth string) ([]*Image, error) {
 	pth = path.Clean(pth)
 	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id", pth)

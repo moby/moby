@@ -360,34 +360,36 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 // 'docker rmi NAME' removes all images with the name NAME
-// func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-// 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
-// 	fl_regexp := cmd.Bool("r", false, "Use IMAGE as a regular expression instead of an exact name")
-// 	if err := cmd.Parse(args); err != nil {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	if cmd.NArg() < 1 {
-// 		cmd.Usage()
-// 		return nil
-// 	}
-// 	for _, name := range cmd.Args() {
-// 		var err error
-// 		if *fl_regexp {
-// 			err = srv.images.DeleteMatch(name)
-// 		} else {
-// 			image := srv.images.Find(name)
-// 			if image == nil {
-// 				return errors.New("No such image: " + name)
-// 			}
-// 			err = srv.images.Delete(name)
-// 		}
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
+func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
+	fl_all := cmd.Bool("a", false, "Use IMAGE as a path and remove ALL images in this path")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		var err error
+		if *fl_all {
+			err = srv.images.RemoveInPath(name)
+		} else {
+			image, err := srv.images.Get(name)
+			if err != nil {
+				return err
+			} else if image == nil {
+				return errors.New("No such image: " + name)
+			}
+			err = srv.images.Remove(image)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
