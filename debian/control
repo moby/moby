@@ -1,0 +1,14 @@
+Source: dockerd
+Section: misc
+Priority: extra
+Maintainer: Jeremy Grosser <jeremy@synack.me>
+Build-Depends: debhelper (>= 8.0.0), golang, git, libsqlite3-dev, pkg-config
+Standards-Version: 3.9.3
+Homepage: https://github.com/dotcloud/docker/
+
+Package: dockerd
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, bsdtar, lxc, curl
+Description: Process manager with superpowers
+ Encapsulates heterogeneous payloads in Standard Containers, and runs them on
+ any server with strong guarantees of isolation and repeatability.

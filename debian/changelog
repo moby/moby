@@ -1,0 +1,17 @@
+dockerd (0.1.1-1) unstable; urgency=low
+
+  * fs branch was merged upstream 
+
+ -- Jeremy Grosser <jeremy@synack.me>  Wed, 13 Mar 2013 00:23:46 +0000
+
+dockerd (0.1-2) unstable; urgency=low
+
+  * Fix upstart script 
+
+ -- Jeremy Grosser <jeremy@synack.me>  Tue, 12 Mar 2013 23:50:16 +0000
+
+dockerd (0.1-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Jeremy Grosser <jeremy@synack.me>  Tue, 12 Mar 2013 03:24:45 +0000
