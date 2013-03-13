@@ -25,7 +25,12 @@ type Service interface {
 type Cmd func(io.ReadCloser, io.Writer, ...string) error
 type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
 
+// FIXME: For reverse compatibility
 func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	return LocalCall(service, stdin, stdout, args...)
+}
+
+func LocalCall(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	if len(args) == 0 {
 		args = []string{"help"}
 	}
