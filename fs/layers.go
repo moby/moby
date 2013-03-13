@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/future"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -88,33 +87,13 @@ func (store *LayerStore) AddLayer(id string, archive Archive) (string, error) {
 	if _, err := os.Stat(store.layerPath(id)); err == nil {
 		return "", fmt.Errorf("Layer already exists: %v", id)
 	}
-	errors := make(chan error)
-	// Untar
 	tmp, err := store.Mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return "", fmt.Errorf("Mktemp failed: %s", err)
 	}
-
-	untarR, untarW := io.Pipe()
-	go func() {
-		errors <- Untar(untarR, tmp)
-	}()
-	_, err = io.Copy(untarW, archive)
-	untarW.Close()
-	if err != nil {
-		return "", err
-	}
-	// Wait for goroutines
-	for i := 0; i < 1; i += 1 {
-		select {
-		case err := <-errors:
-			{
-				if err != nil {
-					return "", err
-				}
-			}
-		}
+	if err := Untar(archive, tmp); err != nil {
+		return "", nil
 	}
 	layer := store.layerPath(id)
 	if !store.Exists(id) {
