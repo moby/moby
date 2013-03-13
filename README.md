@@ -58,18 +58,24 @@ Installing on Ubuntu 12.04 and 12.10
 
 1. Install dependencies:
 
+```bash
         sudo apt-get install lxc wget bsdtar curl
+```
 
 2. Install the latest docker binary:
 
+```bash
 	wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
 	tar -xf docker-master.tgz
+```
 
 3. Run your first container!
 
+```bash
 	cd docker-master
 	sudo ./docker import base
 	sudo ./docker run -a -i -t base /bin/bash
+```
 
 Consider adding docker to your `PATH` for simplicity.
 
