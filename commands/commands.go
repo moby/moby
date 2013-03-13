@@ -1,4 +1,4 @@
-package server
+package commands
 
 import (
 	"bufio"
@@ -23,15 +23,6 @@ import (
 )
 
 const VERSION = "0.0.1"
-
-func (srv *Server) ListenAndServe() error {
-	go rcli.ListenAndServeHTTP("127.0.0.1:8080", srv)
-	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
-	// CloseWrite(), which we need to cleanly signal that stdin is closed without
-	// closing the connection.
-	// See http://code.google.com/p/go/issues/detail?id=3345
-	return rcli.ListenAndServe("tcp", "127.0.0.1:4242", srv)
-}
 
 func (srv *Server) Name() string {
 	return "docker"
