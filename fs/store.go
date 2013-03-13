@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -128,7 +129,19 @@ func (store *Store) Find(pth string) (*Image, error) {
 		return img, nil
 	}
 
-	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id order by images.Created desc limit 1", pth)
+	var q string
+	var args []interface{}
+	// FIXME: this breaks if the path contains a ':'
+	// If format is path:rev
+	if parts := strings.SplitN(pth, ":", 2); len(parts) == 2 {
+		q = "select Images.* from images, paths where Path=? and images.Id=? and paths.Image=images.Id"
+		args = []interface{}{parts[0], parts[1]}
+		// If format is path:rev
+	} else {
+		q = "select images.* from images, paths where Path=? and paths.Image=images.Id order by images.Created desc limit 1"
+		args = []interface{}{parts[0]}
+	}
+	images, err := store.orm.Select(Image{}, q, args...)
 	if err != nil {
 		return nil, err
 	} else if len(images) < 1 {
