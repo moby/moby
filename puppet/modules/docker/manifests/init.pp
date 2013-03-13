@@ -8,6 +8,7 @@ class docker {
     Package { ensure => "installed" }
 
     package { ["lxc", "debootstrap", "wget", "bsdtar", "git",
+               "pkg-config", "libsqlite3-dev",
                "linux-image-3.5.0-25-generic",
                "linux-image-extra-3.5.0-25-generic",
                "virtualbox-guest-utils",
@@ -42,16 +43,17 @@ class docker {
         require => [Exec["fetch-docker"], Exec["debootstrap"]]
     }
 
+    file { "/home/vagrant/.profile":
+        mode => 644,
+        owner => "vagrant",
+        group => "vagrant",
+        content => template("docker/profile"),
+    }
+
     exec { "copy-docker-bin" :
         require => Exec["fetch-docker"],
         command => "/bin/cp /home/vagrant/docker-master/docker /usr/local/bin",
         creates => "/usr/local/bin/docker"
-    }
-
-    exec { "copy-dockerd-bin" :
-        require => Exec["fetch-docker"],
-        command => "/bin/cp /home/vagrant/docker-master/dockerd /usr/local/bin",
-        creates => "/usr/local/bin/dockerd"
     }
 
     exec { "vbox-add" :

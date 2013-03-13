@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/fake"
+	"github.com/dotcloud/docker/future"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestInit(t *testing.T) {
@@ -35,6 +37,40 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	image, err := store.Create(archive, nil, "foo", "Testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if images, err := store.Images(); err != nil {
+		t.Fatal(err)
+	} else if l := len(images); l != 1 {
+		t.Fatalf("Wrong number of images. Should be %d, not %d", 1, l)
+	}
+	if images, err := store.List("foo"); err != nil {
+		t.Fatal(err)
+	} else if l := len(images); l != 1 {
+		t.Fatalf("Path foo has wrong number of images (should be %d, not %d)", 1, l)
+	} else if images[0].Id != image.Id {
+		t.Fatalf("Imported image should be listed at path foo (%s != %s)", images[0], image)
+	}
+}
+
+func TestRegister(t *testing.T) {
+	store, err := TempStore("testregister")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(store)
+	archive, err := fake.FakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	image := &Image{
+		Id:      future.RandomId(),
+		Comment: "testing",
+		Created: time.Now().Unix(),
+		store:   store,
+	}
+	err = store.Register(archive, image, "foo")
 	if err != nil {
 		t.Fatal(err)
 	}

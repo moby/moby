@@ -172,42 +172,35 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	if parent != nil {
 		img.Parent = parent.Id
 	}
-	// FIXME: we shouldn't have to pass os.Stderr to AddLayer()...
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
+	err := store.Register(layerData, img, pth)
+	return img, err
+}
+
+func (store *Store) Register(layerData Archive, img *Image, pth string) error {
+	img.store = store
 	_, err := store.layers.AddLayer(img.Id, layerData)
 	if err != nil {
-		return nil, fmt.Errorf("Could not add layer: %s", err)
+		return fmt.Errorf("Could not add layer: %s", err)
 	}
-	path := &Path{
+	pathObj := &Path{
 		Path:  path.Clean(pth),
 		Image: img.Id,
 	}
 	trans, err := store.orm.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("Could not begin transaction: %s", err)
+		return fmt.Errorf("Could not begin transaction: %s", err)
 	}
 	if err := trans.Insert(img); err != nil {
-		return nil, fmt.Errorf("Could not insert image info: %s", err)
+		return fmt.Errorf("Could not insert image info: %s", err)
 	}
-	if err := trans.Insert(path); err != nil {
-		return nil, fmt.Errorf("Could not insert path info: %s", err)
+	if err := trans.Insert(pathObj); err != nil {
+		return fmt.Errorf("Could not insert path info: %s", err)
 	}
 	if err := trans.Commit(); err != nil {
-		return nil, fmt.Errorf("Could not commit transaction: %s", err)
+		return fmt.Errorf("Could not commit transaction: %s", err)
 	}
-	return img, nil
-}
-
-func (store *Store) Register(image *Image, pth string) error {
-	image.store = store
-	// FIXME: import layer
-	trans, err := store.orm.Begin()
-	if err != nil {
-		return err
-	}
-	trans.Insert(image)
-	trans.Insert(&Path{Path: pth, Image: image.Id})
-	return trans.Commit()
+	return nil
 }
 
 func (store *Store) Layers() []string {
