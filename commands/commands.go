@@ -313,7 +313,9 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	} else if image != nil {
 		obj = image
 	} else {
-		return errors.New("No such container or image: " + name)
+		// No output means the object does not exist
+		// (easier to script since stdout and stderr are not differentiated atm)
+		return nil
 	}
 	data, err := json.Marshal(obj)
 	if err != nil {
@@ -326,6 +328,7 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if _, err := io.Copy(stdout, indented); err != nil {
 		return err
 	}
+	stdout.Write([]byte{'\n'})
 	return nil
 }
 
