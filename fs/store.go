@@ -307,6 +307,8 @@ func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 	}
 
 	// FIXME: Create tests for deletion
+	// FIXME: move this part to change.go, maybe refactor
+	//        fs.Change() to avoid the fake mountpoint
 	// Retrieve the changeset from the parent and apply it to the container
 	//  - Retrieve the changes
 	changes, err := image.store.Changes(&Mountpoint{
