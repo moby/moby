@@ -68,6 +68,7 @@ func (srv *Server) Help() string {
 		{"stop", "Stop a running container"},
 		{"tar", "Stream the contents of a container as a tar archive"},
 		{"umount", "(debug only) Mount a container's filesystem"},
+		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 		{"web", "A web UI for docker"},
 		{"write", "Write the contents of standard input to a container's file"},
@@ -94,6 +95,12 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 			return errors.New("No such container: " + name)
 		}
 	}
+	return nil
+}
+
+// 'docker version': show version information
+func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
 	return nil
 }
 
@@ -912,7 +919,7 @@ func New() (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		images:	 images,
+		images:     images,
 		containers: containers,
 	}
 	return srv, nil
