@@ -31,7 +31,7 @@ Notable features
 
 * Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.
 
-* Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throaway interactive shell.
+* Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.
 
 
 
