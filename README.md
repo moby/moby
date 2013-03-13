@@ -50,11 +50,37 @@ Under the hood, Docker is built on the following components:
 * [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
 
 
-Setup instructions
+Install instructions
 ==================
 
-Requirements
-------------
+Installing on Ubuntu 12.04 and 12.10
+------------------------------------
+
+1. Install dependencies:
+
+```bash
+        sudo apt-get install lxc wget bsdtar curl
+```
+
+2. Install the latest docker binary:
+
+```bash
+	wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+	tar -xf docker-master.tgz
+```
+
+3. Run your first container!
+
+```bash
+	cd docker-master
+	sudo ./docker import base
+	sudo ./docker run -a -i -t base /bin/bash
+```
+
+Consider adding docker to your `PATH` for simplicity.
+
+Installing on other Linux distributions
+---------------------------------------
 
 Right now, the officially supported distributions are:
 
@@ -64,28 +90,68 @@ Right now, the officially supported distributions are:
 Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
 
 
-Installation
----------------
+Usage examples
+==============
 
-1. Set up your host of choice on a physical / virtual machine
-2. Assume root identity on your newly installed environment (`sudo -s`)
-3. Type the following commands:
+Running an interactive shell
+----------------------------
 
-        apt-get update
-        apt-get install lxc wget bsdtar curl
+```bash
+	# Download a base image
+	docker import base
 
-4. Download the latest docker binaries: `wget http://docker.io.s3.amazonaws.com/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://docker.io.s3.amazonaws.com/builds/Linux/x86_64/docker-master.tgz) )
-5. Extract the contents of the tar file `tar -xf docker-master.tar.gz`
-6. Launch the docker daemon in the background `./dockerd &`
-7. Download a base image `./docker pull base`
-8. Run your first container! `./docker run -i -a -t base /bin/bash`
-9. Start exploring `./docker --help`
+	# Run an interactive shell in the base image,
+	# allocate a tty, attach stdin and stdout
+	docker run -a -i -t base /bin/bash
+```
 
-Consider adding docker and dockerd to your `PATH` for simplicity.
+
+Starting a long-running worker process
+--------------------------------------
+
+```bash
+	# Run docker in daemon mode
+	(docker -d || echo "Docker daemon already running") &
+
+	# Start a very useful long-running process
+	JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
+
+	# Collect the output of the job so far
+	docker logs $JOB
+
+	# Kill the job
+	docker kill $JOB
+```
+
+
+Listing all running containers
+------------------------------
+
+```bash
+	docker ps
+```
+
+
+Expose a service on a TCP port
+------------------------------
+
+```bash
+	# Expose port 4444 of this container, and tell netcat to listen on it
+	JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
+
+	# Which public port is NATed to my container?
+	PORT=$(docker port $JOB 4444)
+
+	# Connect to the public port via the host's public address
+	echo hello world | nc $(hostname) $PORT
+
+	# Verify that the network connection worked
+	echo "Daemon received: $(docker logs $JOB)"
+```
 
 
 What is a Standard Container?
------------------------------
+=============================
 
 Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
 a format that is self-describing and portable, so that any compliant runtime can run it without extra dependency, regardless of the underlying machine and the contents of the container.
