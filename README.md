@@ -71,7 +71,6 @@ Installation
 2. Assume root identity on your newly installed environment (`sudo -s`)
 3. Type the following commands:
 
-        apt-get update
         apt-get install lxc wget bsdtar curl
 
 4. Download the latest docker binaries: `wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://get.docker.io/builds/Linux/x86_64/docker-master.tgz) )
