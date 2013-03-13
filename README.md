@@ -50,11 +50,31 @@ Under the hood, Docker is built on the following components:
 * [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
 
 
-Setup instructions
+Install instructions
 ==================
 
-Requirements
-------------
+Installing on Ubuntu 12.04 and 12.10
+------------------------------------
+
+1. Install dependencies:
+
+        sudo apt-get install lxc wget bsdtar curl
+
+2. Install the latest docker binary:
+
+	wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+	tar -xf docker-master.tgz
+
+3. Run your first container!
+
+	cd docker-master
+	sudo ./docker import base
+	sudo ./docker run -a -i -t base /bin/bash
+
+Consider adding docker to your `PATH` for simplicity.
+
+Installing on other Linux distributions
+---------------------------------------
 
 Right now, the officially supported distributions are:
 
@@ -62,26 +82,6 @@ Right now, the officially supported distributions are:
 * Ubuntu 12.10 (quantal)
 
 Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
-
-
-Installation
----------------
-
-1. Set up your host of choice on a physical / virtual machine
-2. Assume root identity on your newly installed environment (`sudo -s`)
-3. Type the following commands:
-
-        apt-get update
-        apt-get install lxc wget bsdtar curl
-
-4. Download the latest docker binaries: `wget http://docker.io.s3.amazonaws.com/builds/$(uname -s)/$(uname -m)/docker-master.tgz` ([Or get the Linux/x86_64 binaries here](http://docker.io.s3.amazonaws.com/builds/Linux/x86_64/docker-master.tgz) )
-5. Extract the contents of the tar file `tar -xf docker-master.tar.gz`
-6. Launch the docker daemon in the background `./dockerd &`
-7. Download a base image `./docker pull base`
-8. Run your first container! `./docker run -i -a -t base /bin/bash`
-9. Start exploring `./docker --help`
-
-Consider adding docker and dockerd to your `PATH` for simplicity.
 
 
 What is a Standard Container?
