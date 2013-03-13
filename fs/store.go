@@ -2,7 +2,6 @@ package fs
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/future"
 	_ "github.com/mattn/go-sqlite3"
@@ -146,7 +145,7 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	// FIXME: Archive should contain compression info. For now we only support uncompressed.
 	_, err := store.layers.AddLayer(img.Id, layerData)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not add layer: %s", err))
+		return nil, fmt.Errorf("Could not add layer: %s", err)
 	}
 	path := &Path{
 		Path:  path.Clean(pth),
@@ -154,16 +153,16 @@ func (store *Store) Create(layerData Archive, parent *Image, pth, comment string
 	}
 	trans, err := store.orm.Begin()
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not begin transaction:", err))
+		return nil, fmt.Errorf("Could not begin transaction: %s", err)
 	}
 	if err := trans.Insert(img); err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not insert image info: %s", err))
+		return nil, fmt.Errorf("Could not insert image info: %s", err)
 	}
 	if err := trans.Insert(path); err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not insert path info: %s", err))
+		return nil, fmt.Errorf("Could not insert path info: %s", err)
 	}
 	if err := trans.Commit(); err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not commit transaction: %s", err))
+		return nil, fmt.Errorf("Could not commit transaction: %s", err)
 	}
 	return img, nil
 }
@@ -234,6 +233,9 @@ func (image *Image) layers() ([]string, error) {
 			return list, fmt.Errorf("Error while getting parent image: %v", err)
 		}
 	}
+	if len(list) == 0 {
+		return nil, fmt.Errorf("No layer found for image %s\n", image.Id)
+	}
 	return list, nil
 }
 
@@ -258,7 +260,7 @@ func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Could not create mountpoint: %s", err)
 		} else if mountpoint == nil {
-			return nil, errors.New("No mountpoint created")
+			return nil, fmt.Errorf("No mountpoint created")
 		}
 	} else {
 		mountpoint = mp
@@ -283,9 +285,36 @@ func (image *Image) Mount(root, rw string) (*Mountpoint, error) {
 		return mountpoint, err
 	}
 	if !mountpoint.Mounted() {
-		return mountpoint, errors.New("Mount failed")
+		return mountpoint, fmt.Errorf("Mount failed")
 	}
 
+	// FIXME: Create tests for deletion
+	// Retrieve the changeset from the parent and apply it to the container
+	//  - Retrieve the changes
+	changes, err := image.store.Changes(&Mountpoint{
+		Image: image.Id,
+		Root:  layers[0],
+		Rw:    layers[0],
+		Store: image.store})
+	if err != nil {
+		return nil, err
+	}
+	// Iterate on changes
+	for _, c := range changes {
+		// If there is a delete
+		if c.Kind == ChangeDelete {
+			// Make sure the directory exists
+			file_path, file_name := path.Dir(c.Path), path.Base(c.Path)
+			if err := os.MkdirAll(path.Join(mountpoint.Rw, file_path), 0755); err != nil {
+				return nil, err
+			}
+			// And create the whiteout (we just need to create empty file, discard the return)
+			if _, err := os.Create(path.Join(path.Join(mountpoint.Rw, file_path),
+				".wh."+path.Base(file_name))); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return mountpoint, nil
 }
 
@@ -332,7 +361,7 @@ func (mp *Mountpoint) Mounted() bool {
 
 func (mp *Mountpoint) Umount() error {
 	if !mp.Mounted() {
-		return errors.New("Mountpoint doesn't seem to be mounted")
+		return fmt.Errorf("Mountpoint doesn't seem to be mounted")
 	}
 	if err := syscall.Unmount(mp.Root, 0); err != nil {
 		return fmt.Errorf("Unmount syscall failed: %v", err)
@@ -361,7 +390,7 @@ func (mp *Mountpoint) Umount() error {
 
 func (mp *Mountpoint) Deregister() error {
 	if mp.Mounted() {
-		return errors.New("Mountpoint is currently mounted, can't deregister")
+		return fmt.Errorf("Mountpoint is currently mounted, can't deregister")
 	}
 
 	_, err := mp.Store.orm.Delete(mp)
@@ -402,7 +431,7 @@ func (store *Store) AddTag(imageId, tagName string) error {
 	if image, err := store.Get(imageId); err != nil {
 		return err
 	} else if image == nil {
-		return errors.New("No image with ID " + imageId)
+		return fmt.Errorf("No image with ID %s", imageId)
 	}
 
 	err2 := store.orm.Insert(&Tag{
@@ -418,7 +447,7 @@ func (store *Store) GetByTag(tagName string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	} else if res == nil {
-		return nil, errors.New("No image associated to tag \"" + tagName + "\"")
+		return nil, fmt.Errorf("No image associated to tag \"%s\"", tagName)
 	}
 
 	tag := res.(*Tag)
@@ -427,7 +456,7 @@ func (store *Store) GetByTag(tagName string) (*Image, error) {
 	if err2 != nil {
 		return nil, err2
 	} else if img == nil {
-		return nil, errors.New("Tag was found but image seems to be inexistent.")
+		return nil, fmt.Errorf("Tag was found but image seems to be inexistent.")
 	}
 
 	return img, nil
