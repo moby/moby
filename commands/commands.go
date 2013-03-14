@@ -12,8 +12,8 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -446,10 +446,9 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		if u.Scheme == "" {
 			u.Scheme = "http"
 		}
-		// FIXME: hardcode a mirror URL that does not depend on a single provider.
 		if u.Host == "" {
-			u.Host = "s3.amazonaws.com"
-			u.Path = path.Join("/docker.io/images", u.Path)
+			u.Host = "get.docker.io"
+			u.Path = path.Join("/images", u.Path)
 		}
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
@@ -870,11 +869,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return err
 	} else if img == nil {
 		// Separate the name:version tag
-	    if strings.Contains(name, ":") {
-    	    parts := strings.SplitN(name, ":", 2)
-    	    img_name = parts[0]
+		if strings.Contains(name, ":") {
+			parts := strings.SplitN(name, ":", 2)
+			img_name = parts[0]
 			//img_version = parts[1]   // Only here for reference
-   		} else {
+		} else {
 			img_name = name
 		}
 
