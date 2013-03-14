@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -100,6 +101,28 @@ func (store *Store) RemoveInPath(pth string) error {
 	for _, img := range images {
 		if err = store.Remove(img); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// DeleteMatch deletes all images whose name matches `pattern`
+func (store *Store) RemoveRegexp(pattern string) error {
+	// Retrieve all the paths
+	paths, err := store.Paths()
+	if err != nil {
+		return err
+	}
+	// Check the pattern on each elements
+	for _, pth := range paths {
+		if match, err := regexp.MatchString(pattern, pth); err != nil {
+			return err
+		} else if match {
+			// If there is a match, remove it
+			fmt.Printf("Match: %s %s\n", pth, pattern)
+			if err := store.RemoveInPath(pth); err != nil {
+				return nil
+			}
 		}
 	}
 	return nil
