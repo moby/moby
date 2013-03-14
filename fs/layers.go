@@ -93,7 +93,7 @@ func (store *LayerStore) AddLayer(id string, archive Archive) (string, error) {
 		return "", fmt.Errorf("Mktemp failed: %s", err)
 	}
 	if err := Untar(archive, tmp); err != nil {
-		return "", nil
+		return "", err
 	}
 	layer := store.layerPath(id)
 	if !store.Exists(id) {
