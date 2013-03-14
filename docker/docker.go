@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/commands"
 	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
@@ -36,7 +35,7 @@ func main() {
 }
 
 func daemon() error {
-	service, err := commands.New()
+	service, err := docker.NewServer()
 	if err != nil {
 		return err
 	}
@@ -78,7 +77,7 @@ func runCommand(args []string) error {
 			}
 		}
 	} else {
-		service, err := commands.New()
+		service, err := docker.NewServer()
 		if err != nil {
 			return err
 		}
