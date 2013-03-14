@@ -43,7 +43,9 @@ $(SOURCE_PACKAGE): $(BUILD_SRC)
 	tar -f $(SOURCE_PACKAGE) -C ${ROOT_PATH}/${BUILD_SRC} -cz .
 
 # Build deb package fetching go dependencies and cleaning up git repositories
-deb: $(SOURCE_PACKAGE)
+deb: $(DEB_PACKAGE)
+	
+$(DEB_PACKAGE): $(SOURCE_PACKAGE)
 	# dpkg-buildpackage looks for source package tarball in ../
 	cd $(BUILD_SRC); dpkg-buildpackage
 	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files
