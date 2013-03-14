@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-const VERSION = "0.0.1"
+const VERSION = "0.0.2"
 
 func (srv *Server) Name() string {
 	return "docker"
