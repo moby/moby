@@ -4,15 +4,26 @@ import (
 	"github.com/dotcloud/docker/fs"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
+	"os/exec"
 	"testing"
 )
 
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
+const unitTestImageName string = "busybox"
+
+var unitTestStoreBase string
+var srv *Server
 
 func nuke(docker *Docker) error {
 	return os.RemoveAll(docker.root)
+}
+
+func CopyDirectory(source, dest string) error {
+	if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func layerArchive(tarfile string) (io.Reader, error) {
@@ -28,15 +39,29 @@ func init() {
 	// Hack to run sys init during unit testing
 	if SelfPath() == "/sbin/init" {
 		SysInit()
+		return
 	}
 
-	// Make sure the unit test image is there
-	if _, err := os.Stat(testLayerPath); err != nil {
-		if !os.IsNotExist(err) {
-			panic(err)
-		}
-		log.Fatalf("Unit test base image not found. Please fix the problem by running \"debootstrap --arch=amd64 quantal %v\"", testLayerPath)
-		return
+	// Create a temp directory
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		panic(err)
+	}
+	unitTestStoreBase = root
+
+	// Make it our Store root
+	docker, err := NewFromDirectory(root)
+	if err != nil {
+		panic(err)
+	}
+	// Create the "Server"
+	srv := &Server{
+		images:     docker.Store,
+		containers: docker,
+	}
+	// Retrieve the Image
+	if err := srv.CmdImport(os.Stdin, os.Stdout, unitTestImageName); err != nil {
+		panic(err)
 	}
 }
 
@@ -45,19 +70,19 @@ func newTestDocker() (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := os.Remove(root); err != nil {
+		return nil, err
+	}
+	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
+		panic(err)
+		return nil, err
+	}
+
 	docker, err := NewFromDirectory(root)
 	if err != nil {
 		return nil, err
 	}
 
-	if layer, err := layerArchive(testLayerPath); err != nil {
-		panic(err)
-	} else {
-		_, err = docker.Store.Create(layer, nil, "docker-ut", "unit tests")
-		if err != nil {
-			panic(err)
-		}
-	}
 	return docker, nil
 }
 
@@ -231,24 +256,21 @@ func TestGet(t *testing.T) {
 }
 
 func TestRestore(t *testing.T) {
+
 	root, err := ioutil.TempDir("", "docker-test")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
 		t.Fatal(err)
 	}
 
 	docker1, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
-	}
-	defer nuke(docker1)
-
-	if layer, err := layerArchive(testLayerPath); err != nil {
-		panic(err)
-	} else {
-		_, err = docker1.Store.Create(layer, nil, "docker-ut", "unit tests")
-		if err != nil {
-			panic(err)
-		}
 	}
 
 	// Create a container with one instance of docker
