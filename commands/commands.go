@@ -446,10 +446,9 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		if u.Scheme == "" {
 			u.Scheme = "http"
 		}
-		// FIXME: hardcode a mirror URL that does not depend on a single provider.
 		if u.Host == "" {
-			u.Host = "s3.amazonaws.com"
-			u.Path = path.Join("/docker.io/images", u.Path)
+			u.Host = "get.docker.io"
+			u.Path = path.Join("/images", u.Path)
 		}
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
