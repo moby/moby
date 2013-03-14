@@ -3,7 +3,7 @@ Section: misc
 Priority: extra
 Homepage: https://github.com/dotcloud/docker
 Maintainer: Daniel Mizyrycki <daniel@dotcloud.com>
-Build-Depends: debhelper (>= 8.0.0), git, golang, libsqlite3-dev
+Build-Depends: debhelper (>= 8.0.0), pkg-config, git, golang, libsqlite3-dev
 Vcs-Git: https://github.com/dotcloud/docker.git
 Standards-Version: 3.9.2
 

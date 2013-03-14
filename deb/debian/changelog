@@ -1,11 +1,5 @@
 docker-dev (1) precise; urgency=low
 
-  * Update release
+  * Initial release
 
- -- dotCloud <noise+ppa@dotcloud.com>  Mon, 13 Mar 2013 16:44:21 -0700
-
-docker-dev (0.1-1) precise; urgency=low
-
-  * Initial release (Closes: #30)
-
- -- dotCloud <noise+ppa@dotcloud.com>  Mon, 11 Mar 2013 21:05:56 -0700
+ -- dotCloud <noise+ppa@dotcloud.com>  Mon, 14 Mar 2013 03:26:21 -0700
