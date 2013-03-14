@@ -12,8 +12,8 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -870,11 +870,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return err
 	} else if img == nil {
 		// Separate the name:version tag
-	    if strings.Contains(name, ":") {
-    	    parts := strings.SplitN(name, ":", 2)
-    	    img_name = parts[0]
+		if strings.Contains(name, ":") {
+			parts := strings.SplitN(name, ":", 2)
+			img_name = parts[0]
 			//img_version = parts[1]   // Only here for reference
-   		} else {
+		} else {
 			img_name = name
 		}
 
