@@ -1,23 +1,29 @@
-GOPATH := $(PWD)/env
-BUILDPATH := $(PWD)/build
+PKG_NAME=docker-dev
+PKG_VERSION=1
+ROOT_PATH:=$(PWD)
+BUILD_PATH=build
+BUILD_SRC=build_src
+GITHUB_PATH=src/github.com/dotcloud/docker
+INSDIR=usr/bin
 
-all: docker.o dockerd.o
+all:
+	cp -r $(BUILD_SRC) $(BUILD_PATH)
+	cd $(BUILD_PATH)/$(GITHUB_PATH)/docker; GOPATH=$(ROOT_PATH)/$(BUILD_PATH) go build
 
-env:
-	mkdir -p ${BUILDPATH} ${GOPATH}/src/github.com/dotcloud/
-	ln -s $(PWD) ${GOPATH}/src/github.com/dotcloud/docker
+# DESTDIR provided by Debian packaging
+install: all
+	mkdir -p $(DESTDIR)/$(INSDIR)
+	mkdir -p $(DESTDIR)/etc/init
+	install -m 0755 $(BUILD_PATH)/$(GITHUB_PATH)/docker/docker $(DESTDIR)/$(INSDIR)
+	install -o root -m 0755 $(ROOT_PATH)/etc/docker-dev.upstart $(DESTDIR)/etc/init/docker-dev.conf
 
-deps:
-	GOPATH=${GOPATH} go get github.com/kr/pty
-	GOPATH=${GOPATH} go get github.com/mattn/go-sqlite3
-	GOPATH=${GOPATH} go get github.com/shykes/gorp
+# Build deb package fetching go dependencies and cleaning up git repositories
+deb: cleanup
+	GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go get -d github.com/dotcloud/docker
+	for d in `find . -name '.git*'`; do rm -rf $$d; done
+	tar czf ../$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz *
+	dpkg-buildpackage
+	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files
 
-clean:
-	go clean
-	rm -rf env build
-
-docker.o: env deps
-	GOPATH=${GOPATH} go build -o ${BUILDPATH}/docker docker/docker.go
-
-dockerd.o: env deps
-	GOPATH=${GOPATH} go build -o ${BUILDPATH}/dockerd dockerd/dockerd.go
+cleanup:
+	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC)
