@@ -109,6 +109,12 @@ func New() (*Docker, error) {
 }
 
 func NewFromDirectory(root string) (*Docker, error) {
+	docker_repo := path.Join(root, "containers")
+
+	if err := os.MkdirAll(docker_repo, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	store, err := fs.New(path.Join(root, "images"))
 	if err != nil {
 		return nil, err
@@ -120,14 +126,10 @@ func NewFromDirectory(root string) (*Docker, error) {
 
 	docker := &Docker{
 		root:           root,
-		repository:     path.Join(root, "containers"),
+		repository:     docker_repo,
 		containers:     list.New(),
 		Store:          store,
 		networkManager: netManager,
-	}
-
-	if err := os.MkdirAll(docker.repository, 0700); err != nil && !os.IsExist(err) {
-		return nil, err
 	}
 
 	if err := docker.restore(); err != nil {
