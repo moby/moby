@@ -1,4 +1,4 @@
-PKG_NAME=docker-dev
+PKG_NAME=dotcloud-docker
 PKG_ARCH=amd64
 PKG_VERSION=1
 ROOT_PATH:=$(PWD)
@@ -25,7 +25,7 @@ install:
 	mkdir -p $(DESTDIR)/$(INSDIR)
 	mkdir -p $(DESTDIR)/etc/init
 	install -m 0755 bin/docker $(DESTDIR)/$(INSDIR)
-	install -o root -m 0755 etc/docker-dev.upstart $(DESTDIR)/etc/init/docker-dev.conf
+	install -o root -m 0755 etc/docker.upstart $(DESTDIR)/etc/init/docker.conf
 
 $(BUILD_SRC): cleanup
 	# Copy ourselves into $BUILD_SRC to comply with unusual golang constraints
