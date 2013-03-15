@@ -1,0 +1,10 @@
+description     "Run docker"
+
+start on runlevel [2345]
+stop on starting rc RUNLEVEL=[016]
+respawn
+
+script
+    test -f /etc/default/locale && . /etc/default/locale || true
+    LANG=$LANG LC_ALL=$LANG /usr/bin/docker -d
+end script
