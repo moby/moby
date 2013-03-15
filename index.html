@@ -1,173 +1,220 @@
-<h1>Docker is a process manager with superpowers</h1>
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title></title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width">
 
-<p>It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.</p>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap-responsive.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <!-- <link rel="stylesheet" href="css/docs.css" > -->
 
-<p>Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.</p>
+    <script src="js/vendor/jquery-1.9.1.min.js" type="text/javascript" ></script>
+    <script src="js/vendor/modernizr-2.6.2-respond-1.1.0.min.js" type="text/javascript" ></script>
+</head>
 
-<p><img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg" width=640/></p>
 
-<ul>
-<li><p><em>Heterogeneous payloads</em>: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.</p></li>
-<li><p><em>Any server</em>: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.</p></li>
-<li><p><em>Isolation</em>: docker isolates processes from each other and from the underlying host, using lightweight containers. </p></li>
-<li><p><em>Repeatability</em>: because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.</p></li>
-</ul>
+<body>
 
-<h2>Notable features</h2>
+<div class="container">
+    <div class="row">
+        <div class="span12 titlebar"><h1 class="pageheader">Docker</h1></div>
+    </div>
 
-<ul>
-<li><p>Filesystem isolation: each process container runs in a completely separate root filesystem.</p></li>
-<li><p>Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.</p></li>
-<li><p>Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.</p></li>
-<li><p>Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.</p></li>
-<li><p>Logging: the standard streams (stdout/stderr/stdin) of each process container is collected and logged for real-time or batch retrieval.</p></li>
-<li><p>Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.</p></li>
-<li><p>Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.</p></li>
-</ul>
+</div>
 
-<h2>Under the hood</h2>
+<div class="container">
+    <div class="row">
+        <div class="span12">
+            <section>
 
-<p>Under the hood, Docker is built on the following components:</p>
+                <h1>Docker is a process manager with superpowers</h1>
 
-<ul>
-<li><p>The <a href="http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c">cgroup</a> and <a href="http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part">namespacing</a> capabilities of the Linux kernel;</p></li>
-<li><p><a href="http://aufs.sourceforge.net/aufs.html">AUFS</a>, a powerful union filesystem with copy-on-write capabilities;</p></li>
-<li><p>The <a href="http://golang.org">Go</a> programming language;</p></li>
-<li><p><a href="http://lxc.sourceforge.net/">lxc</a>, a set of convenience scripts to simplify the creation of linux containers.</p></li>
-</ul>
+                <p>It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.</p>
 
-<h1>Install instructions</h1>
+                <p>Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.</p>
 
-<h2>Installing on Ubuntu 12.04 and 12.10</h2>
+                <p><img src="img/lego_docker.jpg" width="640" /></p>
 
-<ol>
-<li>Install dependencies:</li>
-</ol>
+                <ul>
+                    <li><p><em>Heterogeneous payloads</em>: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.</p></li>
+                    <li><p><em>Any server</em>: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.</p></li>
+                    <li><p><em>Isolation</em>: docker isolates processes from each other and from the underlying host, using lightweight containers. </p></li>
+                    <li><p><em>Repeatability</em>: because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.</p></li>
+                </ul>
 
-<p><code>bash
-        sudo apt-get install lxc wget bsdtar curl
-</code></p>
+                <h2>Notable features</h2>
 
-<ol>
-<li>Install the latest docker binary:</li>
-</ol>
+                <ul>
+                    <li><p>Filesystem isolation: each process container runs in a completely separate root filesystem.</p></li>
+                    <li><p>Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.</p></li>
+                    <li><p>Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.</p></li>
+                    <li><p>Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.</p></li>
+                    <li><p>Logging: the standard streams (stdout/stderr/stdin) of each process container is collected and logged for real-time or batch retrieval.</p></li>
+                    <li><p>Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.</p></li>
+                    <li><p>Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.</p></li>
+                </ul>
 
-<p><code>bash
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-    tar -xf docker-master.tgz
-</code></p>
+                <h2>Under the hood</h2>
 
-<ol>
-<li>Run your first container!</li>
-</ol>
+                <p>Under the hood, Docker is built on the following components:</p>
 
-<p><code>bash
-    cd docker-master
-    sudo ./docker import base
-    sudo ./docker run -a -i -t base /bin/bash
-</code></p>
+                <ul>
+                    <li><p>The <a href="http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c">cgroup</a> and <a href="http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part">namespacing</a> capabilities of the Linux kernel;</p></li>
+                    <li><p><a href="http://aufs.sourceforge.net/aufs.html">AUFS</a>, a powerful union filesystem with copy-on-write capabilities;</p></li>
+                    <li><p>The <a href="http://golang.org">Go</a> programming language;</p></li>
+                    <li><p><a href="http://lxc.sourceforge.net/">lxc</a>, a set of convenience scripts to simplify the creation of linux containers.</p></li>
+                </ul>
 
-<p>Consider adding docker to your <code>PATH</code> for simplicity.</p>
+                <h1>Install instructions</h1>
 
-<h2>Installing on other Linux distributions</h2>
+                <h2>Installing on Ubuntu 12.04 and 12.10</h2>
 
-<p>Right now, the officially supported distributions are:</p>
+                <ol>
+                    <li>Install dependencies:</li>
+                </ol>
 
-<ul>
-<li>Ubuntu 12.04 (precise LTS)</li>
-<li>Ubuntu 12.10 (quantal)</li>
-</ul>
+                <p><code>bash
+                    sudo apt-get install lxc wget bsdtar curl
+                </code></p>
 
-<p>Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.</p>
+                <ol>
+                    <li>Install the latest docker binary:</li>
+                </ol>
 
-<h1>Usage examples</h1>
+                <p><code>bash
+                    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+                    tar -xf docker-master.tgz
+                </code></p>
 
-<h2>Running an interactive shell</h2>
+                <ol>
+                    <li>Run your first container!</li>
+                </ol>
 
-<p>```bash
-    # Download a base image
-    docker import base</p>
+                <p><code>bash
+                    cd docker-master
+                    sudo ./docker import base
+                    sudo ./docker run -a -i -t base /bin/bash
+                </code></p>
+
+                <p>Consider adding docker to your <code>PATH</code> for simplicity.</p>
+
+                <h2>Installing on other Linux distributions</h2>
+
+                <p>Right now, the officially supported distributions are:</p>
+
+                <ul>
+                    <li>Ubuntu 12.04 (precise LTS)</li>
+                    <li>Ubuntu 12.10 (quantal)</li>
+                </ul>
+
+                <p>Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.</p>
+
+                <h1>Usage examples</h1>
+
+                <h2>Running an interactive shell</h2>
+
+                <p>```bash
+                    # Download a base image
+                    docker import base</p>
 
 <pre><code># Run an interactive shell in the base image,
-# allocate a tty, attach stdin and stdout
-docker run -a -i -t base /bin/bash
+    # allocate a tty, attach stdin and stdout
+    docker run -a -i -t base /bin/bash
 </code></pre>
 
-<p>```</p>
+                <p>```</p>
 
-<h2>Starting a long-running worker process</h2>
+                <h2>Starting a long-running worker process</h2>
 
-<p>```bash
-    # Run docker in daemon mode
-    (docker -d || echo "Docker daemon already running") &amp;</p>
+                <p>```bash
+                    # Run docker in daemon mode
+                    (docker -d || echo "Docker daemon already running") &amp;</p>
 
 <pre><code># Start a very useful long-running process
-JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
+    JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
 
-# Collect the output of the job so far
-docker logs $JOB
+    # Collect the output of the job so far
+    docker logs $JOB
 
-# Kill the job
-docker kill $JOB
+    # Kill the job
+    docker kill $JOB
 </code></pre>
 
-<p>```</p>
+                <p>```</p>
 
-<h2>Listing all running containers</h2>
+                <h2>Listing all running containers</h2>
 
-<p><code>bash
-    docker ps
-</code></p>
+                <p><code>bash
+                    docker ps
+                </code></p>
 
-<h2>Expose a service on a TCP port</h2>
+                <h2>Expose a service on a TCP port</h2>
 
-<p>```bash
-    # Expose port 4444 of this container, and tell netcat to listen on it
-    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)</p>
+                <p>```bash
+                    # Expose port 4444 of this container, and tell netcat to listen on it
+                    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)</p>
 
 <pre><code># Which public port is NATed to my container?
-PORT=$(docker port $JOB 4444)
+    PORT=$(docker port $JOB 4444)
 
-# Connect to the public port via the host's public address
-echo hello world | nc $(hostname) $PORT
+    # Connect to the public port via the host's public address
+    echo hello world | nc $(hostname) $PORT
 
-# Verify that the network connection worked
-echo "Daemon received: $(docker logs $JOB)"
+    # Verify that the network connection worked
+    echo "Daemon received: $(docker logs $JOB)"
 </code></pre>
 
-<p>```</p>
+                <p>```</p>
 
-<h1>What is a Standard Container?</h1>
+                <h1>What is a Standard Container?</h1>
 
-<p>Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
-a format that is self-describing and portable, so that any compliant runtime can run it without extra dependency, regardless of the underlying machine and the contents of the container.</p>
+                <p>Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
+                    a format that is self-describing and portable, so that any compliant runtime can run it without extra dependency, regardless of the underlying machine and the contents of the container.</p>
 
-<p>The spec for Standard Containers is currently work in progress, but it is very straightforward. It mostly defines 1) an image format, 2) a set of standard operations, and 3) an execution environment.</p>
+                <p>The spec for Standard Containers is currently work in progress, but it is very straightforward. It mostly defines 1) an image format, 2) a set of standard operations, and 3) an execution environment.</p>
 
-<p>A great analogy for this is the shipping container. Just like Standard Containers are a fundamental unit of software delivery, shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.</p>
+                <p>A great analogy for this is the shipping container. Just like Standard Containers are a fundamental unit of software delivery, shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.</p>
 
-<h3>1. STANDARD OPERATIONS</h3>
+                <h3>1. STANDARD OPERATIONS</h3>
 
-<p>Just like shipping containers, Standard Containers define a set of STANDARD OPERATIONS. Shipping containers can be lifted, stacked, locked, loaded, unloaded and labelled. Similarly, standard containers can be started, stopped, copied, snapshotted, downloaded, uploaded and tagged.</p>
+                <p>Just like shipping containers, Standard Containers define a set of STANDARD OPERATIONS. Shipping containers can be lifted, stacked, locked, loaded, unloaded and labelled. Similarly, standard containers can be started, stopped, copied, snapshotted, downloaded, uploaded and tagged.</p>
 
-<h3>2. CONTENT-AGNOSTIC</h3>
+                <h3>2. CONTENT-AGNOSTIC</h3>
 
-<p>Just like shipping containers, Standard Containers are CONTENT-AGNOSTIC: all standard operations have the same effect regardless of the contents. A shipping container will be stacked in exactly the same way whether it contains Vietnamese powder coffe or spare Maserati parts. Similarly, Standard Containers are started or uploaded in the same way whether they contain a postgres database, a php application with its dependencies and application server, or Java build artifacts.</p>
+                <p>Just like shipping containers, Standard Containers are CONTENT-AGNOSTIC: all standard operations have the same effect regardless of the contents. A shipping container will be stacked in exactly the same way whether it contains Vietnamese powder coffe or spare Maserati parts. Similarly, Standard Containers are started or uploaded in the same way whether they contain a postgres database, a php application with its dependencies and application server, or Java build artifacts.</p>
 
-<h3>3. INFRASTRUCTURE-AGNOSTIC</h3>
+                <h3>3. INFRASTRUCTURE-AGNOSTIC</h3>
 
-<p>Both types of containers are INFRASTRUCTURE-AGNOSTIC: they can be transported to thousands of facilities around the world, and manipulated by a wide variety of equipment. A shipping container can be packed in a factory in Ukraine, transported by truck to the nearest routing center, stacked onto a train, loaded into a German boat by an Australian-built crane, stored in a warehouse at a US facility, etc. Similarly, a standard container can be bundled on my laptop, uploaded to S3, downloaded, run and snapshotted by a build server at Equinix in Virginia, uploaded to 10 staging servers in a home-made Openstack cluster, then sent to 30 production instances across 3 EC2 regions.</p>
+                <p>Both types of containers are INFRASTRUCTURE-AGNOSTIC: they can be transported to thousands of facilities around the world, and manipulated by a wide variety of equipment. A shipping container can be packed in a factory in Ukraine, transported by truck to the nearest routing center, stacked onto a train, loaded into a German boat by an Australian-built crane, stored in a warehouse at a US facility, etc. Similarly, a standard container can be bundled on my laptop, uploaded to S3, downloaded, run and snapshotted by a build server at Equinix in Virginia, uploaded to 10 staging servers in a home-made Openstack cluster, then sent to 30 production instances across 3 EC2 regions.</p>
 
-<h3>4. DESIGNED FOR AUTOMATION</h3>
+                <h3>4. DESIGNED FOR AUTOMATION</h3>
 
-<p>Because they offer the same standard operations regardless of content and infrastructure, Standard Containers, just like their physical counterpart, are extremely well-suited for automation. In fact, you could say automation is their secret weapon.</p>
+                <p>Because they offer the same standard operations regardless of content and infrastructure, Standard Containers, just like their physical counterpart, are extremely well-suited for automation. In fact, you could say automation is their secret weapon.</p>
 
-<p>Many things that once required time-consuming and error-prone human effort can now be programmed. Before shipping containers, a bag of powder coffee was hauled, dragged, dropped, rolled and stacked by 10 different people in 10 different locations by the time it reached its destination. 1 out of 50 disappeared. 1 out of 20 was damaged. The process was slow, inefficient and cost a fortune - and was entirely different depending on the facility and the type of goods.</p>
+                <p>Many things that once required time-consuming and error-prone human effort can now be programmed. Before shipping containers, a bag of powder coffee was hauled, dragged, dropped, rolled and stacked by 10 different people in 10 different locations by the time it reached its destination. 1 out of 50 disappeared. 1 out of 20 was damaged. The process was slow, inefficient and cost a fortune - and was entirely different depending on the facility and the type of goods.</p>
 
-<p>Similarly, before Standard Containers, by the time a software component ran in production, it had been individually built, configured, bundled, documented, patched, vendored, templated, tweaked and instrumented by 10 different people on 10 different computers. Builds failed, libraries conflicted, mirrors crashed, post-it notes were lost, logs were misplaced, cluster updates were half-broken. The process was slow, inefficient and cost a fortune - and was entirely different depending on the language and infrastructure provider.</p>
+                <p>Similarly, before Standard Containers, by the time a software component ran in production, it had been individually built, configured, bundled, documented, patched, vendored, templated, tweaked and instrumented by 10 different people on 10 different computers. Builds failed, libraries conflicted, mirrors crashed, post-it notes were lost, logs were misplaced, cluster updates were half-broken. The process was slow, inefficient and cost a fortune - and was entirely different depending on the language and infrastructure provider.</p>
 
-<h3>5. INDUSTRIAL-GRADE DELIVERY</h3>
+                <h3>5. INDUSTRIAL-GRADE DELIVERY</h3>
 
-<p>There are 17 million shipping containers in existence, packed with every physical good imaginable. Every single one of them can be loaded on the same boats, by the same cranes, in the same facilities, and sent anywhere in the World with incredible efficiency. It is embarrassing to think that a 30 ton shipment of coffee can safely travel half-way across the World in <em>less time</em> than it takes a software team to deliver its code from one datacenter to another sitting 10 miles away.</p>
+                <p>There are 17 million shipping containers in existence, packed with every physical good imaginable. Every single one of them can be loaded on the same boats, by the same cranes, in the same facilities, and sent anywhere in the World with incredible efficiency. It is embarrassing to think that a 30 ton shipment of coffee can safely travel half-way across the World in <em>less time</em> than it takes a software team to deliver its code from one datacenter to another sitting 10 miles away.</p>
 
-<p>With Standard Containers we can put an end to that embarrassment, by making INDUSTRIAL-GRADE DELIVERY of software a reality.</p>
+                <p>With Standard Containers we can put an end to that embarrassment, by making INDUSTRIAL-GRADE DELIVERY of software a reality.</p>
+
+
+            </section>
+
+
+        </div>
+    </div> <!-- end row -->
+</div> <!-- end container -->
+
+</body>
+</html>
