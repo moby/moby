@@ -233,65 +233,6 @@ func TestMountpointDuplicateRoot(t *testing.T) {
 	}
 }
 
-// FIXME: Move this function somewhere else to allow go test to run as non-root
-// FIXME: Nuke everything afterward (currently leave 2 dir in /tmp)
-func TestMount(t *testing.T) {
-	store, err := TempStore("test-mount")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(store)
-	archive, err := fake.FakeTar()
-	if err != nil {
-		t.Fatal(err)
-	}
-	image, err := store.Create(archive, nil, "foo", "Testing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Create mount targets
-	root, err := ioutil.TempDir("", "docker-fs-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	rw, err := ioutil.TempDir("", "docker-fs-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mountpoint, err := image.Mount(root, rw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mountpoint.Umount()
-	// Mountpoint should be marked as mounted
-	if !mountpoint.Mounted() {
-		t.Fatal("Mountpoint not mounted")
-	}
-	// There should be one mountpoint registered
-	if mps, err := image.Mountpoints(); err != nil {
-		t.Fatal(err)
-	} else if len(mps) != 1 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 1, len(mps))
-	}
-	// Unmounting should work
-	if err := mountpoint.Umount(); err != nil {
-		t.Fatal(err)
-	}
-	// De-registering should work
-	if err := mountpoint.Deregister(); err != nil {
-		t.Fatal(err)
-	}
-	if mps, err := image.Mountpoints(); err != nil {
-		t.Fatal(err)
-	} else if len(mps) != 0 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 0, len(mps))
-	}
-	// General health check
-	if err := healthCheck(store); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TempStore(prefix string) (*Store, error) {
 	dir, err := ioutil.TempDir("", "docker-fs-test-"+prefix)
 	if err != nil {
