@@ -121,15 +121,15 @@ func Login(authConfig AuthConfig) (string, error) {
 				status = "Login Succeeded\n"
 				storeConfig = true
 			} else {
-				status = fmt.Sprintf("Login: %s\n", body)
+				status = fmt.Sprintf("Login: %s", body)
 				return "", errors.New(status)
 			}
 		} else {
-			status = fmt.Sprintf("Registration: %s\n", string(reqBody))
+			status = fmt.Sprintf("Registration: %s", string(reqBody))
 			return "", errors.New(status)
 		}
 	} else {
-		status = fmt.Sprintf("[%s] : %s \n", reqStatusCode, string(reqBody))
+		status = fmt.Sprintf("[%s] : %s", reqStatusCode, string(reqBody))
 		return "", errors.New(status)
 	}
 	if storeConfig {
