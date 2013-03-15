@@ -1,18 +1,18 @@
-Source: docker-dev
+Source: dotcloud-docker
 Section: misc
 Priority: extra
 Homepage: https://github.com/dotcloud/docker
 Maintainer: Daniel Mizyrycki <daniel@dotcloud.com>
-Build-Depends: debhelper (>= 8.0.0), git, golang, libsqlite3-dev
+Build-Depends: debhelper (>= 8.0.0), pkg-config, git, golang, libsqlite3-dev
 Vcs-Git: https://github.com/dotcloud/docker.git
 Standards-Version: 3.9.2
 
-Package: docker-dev
+Package: dotcloud-docker
 Architecture: amd64
-Provides: docker-dev
+Provides: dotcloud-docker
 Depends: lxc, wget, bsdtar, curl, sqlite3
-Description: Docker
-    Docker is a process manager with superpowers.
+Conflicts: docker
+Description: A process manager with superpowers
     It encapsulates heterogeneous payloads in Standard Containers, and runs
     them on any server with strong guarantees of isolation and repeatability.
     Is is a great building block for automating distributed systems:

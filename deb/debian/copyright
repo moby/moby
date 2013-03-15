@@ -1,6 +1,7 @@
 Format: http://dep.debian.net/deps/dep5
-Upstream-Name: docker-dev
+Upstream-Name: dotcloud-docker
 Source: https://github.com/dotcloud/docker
+
 Files: *
 Copyright: 2012 DotCloud Inc (opensource@dotcloud.com)
 License: Apache License Version 2.0
