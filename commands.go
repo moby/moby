@@ -105,7 +105,9 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	if err != nil {
 		fmt.Fprintf(stdout, "Error : %s\n", err)
 	}
-	fmt.Fprintf(stdout, status)
+	if status != "" {
+		fmt.Fprintf(stdout, status)
+	}
 	return nil
 }
 
