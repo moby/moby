@@ -54,7 +54,7 @@ func (srv *Server) Help() string {
 		{"reset", "Reset changes to a container's filesystem"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
-		{"rmimage", "Remove an image"},
+		{"rmi", "Remove an image"},
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
