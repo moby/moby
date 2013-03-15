@@ -96,9 +96,9 @@ func Login(authConfig AuthConfig) (string, error) {
 		return "", err
 	}
 
+	defer req1.Body.Close()
 	reqBody, _ = ioutil.ReadAll(req1.Body)
 	reqStatusCode = req1.StatusCode
-	req1.Body.Close()
 
 	if reqStatusCode == 201 {
 		status = "Account Created\n"
@@ -121,15 +121,15 @@ func Login(authConfig AuthConfig) (string, error) {
 				status = "Login Succeeded\n"
 				storeConfig = true
 			} else {
-				status = fmt.Sprintf("Login Error: %s\n", body)
+				status = fmt.Sprintf("Login: %s\n", body)
 				return "", errors.New(status)
 			}
 		} else {
-			status = fmt.Sprintf("Registration Error: %s\n", reqBody)
+			status = fmt.Sprintf("Registration: %s\n", string(reqBody))
 			return "", errors.New(status)
 		}
 	} else {
-		status = fmt.Sprintf("Error: %s : %s \n", reqStatusCode, reqBody)
+		status = fmt.Sprintf("[%s] : %s \n", reqStatusCode, string(reqBody))
 		return "", errors.New(status)
 	}
 	if storeConfig {
