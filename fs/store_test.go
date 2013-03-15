@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/fake"
 	"github.com/dotcloud/docker/future"
@@ -261,7 +260,7 @@ func healthCheck(store *Store) error {
 		for _, img := range images {
 			// Check for duplicate IDs per path
 			if _, exists := IDs[img.Id]; exists {
-				return errors.New(fmt.Sprintf("Duplicate ID: %s", img.Id))
+				return fmt.Errorf("Duplicate ID: %s", img.Id)
 			} else {
 				IDs[img.Id] = true
 			}
@@ -274,7 +273,7 @@ func healthCheck(store *Store) error {
 	// Check non-existing parents
 	for parent := range parents {
 		if _, exists := parents[parent]; !exists {
-			return errors.New("Reference to non-registered parent: " + parent)
+			return fmt.Errorf("Reference to non-registered parent: %s", parent)
 		}
 	}
 	return nil
