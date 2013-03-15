@@ -6,10 +6,38 @@ BUILD_PATH=build	# Do not change, decided by dpkg-buildpackage
 BUILD_SRC=build_src
 GITHUB_PATH=src/github.com/dotcloud/docker
 INSDIR=usr/bin
-SOURCE_PACKAGE=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz 
+SOURCE_PACKAGE=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz
 DEB_PACKAGE=$(PKG_NAME)_$(PKG_VERSION)_$(PKG_ARCH).deb
 
 TMPDIR=$(shell mktemp -d -t XXXXXX)
+
+EXTRA_GO_PKG=fs auth
+
+# Build local sources
+$(PKG_NAME): build_local
+
+build_local:
+	-@mkdir -p bin
+	cd docker && go build -o ../bin/docker
+
+test:
+	@echo "\033[36m[Testing]\033[00m docker..."
+	@sudo -E go test -v && \
+		echo -n "\033[32m[OK]\033[00m" || \
+		echo -n "\033[31m[FAIL]\033[00m"; \
+		echo " docker"
+	@echo "Testing extra repos {$(EXTRA_GO_PKG)}"
+	@for package in $(EXTRA_GO_PKG); do \
+		echo "\033[36m[Testing]\033[00m docker/$$package..." && \
+		cd $$package ; \
+		sudo -E go test -v && \
+			echo -n "\033[32m[OK]\033[00m" || \
+			echo -n "\033[31m[FAIL]\033[00m" ; \
+			echo " docker/$$package" ; \
+		cd .. ;\
+	done
+	@sudo rm -rf /tmp/docker-*
+
 
 # Build a debian source package
 all: build_in_deb
@@ -44,7 +72,7 @@ $(SOURCE_PACKAGE): $(BUILD_SRC)
 
 # Build deb package fetching go dependencies and cleaning up git repositories
 deb: $(DEB_PACKAGE)
-	
+
 $(DEB_PACKAGE): $(SOURCE_PACKAGE)
 	# dpkg-buildpackage looks for source package tarball in ../
 	cd $(BUILD_SRC); dpkg-buildpackage
