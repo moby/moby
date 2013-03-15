@@ -119,7 +119,6 @@ func (store *Store) RemoveRegexp(pattern string) error {
 			return err
 		} else if match {
 			// If there is a match, remove it
-			fmt.Printf("Match: %s %s\n", pth, pattern)
 			if err := store.RemoveInPath(pth); err != nil {
 				return nil
 			}

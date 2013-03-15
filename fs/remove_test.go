@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/fake"
 	"testing"
 )
@@ -26,12 +27,11 @@ func TestRemoveInPath(t *testing.T) {
 	if c := countImages(store); c != 0 {
 		t.Fatalf("Expected 0 images, %d found", c)
 	}
-	images := make([]*Image, 10)
+
+	// Test 10 create / Delete all
 	for i := 0; i < 10; i++ {
-		if image, err := store.Create(archive, nil, "foo", "Testing"); err != nil {
+		if _, err := store.Create(archive, nil, "foo", "Testing"); err != nil {
 			t.Fatal(err)
-		} else {
-			images[i] = image
 		}
 	}
 	if c := countImages(store); c != 10 {
@@ -42,6 +42,30 @@ func TestRemoveInPath(t *testing.T) {
 	}
 	if c := countImages(store); c != 0 {
 		t.Fatalf("Expected 0 images, %d found", c)
+	}
+
+	// Test 10 create / Delete 1
+	for i := 0; i < 10; i++ {
+		if _, err := store.Create(archive, nil, fmt.Sprintf("foo-%d", i), "Testing"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+	if err := store.RemoveInPath("foo-0"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 9 {
+		t.Fatalf("Expected 9 images, %d found", c)
+	}
+
+	// Delete failure
+	if err := store.RemoveInPath("Not_Foo"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 9 {
+		t.Fatalf("Expected 9 images, %d found", c)
 	}
 }
 
@@ -111,7 +135,6 @@ func TestRemove(t *testing.T) {
 	}
 }
 
-// FIXME: Do more extensive test (ex: with full name, wrong name, with Id, etc)
 func TestRemoveRegexp(t *testing.T) {
 	store, err := TempStore("test-remove-regexp")
 	if err != nil {
@@ -125,8 +148,76 @@ func TestRemoveRegexp(t *testing.T) {
 	if c := countImages(store); c != 0 {
 		t.Fatalf("Expected 0 images, %d found", c)
 	}
-	_, err = store.Create(archive, nil, "foo", "Testing")
-	if err != nil {
+
+	// Test 10 create with different names / Delete all good regexp
+	for i := 0; i < 10; i++ {
+		if _, err := store.Create(archive, nil, fmt.Sprintf("foo-%d", i), "Testing"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+	if err := store.RemoveRegexp("foo"); err != nil {
 		t.Fatal(err)
+	}
+	if c := countImages(store); c != 0 {
+		t.Fatalf("Expected 0 images, %d found", c)
+	}
+
+	// Test 10 create with different names / Delete all good regexp globing
+	for i := 0; i < 10; i++ {
+		if _, err := store.Create(archive, nil, fmt.Sprintf("foo-%d", i), "Testing"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+	if err := store.RemoveRegexp("foo-*"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 0 {
+		t.Fatalf("Expected 0 images, %d found", c)
+	}
+
+	// Test 10 create with different names / Delete all bad regexp
+	for i := 0; i < 10; i++ {
+		if _, err := store.Create(archive, nil, fmt.Sprintf("foo-%d", i), "Testing"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+	if err := store.RemoveRegexp("oo-*"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 0 {
+		t.Fatalf("Expected 0 images, %d found", c)
+	}
+
+	// Test 10 create with different names / Delete none strict regexp
+	for i := 0; i < 10; i++ {
+		if _, err := store.Create(archive, nil, fmt.Sprintf("foo-%d", i), "Testing"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+	if err := store.RemoveRegexp("^oo-"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 10 {
+		t.Fatalf("Expected 10 images, %d found", c)
+	}
+
+	// Test delete 2
+	if err := store.RemoveRegexp("^foo-[1,2]$"); err != nil {
+		t.Fatal(err)
+	}
+	if c := countImages(store); c != 8 {
+		t.Fatalf("Expected 8 images, %d found", c)
 	}
 }
