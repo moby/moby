@@ -74,6 +74,10 @@ func (srv *Server) Help() string {
 
 // 'docker login': login / register a user to registry service.
 func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "login", "", "Register or Login to the docker registry server")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
 	var username string
 	var password string
 	var email string
@@ -90,6 +94,10 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	if username != authConfig.Username {
 		fmt.Fprint(stdout, "Password: ")
 		fmt.Fscanf(stdin, "%s", &password)
+
+		if password == "" {
+			return errors.New("Error : Password Required\n")
+		}
 
 		fmt.Fprint(stdout, "Email (", authConfig.Email, "): ")
 		fmt.Fscanf(stdin, "%s", &email)
