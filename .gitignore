@@ -3,3 +3,5 @@ docker/docker
 .*.swp
 a.out
 *.orig
+command-line-arguments.test
+.flymake*
