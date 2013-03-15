@@ -78,7 +78,7 @@ The environment variables are:
 
 For VirtualBox, you can simply ignore setting any of the environment
 variables and omit the ``provider`` flag. VirtualBox is still supported with
-VirtualBox <= 1.1:
+Vagrant <= 1.1:
 
 ```bash
 		$ vagrant up --provider=aws
