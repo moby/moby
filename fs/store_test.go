@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/fake"
 	"github.com/dotcloud/docker/future"
@@ -10,6 +9,8 @@ import (
 	"testing"
 	"time"
 )
+
+// FIXME: Remove the Fake package
 
 func TestInit(t *testing.T) {
 	store, err := TempStore("testinit")
@@ -26,6 +27,8 @@ func TestInit(t *testing.T) {
 	}
 }
 
+// FIXME: Do more extensive tests (ex: create multiple, delete, recreate;
+//       create multiple, check the amount of images and paths, etc..)
 func TestCreate(t *testing.T) {
 	store, err := TempStore("testcreate")
 	if err != nil {
@@ -229,63 +232,6 @@ func TestMountpointDuplicateRoot(t *testing.T) {
 	}
 }
 
-func TestMount(t *testing.T) {
-	store, err := TempStore("test-mount")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(store)
-	archive, err := fake.FakeTar()
-	if err != nil {
-		t.Fatal(err)
-	}
-	image, err := store.Create(archive, nil, "foo", "Testing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Create mount targets
-	root, err := ioutil.TempDir("", "docker-fs-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	rw, err := ioutil.TempDir("", "docker-fs-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mountpoint, err := image.Mount(root, rw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mountpoint.Umount()
-	// Mountpoint should be marked as mounted
-	if !mountpoint.Mounted() {
-		t.Fatal("Mountpoint not mounted")
-	}
-	// There should be one mountpoint registered
-	if mps, err := image.Mountpoints(); err != nil {
-		t.Fatal(err)
-	} else if len(mps) != 1 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 1, len(mps))
-	}
-	// Unmounting should work
-	if err := mountpoint.Umount(); err != nil {
-		t.Fatal(err)
-	}
-	// De-registering should work
-	if err := mountpoint.Deregister(); err != nil {
-		t.Fatal(err)
-	}
-	if mps, err := image.Mountpoints(); err != nil {
-		t.Fatal(err)
-	} else if len(mps) != 0 {
-		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 0, len(mps))
-	}
-	// General health check
-	if err := healthCheck(store); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TempStore(prefix string) (*Store, error) {
 	dir, err := ioutil.TempDir("", "docker-fs-test-"+prefix)
 	if err != nil {
@@ -314,7 +260,7 @@ func healthCheck(store *Store) error {
 		for _, img := range images {
 			// Check for duplicate IDs per path
 			if _, exists := IDs[img.Id]; exists {
-				return errors.New(fmt.Sprintf("Duplicate ID: %s", img.Id))
+				return fmt.Errorf("Duplicate ID: %s", img.Id)
 			} else {
 				IDs[img.Id] = true
 			}
@@ -327,7 +273,7 @@ func healthCheck(store *Store) error {
 	// Check non-existing parents
 	for parent := range parents {
 		if _, exists := parents[parent]; !exists {
-			return errors.New("Reference to non-registered parent: " + parent)
+			return fmt.Errorf("Reference to non-registered parent: %s", parent)
 		}
 	}
 	return nil

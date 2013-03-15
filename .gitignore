@@ -4,3 +4,5 @@ docker/docker
 a.out
 *.orig
 build_src
+command-line-arguments.test
+.flymake*
