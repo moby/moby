@@ -89,16 +89,26 @@ func Login(authConfig AuthConfig) (string, error) {
 	reqStatusCode := 0
 	var status string
 	var reqBody []byte
-	jsonBody, _ := json.Marshal(authConfig)
+	jsonBody, err := json.Marshal(authConfig)
+	if err != nil {
+		errMsg = fmt.Sprintf("Config Error: %s", err)
+		return "", errors.New(errMsg)
+	}
+
 	b := strings.NewReader(string(jsonBody))
 	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
 	if err != nil {
-		return "", err
+		errMsg = fmt.Sprintf("Server Error: %s", err)
+		return "", errors.New(errMsg)
 	}
 
-	defer req1.Body.Close()
-	reqBody, _ = ioutil.ReadAll(req1.Body)
 	reqStatusCode = req1.StatusCode
+	defer req1.Body.Close()
+	reqBody, err = ioutil.ReadAll(req1.Body)
+	if err != nil {
+		errMsg = fmt.Sprintf("Server Error: [%s] %s", reqStatusCode, err)
+		return "", errors.New(errMsg)
+	}
 
 	if reqStatusCode == 201 {
 		status = "Account Created\n"
