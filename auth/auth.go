@@ -107,7 +107,7 @@ func Login(authConfig AuthConfig) (string, error) {
 	defer req1.Body.Close()
 	reqBody, err = ioutil.ReadAll(req1.Body)
 	if err != nil {
-		errMsg = fmt.Sprintf("Server Error: [%s] %s", reqStatusCode, err)
+		errMsg = fmt.Sprintf("Server Error: [%#v] %s", reqStatusCode, err)
 		return "", errors.New(errMsg)
 	}
 
