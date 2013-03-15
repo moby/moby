@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"testing"
 )
 
@@ -40,6 +41,12 @@ func init() {
 	if SelfPath() == "/sbin/init" {
 		SysInit()
 		return
+	}
+
+	if usr, err := user.Current(); err != nil {
+		panic(err)
+	} else if usr.Uid != "0" {
+		panic("docker tests needs to be run as root")
 	}
 
 	// Create a temp directory
