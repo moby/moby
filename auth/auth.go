@@ -88,6 +88,7 @@ func Login(authConfig AuthConfig) (string, error) {
 	storeConfig := false
 	reqStatusCode := 0
 	var status string
+	var errMsg string
 	var reqBody []byte
 	jsonBody, err := json.Marshal(authConfig)
 	if err != nil {
