@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/main.css">
     <!-- <link rel="stylesheet" href="css/docs.css" > -->
 
+
     <script src="js/vendor/jquery-1.9.1.min.js" type="text/javascript" ></script>
     <script src="js/vendor/modernizr-2.6.2-respond-1.1.0.min.js" type="text/javascript" ></script>
 </head>
@@ -22,12 +23,60 @@
 
 <body>
 
+
+
+
+<!-- Modal -->
+<div id="myModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <!--<h3 id="myModalLabel">Get news on Docker</h3>-->
+    </div>
+    <div class="modal-body" style="max-height: 550px;" >
+        <p >
+            <div id="wufoo-z7x3p3">
+                Fill out my <a href="http://dotclouddocker.wufoo.com/forms/z7x3p3">online form</a>.
+            </div>
+            <script type="text/javascript">var z7x3p3;(function(d, t) {
+                var s = d.createElement(t), options = {
+                    'userName':'dotclouddocker',
+                    'formHash':'z7x3p3',
+                    'autoResize':true,
+                    'height':'577',
+                    'async':true,
+                    'header':'show'};
+                s.src = ('https:' == d.location.protocol ? 'https://' : 'http://') + 'wufoo.com/scripts/embed/form.js';
+                s.onload = s.onreadystatechange = function() {
+                    var rs = this.readyState; if (rs) if (rs != 'complete') if (rs != 'loaded') return;
+                    try { z7x3p3 = new WufooForm();z7x3p3.initialize(options);z7x3p3.display(); } catch (e) {}};
+                var scr = d.getElementsByTagName(t)[0], par = scr.parentNode; par.insertBefore(s, scr);
+            })(document, 'script');</script>
+        </p>
+    </div>
+    <!--<div class="modal-footer">-->
+        <!--<span class="font-size: smaller;">scroll down</span>-->
+    <!--</div>-->
+</div>
+
 <div class="container">
     <div class="row">
-        <div class="span12 titlebar"><h1 class="pageheader">Docker</h1></div>
+        <div class="span12 titlebar">
+            <h1 class="pageheader pull-left">Docker</h1>
+            <a href="#myModal" role="button" class="btn-large btn-primary pull-right" data-toggle="modal" style="margin: 8px;">I think this is cool, keep me up to date!</a>
+        </div>
+
     </div>
 
 </div>
+
+<!--<div class="container">-->
+    <!--<div class="row">-->
+        <!--<div class="text-center" style="height: 60px">-->
+            <!--&lt;!&ndash; Button to trigger modal &ndash;&gt;-->
+            <!--<a href="#myModal" role="button" class="btn-large btn-primary " data-toggle="modal">Keep me up to date</a>-->
+        <!--</div>-->
+    <!--</div>-->
+<!--</div>-->
 
 <div class="container">
     <div class="row">
@@ -216,5 +265,15 @@
     </div> <!-- end row -->
 </div> <!-- end container -->
 
+
+<!-- bootstrap javascipts -->
+
+<script src="js/vendor/bootstrap.min.js" type="text/javascript"></script>
+
 </body>
+
+
+
+
+
 </html>
