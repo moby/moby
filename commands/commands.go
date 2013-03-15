@@ -84,16 +84,16 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	}
 
 	fmt.Fprint(stdout, "Username (", authConfig.Username, "): ")
-	fmt.Scanf("%s", &username)
+	fmt.Fscanf(stdin, "%s", &username)
 	if username == "" {
 		username = authConfig.Username
 	}
 	if username != authConfig.Username {
 		fmt.Fprint(stdout, "Password: ")
-		fmt.Scanf("%s", &password)
+		fmt.Fscanf(stdin, "%s", &password)
 
 		fmt.Fprint(stdout, "Email (", authConfig.Email, "): ")
-		fmt.Scanf("%s", &email)
+		fmt.Fscanf(stdin, "%s", &email)
 		if email == "" {
 			email = authConfig.Email
 		}
