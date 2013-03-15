@@ -74,14 +74,14 @@ func (docker *Docker) Destroy(container *Container) error {
 	}
 	if container.Mountpoint.Mounted() {
 		if err := container.Mountpoint.Umount(); err != nil {
-			log.Printf("Unable to umount container %v: %v", container.Id, err)
+			return fmt.Errorf("Unable to umount container %v: %v", container.Id, err)
 		}
 	}
 	if err := container.Mountpoint.Deregister(); err != nil {
-		log.Printf("Unable to deregiser mountpoint %v: %v", container.Mountpoint.Root, err)
+		return fmt.Errorf("Unable to deregiser -- ? mountpoint %v: %v", container.Mountpoint.Root, err)
 	}
 	if err := os.RemoveAll(container.Root); err != nil {
-		log.Printf("Unable to remove filesystem for %v: %v", container.Id, err)
+		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
 	}
 	docker.containers.Remove(element)
 	return nil
