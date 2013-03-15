@@ -1,4 +1,4 @@
-package commands
+package docker
 
 import (
 	"bufio"
@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/fs"
 	"github.com/dotcloud/docker/future"
@@ -24,7 +23,7 @@ import (
 	"time"
 )
 
-const VERSION = "0.0.1"
+const VERSION = "0.0.2"
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -589,7 +588,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		if !*quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 			if !*fl_full {
-				command = docker.Trunc(command, 20)
+				command = Trunc(command, 20)
 			}
 			for idx, field := range []string{
 				/* ID */ container.Id,
@@ -780,10 +779,10 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return errors.New("No such container: " + cmd.Arg(0))
 }
 
-func (srv *Server) CreateContainer(img *fs.Image, ports []int, user string, tty bool, openStdin bool, memory int64, comment string, cmd string, args ...string) (*docker.Container, error) {
+func (srv *Server) CreateContainer(img *fs.Image, ports []int, user string, tty bool, openStdin bool, memory int64, comment string, cmd string, args ...string) (*Container, error) {
 	id := future.RandomId()[:8]
 	container, err := srv.containers.Create(id, cmd, args, img,
-		&docker.Config{
+		&Config{
 			Hostname:  id,
 			Ports:     ports,
 			User:      user,
@@ -984,12 +983,12 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	return nil
 }
 
-func New() (*Server, error) {
+func NewServer() (*Server, error) {
 	future.Seed()
 	// if err != nil {
 	// 	return nil, err
 	// }
-	containers, err := docker.New()
+	containers, err := New()
 	if err != nil {
 		return nil, err
 	}
@@ -1040,6 +1039,6 @@ func (srv *Server) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 type Server struct {
-	containers *docker.Docker
+	containers *Docker
 	images     *fs.Store
 }

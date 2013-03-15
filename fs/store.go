@@ -112,7 +112,7 @@ func (store *Store) Remove(img *Image) error {
 
 func (store *Store) List(pth string) ([]*Image, error) {
 	pth = path.Clean(pth)
-	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id", pth)
+	images, err := store.orm.Select(Image{}, "select images.* from images, paths where Path=? and paths.Image=images.Id order by images.Created desc", pth)
 	if err != nil {
 		return nil, err
 	}

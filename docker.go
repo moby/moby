@@ -76,10 +76,9 @@ func (docker *Docker) Destroy(container *Container) error {
 		if err := container.Mountpoint.Umount(); err != nil {
 			log.Printf("Unable to umount container %v: %v", container.Id, err)
 		}
-
-		if err := container.Mountpoint.Deregister(); err != nil {
-			log.Printf("Unable to deregiser mountpoint %v: %v", container.Mountpoint.Root, err)
-		}
+	}
+	if err := container.Mountpoint.Deregister(); err != nil {
+		log.Printf("Unable to deregiser mountpoint %v: %v", container.Mountpoint.Root, err)
 	}
 	if err := os.RemoveAll(container.Root); err != nil {
 		log.Printf("Unable to remove filesystem for %v: %v", container.Id, err)
@@ -109,6 +108,12 @@ func New() (*Docker, error) {
 }
 
 func NewFromDirectory(root string) (*Docker, error) {
+	docker_repo := path.Join(root, "containers")
+
+	if err := os.MkdirAll(docker_repo, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	store, err := fs.New(path.Join(root, "images"))
 	if err != nil {
 		return nil, err
@@ -120,14 +125,10 @@ func NewFromDirectory(root string) (*Docker, error) {
 
 	docker := &Docker{
 		root:           root,
-		repository:     path.Join(root, "containers"),
+		repository:     docker_repo,
 		containers:     list.New(),
 		Store:          store,
 		networkManager: netManager,
-	}
-
-	if err := os.MkdirAll(docker.repository, 0700); err != nil && !os.IsExist(err) {
-		return nil, err
 	}
 
 	if err := docker.restore(); err != nil {
