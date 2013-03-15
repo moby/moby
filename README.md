@@ -81,7 +81,7 @@ variables and omit the ``provider`` flag. VirtualBox is still supported with
 Vagrant <= 1.1:
 
 ```bash
-		$ vagrant up --provider=aws
+		$ vagrant up
 ```
 
 Installing on Ubuntu 12.04 and 12.10
