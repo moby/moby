@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+// FIXME: Remove the Fake package
+
 func TestInit(t *testing.T) {
 	store, err := TempStore("testinit")
 	if err != nil {
@@ -26,6 +28,8 @@ func TestInit(t *testing.T) {
 	}
 }
 
+// FIXME: Do more extensive tests (ex: create multiple, delete, recreate;
+//       create multiple, check the amount of images and paths, etc..)
 func TestCreate(t *testing.T) {
 	store, err := TempStore("testcreate")
 	if err != nil {
@@ -229,6 +233,8 @@ func TestMountpointDuplicateRoot(t *testing.T) {
 	}
 }
 
+// FIXME: Move this function somewhere else to allow go test to run as non-root
+// FIXME: Nuke everything afterward (currently leave 2 dir in /tmp)
 func TestMount(t *testing.T) {
 	store, err := TempStore("test-mount")
 	if err != nil {
