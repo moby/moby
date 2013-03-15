@@ -92,14 +92,14 @@ func Login(authConfig AuthConfig) (string, error) {
 	jsonBody, _ := json.Marshal(authConfig)
 	b := strings.NewReader(string(jsonBody))
 	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
-	if err == nil {
-		body, _ := ioutil.ReadAll(req1.Body)
-		reqStatusCode = req1.StatusCode
-		reqBody = body
-		req1.Body.Close()
-	} else {
+	if err != nil {
 		return "", err
 	}
+
+	reqBody, _ = ioutil.ReadAll(req1.Body)
+	reqStatusCode = req1.StatusCode
+	req1.Body.Close()
+
 	if reqStatusCode == 201 {
 		status = "Account Created\n"
 		storeConfig = true
@@ -121,12 +121,16 @@ func Login(authConfig AuthConfig) (string, error) {
 				status = "Login Succeeded\n"
 				storeConfig = true
 			} else {
-				storeConfig = false
-				status = fmt.Sprintf("Error: %s\n", body)
+				status = fmt.Sprintf("Login Error: %s\n", body)
+				return "", errors.New(status)
 			}
 		} else {
-			status = fmt.Sprintf("Error: %s\n", reqBody)
+			status = fmt.Sprintf("Registration Error: %s\n", reqBody)
+			return "", errors.New(status)
 		}
+	} else {
+		status = fmt.Sprintf("Error: %s : %s \n", reqStatusCode, reqBody)
+		return "", errors.New(status)
 	}
 	if storeConfig {
 		authStr := EncodeAuth(authConfig)
