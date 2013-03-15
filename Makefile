@@ -8,35 +8,9 @@ GITHUB_PATH=src/github.com/dotcloud/docker
 INSDIR=usr/bin
 SOURCE_PACKAGE=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz
 DEB_PACKAGE=$(PKG_NAME)_$(PKG_VERSION)_$(PKG_ARCH).deb
-
-TMPDIR=$(shell mktemp -d -t XXXXXX)
-
 EXTRA_GO_PKG=fs auth
 
-# Build local sources
-$(PKG_NAME): build_local
-
-build_local:
-	-@mkdir -p bin
-	cd docker && go build -o ../bin/docker
-
-test:
-	@echo "\033[36m[Testing]\033[00m docker..."
-	@sudo -E go test -v && \
-		echo -n "\033[32m[OK]\033[00m" || \
-		echo -n "\033[31m[FAIL]\033[00m"; \
-		echo " docker"
-	@echo "Testing extra repos {$(EXTRA_GO_PKG)}"
-	@for package in $(EXTRA_GO_PKG); do \
-		echo "\033[36m[Testing]\033[00m docker/$$package..." && \
-		cd $$package ; \
-		sudo -E go test -v && \
-			echo -n "\033[32m[OK]\033[00m" || \
-			echo -n "\033[31m[FAIL]\033[00m" ; \
-			echo " docker/$$package" ; \
-		cd .. ;\
-	done
-	@sudo rm -rf /tmp/docker-*
+TMPDIR=$(shell mktemp -d -t XXXXXX)
 
 
 # Build a debian source package
@@ -80,5 +54,31 @@ $(DEB_PACKAGE): $(SOURCE_PACKAGE)
 
 debsrc: $(SOURCE_PACKAGE)
 
+# Build local sources
+#$(PKG_NAME): build_local
+
+build_local:
+	-@mkdir -p bin
+	cd docker && go build -o ../bin/docker
+
+gotest:
+	@echo "\033[36m[Testing]\033[00m docker..."
+	@sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v && \
+		echo -n "\033[32m[OK]\033[00m" || \
+		echo -n "\033[31m[FAIL]\033[00m"; \
+		echo " docker"
+	@echo "Testing extra repos {$(EXTRA_GO_PKG)}"
+	@for package in $(EXTRA_GO_PKG); do \
+		echo "\033[36m[Testing]\033[00m docker/$$package..." && \
+		cd $$package ; \
+		sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v && \
+			echo -n "\033[32m[OK]\033[00m" || \
+			echo -n "\033[31m[FAIL]\033[00m" ; \
+			echo " docker/$$package" ; \
+		cd .. ;\
+	done
+	@sudo rm -rf /tmp/docker-*
+
 cleanup:
+
 	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz
