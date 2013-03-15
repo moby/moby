@@ -8,6 +8,41 @@ import (
 	"testing"
 )
 
+// Look for inconsistencies in a store.
+func healthCheck(store *Store) error {
+	parents := make(map[string]bool)
+	paths, err := store.Paths()
+	if err != nil {
+		return err
+	}
+	for _, path := range paths {
+		images, err := store.List(path)
+		if err != nil {
+			return err
+		}
+		IDs := make(map[string]bool) // All IDs for this path
+		for _, img := range images {
+			// Check for duplicate IDs per path
+			if _, exists := IDs[img.Id]; exists {
+				return errors.New(fmt.Sprintf("Duplicate ID: %s", img.Id))
+			} else {
+				IDs[img.Id] = true
+			}
+			// Store parent for 2nd pass
+			if parent := img.Parent; parent != "" {
+				parents[parent] = true
+			}
+		}
+	}
+	// Check non-existing parents
+	for parent := range parents {
+		if _, exists := parents[parent]; !exists {
+			return errors.New("Reference to non-registered parent: " + parent)
+		}
+	}
+	return nil
+}
+
 // Note: This test is in the docker package because he needs to be run as root
 func TestMount(t *testing.T) {
 	dir, err := ioutil.TempDir("", "docker-fs-test-mount")
@@ -73,7 +108,7 @@ func TestMount(t *testing.T) {
 		t.Fatal("Wrong number of mountpoints registered (should be %d, not %d)", 0, len(mps))
 	}
 	// General health check
-	// if err := healthCheck(store); err != nil {
-	// 	t.Fatal(err)
-	// }
+	if err := healthCheck(store); err != nil {
+		t.Fatal(err)
+	}
 }
