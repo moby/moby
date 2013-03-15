@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/fs"
 	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
@@ -47,6 +48,7 @@ func (srv *Server) Help() string {
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"layers", "(debug only) List filesystem layers"},
+		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"ls", "List the contents of a container's directory"},
 		{"mirror", "(debug only) (No documentation available)"},
@@ -69,6 +71,43 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
 	}
 	return help
+}
+
+// 'docker login': login / register a user to registry service.
+func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	var username string
+	var password string
+	var email string
+	authConfig, err := auth.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(stdout, "Error : %s\n", err)
+	}
+
+	fmt.Fprint(stdout, "Username (", authConfig.Username, "): ")
+	fmt.Scanf("%s", &username)
+	if username == "" {
+		username = authConfig.Username
+	}
+	if username != authConfig.Username {
+		fmt.Fprint(stdout, "Password: ")
+		fmt.Scanf("%s", &password)
+
+		fmt.Fprint(stdout, "Email (", authConfig.Email, "): ")
+		fmt.Scanf("%s", &email)
+		if email == "" {
+			email = authConfig.Email
+		}
+	} else {
+		password = authConfig.Password
+		email = authConfig.Email
+	}
+	newAuthConfig := auth.AuthConfig{Username: username, Password: password, Email: email}
+	status, err := auth.Login(newAuthConfig)
+	if err != nil {
+		fmt.Fprintf(stdout, "Error : %s\n", err)
+	}
+	fmt.Fprintf(stdout, status)
+	return nil
 }
 
 // 'docker wait': block until a container stops
