@@ -58,9 +58,11 @@ h1.pageheader {
 	Main content layout
 ===================== */
 .contentblock {
+  margin-top: 20px;
   border-width: 3px;
-  border-style: solid;
-  border-color: #eeeeee;
+  background-color: #eeeeee;
+  box-sizing: content-box;
+  padding: 20px;
 }
 /* ===================
 	left navigation
