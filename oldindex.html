@@ -24,26 +24,73 @@
 <body>
 
 
-<div class="container">
-    <div class="row">
-        <!--<div class="span12">-->
-        <div class="text-center">
-            <img src="img/crane-logo.png">
-        </div>
-
+<!-- Modal -->
+<div id="myModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <!--<h3 id="myModalLabel">Get news on Docker</h3>-->
     </div>
+    <div class="modal-body" style="max-height: 550px; height: 550px" >
+        <div id="wufoo-z7x3p3">
+            Fill out my <a href="http://dotclouddocker.wufoo.com/forms/z7x3p3">online form</a>.
+        </div>
+        <script type="text/javascript">var z7x3p3;(function(d, t) {
+            var s = d.createElement(t), options = {
+                'userName':'dotclouddocker',
+                'formHash':'z7x3p3',
+                'autoResize':true,
+                'height':'577',
+                'async':true,
+                'header':'show'};
+            s.src = ('https:' == d.location.protocol ? 'https://' : 'http://') + 'wufoo.com/scripts/embed/form.js';
+            s.onload = s.onreadystatechange = function() {
+                var rs = this.readyState; if (rs) if (rs != 'complete') if (rs != 'loaded') return;
+                try { z7x3p3 = new WufooForm();z7x3p3.initialize(options);z7x3p3.display(); } catch (e) {}};
+            var scr = d.getElementsByTagName(t)[0], par = scr.parentNode; par.insertBefore(s, scr);
+        })(document, 'script');</script>
+    </div>
+    <!--<div class="modal-footer">-->
+        <!--<span class="font-size: smaller;">scroll down</span>-->
+    <!--</div>-->
 </div>
 
 <div class="container">
     <div class="row">
+        <div class="span12 titlebar">
+            <h1 class="pageheader pull-left">Docker</h1>
+            <a href="#myModal" role="button" class="btn-large btn-primary pull-right" data-toggle="modal" style="margin: 8px;">I think this is cool, keep me up to date!</a>
+        </div>
+
+    </div>
+
+</div>
+
+<!--<div class="container">-->
+<!--<div class="row">-->
+<!--<div class="text-center" style="height: 60px">-->
+<!--&lt;!&ndash; Button to trigger modal &ndash;&gt;-->
+<!--<a href="#myModal" role="button" class="btn-large btn-primary " data-toggle="modal">Keep me up to date</a>-->
+<!--</div>-->
+<!--</div>-->
+<!--</div>-->
+
+<div class="container">
+    <div class="row">
         <div class="span12">
-            <section class="contentblock">
+            <section>
+
+            <a href="https://twitter.com/getdocker" class="twitter-follow-button" data-show-count="false" data-size="large">Follow @getdocker</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+
+ 
 
                 <h1>Docker is a process manager with superpowers</h1>
 
-                <p>It encapsulates heterogeneous payloads in <a href="#container">Standard Containers</a>, and runs them on any server with strong guarantees of isolation and repeatability.</p>
+                <p>It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.</p>
 
                 <p>Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.</p>
+
+                <p><img src="img/lego_docker.jpg" width="640" /></p>
 
                 <ul>
                     <li><em>Heterogeneous payloads</em>: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.</li>
@@ -75,44 +122,101 @@
                     <li><a href="http://lxc.sourceforge.net/">lxc</a>, a set of convenience scripts to simplify the creation of linux containers.</li>
                 </ul>
 
-            </section>
-        </div>
-    </div>
-    <div class="row">
-        <div class="span6">
-            <section class="contentblock">
-                <div id="wufoo-z7x3p3">
-                    Fill out my <a href="http://dotclouddocker.wufoo.com/forms/z7x3p3">online form</a>.
-                </div>
-                <script type="text/javascript">var z7x3p3;(function(d, t) {
-                    var s = d.createElement(t), options = {
-                        'userName':'dotclouddocker',
-                        'formHash':'z7x3p3',
-                        'autoResize':true,
-                        'height':'577',
-                        'async':true,
-                        'header':'show'};
-                    s.src = ('https:' == d.location.protocol ? 'https://' : 'http://') + 'wufoo.com/scripts/embed/form.js';
-                    s.onload = s.onreadystatechange = function() {
-                        var rs = this.readyState; if (rs) if (rs != 'complete') if (rs != 'loaded') return;
-                        try { z7x3p3 = new WufooForm();z7x3p3.initialize(options);z7x3p3.display(); } catch (e) {}};
-                    var scr = d.getElementsByTagName(t)[0], par = scr.parentNode; par.insertBefore(s, scr);
-                })(document, 'script');</script>
-            </section>
-        </div>
+                <h1>Install instructions</h1>
 
-        <div class="span6">
-            <section class="contentblock">
-                <a class="twitter-timeline" href="https://twitter.com/getdocker" data-widget-id="312730839718957056">Tweets by @getdocker</a>
-                <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
-            </section>
-        </div>
+                <h2>Installing on Ubuntu 12.04 and 12.10</h2>
 
-    </div> <!-- end row -->
+                <ol>
+                    <li>Install dependencies:</li>
+                </ol>
 
-    <div class="row">
-        <div class="span12">
-            <section id="container" class="contentblock">
+                <p><code>bash
+                    sudo apt-get install lxc wget bsdtar curl
+                </code></p>
+
+                <ol>
+                    <li>Install the latest docker binary:</li>
+                </ol>
+
+                <p><code>bash
+                    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+                    tar -xf docker-master.tgz
+                </code></p>
+
+                <ol>
+                    <li>Run your first container!</li>
+                </ol>
+
+                <p><code>bash
+                    cd docker-master
+                    sudo ./docker import base
+                    sudo ./docker run -a -i -t base /bin/bash
+                </code></p>
+
+                <p>Consider adding docker to your <code>PATH</code> for simplicity.</p>
+
+                <h2>Installing on other Linux distributions</h2>
+
+                <p>Right now, the officially supported distributions are:</p>
+
+                <ul>
+                    <li>Ubuntu 12.04 (precise LTS)</li>
+                    <li>Ubuntu 12.10 (quantal)</li>
+                </ul>
+
+                <p>Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.</p>
+
+                <h1>Usage examples</h1>
+
+                <h2>Running an interactive shell</h2>
+
+<pre><code>
+    # Download a base image
+    docker import base
+    
+    # Run an interactive shell in the base image,
+    # allocate a tty, attach stdin and stdout
+    docker run -a -i -t base /bin/bash
+</code></pre>
+
+<h2>Starting a long-running worker process</h2>
+
+<pre><code>
+    # Run docker in daemon mode
+    (docker -d || echo "Docker daemon already running")
+    
+    # Start a very useful long-running process
+    JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
+
+    # Collect the output of the job so far
+    docker logs $JOB
+
+    # Kill the job
+    docker kill $JOB
+</code></pre>
+
+                <h2>Listing all running containers</h2>
+
+                <p><code>bash
+                    docker ps
+                </code></p>
+
+                <h2>Expose a service on a TCP port</h2>
+
+<pre><code>
+    # Expose port 4444 of this container, and tell netcat to listen on it
+    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
+
+    # Which public port is NATed to my container?
+    PORT=$(docker port $JOB 4444)
+
+    # Connect to the public port via the host's public address
+    echo hello world | nc $(hostname) $PORT
+
+    # Verify that the network connection worked
+    echo "Daemon received: $(docker logs $JOB)"
+</code></pre>
+
                 <h1>What is a Standard Container?</h1>
 
                 <p>Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
@@ -147,33 +251,14 @@
                 <p>There are 17 million shipping containers in existence, packed with every physical good imaginable. Every single one of them can be loaded on the same boats, by the same cranes, in the same facilities, and sent anywhere in the World with incredible efficiency. It is embarrassing to think that a 30 ton shipment of coffee can safely travel half-way across the World in <em>less time</em> than it takes a software team to deliver its code from one datacenter to another sitting 10 miles away.</p>
 
                 <p>With Standard Containers we can put an end to that embarrassment, by making INDUSTRIAL-GRADE DELIVERY of software a reality.</p>
+
+
             </section>
+
         </div>
-    </div>
-
-
-
-
+    </div> <!-- end row -->
 </div> <!-- end container -->
 
-
-
-
-<hr>
-<footer>
-    <div class="row">
-        <div class="text-center">
-            Docker is an open source project by <a href="http://www.dotcloud.com">dotCloud</a>. When released, find us on <a href="http://github.com/dotcloud/docker/">Github</a>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="emptyspace" style="height: 40px">
-
-        </div>
-    </div>
-
-</footer>
 
 <!-- bootstrap javascipts -->
 
