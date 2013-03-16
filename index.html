@@ -20,6 +20,7 @@
     <script src="js/vendor/modernizr-2.6.2-respond-1.1.0.min.js" type="text/javascript" ></script>
 </head>
 
+
 <body>
 
 
@@ -49,7 +50,7 @@
         })(document, 'script');</script>
     </div>
     <!--<div class="modal-footer">-->
-    <!--<span class="font-size: smaller;">scroll down</span>-->
+        <!--<span class="font-size: smaller;">scroll down</span>-->
     <!--</div>-->
 </div>
 
@@ -77,6 +78,11 @@
     <div class="row">
         <div class="span12">
             <section>
+
+            <a href="https://twitter.com/getdocker" class="twitter-follow-button" data-show-count="false" data-size="large">Follow @getdocker</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+
+ 
 
                 <h1>Docker is a process manager with superpowers</h1>
 
@@ -164,24 +170,22 @@
 
                 <h2>Running an interactive shell</h2>
 
-                <p>```bash
-                    # Download a base image
-                    docker import base</p>
-
-<pre><code># Run an interactive shell in the base image,
+<pre><code>
+    # Download a base image
+    docker import base
+    
+    # Run an interactive shell in the base image,
     # allocate a tty, attach stdin and stdout
     docker run -a -i -t base /bin/bash
 </code></pre>
 
-                <p>```</p>
+<h2>Starting a long-running worker process</h2>
 
-                <h2>Starting a long-running worker process</h2>
-
-                <p>```bash
-                    # Run docker in daemon mode
-                    (docker -d || echo "Docker daemon already running") &amp;</p>
-
-<pre><code># Start a very useful long-running process
+<pre><code>
+    # Run docker in daemon mode
+    (docker -d || echo "Docker daemon already running")
+    
+    # Start a very useful long-running process
     JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
 
     # Collect the output of the job so far
@@ -191,8 +195,6 @@
     docker kill $JOB
 </code></pre>
 
-                <p>```</p>
-
                 <h2>Listing all running containers</h2>
 
                 <p><code>bash
@@ -201,11 +203,11 @@
 
                 <h2>Expose a service on a TCP port</h2>
 
-                <p>```bash
-                    # Expose port 4444 of this container, and tell netcat to listen on it
-                    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)</p>
+<pre><code>
+    # Expose port 4444 of this container, and tell netcat to listen on it
+    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
 
-<pre><code># Which public port is NATed to my container?
+    # Which public port is NATed to my container?
     PORT=$(docker port $JOB 4444)
 
     # Connect to the public port via the host's public address
@@ -214,8 +216,6 @@
     # Verify that the network connection worked
     echo "Daemon received: $(docker logs $JOB)"
 </code></pre>
-
-                <p>```</p>
 
                 <h1>What is a Standard Container?</h1>
 
@@ -254,7 +254,6 @@
 
 
             </section>
-
 
         </div>
     </div> <!-- end row -->
