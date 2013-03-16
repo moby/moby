@@ -104,7 +104,6 @@ Installing on Ubuntu 12.04 and 12.10
 
 ```bash
 	cd docker-master
-	sudo ./docker import base
 	sudo ./docker run -a -i -t base /bin/bash
 ```
 
