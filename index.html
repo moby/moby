@@ -169,24 +169,22 @@
 
                 <h2>Running an interactive shell</h2>
 
-                <p>```bash
-                    # Download a base image
-                    docker import base</p>
-
-<pre><code># Run an interactive shell in the base image,
+<pre><code>
+    # Download a base image
+    docker import base
+    
+    # Run an interactive shell in the base image,
     # allocate a tty, attach stdin and stdout
     docker run -a -i -t base /bin/bash
 </code></pre>
 
-                <p>```</p>
+<h2>Starting a long-running worker process</h2>
 
-                <h2>Starting a long-running worker process</h2>
-
-                <p>```bash
-                    # Run docker in daemon mode
-                    (docker -d || echo "Docker daemon already running") &amp;</p>
-
-<pre><code># Start a very useful long-running process
+<pre><code>
+    # Run docker in daemon mode
+    (docker -d || echo "Docker daemon already running")
+    
+    # Start a very useful long-running process
     JOB=$(docker run /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
 
     # Collect the output of the job so far
@@ -196,8 +194,6 @@
     docker kill $JOB
 </code></pre>
 
-                <p>```</p>
-
                 <h2>Listing all running containers</h2>
 
                 <p><code>bash
@@ -206,11 +202,11 @@
 
                 <h2>Expose a service on a TCP port</h2>
 
-                <p>```bash
-                    # Expose port 4444 of this container, and tell netcat to listen on it
-                    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)</p>
+<pre><code>
+    # Expose port 4444 of this container, and tell netcat to listen on it
+    JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
 
-<pre><code># Which public port is NATed to my container?
+    # Which public port is NATed to my container?
     PORT=$(docker port $JOB 4444)
 
     # Connect to the public port via the host's public address
@@ -219,8 +215,6 @@
     # Verify that the network connection worked
     echo "Daemon received: $(docker logs $JOB)"
 </code></pre>
-
-                <p>```</p>
 
                 <h1>What is a Standard Container?</h1>
 
