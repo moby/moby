@@ -101,23 +101,24 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 
 // Reader with progress bar
 type progressReader struct {
-	reader         io.ReadCloser  // Stream to read from
-	output         io.Writer      // Where to send progress bar to
-	read_total     int            // Expected stream length (bytes)
-	read_progress  int            // How much has been read so far (bytes)
-	last_update    int            // How many bytes read at least update
+	reader        io.ReadCloser // Stream to read from
+	output        io.Writer     // Where to send progress bar to
+	read_total    int           // Expected stream length (bytes)
+	read_progress int           // How much has been read so far (bytes)
+	last_update   int           // How many bytes read at least update
 }
+
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.read_progress += read
 
 	// Only update progress for every 1% read
 	update_every := int(0.01 * float64(r.read_total))
-    if r.read_progress - r.last_update > update_every || r.read_progress == r.read_total {
-		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r", 
+	if r.read_progress-r.last_update > update_every || r.read_progress == r.read_total {
+		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r",
 			r.read_progress,
 			r.read_total,
-			float64(r.read_progress) / float64(r.read_total) * 100)
+			float64(r.read_progress)/float64(r.read_total)*100)
 		r.last_update = r.read_progress
 	}
 	// Send newline when complete
