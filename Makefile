@@ -80,4 +80,4 @@ gotest:
 	@sudo rm -rf /tmp/docker-*
 
 clean:
-	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz
+	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz bin
