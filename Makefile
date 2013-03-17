@@ -14,7 +14,7 @@ TMPDIR=$(shell mktemp -d -t XXXXXX)
 
 
 # Build a debian source package
-all: build_in_deb
+all: clean build_in_deb
 
 build_in_deb:
 	echo "GOPATH = " $(ROOT_PATH)
