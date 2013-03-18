@@ -1,7 +1,7 @@
-Docker is a process manager with superpowers
-============================================
+Docker: the Linux container runtime
+===================================
 
-It encapsulates heterogeneous payloads in Standard Containers, and runs them on any server with strong guarantees of isolation and repeatability.
+Docker complements LXC with a high-level API with operates at the process level. It runs unix processes with strong guarantees of isolation and repeatability across servers.
 
 Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
 
