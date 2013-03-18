@@ -53,37 +53,6 @@ Under the hood, Docker is built on the following components:
 Install instructions
 ==================
 
-Installing with Vagrant
------------------------
-
-Currently, Docker can be installed with Vagrant both on your localhost
-with VirtualBox as well as on Amazon EC2. Vagrant 1.1 is required for
-EC2, but deploying is as simple as:
-
-```bash
-		$ export AWS_ACCESS_KEY_ID=xxx \
-			AWS_SECRET_ACCESS_KEY=xxx \
-			AWS_KEYPAIR_NAME=xxx \
-			AWS_SSH_PRIVKEY=xxx
-		$ vagrant plugin install vagrant-aws
-		$ vagrant up --provider=aws
-```
-
-The environment variables are:
-
-* `AWS_ACCESS_KEY_ID` - The API key used to make requests to AWS
-* `AWS_SECRET_ACCESS_KEY` - The secret key to make AWS API requests
-* `AWS_KEYPAIR_NAME` - The name of the keypair used for this EC2 instance
-* `AWS_SSH_PRIVKEY` - The path to the private key for the named keypair
-
-For VirtualBox, you can simply ignore setting any of the environment
-variables and omit the ``provider`` flag. VirtualBox is still supported with
-Vagrant <= 1.1:
-
-```bash
-		$ vagrant up
-```
-
 Installing on Ubuntu 12.04 and 12.10
 ------------------------------------
 
@@ -118,6 +87,38 @@ Right now, the officially supported distributions are:
 * Ubuntu 12.10 (quantal)
 
 Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
+
+Installing with Vagrant
+-----------------------
+
+Currently, Docker can be installed with Vagrant both on your localhost
+with VirtualBox as well as on Amazon EC2. Vagrant 1.1 is required for
+EC2, but deploying is as simple as:
+
+```bash
+		$ export AWS_ACCESS_KEY_ID=xxx \
+			AWS_SECRET_ACCESS_KEY=xxx \
+			AWS_KEYPAIR_NAME=xxx \
+			AWS_SSH_PRIVKEY=xxx
+		$ vagrant plugin install vagrant-aws
+		$ vagrant up --provider=aws
+```
+
+The environment variables are:
+
+* `AWS_ACCESS_KEY_ID` - The API key used to make requests to AWS
+* `AWS_SECRET_ACCESS_KEY` - The secret key to make AWS API requests
+* `AWS_KEYPAIR_NAME` - The name of the keypair used for this EC2 instance
+* `AWS_SSH_PRIVKEY` - The path to the private key for the named keypair
+
+For VirtualBox, you can simply ignore setting any of the environment
+variables and omit the ``provider`` flag. VirtualBox is still supported with
+Vagrant <= 1.1:
+
+```bash
+		$ vagrant up
+```
+
 
 
 Usage examples
