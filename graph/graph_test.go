@@ -118,6 +118,54 @@ func TestMount(t *testing.T) {
 	}()
 }
 
+func TestDelete(t *testing.T) {
+	graph := tempGraph(t)
+	defer os.RemoveAll(graph.Root)
+	archive, err := fake.FakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 0)
+	img, err := graph.Create(archive, "", "Bla bla")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 1)
+	if err := graph.Delete(img.Id); err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 0)
+
+	// Test 2 create (same name) / 1 delete
+	img1, err := graph.Create(archive, "foo", "Testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = graph.Create(archive, "foo", "Testing"); err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 2)
+	if err := graph.Delete(img1.Id); err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 1)
+
+	// Test delete wrong name
+	if err := graph.Delete("Not_foo"); err == nil {
+		t.Fatalf("Deleting wrong ID should return an error")
+	}
+	assertNImages(graph, t, 1)
+
+}
+
+func assertNImages(graph *Graph, t *testing.T, n int) {
+	if images, err := graph.All(); err != nil {
+		t.Fatal(err)
+	} else if actualN := len(images); actualN != n {
+		t.Fatalf("Expected %d images, found %d", n, actualN)
+	}
+}
+
 /*
  * HELPER FUNCTIONS
  */
