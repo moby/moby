@@ -531,7 +531,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\n")
+		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\tCOMMENTS\n")
 	}
 	paths, err := srv.images.Paths()
 	if err != nil {
@@ -555,6 +555,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* ID */ img.Id,
 					/* CREATED */ future.HumanDuration(time.Now().Sub(time.Unix(img.Created, 0))) + " ago",
 					/* PARENT */ img.Parent,
+					/* COMMENT */ img.Comment,
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -659,7 +660,7 @@ func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
-		"commit", "[OPTIONS] CONTAINER [DEST]",
+		"commit", "[OPTIONS] CONTAINER DEST [COMMENTS]",
 		"Create a new image from a container's changes")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -669,6 +670,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
+	comments := strings.Join(args[2:], " ")
 	if container := srv.containers.Get(containerName); container != nil {
 		// FIXME: freeze the container before copying it to avoid data corruption?
 		rwTar, err := fs.Tar(container.Mountpoint.Rw, fs.Uncompressed)
@@ -680,8 +682,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		if err != nil {
 			return err
 		}
-
-		img, err := srv.images.Create(rwTar, parentImg, imgName, "")
+		img, err := srv.images.Create(rwTar, parentImg, imgName, comments)
 		if err != nil {
 			return err
 		}
@@ -689,7 +690,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		fmt.Fprintln(stdout, img.Id)
 		return nil
 	}
-	return errors.New("No such container: " + containerName)
+	return fmt.Errorf("No such container: %s", containerName)
 }
 
 func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
