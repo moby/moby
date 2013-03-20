@@ -2,15 +2,12 @@ package fs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/fake"
 	"github.com/dotcloud/docker/future"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 )
-
-// FIXME: Remove the Fake package
 
 func TestInit(t *testing.T) {
 	store, err := TempStore("testinit")
@@ -35,7 +32,7 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +60,7 @@ func TestRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +94,7 @@ func TestTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +126,7 @@ func TestCopyNewPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +166,7 @@ func TestCopySameName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +186,7 @@ func TestMountPoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +212,7 @@ func TestMountpointDuplicateRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}

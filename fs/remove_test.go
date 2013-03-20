@@ -2,7 +2,6 @@ package fs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/fake"
 	"testing"
 )
 
@@ -20,7 +19,7 @@ func TestRemoveInPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +74,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +140,7 @@ func TestRemoveRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(store)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
