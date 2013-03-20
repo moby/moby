@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-Vagrant.configure("1") do |config|
+"#{Vagrant::VERSION}" < "1.1.0" and Vagrant::Config.run do |config|
   # All Vagrant configuration is done here. The most common configuration
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
@@ -99,7 +99,7 @@ Vagrant.configure("1") do |config|
   #   chef.validation_client_name = "ORGNAME-validator"
 end
 
-Vagrant.configure("2") do |config|
+"#{Vagrant::VERSION}" >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :aws do |aws|
 		config.vm.box = "dummy"
 		config.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
