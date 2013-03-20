@@ -60,7 +60,10 @@ Installing on Ubuntu 12.04 and 12.10
 
 ```bash
         sudo apt-get install lxc wget bsdtar curl
+        sudo apt-get install linux-image-extra-`uname -r`
 ```
+
+The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
 
 2. Install the latest docker binary:
 
