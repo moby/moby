@@ -11,7 +11,7 @@ Is is a great building block for automating distributed systems: large-scale web
 
 * *Any server*: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.
 
-* *Isolation*: docker isolates processes from each other and from the underlying host, using lightweight containers. 
+* *Isolation*: docker isolates processes from each other and from the underlying host, using lightweight containers.
 
 * *Repeatability*: because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.
 
@@ -227,7 +227,7 @@ Setting up a dev environment
 Instructions that is verified to work on Ubuntu 12.10,
 
 ```
-sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang
+sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang git pkg-config
 
 export GOPATH=~/go/
 export PATH=$GOPATH/bin:$PATH
