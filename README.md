@@ -224,9 +224,30 @@ Golang has a great testing suite built in: use it! Take a look at existing tests
 Setting up a dev environment
 ----------------------------
 
-Coming soon!
+Instructions that is verified to work on Ubuntu 12.10,
 
+```
+sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang
 
+export GOPATH=~/go/
+export PATH=$GOPATH/bin:$PATH
+
+mkdir -p $GOPATH/src/github.com/dotcloud
+cd $GOPATH/src/github.com/dotcloud
+git clone git@github.com:dotcloud/docker.git
+cd docker
+
+go get -v github.com/dotcloud/docker/...
+go install -v github.com/dotcloud/docker/...
+```
+
+Then run the docker daemon,
+
+```
+sudo $GOPATH/bin/docker -d
+```
+
+Run the `go install` command (above) to recompile docker.
 
 
 What is a Standard Container?
