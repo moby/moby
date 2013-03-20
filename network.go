@@ -319,7 +319,7 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return nil, err
 	}
 	iface := &NetworkInterface{
-		IPNet:   net.IPNet{ip, manager.bridgeNetwork.Mask},
+		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
 		Gateway: manager.bridgeNetwork.IP,
 		manager: manager,
 	}
