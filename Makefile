@@ -14,7 +14,7 @@ TMPDIR=$(shell mktemp -d -t XXXXXX)
 
 
 # Build a debian source package
-all: build_in_deb
+all: clean build_in_deb
 
 build_in_deb:
 	echo "GOPATH = " $(ROOT_PATH)
@@ -29,7 +29,7 @@ install:
 	install -m 0755 bin/docker $(DESTDIR)/$(INSDIR)
 	install -o root -m 0755 etc/docker.upstart $(DESTDIR)/etc/init/docker.conf
 
-$(BUILD_SRC): cleanup
+$(BUILD_SRC): clean
 	# Copy ourselves into $BUILD_SRC to comply with unusual golang constraints
 	tar --exclude=*.tar.gz --exclude=checkout.tgz -f checkout.tgz -cz *
 	mkdir -p $(BUILD_SRC)/$(GITHUB_PATH)
@@ -79,6 +79,5 @@ gotest:
 	done
 	@sudo rm -rf /tmp/docker-*
 
-cleanup:
-
-	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz
+clean:
+	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz bin

@@ -60,7 +60,10 @@ Installing on Ubuntu 12.04 and 12.10
 
 ```bash
         sudo apt-get install lxc wget bsdtar curl
+        sudo apt-get install linux-image-extra-`uname -r`
 ```
+
+The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
 
 2. Install the latest docker binary:
 
@@ -221,9 +224,30 @@ Golang has a great testing suite built in: use it! Take a look at existing tests
 Setting up a dev environment
 ----------------------------
 
-Coming soon!
+Instructions that is verified to work on Ubuntu 12.10,
 
+```
+sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang
 
+export GOPATH=~/go/
+export PATH=$GOPATH/bin:$PATH
+
+mkdir -p $GOPATH/src/github.com/dotcloud
+cd $GOPATH/src/github.com/dotcloud
+git clone git@github.com:dotcloud/docker.git
+cd docker
+
+go get -v github.com/dotcloud/docker/...
+go install -v github.com/dotcloud/docker/...
+```
+
+Then run the docker daemon,
+
+```
+sudo $GOPATH/bin/docker -d
+```
+
+Run the `go install` command (above) to recompile docker.
 
 
 What is a Standard Container?
