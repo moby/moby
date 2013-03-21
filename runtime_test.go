@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/graph"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,7 +10,7 @@ import (
 )
 
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
-const unitTestImageName string = "busybox"
+const unitTestImageName string = "http://get.docker.io/images/busybox"
 
 var unitTestStoreBase string
 var srv *Server
@@ -57,7 +56,7 @@ func init() {
 	unitTestStoreBase = root
 
 	// Make it our Store root
-	runtime, err := NewFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(root)
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +83,7 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime, err := NewFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(root)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +91,7 @@ func newTestRuntime() (*Runtime, error) {
 	return runtime, nil
 }
 
-func GetTestImage(runtime *Runtime) *graph.Image {
+func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.All()
 	if err != nil {
 		panic(err)
@@ -102,7 +101,7 @@ func GetTestImage(runtime *Runtime) *graph.Image {
 	return imgs[0]
 }
 
-func TestCreate(t *testing.T) {
+func TestRuntimeCreate(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -269,7 +268,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runtime1, err := NewFromDirectory(root)
+	runtime1, err := NewRuntimeFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +293,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewFromDirectory(root)
+	runtime2, err := NewRuntimeFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -14,7 +14,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -358,31 +357,25 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "import", "[OPTIONS] NAME", "Create a new filesystem image from the contents of a tarball")
-	fl_stdin := cmd.Bool("stdin", false, "Read tarball from stdin")
+	cmd := rcli.Subcmd(stdout, "import", "[OPTIONS] URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 	var archive io.Reader
 	var resp *http.Response
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := cmd.Arg(0)
-	if name == "" {
+	src := cmd.Arg(0)
+	if src == "" {
 		return errors.New("Not enough arguments")
-	}
-	if *fl_stdin {
+	} else if src == "-" {
 		archive = stdin
 	} else {
-		u, err := url.Parse(name)
+		u, err := url.Parse(src)
 		if err != nil {
 			return err
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
-		}
-		if u.Host == "" {
-			u.Host = "get.docker.io"
-			u.Path = path.Join("/images", u.Path)
 		}
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
@@ -393,10 +386,16 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
-	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
-	img, err := srv.runtime.graph.Create(archive, "", "")
+	img, err := srv.runtime.graph.Create(archive, "", "Imported from "+src)
 	if err != nil {
 		return err
+	}
+	// Optionally register the image at REPO/TAG
+	if repository := cmd.Arg(1); repository != "" {
+		tag := cmd.Arg(2) // Repository will handle an empty tag properly
+		if err := srv.runtime.repositories.Set(repository, tag, img.Id); err != nil {
+			return err
+		}
 	}
 	fmt.Fprintln(stdout, img.Id)
 	return nil
@@ -580,68 +579,75 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	/*
-		var nameFilter string
-		if cmd.NArg() == 1 {
-			nameFilter = cmd.Arg(0)
-		}
-	*/
+	var nameFilter string
+	if cmd.NArg() == 1 {
+		nameFilter = cmd.Arg(0)
+	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\n")
+		fmt.Fprintf(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT\n")
 	}
-	if *quiet {
-		images, err := srv.runtime.graph.All()
-		if err != nil {
-			return err
+	allImages, err := srv.runtime.graph.Map()
+	if err != nil {
+		return err
+	}
+	for name, repository := range srv.runtime.repositories.Repositories {
+		if nameFilter != "" && name != nameFilter {
+			continue
 		}
-		for _, image := range images {
-			fmt.Fprintln(stdout, image.Id)
+		for tag, id := range repository {
+			image, err := srv.runtime.graph.Get(id)
+			if err != nil {
+				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
+				continue
+			}
+			delete(allImages, id)
+			if !*quiet {
+				for idx, field := range []string{
+					/* REPOSITORY */ name,
+					/* TAG */ tag,
+					/* ID */ id,
+					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
+					/* PARENT */ image.Parent,
+				} {
+					if idx == 0 {
+						w.Write([]byte(field))
+					} else {
+						w.Write([]byte("\t" + field))
+					}
+				}
+				w.Write([]byte{'\n'})
+			} else {
+				stdout.Write([]byte(image.Id + "\n"))
+			}
 		}
-	} else {
-		// FIXME:
-		//		paths, err := srv.images.Paths()
-		//		if err != nil {
-		//			return err
-		//		}
-		//		for _, name := range paths {
-		//			if nameFilter != "" && nameFilter != name {
-		//				continue
-		//			}
-		//			ids, err := srv.images.List(name)
-		//			if err != nil {
-		//				return err
-		//			}
-		//			for idx, img := range ids {
-		//				if *limit > 0 && idx >= *limit {
-		//					break
-		//				}
-		//				if !*quiet {
-		//					for idx, field := range []string{
-		//						/* NAME */ name,
-		//						/* ID */ img.Id,
-		//						/* CREATED */ HumanDuration(time.Now().Sub(time.Unix(img.Created, 0))) + " ago",
-		//						/* PARENT */ img.Parent,
-		//					} {
-		//						if idx == 0 {
-		//							w.Write([]byte(field))
-		//						} else {
-		//							w.Write([]byte("\t" + field))
-		//						}
-		//					}
-		//					w.Write([]byte{'\n'})
-		//				} else {
-		//					stdout.Write([]byte(img.Id + "\n"))
-		//				}
-		//			}
-		//		}
-		//		if !*quiet {
-		//			w.Flush()
-		//		}
-		//
+	}
+	// Display images which aren't part of a 
+	if nameFilter != "" {
+		for id, image := range allImages {
+			if !*quiet {
+				for idx, field := range []string{
+					/* REPOSITORY */ "",
+					/* TAG */ "",
+					/* ID */ id,
+					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
+					/* PARENT */ image.Parent,
+				} {
+					if idx == 0 {
+						w.Write([]byte(field))
+					} else {
+						w.Write([]byte("\t" + field))
+					}
+				}
+			} else {
+				stdout.Write([]byte(image.Id + "\n"))
+			}
+		}
+	}
+	if !*quiet {
+		w.Flush()
 	}
 	return nil
-
 }
 
 func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -966,7 +972,7 @@ func NewServer() (*Server, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
-	runtime, err := New()
+	runtime, err := NewRuntime()
 	if err != nil {
 		return nil, err
 	}

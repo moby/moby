@@ -1,4 +1,4 @@
-package graph
+package docker
 
 import (
 	"io/ioutil"

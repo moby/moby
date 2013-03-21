@@ -1,4 +1,4 @@
-package graph
+package docker
 
 import (
 	"archive/tar"
@@ -28,7 +28,7 @@ func TestInit(t *testing.T) {
 
 // FIXME: Do more extensive tests (ex: create multiple, delete, recreate;
 //       create multiple, check the amount of images and paths, etc..)
-func TestCreate(t *testing.T) {
+func TestGraphCreate(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
 	archive, err := fakeTar()
@@ -177,7 +177,7 @@ func tempGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := New(tmp)
+	graph, err := NewGraph(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
