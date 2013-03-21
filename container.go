@@ -3,7 +3,9 @@ package docker
 import (
 	"encoding/json"
 	"errors"
-	"github.com/dotcloud/docker/fs"
+	"fmt"
+	"github.com/dotcloud/docker/future"
+	"github.com/dotcloud/docker/graph"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -16,40 +18,34 @@ import (
 	"time"
 )
 
-var sysInitPath string
-
-func init() {
-	sysInitPath = SelfPath()
-}
-
 type Container struct {
-	Id   string
-	Root string
+	root string
+
+	Id string
 
 	Created time.Time
 
 	Path string
 	Args []string
 
-	Config     *Config
-	Mountpoint *fs.Mountpoint
-	State      *State
-	Image      string
+	Config *Config
+	State  State
+	Image  string
 
 	network         *NetworkInterface
 	networkManager  *NetworkManager
 	NetworkSettings *NetworkSettings
 
-	SysInitPath   string
-	lxcConfigPath string
-	cmd           *exec.Cmd
-	stdout        *writeBroadcaster
-	stderr        *writeBroadcaster
-	stdin         io.ReadCloser
-	stdinPipe     io.WriteCloser
+	SysInitPath string
+	cmd         *exec.Cmd
+	stdout      *writeBroadcaster
+	stderr      *writeBroadcaster
+	stdin       io.ReadCloser
+	stdinPipe   io.WriteCloser
 
 	stdoutLog *os.File
 	stderrLog *os.File
+	runtime   *Docker // FIXME: rename Docker to Runtime for clarity
 }
 
 type Config struct {
@@ -69,104 +65,9 @@ type NetworkSettings struct {
 	PortMapping map[string]string
 }
 
-func createContainer(id string, root string, command string, args []string, image *fs.Image, config *Config, netManager *NetworkManager) (*Container, error) {
-	mountpoint, err := image.Mountpoint(path.Join(root, "rootfs"), path.Join(root, "rw"))
-	if err != nil {
-		return nil, err
-	}
-	container := &Container{
-		Id:              id,
-		Root:            root,
-		Created:         time.Now(),
-		Path:            command,
-		Args:            args,
-		Config:          config,
-		Image:           image.Id,
-		Mountpoint:      mountpoint,
-		State:           newState(),
-		networkManager:  netManager,
-		NetworkSettings: &NetworkSettings{},
-		SysInitPath:     sysInitPath,
-		lxcConfigPath:   path.Join(root, "config.lxc"),
-		stdout:          newWriteBroadcaster(),
-		stderr:          newWriteBroadcaster(),
-	}
-	if err := os.Mkdir(root, 0700); err != nil {
-		return nil, err
-	}
-	// Setup logging of stdout and stderr to disk
-	if stdoutLog, err := os.OpenFile(path.Join(container.Root, id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
-		return nil, err
-	} else {
-		container.stdoutLog = stdoutLog
-	}
-	if stderrLog, err := os.OpenFile(path.Join(container.Root, id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
-		return nil, err
-	} else {
-		container.stderrLog = stderrLog
-	}
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
-	}
-	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
-	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
-
-	if err := container.save(); err != nil {
-		return nil, err
-	}
-	return container, nil
-}
-
-func loadContainer(store *fs.Store, containerPath string, netManager *NetworkManager) (*Container, error) {
-	data, err := ioutil.ReadFile(path.Join(containerPath, "config.json"))
-	if err != nil {
-		return nil, err
-	}
-	mountpoint, err := store.FetchMountpoint(
-		path.Join(containerPath, "rootfs"),
-		path.Join(containerPath, "rw"),
-	)
-	if err != nil {
-		return nil, err
-	} else if mountpoint == nil {
-		return nil, errors.New("Couldn't load container: unregistered mountpoint.")
-	}
-	container := &Container{
-		stdout:          newWriteBroadcaster(),
-		stderr:          newWriteBroadcaster(),
-		lxcConfigPath:   path.Join(containerPath, "config.lxc"),
-		networkManager:  netManager,
-		NetworkSettings: &NetworkSettings{},
-		Mountpoint:      mountpoint,
-	}
-	// Load container settings
-	if err := json.Unmarshal(data, container); err != nil {
-		return nil, err
-	}
-
-	// Setup logging of stdout and stderr to disk
-	if stdoutLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stdout.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
-		return nil, err
-	} else {
-		container.stdoutLog = stdoutLog
-	}
-	if stderrLog, err := os.OpenFile(path.Join(container.Root, container.Id+"-stderr.log"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600); err != nil {
-		return nil, err
-	} else {
-		container.stderrLog = stderrLog
-	}
-	container.stdout.AddWriter(NopWriteCloser(container.stdoutLog))
-	container.stderr.AddWriter(NopWriteCloser(container.stderrLog))
-
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
-	}
-	container.State = newState()
-	return container, nil
+func GenerateId() string {
+	future.Seed()
+	return future.RandomId()
 }
 
 func (container *Container) Cmd() *exec.Cmd {
@@ -177,64 +78,32 @@ func (container *Container) When() time.Time {
 	return container.Created
 }
 
-func (container *Container) loadUserData() (map[string]string, error) {
-	jsonData, err := ioutil.ReadFile(path.Join(container.Root, "userdata.json"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return make(map[string]string), nil
-		}
-		return nil, err
-	}
-	data := make(map[string]string)
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func (container *Container) saveUserData(data map[string]string) error {
-	jsonData, err := json.Marshal(data)
+func (container *Container) FromDisk() error {
+	data, err := ioutil.ReadFile(container.jsonPath())
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(path.Join(container.Root, "userdata.json"), jsonData, 0700)
-}
-
-func (container *Container) SetUserData(key, value string) error {
-	data, err := container.loadUserData()
-	if err != nil {
+	// Load container settings
+	if err := json.Unmarshal(data, container); err != nil {
 		return err
 	}
-	data[key] = value
-	return container.saveUserData(data)
+	return nil
 }
 
-func (container *Container) GetUserData(key string) string {
-	data, err := container.loadUserData()
-	if err != nil {
-		return ""
-	}
-	if value, exists := data[key]; exists {
-		return value
-	}
-	return ""
-}
-
-func (container *Container) save() (err error) {
+func (container *Container) ToDisk() (err error) {
 	data, err := json.Marshal(container)
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(path.Join(container.Root, "config.json"), data, 0666)
+	return ioutil.WriteFile(container.jsonPath(), data, 0666)
 }
 
 func (container *Container) generateLXCConfig() error {
-	fo, err := os.Create(container.lxcConfigPath)
+	fo, err := os.Create(container.lxcConfigPath())
 	if err != nil {
 		return err
 	}
 	defer fo.Close()
-
 	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
 		return err
 	}
@@ -309,7 +178,7 @@ func (container *Container) start() error {
 }
 
 func (container *Container) Start() error {
-	if err := container.Mountpoint.EnsureMounted(); err != nil {
+	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
 	if err := container.allocateNetwork(); err != nil {
@@ -320,7 +189,7 @@ func (container *Container) Start() error {
 	}
 	params := []string{
 		"-n", container.Id,
-		"-f", container.lxcConfigPath,
+		"-f", container.lxcConfigPath(),
 		"--",
 		"/sbin/init",
 	}
@@ -348,8 +217,10 @@ func (container *Container) Start() error {
 	if err != nil {
 		return err
 	}
+	// FIXME: save state on disk *first*, then converge
+	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
-	container.save()
+	container.ToDisk()
 	go container.monitor()
 	return nil
 }
@@ -389,26 +260,10 @@ func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	return newBufReader(reader), nil
 }
 
-func (container *Container) StdoutLog() io.Reader {
-	r, err := os.Open(container.stdoutLog.Name())
-	if err != nil {
-		return nil
-	}
-	return r
-}
-
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer)
 	return newBufReader(reader), nil
-}
-
-func (container *Container) StderrLog() io.Reader {
-	r, err := os.Open(container.stderrLog.Name())
-	if err != nil {
-		return nil
-	}
-	return r
 }
 
 func (container *Container) allocateNetwork() error {
@@ -450,7 +305,7 @@ func (container *Container) monitor() {
 	}
 	container.stdout.Close()
 	container.stderr.Close()
-	if err := container.Mountpoint.Umount(); err != nil {
+	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
 
@@ -461,7 +316,7 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
-	container.save()
+	container.ToDisk()
 }
 
 func (container *Container) kill() error {
@@ -523,6 +378,17 @@ func (container *Container) Wait() int {
 	return container.State.ExitCode
 }
 
+func (container *Container) ExportRw() (graph.Archive, error) {
+	return graph.Tar(container.rwPath(), graph.Uncompressed)
+}
+
+func (container *Container) Export() (graph.Archive, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return graph.Tar(container.RootfsPath(), graph.Uncompressed)
+}
+
 func (container *Container) WaitTimeout(timeout time.Duration) error {
 	done := make(chan bool)
 	go func() {
@@ -535,6 +401,78 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 		return errors.New("Timed Out")
 	case <-done:
 		return nil
+	}
+	return nil
+}
+
+func (container *Container) EnsureMounted() error {
+	if mounted, err := container.Mounted(); err != nil {
+		return err
+	} else if mounted {
+		return nil
+	}
+	return container.Mount()
+}
+
+func (container *Container) Mount() error {
+	image, err := container.GetImage()
+	if err != nil {
+		return err
+	}
+	return image.Mount(container.RootfsPath(), container.rwPath())
+}
+
+func (container *Container) Changes() ([]graph.Change, error) {
+	image, err := container.GetImage()
+	if err != nil {
+		return nil, err
+	}
+	return image.Changes(container.rwPath())
+}
+
+func (container *Container) GetImage() (*graph.Image, error) {
+	if container.runtime == nil {
+		return nil, fmt.Errorf("Can't get image of unregistered container")
+	}
+	return container.runtime.graph.Get(container.Image)
+}
+
+func (container *Container) Mounted() (bool, error) {
+	return graph.Mounted(container.RootfsPath())
+}
+
+func (container *Container) Unmount() error {
+	return graph.Unmount(container.RootfsPath())
+}
+
+func (container *Container) logPath(name string) string {
+	return path.Join(container.root, fmt.Sprintf("%s-%s.log", container.Id, name))
+}
+
+func (container *Container) ReadLog(name string) (io.Reader, error) {
+	return os.Open(container.logPath(name))
+}
+
+func (container *Container) jsonPath() string {
+	return path.Join(container.root, "config.json")
+}
+
+func (container *Container) lxcConfigPath() string {
+	return path.Join(container.root, "config.lxc")
+}
+
+// This method must be exported to be used from the lxc template
+func (container *Container) RootfsPath() string {
+	return path.Join(container.root, "rootfs")
+}
+
+func (container *Container) rwPath() string {
+	return path.Join(container.root, "rw")
+}
+
+func validateId(id string) error {
+	if id == "" {
+		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
 }

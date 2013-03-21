@@ -3,12 +3,15 @@ package docker
 import (
 	"container/list"
 	"fmt"
-	"github.com/dotcloud/docker/fs"
+	"github.com/dotcloud/docker/graph"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"sort"
+	"sync"
+	"time"
 )
 
 type Docker struct {
@@ -16,7 +19,13 @@ type Docker struct {
 	repository     string
 	containers     *list.List
 	networkManager *NetworkManager
-	Store          *fs.Store
+	graph          *graph.Graph
+}
+
+var sysInitPath string
+
+func init() {
+	sysInitPath = SelfPath()
 }
 
 func (docker *Docker) List() []*Container {
@@ -49,18 +58,96 @@ func (docker *Docker) Exists(id string) bool {
 	return docker.Get(id) != nil
 }
 
-func (docker *Docker) Create(id string, command string, args []string, image *fs.Image, config *Config) (*Container, error) {
-	if docker.Exists(id) {
-		return nil, fmt.Errorf("Container %v already exists", id)
-	}
-	root := path.Join(docker.repository, id)
+func (docker *Docker) containerRoot(id string) string {
+	return path.Join(docker.repository, id)
+}
 
-	container, err := createContainer(id, root, command, args, image, config, docker.networkManager)
-	if err != nil {
+func (docker *Docker) Create(command string, args []string, image string, config *Config) (*Container, error) {
+	container := &Container{
+		// FIXME: we should generate the ID here instead of receiving it as an argument
+		Id:              GenerateId(),
+		Created:         time.Now(),
+		Path:            command,
+		Args:            args,
+		Config:          config,
+		Image:           image,
+		NetworkSettings: &NetworkSettings{},
+		// FIXME: do we need to store this in the container?
+		SysInitPath: sysInitPath,
+	}
+	container.root = docker.containerRoot(container.Id)
+	// Step 1: create the container directory.
+	// This doubles as a barrier to avoid race conditions.
+	if err := os.Mkdir(container.root, 0700); err != nil {
 		return nil, err
 	}
-	docker.containers.PushBack(container)
+	// Step 2: save the container json
+	if err := container.ToDisk(); err != nil {
+		return nil, err
+	}
+	// Step 3: register the container
+	if err := docker.Register(container); err != nil {
+		return nil, err
+	}
 	return container, nil
+}
+
+func (docker *Docker) Load(id string) (*Container, error) {
+	container := &Container{root: docker.containerRoot(id)}
+	if err := container.FromDisk(); err != nil {
+		return nil, err
+	}
+	if container.Id != id {
+		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
+	}
+	if err := docker.Register(container); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
+
+// Register makes a container object usable by the runtime as <container.Id>
+func (docker *Docker) Register(container *Container) error {
+	if container.runtime != nil || docker.Exists(container.Id) {
+		return fmt.Errorf("Container is already loaded")
+	}
+	if err := validateId(container.Id); err != nil {
+		return err
+	}
+	container.runtime = docker
+	container.networkManager = docker.networkManager // FIXME: infer from docker.runtime
+	// Setup state lock (formerly in newState()
+	lock := new(sync.Mutex)
+	container.State.stateChangeLock = lock
+	container.State.stateChangeCond = sync.NewCond(lock)
+	// Attach to stdout and stderr
+	container.stderr = newWriteBroadcaster()
+	container.stdout = newWriteBroadcaster()
+	// Attach to stdin
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	} else {
+		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
+	}
+	// Setup logging of stdout and stderr to disk
+	if err := docker.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+		return err
+	}
+	if err := docker.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+		return err
+	}
+	// done
+	docker.containers.PushBack(container)
+	return nil
+}
+
+func (docker *Docker) LogToDisk(src *writeBroadcaster, dst string) error {
+	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	src.AddWriter(NopWriteCloser(log))
+	return nil
 }
 
 func (docker *Docker) Destroy(container *Container) error {
@@ -72,18 +159,18 @@ func (docker *Docker) Destroy(container *Container) error {
 	if err := container.Stop(); err != nil {
 		return err
 	}
-	if container.Mountpoint.Mounted() {
-		if err := container.Mountpoint.Umount(); err != nil {
-			return fmt.Errorf("Unable to umount container %v: %v", container.Id, err)
+	if mounted, err := container.Mounted(); err != nil {
+		return err
+	} else if mounted {
+		if err := container.Unmount(); err != nil {
+			return fmt.Errorf("Unable to unmount container %v: %v", container.Id, err)
 		}
 	}
-	if err := container.Mountpoint.Deregister(); err != nil {
-		return fmt.Errorf("Unable to deregiser -- ? mountpoint %v: %v", container.Mountpoint.Root, err)
-	}
-	if err := os.RemoveAll(container.Root); err != nil {
+	// Deregister the container before removing its directory, to avoid race conditions
+	docker.containers.Remove(element)
+	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
 	}
-	docker.containers.Remove(element)
 	return nil
 }
 
@@ -93,12 +180,13 @@ func (docker *Docker) restore() error {
 		return err
 	}
 	for _, v := range dir {
-		container, err := loadContainer(docker.Store, path.Join(docker.repository, v.Name()), docker.networkManager)
+		id := v.Name()
+		container, err := docker.Load(id)
 		if err != nil {
-			log.Printf("Failed to load container %v: %v", v.Name(), err)
+			log.Printf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		docker.containers.PushBack(container)
+		log.Printf("Loaded container %v", container.Id)
 	}
 	return nil
 }
@@ -114,7 +202,7 @@ func NewFromDirectory(root string) (*Docker, error) {
 		return nil, err
 	}
 
-	store, err := fs.New(path.Join(root, "images"))
+	graph, err := graph.New(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +215,8 @@ func NewFromDirectory(root string) (*Docker, error) {
 		root:           root,
 		repository:     docker_repo,
 		containers:     list.New(),
-		Store:          store,
 		networkManager: netManager,
+		graph:          graph,
 	}
 
 	if err := docker.restore(); err != nil {

@@ -17,14 +17,6 @@ type State struct {
 	stateChangeCond *sync.Cond
 }
 
-func newState() *State {
-	lock := new(sync.Mutex)
-	return &State{
-		stateChangeLock: lock,
-		stateChangeCond: sync.NewCond(lock),
-	}
-}
-
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {

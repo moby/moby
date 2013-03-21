@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/fs"
+	"github.com/dotcloud/docker/graph"
 	"io"
 	"io/ioutil"
 	"os"
@@ -63,7 +63,6 @@ func init() {
 	}
 	// Create the "Server"
 	srv := &Server{
-		images:     docker.Store,
 		containers: docker,
 	}
 	// Retrieve the Image
@@ -93,8 +92,8 @@ func newTestDocker() (*Docker, error) {
 	return docker, nil
 }
 
-func GetTestImage(docker *Docker) *fs.Image {
-	imgs, err := docker.Store.Images()
+func GetTestImage(docker *Docker) *graph.Image {
+	imgs, err := docker.graph.All()
 	if err != nil {
 		panic(err)
 	} else if len(imgs) < 1 {
@@ -115,10 +114,9 @@ func TestCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(docker.List()))
 	}
 	container, err := docker.Create(
-		"test_create",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -137,22 +135,22 @@ func TestCreate(t *testing.T) {
 	}
 
 	// Make sure the container List() returns is the right one
-	if docker.List()[0].Id != "test_create" {
+	if docker.List()[0].Id != container.Id {
 		t.Errorf("Unexpected container %v returned by List", docker.List()[0])
 	}
 
 	// Make sure we can get the container with Get()
-	if docker.Get("test_create") == nil {
+	if docker.Get(container.Id) == nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
 	// Make sure it is the right container
-	if docker.Get("test_create") != container {
+	if docker.Get(container.Id) != container {
 		t.Errorf("Get() returned the wrong container")
 	}
 
 	// Make sure Exists returns it as existing
-	if !docker.Exists("test_create") {
+	if !docker.Exists(container.Id) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
 }
@@ -164,10 +162,9 @@ func TestDestroy(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"test_destroy",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -189,12 +186,12 @@ func TestDestroy(t *testing.T) {
 	}
 
 	// Make sure docker.Get() refuses to return the unexisting container
-	if docker.Get("test_destroy") != nil {
+	if docker.Get(container.Id) != nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
 	// Make sure the container root directory does not exist anymore
-	_, err = os.Stat(container.Root)
+	_, err = os.Stat(container.root)
 	if err == nil || !os.IsNotExist(err) {
 		t.Errorf("Container root directory still exists after destroy")
 	}
@@ -213,10 +210,9 @@ func TestGet(t *testing.T) {
 	}
 	defer nuke(docker)
 	container1, err := docker.Create(
-		"test1",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -225,10 +221,9 @@ func TestGet(t *testing.T) {
 	defer docker.Destroy(container1)
 
 	container2, err := docker.Create(
-		"test2",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -237,10 +232,9 @@ func TestGet(t *testing.T) {
 	defer docker.Destroy(container2)
 
 	container3, err := docker.Create(
-		"test3",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -248,16 +242,16 @@ func TestGet(t *testing.T) {
 	}
 	defer docker.Destroy(container3)
 
-	if docker.Get("test1") != container1 {
-		t.Errorf("Get(test1) returned %v while expecting %v", docker.Get("test1"), container1)
+	if docker.Get(container1.Id) != container1 {
+		t.Errorf("Get(test1) returned %v while expecting %v", docker.Get(container1.Id), container1)
 	}
 
-	if docker.Get("test2") != container2 {
-		t.Errorf("Get(test2) returned %v while expecting %v", docker.Get("test2"), container2)
+	if docker.Get(container2.Id) != container2 {
+		t.Errorf("Get(test2) returned %v while expecting %v", docker.Get(container2.Id), container2)
 	}
 
-	if docker.Get("test3") != container3 {
-		t.Errorf("Get(test3) returned %v while expecting %v", docker.Get("test3"), container3)
+	if docker.Get(container3.Id) != container3 {
+		t.Errorf("Get(test3) returned %v while expecting %v", docker.Get(container3.Id), container3)
 	}
 
 }
@@ -282,10 +276,9 @@ func TestRestore(t *testing.T) {
 
 	// Create a container with one instance of docker
 	container1, err := docker1.Create(
-		"restore_test",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker1),
+		GetTestImage(docker1).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -309,7 +302,7 @@ func TestRestore(t *testing.T) {
 	if len(docker2.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
 	}
-	container2 := docker2.Get("restore_test")
+	container2 := docker2.Get(container1.Id)
 	if container2 == nil {
 		t.Fatal("Unable to Get container")
 	}

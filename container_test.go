@@ -3,7 +3,6 @@ package docker
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/fs"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -21,10 +20,9 @@ func TestCommitRun(t *testing.T) {
 	}
 	defer nuke(docker)
 	container1, err := docker.Create(
-		"precommit_test",
 		"/bin/sh",
 		[]string{"-c", "echo hello > /world"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			Memory: 33554432,
 		},
@@ -44,18 +42,11 @@ func TestCommitRun(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	// FIXME: freeze the container before copying it to avoid data corruption?
-	rwTar, err := fs.Tar(container1.Mountpoint.Rw, fs.Uncompressed)
+	rwTar, err := container1.ExportRw()
 	if err != nil {
 		t.Error(err)
 	}
-	// Create a new image from the container's base layers + a new layer from container changes
-	parentImg, err := docker.Store.Get(container1.Image)
-	if err != nil {
-		t.Error(err)
-	}
-
-	img, err := docker.Store.Create(rwTar, parentImg, "test_commitrun", "unit test commited image")
+	img, err := docker.graph.Create(rwTar, container1.Image, "unit test commited image")
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,10 +54,9 @@ func TestCommitRun(t *testing.T) {
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
 
 	container2, err := docker.Create(
-		"postcommit_test",
 		"cat",
 		[]string{"/world"},
-		img,
+		img.Id,
 		&Config{
 			Memory: 33554432,
 		},
@@ -98,10 +88,9 @@ func TestRun(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"run_test",
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			Memory: 33554432,
 		},
@@ -129,10 +118,9 @@ func TestOutput(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"output_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -155,10 +143,9 @@ func TestKill(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"stop_test",
 		"cat",
 		[]string{"/dev/zero"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -199,10 +186,9 @@ func TestExitCode(t *testing.T) {
 	defer nuke(docker)
 
 	trueContainer, err := docker.Create(
-		"exit_test_1",
 		"/bin/true",
 		[]string{""},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -214,10 +200,9 @@ func TestExitCode(t *testing.T) {
 	}
 
 	falseContainer, err := docker.Create(
-		"exit_test_2",
 		"/bin/false",
 		[]string{""},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -244,10 +229,9 @@ func TestRestart(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"restart_test",
 		"echo",
 		[]string{"-n", "foobar"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -279,10 +263,9 @@ func TestRestartStdin(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"restart_stdin_test",
 		"cat",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			OpenStdin: true,
 		},
@@ -331,10 +314,9 @@ func TestUser(t *testing.T) {
 
 	// Default user must be root
 	container, err := docker.Create(
-		"user_default",
 		"id",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -351,10 +333,9 @@ func TestUser(t *testing.T) {
 
 	// Set a username
 	container, err = docker.Create(
-		"user_root",
 		"id",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			User: "root",
 		},
@@ -373,10 +354,9 @@ func TestUser(t *testing.T) {
 
 	// Set a UID
 	container, err = docker.Create(
-		"user_uid0",
 		"id",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			User: "0",
 		},
@@ -395,10 +375,9 @@ func TestUser(t *testing.T) {
 
 	// Set a different user by uid
 	container, err = docker.Create(
-		"user_uid1",
 		"id",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			User: "1",
 		},
@@ -419,10 +398,9 @@ func TestUser(t *testing.T) {
 
 	// Set a different user by username
 	container, err = docker.Create(
-		"user_daemon",
 		"id",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			User: "daemon",
 		},
@@ -448,10 +426,9 @@ func TestMultipleContainers(t *testing.T) {
 	defer nuke(docker)
 
 	container1, err := docker.Create(
-		"container1",
 		"cat",
 		[]string{"/dev/zero"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -460,10 +437,9 @@ func TestMultipleContainers(t *testing.T) {
 	defer docker.Destroy(container1)
 
 	container2, err := docker.Create(
-		"container2",
 		"cat",
 		[]string{"/dev/zero"},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -504,10 +480,9 @@ func TestStdin(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"stdin_test",
 		"cat",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			OpenStdin: true,
 		},
@@ -540,10 +515,9 @@ func TestTty(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"tty_test",
 		"cat",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			OpenStdin: true,
 		},
@@ -576,10 +550,9 @@ func TestEnv(t *testing.T) {
 	}
 	defer nuke(docker)
 	container, err := docker.Create(
-		"env_test",
 		"/usr/bin/env",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -651,10 +624,9 @@ func TestLXCConfig(t *testing.T) {
 	memMax := 536870912
 	mem := memMin + rand.Intn(memMax-memMin)
 	container, err := docker.Create(
-		"config_test",
 		"/bin/true",
 		[]string{},
-		GetTestImage(docker),
+		GetTestImage(docker).Id,
 		&Config{
 			Hostname: "foobar",
 			Memory:   int64(mem),
@@ -665,10 +637,10 @@ func TestLXCConfig(t *testing.T) {
 	}
 	defer docker.Destroy(container)
 	container.generateLXCConfig()
-	grepFile(t, container.lxcConfigPath, "lxc.utsname = foobar")
-	grepFile(t, container.lxcConfigPath,
+	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
+	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
-	grepFile(t, container.lxcConfigPath,
+	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
 }
 
@@ -680,10 +652,9 @@ func BenchmarkRunSequencial(b *testing.B) {
 	defer nuke(docker)
 	for i := 0; i < b.N; i++ {
 		container, err := docker.Create(
-			fmt.Sprintf("bench_%v", i),
 			"echo",
 			[]string{"-n", "foo"},
-			GetTestImage(docker),
+			GetTestImage(docker).Id,
 			&Config{},
 		)
 		if err != nil {
@@ -717,10 +688,9 @@ func BenchmarkRunParallel(b *testing.B) {
 		tasks = append(tasks, complete)
 		go func(i int, complete chan error) {
 			container, err := docker.Create(
-				fmt.Sprintf("bench_%v", i),
 				"echo",
 				[]string{"-n", "foo"},
-				GetTestImage(docker),
+				GetTestImage(docker).Id,
 				&Config{},
 			)
 			if err != nil {
