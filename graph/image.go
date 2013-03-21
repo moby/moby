@@ -118,6 +118,13 @@ func (image *Image) Mount(root, rw string) error {
 	if err != nil {
 		return err
 	}
+	// Create the target directories if they don't exist
+	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
 	// FIXME: @creack shouldn't we do this after going over changes?
 	if err := MountAUFS(layers, rw, root); err != nil {
 		return err
