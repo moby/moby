@@ -16,8 +16,8 @@ const unitTestImageName string = "busybox"
 var unitTestStoreBase string
 var srv *Server
 
-func nuke(docker *Docker) error {
-	return os.RemoveAll(docker.root)
+func nuke(runtime *Runtime) error {
+	return os.RemoveAll(runtime.root)
 }
 
 func CopyDirectory(source, dest string) error {
@@ -57,13 +57,13 @@ func init() {
 	unitTestStoreBase = root
 
 	// Make it our Store root
-	docker, err := NewFromDirectory(root)
+	runtime, err := NewFromDirectory(root)
 	if err != nil {
 		panic(err)
 	}
 	// Create the "Server"
 	srv := &Server{
-		containers: docker,
+		runtime: runtime,
 	}
 	// Retrieve the Image
 	if err := srv.CmdImport(os.Stdin, os.Stdout, unitTestImageName); err != nil {
@@ -71,7 +71,7 @@ func init() {
 	}
 }
 
-func newTestDocker() (*Docker, error) {
+func newTestRuntime() (*Runtime, error) {
 	root, err := ioutil.TempDir("", "docker-test")
 	if err != nil {
 		return nil, err
@@ -84,16 +84,16 @@ func newTestDocker() (*Docker, error) {
 		return nil, err
 	}
 
-	docker, err := NewFromDirectory(root)
+	runtime, err := NewFromDirectory(root)
 	if err != nil {
 		return nil, err
 	}
 
-	return docker, nil
+	return runtime, nil
 }
 
-func GetTestImage(docker *Docker) *graph.Image {
-	imgs, err := docker.graph.All()
+func GetTestImage(runtime *Runtime) *graph.Image {
+	imgs, err := runtime.graph.All()
 	if err != nil {
 		panic(err)
 	} else if len(imgs) < 1 {
@@ -103,20 +103,20 @@ func GetTestImage(docker *Docker) *graph.Image {
 }
 
 func TestCreate(t *testing.T) {
-	docker, err := newTestDocker()
+	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nuke(docker)
+	defer nuke(runtime)
 
 	// Make sure we start we 0 containers
-	if len(docker.List()) != 0 {
-		t.Errorf("Expected 0 containers, %v found", len(docker.List()))
+	if len(runtime.List()) != 0 {
+		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
-	container, err := docker.Create(
+	container, err := runtime.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker).Id,
+		GetTestImage(runtime).Id,
 		&Config{},
 	)
 	if err != nil {
@@ -124,69 +124,69 @@ func TestCreate(t *testing.T) {
 	}
 
 	defer func() {
-		if err := docker.Destroy(container); err != nil {
+		if err := runtime.Destroy(container); err != nil {
 			t.Error(err)
 		}
 	}()
 
 	// Make sure we can find the newly created container with List()
-	if len(docker.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(docker.List()))
+	if len(runtime.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
 	// Make sure the container List() returns is the right one
-	if docker.List()[0].Id != container.Id {
-		t.Errorf("Unexpected container %v returned by List", docker.List()[0])
+	if runtime.List()[0].Id != container.Id {
+		t.Errorf("Unexpected container %v returned by List", runtime.List()[0])
 	}
 
 	// Make sure we can get the container with Get()
-	if docker.Get(container.Id) == nil {
+	if runtime.Get(container.Id) == nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
 	// Make sure it is the right container
-	if docker.Get(container.Id) != container {
+	if runtime.Get(container.Id) != container {
 		t.Errorf("Get() returned the wrong container")
 	}
 
 	// Make sure Exists returns it as existing
-	if !docker.Exists(container.Id) {
+	if !runtime.Exists(container.Id) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
 }
 
 func TestDestroy(t *testing.T) {
-	docker, err := newTestDocker()
+	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nuke(docker)
-	container, err := docker.Create(
+	defer nuke(runtime)
+	container, err := runtime.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker).Id,
+		GetTestImage(runtime).Id,
 		&Config{},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Destroy
-	if err := docker.Destroy(container); err != nil {
+	if err := runtime.Destroy(container); err != nil {
 		t.Error(err)
 	}
 
-	// Make sure docker.Exists() behaves correctly
-	if docker.Exists("test_destroy") {
+	// Make sure runtime.Exists() behaves correctly
+	if runtime.Exists("test_destroy") {
 		t.Errorf("Exists() returned true")
 	}
 
-	// Make sure docker.List() doesn't list the destroyed container
-	if len(docker.List()) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(docker.List()))
+	// Make sure runtime.List() doesn't list the destroyed container
+	if len(runtime.List()) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(runtime.List()))
 	}
 
-	// Make sure docker.Get() refuses to return the unexisting container
-	if docker.Get(container.Id) != nil {
+	// Make sure runtime.Get() refuses to return the unexisting container
+	if runtime.Get(container.Id) != nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
@@ -197,61 +197,61 @@ func TestDestroy(t *testing.T) {
 	}
 
 	// Test double destroy
-	if err := docker.Destroy(container); err == nil {
+	if err := runtime.Destroy(container); err == nil {
 		// It should have failed
 		t.Errorf("Double destroy did not fail")
 	}
 }
 
 func TestGet(t *testing.T) {
-	docker, err := newTestDocker()
+	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nuke(docker)
-	container1, err := docker.Create(
+	defer nuke(runtime)
+	container1, err := runtime.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker).Id,
+		GetTestImage(runtime).Id,
 		&Config{},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker.Destroy(container1)
+	defer runtime.Destroy(container1)
 
-	container2, err := docker.Create(
+	container2, err := runtime.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker).Id,
+		GetTestImage(runtime).Id,
 		&Config{},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker.Destroy(container2)
+	defer runtime.Destroy(container2)
 
-	container3, err := docker.Create(
+	container3, err := runtime.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker).Id,
+		GetTestImage(runtime).Id,
 		&Config{},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker.Destroy(container3)
+	defer runtime.Destroy(container3)
 
-	if docker.Get(container1.Id) != container1 {
-		t.Errorf("Get(test1) returned %v while expecting %v", docker.Get(container1.Id), container1)
+	if runtime.Get(container1.Id) != container1 {
+		t.Errorf("Get(test1) returned %v while expecting %v", runtime.Get(container1.Id), container1)
 	}
 
-	if docker.Get(container2.Id) != container2 {
-		t.Errorf("Get(test2) returned %v while expecting %v", docker.Get(container2.Id), container2)
+	if runtime.Get(container2.Id) != container2 {
+		t.Errorf("Get(test2) returned %v while expecting %v", runtime.Get(container2.Id), container2)
 	}
 
-	if docker.Get(container3.Id) != container3 {
-		t.Errorf("Get(test3) returned %v while expecting %v", docker.Get(container3.Id), container3)
+	if runtime.Get(container3.Id) != container3 {
+		t.Errorf("Get(test3) returned %v while expecting %v", runtime.Get(container3.Id), container3)
 	}
 
 }
@@ -269,24 +269,24 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	docker1, err := NewFromDirectory(root)
+	runtime1, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a container with one instance of docker
-	container1, err := docker1.Create(
+	container1, err := runtime1.Create(
 		"ls",
 		[]string{"-al"},
-		GetTestImage(docker1).Id,
+		GetTestImage(runtime1).Id,
 		&Config{},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer docker1.Destroy(container1)
-	if len(docker1.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(docker1.List()))
+	defer runtime1.Destroy(container1)
+	if len(runtime1.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(runtime1.List()))
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
@@ -294,15 +294,15 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	docker2, err := NewFromDirectory(root)
+	runtime2, err := NewFromDirectory(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nuke(docker2)
-	if len(docker2.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(docker2.List()))
+	defer nuke(runtime2)
+	if len(runtime2.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(runtime2.List()))
 	}
-	container2 := docker2.Get(container1.Id)
+	container2 := runtime2.Get(container1.Id)
 	if container2 == nil {
 		t.Fatal("Unable to Get container")
 	}

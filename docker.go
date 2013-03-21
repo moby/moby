@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type Docker struct {
+type Runtime struct {
 	root           string
 	repository     string
 	containers     *list.List
@@ -28,16 +28,16 @@ func init() {
 	sysInitPath = SelfPath()
 }
 
-func (docker *Docker) List() []*Container {
+func (runtime *Runtime) List() []*Container {
 	containers := new(History)
-	for e := docker.containers.Front(); e != nil; e = e.Next() {
+	for e := runtime.containers.Front(); e != nil; e = e.Next() {
 		containers.Add(e.Value.(*Container))
 	}
 	return *containers
 }
 
-func (docker *Docker) getContainerElement(id string) *list.Element {
-	for e := docker.containers.Front(); e != nil; e = e.Next() {
+func (runtime *Runtime) getContainerElement(id string) *list.Element {
+	for e := runtime.containers.Front(); e != nil; e = e.Next() {
 		container := e.Value.(*Container)
 		if container.Id == id {
 			return e
@@ -46,23 +46,23 @@ func (docker *Docker) getContainerElement(id string) *list.Element {
 	return nil
 }
 
-func (docker *Docker) Get(id string) *Container {
-	e := docker.getContainerElement(id)
+func (runtime *Runtime) Get(id string) *Container {
+	e := runtime.getContainerElement(id)
 	if e == nil {
 		return nil
 	}
 	return e.Value.(*Container)
 }
 
-func (docker *Docker) Exists(id string) bool {
-	return docker.Get(id) != nil
+func (runtime *Runtime) Exists(id string) bool {
+	return runtime.Get(id) != nil
 }
 
-func (docker *Docker) containerRoot(id string) string {
-	return path.Join(docker.repository, id)
+func (runtime *Runtime) containerRoot(id string) string {
+	return path.Join(runtime.repository, id)
 }
 
-func (docker *Docker) Create(command string, args []string, image string, config *Config) (*Container, error) {
+func (runtime *Runtime) Create(command string, args []string, image string, config *Config) (*Container, error) {
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		Id:              GenerateId(),
@@ -75,7 +75,7 @@ func (docker *Docker) Create(command string, args []string, image string, config
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 	}
-	container.root = docker.containerRoot(container.Id)
+	container.root = runtime.containerRoot(container.Id)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
@@ -86,36 +86,36 @@ func (docker *Docker) Create(command string, args []string, image string, config
 		return nil, err
 	}
 	// Step 3: register the container
-	if err := docker.Register(container); err != nil {
+	if err := runtime.Register(container); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
-func (docker *Docker) Load(id string) (*Container, error) {
-	container := &Container{root: docker.containerRoot(id)}
+func (runtime *Runtime) Load(id string) (*Container, error) {
+	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
-	if err := docker.Register(container); err != nil {
+	if err := runtime.Register(container); err != nil {
 		return nil, err
 	}
 	return container, nil
 }
 
 // Register makes a container object usable by the runtime as <container.Id>
-func (docker *Docker) Register(container *Container) error {
-	if container.runtime != nil || docker.Exists(container.Id) {
+func (runtime *Runtime) Register(container *Container) error {
+	if container.runtime != nil || runtime.Exists(container.Id) {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateId(container.Id); err != nil {
 		return err
 	}
-	container.runtime = docker
-	container.networkManager = docker.networkManager // FIXME: infer from docker.runtime
+	container.runtime = runtime
+	container.networkManager = runtime.networkManager // FIXME: infer from docker.runtime
 	// Setup state lock (formerly in newState()
 	lock := new(sync.Mutex)
 	container.State.stateChangeLock = lock
@@ -130,18 +130,18 @@ func (docker *Docker) Register(container *Container) error {
 		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// Setup logging of stdout and stderr to disk
-	if err := docker.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+	if err := runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
 		return err
 	}
-	if err := docker.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+	if err := runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
 		return err
 	}
 	// done
-	docker.containers.PushBack(container)
+	runtime.containers.PushBack(container)
 	return nil
 }
 
-func (docker *Docker) LogToDisk(src *writeBroadcaster, dst string) error {
+func (runtime *Runtime) LogToDisk(src *writeBroadcaster, dst string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return err
@@ -150,8 +150,8 @@ func (docker *Docker) LogToDisk(src *writeBroadcaster, dst string) error {
 	return nil
 }
 
-func (docker *Docker) Destroy(container *Container) error {
-	element := docker.getContainerElement(container.Id)
+func (runtime *Runtime) Destroy(container *Container) error {
+	element := runtime.getContainerElement(container.Id)
 	if element == nil {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
 	}
@@ -167,21 +167,21 @@ func (docker *Docker) Destroy(container *Container) error {
 		}
 	}
 	// Deregister the container before removing its directory, to avoid race conditions
-	docker.containers.Remove(element)
+	runtime.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
 	}
 	return nil
 }
 
-func (docker *Docker) restore() error {
-	dir, err := ioutil.ReadDir(docker.repository)
+func (runtime *Runtime) restore() error {
+	dir, err := ioutil.ReadDir(runtime.repository)
 	if err != nil {
 		return err
 	}
 	for _, v := range dir {
 		id := v.Name()
-		container, err := docker.Load(id)
+		container, err := runtime.Load(id)
 		if err != nil {
 			log.Printf("Failed to load container %v: %v", id, err)
 			continue
@@ -191,14 +191,14 @@ func (docker *Docker) restore() error {
 	return nil
 }
 
-func New() (*Docker, error) {
+func New() (*Runtime, error) {
 	return NewFromDirectory("/var/lib/docker")
 }
 
-func NewFromDirectory(root string) (*Docker, error) {
-	docker_repo := path.Join(root, "containers")
+func NewFromDirectory(root string) (*Runtime, error) {
+	runtime_repo := path.Join(root, "containers")
 
-	if err := os.MkdirAll(docker_repo, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(runtime_repo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -211,18 +211,18 @@ func NewFromDirectory(root string) (*Docker, error) {
 		return nil, err
 	}
 
-	docker := &Docker{
+	runtime := &Runtime{
 		root:           root,
-		repository:     docker_repo,
+		repository:     runtime_repo,
 		containers:     list.New(),
 		networkManager: netManager,
 		graph:          graph,
 	}
 
-	if err := docker.restore(); err != nil {
+	if err := runtime.restore(); err != nil {
 		return nil, err
 	}
-	return docker, nil
+	return runtime, nil
 }
 
 type History []*Container

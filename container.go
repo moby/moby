@@ -45,7 +45,7 @@ type Container struct {
 
 	stdoutLog *os.File
 	stderrLog *os.File
-	runtime   *Docker // FIXME: rename Docker to Runtime for clarity
+	runtime   *Runtime
 }
 
 type Config struct {

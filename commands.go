@@ -116,7 +116,7 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
+		if container := srv.runtime.Get(name); container != nil {
 			fmt.Fprintln(stdout, container.Wait())
 		} else {
 			return errors.New("No such container: " + name)
@@ -133,7 +133,7 @@ func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...str
 
 // 'docker info': display system-wide information.
 func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	images, _ := srv.containers.graph.All()
+	images, _ := srv.runtime.graph.All()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -149,7 +149,7 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
-		len(srv.containers.List()),
+		len(srv.runtime.List()),
 		VERSION,
 		imgcount)
 	return nil
@@ -165,7 +165,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
+		if container := srv.runtime.Get(name); container != nil {
 			if err := container.Stop(); err != nil {
 				return err
 			}
@@ -187,7 +187,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
+		if container := srv.runtime.Get(name); container != nil {
 			if err := container.Restart(); err != nil {
 				return err
 			}
@@ -209,7 +209,7 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
+		if container := srv.runtime.Get(name); container != nil {
 			if err := container.Start(); err != nil {
 				return err
 			}
@@ -231,7 +231,7 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
+		if container := srv.runtime.Get(name); container != nil {
 			if err := container.EnsureMounted(); err != nil {
 				return err
 			}
@@ -254,9 +254,9 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	name := cmd.Arg(0)
 	var obj interface{}
-	if container := srv.containers.Get(name); container != nil {
+	if container := srv.runtime.Get(name); container != nil {
 		obj = container
-	} else if image, err := srv.containers.graph.Get(name); err != nil {
+	} else if image, err := srv.runtime.graph.Get(name); err != nil {
 		return err
 	} else if image != nil {
 		obj = image
@@ -291,7 +291,7 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	name := cmd.Arg(0)
 	privatePort := cmd.Arg(1)
-	if container := srv.containers.Get(name); container == nil {
+	if container := srv.runtime.Get(name); container == nil {
 		return errors.New("No such container: " + name)
 	} else {
 		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
@@ -311,7 +311,7 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if err := srv.containers.graph.Delete(name); err != nil {
+		if err := srv.runtime.graph.Delete(name); err != nil {
 			return err
 		}
 	}
@@ -324,11 +324,11 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		container := srv.containers.Get(name)
+		container := srv.runtime.Get(name)
 		if container == nil {
 			return errors.New("No such container: " + name)
 		}
-		if err := srv.containers.Destroy(container); err != nil {
+		if err := srv.runtime.Destroy(container); err != nil {
 			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
 		}
 	}
@@ -342,7 +342,7 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		container := srv.containers.Get(name)
+		container := srv.runtime.Get(name)
 		if container == nil {
 			return errors.New("No such container: " + name)
 		}
@@ -390,7 +390,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		archive = future.ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
-	img, err := srv.containers.graph.Create(archive, "", "")
+	img, err := srv.runtime.graph.Create(archive, "", "")
 	if err != nil {
 		return err
 	}
@@ -420,7 +420,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		fmt.Fprintf(w, "NAME\tID\tCREATED\tPARENT\n")
 	}
 	if *quiet {
-		images, err := srv.containers.graph.All()
+		images, err := srv.runtime.graph.All()
 		if err != nil {
 			return err
 		}
@@ -486,7 +486,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	if !*quiet {
 		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
 	}
-	for _, container := range srv.containers.List() {
+	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !*fl_all {
 			continue
 		}
@@ -532,7 +532,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	if container := srv.containers.Get(containerName); container != nil {
+	if container := srv.runtime.Get(containerName); container != nil {
 		// FIXME: freeze the container before copying it to avoid data corruption?
 		// FIXME: this shouldn't be in commands.
 		rwTar, err := container.ExportRw()
@@ -540,7 +540,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		// Create a new image from the container's base layers + a new layer from container changes
-		img, err := srv.containers.graph.Create(rwTar, container.Image, "")
+		img, err := srv.runtime.graph.Create(rwTar, container.Image, "")
 		if err != nil {
 			return err
 		}
@@ -563,7 +563,7 @@ func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return errors.New("Sparse mode not yet implemented") // FIXME
 	}
 	name := cmd.Arg(0)
-	if container := srv.containers.Get(name); container != nil {
+	if container := srv.runtime.Get(name); container != nil {
 		if err := container.EnsureMounted(); err != nil {
 			return err
 		}
@@ -590,7 +590,7 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if cmd.NArg() < 1 {
 		return errors.New("Not enough arguments")
 	}
-	if container := srv.containers.Get(cmd.Arg(0)); container == nil {
+	if container := srv.runtime.Get(cmd.Arg(0)); container == nil {
 		return errors.New("No such container")
 	} else {
 		changes, err := container.Changes()
@@ -614,7 +614,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	name := cmd.Arg(0)
-	if container := srv.containers.Get(name); container != nil {
+	if container := srv.runtime.Get(name); container != nil {
 		log_stdout, err := container.ReadLog("stdout")
 		if err != nil {
 			return err
@@ -649,7 +649,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return nil
 	}
 	name := cmd.Arg(0)
-	container := srv.containers.Get(name)
+	container := srv.runtime.Get(name)
 	if container == nil {
 		return errors.New("No such container: " + name)
 	}
@@ -731,7 +731,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	}
 
 	// Create new container
-	container, err := srv.containers.Create(cmdline[0], cmdline[1:], name,
+	container, err := srv.runtime.Create(cmdline[0], cmdline[1:], name,
 		&Config{
 			Ports:     fl_ports,
 			User:      *fl_user,
@@ -799,16 +799,16 @@ func NewServer() (*Server, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
-	containers, err := New()
+	runtime, err := New()
 	if err != nil {
 		return nil, err
 	}
 	srv := &Server{
-		containers: containers,
+		runtime: runtime,
 	}
 	return srv, nil
 }
 
 type Server struct {
-	containers *Docker
+	runtime *Runtime
 }
