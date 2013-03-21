@@ -279,7 +279,7 @@ func (iface *NetworkInterface) AllocatePort(port int) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	if err := iface.manager.portMapper.Map(extPort, net.TCPAddr{iface.IPNet.IP, port}); err != nil {
+	if err := iface.manager.portMapper.Map(extPort, net.TCPAddr{IP: iface.IPNet.IP, Port: port}); err != nil {
 		iface.manager.portAllocator.Release(extPort)
 		return -1, err
 	}
