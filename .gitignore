@@ -6,3 +6,4 @@ a.out
 build_src
 command-line-arguments.test
 .flymake*
+docker.test
