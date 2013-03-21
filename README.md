@@ -148,7 +148,7 @@ Starting a long-running worker process
 	(docker -d || echo "Docker daemon already running") &
 
 	# Start a very useful long-running process
-	JOB=$(docker run base /bin/sh -c "while true; do echo Hello world!; sleep 1; done")
+	JOB=$(docker run base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
 	# Collect the output of the job so far
 	docker logs $JOB
