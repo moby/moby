@@ -623,7 +623,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 	}
 	// Display images which aren't part of a 
-	if nameFilter != "" {
+	if nameFilter == "" {
 		for id, image := range allImages {
 			if !*quiet {
 				for idx, field := range []string{
@@ -639,6 +639,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 						w.Write([]byte("\t" + field))
 					}
 				}
+				w.Write([]byte{'\n'})
 			} else {
 				stdout.Write([]byte(image.Id + "\n"))
 			}

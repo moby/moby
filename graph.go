@@ -35,6 +35,7 @@ func (graph *Graph) Exists(id string) bool {
 }
 
 func (graph *Graph) Get(id string) (*Image, error) {
+	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := LoadImage(graph.imageRoot(id))
 	if err != nil {
 		return nil, err

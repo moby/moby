@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
@@ -24,7 +25,12 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 		graph:        graph,
 		Repositories: make(map[string]Repository),
 	}
-	if err := store.Save(); err != nil {
+	// Load the json file if it exists, otherwise create it.
+	if err := store.Reload(); os.IsNotExist(err) {
+		if err := store.Save(); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
 	}
 	return store, nil
