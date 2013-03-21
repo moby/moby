@@ -37,10 +37,7 @@ func (srv *Server) Help() string {
 		{"ps", "Display a list of containers"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"attach", "Attach to a running container"},
-		{"cat", "Write the contents of a container's file to standard output"},
 		{"commit", "Create a new image from a container's changes"},
-		{"cp", "Create a copy of IMAGE and call it NAME"},
-		{"debug", "(debug only) (No documentation available)"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"images", "List images"},
 		{"info", "Display system-wide information"},
@@ -48,8 +45,6 @@ func (srv *Server) Help() string {
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		{"ls", "List the contents of a container's directory"},
-		{"mirror", "(debug only) (No documentation available)"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
 		{"restart", "Restart a running container"},
@@ -59,10 +54,8 @@ func (srv *Server) Help() string {
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tar", "Stream the contents of a container as a tar archive"},
-		{"umount", "(debug only) Mount a container's filesystem"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
-		{"write", "Write the contents of standard input to a container's file"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
@@ -232,28 +225,6 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return nil
 }
 
-func (srv *Server) CmdUmount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "umount a container's filesystem (debug only)")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 1 {
-		cmd.Usage()
-		return nil
-	}
-	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
-			if err := container.Mountpoint.Umount(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.Id)
-		} else {
-			return errors.New("No such container: " + name)
-		}
-	}
-	return nil
-}
-
 func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
 	if err := cmd.Parse(args); err != nil {
@@ -274,71 +245,6 @@ func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		}
 	}
 	return nil
-}
-
-func (srv *Server) CmdCat(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "cat", "[OPTIONS] CONTAINER PATH", "write the contents of a container's file to standard output")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 2 {
-		cmd.Usage()
-		return nil
-	}
-	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container := srv.containers.Get(name); container != nil {
-		if f, err := container.Mountpoint.OpenFile(path, os.O_RDONLY, 0); err != nil {
-			return err
-		} else if _, err := io.Copy(stdout, f); err != nil {
-			return err
-		}
-		return nil
-	}
-	return errors.New("No such container: " + name)
-}
-
-func (srv *Server) CmdWrite(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "write", "[OPTIONS] CONTAINER PATH", "write the contents of standard input to a container's file")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 2 {
-		cmd.Usage()
-		return nil
-	}
-	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container := srv.containers.Get(name); container != nil {
-		if f, err := container.Mountpoint.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600); err != nil {
-			return err
-		} else if _, err := io.Copy(f, stdin); err != nil {
-			return err
-		}
-		return nil
-	}
-	return errors.New("No such container: " + name)
-}
-
-func (srv *Server) CmdLs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "ls", "[OPTIONS] CONTAINER PATH", "List the contents of a container's directory")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 2 {
-		cmd.Usage()
-		return nil
-	}
-	name, path := cmd.Arg(0), cmd.Arg(1)
-	if container := srv.containers.Get(name); container != nil {
-		if files, err := container.Mountpoint.ReadDir(path); err != nil {
-			return err
-		} else {
-			for _, f := range files {
-				fmt.Fprintln(stdout, f.Name())
-			}
-		}
-		return nil
-	}
-	return errors.New("No such container: " + name)
 }
 
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
