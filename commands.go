@@ -46,14 +46,12 @@ func (srv *Server) Help() string {
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
-		{"layers", "(debug only) List filesystem layers"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"ls", "List the contents of a container's directory"},
 		{"mirror", "(debug only) (No documentation available)"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
-		{"reset", "Reset changes to a container's filesystem"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
@@ -64,7 +62,6 @@ func (srv *Server) Help() string {
 		{"umount", "(debug only) Mount a container's filesystem"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
-		{"web", "A web UI for docker"},
 		{"write", "Write the contents of standard input to a container's file"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
@@ -623,40 +620,6 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	return nil
 }
 
-func (srv *Server) CmdLayers(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"layers", "[OPTIONS]",
-		"List filesystem layers (debug only)")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	for _, layer := range srv.images.Layers() {
-		fmt.Fprintln(stdout, layer)
-	}
-	return nil
-}
-
-func (srv *Server) CmdCp(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"cp", "[OPTIONS] IMAGE NAME",
-		"Create a copy of IMAGE and call it NAME")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if image, err := srv.images.Get(cmd.Arg(0)); err != nil {
-		return err
-	} else if image == nil {
-		return errors.New("Image " + cmd.Arg(0) + " does not exist")
-	} else {
-		if img, err := image.Copy(cmd.Arg(1)); err != nil {
-			return err
-		} else {
-			fmt.Fprintln(stdout, img.Id)
-		}
-	}
-	return nil
-}
-
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
 		"commit", "[OPTIONS] CONTAINER [DEST]",
@@ -740,26 +703,6 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		for _, change := range changes {
 			fmt.Fprintln(stdout, change.String())
-		}
-	}
-	return nil
-}
-
-func (srv *Server) CmdReset(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"reset", "CONTAINER [OPTIONS]",
-		"Reset changes to a container's filesystem")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 1 {
-		return errors.New("Not enough arguments")
-	}
-	for _, name := range cmd.Args() {
-		if container := srv.containers.Get(name); container != nil {
-			if err := container.Mountpoint.Reset(); err != nil {
-				return errors.New("Reset " + container.Id + ": " + err.Error())
-			}
 		}
 	}
 	return nil
@@ -1005,45 +948,6 @@ func NewServer() (*Server, error) {
 		containers: containers,
 	}
 	return srv, nil
-}
-
-func (srv *Server) CmdMirror(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	_, err := io.Copy(stdout, stdin)
-	return err
-}
-
-func (srv *Server) CmdDebug(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	for {
-		if line, err := bufio.NewReader(stdin).ReadString('\n'); err == nil {
-			fmt.Printf("--- %s", line)
-		} else if err == io.EOF {
-			if len(line) > 0 {
-				fmt.Printf("--- %s\n", line)
-			}
-			break
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
-func (srv *Server) CmdWeb(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "web", "[OPTIONS]", "A web UI for docker")
-	showurl := cmd.Bool("u", false, "Return the URL of the web UI")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if *showurl {
-		fmt.Fprintln(stdout, "http://localhost:4242/web")
-	} else {
-		if file, err := os.Open("dockerweb.html"); err != nil {
-			return err
-		} else if _, err := io.Copy(stdout, file); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 type Server struct {
