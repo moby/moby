@@ -42,6 +42,7 @@ func (graph *Graph) Get(id string) (*Image, error) {
 	if img.Id != id {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
 	}
+	img.graph = graph
 	return img, nil
 }
 
