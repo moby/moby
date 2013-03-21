@@ -149,6 +149,14 @@ func (image *Image) Mount(root, rw string) error {
 	return nil
 }
 
+func (image *Image) Changes(rw string) ([]Change, error) {
+	layers, err := image.layers()
+	if err != nil {
+		return nil, err
+	}
+	return Changes(layers, rw)
+}
+
 func ValidateId(id string) error {
 	if id == "" {
 		return fmt.Errorf("Image id can't be empty")
