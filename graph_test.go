@@ -35,7 +35,7 @@ func TestGraphCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, "", "Testing")
+	image, err := graph.Create(archive, nil, "Testing")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestMount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, "", "Testing")
+	image, err := graph.Create(archive, nil, "Testing")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
-	img, err := graph.Create(archive, "", "Bla bla")
+	img, err := graph.Create(archive, nil, "Bla bla")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,11 +139,11 @@ func TestDelete(t *testing.T) {
 	assertNImages(graph, t, 0)
 
 	// Test 2 create (same name) / 1 delete
-	img1, err := graph.Create(archive, "foo", "Testing")
+	img1, err := graph.Create(archive, nil, "Testing")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = graph.Create(archive, "foo", "Testing"); err != nil {
+	if _, err = graph.Create(archive, nil, "Testing"); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 2)

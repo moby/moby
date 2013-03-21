@@ -2,9 +2,11 @@ package docker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type TagStore struct {
@@ -60,6 +62,12 @@ func (store *TagStore) Reload() error {
 }
 
 func (store *TagStore) Set(repoName, tag, revision string) error {
+	if strings.Contains(repoName, ":") {
+		return fmt.Errorf("Illegal repository name: %s", repoName)
+	}
+	if strings.Contains(repoName, ":") {
+		return fmt.Errorf("Illegal tag name: %s", tag)
+	}
 	if err := store.Reload(); err != nil {
 		return err
 	}

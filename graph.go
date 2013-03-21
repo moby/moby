@@ -47,12 +47,16 @@ func (graph *Graph) Get(id string) (*Image, error) {
 	return img, nil
 }
 
-func (graph *Graph) Create(layerData Archive, parent, comment string) (*Image, error) {
+func (graph *Graph) Create(layerData Archive, container *Container, comment string) (*Image, error) {
 	img := &Image{
 		Id:      GenerateId(),
-		Parent:  parent,
 		Comment: comment,
 		Created: time.Now(),
+	}
+	if container != nil {
+		img.Parent = container.Image
+		img.ParentContainer = container.Id
+		img.ParentCommand = append([]string{container.Path}, container.Args...)
 	}
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err

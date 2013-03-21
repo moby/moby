@@ -46,7 +46,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1.Image, "unit test commited image")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image")
 	if err != nil {
 		t.Error(err)
 	}
