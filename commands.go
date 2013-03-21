@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"math/rand"
@@ -749,7 +748,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 		if *fl_attach {
-			future.Go(func() error {
+			Go(func() error {
 				_, err := io.Copy(cmd_stdin, stdin)
 				cmd_stdin.Close()
 				return err
@@ -769,11 +768,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err := container.Start(); err != nil {
 			return err
 		}
-		sending_stdout := future.Go(func() error {
+		sending_stdout := Go(func() error {
 			_, err := io.Copy(stdout, cmd_stdout)
 			return err
 		})
-		sending_stderr := future.Go(func() error {
+		sending_stderr := Go(func() error {
 			_, err := io.Copy(stdout, cmd_stderr)
 			return err
 		})
