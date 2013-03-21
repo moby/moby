@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -23,6 +23,7 @@ import (
 )
 
 const VERSION = "0.0.3"
+const REGISTRY_ENDPOINT = "http://registry-creack.dotcloud.com/v1"
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -415,52 +416,88 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if img, err := srv.runtime.graph.Get(cmd.Arg(0)); err != nil {
 		return nil
 	} else {
-		img.WalkHistory(func(img *graph.Image) {
+		img.WalkHistory(func(img *Image) {
 			fmt.Fprintf(stdout, "Pushing %s\n", img.Id)
 
-			data := strings.NewReader("{\"id\": \"ddd\", \"created\": \"2013-03-21T00:18:18-07:00\"}")
-
-			req, err := http.NewRequest("PUT", "http://192.168.56.1:5000/v1/images/"+img.Id+"/json", data)
+			jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, img.Id, "json"))
+			if err != nil {
+				fmt.Fprintf(stdout, "Error while retreiving the path for {%s}: %s\n", img.Id, err)
+				return
+			}
+			jsonData := strings.NewReader(string(jsonRaw))
+			req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
 			res, err := client.Do(req)
 			if err != nil || res.StatusCode != 200 {
+				if res == nil {
+					fmt.Fprintf(stdout,
+						"Error: Internal server error trying to push image {%s} (json): %s\n",
+						img.Id, err)
+					return
+				}
 				switch res.StatusCode {
+				case 204:
+					fmt.Fprintf(stdout, "Image already on the repository\n")
+					return
 				case 400:
 					fmt.Fprintf(stdout, "Error: Invalid Json\n")
 					return
 				default:
-					fmt.Fprintf(stdout, "Error: Internal server error\n")
+					fmt.Fprintf(stdout,
+						"Error: Internal server error trying to push image {%s} (json): %s (%d)\n",
+						img.Id, err, res.StatusCode)
 					return
 				}
-				fmt.Fprintf(stdout, "Error trying to push image {%s} (json): %s\n", img.Id, err)
-				return
 			}
 
-			req2, err := http.NewRequest("PUT", "http://192.168.56.1:5000/v1/images/"+img.Id+"/layer", nil)
+			req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 			res2, err := client.Do(req2)
 			if err != nil || res2.StatusCode != 307 {
-				fmt.Fprintf(stdout, "Error trying to push image {%s} (layer 1): %s\n", img.Id, err)
+				fmt.Fprintf(stdout,
+					"Error trying to push image {%s} (layer 1): %s\n",
+					img.Id, err)
 				return
 			}
 			url, err := res2.Location()
 			if err != nil || url == nil {
-				fmt.Fprintf(stdout, "Fail to retrieve layer storage URL for image {%s}: %s\n", img.Id, err)
+				fmt.Fprintf(stdout,
+					"Fail to retrieve layer storage URL for image {%s}: %s\n",
+					img.Id, err)
 				return
 			}
-
-			req3, err := http.NewRequest("PUT", url.String(), data)
-			res3, err := client.Do(req3)
+			// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
+			layerData2, err := Tar(path.Join(srv.runtime.graph.Root, img.Id, "layer"), Gzip)
+			layerData, err := Tar(path.Join(srv.runtime.graph.Root, img.Id, "layer"), Gzip)
 			if err != nil {
-				fmt.Fprintf(stdout, "Error trying to push image {%s} (layer 2): %s\n", img.Id, err)
+				fmt.Fprintf(stdout,
+					"Error while retrieving layer for {%s}: %s\n",
+					img.Id, err)
 				return
 			}
-			fmt.Fprintf(stdout, "Status code storage: %d\n", res3.StatusCode)
+			req3, err := http.NewRequest("PUT", url.String(), layerData)
+			tmp, _ := ioutil.ReadAll(layerData2)
+			req3.ContentLength = int64(len(tmp))
+
+			req3.TransferEncoding = []string{"none"}
+			res3, err := client.Do(req3)
+			if err != nil || res3.StatusCode != 200 {
+				if res3 == nil {
+					fmt.Fprintf(stdout,
+						"Error trying to push image {%s} (layer 2): %s\n",
+						img.Id, err)
+				} else {
+					fmt.Fprintf(stdout,
+						"Error trying to push image {%s} (layer 2): %s (%d)\n",
+						img.Id, err, res3.StatusCode)
+				}
+				return
+			}
 		})
 	}
 	return nil
 }
 
-func newImgJson(src []byte) (*graph.Image, error) {
-	ret := &graph.Image{}
+func newImgJson(src []byte) (*Image, error) {
+	ret := &Image{}
 
 	fmt.Printf("Json string: {%s}\n", src)
 	// FIXME: Is there a cleaner way to "puryfy" the input json?
@@ -472,13 +509,13 @@ func newImgJson(src []byte) (*graph.Image, error) {
 	return ret, nil
 }
 
-func newMultipleImgJson(src []byte) (map[*graph.Image]graph.Archive, error) {
-	ret := map[*graph.Image]graph.Archive{}
+func newMultipleImgJson(src []byte) (map[*Image]Archive, error) {
+	ret := map[*Image]Archive{}
 
 	fmt.Printf("Json string2: {%s}\n", src)
 	dec := json.NewDecoder(strings.NewReader(strings.Replace(string(src), "null", "\"\"", -1)))
 	for {
-		m := &graph.Image{}
+		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
 			break
 		} else if err != nil {
@@ -489,7 +526,7 @@ func newMultipleImgJson(src []byte) (map[*graph.Image]graph.Archive, error) {
 	return ret, nil
 }
 
-func getHistory(base_uri, id string) (map[*graph.Image]graph.Archive, error) {
+func getHistory(base_uri, id string) (map[*Image]Archive, error) {
 	res, err := http.Get(base_uri + id + "/history")
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
@@ -508,7 +545,7 @@ func getHistory(base_uri, id string) (map[*graph.Image]graph.Archive, error) {
 	return history, nil
 }
 
-func getRemoteImage(base_uri, id string) (*graph.Image, graph.Archive, error) {
+func getRemoteImage(base_uri, id string) (*Image, Archive, error) {
 	// Get the Json
 	res, err := http.Get(base_uri + id + "/json")
 	if err != nil {
@@ -546,7 +583,7 @@ func (srv *Server) CmdPulli(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	}
 
 	// First, retrieve the history
-	base_uri := "http://192.168.56.1:5000/v1/images/"
+	base_uri := REGISTRY_ENDPOINT + "/images/"
 
 	// Now we have the history, remove the images we already have
 	history, err := getHistory(base_uri, cmd.Arg(0))
@@ -622,7 +659,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			}
 		}
 	}
-	// Display images which aren't part of a 
+	// Display images which aren't part of a
 	if nameFilter == "" {
 		for id, image := range allImages {
 			if !*quiet {
