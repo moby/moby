@@ -1,10 +1,13 @@
 package graph
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/future"
+	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"strings"
@@ -157,8 +160,20 @@ func ValidateId(id string) error {
 }
 
 func GenerateId() string {
-	future.Seed()
-	return future.RandomId()
+	// FIXME: don't seed every time
+	rand.Seed(time.Now().UTC().UnixNano())
+	randomBytes := bytes.NewBuffer([]byte(fmt.Sprintf("%x", rand.Int())))
+	id, _ := ComputeId(randomBytes) // can't fail
+	return id
+}
+
+// ComputeId reads from `content` until EOF, then returns a SHA of what it read, as a string.
+func ComputeId(content io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, content); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)[:8]), nil
 }
 
 // Image includes convenience proxy functions to its graph

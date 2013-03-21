@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
@@ -795,7 +796,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func NewServer() (*Server, error) {
-	future.Seed()
+	rand.Seed(time.Now().UTC().UnixNano())
 	// if err != nil {
 	// 	return nil, err
 	// }

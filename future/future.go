@@ -1,34 +1,9 @@
 package future
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"io"
-	"math/rand"
-	"time"
 )
-
-func Seed() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
-
-func ComputeId(content io.Reader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, content); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)[:8]), nil
-}
-
-func randomBytes() io.Reader {
-	return bytes.NewBuffer([]byte(fmt.Sprintf("%x", rand.Int())))
-}
-
-func RandomId() string {
-	id, _ := ComputeId(randomBytes()) // can't fail
-	return id
-}
 
 func Go(f func() error) chan error {
 	ch := make(chan error)

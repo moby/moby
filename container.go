@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/graph"
 	"github.com/kr/pty"
 	"io"
@@ -66,8 +65,8 @@ type NetworkSettings struct {
 }
 
 func GenerateId() string {
-	future.Seed()
-	return future.RandomId()
+	return graph.GenerateId() // Re-use the same code to generate container and image IDs
+	// (this might change when image Ids become content-based)
 }
 
 func (container *Container) Cmd() *exec.Cmd {
