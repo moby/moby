@@ -64,7 +64,7 @@ func (srv *Server) Help() string {
 		{"wait", "Block until a container stops, then print its exit code"},
 		{"write", "Write the contents of standard input to a container's file"},
 	} {
-		help += fmt.Sprintf("    %-10.10s%s\n", cmd...)
+		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
 	return help
 }
