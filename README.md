@@ -1,9 +1,9 @@
 Docker: the Linux container runtime
 ===================================
 
-Docker complements LXC with a high-level API with operates at the process level. It runs unix processes with strong guarantees of isolation and repeatability across servers.
+Docker complements LXC with a high-level API which operates at the process level. It runs unix processes with strong guarantees of isolation and repeatability across servers.
 
-Is is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
+Docker is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
 
 <img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
 
@@ -27,7 +27,7 @@ Notable features
 
 * Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.
 
-* Logging: the standard streams (stdout/stderr/stdin) of each process container is collected and logged for real-time or batch retrieval.
+* Logging: the standard streams (stdout/stderr/stdin) of each process container are collected and logged for real-time or batch retrieval.
 
 * Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.
 
@@ -195,10 +195,10 @@ Contribution guidelines
 
 We are always thrilled to receive pull requests, and do our best to process them as fast as possible. Not sure if that typo is worth a pull request? Do it! We will appreciate it.
 
-If your pull request is not accepted on the first try, don't be discouraged! If there's a problen with the implementation, hopefully you received feedback on what to improve.
+If your pull request is not accepted on the first try, don't be discouraged! If there's a problem with the implementation, hopefully you received feedback on what to improve.
 
 We're trying very hard to keep Docker lean and focused. We don't want it to do everything for everybody. This means that we might decide against incorporating a new feature.
-However there might be a way to implement that feature *on top of* docker.
+However, there might be a way to implement that feature *on top of* docker.
 
 ### Discuss your design on the mailing list
 
@@ -207,7 +207,7 @@ you in the right direction, give feedback on your design, and maybe point out if
 
 ### Create issues...
 
-Any significant improvement should be documented as a github issue before anybody start working on it.
+Any significant improvement should be documented as [a github issue](https://github.com/dotcloud/docker/issues) before anybody starts working on it.
 
 ### ...but check for existing issues first!
 
@@ -224,7 +224,7 @@ Golang has a great testing suite built in: use it! Take a look at existing tests
 Setting up a dev environment
 ----------------------------
 
-Instructions that is verified to work on Ubuntu 12.10,
+Instructions that have been verified to work on Ubuntu 12.10,
 
 ```
 sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang git pkg-config
@@ -254,9 +254,9 @@ What is a Standard Container?
 =============================
 
 Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
-a format that is self-describing and portable, so that any compliant runtime can run it without extra dependency, regardless of the underlying machine and the contents of the container.
+a format that is self-describing and portable, so that any compliant runtime can run it without extra dependencies, regardless of the underlying machine and the contents of the container.
 
-The spec for Standard Containers is currently work in progress, but it is very straightforward. It mostly defines 1) an image format, 2) a set of standard operations, and 3) an execution environment.
+The spec for Standard Containers is currently a work in progress, but it is very straightforward. It mostly defines 1) an image format, 2) a set of standard operations, and 3) an execution environment.
 
 A great analogy for this is the shipping container. Just like Standard Containers are a fundamental unit of software delivery, shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.
 
