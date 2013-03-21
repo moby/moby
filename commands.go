@@ -49,7 +49,7 @@ func (srv *Server) Help() string {
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		{"tar", "Stream the contents of a container as a tar archive"},
+		{"export", "Stream the contents of a container as a tar archive"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
@@ -551,10 +551,10 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return errors.New("No such container: " + containerName)
 }
 
-func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
-		"tar", "CONTAINER",
-		"Stream the contents of a container as a tar archive")
+		"export", "CONTAINER",
+		"Export the contents of a filesystem as a tar archive")
 	fl_sparse := cmd.Bool("s", false, "Generate a sparse tar stream (top layer + reference to bottom layers)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -564,9 +564,6 @@ func (srv *Server) CmdTar(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	}
 	name := cmd.Arg(0)
 	if container := srv.runtime.Get(name); container != nil {
-		if err := container.EnsureMounted(); err != nil {
-			return err
-		}
 		data, err := container.Export()
 		if err != nil {
 			return err
