@@ -1,7 +1,9 @@
 package graph
 
 import (
-	"github.com/dotcloud/docker/fake"
+	"archive/tar"
+	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -29,7 +31,7 @@ func TestInit(t *testing.T) {
 func TestCreate(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +55,7 @@ func TestCreate(t *testing.T) {
 func TestRegister(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +88,7 @@ func TestRegister(t *testing.T) {
 func TestMount(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +123,7 @@ func TestMount(t *testing.T) {
 func TestDelete(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,9 +185,26 @@ func tempGraph(t *testing.T) *Graph {
 }
 
 func testArchive(t *testing.T) Archive {
-	archive, err := fake.FakeTar()
+	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
 	return archive
+}
+
+func fakeTar() (io.Reader, error) {
+	content := []byte("Hello world!\n")
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	for _, name := range []string{"/etc/postgres/postgres.conf", "/etc/passwd", "/var/log/postgres/postgres.conf"} {
+		hdr := new(tar.Header)
+		hdr.Size = int64(len(content))
+		hdr.Name = name
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+		tw.Write([]byte(content))
+	}
+	tw.Close()
+	return buf, nil
 }
