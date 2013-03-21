@@ -115,7 +115,6 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 	container.runtime = runtime
-	container.networkManager = runtime.networkManager // FIXME: infer from docker.runtime
 	// Setup state lock (formerly in newState()
 	lock := new(sync.Mutex)
 	container.State.stateChangeLock = lock

@@ -32,7 +32,6 @@ type Container struct {
 	Image  string
 
 	network         *NetworkInterface
-	networkManager  *NetworkManager
 	NetworkSettings *NetworkSettings
 
 	SysInitPath string
@@ -266,7 +265,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) allocateNetwork() error {
-	iface, err := container.networkManager.Allocate()
+	iface, err := container.runtime.networkManager.Allocate()
 	if err != nil {
 		return err
 	}
