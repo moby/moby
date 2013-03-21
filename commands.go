@@ -8,12 +8,10 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
-	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -23,7 +21,6 @@ import (
 )
 
 const VERSION = "0.0.3"
-const REGISTRY_ENDPOINT = "http://registry-creack.dotcloud.com/v1"
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -434,168 +431,16 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
-	client := &http.Client{}
-	if img, err := srv.runtime.graph.Get(cmd.Arg(0)); err != nil {
-		return nil
-	} else {
-		img.WalkHistory(func(img *Image) {
-			fmt.Fprintf(stdout, "Pushing %s\n", img.Id)
-
-			jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, img.Id, "json"))
-			if err != nil {
-				fmt.Fprintf(stdout, "Error while retreiving the path for {%s}: %s\n", img.Id, err)
-				return
-			}
-			jsonData := strings.NewReader(string(jsonRaw))
-			req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
-			res, err := client.Do(req)
-			if err != nil || res.StatusCode != 200 {
-				if res == nil {
-					fmt.Fprintf(stdout,
-						"Error: Internal server error trying to push image {%s} (json): %s\n",
-						img.Id, err)
-					return
-				}
-				switch res.StatusCode {
-				case 204:
-					fmt.Fprintf(stdout, "Image already on the repository\n")
-					return
-				case 400:
-					fmt.Fprintf(stdout, "Error: Invalid Json\n")
-					return
-				default:
-					fmt.Fprintf(stdout,
-						"Error: Internal server error trying to push image {%s} (json): %s (%d)\n",
-						img.Id, err, res.StatusCode)
-					return
-				}
-			}
-
-			req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
-			res2, err := client.Do(req2)
-			if err != nil || res2.StatusCode != 307 {
-				fmt.Fprintf(stdout,
-					"Error trying to push image {%s} (layer 1): %s\n",
-					img.Id, err)
-				return
-			}
-			url, err := res2.Location()
-			if err != nil || url == nil {
-				fmt.Fprintf(stdout,
-					"Fail to retrieve layer storage URL for image {%s}: %s\n",
-					img.Id, err)
-				return
-			}
-			// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
-			layerData2, err := Tar(path.Join(srv.runtime.graph.Root, img.Id, "layer"), Gzip)
-			layerData, err := Tar(path.Join(srv.runtime.graph.Root, img.Id, "layer"), Gzip)
-			if err != nil {
-				fmt.Fprintf(stdout,
-					"Error while retrieving layer for {%s}: %s\n",
-					img.Id, err)
-				return
-			}
-			req3, err := http.NewRequest("PUT", url.String(), layerData)
-			tmp, _ := ioutil.ReadAll(layerData2)
-			req3.ContentLength = int64(len(tmp))
-
-			req3.TransferEncoding = []string{"none"}
-			res3, err := client.Do(req3)
-			if err != nil || res3.StatusCode != 200 {
-				if res3 == nil {
-					fmt.Fprintf(stdout,
-						"Error trying to push image {%s} (layer 2): %s\n",
-						img.Id, err)
-				} else {
-					fmt.Fprintf(stdout,
-						"Error trying to push image {%s} (layer 2): %s (%d)\n",
-						img.Id, err, res3.StatusCode)
-				}
-				return
-			}
-		})
+	img, err := srv.runtime.graph.Get(cmd.Arg(0))
+	if err != nil {
+		return err
 	}
-	return nil
+	// FIXME: Handle repositories, etc. Not jist images
+	return srv.runtime.graph.PushImage(img)
 }
 
-func newImgJson(src []byte) (*Image, error) {
-	ret := &Image{}
-
-	fmt.Printf("Json string: {%s}\n", src)
-	// FIXME: Is there a cleaner way to "puryfy" the input json?
-	src = []byte(strings.Replace(string(src), "null", "\"\"", -1))
-
-	if err := json.Unmarshal(src, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
-}
-
-func newMultipleImgJson(src []byte) (map[*Image]Archive, error) {
-	ret := map[*Image]Archive{}
-
-	fmt.Printf("Json string2: {%s}\n", src)
-	dec := json.NewDecoder(strings.NewReader(strings.Replace(string(src), "null", "\"\"", -1)))
-	for {
-		m := &Image{}
-		if err := dec.Decode(m); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-		ret[m] = nil
-	}
-	return ret, nil
-}
-
-func getHistory(base_uri, id string) (map[*Image]Archive, error) {
-	res, err := http.Get(base_uri + id + "/history")
-	if err != nil {
-		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
-	}
-	defer res.Body.Close()
-
-	jsonString, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Error while reading the http response: %s\n", err)
-	}
-
-	history, err := newMultipleImgJson(jsonString)
-	if err != nil {
-		return nil, fmt.Errorf("Error while parsing the json: %s\n", err)
-	}
-	return history, nil
-}
-
-func getRemoteImage(base_uri, id string) (*Image, Archive, error) {
-	// Get the Json
-	res, err := http.Get(base_uri + id + "/json")
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
-	}
-	defer res.Body.Close()
-
-	jsonString, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while reading the http response: %s\n", err)
-	}
-
-	img, err := newImgJson(jsonString)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while parsing the json: %s\n", err)
-	}
-	img.Id = id
-
-	// Get the layer
-	res, err = http.Get(base_uri + id + "/layer")
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
-	}
-	return img, res.Body, nil
-}
-
-func (srv *Server) CmdPulli(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pulli", "[OPTIONS] IMAGE", "Pull an image from the registry")
+func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] IMAGE", "Pull an image from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -603,28 +448,8 @@ func (srv *Server) CmdPulli(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		cmd.Usage()
 		return nil
 	}
-
-	// First, retrieve the history
-	base_uri := REGISTRY_ENDPOINT + "/images/"
-
-	// Now we have the history, remove the images we already have
-	history, err := getHistory(base_uri, cmd.Arg(0))
-	if err != nil {
-		return err
-	}
-	for j := range history {
-		if !srv.runtime.graph.Exists(j.Id) {
-			img, layer, err := getRemoteImage(base_uri, j.Id)
-			if err != nil {
-				// FIXME: Keep goging in case of error?
-				return err
-			}
-			if err = srv.runtime.graph.Register(layer, img); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	// FIXME: Handle repositories, etc. Not jist images
+	return srv.runtime.graph.PullImage(cmd.Arg(0))
 }
 
 func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {

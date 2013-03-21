@@ -181,12 +181,12 @@ func ComputeId(content io.Reader) (string, error) {
 // Image includes convenience proxy functions to its graph
 // These functions will return an error if the image is not registered
 // (ie. if image.graph == nil)
-
 func (img *Image) History() ([]*Image, error) {
 	var parents []*Image
 	if err := img.WalkHistory(
-		func(img *Image) {
+		func(img *Image) error {
 			parents = append(parents, img)
+			return nil
 		},
 	); err != nil {
 		return nil, err
@@ -195,16 +195,19 @@ func (img *Image) History() ([]*Image, error) {
 }
 
 // layers returns all the filesystem layers needed to mount an image
+// FIXME: @shykes refactor this function with the new error handling
+//        (I'll do it if I have time tonight, I focus on the rest)
 func (img *Image) layers() ([]string, error) {
 	var list []string
 	var e error
 	if err := img.WalkHistory(
-		func(img *Image) {
+		func(img *Image) (err error) {
 			if layer, err := img.layer(); err != nil {
 				e = err
 			} else if layer != "" {
 				list = append(list, layer)
 			}
+			return err
 		},
 	); err != nil {
 		return nil, err
@@ -217,12 +220,13 @@ func (img *Image) layers() ([]string, error) {
 	return list, nil
 }
 
-func (img *Image) WalkHistory(handler func(*Image)) error {
-	var err error
+func (img *Image) WalkHistory(handler func(*Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
 		if handler != nil {
-			handler(currentImg)
+			if err := handler(currentImg); err != nil {
+				return err
+			}
 		}
 		currentImg, err = currentImg.GetParent()
 		if err != nil {
