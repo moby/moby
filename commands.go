@@ -555,12 +555,8 @@ func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout,
 		"export", "CONTAINER",
 		"Export the contents of a filesystem as a tar archive")
-	fl_sparse := cmd.Bool("s", false, "Generate a sparse tar stream (top layer + reference to bottom layers)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
-	}
-	if *fl_sparse {
-		return errors.New("Sparse mode not yet implemented") // FIXME
 	}
 	name := cmd.Arg(0)
 	if container := srv.runtime.Get(name); container != nil {
