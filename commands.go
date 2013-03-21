@@ -331,13 +331,14 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 		return err
 	}
 	var child *Image
-	return image.WalkHistory(func(img *Image) {
+	return image.WalkHistory(func(img *Image) error {
 		if child == nil {
 			fmt.Fprintf(stdout, "   %s\n", img.Id)
 		} else {
 			fmt.Fprintf(stdout, " = %s + %s\n", img.Id, strings.Join(child.ParentCommand, " "))
 		}
 		child = img
+		return nil
 	})
 }
 
