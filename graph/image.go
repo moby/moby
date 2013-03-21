@@ -91,29 +91,12 @@ func MountAUFS(ro []string, rw string, target string) error {
 	return mount("none", target, "aufs", 0, branches)
 }
 
-func Unmount(target string) error {
-	if err := syscall.Unmount(target, 0); err != nil {
-		return err
-	}
-	// Even though we just unmounted the filesystem, AUFS will prevent deleting the mntpoint
-	// for some time. We'll just keep retrying until it succeeds.
-	for retries := 0; retries < 1000; retries++ {
-		err := os.Remove(target)
-		if err == nil {
-			// rm mntpoint succeeded
-			return nil
-		}
-		if os.IsNotExist(err) {
-			// mntpoint doesn't exist anymore. Success.
-			return nil
-		}
-		// fmt.Printf("(%v) Remove %v returned: %v\n", retries, target, err)
-		time.Sleep(10 * time.Millisecond)
-	}
-	return fmt.Errorf("Umount: Failed to umount %v", target)
-}
-
 func (image *Image) Mount(root, rw string) error {
+	if isMounted, err := IsMounted(root); err != nil {
+		return err
+	} else if isMounted {
+		return fmt.Errorf("%s is already mounted", root)
+	}
 	layers, err := image.layers()
 	if err != nil {
 		return err
