@@ -92,9 +92,9 @@ func MountAUFS(ro []string, rw string, target string) error {
 }
 
 func (image *Image) Mount(root, rw string) error {
-	if isMounted, err := IsMounted(root); err != nil {
+	if mounted, err := Mounted(root); err != nil {
 		return err
-	} else if isMounted {
+	} else if mounted {
 		return fmt.Errorf("%s is already mounted", root)
 	}
 	layers, err := image.layers()
