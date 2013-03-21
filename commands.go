@@ -383,11 +383,11 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = future.Download(u.String(), stdout)
+		resp, err = Download(u.String(), stdout)
 		if err != nil {
 			return err
 		}
-		archive = future.ProgressReader(resp.Body, int(resp.ContentLength), stdout)
+		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
 	fmt.Fprintf(stdout, "Unpacking to %s\n", name)
 	img, err := srv.runtime.graph.Create(archive, "", "")
