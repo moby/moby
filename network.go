@@ -279,7 +279,7 @@ func (iface *NetworkInterface) AllocatePort(port int) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	if err := iface.manager.portMapper.Map(extPort, net.TCPAddr{iface.IPNet.IP, port}); err != nil {
+	if err := iface.manager.portMapper.Map(extPort, net.TCPAddr{IP: iface.IPNet.IP, Port: port}); err != nil {
 		iface.manager.portAllocator.Release(extPort)
 		return -1, err
 	}
@@ -319,7 +319,7 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return nil, err
 	}
 	iface := &NetworkInterface{
-		IPNet:   net.IPNet{ip, manager.bridgeNetwork.Mask},
+		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
 		Gateway: manager.bridgeNetwork.IP,
 		manager: manager,
 	}
