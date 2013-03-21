@@ -15,10 +15,10 @@ import (
 )
 
 type Image struct {
-	Id      string
-	Parent  string
-	Comment string
-	Created time.Time
+	Id      string    `json:"id"`
+	Parent  string    `json:"parent,omitempty"`
+	Comment string    `json:"comment,omitempty"`
+	Created time.Time `json:"created"`
 	graph   *Graph
 }
 
