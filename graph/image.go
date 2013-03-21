@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"syscall"
 	"time"
 )
 
