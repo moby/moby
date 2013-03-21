@@ -449,7 +449,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		//					for idx, field := range []string{
 		//						/* NAME */ name,
 		//						/* ID */ img.Id,
-		//						/* CREATED */ future.HumanDuration(time.Now().Sub(time.Unix(img.Created, 0))) + " ago",
+		//						/* CREATED */ HumanDuration(time.Now().Sub(time.Unix(img.Created, 0))) + " ago",
 		//						/* PARENT */ img.Parent,
 		//					} {
 		//						if idx == 0 {
@@ -499,7 +499,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				/* ID */ container.Id,
 				/* IMAGE */ container.Image,
 				/* COMMAND */ command,
-				/* CREATED */ future.HumanDuration(time.Now().Sub(container.Created)) + " ago",
+				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */ container.State.String(),
 				/* COMMENT */ "",
 			} {

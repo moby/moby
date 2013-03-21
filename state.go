@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/future"
 	"sync"
 	"time"
 )
@@ -20,7 +19,7 @@ type State struct {
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
-		return fmt.Sprintf("Up %s", future.HumanDuration(time.Now().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
 	return fmt.Sprintf("Exit %d", s.ExitCode)
 }
