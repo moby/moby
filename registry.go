@@ -203,6 +203,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 		if err != nil {
 			return err
 		}
+		req.Header.Add("Content-type", "application/json")
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res, err := client.Do(req)
 		if err != nil || res.StatusCode != 200 {
