@@ -287,22 +287,26 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 	return nil
 }
 
-func (graph *Graph) pushTag(user, repo, revision, tag string, authConfig *auth.AuthConfig) error {
+// push a tag on the registry.
+// Remote has the format '<user>/<repo>
+func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthConfig) error {
 
+	// Keep this for backward compatibility
 	if tag == "" {
 		tag = "lastest"
 	}
 
+	// "jsonify" the string
 	revision = "\"" + revision + "\""
 
 	client := &http.Client{}
-	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+user+"/"+repo+"/"+tag, strings.NewReader(revision))
+	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+remote+"/"+tag, strings.NewReader(revision))
 	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil || (res.StatusCode != 200 && res.StatusCode != 201) {
 		if res != nil {
-			return fmt.Errorf("Internal server error: %d trying to push tag %s on %s/%s", res.StatusCode, tag, user, repo)
+			return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
 		}
 		return err
 	}
@@ -316,8 +320,10 @@ func (graph *Graph) pushTag(user, repo, revision, tag string, authConfig *auth.A
 	return nil
 }
 
-func (graph *Graph) PushRepository(user, repoName string, repo Repository, authConfig *auth.AuthConfig) error {
-	for tag, imgId := range repo {
+// Push a repository to the registry.
+// Remote has the format '<user>/<repo>
+func (graph *Graph) PushRepository(remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
+	for tag, imgId := range localRepo {
 		fmt.Printf("tag: %s, imgId: %s\n", tag, imgId)
 		img, err := graph.Get(imgId)
 		if err != nil {
@@ -326,7 +332,7 @@ func (graph *Graph) PushRepository(user, repoName string, repo Repository, authC
 		if err = graph.PushImage(img, authConfig); err != nil {
 			return err
 		}
-		if err = graph.pushTag(user, repoName, imgId, tag, authConfig); err != nil {
+		if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
 			return err
 		}
 	}

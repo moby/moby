@@ -402,30 +402,47 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "[OPTIONS] IMAGE", "Push an image or a repository to the registry")
-	user := cmd.String("u", "", "specify the user for the repository")
+	cmd := rcli.Subcmd(stdout, "push", "LOCAL [REMOTE]", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() == 0 || *user == "" {
+	local := cmd.Arg(0)
+	remote := cmd.Arg(1)
+
+	if local == "" {
 		cmd.Usage()
 		return nil
 	}
 
+	// If the login failed, abort
 	if srv.runtime.authConfig == nil {
 		return fmt.Errorf("Please login prior to push. ('docker login')")
+	}
+
+	if remote == "" {
+		tmp := strings.SplitN(local, "/", 2)
+		if len(tmp) == 1 {
+			remote = srv.runtime.authConfig.Username + "/" + local
+		} else {
+			remote = local
+		}
+	} else {
+		tmp := strings.SplitN(remote, "/", 2)
+		if len(tmp) == 1 {
+			return fmt.Errorf("The remote repository needs to be in the <user>/<repo> format")
+		}
 	}
 
 	// Try to get the image
 	// FIXME: Handle lookup
 	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
 	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
-	img, err := srv.runtime.graph.Get(cmd.Arg(0))
+	img, err := srv.runtime.graph.Get(local)
 	if err != nil {
 		// If it fails, try to get the repository
-		if repo, exists := srv.runtime.repositories.Repositories[cmd.Arg(0)]; exists {
-			fmt.Fprintf(stdout, "Pushing %s (%d images) on %s...\n", cmd.Arg(0), len(repo), *user+"/"+cmd.Arg(0))
-			if err := srv.runtime.graph.PushRepository(*user, cmd.Arg(0), repo, srv.runtime.authConfig); err != nil {
+		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
+			fmt.Fprintf(stdout, "Pushing %s (%d images) on %s...\n", local, len(localRepo), remote)
+			if err := srv.runtime.graph.PushRepository(remote, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
 			fmt.Fprintf(stdout, "Push completed\n")
