@@ -423,7 +423,8 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "[OPTIONS] IMAGE", "Push an image to the registry")
+	cmd := rcli.Subcmd(stdout, "push", "[OPTIONS] IMAGE", "Push an image or a repository to the registry")
+	user := cmd.String("u", "", "specify the user for the repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -432,16 +433,31 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
+	// Try to get the image
+	// FIXME: Handle lookup
+	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
+	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
 	img, err := srv.runtime.graph.Get(cmd.Arg(0))
 	if err != nil {
-		return err
+		if *user == "" {
+			return fmt.Errorf("Not logged in and no user specified\n")
+		}
+		// If it fails, try to get the repository
+		if repo, exists := srv.runtime.repositories.Repositories[cmd.Arg(0)]; exists {
+			if err := srv.runtime.graph.PushRepository(*user, cmd.Arg(0), repo); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
 	}
-	// FIXME: Handle repositories, etc. Not jist images
 	return srv.runtime.graph.PushImage(img)
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] IMAGE", "Pull an image from the registry")
+	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] IMAGE", "Pull an image or a repository from the registry")
+	user := cmd.String("u", "", "specify the user for the repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -449,8 +465,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	// FIXME: Handle repositories, etc. Not jist images
-	return srv.runtime.graph.PullImage(cmd.Arg(0))
+
+	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0)) {
+		return srv.runtime.graph.PullImage(cmd.Arg(0))
+	}
+	if *user == "" {
+		return fmt.Errorf("Not loggin and no user specified\n")
+	}
+	// FIXME: Allow pull repo:tag
+	return srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories)
 }
 
 func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {

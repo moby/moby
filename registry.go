@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 //FIXME: Set the endpoint in a conf file or via commandline
 //const REGISTRY_ENDPOINT = "http://registry-creack.dotcloud.com/v1"
-const REGISTRY_ENDPOINT = "http://192.168.56.1:5000/v1"
+const REGISTRY_ENDPOINT = auth.REGISTRY_SERVER + "/v1"
 
 // Build an Image object from raw json data
 func NewImgJson(src []byte) (*Image, error) {
@@ -67,6 +68,15 @@ func (graph *Graph) getRemoteHistory(imgId string) ([]*Image, error) {
 	return history, nil
 }
 
+// Check if an image exists in the Registry
+func (graph *Graph) LookupRemoteImage(imgId string) bool {
+	res, err := http.Get(REGISTRY_ENDPOINT + "/images/" + imgId + "/json")
+	if err != nil {
+		return false
+	}
+	return res.StatusCode == 307
+}
+
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
 func (graph *Graph) getRemoteImage(imgId string) (*Image, Archive, error) {
@@ -118,6 +128,46 @@ func (graph *Graph) PullImage(imgId string) error {
 	return nil
 }
 
+// FIXME: Handle the askedTag parameter
+func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories *TagStore) error {
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+user+"/"+repoName, nil)
+	if err != nil {
+		return err
+	}
+	authStruct, err := auth.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	req.SetBasicAuth(authStruct.Username, authStruct.Password)
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	rawJson, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	t := map[string]string{}
+	if err = json.Unmarshal(rawJson, &t); err != nil {
+		return err
+	}
+	for tag, rev := range t {
+		if err = graph.PullImage(rev); err != nil {
+			return err
+		}
+		if err = repositories.Set(repoName, tag, rev); err != nil {
+			return err
+		}
+	}
+	if err = repositories.Save(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Push a local image to the registry with its history if needed
 func (graph *Graph) PushImage(imgOrig *Image) error {
 	client := &http.Client{}
@@ -130,9 +180,12 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 		if err != nil {
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
-		// FIXME: try json with URF8
+		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
 		req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
+		if err != nil {
+			return err
+		}
 		res, err := client.Do(req)
 		if err != nil || res.StatusCode != 200 {
 			if res == nil {
@@ -196,6 +249,48 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 		return nil
 	}); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (graph *Graph) pushTag(user, repo, revision, tag string) error {
+
+	if tag == "" {
+		tag = "lastest"
+	}
+
+	revision = "\"" + revision + "\""
+
+	client := &http.Client{}
+	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+user+"/"+repo+"/"+tag, strings.NewReader(revision))
+	req.Header.Add("Content-type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Result of push tag: %d\n", res.StatusCode)
+	switch res.StatusCode {
+	default:
+		return fmt.Errorf("Error %d\n", res.StatusCode)
+	case 200:
+	case 201:
+	}
+	return nil
+}
+
+func (graph *Graph) PushRepository(user, repoName string, repo Repository) error {
+	for tag, imgId := range repo {
+		fmt.Printf("tag: %s, imgId: %s\n", tag, imgId)
+		img, err := graph.Get(imgId)
+		if err != nil {
+			return err
+		}
+		if err = graph.PushImage(img); err != nil {
+			return err
+		}
+		if err = graph.pushTag(user, repoName, imgId, tag); err != nil {
+			return err
+		}
 	}
 	return nil
 }
