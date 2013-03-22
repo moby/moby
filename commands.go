@@ -440,7 +440,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		// If it fails, try to get the repository
 		if repo, exists := srv.runtime.repositories.Repositories[cmd.Arg(0)]; exists {
-			if err := srv.runtime.graph.PushRepository(*user, cmd.Arg(0), repo); err != nil {
+			if err := srv.runtime.graph.PushRepository(*user, cmd.Arg(0), repo, srv.runtime.authConfig); err != nil {
 				return err
 			}
 		} else {
@@ -448,7 +448,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		return nil
 	}
-	return srv.runtime.graph.PushImage(img)
+	return srv.runtime.graph.PushImage(img, srv.runtime.authConfig)
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -462,8 +462,8 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
-	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0)) {
-		return srv.runtime.graph.PullImage(cmd.Arg(0))
+	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0), srv.runtime.authConfig) {
+		return srv.runtime.graph.PullImage(cmd.Arg(0), srv.runtime.authConfig)
 	}
 	if *user == "" {
 		return fmt.Errorf("Not loggin and no user specified\n")

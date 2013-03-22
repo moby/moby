@@ -49,10 +49,17 @@ func NewMultipleImgJson(src []byte) ([]*Image, error) {
 
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
-func (graph *Graph) getRemoteHistory(imgId string) ([]*Image, error) {
-	res, err := http.Get(REGISTRY_ENDPOINT + "/images/" + imgId + "/history")
+func (graph *Graph) getRemoteHistory(imgId string, authConfig *auth.AuthConfig) ([]*Image, error) {
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/history", nil)
 	if err != nil {
-		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+		return nil, err
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer res.Body.Close()
 
@@ -69,8 +76,15 @@ func (graph *Graph) getRemoteHistory(imgId string) ([]*Image, error) {
 }
 
 // Check if an image exists in the Registry
-func (graph *Graph) LookupRemoteImage(imgId string) bool {
-	res, err := http.Get(REGISTRY_ENDPOINT + "/images/" + imgId + "/json")
+func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig) bool {
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
+	if err != nil {
+		return false
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := client.Do(req)
 	if err != nil {
 		return false
 	}
@@ -79,11 +93,18 @@ func (graph *Graph) LookupRemoteImage(imgId string) bool {
 
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
-func (graph *Graph) getRemoteImage(imgId string) (*Image, Archive, error) {
+func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
+	client := &http.Client{}
+
 	// Get the Json
-	res, err := http.Get(REGISTRY_ENDPOINT + "/images/" + imgId + "/json")
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
 	}
 	defer res.Body.Close()
 
@@ -106,8 +127,8 @@ func (graph *Graph) getRemoteImage(imgId string) (*Image, Archive, error) {
 	return img, res.Body, nil
 }
 
-func (graph *Graph) PullImage(imgId string) error {
-	history, err := graph.getRemoteHistory(imgId)
+func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
+	history, err := graph.getRemoteHistory(imgId, authConfig)
 	if err != nil {
 		return err
 	}
@@ -115,7 +136,7 @@ func (graph *Graph) PullImage(imgId string) error {
 	// FIXME: Lunch the getRemoteImage() in goroutines
 	for _, j := range history {
 		if !graph.Exists(j.Id) {
-			img, layer, err := graph.getRemoteImage(j.Id)
+			img, layer, err := graph.getRemoteImage(j.Id, authConfig)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
 				return err
@@ -136,12 +157,12 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 	if err != nil {
 		return err
 	}
-
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	rawJson, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -151,7 +172,7 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 		return err
 	}
 	for tag, rev := range t {
-		if err = graph.PullImage(rev); err != nil {
+		if err = graph.PullImage(rev, authConfig); err != nil {
 			return err
 		}
 		if err = repositories.Set(repoName, tag, rev); err != nil {
@@ -165,7 +186,7 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 }
 
 // Push a local image to the registry with its history if needed
-func (graph *Graph) PushImage(imgOrig *Image) error {
+func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
 	// FIXME: Factorize the code
@@ -182,6 +203,7 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 		if err != nil {
 			return err
 		}
+		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res, err := client.Do(req)
 		if err != nil || res.StatusCode != 200 {
 			if res == nil {
@@ -204,6 +226,7 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 		}
 
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
+		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
 		if err != nil || res2.StatusCode != 307 {
 			return fmt.Errorf(
@@ -226,7 +249,13 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 				img.Id, err)
 		}
 		req3, err := http.NewRequest("PUT", url.String(), layerData)
-		tmp, _ := ioutil.ReadAll(layerData2)
+		if err != nil {
+			return err
+		}
+		tmp, err := ioutil.ReadAll(layerData2)
+		if err != nil {
+			return err
+		}
 		req3.ContentLength = int64(len(tmp))
 
 		req3.TransferEncoding = []string{"none"}
@@ -249,7 +278,7 @@ func (graph *Graph) PushImage(imgOrig *Image) error {
 	return nil
 }
 
-func (graph *Graph) pushTag(user, repo, revision, tag string) error {
+func (graph *Graph) pushTag(user, repo, revision, tag string, authConfig *auth.AuthConfig) error {
 
 	if tag == "" {
 		tag = "lastest"
@@ -260,6 +289,7 @@ func (graph *Graph) pushTag(user, repo, revision, tag string) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+user+"/"+repo+"/"+tag, strings.NewReader(revision))
 	req.Header.Add("Content-type", "application/json")
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil {
 		return err
@@ -274,17 +304,17 @@ func (graph *Graph) pushTag(user, repo, revision, tag string) error {
 	return nil
 }
 
-func (graph *Graph) PushRepository(user, repoName string, repo Repository) error {
+func (graph *Graph) PushRepository(user, repoName string, repo Repository, authConfig *auth.AuthConfig) error {
 	for tag, imgId := range repo {
 		fmt.Printf("tag: %s, imgId: %s\n", tag, imgId)
 		img, err := graph.Get(imgId)
 		if err != nil {
 			return err
 		}
-		if err = graph.PushImage(img); err != nil {
+		if err = graph.PushImage(img, authConfig); err != nil {
 			return err
 		}
-		if err = graph.pushTag(user, repoName, imgId, tag); err != nil {
+		if err = graph.pushTag(user, repoName, imgId, tag, authConfig); err != nil {
 			return err
 		}
 	}
