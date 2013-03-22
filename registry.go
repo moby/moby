@@ -129,19 +129,15 @@ func (graph *Graph) PullImage(imgId string) error {
 }
 
 // FIXME: Handle the askedTag parameter
-func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories *TagStore) error {
+func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+user+"/"+repoName, nil)
 	if err != nil {
 		return err
 	}
-	authStruct, err := auth.LoadConfig()
-	if err != nil {
-		return err
-	}
 
-	req.SetBasicAuth(authStruct.Username, authStruct.Password)
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil {
 		return err

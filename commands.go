@@ -69,17 +69,13 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	var username string
 	var password string
 	var email string
-	authConfig, err := auth.LoadConfig()
-	if err != nil {
-		fmt.Fprintf(stdout, "Error : %s\n", err)
-	}
 
-	fmt.Fprint(stdout, "Username (", authConfig.Username, "): ")
+	fmt.Fprint(stdout, "Username (", srv.runtime.authConfig.Username, "): ")
 	fmt.Fscanf(stdin, "%s", &username)
 	if username == "" {
-		username = authConfig.Username
+		username = srv.runtime.authConfig.Username
 	}
-	if username != authConfig.Username {
+	if username != srv.runtime.authConfig.Username {
 		fmt.Fprint(stdout, "Password: ")
 		fmt.Fscanf(stdin, "%s", &password)
 
@@ -87,16 +83,16 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			return errors.New("Error : Password Required\n")
 		}
 
-		fmt.Fprint(stdout, "Email (", authConfig.Email, "): ")
+		fmt.Fprint(stdout, "Email (", srv.runtime.authConfig.Email, "): ")
 		fmt.Fscanf(stdin, "%s", &email)
 		if email == "" {
-			email = authConfig.Email
+			email = srv.runtime.authConfig.Email
 		}
 	} else {
-		password = authConfig.Password
-		email = authConfig.Email
+		password = srv.runtime.authConfig.Password
+		email = srv.runtime.authConfig.Email
 	}
-	newAuthConfig := auth.AuthConfig{Username: username, Password: password, Email: email}
+	newAuthConfig := &auth.AuthConfig{Username: username, Password: password, Email: email}
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		fmt.Fprintf(stdout, "Error : %s\n", err)
@@ -473,7 +469,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return fmt.Errorf("Not loggin and no user specified\n")
 	}
 	// FIXME: Allow pull repo:tag
-	return srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories)
+	return srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories, srv.runtime.authConfig)
 }
 
 func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -867,9 +863,6 @@ func NewServer() (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	// if err != nil {
-	// 	return nil, err
-	// }
 	runtime, err := NewRuntime()
 	if err != nil {
 		return nil, err

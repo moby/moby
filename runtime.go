@@ -3,6 +3,7 @@ package docker
 import (
 	"container/list"
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,6 +21,7 @@ type Runtime struct {
 	networkManager *NetworkManager
 	graph          *Graph
 	repositories   *TagStore
+	authConfig     *auth.AuthConfig
 }
 
 var sysInitPath string
@@ -246,6 +248,11 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	authConfig, err := auth.LoadConfig(root)
+	if err != nil && authConfig == nil {
+		// If the auth file does not exist, keep going
+		return nil, err
+	}
 
 	runtime := &Runtime{
 		root:           root,
@@ -254,6 +261,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		networkManager: netManager,
 		graph:          g,
 		repositories:   repositories,
+		authConfig:     authConfig,
 	}
 
 	if err := runtime.restore(); err != nil {
