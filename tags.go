@@ -83,6 +83,30 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	return img, nil
 }
 
+// Return a reverse-lookup table of all the names which refer to each image
+// Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
+func (store *TagStore) ById() map[string][]string {
+	byId := make(map[string][]string)
+	for repoName, repository := range store.Repositories {
+		for tag, id := range repository {
+			name := repoName + ":" + tag
+			if _, exists := byId[id]; !exists {
+				byId[id] = []string{name}
+			} else {
+				byId[id] = append(byId[id], name)
+			}
+		}
+	}
+	return byId
+}
+
+func (store *TagStore) ImageName(id string) string {
+	if names, exists := store.ById()[id]; exists && len(names) > 0 {
+		return names[0]
+	}
+	return id
+}
+
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	img, err := store.LookupImage(imageName)
 	if err != nil {
