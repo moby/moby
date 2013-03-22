@@ -328,19 +328,50 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 	return nil
 }
 
+func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthConfig) bool {
+	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
+	if err != nil {
+		return false
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := rt.RoundTrip(req)
+	if err != nil || res.StatusCode != 200 {
+		return false
+	}
+	return true
+}
+
+func (graph *Graph) pushPrimitive(remote, tag, imgId string, authConfig *auth.AuthConfig) error {
+	// CHeck if the local impage exists
+	img, err := graph.Get(imgId)
+	if err != nil {
+		return err
+	}
+	// Push the image
+	if err = graph.PushImage(img, authConfig); err != nil {
+		return err
+	}
+	// And then the tag
+	if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
+	// Check if the remote repository exists
+	if !graph.LookupRemoteRepository(remote, authConfig) {
+		return fmt.Errorf("The remote repository %s does not exist\n", remote)
+	}
+
+	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
-		fmt.Printf("tag: %s, imgId: %s\n", tag, imgId)
-		img, err := graph.Get(imgId)
-		if err != nil {
-			return err
-		}
-		if err = graph.PushImage(img, authConfig); err != nil {
-			return err
-		}
-		if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
+		if err := graph.pushPrimitive(remote, tag, imgId, authConfig); err != nil {
+			// FIXME: Continue on error?
 			return err
 		}
 	}
