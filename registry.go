@@ -58,7 +58,10 @@ func (graph *Graph) getRemoteHistory(imgId string, authConfig *auth.AuthConfig) 
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil {
+	if err != nil || res.StatusCode != 200 {
+		if res != nil {
+			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgId)
+		}
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -85,7 +88,7 @@ func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig)
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil {
+	if err != nil || res.StatusCode != 307 {
 		return false
 	}
 	return res.StatusCode == 307
@@ -103,7 +106,10 @@ func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil {
+	if err != nil || res.StatusCode != 307 {
+		if res != nil {
+			return nil, nil, fmt.Errorf("Internal server error: %d trying to get image %s", res.StatusCode, imgId)
+		}
 		return nil, nil, err
 	}
 	defer res.Body.Close()
@@ -159,7 +165,10 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil {
+	if err != nil || res.StatusCode != 200 {
+		if res != nil {
+			return fmt.Errorf("Internal server error: %d trying to pull %s", res.StatusCode, repoName)
+		}
 		return err
 	}
 	defer res.Body.Close()
@@ -221,8 +230,8 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 				return fmt.Errorf("Error: Invalid Json")
 			default:
 				return fmt.Errorf(
-					"Error: Internal server error trying to push image {%s} (json): %s (%d)\n",
-					img.Id, err, res.StatusCode)
+					"Error: Internal server error: %d trying to push image {%s} (json): %s\n",
+					res.StatusCode, img.Id, err)
 			}
 		}
 
@@ -231,7 +240,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 		res2, err := client.Do(req2)
 		if err != nil || res2.StatusCode != 307 {
 			return fmt.Errorf(
-				"Error trying to push image {%s} (layer 1): %s\n",
+				"Internal server error trying to push image {%s} (layer 1): %s\n",
 				img.Id, err)
 		}
 		url, err := res2.Location()
@@ -266,11 +275,10 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 				return fmt.Errorf(
 					"Error trying to push image {%s} (layer 2): %s\n",
 					img.Id, err)
-			} else {
-				return fmt.Errorf(
-					"Error trying to push image {%s} (layer 2): %s (%d)\n",
-					img.Id, err, res3.StatusCode)
 			}
+			return fmt.Errorf(
+				"Error trying to push image {%s} (layer 2): %s (%d)\n",
+				img.Id, err, res3.StatusCode)
 		}
 		return nil
 	}); err != nil {
@@ -292,7 +300,10 @@ func (graph *Graph) pushTag(user, repo, revision, tag string, authConfig *auth.A
 	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil {
+	if err != nil || (res.StatusCode != 200 && res.StatusCode != 201) {
+		if res != nil {
+			return fmt.Errorf("Internal server error: %d trying to push tag %s on %s/%s", res.StatusCode, tag, user, repo)
+		}
 		return err
 	}
 	fmt.Printf("Result of push tag: %d\n", res.StatusCode)
