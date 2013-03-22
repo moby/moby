@@ -370,9 +370,10 @@ func (graph *Graph) pushPrimitive(remote, tag, imgId string, authConfig *auth.Au
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
 	// Check if the remote repository exists
-	if !graph.LookupRemoteRepository(remote, authConfig) {
-		return fmt.Errorf("The remote repository %s does not exist\n", remote)
-	}
+	// FIXME: @lopter How to handle this?
+	// if !graph.LookupRemoteRepository(remote, authConfig) {
+	// 	return fmt.Errorf("The remote repository %s does not exist\n", remote)
+	// }
 
 	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
