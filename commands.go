@@ -803,7 +803,7 @@ func NewServer() (*Server, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
-	runtime, err := New()
+	runtime, err := NewRuntime()
 	if err != nil {
 		return nil, err
 	}

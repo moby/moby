@@ -1,4 +1,4 @@
-package graph
+package docker
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ type Graph struct {
 	Root string
 }
 
-func New(root string) (*Graph, error) {
+func NewGraph(root string) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 }
 
 func (graph *Graph) Mktemp(id string) (string, error) {
-	tmp, err := New(path.Join(graph.Root, ":tmp:"))
+	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create temp: %s", err)
 	}
@@ -95,7 +95,7 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 }
 
 func (graph *Graph) Garbage() (*Graph, error) {
-	return New(path.Join(graph.Root, ":garbage:"))
+	return NewGraph(path.Join(graph.Root, ":garbage:"))
 }
 
 func (graph *Graph) Delete(id string) error {

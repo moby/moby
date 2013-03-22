@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/graph"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -61,11 +60,6 @@ type NetworkSettings struct {
 	IpPrefixLen int
 	Gateway     string
 	PortMapping map[string]string
-}
-
-func GenerateId() string {
-	return graph.GenerateId() // Re-use the same code to generate container and image IDs
-	// (this might change when image Ids become content-based)
 }
 
 func (container *Container) Cmd() *exec.Cmd {
@@ -376,15 +370,15 @@ func (container *Container) Wait() int {
 	return container.State.ExitCode
 }
 
-func (container *Container) ExportRw() (graph.Archive, error) {
-	return graph.Tar(container.rwPath(), graph.Uncompressed)
+func (container *Container) ExportRw() (Archive, error) {
+	return Tar(container.rwPath(), Uncompressed)
 }
 
-func (container *Container) Export() (graph.Archive, error) {
+func (container *Container) Export() (Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err
 	}
-	return graph.Tar(container.RootfsPath(), graph.Uncompressed)
+	return Tar(container.RootfsPath(), Uncompressed)
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -420,7 +414,7 @@ func (container *Container) Mount() error {
 	return image.Mount(container.RootfsPath(), container.rwPath())
 }
 
-func (container *Container) Changes() ([]graph.Change, error) {
+func (container *Container) Changes() ([]Change, error) {
 	image, err := container.GetImage()
 	if err != nil {
 		return nil, err
@@ -428,7 +422,7 @@ func (container *Container) Changes() ([]graph.Change, error) {
 	return image.Changes(container.rwPath())
 }
 
-func (container *Container) GetImage() (*graph.Image, error) {
+func (container *Container) GetImage() (*Image, error) {
 	if container.runtime == nil {
 		return nil, fmt.Errorf("Can't get image of unregistered container")
 	}
@@ -436,11 +430,11 @@ func (container *Container) GetImage() (*graph.Image, error) {
 }
 
 func (container *Container) Mounted() (bool, error) {
-	return graph.Mounted(container.RootfsPath())
+	return Mounted(container.RootfsPath())
 }
 
 func (container *Container) Unmount() error {
-	return graph.Unmount(container.RootfsPath())
+	return Unmount(container.RootfsPath())
 }
 
 func (container *Container) logPath(name string) string {

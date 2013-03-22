@@ -3,7 +3,6 @@ package docker
 import (
 	"container/list"
 	"fmt"
-	"github.com/dotcloud/docker/graph"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,8 +18,8 @@ type Runtime struct {
 	repository     string
 	containers     *list.List
 	networkManager *NetworkManager
-	graph          *graph.Graph
-	repositories   *graph.TagStore
+	graph          *Graph
+	repositories   *TagStore
 }
 
 var sysInitPath string
@@ -191,22 +190,22 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
-func New() (*Runtime, error) {
-	return NewFromDirectory("/var/lib/docker")
+func NewRuntime() (*Runtime, error) {
+	return NewRuntimeFromDirectory("/var/lib/docker")
 }
 
-func NewFromDirectory(root string) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 	runtime_repo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtime_repo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := graph.New(path.Join(root, "graph"))
+	g, err := NewGraph(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := graph.NewTagStore(path.Join(root, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}

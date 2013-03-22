@@ -1,7 +1,7 @@
-package graph
+package docker
 
-import "errors"
+import "syscall"
 
 func mount(source string, target string, fstype string, flags uintptr, data string) (err error) {
-	return errors.New("mount is not implemented on darwin")
+	return syscall.Mount(source, target, fstype, flags, data)
 }
