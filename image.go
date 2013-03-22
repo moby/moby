@@ -15,11 +15,13 @@ import (
 )
 
 type Image struct {
-	Id      string
-	Parent  string
-	Comment string
-	Created time.Time
-	graph   *Graph
+	Id              string
+	Parent          string
+	Comment         string
+	Created         time.Time
+	ParentContainer string
+	ParentCommand   []string
+	graph           *Graph
 }
 
 func LoadImage(root string) (*Image, error) {

@@ -384,7 +384,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
-	img, err := srv.runtime.graph.Create(archive, "", "Imported from "+src)
+	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src)
 	if err != nil {
 		return err
 	}

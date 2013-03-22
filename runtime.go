@@ -214,7 +214,7 @@ func (runtime *Runtime) Commit(id, repository, tag string) (*Image, error) {
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container.Image, "")
+	img, err := runtime.graph.Create(rwTar, container, "")
 	if err != nil {
 		return nil, err
 	}
