@@ -53,6 +53,7 @@ type Config struct {
 	Ports      []int
 	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin  bool // Open stdin
+	Env        []string
 }
 
 type NetworkSettings struct {
@@ -199,6 +200,15 @@ func (container *Container) Start() error {
 	params = append(params, container.Args...)
 
 	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
+
+	// Setup environment
+	container.cmd.Env = append(
+		[]string{
+			"HOME=/",
+			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		},
+		container.Config.Env...,
+	)
 
 	var err error
 	if container.Config.Tty {

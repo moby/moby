@@ -52,13 +52,6 @@ func changeUser(u string) {
 	}
 }
 
-// Set the environment to a known, repeatable state
-func setupEnv() {
-	os.Clearenv()
-	os.Setenv("HOME", "/")
-	os.Setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-}
-
 func executeProgram(name string, args []string) {
 	path, err := exec.LookPath(name)
 	if err != nil {
@@ -86,6 +79,5 @@ func SysInit() {
 
 	setupNetworking(*gw)
 	changeUser(*u)
-	setupEnv()
 	executeProgram(flag.Arg(0), flag.Args())
 }

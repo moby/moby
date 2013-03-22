@@ -783,6 +783,18 @@ func (p *ports) Set(value string) error {
 	return nil
 }
 
+// ListOpts type
+type ListOpts []string
+
+func (opts *ListOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *ListOpts) Set(value string) error {
+	*opts = append(*opts, value)
+	return nil
+}
+
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
@@ -799,35 +811,24 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_user := cmd.String("u", "", "Username or UID")
-	fl_attach := cmd.Bool("a", false, "Attach stdin and stdout")
+	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 	var fl_ports ports
 
 	cmd.Var(&fl_ports, "p", "Map a network port to the container")
+	var fl_env ListOpts
+	cmd.Var(&fl_env, "e", "Set environment variables")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
 	name := cmd.Arg(0)
-	var cmdline []string
-
-	if len(cmd.Args()) >= 2 {
-		cmdline = cmd.Args()[1:]
-	}
-	// Choose a default image if needed
-	if name == "" {
-		name = "base"
-	}
-
-	// Choose a default command if needed
-	if len(cmdline) == 0 {
-		*fl_stdin = true
-		*fl_tty = true
-		*fl_attach = true
-		cmdline = []string{"/bin/bash", "-i"}
-	}
-
+	cmdline := cmd.Args()[1:]
 	// Create new container
 	container, err := srv.runtime.Create(cmdline[0], cmdline[1:], name,
 		&Config{
@@ -836,6 +837,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			Tty:       *fl_tty,
 			OpenStdin: *fl_stdin,
 			Memory:    *fl_memory,
+			Env:       fl_env,
 		})
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
@@ -845,7 +847,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err != nil {
 			return err
 		}
-		if *fl_attach {
+		if !*fl_detach {
 			Go(func() error {
 				_, err := io.Copy(cmd_stdin, stdin)
 				cmd_stdin.Close()
@@ -854,7 +856,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	// Run the container
-	if *fl_attach {
+	if !*fl_detach {
 		cmd_stderr, err := container.StderrPipe()
 		if err != nil {
 			return err
