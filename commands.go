@@ -219,28 +219,6 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return nil
 }
 
-func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 1 {
-		cmd.Usage()
-		return nil
-	}
-	for _, name := range cmd.Args() {
-		if container := srv.runtime.Get(name); container != nil {
-			if err := container.EnsureMounted(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.Id)
-		} else {
-			return errors.New("No such container: " + name)
-		}
-	}
-	return nil
-}
-
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
 	if err := cmd.Parse(args); err != nil {
@@ -326,14 +304,15 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if err != nil {
 		return err
 	}
-	var child *Image
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	defer w.Flush()
+	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
 	return image.WalkHistory(func(img *Image) error {
-		if child == nil {
-			fmt.Fprintf(stdout, "   %s\n", img.Id)
-		} else {
-			fmt.Fprintf(stdout, " = %s + %s\n", img.Id, strings.Join(child.ParentCommand, " "))
-		}
-		child = img
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			img.Id,
+			HumanDuration(time.Now().Sub(img.Created))+" ago",
+			strings.Join(img.ParentCommand, " "),
+		)
 		return nil
 	})
 }
