@@ -25,6 +25,15 @@ type AuthConfig struct {
 	rootPath string `json:-`
 }
 
+func NewAuthConfig(username, password, email, rootPath string) *AuthConfig {
+	return &AuthConfig{
+		Username: username,
+		Password: password,
+		Email:    email,
+		rootPath: rootPath,
+	}
+}
+
 // create a base64 encoded auth string to store in config
 func EncodeAuth(authConfig *AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password

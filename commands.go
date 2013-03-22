@@ -94,7 +94,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		password = srv.runtime.authConfig.Password
 		email = srv.runtime.authConfig.Email
 	}
-	newAuthConfig := &auth.AuthConfig{Username: username, Password: password, Email: email}
+	newAuthConfig := auth.NewAuthConfig(username, password, email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		fmt.Fprintf(stdout, "Error : %s\n", err)
