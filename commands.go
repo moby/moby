@@ -531,33 +531,22 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
-		"commit", "[OPTIONS] CONTAINER [DEST]",
+		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
 		"Create a new image from a container's changes")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	containerName, imgName := cmd.Arg(0), cmd.Arg(1)
-	if containerName == "" || imgName == "" {
+	containerName, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	if containerName == "" {
 		cmd.Usage()
 		return nil
 	}
-	if container := srv.runtime.Get(containerName); container != nil {
-		// FIXME: freeze the container before copying it to avoid data corruption?
-		// FIXME: this shouldn't be in commands.
-		rwTar, err := container.ExportRw()
-		if err != nil {
-			return err
-		}
-		// Create a new image from the container's base layers + a new layer from container changes
-		img, err := srv.runtime.graph.Create(rwTar, container.Image, "")
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintln(stdout, img.Id)
-		return nil
+	img, err := srv.runtime.Commit(containerName, repository, tag)
+	if err != nil {
+		return err
 	}
-	return errors.New("No such container: " + containerName)
+	fmt.Fprintln(stdout, img.Id)
+	return nil
 }
 
 func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
