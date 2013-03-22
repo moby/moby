@@ -391,7 +391,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	// Optionally register the image at REPO/TAG
 	if repository := cmd.Arg(1); repository != "" {
 		tag := cmd.Arg(2) // Repository will handle an empty tag properly
-		if err := srv.runtime.repositories.Set(repository, tag, img.Id); err != nil {
+		if err := srv.runtime.repositories.Set(repository, tag, img.Id, true); err != nil {
 			return err
 		}
 	}
@@ -762,6 +762,19 @@ func (p *ports) Set(value string) error {
 	}
 	*p = append(*p, port)
 	return nil
+}
+
+func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
+	force := cmd.Bool("f", false, "Force")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	return srv.runtime.repositories.Set(cmd.Arg(1), cmd.Arg(2), cmd.Arg(0), *force)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {

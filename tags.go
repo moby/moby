@@ -83,7 +83,11 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	return img, nil
 }
 
-func (store *TagStore) Set(repoName, tag, revision string) error {
+func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
+	img, err := store.LookupImage(imageName)
+	if err != nil {
+		return err
+	}
 	if tag == "" {
 		tag = DEFAULT_TAG
 	}
@@ -101,9 +105,12 @@ func (store *TagStore) Set(repoName, tag, revision string) error {
 		repo = r
 	} else {
 		repo = make(map[string]string)
+		if old, exists := store.Repositories[repoName]; exists && !force {
+			return fmt.Errorf("Tag %s:%s is already set to %s", repoName, tag, old)
+		}
 		store.Repositories[repoName] = repo
 	}
-	repo[tag] = revision
+	repo[tag] = img.Id
 	return store.Save()
 }
 

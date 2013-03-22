@@ -95,7 +95,8 @@ func getIfaceAddr(name string) (net.Addr, error) {
 	case len(addrs4) == 0:
 		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
 	case len(addrs4) > 1:
-		return nil, fmt.Errorf("Interface %v has more than 1 IPv4 address", name)
+		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
+			name, (addrs4[0].(*net.IPNet)).IP)
 	}
 	return addrs4[0], nil
 }
@@ -122,6 +123,9 @@ func (mapper *PortMapper) setup() error {
 	}
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-j", "DOCKER"); err != nil {
 		return errors.New("Unable to setup port networking: Failed to inject docker in PREROUTING chain")
+	}
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-j", "DOCKER"); err != nil {
+		return errors.New("Unable to setup port networking: Failed to inject docker in OUTPUT chain")
 	}
 	return nil
 }
