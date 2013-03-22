@@ -456,12 +456,12 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "[OPTIONS] IMAGE", "Pull an image or a repository from the registry")
-	user := cmd.String("u", "", "specify the user for the repository")
+	cmd := rcli.Subcmd(stdout, "pull", "IMAGE", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() == 0 || *user == "" {
+	remote := cmd.Arg(0)
+	if remote == "" {
 		cmd.Usage()
 		return nil
 	}
@@ -470,17 +470,17 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return fmt.Errorf("Please login prior to push. ('docker login')")
 	}
 
-	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0), srv.runtime.authConfig) {
-		fmt.Fprintf(stdout, "Pulling %s...\n", cmd.Arg(0))
-		if err := srv.runtime.graph.PullImage(cmd.Arg(0), srv.runtime.authConfig); err != nil {
+	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
+		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
+		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	fmt.Fprintf(stdout, "Pulling %s from %s...\n", cmd.Arg(0), *user+"/"+cmd.Arg(0))
-	if err := srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
+	if err := srv.runtime.graph.PullRepository(remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Pull completed\n")

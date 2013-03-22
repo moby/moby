@@ -106,7 +106,7 @@ func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 307 {
+	if err != nil || res.StatusCode != 200 {
 		if res != nil {
 			return nil, nil, fmt.Errorf("Internal server error: %d trying to get image %s", res.StatusCode, imgId)
 		}
@@ -126,9 +126,14 @@ func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*
 	img.Id = imgId
 
 	// Get the layer
-	res, err = http.Get(REGISTRY_ENDPOINT + "/images/" + imgId + "/layer")
+	req, err = http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/layer", nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err = client.Do(req)
+	if err != nil {
+		return nil, nil, err
 	}
 	return img, res.Body, nil
 }
@@ -156,10 +161,12 @@ func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
 }
 
 // FIXME: Handle the askedTag parameter
-func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PullRepository(remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+user+"/"+repoName, nil)
+	fmt.Printf("Pulling repo: %s\n", REGISTRY_ENDPOINT+"/users/"+remote)
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
 	if err != nil {
 		return err
 	}
@@ -167,7 +174,7 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
-			return fmt.Errorf("Internal server error: %d trying to pull %s", res.StatusCode, repoName)
+			return fmt.Errorf("Internal server error: %d trying to pull %s", res.StatusCode, remote)
 		}
 		return err
 	}
@@ -184,7 +191,7 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 		if err = graph.PullImage(rev, authConfig); err != nil {
 			return err
 		}
-		if err = repositories.Set(repoName, tag, rev, true); err != nil {
+		if err = repositories.Set(remote, tag, rev, true); err != nil {
 			return err
 		}
 	}
