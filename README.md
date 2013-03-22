@@ -58,28 +58,28 @@ Installing on Ubuntu 12.04 and 12.10
 
 1. Install dependencies:
 
-```bash
-sudo apt-get install lxc wget bsdtar curl
-sudo apt-get install linux-image-extra-`uname -r`
-```
+    ```bash
+    sudo apt-get install lxc wget bsdtar curl
+    sudo apt-get install linux-image-extra-`uname -r`
+    ```
 
-The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
+    The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
 
 2. Install the latest docker binary:
 
-```bash
-wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-tar -xf docker-master.tgz
-```
+    ```bash
+    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+    tar -xf docker-master.tgz
+    ```
 
 3. Run your first container!
 
-```bash
-cd docker-master
-sudo ./docker run -a -i -t base /bin/bash
-```
+    ```bash
+    cd docker-master
+    sudo ./docker run -a -i -t base /bin/bash
+    ```
 
-Consider adding docker to your `PATH` for simplicity.
+    Consider adding docker to your `PATH` for simplicity.
 
 Installing on other Linux distributions
 ---------------------------------------
