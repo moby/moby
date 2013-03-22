@@ -11,7 +11,7 @@ import (
 )
 
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
-const unitTestImageName string = "busybox"
+const unitTestImageName string = "http://get.docker.io/images/busybox"
 
 var unitTestStoreBase string
 var srv *Server

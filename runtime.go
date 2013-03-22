@@ -20,6 +20,7 @@ type Runtime struct {
 	containers     *list.List
 	networkManager *NetworkManager
 	graph          *graph.Graph
+	repositories   *graph.TagStore
 }
 
 var sysInitPath string
@@ -201,9 +202,13 @@ func NewFromDirectory(root string) (*Runtime, error) {
 		return nil, err
 	}
 
-	graph, err := graph.New(path.Join(root, "graph"))
+	g, err := graph.New(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
+	}
+	repositories, err := graph.NewTagStore(path.Join(root, "repositories"), g)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
 	netManager, err := newNetworkManager(networkBridgeIface)
 	if err != nil {
@@ -215,7 +220,8 @@ func NewFromDirectory(root string) (*Runtime, error) {
 		repository:     runtime_repo,
 		containers:     list.New(),
 		networkManager: netManager,
-		graph:          graph,
+		graph:          g,
+		repositories:   repositories,
 	}
 
 	if err := runtime.restore(); err != nil {

@@ -122,6 +122,19 @@ func (graph *Graph) GarbageCollect() error {
 	return os.RemoveAll(garbage.Root)
 }
 
+func (graph *Graph) Map() (map[string]*Image, error) {
+	// FIXME: this should replace All()
+	all, err := graph.All()
+	if err != nil {
+		return nil, err
+	}
+	images := make(map[string]*Image, len(all))
+	for _, image := range all {
+		images[image.Id] = image
+	}
+	return images, nil
+}
+
 func (graph *Graph) All() ([]*Image, error) {
 	files, err := ioutil.ReadDir(graph.Root)
 	if err != nil {
