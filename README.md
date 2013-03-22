@@ -59,8 +59,8 @@ Installing on Ubuntu 12.04 and 12.10
 1. Install dependencies:
 
 ```bash
-        sudo apt-get install lxc wget bsdtar curl
-        sudo apt-get install linux-image-extra-`uname -r`
+sudo apt-get install lxc wget bsdtar curl
+sudo apt-get install linux-image-extra-`uname -r`
 ```
 
 The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
@@ -68,15 +68,15 @@ The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order t
 2. Install the latest docker binary:
 
 ```bash
-	wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-	tar -xf docker-master.tgz
+wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+tar -xf docker-master.tgz
 ```
 
 3. Run your first container!
 
 ```bash
-	cd docker-master
-	sudo ./docker run -a -i -t base /bin/bash
+cd docker-master
+sudo ./docker run -a -i -t base /bin/bash
 ```
 
 Consider adding docker to your `PATH` for simplicity.
@@ -99,12 +99,12 @@ with VirtualBox as well as on Amazon EC2. Vagrant 1.1 is required for
 EC2, but deploying is as simple as:
 
 ```bash
-		$ export AWS_ACCESS_KEY_ID=xxx \
-			AWS_SECRET_ACCESS_KEY=xxx \
-			AWS_KEYPAIR_NAME=xxx \
-			AWS_SSH_PRIVKEY=xxx
-		$ vagrant plugin install vagrant-aws
-		$ vagrant up --provider=aws
+$ export AWS_ACCESS_KEY_ID=xxx \
+	AWS_SECRET_ACCESS_KEY=xxx \
+	AWS_KEYPAIR_NAME=xxx \
+	AWS_SSH_PRIVKEY=xxx
+$ vagrant plugin install vagrant-aws
+$ vagrant up --provider=aws
 ```
 
 The environment variables are:
@@ -115,11 +115,11 @@ The environment variables are:
 * `AWS_SSH_PRIVKEY` - The path to the private key for the named keypair
 
 For VirtualBox, you can simply ignore setting any of the environment
-variables and omit the ``provider`` flag. VirtualBox is still supported with
-Vagrant <= 1.1:
+variables and omit the `provider` flag. VirtualBox is still supported with
+Vagrant &lt;= 1.1:
 
 ```bash
-		$ vagrant up
+$ vagrant up
 ```
 
 
@@ -131,12 +131,12 @@ Running an interactive shell
 ----------------------------
 
 ```bash
-	# Download a base image
-	docker import base
+# Download a base image
+docker import base
 
-	# Run an interactive shell in the base image,
-	# allocate a tty, attach stdin and stdout
-	docker run -a -i -t base /bin/bash
+# Run an interactive shell in the base image,
+# allocate a tty, attach stdin and stdout
+docker run -a -i -t base /bin/bash
 ```
 
 
@@ -144,17 +144,17 @@ Starting a long-running worker process
 --------------------------------------
 
 ```bash
-	# Run docker in daemon mode
-	(docker -d || echo "Docker daemon already running") &
+# Run docker in daemon mode
+(docker -d || echo "Docker daemon already running") &
 
-	# Start a very useful long-running process
-	JOB=$(docker run base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+# Start a very useful long-running process
+JOB=$(docker run base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
-	# Collect the output of the job so far
-	docker logs $JOB
+# Collect the output of the job so far
+docker logs $JOB
 
-	# Kill the job
-	docker kill $JOB
+# Kill the job
+docker kill $JOB
 ```
 
 
@@ -162,7 +162,7 @@ Listing all running containers
 ------------------------------
 
 ```bash
-	docker ps
+docker ps
 ```
 
 
@@ -170,17 +170,17 @@ Expose a service on a TCP port
 ------------------------------
 
 ```bash
-	# Expose port 4444 of this container, and tell netcat to listen on it
-	JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
+# Expose port 4444 of this container, and tell netcat to listen on it
+JOB=$(docker run -p 4444 base /bin/nc -l -p 4444)
 
-	# Which public port is NATed to my container?
-	PORT=$(docker port $JOB 4444)
+# Which public port is NATed to my container?
+PORT=$(docker port $JOB 4444)
 
-	# Connect to the public port via the host's public address
-	echo hello world | nc $(hostname) $PORT
+# Connect to the public port via the host's public address
+echo hello world | nc $(hostname) $PORT
 
-	# Verify that the network connection worked
-	echo "Daemon received: $(docker logs $JOB)"
+# Verify that the network connection worked
+echo "Daemon received: $(docker logs $JOB)"
 ```
 
 Contributing to Docker
@@ -226,7 +226,7 @@ Setting up a dev environment
 
 Instructions that is verified to work on Ubuntu 12.10,
 
-```
+```bash
 sudo apt-get -y install lxc wget bsdtar curl libsqlite3-dev golang git pkg-config
 
 export GOPATH=~/go/
@@ -243,7 +243,7 @@ go install -v github.com/dotcloud/docker/...
 
 Then run the docker daemon,
 
-```
+```bash
 sudo $GOPATH/bin/docker -d
 ```
 
