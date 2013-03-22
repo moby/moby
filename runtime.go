@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -63,29 +62,9 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
-func (runtime *Runtime) LookupImage(name string) (*Image, error) {
-	img, err := runtime.graph.Get(name)
-	if err != nil {
-		// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
-		// (so we can pass all errors here)
-		repoAndTag := strings.SplitN(name, ":", 2)
-		if len(repoAndTag) == 1 {
-			repoAndTag = append(repoAndTag, "")
-		}
-		if i, err := runtime.repositories.GetImage(repoAndTag[0], repoAndTag[1]); err != nil {
-			return nil, err
-		} else if i == nil {
-			return nil, fmt.Errorf("No such image: %s", name)
-		} else {
-			img = i
-		}
-	}
-	return img, nil
-}
-
 func (runtime *Runtime) Create(command string, args []string, image string, config *Config) (*Container, error) {
 	// Lookup image
-	img, err := runtime.LookupImage(image)
+	img, err := runtime.repositories.LookupImage(image)
 	if err != nil {
 		return nil, err
 	}

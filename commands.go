@@ -326,7 +326,7 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 		cmd.Usage()
 		return nil
 	}
-	image, err := srv.runtime.LookupImage(cmd.Arg(0))
+	image, err := srv.runtime.repositories.LookupImage(cmd.Arg(0))
 	if err != nil {
 		return err
 	}
