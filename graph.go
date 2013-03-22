@@ -55,8 +55,8 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment stri
 	}
 	if container != nil {
 		img.Parent = container.Image
-		img.ParentContainer = container.Id
-		img.ParentCommand = append([]string{container.Path}, container.Args...)
+		img.Container = container.Id
+		img.ContainerConfig = *container.Config
 	}
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err

@@ -311,7 +311,7 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
 			srv.runtime.repositories.ImageName(img.Id),
 			HumanDuration(time.Now().Sub(img.Created))+" ago",
-			strings.Join(img.ParentCommand, " "),
+			strings.Join(img.ContainerConfig.Cmd, " "),
 		)
 		return nil
 	})
