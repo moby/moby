@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-Vagrant.configure("1") do |config|
+def v10(config)
   # All Vagrant configuration is done here. The most common configuration
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
@@ -20,7 +20,7 @@ Vagrant.configure("1") do |config|
   # via the IP. Host-only networks can talk to the host machine as well as
   # any other machines on the same network, but cannot be accessed (through this
   # network interface) by any external networks.
-  # config.vm.network :hostonly, "192.168.33.10"
+  config.vm.network :hostonly, "192.168.33.10"
 
   # Assign this VM to a bridged network, allowing you to connect directly to a
   # network using the host's network device. This makes the VM appear as another
@@ -34,6 +34,9 @@ Vagrant.configure("1") do |config|
   # Share an additional folder to the guest VM. The first argument is
   # an identifier, the second is the path on the guest to mount the
   # folder, and the third is the path on the host to the actual folder.
+  if not File.exist? File.expand_path '~/docker'
+    Dir.mkdir(File.expand_path '~/docker')
+  end
   config.vm.share_folder "v-data", "~/docker", "~/docker"
 
   # Enable provisioning with Puppet stand alone.  Puppet manifests
@@ -99,21 +102,29 @@ Vagrant.configure("1") do |config|
   #   chef.validation_client_name = "ORGNAME-validator"
 end
 
-Vagrant.configure("2") do |config|
+"#{Vagrant::VERSION}" < "1.1.0" and Vagrant::Config.run do |config|
+  v10(config)
+end
+
+"#{Vagrant::VERSION}" >= "1.1.0" and Vagrant.configure("1") do |config|
+  v10(config)
+end
+
+"#{Vagrant::VERSION}" >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :aws do |aws|
-		config.vm.box = "dummy"
-		config.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
+    config.vm.box = "dummy"
+    config.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
     aws.access_key_id = ENV["AWS_ACCESS_KEY_ID"]
-		aws.secret_access_key = ENV["AWS_SECRET_ACCESS_KEY"]
-		aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
-		aws.ssh_private_key_path = ENV["AWS_SSH_PRIVKEY"]
-		aws.region = "us-east-1"
+    aws.secret_access_key = ENV["AWS_SECRET_ACCESS_KEY"]
+    aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
+    aws.ssh_private_key_path = ENV["AWS_SSH_PRIVKEY"]
+    aws.region = "us-east-1"
     aws.ami = "ami-1c1e8075"
     aws.ssh_username = "vagrant"
-		aws.instance_type = "t1.micro"
+    aws.instance_type = "t1.micro"
   end
   config.vm.provider :virtualbox do |vb|
-		config.vm.box = "quantal64_3.5.0-25"
-		config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
-	end
+    config.vm.box = "quantal64_3.5.0-25"
+    config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
+  end
 end
