@@ -221,6 +221,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 					"Error: Internal server error trying to push image {%s} (json): %s",
 					img.Id, err)
 			}
+			fmt.Printf("Pushing return status: %d\n", res.StatusCode)
 			switch res.StatusCode {
 			case 204:
 				// Case where the image is already on the Registry

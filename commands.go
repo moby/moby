@@ -402,12 +402,11 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "LOCAL [REMOTE]", "Push an image or a repository to the registry")
+	cmd := rcli.Subcmd(stdout, "push", "LOCAL", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	local := cmd.Arg(0)
-	remote := cmd.Arg(1)
 
 	if local == "" {
 		cmd.Usage()
@@ -419,18 +418,13 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return fmt.Errorf("Please login prior to push. ('docker login')")
 	}
 
-	if remote == "" {
-		tmp := strings.SplitN(local, "/", 2)
-		if len(tmp) == 1 {
-			remote = srv.runtime.authConfig.Username + "/" + local
-		} else {
-			remote = local
-		}
+	var remote string
+
+	tmp := strings.SplitN(local, "/", 2)
+	if len(tmp) == 1 {
+		remote = srv.runtime.authConfig.Username + "/" + local
 	} else {
-		tmp := strings.SplitN(remote, "/", 2)
-		if len(tmp) == 1 {
-			return fmt.Errorf("The remote repository needs to be in the <user>/<repo> format")
-		}
+		remote = local
 	}
 
 	// Try to get the image
