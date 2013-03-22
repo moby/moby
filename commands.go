@@ -35,6 +35,7 @@ func (srv *Server) Help() string {
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
+		{"history", "Show the history of an image"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"images", "List images"},
 		{"info", "Display system-wide information"},
@@ -317,6 +318,27 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	return nil
+}
+
+func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "history", "[OPTIONS] IMAGE", "Show the history of an image")
+	if cmd.Parse(args) != nil || cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	image, err := srv.runtime.LookupImage(cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+	var child *Image
+	return image.WalkHistory(func(img *Image) {
+		if child == nil {
+			fmt.Fprintf(stdout, "   %s\n", img.Id)
+		} else {
+			fmt.Fprintf(stdout, " = %s + %s\n", img.Id, strings.Join(child.ParentCommand, " "))
+		}
+		child = img
+	})
 }
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
