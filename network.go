@@ -124,6 +124,9 @@ func (mapper *PortMapper) setup() error {
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-j", "DOCKER"); err != nil {
 		return errors.New("Unable to setup port networking: Failed to inject docker in PREROUTING chain")
 	}
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-j", "DOCKER"); err != nil {
+		return errors.New("Unable to setup port networking: Failed to inject docker in OUTPUT chain")
+	}
 	return nil
 }
 
