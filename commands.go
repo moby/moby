@@ -438,7 +438,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
 			fmt.Fprintf(stdout, "Pushing %s (%d tags) on %s...\n", local, len(localRepo), remote)
-			if err := srv.runtime.graph.PushRepository(remote, localRepo, srv.runtime.authConfig); err != nil {
+			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
 			fmt.Fprintf(stdout, "Push completed\n")
@@ -449,7 +449,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	fmt.Fprintf(stdout, "Pushing image %s..\n", img.Id)
-	err = srv.runtime.graph.PushImage(img, srv.runtime.authConfig)
+	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
 	if err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	// FIXME: Allow pull repo:tag
 	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
-	if err := srv.runtime.graph.PullRepository(remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Pull completed\n")

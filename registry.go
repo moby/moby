@@ -19,7 +19,7 @@ const REGISTRY_ENDPOINT = auth.REGISTRY_SERVER + "/v1"
 func NewImgJson(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	fmt.Printf("Json string: {%s}\n", src)
+	Debugf("Json string: {%s}\n", src)
 	// FIXME: Is there a cleaner way to "puryfy" the input json?
 	src = []byte(strings.Replace(string(src), "null", "\"\"", -1))
 
@@ -161,10 +161,10 @@ func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
 }
 
 // FIXME: Handle the askedTag parameter
-func (graph *Graph) PullRepository(remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
-	fmt.Printf("Pulling repo: %s\n", REGISTRY_ENDPOINT+"/users/"+remote)
+	fmt.Fprintf(stdout, "Pulling repo: %s\n", REGISTRY_ENDPOINT+"/users/"+remote)
 
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
 	if err != nil {
@@ -202,7 +202,7 @@ func (graph *Graph) PullRepository(remote, askedTag string, repositories *TagSto
 }
 
 // Push a local image to the registry with its history if needed
-func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
 	// FIXME: Factorize the code
@@ -214,7 +214,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
 
-		Debugf("Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
+		fmt.Fprintf(stdout, "Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
 
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
@@ -231,11 +231,12 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 					"Error: Internal server error trying to push image {%s} (json): %s",
 					img.Id, err)
 			}
-			fmt.Printf("Pushing return status: %d\n", res.StatusCode)
+			Debugf("Pushing return status: %d\n", res.StatusCode)
 			switch res.StatusCode {
 			case 204:
 				// Case where the image is already on the Registry
 				// FIXME: Do not be silent?
+				fmt.Fprintf(stdout, "The image %s is already up to date on the registry.\n", img.Id)
 				return nil
 			case 400:
 				return fmt.Errorf("Error: Invalid Json")
@@ -324,7 +325,7 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 		}
 		return err
 	}
-	fmt.Printf("Result of push tag: %d\n", res.StatusCode)
+	Debugf("Result of push tag: %d\n", res.StatusCode)
 	switch res.StatusCode {
 	default:
 		return fmt.Errorf("Error %d\n", res.StatusCode)
@@ -349,14 +350,14 @@ func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthC
 	return true
 }
 
-func (graph *Graph) pushPrimitive(remote, tag, imgId string, authConfig *auth.AuthConfig) error {
+func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, authConfig *auth.AuthConfig) error {
 	// CHeck if the local impage exists
 	img, err := graph.Get(imgId)
 	if err != nil {
 		return err
 	}
 	// Push the image
-	if err = graph.PushImage(img, authConfig); err != nil {
+	if err = graph.PushImage(stdout, img, authConfig); err != nil {
 		return err
 	}
 	// And then the tag
@@ -368,7 +369,7 @@ func (graph *Graph) pushPrimitive(remote, tag, imgId string, authConfig *auth.Au
 
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
-func (graph *Graph) PushRepository(remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
 	// Check if the remote repository exists
 	// FIXME: @lopter How to handle this?
 	// if !graph.LookupRemoteRepository(remote, authConfig) {
@@ -377,7 +378,7 @@ func (graph *Graph) PushRepository(remote string, localRepo Repository, authConf
 
 	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
-		if err := graph.pushPrimitive(remote, tag, imgId, authConfig); err != nil {
+		if err := graph.pushPrimitive(stdout, remote, tag, imgId, authConfig); err != nil {
 			// FIXME: Continue on error?
 			return err
 		}
