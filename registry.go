@@ -80,14 +80,14 @@ func (graph *Graph) getRemoteHistory(imgId string, authConfig *auth.AuthConfig) 
 
 // Check if an image exists in the Registry
 func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig) bool {
-	client := &http.Client{}
+	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
 	if err != nil {
 		return false
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
-	res, err := client.Do(req)
+	res, err := rt.RoundTrip(req)
 	if err != nil || res.StatusCode != 307 {
 		return false
 	}
