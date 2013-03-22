@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const DEFAULT_TAG = "latest"
+
 type TagStore struct {
 	path         string
 	graph        *Graph
@@ -61,12 +63,35 @@ func (store *TagStore) Reload() error {
 	return nil
 }
 
-func (store *TagStore) Set(repoName, tag, revision string) error {
-	if strings.Contains(repoName, ":") {
-		return fmt.Errorf("Illegal repository name: %s", repoName)
+func (store *TagStore) LookupImage(name string) (*Image, error) {
+	img, err := store.graph.Get(name)
+	if err != nil {
+		// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
+		// (so we can pass all errors here)
+		repoAndTag := strings.SplitN(name, ":", 2)
+		if len(repoAndTag) == 1 {
+			repoAndTag = append(repoAndTag, DEFAULT_TAG)
+		}
+		if i, err := store.GetImage(repoAndTag[0], repoAndTag[1]); err != nil {
+			return nil, err
+		} else if i == nil {
+			return nil, fmt.Errorf("No such image: %s", name)
+		} else {
+			img = i
+		}
 	}
-	if strings.Contains(repoName, ":") {
-		return fmt.Errorf("Illegal tag name: %s", tag)
+	return img, nil
+}
+
+func (store *TagStore) Set(repoName, tag, revision string) error {
+	if tag == "" {
+		tag = DEFAULT_TAG
+	}
+	if err := validateRepoName(repoName); err != nil {
+		return err
+	}
+	if err := validateTagName(tag); err != nil {
+		return err
 	}
 	if err := store.Reload(); err != nil {
 		return err
@@ -103,4 +128,26 @@ func (store *TagStore) GetImage(repoName, tag string) (*Image, error) {
 		return store.graph.Get(revision)
 	}
 	return nil, nil
+}
+
+// Validate the name of a repository
+func validateRepoName(name string) error {
+	if name == "" {
+		return fmt.Errorf("Repository name can't be empty")
+	}
+	if strings.Contains(name, ":") {
+		return fmt.Errorf("Illegal repository name: %s", name)
+	}
+	return nil
+}
+
+// Validate the name of a tag
+func validateTagName(name string) error {
+	if name == "" {
+		return fmt.Errorf("Tag name can't be empty")
+	}
+	if strings.Contains(name, "/") || strings.Contains(name, ":") {
+		return fmt.Errorf("Illegal tag name: %s", name)
+	}
+	return nil
 }
