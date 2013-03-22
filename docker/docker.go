@@ -16,8 +16,11 @@ func main() {
 		docker.SysInit()
 		return
 	}
+	// FIXME: Switch d and D ? (to be more sshd like)
 	fl_daemon := flag.Bool("d", false, "Daemon mode")
+	fl_debug := flag.Bool("D", false, "Debug mode")
 	flag.Parse()
+	rcli.DEBUG_FLAG = *fl_debug
 	if *fl_daemon {
 		if flag.NArg() != 0 {
 			flag.Usage()

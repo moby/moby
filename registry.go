@@ -213,6 +213,9 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 		if err != nil {
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
+
+		Debugf("Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
+
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
 		req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
@@ -257,6 +260,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 				"Fail to retrieve layer storage URL for image {%s}: %s\n",
 				img.Id, err)
 		}
+
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
 		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
@@ -306,6 +310,8 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
+
+	Debugf("Pushing tags for rev [%s] on {%s}\n", revision, REGISTRY_ENDPOINT+"/users/"+remote+"/"+tag)
 
 	client := &http.Client{}
 	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+remote+"/"+tag, strings.NewReader(revision))
