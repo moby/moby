@@ -80,7 +80,7 @@ class docker {
         owner => "root",
         group => "root",
         content => template("docker/dockerd.conf"),
-        require => Exec["fetch-docker"],
+        require => Exec["copy-docker-bin"],
     }
 
     file { "/home/vagrant":
