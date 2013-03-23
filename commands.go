@@ -374,6 +374,8 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
+			u.Host = src
+			u.Path = ""
 		}
 		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
 		// Download with curl (pretty progress bar)
