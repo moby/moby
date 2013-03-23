@@ -348,6 +348,9 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 
 	portMapper, err := newPortMapper()
+	if err != nil {
+		return nil, err
+	}
 
 	manager := &NetworkManager{
 		bridgeIface:   bridgeIface,
