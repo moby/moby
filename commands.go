@@ -219,28 +219,6 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	return nil
 }
 
-func (srv *Server) CmdMount(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "umount", "[OPTIONS] NAME", "mount a container's filesystem (debug only)")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() < 1 {
-		cmd.Usage()
-		return nil
-	}
-	for _, name := range cmd.Args() {
-		if container := srv.runtime.Get(name); container != nil {
-			if err := container.EnsureMounted(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.Id)
-		} else {
-			return errors.New("No such container: " + name)
-		}
-	}
-	return nil
-}
-
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "[OPTIONS] CONTAINER", "Return low-level information on a container")
 	if err := cmd.Parse(args); err != nil {
