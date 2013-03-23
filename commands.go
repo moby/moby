@@ -311,7 +311,7 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
 	return image.WalkHistory(func(img *Image) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			img.Id,
+			srv.runtime.repositories.ImageName(img.Id),
 			HumanDuration(time.Now().Sub(img.Created))+" ago",
 			strings.Join(img.ParentCommand, " "),
 		)
@@ -514,7 +514,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* TAG */ tag,
 					/* ID */ id,
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-					/* PARENT */ image.Parent,
+					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -537,7 +537,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* TAG */ "",
 					/* ID */ id,
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-					/* PARENT */ image.Parent,
+					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -581,7 +581,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			}
 			for idx, field := range []string{
 				/* ID */ container.Id,
-				/* IMAGE */ container.Image,
+				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
 				/* COMMAND */ command,
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */ container.State.String(),
