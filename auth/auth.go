@@ -8,11 +8,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 )
 
 // Where we store the config file
-const CONFIGFILE = "/var/lib/docker/.dockercfg"
+const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
 //const REGISTRY_SERVER = "https://registry.docker.io"
@@ -22,10 +23,11 @@ type AuthConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
+	rootPath string `json:-`
 }
 
 // create a base64 encoded auth string to store in config
-func EncodeAuth(authConfig AuthConfig) string {
+func EncodeAuth(authConfig *AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
@@ -34,50 +36,54 @@ func EncodeAuth(authConfig AuthConfig) string {
 }
 
 // decode the auth string
-func DecodeAuth(authStr string) (AuthConfig, error) {
+func DecodeAuth(authStr string) (*AuthConfig, error) {
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)
 	n, err := base64.StdEncoding.Decode(decoded, authByte)
 	if err != nil {
-		return AuthConfig{}, err
+		return nil, err
 	}
 	if n > decLen {
-		return AuthConfig{}, errors.New("something went wrong decoding auth config")
+		return nil, fmt.Errorf("Something went wrong decoding auth config")
 	}
 	arr := strings.Split(string(decoded), ":")
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("Invalid auth configuration file")
+	}
 	password := strings.Trim(arr[1], "\x00")
-	return AuthConfig{Username: arr[0], Password: password}, nil
+	return &AuthConfig{Username: arr[0], Password: password}, nil
 
 }
 
 // load up the auth config information and return values
-func LoadConfig() (AuthConfig, error) {
-	if _, err := os.Stat(CONFIGFILE); err == nil {
-		b, err := ioutil.ReadFile(CONFIGFILE)
-		if err != nil {
-			return AuthConfig{}, err
-		}
-		arr := strings.Split(string(b), "\n")
-		orig_auth := strings.Split(arr[0], " = ")
-		orig_email := strings.Split(arr[1], " = ")
-		authConfig, err := DecodeAuth(orig_auth[1])
-		if err != nil {
-			return AuthConfig{}, err
-		}
-		authConfig.Email = orig_email[1]
-		return authConfig, nil
-	} else {
-		return AuthConfig{}, nil
+// FIXME: use the internal golang config parser
+func LoadConfig(rootPath string) (*AuthConfig, error) {
+	confFile := path.Join(rootPath, CONFIGFILE)
+	if _, err := os.Stat(confFile); err != nil {
+		return &AuthConfig{}, fmt.Errorf("The Auth config file is missing")
 	}
-	return AuthConfig{}, nil
+	b, err := ioutil.ReadFile(confFile)
+	if err != nil {
+		return nil, err
+	}
+	arr := strings.Split(string(b), "\n")
+	orig_auth := strings.Split(arr[0], " = ")
+	orig_email := strings.Split(arr[1], " = ")
+	authConfig, err := DecodeAuth(orig_auth[1])
+	if err != nil {
+		return nil, err
+	}
+	authConfig.Email = orig_email[1]
+	authConfig.rootPath = rootPath
+	return authConfig, nil
 }
 
 // save the auth config
-func saveConfig(authStr string, email string) error {
+func saveConfig(rootPath, authStr string, email string) error {
 	lines := "auth = " + authStr + "\n" + "email = " + email + "\n"
 	b := []byte(lines)
-	err := ioutil.WriteFile(CONFIGFILE, b, 0600)
+	err := ioutil.WriteFile(path.Join(rootPath, CONFIGFILE), b, 0600)
 	if err != nil {
 		return err
 	}
@@ -85,7 +91,7 @@ func saveConfig(authStr string, email string) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig AuthConfig) (string, error) {
+func Login(authConfig *AuthConfig) (string, error) {
 	storeConfig := false
 	reqStatusCode := 0
 	var status string
@@ -146,7 +152,7 @@ func Login(authConfig AuthConfig) (string, error) {
 	}
 	if storeConfig {
 		authStr := EncodeAuth(authConfig)
-		saveConfig(authStr, authConfig.Email)
+		saveConfig(authConfig.rootPath, authStr, authConfig.Email)
 	}
 	return status, nil
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func TestEncodeAuth(t *testing.T) {
-	newAuthConfig := AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
+	newAuthConfig := &AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
 	authStr := EncodeAuth(newAuthConfig)
 	decAuthConfig, err := DecodeAuth(authStr)
 	if err != nil {
