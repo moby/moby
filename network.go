@@ -70,7 +70,7 @@ func networkSize(mask net.IPMask) (int32, error) {
 func iptables(args ...string) error {
 	if output, err := exec.Command("/sbin/iptables", args...).CombinedOutput(); err != nil {
 		argsCombined := strings.Join(args, " ")
-		log.Printf("iptables failed (iptables %v): %s", argsCombined, output)
+		log.Printf("ERROR: iptables failed (iptables %v): %s", argsCombined, output)
 		return fmt.Errorf("iptables failed: iptables %v", argsCombined)
 	}
 	return nil
