@@ -330,14 +330,15 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	if err != nil {
 		return err
 	}
-	var child *Image
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	defer w.Flush()
+	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
 	return image.WalkHistory(func(img *Image) error {
-		if child == nil {
-			fmt.Fprintf(stdout, "   %s\n", img.Id)
-		} else {
-			fmt.Fprintf(stdout, " = %s + %s\n", img.Id, strings.Join(child.ParentCommand, " "))
-		}
-		child = img
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			img.Id,
+			HumanDuration(time.Now().Sub(img.Created))+" ago",
+			strings.Join(img.ParentCommand, " "),
+		)
 		return nil
 	})
 }
