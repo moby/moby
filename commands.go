@@ -794,7 +794,7 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	fl_user := cmd.String("u", "", "Username or UID")
-	fl_attach := cmd.Bool("a", false, "Attach stdin and stdout")
+	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
@@ -821,7 +821,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if len(cmdline) == 0 {
 		*fl_stdin = true
 		*fl_tty = true
-		*fl_attach = true
 		cmdline = []string{"/bin/bash", "-i"}
 	}
 
@@ -843,7 +842,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err != nil {
 			return err
 		}
-		if *fl_attach {
+		if !*fl_detach {
 			Go(func() error {
 				_, err := io.Copy(cmd_stdin, stdin)
 				cmd_stdin.Close()
@@ -852,7 +851,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	// Run the container
-	if *fl_attach {
+	if !*fl_detach {
 		cmd_stderr, err := container.StderrPipe()
 		if err != nil {
 			return err
