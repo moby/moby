@@ -64,9 +64,9 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
-func (runtime *Runtime) Create(image string, config *Config) (*Container, error) {
+func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	// Lookup image
-	img, err := runtime.repositories.LookupImage(image)
+	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
 		return nil, err
 	}

@@ -57,9 +57,10 @@ type Config struct {
 	OpenStdin  bool // Open stdin
 	Env        []string
 	Cmd        []string
+	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
-func ParseRun(args []string) (string, *Config, error) {
+func ParseRun(args []string) (*Config, error) {
 	cmd := flag.NewFlagSet("", flag.ContinueOnError)
 	cmd.SetOutput(ioutil.Discard)
 	fl_user := cmd.String("u", "", "Username or UID")
@@ -73,9 +74,8 @@ func ParseRun(args []string) (string, *Config, error) {
 	var fl_env ListOpts
 	cmd.Var(&fl_env, "e", "Set environment variables")
 	if err := cmd.Parse(args); err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	image := cmd.Arg(0)
 	config := &Config{
 		Ports:     fl_ports,
 		User:      *fl_user,
@@ -85,8 +85,9 @@ func ParseRun(args []string) (string, *Config, error) {
 		Detach:    *fl_detach,
 		Env:       fl_env,
 		Cmd:       cmd.Args()[1:],
+		Image:     cmd.Arg(0),
 	}
-	return image, config, nil
+	return config, nil
 }
 
 type NetworkSettings struct {

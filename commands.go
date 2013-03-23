@@ -803,18 +803,18 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	image, config, err := ParseRun(args)
+	config, err := ParseRun(args)
 	if err != nil {
 		return err
 	}
-	if image == "" {
+	if config.Image == "" {
 		return fmt.Errorf("Image not specified")
 	}
 	if len(config.Cmd) == 0 {
 		return fmt.Errorf("Command not specified")
 	}
 	// Create new container
-	container, err := srv.runtime.Create(image, config)
+	container, err := srv.runtime.Create(config)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
