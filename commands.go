@@ -45,6 +45,8 @@ func (srv *Server) Help() string {
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
+		{"pull", "Pull an image or a repository to the docker registry server"},
+		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
@@ -403,9 +405,13 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() == 0 {
+	if cmd.NArg() == 0 || *user == "" {
 		cmd.Usage()
 		return nil
+	}
+
+	if srv.runtime.authConfig == nil {
+		return fmt.Errorf("Please login prior to push. ('docker login')")
 	}
 
 	// Try to get the image
@@ -414,9 +420,6 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
 	img, err := srv.runtime.graph.Get(cmd.Arg(0))
 	if err != nil {
-		if *user == "" {
-			return fmt.Errorf("Not logged in and no user specified\n")
-		}
 		// If it fails, try to get the repository
 		if repo, exists := srv.runtime.repositories.Repositories[cmd.Arg(0)]; exists {
 			fmt.Fprintf(stdout, "Pushing %s (%d images) on %s...\n", cmd.Arg(0), len(repo), *user+"/"+cmd.Arg(0))
@@ -445,9 +448,13 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() == 0 {
+	if cmd.NArg() == 0 || *user == "" {
 		cmd.Usage()
 		return nil
+	}
+
+	if srv.runtime.authConfig == nil {
+		return fmt.Errorf("Please login prior to push. ('docker login')")
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0), srv.runtime.authConfig) {
@@ -457,9 +464,6 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
-	}
-	if *user == "" {
-		return fmt.Errorf("Not loggin and no user specified\n")
 	}
 	// FIXME: Allow pull repo:tag
 	fmt.Fprintf(stdout, "Pulling %s from %s...\n", cmd.Arg(0), *user+"/"+cmd.Arg(0))
