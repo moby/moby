@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/kr/pty"
 	"io"
@@ -50,10 +51,42 @@ type Config struct {
 	User       string
 	Memory     int64 // Memory limit (in bytes)
 	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	Detach     bool
 	Ports      []int
 	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin  bool // Open stdin
 	Env        []string
+	Cmd        []string
+}
+
+func ParseRun(args []string) (string, *Config, error) {
+	cmd := flag.NewFlagSet("", flag.ContinueOnError)
+	cmd.SetOutput(ioutil.Discard)
+	fl_user := cmd.String("u", "", "Username or UID")
+	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
+	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
+	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	var fl_ports ports
+
+	cmd.Var(&fl_ports, "p", "Map a network port to the container")
+	var fl_env ListOpts
+	cmd.Var(&fl_env, "e", "Set environment variables")
+	if err := cmd.Parse(args); err != nil {
+		return "", nil, err
+	}
+	image := cmd.Arg(0)
+	config := &Config{
+		Ports:     fl_ports,
+		User:      *fl_user,
+		Tty:       *fl_tty,
+		OpenStdin: *fl_stdin,
+		Memory:    *fl_memory,
+		Detach:    *fl_detach,
+		Env:       fl_env,
+		Cmd:       cmd.Args()[1:],
+	}
+	return image, config, nil
 }
 
 type NetworkSettings struct {

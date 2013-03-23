@@ -112,11 +112,9 @@ func TestRuntimeCreate(t *testing.T) {
 	if len(runtime.List()) != 0 {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
-	container, err := runtime.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime).Id,
-		&Config{},
+	container, err := runtime.Create(GetTestImage(runtime).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -160,11 +158,9 @@ func TestDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container, err := runtime.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime).Id,
-		&Config{},
+	container, err := runtime.Create(GetTestImage(runtime).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -208,33 +204,27 @@ func TestGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container1, err := runtime.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime).Id,
-		&Config{},
+	container1, err := runtime.Create(GetTestImage(runtime).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container1)
 
-	container2, err := runtime.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime).Id,
-		&Config{},
+	container2, err := runtime.Create(GetTestImage(runtime).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container2)
 
-	container3, err := runtime.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime).Id,
-		&Config{},
+	container3, err := runtime.Create(GetTestImage(runtime).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -274,11 +264,9 @@ func TestRestore(t *testing.T) {
 	}
 
 	// Create a container with one instance of docker
-	container1, err := runtime1.Create(
-		"ls",
-		[]string{"-al"},
-		GetTestImage(runtime1).Id,
-		&Config{},
+	container1, err := runtime1.Create(GetTestImage(runtime1).Id, &Config{
+		Cmd: []string{"ls", "-al"},
+	},
 	)
 	if err != nil {
 		t.Fatal(err)

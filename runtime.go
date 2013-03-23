@@ -64,7 +64,7 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
-func (runtime *Runtime) Create(command string, args []string, image string, config *Config) (*Container, error) {
+func (runtime *Runtime) Create(image string, config *Config) (*Container, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(image)
 	if err != nil {
@@ -72,13 +72,12 @@ func (runtime *Runtime) Create(command string, args []string, image string, conf
 	}
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
-		Id:      GenerateId(),
-		Created: time.Now(),
-		Path:    command,
-		Args:    args,
-		Config:  config,
-		Image:   img.Id, // Always use the resolved image id
-		//FIXME: store the name under which the image was given, for reference
+		Id:              GenerateId(),
+		Created:         time.Now(),
+		Path:            config.Cmd[0],
+		Args:            config.Cmd[1:], //FIXME: de-duplicate from config
+		Config:          config,
+		Image:           img.Id, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,

@@ -803,45 +803,27 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
-	fl_user := cmd.String("u", "", "Username or UID")
-	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
-	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
-	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	var fl_ports ports
-
-	cmd.Var(&fl_ports, "p", "Map a network port to the container")
-	var fl_env ListOpts
-	cmd.Var(&fl_env, "e", "Set environment variables")
-	if err := cmd.Parse(args); err != nil {
-		return nil
+	image, config, err := ParseRun(args)
+	if err != nil {
+		return err
 	}
-	if cmd.NArg() < 2 {
-		cmd.Usage()
-		return nil
+	if image == "" {
+		return fmt.Errorf("Image not specified")
 	}
-	name := cmd.Arg(0)
-	cmdline := cmd.Args()[1:]
+	if len(config.Cmd) == 0 {
+		return fmt.Errorf("Command not specified")
+	}
 	// Create new container
-	container, err := srv.runtime.Create(cmdline[0], cmdline[1:], name,
-		&Config{
-			Ports:     fl_ports,
-			User:      *fl_user,
-			Tty:       *fl_tty,
-			OpenStdin: *fl_stdin,
-			Memory:    *fl_memory,
-			Env:       fl_env,
-		})
+	container, err := srv.runtime.Create(image, config)
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
 	}
-	if *fl_stdin {
+	if config.OpenStdin {
 		cmd_stdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
-		if !*fl_detach {
+		if !config.Detach {
 			Go(func() error {
 				_, err := io.Copy(cmd_stdin, stdin)
 				cmd_stdin.Close()
@@ -850,7 +832,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	// Run the container
-	if !*fl_detach {
+	if !config.Detach {
 		cmd_stderr, err := container.StderrPipe()
 		if err != nil {
 			return err
