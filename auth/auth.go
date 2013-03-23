@@ -16,8 +16,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-//const REGISTRY_SERVER = "https://registry.docker.io"
-const REGISTRY_SERVER = "http://192.168.56.1:5000"
+const REGISTRY_SERVER = "https://registry.docker.io"
 
 type AuthConfig struct {
 	Username string `json:"username"`
