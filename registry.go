@@ -175,7 +175,7 @@ func (graph *Graph) PullRepository(user, repoName, askedTag string, repositories
 		if err = graph.PullImage(rev, authConfig); err != nil {
 			return err
 		}
-		if err = repositories.Set(repoName, tag, rev); err != nil {
+		if err = repositories.Set(repoName, tag, rev, true); err != nil {
 			return err
 		}
 	}

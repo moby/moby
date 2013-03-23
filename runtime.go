@@ -201,7 +201,7 @@ func (runtime *Runtime) Commit(id, repository, tag string) (*Image, error) {
 	}
 	// Register the image if needed
 	if repository != "" {
-		if err := runtime.repositories.Set(repository, tag, img.Id); err != nil {
+		if err := runtime.repositories.Set(repository, tag, img.Id, true); err != nil {
 			return img, err
 		}
 	}
