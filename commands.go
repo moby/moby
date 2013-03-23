@@ -419,15 +419,24 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		// If it fails, try to get the repository
 		if repo, exists := srv.runtime.repositories.Repositories[cmd.Arg(0)]; exists {
+			fmt.Fprintf(stdout, "Pushing %s (%d images) on %s...\n", cmd.Arg(0), len(repo), *user+"/"+cmd.Arg(0))
 			if err := srv.runtime.graph.PushRepository(*user, cmd.Arg(0), repo, srv.runtime.authConfig); err != nil {
 				return err
 			}
+			fmt.Fprintf(stdout, "Push completed\n")
+			return nil
 		} else {
 			return err
 		}
 		return nil
 	}
-	return srv.runtime.graph.PushImage(img, srv.runtime.authConfig)
+	fmt.Fprintf(stdout, "Pushing image %s..\n", img.Id)
+	err = srv.runtime.graph.PushImage(img, srv.runtime.authConfig)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Push completed\n")
+	return nil
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -442,13 +451,23 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(cmd.Arg(0), srv.runtime.authConfig) {
-		return srv.runtime.graph.PullImage(cmd.Arg(0), srv.runtime.authConfig)
+		fmt.Fprintf(stdout, "Pulling %s...\n", cmd.Arg(0))
+		if err := srv.runtime.graph.PullImage(cmd.Arg(0), srv.runtime.authConfig); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Pulled\n")
+		return nil
 	}
 	if *user == "" {
 		return fmt.Errorf("Not loggin and no user specified\n")
 	}
 	// FIXME: Allow pull repo:tag
-	return srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories, srv.runtime.authConfig)
+	fmt.Fprintf(stdout, "Pulling %s from %s...\n", cmd.Arg(0), *user+"/"+cmd.Arg(0))
+	if err := srv.runtime.graph.PullRepository(*user, cmd.Arg(0), "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Pull completed\n")
+	return nil
 }
 
 func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
