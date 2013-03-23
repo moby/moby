@@ -19,8 +19,8 @@ type Image struct {
 	Parent          string    `json:"parent,omitempty"`
 	Comment         string    `json:"comment,omitempty"`
 	Created         time.Time `json:"created"`
-	ParentContainer string    `json:"parent_container,omitempty"`
-	ParentCommand   []string  `json:"parent_command,omitempty"`
+	Container       string    `json:"container,omitempty"`
+	ContainerConfig Config    `json:"container_config,omitempty"`
 	graph           *Graph
 }
 
