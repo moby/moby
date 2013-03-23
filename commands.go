@@ -806,24 +806,12 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
 	name := cmd.Arg(0)
-	var cmdline []string
-
-	if len(cmd.Args()) >= 2 {
-		cmdline = cmd.Args()[1:]
-	}
-	// Choose a default image if needed
-	if name == "" {
-		name = "base"
-	}
-
-	// Choose a default command if needed
-	if len(cmdline) == 0 {
-		*fl_stdin = true
-		*fl_tty = true
-		cmdline = []string{"/bin/bash", "-i"}
-	}
-
+	cmdline := cmd.Args()[1:]
 	// Create new container
 	container, err := srv.runtime.Create(cmdline[0], cmdline[1:], name,
 		&Config{
