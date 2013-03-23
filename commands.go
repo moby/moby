@@ -766,6 +766,18 @@ func (p *ports) Set(value string) error {
 	return nil
 }
 
+// ListOpts type
+type ListOpts []string
+
+func (opts *ListOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *ListOpts) Set(value string) error {
+	*opts = append(*opts, value)
+	return nil
+}
+
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
@@ -789,6 +801,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	var fl_ports ports
 
 	cmd.Var(&fl_ports, "p", "Map a network port to the container")
+	var fl_env ListOpts
+	cmd.Var(&fl_env, "e", "Set environment variables")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -819,6 +833,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			Tty:       *fl_tty,
 			OpenStdin: *fl_stdin,
 			Memory:    *fl_memory,
+			Env:       fl_env,
 		})
 	if err != nil {
 		return errors.New("Error creating container: " + err.Error())
