@@ -232,7 +232,7 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	var obj interface{}
 	if container := srv.runtime.Get(name); container != nil {
 		obj = container
-	} else if image, err := srv.runtime.graph.Get(name); err != nil {
+	} else if image, err := srv.runtime.repositories.LookupImage(name); err != nil {
 		return err
 	} else if image != nil {
 		obj = image
