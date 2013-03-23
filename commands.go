@@ -98,6 +98,8 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		fmt.Fprintf(stdout, "Error : %s\n", err)
+	} else {
+		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {
 		fmt.Fprintf(stdout, status)
