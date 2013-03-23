@@ -472,10 +472,6 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
-	if srv.runtime.authConfig == nil {
-		return fmt.Errorf("Please login prior to push. ('docker login')")
-	}
-
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
 		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
 		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
