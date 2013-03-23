@@ -399,7 +399,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "LOCAL", "Push an image or a repository to the registry")
+	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -459,7 +459,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "IMAGE", "Pull an image or a repository from the registry")
+	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
