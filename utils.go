@@ -5,7 +5,9 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/rcli"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -35,6 +37,17 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
 	}
 	return resp, nil
+}
+
+// Debug function, if the debug flag is set, then display. Do nothing otherwise
+// If Docker is in damon mode, also send the debug info on the socket
+func Debugf(format string, a ...interface{}) {
+	if rcli.DEBUG_FLAG {
+		log.Printf(format, a...)
+		if rcli.CLIENT_SOCKET != nil {
+			fmt.Fprintf(rcli.CLIENT_SOCKET, log.Prefix()+format, a...)
+		}
+	}
 }
 
 // Reader with progress bar

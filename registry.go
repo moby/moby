@@ -213,6 +213,9 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 		if err != nil {
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
+
+		Debugf("Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
+
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
 		req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
@@ -257,6 +260,7 @@ func (graph *Graph) PushImage(imgOrig *Image, authConfig *auth.AuthConfig) error
 				"Fail to retrieve layer storage URL for image {%s}: %s\n",
 				img.Id, err)
 		}
+
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
 		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
@@ -307,6 +311,8 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
 
+	Debugf("Pushing tags for rev [%s] on {%s}\n", revision, REGISTRY_ENDPOINT+"/users/"+remote+"/"+tag)
+
 	client := &http.Client{}
 	req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/users/"+remote+"/"+tag, strings.NewReader(revision))
 	req.Header.Add("Content-type", "application/json")
@@ -328,19 +334,50 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 	return nil
 }
 
+func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthConfig) bool {
+	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
+
+	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
+	if err != nil {
+		return false
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := rt.RoundTrip(req)
+	if err != nil || res.StatusCode != 200 {
+		return false
+	}
+	return true
+}
+
+func (graph *Graph) pushPrimitive(remote, tag, imgId string, authConfig *auth.AuthConfig) error {
+	// CHeck if the local impage exists
+	img, err := graph.Get(imgId)
+	if err != nil {
+		return err
+	}
+	// Push the image
+	if err = graph.PushImage(img, authConfig); err != nil {
+		return err
+	}
+	// And then the tag
+	if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
+	// Check if the remote repository exists
+	if !graph.LookupRemoteRepository(remote, authConfig) {
+		return fmt.Errorf("The remote repository %s does not exist\n", remote)
+	}
+
+	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
-		fmt.Printf("tag: %s, imgId: %s\n", tag, imgId)
-		img, err := graph.Get(imgId)
-		if err != nil {
-			return err
-		}
-		if err = graph.PushImage(img, authConfig); err != nil {
-			return err
-		}
-		if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
+		if err := graph.pushPrimitive(remote, tag, imgId, authConfig); err != nil {
+			// FIXME: Continue on error?
 			return err
 		}
 	}

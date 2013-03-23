@@ -6,7 +6,6 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"sort"
@@ -216,10 +215,10 @@ func (runtime *Runtime) restore() error {
 		id := v.Name()
 		container, err := runtime.Load(id)
 		if err != nil {
-			log.Printf("Failed to load container %v: %v", id, err)
+			Debugf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		log.Printf("Loaded container %v", container.Id)
+		Debugf("Loaded container %v", container.Id)
 	}
 	return nil
 }
