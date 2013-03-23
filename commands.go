@@ -414,8 +414,13 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	// If the login failed, abort
-	if srv.runtime.authConfig == nil {
-		return fmt.Errorf("Please login prior to push. ('docker login')")
+	if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
+			return err
+		}
+		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+			return fmt.Errorf("Please login prior to push. ('docker login')")
+		}
 	}
 
 	var remote string
