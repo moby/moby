@@ -420,7 +420,9 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 	tmp := strings.SplitN(local, "/", 2)
 	if len(tmp) == 1 {
-		remote = srv.runtime.authConfig.Username + "/" + local
+		return fmt.Errorf(
+			"Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)",
+			srv.runtime.authConfig.Username, local)
 	} else {
 		remote = local
 	}
