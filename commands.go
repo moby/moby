@@ -30,14 +30,13 @@ func (srv *Server) Name() string {
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]interface{}{
-		{"run", "Run a command in a container"},
-		{"ps", "Display a list of containers"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
-		{"history", "Show the history of an image"},
 		{"diff", "Inspect changes on a container's filesystem"},
+		{"export", "Stream the contents of a container as a tar archive"},
+		{"history", "Show the history of an image"},
 		{"images", "List images"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
@@ -53,7 +52,7 @@ func (srv *Server) Help() string {
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		{"export", "Stream the contents of a container as a tar archive"},
+		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
