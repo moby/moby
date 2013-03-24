@@ -356,6 +356,9 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
+	if container.cmd == nil {
+		return nil
+	}
 	if err := container.cmd.Process.Kill(); err != nil {
 		return err
 	}
