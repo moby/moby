@@ -25,6 +25,9 @@ class virtualbox {
 class ec2 {
 }
 
+class rax {
+}
+
 class docker {
 
     # update this with latest docker binary distro
@@ -42,13 +45,17 @@ class docker {
 
     notify { "docker_url = $docker_url": withpath => true }
 
-	$ec2_version = file("/etc/ec2_version", "/dev/null")
-	if ($ec2_version) {
-		include ec2
-	} else {
-		# virtualbox is the vagrant default, so it should be safe to assume
-		include virtualbox
-	}
+    $ec2_version = file("/etc/ec2_version", "/dev/null")
+    $rax_version = inline_template("<%= %x{/usr/bin/xenstore-read vm-data/provider_data/provider} %>")
+
+    if ($ec2_version) {
+	include ec2
+    } elsif ($rax_version) {
+        include rax
+    } else {
+    # virtualbox is the vagrant default, so it should be safe to assume
+        include virtualbox
+    }
 
     user { "vagrant":
         ensure => present,
@@ -84,6 +91,7 @@ class docker {
     }
 
     file { "/home/vagrant":
+        ensure => directory,
         mode => 644,
         require => User["vagrant"],
     }
@@ -91,7 +99,7 @@ class docker {
     file { "/home/vagrant/.profile":
         mode => 644,
         owner => "vagrant",
-        group => "ubuntu",
+        group => "vagrant",
         content => template("docker/profile"),
         require => File["/home/vagrant"],
     }

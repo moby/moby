@@ -94,10 +94,11 @@ Docker probably works on other distributions featuring a recent kernel, the AUFS
 Installing with Vagrant
 -----------------------
 
-Currently, Docker can be installed with Vagrant both on your localhost
-with VirtualBox as well as on Amazon EC2. Vagrant 1.1 is required for
-EC2, but deploying is as simple as:
+Currently, Docker can be installed with Vagrant on your localhost with VirtualBox, 
+Amazon EC2, and Rackspace Cloud Servers. Vagrant 1.1 is required for EC2 and 
+Rackspace Cloud, but deploying is as simple as:
 
+Amazon EC2:
 ```bash
 $ export AWS_ACCESS_KEY_ID=xxx \
 	AWS_SECRET_ACCESS_KEY=xxx \
@@ -113,6 +114,23 @@ The environment variables are:
 * `AWS_SECRET_ACCESS_KEY` - The secret key to make AWS API requests
 * `AWS_KEYPAIR_NAME` - The name of the keypair used for this EC2 instance
 * `AWS_SSH_PRIVKEY` - The path to the private key for the named keypair
+
+Rackspace Cloud Servers:
+```bash
+$ export RS_USERNAME=xxx \
+        RS_API_KEY=xxx \
+        RS_PUBLIC_KEY=xxx \
+        RS_PRIVATE_KEY=xxx
+$ vagrant plugin install vagrant-rackspace
+$ vagrant up --provider=rackspace
+```
+
+The environment variables are:
+
+* `RS_USERNAME` - The user name used to make requests to Rackspace Cloud
+* `RS_API_KEY` - The secret key to make Rackspace Cloud API requests
+* `RS_PUBLIC_KEY` - The location on disk to your public key that will be injected into the instance.
+* `RS_PRIVATE_KEY` - The private key that matches the public key being injected.
 
 For VirtualBox, you can simply ignore setting any of the environment
 variables and omit the `provider` flag. VirtualBox is still supported with
