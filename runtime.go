@@ -181,7 +181,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag string) (*Image, error) {
+func (runtime *Runtime) Commit(id, repository, tag, comment string) (*Image, error) {
 	container := runtime.Get(id)
 	if container == nil {
 		return nil, fmt.Errorf("No such container: %s", id)
@@ -193,7 +193,7 @@ func (runtime *Runtime) Commit(id, repository, tag string) (*Image, error) {
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, "")
+	img, err := runtime.graph.Create(rwTar, container, comment)
 	if err != nil {
 		return nil, err
 	}
