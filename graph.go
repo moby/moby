@@ -141,20 +141,59 @@ func (graph *Graph) Map() (map[string]*Image, error) {
 }
 
 func (graph *Graph) All() ([]*Image, error) {
+	var images []*Image
+	err := graph.WalkAll(func(image *Image) {
+		images = append(images, image)
+	})
+	return images, err
+}
+
+func (graph *Graph) WalkAll(handler func(*Image)) error {
 	files, err := ioutil.ReadDir(graph.Root)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var images []*Image
 	for _, st := range files {
 		if img, err := graph.Get(st.Name()); err != nil {
 			// Skip image
 			continue
-		} else {
-			images = append(images, img)
+		} else if handler != nil {
+			handler(img)
 		}
 	}
-	return images, nil
+	return nil
+}
+
+func (graph *Graph) ByParent() (map[string][]*Image, error) {
+	byParent := make(map[string][]*Image)
+	err := graph.WalkAll(func(image *Image) {
+		image, err := graph.Get(image.Parent)
+		if err != nil {
+			return
+		}
+		if children, exists := byParent[image.Parent]; exists {
+			byParent[image.Parent] = []*Image{image}
+		} else {
+			byParent[image.Parent] = append(children, image)
+		}
+	})
+	return byParent, err
+}
+
+func (graph *Graph) Heads() (map[string]*Image, error) {
+	heads := make(map[string]*Image)
+	byParent, err := graph.ByParent()
+	if err != nil {
+		return nil, err
+	}
+	err = graph.WalkAll(func(image *Image) {
+		// If it's not in the byParent lookup table, then
+		// it's not a parent -> so it's a head!
+		if _, exists := byParent[image.Id]; !exists {
+			heads[image.Id] = image
+		}
+	})
+	return heads, err
 }
 
 func (graph *Graph) imageRoot(id string) string {

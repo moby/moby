@@ -493,6 +493,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
 	//limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
+	fl_a := cmd.Bool("a", false, "show all images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -508,7 +509,13 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if !*quiet {
 		fmt.Fprintf(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT\n")
 	}
-	allImages, err := srv.runtime.graph.Map()
+	var allImages map[string]*Image
+	var err error
+	if *fl_a {
+		allImages, err = srv.runtime.graph.Map()
+	} else {
+		allImages, err = srv.runtime.graph.Heads()
+	}
 	if err != nil {
 		return err
 	}
