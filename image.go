@@ -175,7 +175,7 @@ func ComputeId(content io.Reader) (string, error) {
 	if _, err := io.Copy(h, content); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%x", h.Sum(nil)[:8]), nil
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 // Image includes convenience proxy functions to its graph
