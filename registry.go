@@ -21,8 +21,6 @@ func NewImgJson(src []byte) (*Image, error) {
 
 	Debugf("Json string: {%s}\n", src)
 	// FIXME: Is there a cleaner way to "puryfy" the input json?
-	src = []byte(strings.Replace(string(src), "null", "\"\"", -1))
-
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
 	}
