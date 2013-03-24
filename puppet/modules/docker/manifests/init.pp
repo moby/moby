@@ -62,7 +62,29 @@ class docker {
         comment => "Vagrant User",
         shell => "/bin/bash",
         home => "/home/vagrant",
+        groups => [
+            "sudo",
+            "vagrant",
+            "ubuntu",
+        ],
+        require => [
+            Group["sudo"],
+            Group["vagrant"],
+            Group["ubuntu"],
+        ],
     }
+
+	group { "ubuntu":
+		ensure => present,
+	}
+
+	group { "vagrant":
+		ensure => present,
+	}
+
+	group { "sudo":
+		ensure => present,
+	}
 
 	file { "/usr/local/bin":
 		ensure => directory,
