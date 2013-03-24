@@ -627,7 +627,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
-		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
+		"commit", "[OPTIONS] CONTAINER REPOSITORY [TAG]",
 		"Create a new image from a container's changes")
 	fl_comment := cmd.String("m", "", "Commit message")
 	if err := cmd.Parse(args); err != nil {
@@ -638,6 +638,12 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
+
+	if repository == "" {
+		cmd.Usage()
+		return nil
+	}
+
 	img, err := srv.runtime.Commit(containerName, repository, tag, *fl_comment)
 	if err != nil {
 		return err
