@@ -10,7 +10,7 @@ Standards-Version: 3.9.2
 Package: dotcloud-docker
 Architecture: amd64
 Provides: dotcloud-docker
-Depends: lxc, wget, bsdtar, curl, sqlite3
+Depends: lxc, wget, bsdtar, curl, libsqlite3-0
 Conflicts: docker
 Description: A process manager with superpowers
     It encapsulates heterogeneous payloads in Standard Containers, and runs
