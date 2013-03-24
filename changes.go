@@ -1,4 +1,4 @@
-package fs
+package docker
 
 import (
 	"fmt"
@@ -33,24 +33,15 @@ func (change *Change) String() string {
 	return fmt.Sprintf("%s %s", kind, change.Path)
 }
 
-func (store *Store) Changes(mp *Mountpoint) ([]Change, error) {
+func Changes(layers []string, rw string) ([]Change, error) {
 	var changes []Change
-	image, err := store.Get(mp.Image)
-	if err != nil {
-		return nil, err
-	}
-	layers, err := image.layers()
-	if err != nil {
-		return nil, err
-	}
-
-	err = filepath.Walk(mp.Rw, func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// Rebase path
-		path, err = filepath.Rel(mp.Rw, path)
+		path, err = filepath.Rel(rw, path)
 		if err != nil {
 			return err
 		}
@@ -112,16 +103,4 @@ func (store *Store) Changes(mp *Mountpoint) ([]Change, error) {
 		return nil, err
 	}
 	return changes, nil
-}
-
-// Reset removes all changes to the filesystem, reverting it to its initial state.
-func (mp *Mountpoint) Reset() error {
-	if err := os.RemoveAll(mp.Rw); err != nil {
-		return err
-	}
-	// We removed the RW directory itself along with its content: let's re-create an empty one.
-	if err := mp.createFolders(); err != nil {
-		return err
-	}
-	return nil
 }

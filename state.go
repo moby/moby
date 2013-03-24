@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/future"
 	"sync"
 	"time"
 )
@@ -17,18 +16,10 @@ type State struct {
 	stateChangeCond *sync.Cond
 }
 
-func newState() *State {
-	lock := new(sync.Mutex)
-	return &State{
-		stateChangeLock: lock,
-		stateChangeCond: sync.NewCond(lock),
-	}
-}
-
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
-		return fmt.Sprintf("Up %s", future.HumanDuration(time.Now().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
 	return fmt.Sprintf("Exit %d", s.ExitCode)
 }

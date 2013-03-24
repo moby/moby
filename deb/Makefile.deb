@@ -8,7 +8,7 @@ GITHUB_PATH=src/github.com/dotcloud/docker
 INSDIR=usr/bin
 SOURCE_PACKAGE=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz
 DEB_PACKAGE=$(PKG_NAME)_$(PKG_VERSION)_$(PKG_ARCH).deb
-EXTRA_GO_PKG=fs auth
+EXTRA_GO_PKG=./auth
 
 TMPDIR=$(shell mktemp -d -t XXXXXX)
 
@@ -63,20 +63,10 @@ build_local:
 
 gotest:
 	@echo "\033[36m[Testing]\033[00m docker..."
-	@sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v && \
+	@sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v . $(EXTRA_GO_PKG) && \
 		echo -n "\033[32m[OK]\033[00m" || \
 		echo -n "\033[31m[FAIL]\033[00m"; \
 		echo " docker"
-	@echo "Testing extra repos {$(EXTRA_GO_PKG)}"
-	@for package in $(EXTRA_GO_PKG); do \
-		echo "\033[36m[Testing]\033[00m docker/$$package..." && \
-		cd $$package ; \
-		sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v && \
-			echo -n "\033[32m[OK]\033[00m" || \
-			echo -n "\033[31m[FAIL]\033[00m" ; \
-			echo " docker/$$package" ; \
-		cd .. ;\
-	done
 	@sudo rm -rf /tmp/docker-*
 
 clean:

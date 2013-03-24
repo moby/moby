@@ -1,4 +1,4 @@
-package fs
+package docker
 
 import (
 	"io/ioutil"

@@ -102,7 +102,7 @@ func TestConversion(t *testing.T) {
 
 func TestIPAllocator(t *testing.T) {
 	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
-	alloc, err := newIPAllocator(&net.IPNet{gwIP, n.Mask})
+	alloc, err := newIPAllocator(&net.IPNet{IP: gwIP, Mask: n.Mask})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,5 @@
 .vagrant
+bin
 docker/docker
 .*.swp
 a.out
@@ -6,3 +7,5 @@ a.out
 build_src
 command-line-arguments.test
 .flymake*
+docker.test
+auth/auth.test

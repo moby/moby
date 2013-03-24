@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/future"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"io"
@@ -17,8 +16,11 @@ func main() {
 		docker.SysInit()
 		return
 	}
+	// FIXME: Switch d and D ? (to be more sshd like)
 	fl_daemon := flag.Bool("d", false, "Daemon mode")
+	fl_debug := flag.Bool("D", false, "Debug mode")
 	flag.Parse()
+	rcli.DEBUG_FLAG = *fl_debug
 	if *fl_daemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
@@ -57,11 +59,11 @@ func runCommand(args []string) error {
 	// closing the connection.
 	// See http://code.google.com/p/go/issues/detail?id=3345
 	if conn, err := rcli.Call("tcp", "127.0.0.1:4242", args...); err == nil {
-		receive_stdout := future.Go(func() error {
+		receive_stdout := docker.Go(func() error {
 			_, err := io.Copy(os.Stdout, conn)
 			return err
 		})
-		send_stdin := future.Go(func() error {
+		send_stdin := docker.Go(func() error {
 			_, err := io.Copy(conn, os.Stdin)
 			if err := conn.CloseWrite(); err != nil {
 				log.Printf("Couldn't send EOF: " + err.Error())

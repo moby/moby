@@ -22,7 +22,7 @@ lxc.network.mtu = 1500
 lxc.network.ipv4 = {{.NetworkSettings.IpAddress}}/{{.NetworkSettings.IpPrefixLen}}
 
 # root filesystem
-{{$ROOTFS := .Mountpoint.Root}}
+{{$ROOTFS := .RootfsPath}}
 lxc.rootfs = {{$ROOTFS}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal

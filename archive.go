@@ -1,4 +1,4 @@
-package fs
+package docker
 
 import (
 	"errors"
@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os/exec"
 )
+
+type Archive io.Reader
 
 type Compression uint32
 

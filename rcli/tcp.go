@@ -10,6 +10,11 @@ import (
 	"net"
 )
 
+// Note: the globals are here to avoid import cycle
+// FIXME: Handle debug levels mode?
+var DEBUG_FLAG bool = false
+var CLIENT_SOCKET io.Writer = nil
+
 // Connect to a remote endpoint using protocol `proto` and address `addr`,
 // issue a single call, and return the result.
 // `proto` may be "tcp", "unix", etc. See the `net` package for available protocols.
@@ -42,6 +47,9 @@ func ListenAndServe(proto, addr string, service Service) error {
 			return err
 		} else {
 			go func() {
+				if DEBUG_FLAG {
+					CLIENT_SOCKET = conn
+				}
 				if err := Serve(conn, service); err != nil {
 					log.Printf("Error: " + err.Error() + "\n")
 					fmt.Fprintf(conn, "Error: "+err.Error()+"\n")
