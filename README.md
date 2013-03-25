@@ -53,6 +53,22 @@ Under the hood, Docker is built on the following components:
 Install instructions
 ==================
 
+Building from source
+--------------------
+
+1. Make sure you have a [Go language](http://golang.org) compiler.
+
+    On a Debian/wheezy or Ubuntu 12.10 install the package:
+
+    ```bash
+
+    $ sudo apt-get install golang-go
+    ```
+
+2. Execute ``make``
+
+3. Find your binary in ``bin/docker``
+
 Installing on Ubuntu 12.04 and 12.10
 ------------------------------------
 
