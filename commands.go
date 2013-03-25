@@ -30,14 +30,13 @@ func (srv *Server) Name() string {
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]interface{}{
-		{"run", "Run a command in a container"},
-		{"ps", "Display a list of containers"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
-		{"history", "Show the history of an image"},
 		{"diff", "Inspect changes on a container's filesystem"},
+		{"export", "Stream the contents of a container as a tar archive"},
+		{"history", "Show the history of an image"},
 		{"images", "List images"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
@@ -53,7 +52,7 @@ func (srv *Server) Help() string {
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		{"export", "Stream the contents of a container as a tar archive"},
+		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
@@ -402,7 +401,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "LOCAL", "Push an image or a repository to the registry")
+	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -414,8 +413,13 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	// If the login failed, abort
-	if srv.runtime.authConfig == nil {
-		return fmt.Errorf("Please login prior to push. ('docker login')")
+	if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
+			return err
+		}
+		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+			return fmt.Errorf("Please login prior to push. ('docker login')")
+		}
 	}
 
 	var remote string
@@ -462,7 +466,7 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "IMAGE", "Pull an image or a repository from the registry")
+	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

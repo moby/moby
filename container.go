@@ -76,6 +76,15 @@ func ParseRun(args []string) (*Config, error) {
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
+	parsedArgs := cmd.Args()
+	runCmd := []string{}
+	image := ""
+	if len(parsedArgs) >= 1 {
+		image = cmd.Arg(0)
+	}
+	if len(parsedArgs) > 1 {
+		runCmd = parsedArgs[1:]
+	}
 	config := &Config{
 		Ports:     fl_ports,
 		User:      *fl_user,
@@ -84,8 +93,8 @@ func ParseRun(args []string) (*Config, error) {
 		Memory:    *fl_memory,
 		Detach:    *fl_detach,
 		Env:       fl_env,
-		Cmd:       cmd.Args()[1:],
-		Image:     cmd.Arg(0),
+		Cmd:       runCmd,
+		Image:     image,
 	}
 	return config, nil
 }

@@ -32,7 +32,7 @@ func NewImgJson(src []byte) (*Image, error) {
 func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	ret := []*Image{}
 
-	dec := json.NewDecoder(strings.NewReader(strings.Replace(string(src), "null", "\"\"", -1)))
+	dec := json.NewDecoder(strings.NewReader(string(src)))
 	for {
 		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
