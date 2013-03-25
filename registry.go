@@ -32,7 +32,7 @@ func NewImgJson(src []byte) (*Image, error) {
 func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	ret := []*Image{}
 
-	dec := json.NewDecoder(strings.NewReader(strings.Replace(string(src), "null", "\"\"", -1)))
+	dec := json.NewDecoder(strings.NewReader(string(src)))
 	for {
 		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
@@ -164,7 +164,15 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 
 	fmt.Fprintf(stdout, "Pulling repo: %s\n", REGISTRY_ENDPOINT+"/users/"+remote)
 
-	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
+	var repositoryTarget string
+	// If we are asking for 'root' repository, lookup on the Library's registry
+	if strings.Index(remote, "/") == -1 {
+		repositoryTarget = REGISTRY_ENDPOINT + "/library/" + remote
+	} else {
+		repositoryTarget = REGISTRY_ENDPOINT + "/users/" + remote
+	}
+
+	req, err := http.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
 		return err
 	}
