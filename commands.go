@@ -48,8 +48,10 @@ func (srv *Server) Help() string {
 		{"pull", "Pull an image or a repository to the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
-		{"rm", "Remove a container"},
+		{"rm", "Remove an element (container, image or repository)"},
+		{"rmc", "Remove a container"},
 		{"rmi", "Remove an image"},
+		{"rmrep", "Remove a repository"},
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
@@ -281,16 +283,86 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return nil
 }
 
+// Remove a named elemen
+// Priotiry: Container, Image, Repository
+func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "rmc", "Name", "Remove an element (container, image or repository)")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		Debugf("Trying to remove %s", name)
+
+		Debugf("  ... as a container")
+		err := srv.CmdRmc(stdin, stdout, args...)
+		if err != nil {
+			Debugf("  ... as an image (error rmc: %s)", err)
+			err = srv.CmdRmi(stdin, stdout, args...)
+		}
+		if err != nil {
+			Debugf("  ... as an repository (error rmi: %s)", err)
+			err = srv.CmdRmrep(stdin, stdout, args...)
+		}
+		if err != nil {
+			Debugf("Error removing repository: %s", err)
+			return fmt.Errorf("The given element %s has not been found\n", name)
+		}
+	}
+	return nil
+}
+
+// Remove a container
+func (srv *Server) CmdRmc(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "rmc", "CONTAINER", "Remove a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		container := srv.runtime.Get(name)
+		if container == nil {
+			return errors.New("No such container: " + name)
+		}
+		if err := srv.runtime.Destroy(container); err != nil {
+			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
+		}
+	}
+	return nil
+}
+
 // 'docker rmi NAME' removes all images with the name NAME
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
-	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
+	cmd := rcli.Subcmd(stdout, "rmi", "IMAGE", "Remove an image")
 	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if err := srv.runtime.graph.Delete(name); err != nil {
+		Debugf("Removing image %s\n", name)
+		if err := srv.runtime.repositories.DeleteImage(name); err != nil {
 			return err
+		} else {
+			fmt.Fprintf(stdout, "Image %s removed\n", name)
+		}
+	}
+	return nil
+}
+
+// Remove a repository
+func (srv *Server) CmdRmrep(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
+	cmd := rcli.Subcmd(stdout, "rmrep", "[OPTION]... NAME [NAME2]...", "Remove a repository")
+	// FIXME: implement fl_all and fl_regexp?
+	//fl_all := cmd.Bool("a", false, "Remove all repositories and their subrepos of the given name")
+	//fl_regexp := cmd.Bool("r", false, "Remove all repositories and their subrepos that match the expression")
+	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	for _, name := range cmd.Args() {
+		err = srv.runtime.repositories.DeleteRepository(name)
+		if err != nil {
+			return err
+		} else {
+			fmt.Fprintf(stdout, "Repository %s removed\n", name)
 		}
 	}
 	return nil
@@ -317,23 +389,6 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 		)
 		return nil
 	})
-}
-
-func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	for _, name := range cmd.Args() {
-		container := srv.runtime.Get(name)
-		if container == nil {
-			return errors.New("No such container: " + name)
-		}
-		if err := srv.runtime.Destroy(container); err != nil {
-			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
-		}
-	}
-	return nil
 }
 
 // 'docker kill NAME' kills a running container

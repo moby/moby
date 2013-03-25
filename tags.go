@@ -68,6 +68,7 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	if err != nil {
 		// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 		// (so we can pass all errors here)
+		// FIXME: @shykes, wouldn't it be better to extend the base error class and then check if the error is our derivated class?
 		repoAndTag := strings.SplitN(name, ":", 2)
 		if len(repoAndTag) == 1 {
 			repoAndTag = append(repoAndTag, DEFAULT_TAG)
@@ -81,6 +82,12 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 		}
 	}
 	return img, nil
+}
+
+// Conveniant wrapper of ById that returns a list of Repository
+// linked to the given image
+func (store *TagStore) GetReposFromImageId(imgId string) []string {
+	return store.ById()[imgId]
 }
 
 // Return a reverse-lookup table of all the names which refer to each image
@@ -159,6 +166,87 @@ func (store *TagStore) GetImage(repoName, tag string) (*Image, error) {
 		return store.graph.Get(revision)
 	}
 	return nil, nil
+}
+
+// Remove an image
+// - name : Name of the image (can be repo:tag)
+// Remove the image and all empty repositories that were linked to the image
+func (store *TagStore) DeleteImage(name string) error {
+	img, err := store.LookupImage(name)
+	if err != nil {
+		return err
+	}
+
+	err = store.graph.Delete(img.Id)
+	if err != nil {
+		return err
+	}
+
+	for _, repoName := range store.GetReposFromImageId(img.Id) {
+		repo, err := store.Get(repoName)
+		if err != nil {
+			// FIXME: Skip in case of 'not found' ?
+			return err
+		}
+		delete(repo, img.Id)
+		if err = store.Save(); err != nil {
+			return err
+		}
+
+		if len(repo) == 0 {
+			if err = store.DeleteRepository(repoName); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Remove a repository
+// - name      : Name of the repository to remove
+// Remove the repository, then remove the image if it is orphan
+func (store *TagStore) DeleteRepository(name string) error {
+	repo, err := store.Get(name)
+	if err != nil {
+		return err
+	}
+	Debugf("Removing repository %s (%v len:%d)", name, repo, len(repo))
+	delete(store.Repositories, name)
+	if err := store.Save(); err != nil {
+		return err
+	}
+	if len(repo) == 0 {
+		// The repository was empty
+		return nil
+	}
+
+	for tag, rev := range repo {
+		Debugf("Removing image rev: %s, tag: %s", rev, tag)
+
+		ret := store.GetReposFromImageId(rev)
+
+		Debugf("This image is referenced by %d tags", len(ret))
+
+		// If the image was only linked to this container, then remove it
+		// FIXME: Double check if .Save() doesn't breaks this (if yes, then len(ret) == 0
+		if len(ret) == 0 {
+			Debugf("Looking up %s for removal", rev)
+			if img, err := store.LookupImage(rev); err != nil {
+				// FIXME: Keep going in case of failure?
+				Debugf("%s not found, skipping\n", rev)
+				continue
+			} else {
+				if err = store.graph.Delete(img.Id); err != nil {
+					return err
+				} else {
+					Debugf("%s has been removed\n", img.Id)
+				}
+			}
+		}
+		// If there is still other repositories that link to the image, then do nothing
+	}
+	return nil
 }
 
 // Validate the name of a repository
