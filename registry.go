@@ -357,10 +357,11 @@ func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthC
 }
 
 func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, authConfig *auth.AuthConfig) error {
-	// CHeck if the local impage exists
+	// Check if the local impage exists
 	img, err := graph.Get(imgId)
 	if err != nil {
-		return err
+		fmt.Fprintf(stdout, "Image %s for tag %s not found, skipping.\n", imgId, tag)
+		return nil
 	}
 	// Push the image
 	if err = graph.PushImage(stdout, img, authConfig); err != nil {
