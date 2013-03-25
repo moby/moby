@@ -12,7 +12,7 @@ DOCKER_MAIN := $(DOCKER_DIR)/docker
 
 DOCKER_BIN := $(CURDIR)/bin/docker
 
-.PHONY: all clean
+.PHONY: all clean test
 
 all: $(DOCKER_BIN)
 
@@ -31,3 +31,6 @@ ifeq ($(GOPATH), $(BUILD_DIR))
 else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
 	@rm -f $(DOCKER_DIR)
 endif
+
+test: all
+	(cd $(DOCKER_DIR); sudo -E go test)
