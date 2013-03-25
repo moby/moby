@@ -559,8 +559,8 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		for id, image := range allImages {
 			if !*quiet {
 				for idx, field := range []string{
-					/* REPOSITORY */ "",
-					/* TAG */ "",
+					/* REPOSITORY */ "<none>",
+					/* TAG */ "<none>",
 					/* ID */ id,
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
