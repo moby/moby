@@ -67,7 +67,8 @@ Building from source
 
 2. Execute ``make``
 
-3. Find your binary in ``bin/docker``
+   This command will install all necessary dependencies and build the
+   executable that you can find in ``bin/docker``
 
 Installing on Ubuntu 12.04 and 12.10
 ------------------------------------
