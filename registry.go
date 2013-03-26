@@ -370,11 +370,10 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, a
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
-	// Check if the remote repository exists
-	// FIXME: @lopter How to handle this?
-	// if !graph.LookupRemoteRepository(remote, authConfig) {
-	// 	return fmt.Errorf("The remote repository %s does not exist\n", remote)
-	// }
+	// Check if the remote repository exists/if we have the permission
+	if !graph.LookupRemoteRepository(remote, authConfig) {
+		return fmt.Errorf("Permission denied on repository %s\n", remote)
+	}
 
 	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\n", remote, len(localRepo))
 	// For each image within the repo, push them
