@@ -231,25 +231,18 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		req.Header.Add("Content-type", "application/json")
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res, err := client.Do(req)
-		if err != nil || res.StatusCode != 200 {
-			if res == nil {
-				return fmt.Errorf(
-					"Error: Internal server error trying to push image {%s} (json): %s",
-					img.Id, err)
-			}
+		if err != nil {
+			return fmt.Errorf("Failed to upload json: %s", err)
+		}
+		if res.StatusCode != 200 {
 			Debugf("Pushing return status: %d\n", res.StatusCode)
 			switch res.StatusCode {
 			case 204:
 				// Case where the image is already on the Registry
 				// FIXME: Do not be silent?
-				fmt.Fprintf(stdout, "The image %s is already up to date on the registry.\n", img.Id)
 				return nil
-			case 400:
-				return fmt.Errorf("Error: Invalid Json")
 			default:
-				return fmt.Errorf(
-					"Error: Internal server error: %d trying to push image {%s} (json): %s\n",
-					res.StatusCode, img.Id, err)
+				return fmt.Errorf("Received HTTP code %d while uploading json", res.StatusCode)
 			}
 		}
 
@@ -284,15 +277,11 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)
-		if err != nil || res3.StatusCode != 200 {
-			if res3 == nil {
-				return fmt.Errorf(
-					"Error trying to push image {%s} (layer 2): %s\n",
-					img.Id, err)
-			}
-			return fmt.Errorf(
-				"Error trying to push image {%s} (layer 2): %s (%d)\n",
-				img.Id, err, res3.StatusCode)
+		if err != nil {
+			return fmt.Errorf("Failed to upload layer: %s", err)
+		}
+		if res3.StatusCode != 200 {
+			return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
 		}
 		return nil
 	}); err != nil {
