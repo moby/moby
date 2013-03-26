@@ -1,4 +1,4 @@
-:title: Contributing to Docker
+:title: Setting up a dev environment
 :description: Guides on how to contribute to docker
 :keywords: Docker, documentation, developers, contributing, dev environment
 
