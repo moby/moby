@@ -19,7 +19,7 @@ Not at this time, Docker currently only runs on Linux, but you can use VirtualBo
 
 **4. How do containers compare to virtual machines?**
 
-Containers are more light weight and can start in less then a second, and are great for lots of different tasks, but they aren't as full featured as virtual machines.
+They are complementary. VMs are best used to allocate chunks of hardware resources. Containers operate at the process level, which makes them very lightweight and perfect as a unit of software delivery.
 
 **5. Can I help by adding some questions and answers?**
 
