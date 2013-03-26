@@ -31,12 +31,12 @@ def v10(config)
   # computers to access the VM, whereas host only networking does not.
   # config.vm.forward_port 80, 8080
 
+  # Ensure puppet is installed on the instance
+  config.vm.provision :shell, :inline => "apt-get -qq update; apt-get install -y puppet"
+
   # Share an additional folder to the guest VM. The first argument is
   # an identifier, the second is the path on the guest to mount the
   # folder, and the third is the path on the host to the actual folder.
-  if not File.exist? File.expand_path '~/docker'
-    Dir.mkdir(File.expand_path '~/docker')
-  end
   config.vm.share_folder "v-data", "~/docker", "~/docker"
 
   # Enable provisioning with Puppet stand alone.  Puppet manifests
@@ -123,6 +123,16 @@ end
     aws.ssh_username = "vagrant"
     aws.instance_type = "t1.micro"
   end
+  config.vm.provider :rackspace do |rs|
+    config.vm.box = "dummy"
+    config.vm.box_url = "https://github.com/mitchellh/vagrant-rackspace/raw/master/dummy.box"
+    config.ssh.private_key_path = ENV["RS_PRIVATE_KEY"]
+    rs.username = ENV["RS_USERNAME"]
+    rs.api_key  = ENV["RS_API_KEY"]
+    rs.public_key_path = ENV["RS_PUBLIC_KEY"] 
+    rs.flavor   = /512MB/
+    rs.image    = /Ubuntu/
+  end   
   config.vm.provider :virtualbox do |vb|
     config.vm.box = "quantal64_3.5.0-25"
     config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
