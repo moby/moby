@@ -215,11 +215,25 @@ Please take a moment to check that an issue doesn't already exist documenting yo
 If it does, it never hurts to add a quick "+1" or "I have this problem too". This will help prioritize the most common problems and requests.
 
 
-### Write tests
+### Conventions
 
-Golang has a great testing suite built in: use it! Take a look at existing tests for inspiration.
+Fork the repo and make changes on your fork in a feature branch.
 
+- If it's a bugfix branch, name it XXX-something where XXX is the number of the issue
+- If it's a feature branch, create an enhancement issue to announce your intentions, and name it XXX-something where XXX is the number of the issue.
 
+Submit unit tests for your changes.  Golang has a great testing suite built in: use it! Take a look at existing tests for inspiration. Run the full test suite against your change and the master.
+
+Submit any relevant updates or additions to documentation.
+
+Add clean code:
+
+- Universally formatted code promotes ease of writing, reading, and maintenance.  We suggest using gofmt before commiting your changes.  There's a git pre-commit hook made for doing so.
+- curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
+
+Pull requests descriptions should be as clear as possible and include a referenced to all the issues that they address.
+
+Add your name to the AUTHORS file.
 
 Setting up a dev environment
 ----------------------------
