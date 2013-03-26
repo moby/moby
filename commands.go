@@ -297,7 +297,10 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 
 func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "history", "[OPTIONS] IMAGE", "Show the history of an image")
-	if cmd.Parse(args) != nil || cmd.NArg() != 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
