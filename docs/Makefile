@@ -49,6 +49,8 @@ docs:
 	cp sources/index.html $(BUILDDIR)/html/
 	cp sources/gettingstarted.html $(BUILDDIR)/html/
 	cp sources/dotcloud.yml $(BUILDDIR)/html/
+	cp sources/CNAME $(BUILDDIR)/html/
+	cp sources/.nojekyll $(BUILDDIR)/html/
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
