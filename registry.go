@@ -220,7 +220,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
 
-		fmt.Fprintf(stdout, "Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
+		fmt.Fprintf(stdout, "Pushing %s metadata\n", img.Id)
 
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
@@ -253,19 +253,16 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			}
 		}
 
+		fmt.Fprintf(stdout, "Pushing %s fs layer\n", img.Id)
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
 		if err != nil || res2.StatusCode != 307 {
-			return fmt.Errorf(
-				"Internal server error trying to push image {%s} (layer 1): %s\n",
-				img.Id, err)
+			return fmt.Errorf("Registry returned error: %s", err)
 		}
 		url, err := res2.Location()
 		if err != nil || url == nil {
-			return fmt.Errorf(
-				"Fail to retrieve layer storage URL for image {%s}: %s\n",
-				img.Id, err)
+			return fmt.Errorf("Failed to retrieve layer upload location: %s", err)
 		}
 
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
@@ -273,9 +270,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
 		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
 		if err != nil {
-			return fmt.Errorf(
-				"Error while retrieving layer for {%s}: %s\n",
-				img.Id, err)
+			return fmt.Errorf("Failed to generate layer archive: %s", err)
 		}
 		req3, err := http.NewRequest("PUT", url.String(), layerData)
 		if err != nil {
@@ -356,17 +351,20 @@ func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthC
 	return true
 }
 
+// FIXME: this should really be PushTag
 func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, authConfig *auth.AuthConfig) error {
 	// Check if the local impage exists
 	img, err := graph.Get(imgId)
 	if err != nil {
-		fmt.Fprintf(stdout, "Image %s for tag %s not found, skipping.\n", imgId, tag)
+		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\n", remote, tag, imgId)
 		return nil
 	}
+	fmt.Fprintf(stdout, "Pushing tag %s:%s\n", remote, tag)
 	// Push the image
 	if err = graph.PushImage(stdout, img, authConfig); err != nil {
 		return err
 	}
+	fmt.Fprintf(stdout, "Registering tag %s:%s\n", remote, tag)
 	// And then the tag
 	if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
 		return err
@@ -383,6 +381,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	// 	return fmt.Errorf("The remote repository %s does not exist\n", remote)
 	// }
 
+	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\n", remote, len(localRepo))
 	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
 		if err := graph.pushPrimitive(stdout, remote, tag, imgId, authConfig); err != nil {

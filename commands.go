@@ -442,26 +442,21 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	img, err := srv.runtime.graph.Get(local)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
-
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
-			fmt.Fprintf(stdout, "Pushing %s (%d tags) on %s...\n", local, len(localRepo), remote)
 			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "Push completed\n")
 			return nil
 		} else {
 			return err
 		}
 		return nil
 	}
-	fmt.Fprintf(stdout, "Pushing image %s..\n", img.Id)
 	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Push completed\n")
 	return nil
 }
 
