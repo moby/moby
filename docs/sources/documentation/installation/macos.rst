@@ -32,7 +32,7 @@ Installation
 
 .. code-block:: bash
 
-    vagant up
+    vagrant up
 
 Vagrant will:
 
