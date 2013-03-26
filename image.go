@@ -1,13 +1,12 @@
 package docker
 
 import (
-	"bytes"
-	"crypto/sha256"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"strings"
@@ -162,20 +161,12 @@ func ValidateId(id string) error {
 }
 
 func GenerateId() string {
-	// FIXME: don't seed every time
-	rand.Seed(time.Now().UTC().UnixNano())
-	randomBytes := bytes.NewBuffer([]byte(fmt.Sprintf("%x", rand.Int())))
-	id, _ := ComputeId(randomBytes) // can't fail
-	return id
-}
-
-// ComputeId reads from `content` until EOF, then returns a SHA of what it read, as a string.
-func ComputeId(content io.Reader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, content); err != nil {
-		return "", err
+	id := make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, id)
+	if err != nil {
+		panic(err) // This shouldn't happen
 	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	return hex.EncodeToString(id)
 }
 
 // Image includes convenience proxy functions to its graph
