@@ -1,7 +1,6 @@
 package term
 
 import (
-	"os"
 	"syscall"
 	"unsafe"
 )
@@ -9,11 +8,11 @@ import (
 // #include <termios.h>
 // #include <sys/ioctl.h>
 /*
-void MakeRaw() {
+void MakeRaw(int fd) {
   struct termios t;
 
   // FIXME: Handle errors?
-  ioctl(0, TCGETS, &t);
+  ioctl(fd, TCGETS, &t);
 
   t.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
   t.c_oflag &= ~OPOST;
@@ -21,7 +20,7 @@ void MakeRaw() {
   t.c_cflag &= ~(CSIZE | PARENB);
   t.c_cflag |= CS8;
 
-  ioctl(0, TCSETS, &t);
+  ioctl(fd, TCSETS, &t);
 }
 */
 import "C"
@@ -35,14 +34,11 @@ const (
 // mode and returns the previous state of the terminal so that it can be
 // restored.
 func MakeRaw(fd int) (*State, error) {
-
-	fd = int(os.Stdin.Fd())
-
 	var oldState State
 	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), syscall.TCGETS, uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
 		return nil, err
 	}
-	C.MakeRaw()
+	C.MakeRaw(C.int(fd))
 	return &oldState, nil
 
 	// FIXME: post on goland issues this: very same as the C function bug non-working
