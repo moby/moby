@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <title>dotCloud - {{ meta['title'] if meta and meta['title'] else title }}</title>
+
+    <meta name="description" content="{{ meta['description'] if meta }}" />
+    <meta name="keywords" content="{{ meta['keywords'] if meta }}" />
+
+    {%- set url_root = pathto('', 1) %}
+    {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
+
+    <script type="text/javascript">
+        // This is probably used by the search engine
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:    '{{ url_root }}',
+            VERSION:     '{{ release|e }}',
+            COLLAPSE_INDEX: false,
+            FILE_SUFFIX: '{{ '' if no_search_suffix else file_suffix }}',
+            HAS_SOURCE:  {{ has_source|lower }}
+        };
+    </script>
+
+    {%- set css_files = css_files + ['_static/css/bootstrap.css'] %}
+    {%- set css_files = css_files + ['_static/css/bootstrap-responsive.css'] %}
+    {%- set css_files = css_files + ['_static/pygments.css'] %}
+    {%- set css_files = css_files + ['_static/css/main.css'] %}
+
+    {%- set script_files =
+    ['https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.js']
+    + ['https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.12/jquery-ui.min.js']
+    + script_files
+    %}
+
+    {%- set script_files = script_files + ['_static/js/docs.js'] %}
+
+    {%- for cssfile in css_files %}
+    <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
+    {%- endfor %}
+
+    {%- for scriptfile in script_files if scriptfile != '_static/jquery.js' %}
+    <script type="text/javascript" src="{{ pathto(scriptfile, 1) }}"></script>
+    {%- endfor %}
+
+    {%- if favicon %}
+    <link rel="shortcut icon" href="{{ pathto('_static/' + favicon, 1) }}"/>
+    {%- endif %}
+
+    {%- block extrahead %}{% endblock %}
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-dotcloud">
+        <div class="container" style="text-align: center;">
+
+{#            <div class="nav-collapse collapse" style="float: left; margin-top: 12px;">#}
+{#                <a class="btn btn-custom" href="http://github.com/dotcloud/docker"><img src="{{ pathto('_static/img/fork-us.png', 1) }}">Fork us!</a>#}
+{#            </div>#}
+
+            <div style="float: right" class="pull-right">
+                <ul class="nav">
+                    <li><a href="{{ pathto('./', 1) }}">Introduction</a></li>
+                    <li><a href="{{ pathto('gettingstarted.html', 1) }}">Getting started</a></li>
+                    <li class="active"><a href="{{ pathto('documentation/concepts/containers.html', 1) }}">Documentation</a></li>
+                </ul>
+                <div class="social links" style="float: right; margin-top: 14px; margin-left: 12px">
+                    <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
+                    <a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
+                </div>
+            </div>
+
+{#            <div style="width: 200px; margin-left: auto; margin-right: auto;">#}
+            <div style="margin-left: -12px; float: left;">
+                <a href="{{ pathto('./', 1) }}"><img style="margin-top: 12px; height: 38px" src="{{ pathto('_static/img/docker-letters-logo.gif', 1) }}"></a>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+
+<div class="container">
+    <div class="row">
+        <div class="span12 titlebar"><h1 class="pageheader">DOCUMENTATION</h1>
+            <!--<span class="pull-right" style="margin-left: 20px; font-size: 20px">{{version}}</span>-->
+        </div>
+    </div>
+
+</div>
+
+<div class="container">
+
+    <!-- Docs nav
+     ================================================== -->
+    <div class="row" style="position: relative">
+        <div class="span3" style="height:100%;" >
+
+        </div>
+
+        <div class="span3 sidebar bs-docs-sidebar" style="position: absolute">
+            {{ toctree(collapse=False, maxdepth=3) }}
+        </div>
+
+        <!-- body block -->
+        <div class="span9">
+
+            <!-- Main section
+            ================================================== -->
+            <section id="global" class="containerblock">
+                {% block body %}{% endblock %}
+            </section>
+
+        </div>
+    </div>
+</div>
+
+<div id="footer" class="container" >
+    <div class="row">
+
+        <div class="span12 footer">
+
+            Docker is a project by <a href="http://www.dotcloud.com">dotCloud</a>
+{#            {%- if show_source and has_source and sourcename %}#}
+{#            ·#}
+{#            <a href="{{ pathto('_sources/' + sourcename, true)|e }}"#}
+{#               rel="nofollow">View the RST source of this page</a>#}
+{#            {%- endif %}#}
+{#            {%- if pagename != "search" %}#}
+
+{#TODO: Make a proper location for the search #}
+{#            Search:#}
+{#            <form#}
+{#                    style="display: inline;"#}
+{#                    class="search" action="{{ pathto('search') }}" method="get">#}
+{#                <input type="text" name="q" size="18" />#}
+{#                <input type="hidden" name="check_keywords" value="yes" />#}
+{#                <input type="hidden" name="area" value="default" />#}
+{#            </form>#}
+{#            {%- endif %}#}
+
+
+{##}
+{#            <div class="links" style="float: right;">#}
+{#                <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>#}
+{#                <a class="github" href="http://github.com/dotcloud/docker/">GitHub</a>#}
+{#            </div>#}
+        </div>
+    </div>
+</div>
+
+
+  <!-- script which should be loaded after everything else -->
+  <script type="text/javascript">
+
+
+      var shiftWindow = function() {
+          scrollBy(0, -70);
+          console.log("window shifted")
+      };
+      window.addEventListener("hashchange", shiftWindow);
+
+      function loadShift() {
+          if (window.location.hash) {
+              console.log("window has hash");
+            shiftWindow();
+          }
+      }
+
+      $(window).load(function() {
+          loadShift();
+          console.log("late loadshift");
+      });
+
+      $(function(){
+
+          // sidebar accordian-ing
+          // don't apply on last object (it should be the FAQ)
+
+          var elements = $('.toctree-l2');
+          for (var i = 0; i < elements.length; i += 1) { var current = $(elements[i]); console.log(current); current.children('ul').hide();}
+
+
+          // set initial collapsed state
+          var elements = $('.toctree-l1');
+          for (var i = 0; i < elements.length; i += 1) {
+              var current = $(elements[i]);
+              if (current.hasClass('current')) {
+                  // do nothing
+              } else {
+                  // collapse children
+                  current.children('ul').hide();
+              }
+          }
+
+          // attached handler on click
+          $('.sidebar > ul > li > a').not(':last').click(function(){
+              if ($(this).parent().hasClass('current')) {
+                  $(this).parent().children('ul').slideUp(200, function() {
+                      $(this).parent().removeClass('current'); // toggle after effect
+                  });
+              } else {
+                  //$('.sidebar > ul > li > ul').slideUp(100);
+                  var current = $(this);
+                  setTimeout(function() {
+                      $('.sidebar > ul > li').removeClass('current');
+                      current.parent().addClass('current'); // toggle before effect
+                      current.parent().children('ul').hide();
+                      current.parent().children('ul').slideDown(200);
+                  }, 100);
+              }
+              return false;
+          });
+
+      });
+  </script>
+
+    <!-- Google analytics -->
+    <script type="text/javascript">
+
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', 'UA-6096819-11']);
+        _gaq.push(['_setDomainName', 'docker.io']);
+        _gaq.push(['_setAllowLinker', true]);
+        _gaq.push(['_trackPageview']);
+
+        (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+        })();
+
+    </script>
+
+</body>
+</html>
