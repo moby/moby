@@ -3,6 +3,10 @@
 Ubuntu Linux
 ============
 
+  **Please note this project is currently under heavy development. It should not be used in production.**
+
+
+
 Installing on Ubuntu 12.04 and 12.10
 
 Right now, the officially supported distributions are:
