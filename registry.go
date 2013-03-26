@@ -334,13 +334,28 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthConfig) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
-	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
+	var repositoryTarget string
+	// If we are asking for 'root' repository, lookup on the Library's registry
+	if strings.Index(remote, "/") == -1 {
+		repositoryTarget = REGISTRY_ENDPOINT + "/library/" + remote + "/lookup"
+	} else {
+		repositoryTarget = REGISTRY_ENDPOINT + "/users/" + remote + "/lookup"
+	}
+	Debugf("Checking for permissions on: %s", repositoryTarget)
+	req, err := http.NewRequest("PUT", repositoryTarget, strings.NewReader("\"\""))
 	if err != nil {
+		Debugf("%s\n", err)
 		return false
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	req.Header.Add("Content-type", "application/json")
 	res, err := rt.RoundTrip(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil || res.StatusCode != 404 {
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			errBody = []byte(err.Error())
+		}
+		Debugf("Lookup status code: %d (body: %s)", res.StatusCode, errBody)
 		return false
 	}
 	return true
