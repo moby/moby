@@ -5,6 +5,11 @@ BUILD_DIR := $(CURDIR)/.gopath
 GOPATH ?= $(BUILD_DIR)
 export GOPATH
 
+GO_OPTIONS ?=
+ifeq ($(VERBOSE), 1)
+GO_OPTIONS += -v
+endif
+
 SRC_DIR := $(GOPATH)/src
 
 DOCKER_DIR := $(SRC_DIR)/$(DOCKER_PACKAGE)
@@ -18,7 +23,7 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go get; go build -o $@)
+	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) -o $@)
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
@@ -33,4 +38,4 @@ else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
 endif
 
 test: all
-	@(cd $(DOCKER_DIR); sudo -E go test)
+	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))

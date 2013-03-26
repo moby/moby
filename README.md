@@ -70,6 +70,13 @@ Building from source
    This command will install all necessary dependencies and build the
    executable that you can find in ``bin/docker``
 
+3. Should you like to see what's happening, run ``make`` with ``VERBOSE=1`` parameter:
+
+    ```bash
+
+    $ make VERBOSE=1
+    ```
+
 Installing on Ubuntu 12.04 and 12.10
 ------------------------------------
 
