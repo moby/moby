@@ -283,7 +283,10 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 // 'docker rmi NAME' removes all images with the name NAME
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
-	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -297,7 +300,10 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 
 func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "history", "[OPTIONS] IMAGE", "Show the history of an image")
-	if cmd.Parse(args) != nil || cmd.NArg() != 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -472,19 +478,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
-		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
+		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
 	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Pull completed\n")
 	return nil
 }
 
@@ -812,14 +814,16 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	config, err := ParseRun(args)
+	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
 	}
 	if config.Image == "" {
+		fmt.Fprintln(stdout, "Error: Image not specified")
 		return fmt.Errorf("Image not specified")
 	}
 	if len(config.Cmd) == 0 {
+		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
 	// Create new container
