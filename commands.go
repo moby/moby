@@ -826,10 +826,22 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
+
 	// Create new container
 	container, err := srv.runtime.Create(config)
 	if err != nil {
-		return errors.New("Error creating container: " + err.Error())
+		// If container not found, try to pull it
+		if srv.runtime.graph.IsNotExist(err) {
+			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\n", config.Image)
+			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
+				return err
+			}
+			if container, err = srv.runtime.Create(config); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	if config.OpenStdin {
 		cmd_stdin, err := container.StdinPipe()

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,12 @@ func NewGraph(root string) (*Graph, error) {
 	return &Graph{
 		Root: abspath,
 	}, nil
+}
+
+// FIXME: Implement error subclass instead of looking at the error text
+// Note: This is the way golang implements os.IsNotExists on Plan9
+func (graph *Graph) IsNotExist(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "does not exist")
 }
 
 func (graph *Graph) Exists(id string) bool {
