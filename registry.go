@@ -244,7 +244,11 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 				// FIXME: Do not be silent?
 				return nil
 			default:
-				return fmt.Errorf("Received HTTP code %d while uploading json", res.StatusCode)
+				errBody, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					errBody = []byte(err.Error())
+				}
+				return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
 			}
 		}
 
