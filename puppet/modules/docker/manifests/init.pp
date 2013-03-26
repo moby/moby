@@ -1,12 +1,26 @@
 class virtualbox {
 	Package { ensure => "installed" }
 
+	user { "vagrant":
+		name => "vagrant",
+		ensure => present,
+		comment => "Vagrant User",
+		shell => "/bin/bash",
+		home => "/home/vagrant",
+	}
+
+	file { "/home/vagrant":
+		mode => 644,
+		require => User["vagrant"],
+	}
+
 	# remove some files from the base vagrant image because they're old
 	file { "/home/vagrant/docker-master":
 		ensure => absent,
 		recurse => true,
 		force => true,
 		purge => true,
+		require => File["/home/vagrant"],
 	}
 	file { "/usr/local/bin/dockerd":
 		ensure => absent,
@@ -23,10 +37,21 @@ class virtualbox {
 }
 
 class ec2 {
+	user { "vagrant":
+		name => "ubuntu",
+		ensure => present,
+		comment => "Vagrant User",
+		shell => "/bin/bash",
+		home => "/home/ubuntu",
+	}
+	file { "/home/vagrant":
+		ensure => link,
+		target => "/home/ubuntu",
+		require => User["vagrant"],
+	}
 }
 
 class docker {
-
     # update this with latest docker binary distro
     $docker_url = "http://get.docker.io/builds/$kernel/$hardwaremodel/docker-master.tgz"
     # update this with latest go binary distry
@@ -44,18 +69,13 @@ class docker {
 
 	$ec2_version = file("/etc/ec2_version", "/dev/null")
 	if ($ec2_version) {
+		$vagrant_user = "ubuntu"
 		include ec2
 	} else {
+		$vagrant_user = "vagrant"
 		# virtualbox is the vagrant default, so it should be safe to assume
 		include virtualbox
 	}
-
-    user { "vagrant":
-        ensure => present,
-        comment => "Vagrant User",
-        shell => "/bin/bash",
-        home => "/home/vagrant",
-    }
 
 	file { "/usr/local/bin":
 		ensure => directory,
@@ -83,14 +103,10 @@ class docker {
         require => Exec["copy-docker-bin"],
     }
 
-    file { "/home/vagrant":
-        mode => 644,
-        require => User["vagrant"],
-    }
 
     file { "/home/vagrant/.profile":
         mode => 644,
-        owner => "vagrant",
+        owner => $vagrant_user,
         group => "ubuntu",
         content => template("docker/profile"),
         require => File["/home/vagrant"],

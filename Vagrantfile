@@ -25,7 +25,7 @@ def v10(config)
   # Assign this VM to a bridged network, allowing you to connect directly to a
   # network using the host's network device. This makes the VM appear as another
   # physical device on your network.
-  # config.vm.network :bridged
+  #config.vm.network :bridged
 
   # Forward a port from the guest to the host, which allows for outside
   # computers to access the VM, whereas host only networking does not.
@@ -119,7 +119,7 @@ end
     aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
     aws.ssh_private_key_path = ENV["AWS_SSH_PRIVKEY"]
     aws.region = "us-east-1"
-    aws.ami = "ami-4a7de623"
+    aws.ami = "ami-4e75ee27"
     aws.ssh_username = "ubuntu"
     aws.instance_type = "t1.micro"
   end
