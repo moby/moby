@@ -119,8 +119,8 @@ end
     aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
     aws.ssh_private_key_path = ENV["AWS_SSH_PRIVKEY"]
     aws.region = "us-east-1"
-    aws.ami = "ami-1c1e8075"
-    aws.ssh_username = "vagrant"
+    aws.ami = "ami-4a7de623"
+    aws.ssh_username = "ubuntu"
     aws.instance_type = "t1.micro"
   end
   config.vm.provider :virtualbox do |vb|
