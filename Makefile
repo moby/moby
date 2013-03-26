@@ -18,7 +18,7 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	(cd $(DOCKER_MAIN); go get; go build -o $@)
+	@(cd $(DOCKER_MAIN); go get; go build -o $@)
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
@@ -33,4 +33,4 @@ else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
 endif
 
 test: all
-	(cd $(DOCKER_DIR); sudo -E go test)
+	@(cd $(DOCKER_DIR); sudo -E go test)
