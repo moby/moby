@@ -124,6 +124,17 @@ docker ps
 ```
 
 
+Share your own image!
+---------------------
+
+```bash
+docker pull base
+CONTAINER=$(docker run -d base apt-get install -y curl)
+docker commit -m "Installed curl" $CONTAINER $USER/betterbase
+docker push $USER/betterbase
+```
+
+
 Expose a service on a TCP port
 ------------------------------
 
