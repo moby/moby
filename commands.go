@@ -283,7 +283,10 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 // 'docker rmi NAME' removes all images with the name NAME
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
-	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
