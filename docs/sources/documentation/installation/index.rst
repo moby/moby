@@ -15,3 +15,4 @@ Contents:
    ubuntulinux
    macos
    windows
+   amazon
