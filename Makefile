@@ -1,6 +1,6 @@
 DOCKER_PACKAGE := github.com/dotcloud/docker
 
-BUILD_DIR := $(CURDIR)/build
+BUILD_DIR := $(CURDIR)/.gopath
 
 GOPATH ?= $(BUILD_DIR)
 export GOPATH

@@ -9,4 +9,4 @@ command-line-arguments.test
 .flymake*
 docker.test
 auth/auth.test
-build/
+.gopath/
