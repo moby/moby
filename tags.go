@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -94,6 +95,7 @@ func (store *TagStore) ById() map[string][]string {
 				byId[id] = []string{name}
 			} else {
 				byId[id] = append(byId[id], name)
+				sort.Strings(byId[id])
 			}
 		}
 	}
