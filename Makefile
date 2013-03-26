@@ -15,7 +15,8 @@ SRC_DIR := $(GOPATH)/src
 DOCKER_DIR := $(SRC_DIR)/$(DOCKER_PACKAGE)
 DOCKER_MAIN := $(DOCKER_DIR)/docker
 
-DOCKER_BIN := $(CURDIR)/bin/docker
+DOCKER_BIN_RELATIVE := bin/docker
+DOCKER_BIN := $(CURDIR)/$(DOCKER_BIN_RELATIVE)
 
 .PHONY: all clean test
 
@@ -24,6 +25,7 @@ all: $(DOCKER_BIN)
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
 	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) -o $@)
+	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
