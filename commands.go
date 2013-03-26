@@ -472,19 +472,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
-		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
+		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
 	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Pull completed\n")
 	return nil
 }
 
