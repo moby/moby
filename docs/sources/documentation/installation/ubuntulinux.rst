@@ -40,6 +40,7 @@ Run your first container!
 
 ::
 
+    sudo ./docker pull base
     sudo ./docker run -i -t base /bin/bash
 
 Consider adding docker to your PATH for simplicity.
