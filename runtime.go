@@ -69,9 +69,15 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Generate id
+	id := GenerateId()
+	// Generate default hostname
+	if config.Hostname == "" {
+		config.Hostname = id[:12]
+	}
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
-		Id:              GenerateId(),
+		Id:              id,
 		Created:         time.Now(),
 		Path:            config.Cmd[0],
 		Args:            config.Cmd[1:], //FIXME: de-duplicate from config

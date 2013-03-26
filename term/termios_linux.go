@@ -1,9 +1,28 @@
 package term
 
 import (
-    "syscall"
-    "unsafe"
+	"syscall"
+	"unsafe"
 )
+
+// #include <termios.h>
+// #include <sys/ioctl.h>
+/*
+void MakeRaw(int fd) {
+  struct termios t;
+
+  // FIXME: Handle errors?
+  ioctl(fd, TCGETS, &t);
+
+  t.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+  t.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  t.c_cflag &= ~(CSIZE | PARENB);
+  t.c_cflag |= CS8;
+
+  ioctl(fd, TCSETS, &t);
+}
+*/
+import "C"
 
 const (
 	getTermios = syscall.TCGETS
@@ -14,19 +33,25 @@ const (
 // mode and returns the previous state of the terminal so that it can be
 // restored.
 func MakeRaw(fd int) (*State, error) {
-    var oldState State
-    if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
-        return nil, err
-    }
+	var oldState State
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), syscall.TCGETS, uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
+		return nil, err
+	}
+	C.MakeRaw(C.int(fd))
+	return &oldState, nil
 
-    newState := oldState.termios
-    newState.Iflag &^= ISTRIP | IXON | IXOFF
-    newState.Iflag |= ICRNL
-    newState.Oflag |= ONLCR
-    newState.Lflag &^= ECHO | ICANON | ISIG
-    if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
-        return nil, err
-    }
+	// FIXME: post on goland issues this: very same as the C function bug non-working
 
-    return &oldState, nil
+	// newState := oldState.termios
+
+	// newState.Iflag &^= (IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON)
+	// newState.Oflag &^= OPOST
+	// newState.Lflag &^= (ECHO | syscall.ECHONL | ICANON | ISIG | IEXTEN)
+	// newState.Cflag &^= (CSIZE | syscall.PARENB)
+	// newState.Cflag |= CS8
+
+	// if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TCSETS, uintptr(unsafe.Pointer(&newState))); err != 0 {
+	// 	return nil, err
+	// }
+	// return &oldState, nil
 }

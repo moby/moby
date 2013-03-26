@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -43,9 +44,19 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 // If Docker is in damon mode, also send the debug info on the socket
 func Debugf(format string, a ...interface{}) {
 	if rcli.DEBUG_FLAG {
-		log.Printf(format, a...)
+
+		// Retrieve the stack infos
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			file = "<unknown>"
+			line = -1
+		} else {
+			file = file[strings.LastIndex(file, "/")+1:]
+		}
+
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
 		if rcli.CLIENT_SOCKET != nil {
-			fmt.Fprintf(rcli.CLIENT_SOCKET, log.Prefix()+format, a...)
+			fmt.Fprintf(rcli.CLIENT_SOCKET, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
 		}
 	}
 }

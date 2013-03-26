@@ -32,7 +32,7 @@ func NewImgJson(src []byte) (*Image, error) {
 func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	ret := []*Image{}
 
-	dec := json.NewDecoder(strings.NewReader(strings.Replace(string(src), "null", "\"\"", -1)))
+	dec := json.NewDecoder(strings.NewReader(string(src)))
 	for {
 		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
@@ -94,36 +94,38 @@ func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig)
 
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
-func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
+func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
 	client := &http.Client{}
 
+	fmt.Fprintf(stdout, "Pulling %s metadata\n", imgId)
 	// Get the Json
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
-		if res != nil {
-			return nil, nil, fmt.Errorf("Internal server error: %d trying to get image %s", res.StatusCode, imgId)
-		}
-		return nil, nil, err
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
+	}
+	if res.StatusCode != 200 {
+		return nil, nil, fmt.Errorf("HTTP code %d", res.StatusCode)
 	}
 	defer res.Body.Close()
 
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error while reading the http response: %s\n", err)
+		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 
 	img, err := NewImgJson(jsonString)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error while parsing the json: %s\n", err)
+		return nil, nil, fmt.Errorf("Failed to parse json: %s", err)
 	}
 	img.Id = imgId
 
 	// Get the layer
+	fmt.Fprintf(stdout, "Pulling %s fs layer\n", imgId)
 	req, err = http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/layer", nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
@@ -136,7 +138,7 @@ func (graph *Graph) getRemoteImage(imgId string, authConfig *auth.AuthConfig) (*
 	return img, res.Body, nil
 }
 
-func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
 	history, err := graph.getRemoteHistory(imgId, authConfig)
 	if err != nil {
 		return err
@@ -145,7 +147,7 @@ func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
 	// FIXME: Lunch the getRemoteImage() in goroutines
 	for _, j := range history {
 		if !graph.Exists(j.Id) {
-			img, layer, err := graph.getRemoteImage(j.Id, authConfig)
+			img, layer, err := graph.getRemoteImage(stdout, j.Id, authConfig)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
 				return err
@@ -162,7 +164,7 @@ func (graph *Graph) PullImage(imgId string, authConfig *auth.AuthConfig) error {
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
-	fmt.Fprintf(stdout, "Pulling repo: %s\n", REGISTRY_ENDPOINT+"/users/"+remote)
+	fmt.Fprintf(stdout, "Pulling repository %s\n", remote)
 
 	var repositoryTarget string
 	// If we are asking for 'root' repository, lookup on the Library's registry
@@ -178,11 +180,11 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
-		if res != nil {
-			return fmt.Errorf("Internal server error: %d trying to pull %s", res.StatusCode, remote)
-		}
+	if err != nil {
 		return err
+	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("HTTP code: %d", res.StatusCode)
 	}
 	defer res.Body.Close()
 	rawJson, err := ioutil.ReadAll(res.Body)
@@ -194,7 +196,8 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		return err
 	}
 	for tag, rev := range t {
-		if err = graph.PullImage(rev, authConfig); err != nil {
+		fmt.Fprintf(stdout, "Pulling tag %s:%s\n", remote, tag)
+		if err = graph.PullImage(stdout, rev, authConfig); err != nil {
 			return err
 		}
 		if err = repositories.Set(remote, tag, rev, true); err != nil {
@@ -220,7 +223,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
 
-		fmt.Fprintf(stdout, "Pushing image [%s] on {%s}\n", img.Id, REGISTRY_ENDPOINT+"/images/"+img.Id+"/json")
+		fmt.Fprintf(stdout, "Pushing %s metadata\n", img.Id)
 
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
@@ -231,41 +234,34 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		req.Header.Add("Content-type", "application/json")
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res, err := client.Do(req)
-		if err != nil || res.StatusCode != 200 {
-			if res == nil {
-				return fmt.Errorf(
-					"Error: Internal server error trying to push image {%s} (json): %s",
-					img.Id, err)
-			}
-			Debugf("Pushing return status: %d\n", res.StatusCode)
+		if err != nil {
+			return fmt.Errorf("Failed to upload metadata: %s", err)
+		}
+		if res.StatusCode != 200 {
 			switch res.StatusCode {
 			case 204:
 				// Case where the image is already on the Registry
 				// FIXME: Do not be silent?
-				fmt.Fprintf(stdout, "The image %s is already up to date on the registry.\n", img.Id)
 				return nil
-			case 400:
-				return fmt.Errorf("Error: Invalid Json")
 			default:
-				return fmt.Errorf(
-					"Error: Internal server error: %d trying to push image {%s} (json): %s\n",
-					res.StatusCode, img.Id, err)
+				errBody, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					errBody = []byte(err.Error())
+				}
+				return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
 			}
 		}
 
+		fmt.Fprintf(stdout, "Pushing %s fs layer\n", img.Id)
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
 		if err != nil || res2.StatusCode != 307 {
-			return fmt.Errorf(
-				"Internal server error trying to push image {%s} (layer 1): %s\n",
-				img.Id, err)
+			return fmt.Errorf("Registry returned error: %s", err)
 		}
 		url, err := res2.Location()
 		if err != nil || url == nil {
-			return fmt.Errorf(
-				"Fail to retrieve layer storage URL for image {%s}: %s\n",
-				img.Id, err)
+			return fmt.Errorf("Failed to retrieve layer upload location: %s", err)
 		}
 
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
@@ -273,9 +269,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
 		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
 		if err != nil {
-			return fmt.Errorf(
-				"Error while retrieving layer for {%s}: %s\n",
-				img.Id, err)
+			return fmt.Errorf("Failed to generate layer archive: %s", err)
 		}
 		req3, err := http.NewRequest("PUT", url.String(), layerData)
 		if err != nil {
@@ -289,15 +283,11 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)
-		if err != nil || res3.StatusCode != 200 {
-			if res3 == nil {
-				return fmt.Errorf(
-					"Error trying to push image {%s} (layer 2): %s\n",
-					img.Id, err)
-			}
-			return fmt.Errorf(
-				"Error trying to push image {%s} (layer 2): %s (%d)\n",
-				img.Id, err, res3.StatusCode)
+		if err != nil {
+			return fmt.Errorf("Failed to upload layer: %s", err)
+		}
+		if res3.StatusCode != 200 {
+			return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
 		}
 		return nil
 	}); err != nil {
@@ -356,16 +346,20 @@ func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthC
 	return true
 }
 
+// FIXME: this should really be PushTag
 func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, authConfig *auth.AuthConfig) error {
-	// CHeck if the local impage exists
+	// Check if the local impage exists
 	img, err := graph.Get(imgId)
 	if err != nil {
-		return err
+		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\n", remote, tag, imgId)
+		return nil
 	}
+	fmt.Fprintf(stdout, "Pushing tag %s:%s\n", remote, tag)
 	// Push the image
 	if err = graph.PushImage(stdout, img, authConfig); err != nil {
 		return err
 	}
+	fmt.Fprintf(stdout, "Registering tag %s:%s\n", remote, tag)
 	// And then the tag
 	if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
 		return err
@@ -382,6 +376,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	// 	return fmt.Errorf("The remote repository %s does not exist\n", remote)
 	// }
 
+	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\n", remote, len(localRepo))
 	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
 		if err := graph.pushPrimitive(stdout, remote, tag, imgId, authConfig); err != nil {

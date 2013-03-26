@@ -30,14 +30,13 @@ func (srv *Server) Name() string {
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]interface{}{
-		{"run", "Run a command in a container"},
-		{"ps", "Display a list of containers"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
-		{"history", "Show the history of an image"},
 		{"diff", "Inspect changes on a container's filesystem"},
+		{"export", "Stream the contents of a container as a tar archive"},
+		{"history", "Show the history of an image"},
 		{"images", "List images"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
@@ -53,7 +52,7 @@ func (srv *Server) Help() string {
 		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		{"export", "Stream the contents of a container as a tar archive"},
+		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
@@ -284,7 +283,10 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 // 'docker rmi NAME' removes all images with the name NAME
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
-	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -298,7 +300,10 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 
 func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "history", "[OPTIONS] IMAGE", "Show the history of an image")
-	if cmd.Parse(args) != nil || cmd.NArg() != 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -402,7 +407,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 }
 
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "LOCAL", "Push an image or a repository to the registry")
+	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -414,8 +419,13 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	// If the login failed, abort
-	if srv.runtime.authConfig == nil {
-		return fmt.Errorf("Please login prior to push. ('docker login')")
+	if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
+			return err
+		}
+		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+			return fmt.Errorf("Please login prior to push. ('docker login')")
+		}
 	}
 
 	var remote string
@@ -438,31 +448,26 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	img, err := srv.runtime.graph.Get(local)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
-
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
-			fmt.Fprintf(stdout, "Pushing %s (%d tags) on %s...\n", local, len(localRepo), remote)
 			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "Push completed\n")
 			return nil
 		} else {
 			return err
 		}
 		return nil
 	}
-	fmt.Fprintf(stdout, "Pushing image %s..\n", img.Id)
 	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Push completed\n")
 	return nil
 }
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "IMAGE", "Pull an image or a repository from the registry")
+	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -473,19 +478,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
-		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
+		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
 	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Pull completed\n")
 	return nil
 }
 
@@ -555,8 +556,8 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		for id, image := range allImages {
 			if !*quiet {
 				for idx, field := range []string{
-					/* REPOSITORY */ "",
-					/* TAG */ "",
+					/* REPOSITORY */ "<none>",
+					/* TAG */ "<none>",
 					/* ID */ id,
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
@@ -813,20 +814,34 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	config, err := ParseRun(args)
+	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
 	}
 	if config.Image == "" {
+		fmt.Fprintln(stdout, "Error: Image not specified")
 		return fmt.Errorf("Image not specified")
 	}
 	if len(config.Cmd) == 0 {
+		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
+
 	// Create new container
 	container, err := srv.runtime.Create(config)
 	if err != nil {
-		return errors.New("Error creating container: " + err.Error())
+		// If container not found, try to pull it
+		if srv.runtime.graph.IsNotExist(err) {
+			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\n", config.Image)
+			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
+				return err
+			}
+			if container, err = srv.runtime.Create(config); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	if config.OpenStdin {
 		cmd_stdin, err := container.StdinPipe()
