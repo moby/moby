@@ -9,7 +9,6 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -896,7 +895,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func NewServer() (*Server, error) {
-	rand.Seed(time.Now().UTC().UnixNano())
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
