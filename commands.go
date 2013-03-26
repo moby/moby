@@ -814,14 +814,16 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	config, err := ParseRun(args)
+	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
 	}
 	if config.Image == "" {
+		fmt.Fprintln(stdout, "Error: Image not specified")
 		return fmt.Errorf("Image not specified")
 	}
 	if len(config.Cmd) == 0 {
+		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
 	// Create new container
