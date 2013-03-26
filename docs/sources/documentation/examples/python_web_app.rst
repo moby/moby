@@ -1,4 +1,4 @@
-:title: Docker: Python Web app example
+:title: Python Web app example
 :description: Building your own python web app using docker
 :keywords: docker, example, python, web app
 

@@ -1,4 +1,4 @@
-:title: Docker: Hello world example
+:title: Hello world example
 :description: A simple hello world example with Docker
 :keywords: docker, example, hello world
 
