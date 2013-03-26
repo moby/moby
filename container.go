@@ -256,7 +256,7 @@ func (container *Container) Start() error {
 	var err error
 	if container.Config.Tty {
 		container.cmd.Env = append(container.Config.Env,
-			"TERM="+os.Getenv("TERM"),
+			"TERM=xterm",
 		)
 		err = container.startPty()
 	} else {
