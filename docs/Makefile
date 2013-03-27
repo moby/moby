@@ -45,7 +45,7 @@ clean:
 
 docs:
 	-rm -rf $(BUILDDIR)/*
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	cp sources/index.html $(BUILDDIR)/html/
 	cp sources/gettingstarted.html $(BUILDDIR)/html/
 	cp sources/dotcloud.yml $(BUILDDIR)/html/
