@@ -13,7 +13,7 @@ Running an interactive shell
 .. code-block:: bash
 
   # Download a base image
-  docker import base
+  docker pull base
 
   # Run an interactive shell in the base image,
   # allocate a tty, attach stdin and stdout
