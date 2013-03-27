@@ -86,13 +86,6 @@ class docker {
         include virtualbox
     }
 
-    user { "vagrant":
-        ensure => present,
-        comment => "Vagrant User",
-        shell => "/bin/bash",
-        home => "/home/vagrant",
-    }
-
 	file { "/usr/local/bin":
 		ensure => directory,
 		owner => root,
