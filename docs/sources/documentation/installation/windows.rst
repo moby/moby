@@ -156,7 +156,7 @@ You are now ready for the docker’s “hello world” example. Run
 
 .. code-block:: bash
 
-	docker run -a busybox echo hello world 
+	docker run busybox echo hello world
 
 .. image:: images/win/run_04.gif
    :alt: run docker
