@@ -62,6 +62,31 @@ func iptables(args ...string) error {
 	return nil
 }
 
+//Wrapper around the brctl command
+func brctl(args ...string) error {
+	path, err := exec.LookPath("brctl")
+	if err != nil {
+		return fmt.Errorf("command not found: brctl")
+	}
+	if err := exec.Command(path, args...).Run(); err != nil {
+		return fmt.Errorf("brctl failed: brctl %v", strings.Join(args, " "))
+	}
+	return nil
+}
+
+//Wrapper around the ip command
+func ip(args ...string) error {
+	path, err := exec.LookPath("ip")
+	if err != nil {
+		return fmt.Errorf("command not found: ip")
+	}
+	if err := exec.Command(path, args...).Run(); err != nil {
+		return fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
+	}
+	return nil
+}
+
+
 // Return the IPv4 address of a network interface
 func getIfaceAddr(name string) (net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
