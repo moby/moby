@@ -9,8 +9,9 @@ import (
 	"testing"
 )
 
+// FIXME: this is no longer needed
 const testLayerPath string = "/var/lib/docker/docker-ut.tar"
-const unitTestImageName string = "http://get.docker.io/images/busybox"
+const unitTestImageName string = "docker-ut"
 
 var unitTestStoreBase string
 var srv *Server
@@ -65,7 +66,7 @@ func init() {
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.CmdImport(os.Stdin, os.Stdout, unitTestImageName); err != nil {
+	if err := srv.CmdPull(os.Stdin, os.Stdout, unitTestImageName); err != nil {
 		panic(err)
 	}
 }

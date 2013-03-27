@@ -9,7 +9,6 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -283,7 +282,10 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 // 'docker rmi NAME' removes all images with the name NAME
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
 	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
-	if cmd.Parse(args) != nil || cmd.NArg() < 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -297,7 +299,10 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 
 func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "history", "[OPTIONS] IMAGE", "Show the history of an image")
-	if cmd.Parse(args) != nil || cmd.NArg() != 1 {
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
@@ -442,26 +447,21 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 	img, err := srv.runtime.graph.Get(local)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
-
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
-			fmt.Fprintf(stdout, "Pushing %s (%d tags) on %s...\n", local, len(localRepo), remote)
 			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "Push completed\n")
 			return nil
 		} else {
 			return err
 		}
 		return nil
 	}
-	fmt.Fprintf(stdout, "Pushing image %s..\n", img.Id)
 	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Push completed\n")
 	return nil
 }
 
@@ -477,19 +477,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		fmt.Fprintf(stdout, "Pulling %s...\n", remote)
-		if err := srv.runtime.graph.PullImage(remote, srv.runtime.authConfig); err != nil {
+		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Pulled\n")
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	fmt.Fprintf(stdout, "Pulling %s...\n", remote)
 	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Pull completed\n")
 	return nil
 }
 
@@ -817,20 +813,34 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	config, err := ParseRun(args)
+	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
 	}
 	if config.Image == "" {
+		fmt.Fprintln(stdout, "Error: Image not specified")
 		return fmt.Errorf("Image not specified")
 	}
 	if len(config.Cmd) == 0 {
+		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
+
 	// Create new container
 	container, err := srv.runtime.Create(config)
 	if err != nil {
-		return errors.New("Error creating container: " + err.Error())
+		// If container not found, try to pull it
+		if srv.runtime.graph.IsNotExist(err) {
+			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\n", config.Image)
+			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
+				return err
+			}
+			if container, err = srv.runtime.Create(config); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	if config.OpenStdin {
 		cmd_stdin, err := container.StdinPipe()
@@ -885,7 +895,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func NewServer() (*Server, error) {
-	rand.Seed(time.Now().UTC().UnixNano())
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}

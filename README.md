@@ -76,6 +76,7 @@ Installing on Ubuntu 12.04 and 12.10
 
     ```bash
     cd docker-master
+    sudo ./docker pull base
     sudo ./docker run -i -t base /bin/bash
     ```
 
@@ -91,55 +92,7 @@ Right now, the officially supported distributions are:
 
 Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
 
-Installing with Vagrant
------------------------
-
-Currently, Docker can be installed with Vagrant on your localhost with VirtualBox, 
-Amazon EC2, and Rackspace Cloud Servers. Vagrant 1.1 is required for EC2 and 
-Rackspace Cloud, but deploying is as simple as:
-
-Amazon EC2:
-```bash
-$ export AWS_ACCESS_KEY_ID=xxx \
-	AWS_SECRET_ACCESS_KEY=xxx \
-	AWS_KEYPAIR_NAME=xxx \
-	AWS_SSH_PRIVKEY=xxx
-$ vagrant plugin install vagrant-aws
-$ vagrant up --provider=aws
-```
-
-The environment variables are:
-
-* `AWS_ACCESS_KEY_ID` - The API key used to make requests to AWS
-* `AWS_SECRET_ACCESS_KEY` - The secret key to make AWS API requests
-* `AWS_KEYPAIR_NAME` - The name of the keypair used for this EC2 instance
-* `AWS_SSH_PRIVKEY` - The path to the private key for the named keypair
-
-Rackspace Cloud Servers:
-```bash
-$ export RS_USERNAME=xxx \
-        RS_API_KEY=xxx \
-        RS_PUBLIC_KEY=xxx \
-        RS_PRIVATE_KEY=xxx
-$ vagrant plugin install vagrant-rackspace
-$ vagrant up --provider=rackspace
-```
-
-The environment variables are:
-
-* `RS_USERNAME` - The user name used to make requests to Rackspace Cloud
-* `RS_API_KEY` - The secret key to make Rackspace Cloud API requests
-* `RS_PUBLIC_KEY` - The location on disk to your public key that will be injected into the instance.
-* `RS_PRIVATE_KEY` - The private key that matches the public key being injected.
-
-For VirtualBox, you can simply ignore setting any of the environment
-variables and omit the `provider` flag. VirtualBox is still supported with
-Vagrant &lt;= 1.1:
-
-```bash
-$ vagrant up
-```
-
+Some streamlined (but possibly outdated) installation paths' are available from the website: http://docker.io/documentation/ 
 
 
 Usage examples
@@ -184,6 +137,17 @@ docker ps
 ```
 
 
+Share your own image!
+---------------------
+
+```bash
+docker pull base
+CONTAINER=$(docker run -d base apt-get install -y curl)
+docker commit -m "Installed curl" $CONTAINER $USER/betterbase
+docker push $USER/betterbase
+```
+
+
 Expose a service on a TCP port
 ------------------------------
 
@@ -204,19 +168,19 @@ echo "Daemon received: $(docker logs $JOB)"
 Contributing to Docker
 ======================
 
-Want to hack on Docker? Awesome! Here are instructions to get you started. They are probably not perfect, please let us know if anything feels wrong or incomplete.
+Want to hack on Docker? Awesome! There are instructions to get you started on the website: http://docker.io/documentation/contributing/contributing.html 
 
-Contribution guidelines
------------------------
+They are probably not perfect, please let us know if anything feels wrong or incomplete.
 
 ### Pull requests are always welcome
 
-We are always thrilled to receive pull requests, and do our best to process them as fast as possible. Not sure if that typo is worth a pull request? Do it! We will appreciate it.
+Note
+----
 
-If your pull request is not accepted on the first try, don't be discouraged! If there's a problem with the implementation, hopefully you received feedback on what to improve.
+We also keep the documentation in this repository. The website documentation is generated using sphinx using these sources.
+Please find it under docs/sources/ and read more about it https://github.com/dotcloud/docker/master/docs/README.md
 
-We're trying very hard to keep Docker lean and focused. We don't want it to do everything for everybody. This means that we might decide against incorporating a new feature.
-However, there might be a way to implement that feature *on top of* docker.
+Please feel free to fix / update the documentation and send us pull requests. More tutorials are also welcome.
 
 ### Discuss your design on the mailing list
 

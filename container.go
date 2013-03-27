@@ -3,8 +3,8 @@ package docker
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/rcli"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -60,9 +60,12 @@ type Config struct {
 	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
-func ParseRun(args []string) (*Config, error) {
-	cmd := flag.NewFlagSet("", flag.ContinueOnError)
-	cmd.SetOutput(ioutil.Discard)
+func ParseRun(args []string, stdout io.Writer) (*Config, error) {
+	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
+	if len(args) > 0 && args[0] != "--help" {
+		cmd.SetOutput(ioutil.Discard)
+	}
+
 	fl_user := cmd.String("u", "", "Username or UID")
 	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
 	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
@@ -255,6 +258,10 @@ func (container *Container) Start() error {
 
 	var err error
 	if container.Config.Tty {
+		container.cmd.Env = append(
+			[]string{"TERM=xterm"},
+			container.cmd.Env...,
+		)
 		err = container.startPty()
 	} else {
 		err = container.start()
@@ -365,6 +372,9 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
+	if container.cmd == nil {
+		return nil
+	}
 	if err := container.cmd.Process.Kill(); err != nil {
 		return err
 	}
