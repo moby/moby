@@ -1,4 +1,4 @@
-:title: Docker: Hello world daemon example
+:title: Hello world daemon example
 :description: A simple hello world daemon example with Docker
 :keywords: docker, example, hello world, daemon
 

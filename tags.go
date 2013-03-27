@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -75,7 +76,7 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 		if i, err := store.GetImage(repoAndTag[0], repoAndTag[1]); err != nil {
 			return nil, err
 		} else if i == nil {
-			return nil, fmt.Errorf("No such image: %s", name)
+			return nil, fmt.Errorf("Image does not exist: %s", name)
 		} else {
 			img = i
 		}
@@ -94,6 +95,7 @@ func (store *TagStore) ById() map[string][]string {
 				byId[id] = []string{name}
 			} else {
 				byId[id] = append(byId[id], name)
+				sort.Strings(byId[id])
 			}
 		}
 	}

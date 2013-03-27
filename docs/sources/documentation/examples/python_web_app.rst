@@ -1,4 +1,4 @@
-:title: Docker: Python Web app example
+:title: Python Web app example
 :description: Building your own python web app using docker
 :keywords: docker, example, python, web app
 
@@ -6,7 +6,7 @@
 
 Building a python web app
 =========================
-The goal of this example is to show you how you can author your own docker images using a parent image, making changes to it, and then saving the results as a new image. We will do that by making a simple hello flask web application image. 
+The goal of this example is to show you how you can author your own docker images using a parent image, making changes to it, and then saving the results as a new image. We will do that by making a simple hello flask web application image.
 
 **Steps:**
 
@@ -64,3 +64,7 @@ See the example in action
     <div style="margin-top:10px;">
       <iframe width="720" height="350" src="http://ascii.io/a/2573/raw" frameborder="0"></iframe>
     </div>
+
+Continue to the `base commands`_
+
+.. _base commands: ../commandline/basecommands.html

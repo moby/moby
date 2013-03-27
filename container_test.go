@@ -7,11 +7,37 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestIdFormat(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container1, err := runtime.Create(
+		&Config{
+			Image:  GetTestImage(runtime).Id,
+			Cmd:    []string{"/bin/sh", "-c", "echo hello world"},
+			Memory: 33554432,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	match, err := regexp.Match("^[0-9a-f]{64}$", []byte(container1.Id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !match {
+		t.Fatalf("Invalid container ID: %s", container1.Id)
+	}
+}
 
 func TestCommitRun(t *testing.T) {
 	runtime, err := newTestRuntime()

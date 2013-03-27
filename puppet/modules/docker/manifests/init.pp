@@ -51,7 +51,11 @@ class ec2 {
 	}
 }
 
+class rax {
+}
+
 class docker {
+
     # update this with latest docker binary distro
     $docker_url = "http://get.docker.io/builds/$kernel/$hardwaremodel/docker-master.tgz"
     # update this with latest go binary distry
@@ -67,15 +71,27 @@ class docker {
 
     notify { "docker_url = $docker_url": withpath => true }
 
-	$ec2_version = file("/etc/ec2_version", "/dev/null")
-	if ($ec2_version) {
+    $ec2_version = file("/etc/ec2_version", "/dev/null")
+    $rax_version = inline_template("<%= %x{/usr/bin/xenstore-read vm-data/provider_data/provider} %>")
+
+    if ($ec2_version) {
 		$vagrant_user = "ubuntu"
 		include ec2
-	} else {
+    } elsif ($rax_version) {
 		$vagrant_user = "vagrant"
-		# virtualbox is the vagrant default, so it should be safe to assume
-		include virtualbox
-	}
+        include rax
+    } else {
+    # virtualbox is the vagrant default, so it should be safe to assume
+		$vagrant_user = "vagrant"
+        include virtualbox
+    }
+
+    user { "vagrant":
+        ensure => present,
+        comment => "Vagrant User",
+        shell => "/bin/bash",
+        home => "/home/vagrant",
+    }
 
 	file { "/usr/local/bin":
 		ensure => directory,
@@ -103,6 +119,11 @@ class docker {
         require => Exec["copy-docker-bin"],
     }
 
+    file { "/home/vagrant":
+        ensure => directory,
+        mode => 644,
+        require => User["vagrant"],
+    }
 
     file { "/home/vagrant/.profile":
         mode => 644,
