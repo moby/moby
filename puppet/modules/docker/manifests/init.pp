@@ -52,6 +52,18 @@ class ec2 {
 }
 
 class rax {
+	user { "vagrant":
+		name => "ubuntu",
+		ensure => present,
+		comment => "Vagrant User",
+		shell => "/bin/bash",
+		home => "/home/ubuntu",
+	}
+	file { "/home/vagrant":
+		ensure => link,
+		target => "/home/ubuntu",
+		require => User["vagrant"],
+	}
 }
 
 class docker {
@@ -110,12 +122,6 @@ class docker {
         group => "root",
         content => template("docker/dockerd.conf"),
         require => Exec["copy-docker-bin"],
-    }
-
-    file { "/home/vagrant":
-        ensure => directory,
-        mode => 644,
-        require => User["vagrant"],
     }
 
     file { "/home/vagrant/.profile":
