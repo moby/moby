@@ -18,7 +18,7 @@ Download the base container
     # Download a base image
     docker pull base
 
-The *base* image is a minimal Debian based container, alternatively you can select *busybox*, a bare
+The *base* image is a minimal *ubuntu* based container, alternatively you can select *busybox*, a bare
 minimal linux system. The images are retrieved from the docker repository.
 
 
