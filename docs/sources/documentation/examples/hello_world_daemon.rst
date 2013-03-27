@@ -8,18 +8,20 @@ Hello World Daemon
 ==================
 The most boring daemon ever written.
 
-This example assumes you have Docker installed and with the busybox image already imported. We will use the busybox image to run a simple hello world daemon that will just print hello world to standard out every second. It will continue to do this until we stop it.
+This example assumes you have Docker installed and with the base image already imported ``docker pull base``.
+We will use the base image to run a simple hello world daemon that will just print hello world to standard
+out every second. It will continue to do this until we stop it.
 
 **Steps:**
 
 .. code-block:: bash
 
-    $ CONTAINER_ID=$(docker run -d busybox /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    $ CONTAINER_ID=$(docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container made from the busybox daemon.
 
 - **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
-- **"busybox"** is the image we want to run the command inside of.
+- **"base"** is the image we want to run the command inside of.
 - **"/bin/sh -c"** is the command we want to run in the container
 - **"while true; do echo hello world; sleep 1; done"** is the mini script we want to run, that will just print hello world once a second until we stop it.
 - **$CONTAINER_ID** the output of the run command will return a container id, we can use in future commands to see what is going on with this process.
@@ -35,7 +37,7 @@ Check the logs make sure it is working correctly.
 
 .. code-block:: bash
 
-    $ docker attach $CONTAINER_ID
+    docker attach $CONTAINER_ID
 
 Attach to the container to see the results in realtime.
 
@@ -44,7 +46,7 @@ Attach to the container to see the results in realtime.
 
 .. code-block:: bash
 
-    $ docker ps
+    docker ps
 
 Check the process list to make sure it is running.
 
@@ -61,7 +63,7 @@ Stop the container, since we don't need it anymore.
 
 .. code-block:: bash
 
-    $ docker ps
+    docker ps
 
 Make sure it is really stopped.
 
@@ -77,3 +79,11 @@ See the example in action
     </div>
 
 Continue to the :ref:`python_web_app` example.
+
+
+Notes:
+------
+
+- **Docker daemon** The docker daemon is started by ``sudo docker -d``, Vagrant may have started
+  the Docker daemon for you, but you will need to restart it this way if it was terminated. Otherwise
+  it may give you ``Couldn't create Tag store: open /var/lib/docker/repositories: permission denied``
