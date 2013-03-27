@@ -17,7 +17,7 @@ Running an interactive shell
 
   # Run an interactive shell in the base image,
   # allocate a tty, attach stdin and stdout
-  docker run -a -i -t base /bin/bash
+  docker run -i -t base /bin/bash
 
 
 Starting a long-running worker process
