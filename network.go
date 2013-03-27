@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	networkBridgeIface = "lxcbr0"
+	networkBridgeIface = "dockbr0"
+	networkBridgeAddr  = "172.16.0.1/24"
 	portRangeStart     = 49153
 	portRangeEnd       = 65535
 )
@@ -26,6 +27,25 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
 	}
 	return firstIP, lastIP
+}
+
+// Detects overlap between one IPNet and another
+func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
+	first, last := networkRange(netX)
+	if netY.Contains(first) {
+		return true
+	}
+	if netY.Contains(last) {
+		return true
+	}
+	first, last = networkRange(netY)
+	if netX.Contains(first) {
+		return true
+	}
+	if netX.Contains(first) {
+		return true
+	}
+	return false
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
@@ -85,7 +105,6 @@ func ip(args ...string) error {
 	}
 	return nil
 }
-
 
 // Return the IPv4 address of a network interface
 func getIfaceAddr(name string) (net.Addr, error) {
@@ -376,7 +395,61 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 	return iface, nil
 }
 
-func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
+func checkBridgeAddr(bridgeIface string, bridgeAddr string) error {
+	_, dockerNetwork, err := net.ParseCIDR(bridgeAddr)
+	if err != nil {
+		return errors.New("Unable to parse docker bridge network")
+	}
+
+	ifaces, _ := net.Interfaces()
+	// Loop over the network interfaces and check for conflicts with the docker bridge network
+	for _, iface := range ifaces {
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			ip, network, _ := net.ParseCIDR(addr.String())
+			// Only check ipv4 addresses
+			if ipv4 := ip.To4(); ipv4 != nil {
+				err := fmt.Sprintf("Docker bridge network %s is in use by %s", bridgeAddr, iface.Name)
+				if networkOverlaps(dockerNetwork, network) {
+					return errors.New(err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func setupBridgeIface(bridgeIface string, bridgeAddr string) error {
+	if _, err := net.InterfaceByName(bridgeIface); err == nil {
+		return nil
+	}
+
+	if err := checkBridgeAddr(bridgeIface, bridgeAddr); err != nil {
+		return err
+	}
+
+	if err := brctl("addbr", bridgeIface); err == nil {
+		if err := ip("addr", "add", bridgeAddr, "dev", bridgeIface); err != nil {
+			return errors.New("Unable to add private network: Failed to set ip")
+		}
+		if err := ip("link", "set", bridgeIface, "up"); err != nil {
+			return errors.New("Unable to start network bridge: Failed to set device up")
+		}
+		if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", bridgeAddr,
+			"!", "-d", bridgeAddr, "-j", "MASQUERADE"); err != nil {
+			return errors.New("Unable to enable network bridge NAT: Failed to set iptables MASQUERADE rule")
+		}
+	}
+
+	return nil
+}
+
+func newNetworkManager(bridgeIface string, bridgeAddr string) (*NetworkManager, error) {
+	if err := setupBridgeIface(bridgeIface, bridgeAddr); err != nil {
+		return nil, err
+	}
+
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
 		return nil, err

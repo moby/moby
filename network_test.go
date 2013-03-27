@@ -217,3 +217,15 @@ func assertIPEquals(t *testing.T, ip1, ip2 net.IP) {
 		t.Fatalf("Expected IP %s, got %s", ip1, ip2)
 	}
 }
+
+func TestNetworkOverlaps(t *testing.T) {
+	_, netX, _ := net.ParseCIDR("172.16.0.1/24")
+	_, netY, _ := net.ParseCIDR("172.24.0.1/12")
+	if !networkOverlaps(netX, netY) {
+		t.Errorf("%v and %v should overlap", netX, netY)
+	}
+	_, netY, _ = net.ParseCIDR("172.24.2.1/24")
+	if networkOverlaps(netX, netY) {
+		t.Errorf("%v and %v should not overlap", netX, netY)
+	}
+}
