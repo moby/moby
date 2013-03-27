@@ -25,7 +25,7 @@ def v10(config)
   # Assign this VM to a bridged network, allowing you to connect directly to a
   # network using the host's network device. This makes the VM appear as another
   # physical device on your network.
-  # config.vm.network :bridged
+  #config.vm.network :bridged
 
   # Forward a port from the guest to the host, which allows for outside
   # computers to access the VM, whereas host only networking does not.
@@ -119,10 +119,11 @@ end
     aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
     aws.ssh_private_key_path = ENV["AWS_SSH_PRIVKEY"]
     aws.region = "us-east-1"
-    aws.ami = "ami-1c1e8075"
-    aws.ssh_username = "vagrant"
+    aws.ami = "ami-ae9806c7"
+    aws.ssh_username = "ubuntu"
     aws.instance_type = "t1.micro"
   end
+
   config.vm.provider :rackspace do |rs|
     config.vm.box = "dummy"
     config.vm.box_url = "https://github.com/mitchellh/vagrant-rackspace/raw/master/dummy.box"
@@ -133,6 +134,7 @@ end
     rs.flavor   = /512MB/
     rs.image    = /Ubuntu/
   end   
+
   config.vm.provider :virtualbox do |vb|
     config.vm.box = "quantal64_3.5.0-25"
     config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
