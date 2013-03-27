@@ -6,7 +6,7 @@
 Windows
 =========
 
-  Please note the only 'official' installation is using the :ref:`ubuntu_linux` installation path. This version
+  Please note this is a community contributed installation path. The only 'official' installation is using the :ref:`ubuntu_linux` installation path. This version
   may be out of date because it depends on some binaries to be updated and published
 
 
@@ -156,7 +156,7 @@ You are now ready for the docker’s “hello world” example. Run
 
 .. code-block:: bash
 
-	docker run -a busybox echo hello world 
+	docker run busybox echo hello world
 
 .. image:: images/win/run_04.gif
    :alt: run docker
