@@ -5,7 +5,7 @@ Docker complements LXC with a high-level API which operates at the process level
 
 Docker is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
 
-<img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
+<img src="http://www.docker.io/_static/lego_docker.jpg"/>
 
 * *Heterogeneous payloads*: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.
 
