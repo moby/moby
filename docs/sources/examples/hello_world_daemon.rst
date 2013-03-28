@@ -16,7 +16,7 @@ out every second. It will continue to do this until we stop it.
 
 .. code-block:: bash
 
-    $ CONTAINER_ID=$(docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    CONTAINER_ID=$(docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container made from the busybox daemon.
 
@@ -28,7 +28,7 @@ We are going to run a simple hello world daemon in a new container made from the
 
 .. code-block:: bash
 
-    $ docker logs $CONTAINER_ID
+    docker logs $CONTAINER_ID
 
 Check the logs make sure it is working correctly.
 
@@ -54,7 +54,7 @@ Check the process list to make sure it is running.
 
 .. code-block:: bash
 
-    $ docker stop $CONTAINER_ID
+    docker stop $CONTAINER_ID
 
 Stop the container, since we don't need it anymore.
 
