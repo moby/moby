@@ -1,16 +1,18 @@
-Guides index
-============
+:title: docker documentation
+:description: docker documentation
+:keywords:
 
-Contents:
+Documentation
+=============
+
+This documentation has the following resources:
 
 .. toctree::
    :maxdepth: 1
 
-   documentation/concepts/index
-   documentation/installation/index
-   documentation/examples/index
-   documentation/contributing/index
-   documentation/commandline/index
-   documentation/faq
-
-The source page should also have some content. Otherwise it is just an index.
+   concepts/index
+   installation/index
+   examples/index
+   contributing/index
+   commandline/index
+   faq
