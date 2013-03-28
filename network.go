@@ -70,7 +70,7 @@ func networkSize(mask net.IPMask) (int32, error) {
 func iptables(args ...string) error {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
-		log.Fatal("command not found: iptables")
+		return fmt.Errorf("command not found: iptables")
 	}
 	if err := exec.Command(path, args...).Run(); err != nil {
 		return fmt.Errorf("iptables failed: iptables %v", strings.Join(args, " "))
