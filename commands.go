@@ -17,6 +17,7 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
+	"unicode"
 )
 
 const VERSION = "0.1.0"
@@ -62,29 +63,80 @@ func (srv *Server) Help() string {
 
 // 'docker login': login / register a user to registry service.
 func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	// Read a line on raw terminal with support for simple backspace
+	// sequences and echo.
+	//
+	// This function is necessary because the login command must be done a
+	// raw terminal for two reasons:
+	// - we have to read a password (without echoing it);
+	// - the rcli "protocol" only supports cannonical and raw modes and you
+	//   can't tune it once the command as been started.
+	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
+		char := make([]byte, 1)
+		buffer := make([]byte, 64)
+		var i = 0
+		for i < len(buffer) {
+			n, err := stdin.Read(char)
+			if n > 0 {
+				if char[0] == '\r' || char[0] == '\n' {
+					stdout.Write([]byte{'\n'})
+					break
+				} else if char[0] == 127 || char[0] == '\b' {
+					if i > 0 {
+						if echo {
+							stdout.Write([]byte{'\b', ' ', '\b'})
+						}
+						i--
+					}
+				} else if !unicode.IsSpace(rune(char[0])) &&
+					!unicode.IsControl(rune(char[0])) {
+					if echo {
+						stdout.Write(char)
+					}
+					buffer[i] = char[0]
+					i++
+				}
+			}
+			if err != nil {
+				if err != io.EOF {
+					fmt.Fprint(stdout, "Read error: %v\n", err)
+				}
+				break
+			}
+		}
+		return string(buffer[:i])
+	}
+	var readAndEchoString = func(stdin io.Reader, stdout io.Writer) string {
+		return readStringOnRawTerminal(stdin, stdout, true)
+	}
+	var readString = func(stdin io.Reader, stdout io.Writer) string {
+		return readStringOnRawTerminal(stdin, stdout, false)
+	}
+
 	cmd := rcli.Subcmd(stdout, "login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	var username string
 	var password string
 	var email string
 
 	fmt.Fprint(stdout, "Username (", srv.runtime.authConfig.Username, "): ")
-	fmt.Fscanf(stdin, "%s", &username)
+	username = readAndEchoString(stdin, stdout)
 	if username == "" {
 		username = srv.runtime.authConfig.Username
 	}
 	if username != srv.runtime.authConfig.Username {
 		fmt.Fprint(stdout, "Password: ")
-		fmt.Fscanf(stdin, "%s", &password)
+		password = readString(stdin, stdout)
 
 		if password == "" {
 			return errors.New("Error : Password Required\n")
 		}
 
 		fmt.Fprint(stdout, "Email (", srv.runtime.authConfig.Email, "): ")
-		fmt.Fscanf(stdin, "%s", &email)
+		email = readAndEchoString(stdin, stdout)
 		if email == "" {
 			email = srv.runtime.authConfig.Email
 		}
