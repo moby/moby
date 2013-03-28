@@ -21,7 +21,10 @@ if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"
 fi
 
-# set ~/docker as the go path
-export GOPATH=~/docker
-# add go to the PATH
-export PATH=$PATH:/usr/local/go/bin
+export GOPATH=/opt/go
+export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+
+docker=/opt/go/src/github.com/dotcloud/docker
+if [ -d $docker ]; then
+  cd $docker
+fi
