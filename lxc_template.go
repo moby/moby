@@ -2,6 +2,8 @@ package docker
 
 import (
 	"text/template"
+	"log"
+	"strings"
 )
 
 const LxcTemplate = `
@@ -80,6 +82,10 @@ lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
 lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 
+# Any persistent storage references go last
+{{range getMountEntries .Config}}
+lxc.mount.entry = {{.Host}} {{$ROOTFS}}{{.Container}} none bind,ro 0 0
+{{end}}
 
 # drop linux capabilities (apply mainly to the user root in the container)
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
@@ -105,10 +111,45 @@ func getMemorySwap(config *Config) int64 {
 	return config.Memory * 2
 }
 
+type mountEntry struct {
+	Container   string
+	Host        string
+}
+
+func getMountEntries(config *Config) []mountEntry {
+	volumes := config.Volumes
+
+	var result []mountEntry
+
+	for _, value := range volumes {
+		tempo := strings.SplitN(value, "=", 2)
+
+		if len(tempo) != 2 {
+			log.Printf("Invalid volume specification: %s.  Ignored.", value)
+			continue
+		}
+
+		if tempo[0][0] != '/' {
+			log.Printf("Container path must be absolute: %s.  %s is ignored.", tempo[0], value)
+			continue
+		}
+
+		if tempo[1][0] != '/' {
+			log.Printf("Host path must be absolute: %s.  %s is ignored.", tempo[1], value)
+			continue
+		}
+
+		result = append(result, mountEntry{tempo[0], tempo[1]})
+	}
+
+	return result
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap": getMemorySwap,
+		"getMountEntries": getMountEntries,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {
