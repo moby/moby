@@ -334,13 +334,28 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthConfig) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
-	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/users/"+remote, nil)
+	var repositoryTarget string
+	// If we are asking for 'root' repository, lookup on the Library's registry
+	if strings.Index(remote, "/") == -1 {
+		repositoryTarget = REGISTRY_ENDPOINT + "/library/" + remote + "/lookup"
+	} else {
+		repositoryTarget = REGISTRY_ENDPOINT + "/users/" + remote + "/lookup"
+	}
+	Debugf("Checking for permissions on: %s", repositoryTarget)
+	req, err := http.NewRequest("PUT", repositoryTarget, strings.NewReader("\"\""))
 	if err != nil {
+		Debugf("%s\n", err)
 		return false
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	req.Header.Add("Content-type", "application/json")
 	res, err := rt.RoundTrip(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil || res.StatusCode != 404 {
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			errBody = []byte(err.Error())
+		}
+		Debugf("Lookup status code: %d (body: %s)", res.StatusCode, errBody)
 		return false
 	}
 	return true
@@ -370,11 +385,10 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, a
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
-	// Check if the remote repository exists
-	// FIXME: @lopter How to handle this?
-	// if !graph.LookupRemoteRepository(remote, authConfig) {
-	// 	return fmt.Errorf("The remote repository %s does not exist\n", remote)
-	// }
+	// Check if the remote repository exists/if we have the permission
+	if !graph.LookupRemoteRepository(remote, authConfig) {
+		return fmt.Errorf("Permission denied on repository %s\n", remote)
+	}
 
 	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\n", remote, len(localRepo))
 	// For each image within the repo, push them
