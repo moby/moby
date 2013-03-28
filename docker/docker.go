@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 )
 
 func main() {
@@ -53,6 +54,15 @@ func runCommand(args []string) error {
 			return err
 		}
 		defer term.Restore(0, oldState)
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for _ = range c {
+				term.Restore(0, oldState)
+				log.Printf("\nSIGINT received\n")
+				os.Exit(0)
+			}
+		}()
 	}
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without

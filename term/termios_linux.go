@@ -15,7 +15,7 @@ void MakeRaw(int fd) {
   ioctl(fd, TCGETS, &t);
 
   t.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-  t.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  t.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
   t.c_cflag &= ~(CSIZE | PARENB);
   t.c_cflag |= CS8;
 
