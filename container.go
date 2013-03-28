@@ -72,11 +72,13 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	var flPorts ports
 
+	var flPorts ports
 	cmd.Var(&flPorts, "p", "Map a network port to the container")
+
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
