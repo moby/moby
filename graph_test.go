@@ -158,6 +158,14 @@ func TestDelete(t *testing.T) {
 	}
 	assertNImages(graph, t, 1)
 
+	// Test delete twice (pull -> rm -> pull -> rm)
+	if err := graph.Register(archive, img1); err != nil {
+		t.Fatal(err)
+	}
+	if err := graph.Delete(img1.Id); err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 1)
 }
 
 func assertNImages(graph *Graph, t *testing.T, n int) {

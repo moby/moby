@@ -110,12 +110,44 @@ func (graph *Graph) Garbage() (*Graph, error) {
 	return NewGraph(path.Join(graph.Root, ":garbage:"))
 }
 
+// Check if given error is "not empty"
+// Note: this is the way golang do it internally with os.IsNotExists
+func isNotEmpty(err error) bool {
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *os.PathError:
+		err = pe.Err
+	case *os.LinkError:
+		err = pe.Err
+	}
+	return strings.Contains(err.Error(), " not empty")
+}
+
 func (graph *Graph) Delete(id string) error {
 	garbage, err := graph.Garbage()
 	if err != nil {
 		return err
 	}
-	return os.Rename(graph.imageRoot(id), garbage.imageRoot(id))
+	err = os.Rename(graph.imageRoot(id), garbage.imageRoot(id))
+	if err != nil {
+		if isNotEmpty(err) {
+			Debugf("The image %s is already present in garbage. Removing it.", id)
+			if err = os.RemoveAll(garbage.imageRoot(id)); err != nil {
+				Debugf("Error while removing the image %s from garbage: %s\n", id, err)
+				return err
+			}
+			Debugf("Image %s removed from garbage", id)
+			if err = os.Rename(graph.imageRoot(id), garbage.imageRoot(id)); err != nil {
+				return err
+			}
+			Debugf("Image %s put in the garbage", id)
+		} else {
+			Debugf("Error putting the image %s to garbage: %s\n", id, err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (graph *Graph) Undelete(id string) error {
