@@ -12,9 +12,9 @@ The goal of this example is to show you how you can author your own docker image
 
 .. code-block:: bash
 
-    $ docker import shykes/pybuilder
+    $ docker pull shykes/pybuilder
 
-We are importing the "shykes/pybuilder" docker image
+We are downloading the "shykes/pybuilder" docker image
 
 .. code-block:: bash
 

@@ -1,4 +1,4 @@
-.vagrant
+.vagrant*
 bin
 docker/docker
 .*.swp
@@ -14,3 +14,4 @@ auth/auth.test
 docs/_build
 docs/_static
 docs/_templates
+.gopath/
