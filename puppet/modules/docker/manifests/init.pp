@@ -11,6 +11,9 @@ class virtualbox {
     file { "/usr/local/bin/dockerd":
         ensure => absent,
     }
+    file { "/usr/local/bin/docker":
+        ensure => absent,
+    }
 
     # Set up VirtualBox guest utils
     package { "virtualbox-guest-utils": }
