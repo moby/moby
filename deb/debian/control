@@ -3,14 +3,14 @@ Section: misc
 Priority: extra
 Homepage: https://github.com/dotcloud/docker
 Maintainer: Daniel Mizyrycki <daniel@dotcloud.com>
-Build-Depends: debhelper (>= 8.0.0), pkg-config, git, golang, libsqlite3-dev
+Build-Depends: debhelper (>= 8.0.0), git, golang
 Vcs-Git: https://github.com/dotcloud/docker.git
 Standards-Version: 3.9.2
 
 Package: dotcloud-docker
 Architecture: amd64
 Provides: dotcloud-docker
-Depends: lxc, wget, bsdtar, curl, libsqlite3-0
+Depends: lxc, wget, bsdtar, curl
 Conflicts: docker
 Description: A process manager with superpowers
     It encapsulates heterogeneous payloads in Standard Containers, and runs
