@@ -25,7 +25,7 @@ Notable features
 
 * Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.
 
-* Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.
+* Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremely fast, memory-cheap and disk-cheap.
 
 * Logging: the standard streams (stdout/stderr/stdin) of each process container are collected and logged for real-time or batch retrieval.
 
