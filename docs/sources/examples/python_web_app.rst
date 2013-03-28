@@ -24,9 +24,9 @@ We set a URL variable that points to a tarball of a simple helloflask web app
 
 .. code-block:: bash
 
-    BUILD_JOB=$(docker run -t shykes/pybuilder:1d9aab3737242c65 /usr/local/bin/buildapp $URL)
+    BUILD_JOB=$(docker run -d -t shykes/pybuilder:latest /usr/local/bin/buildapp $URL)
 
-Inside of the "shykes/pybuilder" image there is a command called buildapp, we are running that command and passing the $URL variable from step 2 to it, and running the whole thing inside of a new container. BUILD_JOB will be set with the new container_id. "1d9aab3737242c65" came from the output of step 1 when importing image. also available from 'docker images'.
+Inside of the "shykes/pybuilder" image there is a command called buildapp, we are running that command and passing the $URL variable from step 2 to it, and running the whole thing inside of a new container. BUILD_JOB will be set with the new container_id.
 
 .. code-block:: bash
 
@@ -43,7 +43,7 @@ Save the changed we just made in the container to a new image called "_/builds/g
 
 .. code-block:: bash
 
-    WEB_WORKER=$(docker run -p 5000 $BUILD_IMG /usr/local/bin/runapp)
+    WEB_WORKER=$(docker run -d -p 5000 $BUILD_IMG /usr/local/bin/runapp)
 
 Use the new image we just created and create a new container with network port 5000, and return the container id and store in the WEB_WORKER variable.
 
