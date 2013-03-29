@@ -166,14 +166,14 @@ func (container *Container) startPty() error {
 	go func() {
 		defer container.stdout.Close()
 		Debugf("Begin of stdout pipe [startPty]")
-		io.Copy(container.stdout, stdout_master)
+		io.Copy(container.stdout, stdoutMaster)
 		Debugf("End of stdout pipe [startPty]")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
 		Debugf("Begin of stderr pipe [startPty]")
-		io.Copy(container.stderr, stderr_master)
+		io.Copy(container.stderr, stderrMaster)
 		Debugf("End of stderr pipe [startPty]")
 	}()
 
@@ -191,7 +191,7 @@ func (container *Container) startPty() error {
 		go func() {
 			defer container.stdin.Close()
 			Debugf("Begin of stdin pipe [startPty]")
-			io.Copy(stdin_master, container.stdin)
+			io.Copy(stdinMaster, container.stdin)
 			Debugf("End of stdin pipe [startPty]")
 		}()
 	}

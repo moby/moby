@@ -739,53 +739,53 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return fmt.Errorf("No such container: %s", name)
 	}
 
-	var receiving_stdin chan error
+	var receivingStdin chan error
 	if container.Config.OpenStdin {
-		cmd_stdin, err := container.StdinPipe()
+		cmdStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
 
-		receiving_stdin = Go(func() error {
+		receivingStdin = Go(func() error {
 			Debugf("Begin stdin pipe [attach]")
-			_, err := io.Copy(cmd_stdin, stdin)
+			_, err := io.Copy(cmdStdin, stdin)
 			Debugf("End of stdin pipe [attach]")
-			cmd_stdin.Close()
+			cmdStdin.Close()
 			return err
 		})
 
 	}
-	cmd_stderr, err := container.StderrPipe()
+	cmdStderr, err := container.StderrPipe()
 	if err != nil {
 		return err
 	}
-	cmd_stdout, err := container.StdoutPipe()
+	cmdStdout, err := container.StdoutPipe()
 	if err != nil {
 		return err
 	}
-	sending_stdout := Go(func() error {
+	sendingStdout := Go(func() error {
 		Debugf("Begin stdout pipe [attach]")
-		_, err := io.Copy(stdout, cmd_stdout)
+		_, err := io.Copy(stdout, cmdStdout)
 		Debugf("End of stdout pipe [attach]")
 		return err
 	})
-	sending_stderr := Go(func() error {
+	sendingStderr := Go(func() error {
 		Debugf("Begin stderr pipe [attach]")
-		_, err := io.Copy(stdout, cmd_stderr)
+		_, err := io.Copy(stdout, cmdStderr)
 		Debugf("End of stderr pipe [attach]")
 		return err
 	})
-	err_receiving_stdin := <-receiving_stdin
-	err_sending_stdout := <-sending_stdout
-	err_sending_stderr := <-sending_stderr
-	if err_receiving_stdin != nil {
-		return err_sending_stdout
+	errReceivingStdin := <-receivingStdin
+	errSendingStdout := <-sendingStdout
+	errSendingStderr := <-sendingStderr
+	if errReceivingStdin != nil {
+		return errSendingStdout
 	}
-	if err_sending_stdout != nil {
-		return err_sending_stdout
+	if errSendingStdout != nil {
+		return errSendingStdout
 	}
-	if err_sending_stderr != nil {
-		return err_sending_stderr
+	if errSendingStderr != nil {
+		return errSendingStderr
 	}
 	container.Wait()
 	return nil
