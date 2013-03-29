@@ -165,12 +165,16 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
-		io.Copy(container.stdout, stdoutMaster)
+		Debugf("Begin of stdout pipe [startPty]")
+		io.Copy(container.stdout, stdout_master)
+		Debugf("End of stdout pipe [startPty]")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
-		io.Copy(container.stderr, stderrMaster)
+		Debugf("Begin of stderr pipe [startPty]")
+		io.Copy(container.stderr, stderr_master)
+		Debugf("End of stderr pipe [startPty]")
 	}()
 
 	// stdin
@@ -186,7 +190,9 @@ func (container *Container) startPty() error {
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
-			io.Copy(stdinMaster, container.stdin)
+			Debugf("Begin of stdin pipe [startPty]")
+			io.Copy(stdin_master, container.stdin)
+			Debugf("End of stdin pipe [startPty]")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -210,7 +216,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
+			Debugf("Begin of stdin pipe [start]")
 			io.Copy(stdin, container.stdin)
+			Debugf("End of stdin pipe [start]")
 		}()
 	}
 	return container.cmd.Start()
