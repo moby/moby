@@ -55,17 +55,21 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		return nil, err
 	}
 	pipeR, pipeW := io.Pipe()
+	errChan := make(chan []byte)
+	go func() {
+		errText, e := ioutil.ReadAll(stderr)
+		if e != nil {
+			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
+		}
+		errChan <- errText
+	}()
 	go func() {
 		_, err := io.Copy(pipeW, stdout)
 		if err != nil {
 			pipeW.CloseWithError(err)
 		}
-		errText, e := ioutil.ReadAll(stderr)
-		if e != nil {
-			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
-		}
+		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			// FIXME: can this block if stderr outputs more than the size of StderrPipe()'s buffer?
 			pipeW.CloseWithError(errors.New(err.Error() + ": " + string(errText)))
 		} else {
 			pipeW.Close()
