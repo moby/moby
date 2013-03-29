@@ -457,12 +457,10 @@ func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
 	if err := container.cmd.Wait(); err != nil {
-		log.Printf("%s: Error waiting for process: %s", container.Id, err)
+		// Only debug mode as any KILL or exitError != 0 will generate an error
+		Debugf("%s: Process: %s", container.Id, err)
 	}
 	Debugf("Process finished")
-
-	// Close the chan will result in all client waiting to unlock
-	close(container.finished)
 
 	var exitCode int
 	if container.cmd.ProcessState != nil {
@@ -478,6 +476,9 @@ func (container *Container) monitor() {
 	// Report status back
 	container.State.setStopped(exitCode)
 	container.ToDisk()
+
+	// Close the chan will result in all client waiting to unlock
+	close(container.finished)
 }
 
 func (container *Container) kill() error {
