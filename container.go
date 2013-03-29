@@ -41,6 +41,10 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
+	ptyStdinMaster  io.Closer
+	ptyStdoutMaster io.Closer
+	ptyStderrMaster io.Closer
+
 	finished chan bool
 	runtime  *Runtime
 }
@@ -154,44 +158,51 @@ func (container *Container) startPty() error {
 		return err
 	}
 	container.cmd.Stdout = stdoutSlave
+	container.ptyStdoutMaster = stdoutMaster
+
+	Debugf("dockerd pid: %d, pty master: %d, pty slave: %d\n", os.Getpid(), stdoutMaster.Fd(), stdoutSlave.Fd())
 
 	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
 	container.cmd.Stderr = stderrSlave
+	container.ptyStderrMaster = stderrMaster
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
-		Debugf("Begin of stdout pipe [startPty]")
+		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
-		Debugf("End of stdout pipe [startPty]")
+		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
-		Debugf("Begin of stderr pipe [startPty]")
+
+		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
-		Debugf("End of stderr pipe [startPty]")
+		Debugf("[startPty] End of stderr pipe")
 	}()
 
 	// stdin
-	var stdinSlave io.ReadCloser
+	var stdinSlave io.ReadCloser = nil
 	if container.Config.OpenStdin {
 		stdinMaster, stdinSlave, err := pty.Open()
 		if err != nil {
 			return err
 		}
 		container.cmd.Stdin = stdinSlave
+		container.ptyStdinMaster = stdinMaster
+
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
-			defer container.stdin.Close()
-			Debugf("Begin of stdin pipe [startPty]")
+			defer stdinMaster.Close()
+			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(stdinMaster, container.stdin)
-			Debugf("End of stdin pipe [startPty]")
+			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -384,8 +395,10 @@ func (container *Container) cleanup() error {
 	}
 
 	// Make sure all Fds are closed
-	if err := container.stdin.Close(); err != nil {
-		return err
+	if container.stdin != nil {
+		if err := container.stdin.Close(); err != nil {
+			return err
+		}
 	}
 	if err := container.stdinPipe.Close(); err != nil {
 		return err
@@ -395,6 +408,35 @@ func (container *Container) cleanup() error {
 	}
 	if err := container.stderr.Close(); err != nil {
 		return err
+	}
+
+	// FIXME: add a variable in container to know if it is a tty?
+	if container.ptyStdinMaster != nil {
+		if err := container.ptyStdinMaster.Close(); err != nil {
+			return err
+		}
+	}
+	if container.ptyStdoutMaster != nil {
+		if err := container.ptyStdoutMaster.Close(); err != nil {
+			return err
+		}
+	}
+	if container.ptyStderrMaster != nil {
+		if err := container.ptyStderrMaster.Close(); err != nil {
+			return err
+		}
+	}
+
+	if container.cmd.Stdin != nil {
+		if err := container.cmd.Stdin.(io.Closer).Close(); err != nil {
+			return nil
+		}
+	}
+	if err := container.cmd.Stdout.(io.Closer).Close(); err != nil {
+		return nil
+	}
+	if err := container.cmd.Stderr.(io.Closer).Close(); err != nil {
+		return nil
 	}
 
 	if err := container.Unmount(); err != nil {
@@ -408,7 +450,7 @@ func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
 	if err := container.cmd.Wait(); err != nil {
-		log.Printf("%d: Error waiting for process: %s", container.Id, err)
+		log.Printf("%s: Error waiting for process: %s", container.Id, err)
 	}
 	Debugf("Process finished")
 
@@ -423,7 +465,7 @@ func (container *Container) monitor() {
 	}
 
 	if err := container.cleanup(); err != nil {
-		log.Printf("%d: Error cleaning up the container: %s", container.Id, err)
+		log.Printf("%s: Error cleaning up the container: %s", container.Id, err)
 	}
 
 	// Report status back
