@@ -1,11 +1,25 @@
 package docker
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
 )
+
+func TestCmdStreamLargeStderr(t *testing.T) {
+	// This test checks for deadlock; thus, the main failure mode of this test is deadlocking.
+	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
+	out, err := CmdStream(cmd)
+	if err != nil {
+		t.Fatalf("Failed to start command: " + err.Error())
+	}
+	_, err = io.Copy(ioutil.Discard, out)
+	if err != nil {
+		t.Fatalf("Command should not have failed (err=%s...)", err.Error()[:100])
+	}
+}
 
 func TestCmdStreamBad(t *testing.T) {
 	badCmd := exec.Command("/bin/sh", "-c", "echo hello; echo >&2 error couldn\\'t reverse the phase pulser; exit 1")
