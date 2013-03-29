@@ -1,0 +1,16 @@
+# Generate AUTHORS: git log --all --format='%aN <%aE>' | sort -uf | grep -v vagrant-ubuntu-12
+<charles.hooper@dotcloud.com> <chooper@plumata.com> 
+<daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
+<daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
+Guillaume J. Charmes <guillaume.charmes@dotcloud.com> creack <charmes.guillaume@gmail.com>
+<guillaume.charmes@dotcloud.com> <guillaume@dotcloud.com>
+<kencochrane@gmail.com> <KenCochrane@gmail.com>
+<sridharr@activestate.com> <github@srid.name>
+Thatcher Peskens <thatcher@dotcloud.com> dhrp <thatcher@dotcloud.com>
+Thatcher Peskens <thatcher@dotcloud.com> dhrp <thatcher@gmx.net>
+Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> jpetazzo <jerome.petazzoni@dotcloud.com>
+Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> <jp@enix.org>
+Joffrey F <joffrey@dotcloud.com>
+<joffrey@dotcloud.com> <f.joffrey@gmail.com>
+Tim Terhorst <mynamewastaken+git@gmail.com>
+Andy Smith <github@anarkystic.com>
