@@ -42,6 +42,9 @@ func Untar(archive io.Reader, path string) error {
 	return nil
 }
 
+// CmdStream executes a command, and returns its stdout as a stream.
+// If the command fails to run or doesn't complete successfully, an error
+// will be returned, including anything written on stderr.
 func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
