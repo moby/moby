@@ -174,12 +174,12 @@ func (r *bufReader) drain() {
 	buf := make([]byte, 1024)
 	for {
 		n, err := r.reader.Read(buf)
+		r.l.Lock()
 		if err != nil {
 			r.err = err
 		} else {
 			r.buf.Write(buf[0:n])
 		}
-		r.l.Lock()
 		r.wait.Signal()
 		r.l.Unlock()
 		if err != nil {
@@ -189,6 +189,8 @@ func (r *bufReader) drain() {
 }
 
 func (r *bufReader) Read(p []byte) (n int, err error) {
+	r.l.Lock()
+	defer r.l.Unlock()
 	for {
 		n, err = r.buf.Read(p)
 		if n > 0 {
@@ -197,9 +199,7 @@ func (r *bufReader) Read(p []byte) (n int, err error) {
 		if r.err != nil {
 			return 0, r.err
 		}
-		r.l.Lock()
 		r.wait.Wait()
-		r.l.Unlock()
 	}
 	return
 }
