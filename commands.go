@@ -736,17 +736,20 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	name := cmd.Arg(0)
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	}
 
+	var receiving_stdin chan error
 	if container.Config.OpenStdin {
 		cmd_stdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
 
-		Go(func() error {
+		receiving_stdin = Go(func() error {
+			Debugf("Begin stdin pipe [attach]")
 			_, err := io.Copy(cmd_stdin, stdin)
+			Debugf("End of stdin pipe [attach]")
 			cmd_stdin.Close()
 			return err
 		})
@@ -761,15 +764,23 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return err
 	}
 	sending_stdout := Go(func() error {
+		Debugf("Begin stdout pipe [attach]")
 		_, err := io.Copy(stdout, cmd_stdout)
+		Debugf("End of stdout pipe [attach]")
 		return err
 	})
 	sending_stderr := Go(func() error {
+		Debugf("Begin stderr pipe [attach]")
 		_, err := io.Copy(stdout, cmd_stderr)
+		Debugf("End of stderr pipe [attach]")
 		return err
 	})
+	err_receiving_stdin := <-receiving_stdin
 	err_sending_stdout := <-sending_stdout
 	err_sending_stderr := <-sending_stderr
+	if err_receiving_stdin != nil {
+		return err_sending_stdout
+	}
 	if err_sending_stdout != nil {
 		return err_sending_stdout
 	}
