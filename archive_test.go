@@ -6,19 +6,27 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 func TestCmdStreamLargeStderr(t *testing.T) {
-	// This test checks for deadlock; thus, the main failure mode of this test is deadlocking.
-	// FIXME implement a timeout to avoid blocking the whole test suite when this test fails
 	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
 	out, err := CmdStream(cmd)
 	if err != nil {
 		t.Fatalf("Failed to start command: " + err.Error())
 	}
-	_, err = io.Copy(ioutil.Discard, out)
-	if err != nil {
-		t.Fatalf("Command should not have failed (err=%s...)", err.Error()[:100])
+	errCh := make(chan error)
+	go func() {
+		_, err := io.Copy(ioutil.Discard, out)
+		errCh <- err
+	}()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("Command should not have failed (err=%s...)", err.Error()[:100])
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("Command did not complete in 5 seconds; probable deadlock")
 	}
 }
 
