@@ -10,6 +10,7 @@ import (
 
 func TestCmdStreamLargeStderr(t *testing.T) {
 	// This test checks for deadlock; thus, the main failure mode of this test is deadlocking.
+	// FIXME implement a timeout to avoid blocking the whole test suite when this test fails
 	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
 	out, err := CmdStream(cmd)
 	if err != nil {
