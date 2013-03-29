@@ -842,17 +842,28 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 	}
-	if config.OpenStdin {
-		cmdStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		if !config.Detach {
-			Go(func() error {
-				_, err := io.Copy(cmdStdin, stdin)
-				cmdStdin.Close()
+
+	// Run the container
+	if err := container.Start(); err != nil {
+		return err
+	}
+
+	if config.Detach {
+		// If detach mode, just output the container id
+		fmt.Fprintln(stdout, container.Id)
+	} else {
+		if config.OpenStdin {
+			cmd_stdin, err := container.StdinPipe()
+			if err != nil {
 				return err
-			})
+			}
+			if !config.Detach {
+				Go(func() error {
+					_, err := io.Copy(cmd_stdin, stdin)
+					cmd_stdin.Close()
+					return err
+				})
+			}
 		}
 	}
 	// Run the container
@@ -885,11 +896,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return errSendingStderr
 		}
 		container.Wait()
-	} else {
-		if err := container.Start(); err != nil {
-			return err
-		}
-		fmt.Fprintln(stdout, container.Id)
 	}
 	return nil
 }
