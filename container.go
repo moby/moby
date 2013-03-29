@@ -355,8 +355,15 @@ func (container *Container) releaseNetwork() error {
 }
 
 func (container *Container) monitor() {
+
 	// Wait for the program to exit
-	container.cmd.Wait()
+	Debugf("Waiting for process")
+	if err := container.cmd.Wait(); err != nil {
+		Debugf("Error waiting for process: %s", err)
+		return
+	}
+	Debugf("Process finished")
+
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
