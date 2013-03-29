@@ -245,7 +245,7 @@ func (container *Container) Start() error {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	container.cmd = exec.Command("/usr/bin/lxc-start", params...)
+	container.cmd = exec.Command("lxc-start", params...)
 
 	// Setup environment
 	container.cmd.Env = append(
@@ -396,7 +396,7 @@ func (container *Container) Stop() error {
 	}
 
 	// 1. Send a SIGTERM
-	if output, err := exec.Command("/usr/bin/lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
+	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
 		log.Printf(string(output))
 		log.Printf("Failed to send SIGTERM to the process, force killing")
 		if err := container.Kill(); err != nil {
