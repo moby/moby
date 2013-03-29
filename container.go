@@ -380,15 +380,19 @@ func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
 	if err := container.cmd.Wait(); err != nil {
-		Debugf("Error waiting for process: %s", err)
-		return
+		log.Printf("%d: Error waiting for process: %s", container.Id, err)
 	}
 	Debugf("Process finished")
 
 	// Close the chan will result in all client waiting to unlock
 	close(container.finished)
 
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	var exitCode int
+	if container.cmd.ProcessState != nil {
+		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	} else {
+		exitCode = -1
+	}
 
 	// Cleanup
 	if err := container.releaseNetwork(); err != nil {
@@ -396,6 +400,7 @@ func (container *Container) monitor() {
 	}
 	container.stdout.Close()
 	container.stderr.Close()
+
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
