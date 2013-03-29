@@ -56,6 +56,7 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 	}
 	pipeR, pipeW := io.Pipe()
 	errChan := make(chan []byte)
+	// Collect stderr, we will use it in case of an error
 	go func() {
 		errText, e := ioutil.ReadAll(stderr)
 		if e != nil {
@@ -63,6 +64,7 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		}
 		errChan <- errText
 	}()
+	// Copy stdout to the returned pipe
 	go func() {
 		_, err := io.Copy(pipeW, stdout)
 		if err != nil {
@@ -75,6 +77,7 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 			pipeW.Close()
 		}
 	}()
+	// Run the command and return the pipe
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
