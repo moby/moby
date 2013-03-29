@@ -165,12 +165,16 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
+		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
+		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
+		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
+		Debugf("[startPty] End of stderr pipe")
 	}()
 
 	// stdin
@@ -186,7 +190,9 @@ func (container *Container) startPty() error {
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
+			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(stdinMaster, container.stdin)
+			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -210,7 +216,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
+			Debugf("Begin of stdin pipe [start]")
 			io.Copy(stdin, container.stdin)
+			Debugf("End of stdin pipe [start]")
 		}()
 	}
 	return container.cmd.Start()
@@ -348,7 +356,10 @@ func (container *Container) releaseNetwork() error {
 
 func (container *Container) monitor() {
 	// Wait for the program to exit
+	Debugf("Waiting for process")
 	container.cmd.Wait()
+	Debugf("Process finished")
+
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup

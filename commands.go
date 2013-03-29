@@ -798,20 +798,35 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
+		go func() {
+			Debugf("Begin stdin pipe [attach]")
+			io.Copy(cStdin, stdin)
+			wg.Add(-1)
+			Debugf("End of stdin pipe [attach]")
+		}()
 	}
 	cStdout, err := container.StdoutPipe()
 	if err != nil {
 		return err
 	}
 	wg.Add(1)
-	go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
+	go func() {
+		Debugf("Begin stdout pipe [attach]")
+		io.Copy(stdout, cStdout)
+		wg.Add(-1)
+		Debugf("End of stdout pipe [attach]")
+	}()
 	cStderr, err := container.StderrPipe()
 	if err != nil {
 		return err
 	}
 	wg.Add(1)
-	go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
+	go func() {
+		Debugf("Begin stderr pipe [attach]")
+		io.Copy(stdout, cStderr)
+		wg.Add(-1)
+		Debugf("End of stderr pipe [attach]")
+	}()
 	wg.Wait()
 	return nil
 }
