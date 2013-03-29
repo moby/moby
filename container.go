@@ -263,7 +263,27 @@ func (container *Container) Start() error {
 		container.Config.Env...,
 	)
 
+	// Create a chan triggered when the process dies
 	container.finished = make(chan bool)
+
+	// Attach to stdout and stderr
+	container.stderr = newWriteBroadcaster()
+	container.stdout = newWriteBroadcaster()
+
+	// Setup logging of stdout and stderr to disk
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+		return err
+	}
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+		return err
+	}
+
+	// Attach to stdin
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	} else {
+		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
+	}
 
 	var err error
 	if container.Config.Tty {
@@ -378,11 +398,6 @@ func (container *Container) monitor() {
 	container.stderr.Close()
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
-	}
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
 	// Report status back
