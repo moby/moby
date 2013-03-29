@@ -775,6 +775,9 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		Debugf("End of stderr pipe [attach]")
 		return err
 	})
+
+	container.Wait()
+
 	errReceivingStdin := <-receivingStdin
 	errSendingStdout := <-sendingStdout
 	errSendingStderr := <-sendingStderr
@@ -787,7 +790,6 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if errSendingStderr != nil {
 		return errSendingStderr
 	}
-	container.Wait()
 	return nil
 }
 

@@ -41,7 +41,8 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	runtime *Runtime
+	finished chan bool
+	runtime  *Runtime
 }
 
 type Config struct {
@@ -279,6 +280,7 @@ func (container *Container) Start() error {
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
 	container.ToDisk()
+
 	go container.monitor()
 	return nil
 }
@@ -353,7 +355,6 @@ func (container *Container) releaseNetwork() error {
 }
 
 func (container *Container) monitor() {
-
 	// Wait for the program to exit
 	Debugf("Waiting for process")
 	if err := container.cmd.Wait(); err != nil {
@@ -361,6 +362,9 @@ func (container *Container) monitor() {
 		return
 	}
 	Debugf("Process finished")
+
+	close(container.finished)
+	container.finished = make(chan bool)
 
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
@@ -439,10 +443,7 @@ func (container *Container) Restart() error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-
-	for container.State.Running {
-		container.State.wait()
-	}
+	<-container.finished
 	return container.State.ExitCode
 }
 

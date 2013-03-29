@@ -84,6 +84,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		Config:          config,
 		Image:           img.Id, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
+		finished:        make(chan bool),
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 	}
