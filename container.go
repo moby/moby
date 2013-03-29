@@ -376,6 +376,34 @@ func (container *Container) releaseNetwork() error {
 	return err
 }
 
+func (container *Container) cleanup() error {
+	// FIXME: discard error and try to clean as much as possible?
+
+	if err := container.releaseNetwork(); err != nil {
+		return err
+	}
+
+	// Make sure all Fds are closed
+	if err := container.stdin.Close(); err != nil {
+		return err
+	}
+	if err := container.stdinPipe.Close(); err != nil {
+		return err
+	}
+	if err := container.stdout.Close(); err != nil {
+		return err
+	}
+	if err := container.stderr.Close(); err != nil {
+		return err
+	}
+
+	if err := container.Unmount(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
@@ -394,15 +422,8 @@ func (container *Container) monitor() {
 		exitCode = -1
 	}
 
-	// Cleanup
-	if err := container.releaseNetwork(); err != nil {
-		log.Printf("%v: Failed to release network: %v", container.Id, err)
-	}
-	container.stdout.Close()
-	container.stderr.Close()
-
-	if err := container.Unmount(); err != nil {
-		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
+	if err := container.cleanup(); err != nil {
+		log.Printf("%d: Error cleaning up the container: %s", container.Id, err)
 	}
 
 	// Report status back
