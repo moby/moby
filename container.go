@@ -66,16 +66,16 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		cmd.SetOutput(ioutil.Discard)
 	}
 
-	fl_user := cmd.String("u", "", "Username or UID")
-	fl_detach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
-	fl_stdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
-	fl_tty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	fl_memory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	var fl_ports ports
+	flUser := cmd.String("u", "", "Username or UID")
+	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
+	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
+	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	var flPorts ports
 
-	cmd.Var(&fl_ports, "p", "Map a network port to the container")
-	var fl_env ListOpts
-	cmd.Var(&fl_env, "e", "Set environment variables")
+	cmd.Var(&flPorts, "p", "Map a network port to the container")
+	var flEnv ListOpts
+	cmd.Var(&flEnv, "e", "Set environment variables")
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
@@ -89,13 +89,13 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		runCmd = parsedArgs[1:]
 	}
 	config := &Config{
-		Ports:     fl_ports,
-		User:      *fl_user,
-		Tty:       *fl_tty,
-		OpenStdin: *fl_stdin,
-		Memory:    *fl_memory,
-		Detach:    *fl_detach,
-		Env:       fl_env,
+		Ports:     flPorts,
+		User:      *flUser,
+		Tty:       *flTty,
+		OpenStdin: *flStdin,
+		Memory:    *flMemory,
+		Detach:    *flDetach,
+		Env:       flEnv,
 		Cmd:       runCmd,
 		Image:     image,
 	}
@@ -150,52 +150,52 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) startPty() error {
-	stdout_master, stdout_slave, err := pty.Open()
+	stdoutMaster, stdoutSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
-	container.cmd.Stdout = stdout_slave
+	container.cmd.Stdout = stdoutSlave
 
-	stderr_master, stderr_slave, err := pty.Open()
+	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
-	container.cmd.Stderr = stderr_slave
+	container.cmd.Stderr = stderrSlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
-		io.Copy(container.stdout, stdout_master)
+		io.Copy(container.stdout, stdoutMaster)
 	}()
 
 	go func() {
 		defer container.stderr.Close()
-		io.Copy(container.stderr, stderr_master)
+		io.Copy(container.stderr, stderrMaster)
 	}()
 
 	// stdin
-	var stdin_slave io.ReadCloser
+	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		stdin_master, stdin_slave, err := pty.Open()
+		stdinMaster, stdinSlave, err := pty.Open()
 		if err != nil {
 			return err
 		}
-		container.cmd.Stdin = stdin_slave
+		container.cmd.Stdin = stdinSlave
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
-			io.Copy(stdin_master, container.stdin)
+			io.Copy(stdinMaster, container.stdin)
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
 		return err
 	}
-	stdout_slave.Close()
-	stderr_slave.Close()
-	if stdin_slave != nil {
-		stdin_slave.Close()
+	stdoutSlave.Close()
+	stderrSlave.Close()
+	if stdinSlave != nil {
+		stdinSlave.Close()
 	}
 	return nil
 }

@@ -234,9 +234,9 @@ func NewRuntime() (*Runtime, error) {
 }
 
 func NewRuntimeFromDirectory(root string) (*Runtime, error) {
-	runtime_repo := path.Join(root, "containers")
+	runtimeRepo := path.Join(root, "containers")
 
-	if err := os.MkdirAll(runtime_repo, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -260,7 +260,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 
 	runtime := &Runtime{
 		root:           root,
-		repository:     runtime_repo,
+		repository:     runtimeRepo,
 		containers:     list.New(),
 		networkManager: netManager,
 		graph:          g,

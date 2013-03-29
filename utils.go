@@ -63,25 +63,25 @@ func Debugf(format string, a ...interface{}) {
 
 // Reader with progress bar
 type progressReader struct {
-	reader        io.ReadCloser // Stream to read from
-	output        io.Writer     // Where to send progress bar to
-	read_total    int           // Expected stream length (bytes)
-	read_progress int           // How much has been read so far (bytes)
-	last_update   int           // How many bytes read at least update
+	reader       io.ReadCloser // Stream to read from
+	output       io.Writer     // Where to send progress bar to
+	readTotal    int           // Expected stream length (bytes)
+	readProgress int           // How much has been read so far (bytes)
+	lastUpdate   int           // How many bytes read at least update
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
-	r.read_progress += read
+	r.readProgress += read
 
 	// Only update progress for every 1% read
-	update_every := int(0.01 * float64(r.read_total))
-	if r.read_progress-r.last_update > update_every || r.read_progress == r.read_total {
+	updateEvery := int(0.01 * float64(r.readTotal))
+	if r.readProgress-r.lastUpdate > updateEvery || r.readProgress == r.readTotal {
 		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r",
-			r.read_progress,
-			r.read_total,
-			float64(r.read_progress)/float64(r.read_total)*100)
-		r.last_update = r.read_progress
+			r.readProgress,
+			r.readTotal,
+			float64(r.readProgress)/float64(r.readTotal)*100)
+		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
 	if err == io.EOF {
