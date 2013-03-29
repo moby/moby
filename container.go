@@ -40,9 +40,7 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	stdoutLog *os.File
-	stderrLog *os.File
-	runtime   *Runtime
+	runtime *Runtime
 }
 
 type Config struct {
