@@ -1,5 +1,5 @@
 Format: http://dep.debian.net/deps/dep5
-Upstream-Name: dotcloud-docker
+Upstream-Name: docker
 Source: https://github.com/dotcloud/docker
 
 Files: *
