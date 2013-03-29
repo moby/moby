@@ -356,7 +356,10 @@ func (container *Container) releaseNetwork() error {
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
-	container.cmd.Wait()
+	if err := container.cmd.Wait(); err != nil {
+		// Discard the error as any signals or non 0 returns will generate an error
+		Debugf("%s: Process: %s", container.Id, err)
+	}
 	Debugf("Process finished")
 
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
@@ -365,8 +368,12 @@ func (container *Container) monitor() {
 	if err := container.releaseNetwork(); err != nil {
 		log.Printf("%v: Failed to release network: %v", container.Id, err)
 	}
-	container.stdout.Close()
-	container.stderr.Close()
+	if err := container.stdout.Close(); err != nil {
+		Debugf("%s: Error close stdout: %s", container.Id, err)
+	}
+	if err := container.stderr.Close(); err != nil {
+		Debugf("%s: Error close stderr: %s", container.Id, err)
+	}
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
@@ -378,7 +385,9 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
+	}
 }
 
 func (container *Container) kill() error {
