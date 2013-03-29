@@ -192,11 +192,10 @@ echo "Daemon received: $(docker logs $JOB)"
 Contributing to Docker
 ======================
 
-Want to hack on Docker? Awesome! There are instructions to get you started on the website: http://docker.io/documentation/contributing/contributing.html 
+Want to hack on Docker? Awesome! There are instructions to get you started on the website: http://docs.docker.io/en/latest/contributing/contributing/
 
 They are probably not perfect, please let us know if anything feels wrong or incomplete.
 
-### Pull requests are always welcome
 
 Note
 ----
@@ -205,26 +204,6 @@ We also keep the documentation in this repository. The website documentation is 
 Please find it under docs/sources/ and read more about it https://github.com/dotcloud/docker/master/docs/README.md
 
 Please feel free to fix / update the documentation and send us pull requests. More tutorials are also welcome.
-
-### Discuss your design on the mailing list
-
-We recommend discussing your plans [on the mailing list](https://groups.google.com/forum/?fromgroups#!forum/docker-club) before starting to code - especially for more ambitious contributions. This gives other contributors a chance to point
-you in the right direction, give feedback on your design, and maybe point out if someone else is working on the same thing.
-
-### Create issues...
-
-Any significant improvement should be documented as [a github issue](https://github.com/dotcloud/docker/issues) before anybody starts working on it.
-
-### ...but check for existing issues first!
-
-Please take a moment to check that an issue doesn't already exist documenting your bug report or improvement proposal.
-If it does, it never hurts to add a quick "+1" or "I have this problem too". This will help prioritize the most common problems and requests.
-
-
-### Write tests
-
-Golang has a great testing suite built in: use it! Take a look at existing tests for inspiration.
-
 
 
 Setting up a dev environment
