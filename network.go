@@ -68,7 +68,11 @@ func networkSize(mask net.IPMask) (int32, error) {
 
 // Wrapper around the iptables command
 func iptables(args ...string) error {
-	if err := exec.Command("/sbin/iptables", args...).Run(); err != nil {
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		return fmt.Errorf("command not found: iptables")
+	}
+	if err := exec.Command(path, args...).Run(); err != nil {
 		return fmt.Errorf("iptables failed: iptables %v", strings.Join(args, " "))
 	}
 	return nil
@@ -120,13 +124,13 @@ func (mapper *PortMapper) cleanup() error {
 
 func (mapper *PortMapper) setup() error {
 	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
-		return errors.New("Unable to setup port networking: Failed to create DOCKER chain")
+		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
 	}
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-j", "DOCKER"); err != nil {
-		return errors.New("Unable to setup port networking: Failed to inject docker in PREROUTING chain")
+		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
 	if err := iptables("-t", "nat", "-A", "OUTPUT", "-j", "DOCKER"); err != nil {
-		return errors.New("Unable to setup port networking: Failed to inject docker in OUTPUT chain")
+		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 	}
 	return nil
 }
