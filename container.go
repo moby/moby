@@ -342,16 +342,25 @@ func (container *Container) Output() (output []byte, err error) {
 // active process.
 //
 func (container *Container) StdinPipe() (io.WriteCloser, error) {
+	if container.stdinPipe == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stdin")
+	}
 	return container.stdinPipe, nil
 }
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
+	if container.stdout == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stdout")
+	}
 	reader, writer := io.Pipe()
 	container.stdout.AddWriter(writer)
 	return newBufReader(reader), nil
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
+	if container.stderr == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stderr")
+	}
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer)
 	return newBufReader(reader), nil
