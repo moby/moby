@@ -726,10 +726,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "attach", "[OPTIONS]", "Attach to a running container")
-	flStdin := cmd.Bool("i", false, "Attach to stdin")
-	flStdout := cmd.Bool("o", true, "Attach to stdout")
-	flStderr := cmd.Bool("e", true, "Attach to stderr")
+	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -743,7 +740,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return errors.New("No such container: " + name)
 	}
 	var wg sync.WaitGroup
-	if *flStdin {
+	if container.Config.OpenStdin {
 		cStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
@@ -751,22 +748,18 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		wg.Add(1)
 		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
 	}
-	if *flStdout {
-		cStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
+	cStdout, err := container.StdoutPipe()
+	if err != nil {
+		return err
 	}
-	if *flStderr {
-		cStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
+	wg.Add(1)
+	go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
+	cStderr, err := container.StderrPipe()
+	if err != nil {
+		return err
 	}
+	wg.Add(1)
+	go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
 	wg.Wait()
 	return nil
 }
