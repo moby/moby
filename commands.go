@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 )
@@ -726,10 +725,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "attach", "[OPTIONS]", "Attach to a running container")
-	flStdin := cmd.Bool("i", false, "Attach to stdin")
-	flStdout := cmd.Bool("o", true, "Attach to stdout")
-	flStderr := cmd.Bool("e", true, "Attach to stderr")
+	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -740,34 +736,62 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	name := cmd.Arg(0)
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	}
-	var wg sync.WaitGroup
-	if *flStdin {
-		cStdin, err := container.StdinPipe()
+
+	var receivingStdin chan error
+	if container.Config.OpenStdin {
+		cmdStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
-		wg.Add(1)
-		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
-	}
-	if *flStdout {
-		cStdout, err := container.StdoutPipe()
-		if err != nil {
+
+		receivingStdin = Go(func() error {
+			defer cmdStdin.Close()
+			Debugf("Begin stdin pipe [attach]")
+			_, err := io.Copy(cmdStdin, stdin)
+			Debugf("End of stdin pipe [attach]")
 			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
+		})
+
 	}
-	if *flStderr {
-		cStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
+	cmdStderr, err := container.StderrPipe()
+	if err != nil {
+		return err
 	}
-	wg.Wait()
+	cmdStdout, err := container.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	sendingStdout := Go(func() error {
+		defer stdout.(io.Closer).Close()
+		Debugf("Begin stdout pipe [attach]")
+		_, err := io.Copy(stdout, cmdStdout)
+		Debugf("End of stdout pipe [attach]")
+		return err
+	})
+	sendingStderr := Go(func() error {
+		defer stdout.(io.Closer).Close()
+		Debugf("Begin stderr pipe [attach]")
+		_, err := io.Copy(stdout, cmdStderr)
+		Debugf("End of stderr pipe [attach]")
+		return err
+	})
+
+	container.Wait()
+
+	errReceivingStdin := <-receivingStdin
+	errSendingStdout := <-sendingStdout
+	errSendingStderr := <-sendingStderr
+	if errReceivingStdin != nil {
+		return errSendingStdout
+	}
+	if errSendingStdout != nil {
+		return errSendingStdout
+	}
+	if errSendingStderr != nil {
+		return errSendingStderr
+	}
 	return nil
 }
 
@@ -842,55 +866,18 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 	}
-	if config.OpenStdin {
-		cmdStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		if !config.Detach {
-			Go(func() error {
-				_, err := io.Copy(cmdStdin, stdin)
-				cmdStdin.Close()
-				return err
-			})
-		}
-	}
+
 	// Run the container
-	if !config.Detach {
-		cmdStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		cmdStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		if err := container.Start(); err != nil {
-			return err
-		}
-		sendingStdout := Go(func() error {
-			_, err := io.Copy(stdout, cmdStdout)
-			return err
-		})
-		sendingStderr := Go(func() error {
-			_, err := io.Copy(stdout, cmdStderr)
-			return err
-		})
-		errSendingStdout := <-sendingStdout
-		errSendingStderr := <-sendingStderr
-		if errSendingStdout != nil {
-			return errSendingStdout
-		}
-		if errSendingStderr != nil {
-			return errSendingStderr
-		}
-		container.Wait()
-	} else {
-		if err := container.Start(); err != nil {
-			return err
-		}
-		fmt.Fprintln(stdout, container.Id)
+	if err := container.Start(); err != nil {
+		return err
 	}
+
+	// If not detached, then attach
+	if !config.Detach {
+		return srv.CmdAttach(stdin, stdout, container.Id)
+	}
+	// If detach mode, just output the container id
+	fmt.Fprintln(stdout, container.Id)
 	return nil
 }
 

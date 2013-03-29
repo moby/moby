@@ -41,9 +41,12 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	stdoutLog *os.File
-	stderrLog *os.File
-	runtime   *Runtime
+	ptyStdinMaster  io.Closer
+	ptyStdoutMaster io.Closer
+	ptyStderrMaster io.Closer
+
+	finished chan bool
+	runtime  *Runtime
 }
 
 type Config struct {
@@ -155,38 +158,49 @@ func (container *Container) startPty() error {
 		return err
 	}
 	container.cmd.Stdout = stdoutSlave
+	container.ptyStdoutMaster = stdoutMaster
 
 	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
 	container.cmd.Stderr = stderrSlave
+	container.ptyStderrMaster = stderrMaster
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
+		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
+		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
+
+		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
+		Debugf("[startPty] End of stderr pipe")
 	}()
 
 	// stdin
-	var stdinSlave io.ReadCloser
+	var stdinSlave io.ReadCloser = nil
 	if container.Config.OpenStdin {
 		stdinMaster, stdinSlave, err := pty.Open()
 		if err != nil {
 			return err
 		}
 		container.cmd.Stdin = stdinSlave
+		container.ptyStdinMaster = stdinMaster
+
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
-			defer container.stdin.Close()
+			defer stdinMaster.Close()
+			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(stdinMaster, container.stdin)
+			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -210,7 +224,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
+			Debugf("Begin of stdin pipe [start]")
 			io.Copy(stdin, container.stdin)
+			Debugf("End of stdin pipe [start]")
 		}()
 	}
 	return container.cmd.Start()
@@ -256,6 +272,28 @@ func (container *Container) Start() error {
 		container.Config.Env...,
 	)
 
+	// Create a chan triggered when the process dies
+	container.finished = make(chan bool)
+
+	// Attach to stdout and stderr
+	container.stderr = newWriteBroadcaster()
+	container.stdout = newWriteBroadcaster()
+
+	// Setup logging of stdout and stderr to disk
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+		return err
+	}
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+		return err
+	}
+
+	// Attach to stdin
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	} else {
+		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
+	}
+
 	var err error
 	if container.Config.Tty {
 		container.cmd.Env = append(
@@ -273,6 +311,7 @@ func (container *Container) Start() error {
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
 	container.ToDisk()
+
 	go container.monitor()
 	return nil
 }
@@ -286,14 +325,14 @@ func (container *Container) Run() error {
 }
 
 func (container *Container) Output() (output []byte, err error) {
+	if err := container.Start(); err != nil {
+		return nil, err
+	}
 	pipe, err := container.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	defer pipe.Close()
-	if err := container.Start(); err != nil {
-		return nil, err
-	}
 	output, err = ioutil.ReadAll(pipe)
 	container.Wait()
 	return output, err
@@ -303,16 +342,25 @@ func (container *Container) Output() (output []byte, err error) {
 // active process.
 //
 func (container *Container) StdinPipe() (io.WriteCloser, error) {
+	if container.stdinPipe == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stdin")
+	}
 	return container.stdinPipe, nil
 }
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
+	if container.stdout == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stdout")
+	}
 	reader, writer := io.Pipe()
 	container.stdout.AddWriter(writer)
 	return newBufReader(reader), nil
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
+	if container.stderr == nil {
+		return nil, fmt.Errorf("Trying to pipe non existing stderr")
+	}
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer)
 	return newBufReader(reader), nil
@@ -346,29 +394,91 @@ func (container *Container) releaseNetwork() error {
 	return err
 }
 
+func (container *Container) cleanup() error {
+	// FIXME: discard error and try to clean as much as possible?
+
+	if err := container.releaseNetwork(); err != nil {
+		return err
+	}
+
+	// Make sure all Fds are closed
+	if container.stdin != nil {
+		if err := container.stdin.Close(); err != nil {
+			return err
+		}
+	}
+	if err := container.stdinPipe.Close(); err != nil {
+		return err
+	}
+	if err := container.stdout.Close(); err != nil {
+		return err
+	}
+	if err := container.stderr.Close(); err != nil {
+		return err
+	}
+
+	// FIXME: add a variable in container to know if it is a tty?
+	if container.ptyStdinMaster != nil {
+		if err := container.ptyStdinMaster.Close(); err != nil {
+			return err
+		}
+	}
+	if container.ptyStdoutMaster != nil {
+		if err := container.ptyStdoutMaster.Close(); err != nil {
+			return err
+		}
+	}
+	if container.ptyStderrMaster != nil {
+		if err := container.ptyStderrMaster.Close(); err != nil {
+			return err
+		}
+	}
+
+	if container.cmd.Stdin != nil {
+		if err := container.cmd.Stdin.(io.Closer).Close(); err != nil {
+			return nil
+		}
+	}
+	if err := container.cmd.Stdout.(io.Closer).Close(); err != nil {
+		return nil
+	}
+	if err := container.cmd.Stderr.(io.Closer).Close(); err != nil {
+		return nil
+	}
+
+	if err := container.Unmount(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (container *Container) monitor() {
 	// Wait for the program to exit
-	container.cmd.Wait()
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-
-	// Cleanup
-	if err := container.releaseNetwork(); err != nil {
-		log.Printf("%v: Failed to release network: %v", container.Id, err)
+	Debugf("Waiting for process")
+	if err := container.cmd.Wait(); err != nil {
+		// Only debug mode as any KILL or exitError != 0 will generate an error
+		Debugf("%s: Process: %s", container.Id, err)
 	}
-	container.stdout.Close()
-	container.stderr.Close()
-	if err := container.Unmount(); err != nil {
-		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
+	Debugf("Process finished")
+
+	var exitCode int
+	if container.cmd.ProcessState != nil {
+		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	} else {
+		exitCode = -1
 	}
 
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
+	if err := container.cleanup(); err != nil {
+		log.Printf("%s: Error cleaning up the container: %s", container.Id, err)
 	}
 
 	// Report status back
 	container.State.setStopped(exitCode)
 	container.ToDisk()
+
+	// Close the chan will result in all client waiting to unlock
+	close(container.finished)
 }
 
 func (container *Container) kill() error {
@@ -426,10 +536,7 @@ func (container *Container) Restart() error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-
-	for container.State.Running {
-		container.State.wait()
-	}
+	<-container.finished
 	return container.State.ExitCode
 }
 

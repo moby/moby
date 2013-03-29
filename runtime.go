@@ -4,12 +4,10 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -127,26 +125,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 	container.runtime = runtime
-	// Setup state lock (formerly in newState()
-	lock := new(sync.Mutex)
-	container.State.stateChangeLock = lock
-	container.State.stateChangeCond = sync.NewCond(lock)
-	// Attach to stdout and stderr
-	container.stderr = newWriteBroadcaster()
-	container.stdout = newWriteBroadcaster()
-	// Attach to stdin
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
-	}
-	// Setup logging of stdout and stderr to disk
-	if err := runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
-		return err
-	}
-	if err := runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
-		return err
-	}
+
 	// done
 	runtime.containers.PushBack(container)
 	return nil
@@ -157,7 +136,7 @@ func (runtime *Runtime) LogToDisk(src *writeBroadcaster, dst string) error {
 	if err != nil {
 		return err
 	}
-	src.AddWriter(NopWriteCloser(log))
+	src.AddWriter(log)
 	return nil
 }
 
