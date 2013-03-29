@@ -22,7 +22,7 @@ func (s *State) String() string {
 
 func (s *State) setRunning(pid int) {
 	s.Running = true
-	s.ExitCode = 0
+	s.ExitCode = -1
 	s.Pid = pid
 	s.StartedAt = time.Now()
 }
