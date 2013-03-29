@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 )
 
 func main() {
@@ -47,12 +48,21 @@ func daemon() error {
 func runCommand(args []string) error {
 	var oldState *term.State
 	var err error
-	if term.IsTerminal(0) && os.Getenv("NORAW") == "" {
-		oldState, err = term.MakeRaw(0)
+	if term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
+		oldState, err = term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			return err
 		}
-		defer term.Restore(0, oldState)
+		defer term.Restore(int(os.Stdin.Fd()), oldState)
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for _ = range c {
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				log.Printf("\nSIGINT received\n")
+				os.Exit(0)
+			}
+		}()
 	}
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
@@ -73,7 +83,7 @@ func runCommand(args []string) error {
 		if err := <-receiveStdout; err != nil {
 			return err
 		}
-		if !term.IsTerminal(0) {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
 			if err := <-sendStdin; err != nil {
 				return err
 			}
@@ -88,7 +98,7 @@ func runCommand(args []string) error {
 		}
 	}
 	if oldState != nil {
-		term.Restore(0, oldState)
+		term.Restore(int(os.Stdin.Fd()), oldState)
 	}
 	return nil
 }
