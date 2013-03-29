@@ -325,14 +325,14 @@ func (container *Container) Run() error {
 }
 
 func (container *Container) Output() (output []byte, err error) {
+	if err := container.Start(); err != nil {
+		return nil, err
+	}
 	pipe, err := container.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	defer pipe.Close()
-	if err := container.Start(); err != nil {
-		return nil, err
-	}
 	output, err = ioutil.ReadAll(pipe)
 	container.Wait()
 	return output, err
