@@ -90,12 +90,15 @@ func TestCommitRun(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	stderr, err := container2.StderrPipe()
-	if err := container2.Start(); err != nil {
+	if err != nil {
 		t.Fatal(err)
 	}
 	container2.Wait()
@@ -107,8 +110,12 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stdout.Close()
-	stderr.Close()
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderr.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello\n" {
 		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", string(output), string(output2))
 	}
@@ -217,11 +224,9 @@ func TestExitCode(t *testing.T) {
 	defer nuke(runtime)
 
 	trueContainer, err := runtime.Create(&Config{
-
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/true", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,12 +234,14 @@ func TestExitCode(t *testing.T) {
 	if err := trueContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
+	if trueContainer.State.ExitCode != 0 {
+		t.Errorf("Unexpected exit code %d (expected 0)", trueContainer.State.ExitCode)
+	}
 
 	falseContainer, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/false", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,13 +249,8 @@ func TestExitCode(t *testing.T) {
 	if err := falseContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
-
-	if trueContainer.State.ExitCode != 0 {
-		t.Errorf("Unexpected exit code %v", trueContainer.State.ExitCode)
-	}
-
 	if falseContainer.State.ExitCode != 1 {
-		t.Errorf("Unexpected exit code %v", falseContainer.State.ExitCode)
+		t.Errorf("Unexpected exit code %d (expected 1)", falseContainer.State.ExitCode)
 	}
 }
 
