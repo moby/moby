@@ -91,17 +91,26 @@ func TestCommitRun(t *testing.T) {
 	defer runtime.Destroy(container2)
 
 	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stderr, err := container2.StderrPipe()
 	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
 	container2.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	output2, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout.Close()
 	stderr.Close()
 	if string(output) != "hello\n" {
-		t.Fatalf("\nout: %s\nerr: %s\n", string(output), string(output2))
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", string(output), string(output2))
 	}
 }
 
@@ -533,19 +542,32 @@ func TestStdin(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	stdin, err := container.StdinPipe()
-	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -567,19 +589,32 @@ func TestTty(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	stdin, err := container.StdinPipe()
-	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -598,14 +633,14 @@ func TestEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer stdout.Close()
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
