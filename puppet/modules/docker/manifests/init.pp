@@ -32,7 +32,6 @@ class docker {
     Package { ensure => "installed" }
 
     package { ["lxc", "debootstrap", "wget", "bsdtar", "git",
-               "pkg-config", "libsqlite3-dev",
                "linux-image-3.5.0-25-generic",
                "linux-image-extra-3.5.0-25-generic",
                "linux-headers-3.5.0-25-generic"]: }
