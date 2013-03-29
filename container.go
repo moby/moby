@@ -160,8 +160,6 @@ func (container *Container) startPty() error {
 	container.cmd.Stdout = stdoutSlave
 	container.ptyStdoutMaster = stdoutMaster
 
-	Debugf("dockerd pid: %d, pty master: %d, pty slave: %d\n", os.Getpid(), stdoutMaster.Fd(), stdoutSlave.Fd())
-
 	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err

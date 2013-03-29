@@ -747,10 +747,10 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 
 		receivingStdin = Go(func() error {
+			defer cmdStdin.Close()
 			Debugf("Begin stdin pipe [attach]")
 			_, err := io.Copy(cmdStdin, stdin)
 			Debugf("End of stdin pipe [attach]")
-			cmdStdin.Close()
 			return err
 		})
 
@@ -764,12 +764,14 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return err
 	}
 	sendingStdout := Go(func() error {
+		defer stdout.(io.Closer).Close()
 		Debugf("Begin stdout pipe [attach]")
 		_, err := io.Copy(stdout, cmdStdout)
 		Debugf("End of stdout pipe [attach]")
 		return err
 	})
 	sendingStderr := Go(func() error {
+		defer stdout.(io.Closer).Close()
 		Debugf("Begin stderr pipe [attach]")
 		_, err := io.Copy(stdout, cmdStderr)
 		Debugf("End of stderr pipe [attach]")
