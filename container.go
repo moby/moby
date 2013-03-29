@@ -263,6 +263,8 @@ func (container *Container) Start() error {
 		container.Config.Env...,
 	)
 
+	container.finished = make(chan bool)
+
 	var err error
 	if container.Config.Tty {
 		container.cmd.Env = append(
@@ -363,8 +365,8 @@ func (container *Container) monitor() {
 	}
 	Debugf("Process finished")
 
+	// Close the chan will result in all client waiting to unlock
 	close(container.finished)
-	container.finished = make(chan bool)
 
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
