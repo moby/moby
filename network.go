@@ -420,28 +420,42 @@ func checkBridgeAddr(bridgeIface string, bridgeAddr string) error {
 	return nil
 }
 
+func cleanupBridgeIface(bridgeIface string, bridgeAddr string) {
+	//Ignore errors as some of the corresponding setup steps may not have run
+	iptables("-t", "nat", "-D", "POSTROUTING", "-s", bridge.Addr,
+		"!", "-d", bridge.Addr, "-j", "MASQUERADE")
+	ip("link", "set", bridge.Iface, "down")
+	brctl("delbr", bridge.Iface)
+}
+
+func createBridgeIface(bridgeIface string, bridgeAddr string) error {
+	if err := brctl("addbr", bridgeIface); err != nil {
+		return fmt.Errorf("Unable to create docker bridge: %v", err)
+	}
+	if err := ip("addr", "add", bridgeAddr, "dev", bridgeIface); err != nil {
+		return fmt.Errorf("Unable to add private network: %v", err)
+	}
+	if err := ip("link", "set", bridgeIface, "up"); err != nil {
+		return fmt.Errorf("Unable to start network bridge: %v", err)
+	}
+	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", bridgeAddr,
+		"!", "-d", bridgeAddr, "-j", "MASQUERADE"); err != nil {
+		return fmt.Errorf("Unable to enable network bridge NAT: %v", err)
+	}
+	return nil
+}
+
 func setupBridgeIface(bridgeIface string, bridgeAddr string) error {
 	if _, err := net.InterfaceByName(bridgeIface); err == nil {
 		return nil
 	}
-
 	if err := checkBridgeAddr(bridgeIface, bridgeAddr); err != nil {
 		return err
 	}
-
-	if err := brctl("addbr", bridgeIface); err == nil {
-		if err := ip("addr", "add", bridgeAddr, "dev", bridgeIface); err != nil {
-			return errors.New("Unable to add private network: Failed to set ip")
-		}
-		if err := ip("link", "set", bridgeIface, "up"); err != nil {
-			return errors.New("Unable to start network bridge: Failed to set device up")
-		}
-		if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", bridgeAddr,
-			"!", "-d", bridgeAddr, "-j", "MASQUERADE"); err != nil {
-			return errors.New("Unable to enable network bridge NAT: Failed to set iptables MASQUERADE rule")
-		}
+	if err := createBridgeIface(bridgeIface, bridgeAddr); err != nil {
+		cleanupBridgeIface(bridgeIface, bridgeAddr)
+		return err
 	}
-
 	return nil
 }
 
