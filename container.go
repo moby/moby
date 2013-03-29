@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/kr/pty"
@@ -464,7 +463,7 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 
 	select {
 	case <-time.After(timeout):
-		return errors.New("Timed Out")
+		return fmt.Errorf("Timed Out")
 	case <-done:
 		return nil
 	}
