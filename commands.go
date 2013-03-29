@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 )
@@ -740,30 +739,44 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return errors.New("No such container: " + name)
 	}
 
-	var wg sync.WaitGroup
+	if container.Config.OpenStdin {
+		cmd_stdin, err := container.StdinPipe()
+		if err != nil {
+			return err
+		}
 
-	c_stdin, err := container.StdinPipe()
+		Go(func() error {
+			_, err := io.Copy(cmd_stdin, stdin)
+			cmd_stdin.Close()
+			return err
+		})
+
+	}
+	cmd_stderr, err := container.StderrPipe()
 	if err != nil {
 		return err
 	}
-	wg.Add(1)
-	go func() { io.Copy(c_stdin, stdin); wg.Add(-1) }()
-
-	c_stdout, err := container.StdoutPipe()
+	cmd_stdout, err := container.StdoutPipe()
 	if err != nil {
 		return err
 	}
-	wg.Add(1)
-	go func() { io.Copy(stdout, c_stdout); wg.Add(-1) }()
-
-	c_stderr, err := container.StderrPipe()
-	if err != nil {
+	sending_stdout := Go(func() error {
+		_, err := io.Copy(stdout, cmd_stdout)
 		return err
+	})
+	sending_stderr := Go(func() error {
+		_, err := io.Copy(stdout, cmd_stderr)
+		return err
+	})
+	err_sending_stdout := <-sending_stdout
+	err_sending_stderr := <-sending_stderr
+	if err_sending_stdout != nil {
+		return err_sending_stdout
 	}
-	wg.Add(1)
-	go func() { io.Copy(stdout, c_stderr); wg.Add(-1) }()
-
-	wg.Wait()
+	if err_sending_stderr != nil {
+		return err_sending_stderr
+	}
+	container.Wait()
 	return nil
 }
 
