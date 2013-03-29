@@ -493,7 +493,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
 	//limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	fl_a := cmd.Bool("a", false, "show all images")
+	flAll := cmd.Bool("a", false, "show all images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -511,7 +511,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	var allImages map[string]*Image
 	var err error
-	if *fl_a {
+	if *flAll {
 		allImages, err = srv.runtime.graph.Map()
 	} else {
 		allImages, err = srv.runtime.graph.Heads()
@@ -583,8 +583,8 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	cmd := rcli.Subcmd(stdout,
 		"ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
-	fl_all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
-	fl_full := cmd.Bool("notrunc", false, "Don't truncate output")
+	flAll := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
+	flFull := cmd.Bool("notrunc", false, "Don't truncate output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -593,12 +593,12 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
 	}
 	for _, container := range srv.runtime.List() {
-		if !container.State.Running && !*fl_all {
+		if !container.State.Running && !*flAll {
 			continue
 		}
 		if !*quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-			if !*fl_full {
+			if !*flFull {
 				command = Trunc(command, 20)
 			}
 			for idx, field := range []string{
@@ -630,7 +630,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	cmd := rcli.Subcmd(stdout,
 		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
 		"Create a new image from a container's changes")
-	fl_comment := cmd.String("m", "", "Commit message")
+	flComment := cmd.String("m", "", "Commit message")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -639,7 +639,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *fl_comment)
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment)
 	if err != nil {
 		return err
 	}
@@ -704,20 +704,20 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	name := cmd.Arg(0)
 	if container := srv.runtime.Get(name); container != nil {
-		log_stdout, err := container.ReadLog("stdout")
+		logStdout, err := container.ReadLog("stdout")
 		if err != nil {
 			return err
 		}
-		log_stderr, err := container.ReadLog("stderr")
+		logStderr, err := container.ReadLog("stderr")
 		if err != nil {
 			return err
 		}
 		// FIXME: Interpolate stdout and stderr instead of concatenating them
 		// FIXME: Differentiate stdout and stderr in the remote protocol
-		if _, err := io.Copy(stdout, log_stdout); err != nil {
+		if _, err := io.Copy(stdout, logStdout); err != nil {
 			return err
 		}
-		if _, err := io.Copy(stdout, log_stderr); err != nil {
+		if _, err := io.Copy(stdout, logStderr); err != nil {
 			return err
 		}
 		return nil
@@ -727,9 +727,9 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "attach", "[OPTIONS]", "Attach to a running container")
-	fl_i := cmd.Bool("i", false, "Attach to stdin")
-	fl_o := cmd.Bool("o", true, "Attach to stdout")
-	fl_e := cmd.Bool("e", true, "Attach to stderr")
+	flStdin := cmd.Bool("i", false, "Attach to stdin")
+	flStdout := cmd.Bool("o", true, "Attach to stdout")
+	flStderr := cmd.Bool("e", true, "Attach to stderr")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -743,29 +743,29 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return errors.New("No such container: " + name)
 	}
 	var wg sync.WaitGroup
-	if *fl_i {
-		c_stdin, err := container.StdinPipe()
+	if *flStdin {
+		cStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(c_stdin, stdin); wg.Add(-1) }()
+		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
 	}
-	if *fl_o {
-		c_stdout, err := container.StdoutPipe()
+	if *flStdout {
+		cStdout, err := container.StdoutPipe()
 		if err != nil {
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(stdout, c_stdout); wg.Add(-1) }()
+		go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
 	}
-	if *fl_e {
-		c_stderr, err := container.StderrPipe()
+	if *flStderr {
+		cStderr, err := container.StderrPipe()
 		if err != nil {
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(stdout, c_stderr); wg.Add(-1) }()
+		go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
 	}
 	wg.Wait()
 	return nil
@@ -843,46 +843,46 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	if config.OpenStdin {
-		cmd_stdin, err := container.StdinPipe()
+		cmdStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
 		if !config.Detach {
 			Go(func() error {
-				_, err := io.Copy(cmd_stdin, stdin)
-				cmd_stdin.Close()
+				_, err := io.Copy(cmdStdin, stdin)
+				cmdStdin.Close()
 				return err
 			})
 		}
 	}
 	// Run the container
 	if !config.Detach {
-		cmd_stderr, err := container.StderrPipe()
+		cmdStderr, err := container.StderrPipe()
 		if err != nil {
 			return err
 		}
-		cmd_stdout, err := container.StdoutPipe()
+		cmdStdout, err := container.StdoutPipe()
 		if err != nil {
 			return err
 		}
 		if err := container.Start(); err != nil {
 			return err
 		}
-		sending_stdout := Go(func() error {
-			_, err := io.Copy(stdout, cmd_stdout)
+		sendingStdout := Go(func() error {
+			_, err := io.Copy(stdout, cmdStdout)
 			return err
 		})
-		sending_stderr := Go(func() error {
-			_, err := io.Copy(stdout, cmd_stderr)
+		sendingStderr := Go(func() error {
+			_, err := io.Copy(stdout, cmdStderr)
 			return err
 		})
-		err_sending_stdout := <-sending_stdout
-		err_sending_stderr := <-sending_stderr
-		if err_sending_stdout != nil {
-			return err_sending_stdout
+		errSendingStdout := <-sendingStdout
+		errSendingStderr := <-sendingStderr
+		if errSendingStdout != nil {
+			return errSendingStdout
 		}
-		if err_sending_stderr != nil {
-			return err_sending_stderr
+		if errSendingStderr != nil {
+			return errSendingStderr
 		}
 		container.Wait()
 	} else {

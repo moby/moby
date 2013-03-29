@@ -76,13 +76,13 @@ func LoadConfig(rootPath string) (*AuthConfig, error) {
 		return nil, err
 	}
 	arr := strings.Split(string(b), "\n")
-	orig_auth := strings.Split(arr[0], " = ")
-	orig_email := strings.Split(arr[1], " = ")
-	authConfig, err := DecodeAuth(orig_auth[1])
+	origAuth := strings.Split(arr[0], " = ")
+	origEmail := strings.Split(arr[1], " = ")
+	authConfig, err := DecodeAuth(origAuth[1])
 	if err != nil {
 		return nil, err
 	}
-	authConfig.Email = orig_email[1]
+	authConfig.Email = origEmail[1]
 	authConfig.rootPath = rootPath
 	return authConfig, nil
 }
