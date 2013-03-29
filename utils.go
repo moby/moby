@@ -220,6 +220,7 @@ func (w *writeBroadcaster) AddWriter(writer io.WriteCloser) {
 	w.writers.PushBack(writer)
 }
 
+// FIXME: Is that function used?
 func (w *writeBroadcaster) RemoveWriter(writer io.WriteCloser) {
 	for e := w.writers.Front(); e != nil; e = e.Next() {
 		v := e.Value.(io.Writer)
@@ -252,6 +253,7 @@ func (w *writeBroadcaster) Close() error {
 		writer := e.Value.(io.WriteCloser)
 		writer.Close()
 	}
+	w.writers.Init()
 	return nil
 }
 
