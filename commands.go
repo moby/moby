@@ -857,55 +857,12 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return err
 	}
 
-	if config.Detach {
-		// If detach mode, just output the container id
-		fmt.Fprintln(stdout, container.Id)
-	} else {
-		if config.OpenStdin {
-			cmd_stdin, err := container.StdinPipe()
-			if err != nil {
-				return err
-			}
-			if !config.Detach {
-				Go(func() error {
-					_, err := io.Copy(cmd_stdin, stdin)
-					cmd_stdin.Close()
-					return err
-				})
-			}
-		}
-	}
-	// Run the container
+	// If not detached, then attach
 	if !config.Detach {
-		cmdStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		cmdStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		if err := container.Start(); err != nil {
-			return err
-		}
-		sendingStdout := Go(func() error {
-			_, err := io.Copy(stdout, cmdStdout)
-			return err
-		})
-		sendingStderr := Go(func() error {
-			_, err := io.Copy(stdout, cmdStderr)
-			return err
-		})
-		errSendingStdout := <-sendingStdout
-		errSendingStderr := <-sendingStderr
-		if errSendingStdout != nil {
-			return errSendingStdout
-		}
-		if errSendingStderr != nil {
-			return errSendingStderr
-		}
-		container.Wait()
+		return srv.CmdAttach(stdin, stdout, container.Id)
 	}
+	// If detach mode, just output the container id
+	fmt.Fprintln(stdout, container.Id)
 	return nil
 }
 
