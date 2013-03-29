@@ -39,6 +39,117 @@ func TestIdFormat(t *testing.T) {
 	}
 }
 
+func TestMultipleAttachRestart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd: []string{"/bin/sh", "-c",
+				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
+			Memory: 33554432,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Simulate 3 client attaching to the container and stop/restart
+
+	stdout1, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	l1, err := bufio.NewReader(stdout1).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l1, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+	}
+	l2, err := bufio.NewReader(stdout2).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l2, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+	}
+	l3, err := bufio.NewReader(stdout3).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l3, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+	}
+
+	if err := container.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout1, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	timeout := make(chan bool)
+	go func() {
+		l1, err = bufio.NewReader(stdout1).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l1, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+		}
+		l2, err = bufio.NewReader(stdout2).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l2, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+		}
+		l3, err = bufio.NewReader(stdout3).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l3, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+		}
+		timeout <- false
+	}()
+	go func() {
+		time.Sleep(3 * time.Second)
+		timeout <- true
+	}()
+	if <-timeout {
+		t.Fatalf("Timeout reading from the process")
+	}
+}
+
 func TestCommitRun(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -89,7 +200,6 @@ func TestCommitRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container2)
-
 	stdout, err := container2.StdoutPipe()
 	stderr, err := container2.StderrPipe()
 	if err := container2.Start(); err != nil {
