@@ -790,6 +790,16 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
+	cStdout, err := container.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	cStderr, err := container.StderrPipe()
+	if err != nil {
+		return err
+	}
+
 	var wg sync.WaitGroup
 	if container.Config.OpenStdin {
 		cStdin, err := container.StdinPipe()
@@ -800,13 +810,19 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		go func() {
 			Debugf("Begin stdin pipe [attach]")
 			io.Copy(cStdin, stdin)
+
+			// When stdin get closed, it means the client has been detached
+			// Make sure all pipes are closed.
+			if err := cStdout.Close(); err != nil {
+				Debugf("Error closing stdin pipe: %s", err)
+			}
+			if err := cStderr.Close(); err != nil {
+				Debugf("Error closing stderr pipe: %s", err)
+			}
+
 			wg.Add(-1)
 			Debugf("End of stdin pipe [attach]")
 		}()
-	}
-	cStdout, err := container.StdoutPipe()
-	if err != nil {
-		return err
 	}
 	wg.Add(1)
 	go func() {
@@ -815,10 +831,6 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		wg.Add(-1)
 		Debugf("End of stdout pipe [attach]")
 	}()
-	cStderr, err := container.StderrPipe()
-	if err != nil {
-		return err
-	}
 	wg.Add(1)
 	go func() {
 		Debugf("Begin stderr pipe [attach]")
