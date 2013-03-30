@@ -2,7 +2,6 @@ package docker
 
 import (
 	"bytes"
-	"container/list"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
@@ -214,12 +213,12 @@ func (r *bufReader) Close() error {
 
 type writeBroadcaster struct {
 	mu      sync.Mutex
-	writers *list.List
+	writers map[io.WriteCloser]struct{}
 }
 
 func (w *writeBroadcaster) AddWriter(writer io.WriteCloser) {
 	w.mu.Lock()
-	w.writers.PushBack(writer)
+	w.writers[writer] = struct{}{}
 	w.mu.Unlock()
 }
 
@@ -227,31 +226,18 @@ func (w *writeBroadcaster) AddWriter(writer io.WriteCloser) {
 // FIXME: This relies on the concrete writer type used having equality operator
 func (w *writeBroadcaster) RemoveWriter(writer io.WriteCloser) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
-	for e := w.writers.Front(); e != nil; e = e.Next() {
-		v := e.Value.(io.Writer)
-		if v == writer {
-			w.writers.Remove(e)
-			return
-		}
-	}
+	delete(w.writers, writer)
+	w.mu.Unlock()
 }
 
 func (w *writeBroadcaster) Write(p []byte) (n int, err error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	failed := []*list.Element{}
-	for e := w.writers.Front(); e != nil; e = e.Next() {
-		writer := e.Value.(io.Writer)
+	for writer := range w.writers {
 		if n, err := writer.Write(p); err != nil || n != len(p) {
 			// On error, evict the writer
-			failed = append(failed, e)
+			delete(w.writers, writer)
 		}
-	}
-	// We cannot remove while iterating, so it has to be done in
-	// a separate step
-	for _, e := range failed {
-		w.writers.Remove(e)
 	}
 	return len(p), nil
 }
@@ -259,14 +245,13 @@ func (w *writeBroadcaster) Write(p []byte) (n int, err error) {
 func (w *writeBroadcaster) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	for e := w.writers.Front(); e != nil; e = e.Next() {
-		writer := e.Value.(io.WriteCloser)
+	for writer := range w.writers {
 		writer.Close()
 	}
-	w.writers.Init()
+	w.writers = make(map[io.WriteCloser]struct{})
 	return nil
 }
 
 func newWriteBroadcaster() *writeBroadcaster {
-	return &writeBroadcaster{writers: list.New()}
+	return &writeBroadcaster{writers: make(map[io.WriteCloser]struct{})}
 }
