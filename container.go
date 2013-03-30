@@ -256,6 +256,14 @@ func (container *Container) Start() error {
 		container.Config.Env...,
 	)
 
+	// Setup logging of stdout and stderr to disk
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+		return err
+	}
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+		return err
+	}
+
 	var err error
 	if container.Config.Tty {
 		container.cmd.Env = append(

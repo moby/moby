@@ -140,13 +140,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	} else {
 		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
-	// Setup logging of stdout and stderr to disk
-	if err := runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
-		return err
-	}
-	if err := runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
-		return err
-	}
 	// done
 	runtime.containers.PushBack(container)
 	return nil
@@ -157,7 +150,7 @@ func (runtime *Runtime) LogToDisk(src *writeBroadcaster, dst string) error {
 	if err != nil {
 		return err
 	}
-	src.AddWriter(NopWriteCloser(log))
+	src.AddWriter(log)
 	return nil
 }
 
