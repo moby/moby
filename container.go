@@ -382,6 +382,11 @@ func (container *Container) monitor() {
 	if err := container.releaseNetwork(); err != nil {
 		log.Printf("%v: Failed to release network: %v", container.Id, err)
 	}
+	if container.Config.OpenStdin {
+		if err := container.stdin.Close(); err != nil {
+			Debugf("%s: Error close stdin: %s", container.Id, err)
+		}
+	}
 	if err := container.stdout.Close(); err != nil {
 		Debugf("%s: Error close stdout: %s", container.Id, err)
 	}
