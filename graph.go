@@ -10,10 +10,13 @@ import (
 	"time"
 )
 
+// A Graph is a store for versioned filesystem images, and the relationship between them.
 type Graph struct {
 	Root string
 }
 
+// NewGraph instanciates a new graph at the given root path in the filesystem.
+// `root` will be created if it doesn't exist.
 func NewGraph(root string) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
@@ -34,6 +37,8 @@ func (graph *Graph) IsNotExist(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "does not exist")
 }
 
+// Exists returns true if an image is registered at the given id.
+// If the image doesn't exist or if an error is encountered, false is returned.
 func (graph *Graph) Exists(id string) bool {
 	if _, err := graph.Get(id); err != nil {
 		return false
@@ -41,6 +46,7 @@ func (graph *Graph) Exists(id string) bool {
 	return true
 }
 
+// Get returns the image with the given id, or an error if the image doesn't exist.
 func (graph *Graph) Get(id string) (*Image, error) {
 	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := LoadImage(graph.imageRoot(id))
@@ -54,6 +60,7 @@ func (graph *Graph) Get(id string) (*Image, error) {
 	return img, nil
 }
 
+// Create creates a new image and registers it in the graph.
 func (graph *Graph) Create(layerData Archive, container *Container, comment string) (*Image, error) {
 	img := &Image{
 		Id:      GenerateId(),
@@ -71,6 +78,8 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment stri
 	return img, nil
 }
 
+// Register imports a pre-existing image into the graph.
+// FIXME: pass img as first argument
 func (graph *Graph) Register(layerData Archive, img *Image) error {
 	if err := ValidateId(img.Id); err != nil {
 		return err
@@ -95,6 +104,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	return nil
 }
 
+// Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
 	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
 	if err != nil {
@@ -106,6 +116,9 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return tmp.imageRoot(id), nil
 }
 
+// Garbage returns the "garbage", a staging area for deleted images.
+// This allows images ot be deleted atomically by os.Rename(), instead of
+// os.RemoveAll() which is prone to race conditions
 func (graph *Graph) Garbage() (*Graph, error) {
 	return NewGraph(path.Join(graph.Root, ":garbage:"))
 }
@@ -124,6 +137,7 @@ func isNotEmpty(err error) bool {
 	return strings.Contains(err.Error(), " not empty")
 }
 
+// Delete atomically removes an image from the graph.
 func (graph *Graph) Delete(id string) error {
 	garbage, err := graph.Garbage()
 	if err != nil {
@@ -150,6 +164,7 @@ func (graph *Graph) Delete(id string) error {
 	return nil
 }
 
+// Undelete moves an image back from the garbage to the main graph
 func (graph *Graph) Undelete(id string) error {
 	garbage, err := graph.Garbage()
 	if err != nil {
@@ -158,6 +173,7 @@ func (graph *Graph) Undelete(id string) error {
 	return os.Rename(garbage.imageRoot(id), graph.imageRoot(id))
 }
 
+// GarbageCollect definitely deletes all images moved to the garbage
 func (graph *Graph) GarbageCollect() error {
 	garbage, err := graph.Garbage()
 	if err != nil {
@@ -166,6 +182,7 @@ func (graph *Graph) GarbageCollect() error {
 	return os.RemoveAll(garbage.Root)
 }
 
+// Map returns a list of all images in the graph, addressable by ID
 func (graph *Graph) Map() (map[string]*Image, error) {
 	// FIXME: this should replace All()
 	all, err := graph.All()
@@ -179,6 +196,7 @@ func (graph *Graph) Map() (map[string]*Image, error) {
 	return images, nil
 }
 
+// All returns a list of all images in the graph
 func (graph *Graph) All() ([]*Image, error) {
 	var images []*Image
 	err := graph.WalkAll(func(image *Image) {
@@ -187,6 +205,8 @@ func (graph *Graph) All() ([]*Image, error) {
 	return images, err
 }
 
+// WalkAll iterates over each image in the graph, and passes it to a handler.
+// The walking order is undetermined.
 func (graph *Graph) WalkAll(handler func(*Image)) error {
 	files, err := ioutil.ReadDir(graph.Root)
 	if err != nil {
@@ -203,6 +223,10 @@ func (graph *Graph) WalkAll(handler func(*Image)) error {
 	return nil
 }
 
+// ByParent returns a lookup table of images by their parent.
+// If an image of id ID has 3 children images, then the value for key ID
+// will be a list of 3 images.
+// If an image has no children, it will not have an entry in the table.
 func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	byParent := make(map[string][]*Image)
 	err := graph.WalkAll(func(image *Image) {
@@ -219,6 +243,8 @@ func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	return byParent, err
 }
 
+// Heads returns all heads in the graph, keyed by id.
+// A head is an image which is not the parent of another image in the graph.
 func (graph *Graph) Heads() (map[string]*Image, error) {
 	heads := make(map[string]*Image)
 	byParent, err := graph.ByParent()
