@@ -415,13 +415,16 @@ func (container *Container) Kill() error {
 	return container.kill()
 }
 
-func (container *Container) Stop() error {
+func (container *Container) StopTimeoutWithSig(sig int, maxDuration time.Duration) error {
 	if !container.State.Running {
 		return nil
 	}
 
-	// 1. Send a SIGTERM
-	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
+	if sig <= 0 || sig > 31 {
+		return fmt.Errorf("Invalid signal: %d\n", sig)
+	}
+
+	if output, err := exec.Command("lxc-kill", "-n", container.Id, strconv.Itoa(sig)).CombinedOutput(); err != nil {
 		log.Printf(string(output))
 		log.Printf("Failed to send SIGTERM to the process, force killing")
 		if err := container.Kill(); err != nil {
@@ -429,14 +432,20 @@ func (container *Container) Stop() error {
 		}
 	}
 
-	// 2. Wait for the process to exit on its own
-	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
+	// Wait for the process to exit on its own
+	if err := container.WaitTimeout(maxDuration); err != nil {
+		log.Printf("Container %v failed to exit within %v seconds of SIGTERM - using the force", maxDuration.Seconds(), container.Id)
 		if err := container.Kill(); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// NOTE: Keep the default to abstract all lxc/process notions
+func (container *Container) Stop() error {
+	// By default, send a SIGTERM (15)
+	return container.StopTimeoutWithSig(15, 10*time.Second)
 }
 
 func (container *Container) Restart() error {
