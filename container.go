@@ -434,7 +434,7 @@ func (container *Container) StopTimeoutWithSig(sig int, maxDuration time.Duratio
 
 	// Wait for the process to exit on its own
 	if err := container.WaitTimeout(maxDuration); err != nil {
-		log.Printf("Container %v failed to exit within %v seconds of SIGTERM - using the force", maxDuration.Seconds(), container.Id)
+		log.Printf("Container %v failed to exit within %v seconds of SIGTERM - using the force", container.Id, maxDuration.Seconds())
 		if err := container.Kill(); err != nil {
 			return err
 		}
