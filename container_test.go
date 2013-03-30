@@ -227,7 +227,7 @@ func TestCommitRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(output) != "hello\n" {
-		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", string(output), string(output2))
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
 	}
 }
 
@@ -885,7 +885,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		if string(output) != "foo" {
-			b.Fatalf("Unexecpted output: %v", string(output))
+			b.Fatalf("Unexpected output: %s", output)
 		}
 		if err := runtime.Destroy(container); err != nil {
 			b.Fatal(err)
