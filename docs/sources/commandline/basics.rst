@@ -86,6 +86,3 @@ However, it is probably more useful to commit it to a specific name
     docker commit <container_id> <your username>/some_name
 
 
-Sharing data
--------------
-
