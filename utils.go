@@ -213,15 +213,21 @@ func (r *bufReader) Close() error {
 }
 
 type writeBroadcaster struct {
+	mu      sync.Mutex
 	writers *list.List
 }
 
 func (w *writeBroadcaster) AddWriter(writer io.WriteCloser) {
+	w.mu.Lock()
 	w.writers.PushBack(writer)
+	w.mu.Unlock()
 }
 
 // FIXME: Is that function used?
+// FIXME: This relies on the concrete writer type used having equality operator
 func (w *writeBroadcaster) RemoveWriter(writer io.WriteCloser) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	for e := w.writers.Front(); e != nil; e = e.Next() {
 		v := e.Value.(io.Writer)
 		if v == writer {
@@ -232,6 +238,8 @@ func (w *writeBroadcaster) RemoveWriter(writer io.WriteCloser) {
 }
 
 func (w *writeBroadcaster) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	failed := []*list.Element{}
 	for e := w.writers.Front(); e != nil; e = e.Next() {
 		writer := e.Value.(io.Writer)
@@ -249,6 +257,8 @@ func (w *writeBroadcaster) Write(p []byte) (n int, err error) {
 }
 
 func (w *writeBroadcaster) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	for e := w.writers.Front(); e != nil; e = e.Next() {
 		writer := e.Value.(io.WriteCloser)
 		writer.Close()
@@ -258,5 +268,5 @@ func (w *writeBroadcaster) Close() error {
 }
 
 func newWriteBroadcaster() *writeBroadcaster {
-	return &writeBroadcaster{list.New()}
+	return &writeBroadcaster{writers: list.New()}
 }
