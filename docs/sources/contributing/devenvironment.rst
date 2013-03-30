@@ -7,6 +7,7 @@ Setting up a dev environment
 
 Instructions that have been verified to work on Ubuntu 12.10,
 
+
 .. code:: bash
 
     sudo apt-get -y install lxc wget bsdtar curl golang git
@@ -22,10 +23,13 @@ Instructions that have been verified to work on Ubuntu 12.10,
     go get -v github.com/dotcloud/docker/...
     go install -v github.com/dotcloud/docker/...
 
+
 Then run the docker daemon,
+
 
 .. code:: bash
 
     sudo $GOPATH/bin/docker -d
+
 
 Run the ``go install`` command (above) to recompile docker.

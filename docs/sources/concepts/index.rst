@@ -12,5 +12,6 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
-   containers
+   introduction
+   buildingblocks
 

@@ -3,9 +3,8 @@
 :keywords: Examples, Usage
 
 
-Base commands
+The basics
 =============
-
 
 Running an interactive shell
 ----------------------------
@@ -65,3 +64,28 @@ Expose a service on a TCP port
 Continue to the complete `Command Line Interface`_
 
 .. _Command Line Interface: ../commandline/cli.html
+
+
+Committing an image
+---------------------
+
+Committing your container to an (named) image is useful because this way it can be re-used. Compare it to creating
+a virtual machine image. Except your containers will generally be shorted lived so saving (committing) the state of
+it is more important.
+
+The state of a container can be saved at any time by running
+
+::
+
+    docker commit <container_id>
+
+However, it is probably more useful to commit it to a specific name
+
+::
+
+    docker commit <container_id> <your username>/some_name
+
+
+Sharing data
+-------------
+

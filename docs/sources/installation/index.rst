@@ -16,3 +16,4 @@ Contents:
    macos
    windows
    amazon
+   upgrading
