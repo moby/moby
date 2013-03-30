@@ -28,7 +28,7 @@ func (srv *Server) Name() string {
 // FIXME: Stop violating DRY by repeating usage here and in Subcmd declarations
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
-	for _, cmd := range [][]interface{}{
+	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
