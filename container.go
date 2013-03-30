@@ -183,7 +183,8 @@ func (container *Container) startPty() error {
 	// stdin
 	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		stdinMaster, stdinSlave, err := pty.Open()
+		var stdinMaster io.WriteCloser
+		stdinMaster, stdinSlave, err = pty.Open()
 		if err != nil {
 			return err
 		}
