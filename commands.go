@@ -3,7 +3,6 @@ package docker
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/rcli"
@@ -132,7 +131,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		password = readString(stdin, stdout)
 
 		if password == "" {
-			return errors.New("Error : Password Required\n")
+			return fmt.Errorf("Error : Password Required")
 		}
 
 		fmt.Fprint(stdout, "Email (", srv.runtime.authConfig.Email, "): ")
@@ -171,7 +170,7 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 		if container := srv.runtime.Get(name); container != nil {
 			fmt.Fprintln(stdout, container.Wait())
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -223,7 +222,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 			}
 			fmt.Fprintln(stdout, container.Id)
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -245,7 +244,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 			}
 			fmt.Fprintln(stdout, container.Id)
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -267,7 +266,7 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			}
 			fmt.Fprintln(stdout, container.Id)
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -320,7 +319,7 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	name := cmd.Arg(0)
 	privatePort := cmd.Arg(1)
 	if container := srv.runtime.Get(name); container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	} else {
 		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
 			return fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
@@ -383,7 +382,7 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
@@ -401,7 +400,7 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 		if err := container.Kill(); err != nil {
 			fmt.Fprintln(stdout, "Error killing container "+name+": "+err.Error())
@@ -420,7 +419,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	src := cmd.Arg(0)
 	if src == "" {
-		return errors.New("Not enough arguments")
+		return fmt.Errorf("Not enough arguments")
 	} else if src == "-" {
 		archive = stdin
 	} else {
@@ -718,7 +717,7 @@ func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		return nil
 	}
-	return errors.New("No such container: " + name)
+	return fmt.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -729,10 +728,10 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	if cmd.NArg() < 1 {
-		return errors.New("Not enough arguments")
+		return fmt.Errorf("Not enough arguments")
 	}
 	if container := srv.runtime.Get(cmd.Arg(0)); container == nil {
-		return errors.New("No such container")
+		return fmt.Errorf("No such container")
 	} else {
 		changes, err := container.Changes()
 		if err != nil {
@@ -774,7 +773,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		return nil
 	}
-	return errors.New("No such container: " + cmd.Arg(0))
+	return fmt.Errorf("No such container: %s", cmd.Arg(0))
 }
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -789,7 +788,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	name := cmd.Arg(0)
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	}
 	var wg sync.WaitGroup
 	if container.Config.OpenStdin {
@@ -798,20 +797,35 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
+		go func() {
+			Debugf("Begin stdin pipe [attach]")
+			io.Copy(cStdin, stdin)
+			wg.Add(-1)
+			Debugf("End of stdin pipe [attach]")
+		}()
 	}
 	cStdout, err := container.StdoutPipe()
 	if err != nil {
 		return err
 	}
 	wg.Add(1)
-	go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
+	go func() {
+		Debugf("Begin stdout pipe [attach]")
+		io.Copy(stdout, cStdout)
+		wg.Add(-1)
+		Debugf("End of stdout pipe [attach]")
+	}()
 	cStderr, err := container.StderrPipe()
 	if err != nil {
 		return err
 	}
 	wg.Add(1)
-	go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
+	go func() {
+		Debugf("Begin stderr pipe [attach]")
+		io.Copy(stdout, cStderr)
+		wg.Add(-1)
+		Debugf("End of stderr pipe [attach]")
+	}()
 	wg.Wait()
 	return nil
 }

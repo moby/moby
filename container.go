@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/kr/pty"
@@ -41,9 +40,7 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	stdoutLog *os.File
-	stderrLog *os.File
-	runtime   *Runtime
+	runtime *Runtime
 }
 
 type Config struct {
@@ -165,12 +162,16 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
+		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
+		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
+		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
+		Debugf("[startPty] End of stderr pipe")
 	}()
 
 	// stdin
@@ -186,7 +187,9 @@ func (container *Container) startPty() error {
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
+			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(stdinMaster, container.stdin)
+			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -210,7 +213,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
+			Debugf("Begin of stdin pipe [start]")
 			io.Copy(stdin, container.stdin)
+			Debugf("End of stdin pipe [start]")
 		}()
 	}
 	return container.cmd.Start()
@@ -356,15 +361,25 @@ func (container *Container) releaseNetwork() error {
 
 func (container *Container) monitor() {
 	// Wait for the program to exit
-	container.cmd.Wait()
+	Debugf("Waiting for process")
+	if err := container.cmd.Wait(); err != nil {
+		// Discard the error as any signals or non 0 returns will generate an error
+		Debugf("%s: Process: %s", container.Id, err)
+	}
+	Debugf("Process finished")
+
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
 	if err := container.releaseNetwork(); err != nil {
 		log.Printf("%v: Failed to release network: %v", container.Id, err)
 	}
-	container.stdout.Close()
-	container.stderr.Close()
+	if err := container.stdout.Close(); err != nil {
+		Debugf("%s: Error close stdout: %s", container.Id, err)
+	}
+	if err := container.stderr.Close(); err != nil {
+		Debugf("%s: Error close stderr: %s", container.Id, err)
+	}
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
@@ -376,7 +391,9 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
+	}
 }
 
 func (container *Container) kill() error {
@@ -461,7 +478,7 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 
 	select {
 	case <-time.After(timeout):
-		return errors.New("Timed Out")
+		return fmt.Errorf("Timed Out")
 	case <-done:
 		return nil
 	}
