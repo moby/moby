@@ -363,11 +363,10 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() error {
-	err := container.network.Release()
+func (container *Container) releaseNetwork()  {
+	container.network.Release()
 	container.network = nil
 	container.NetworkSettings = &NetworkSettings{}
-	return err
 }
 
 func (container *Container) monitor() {
@@ -382,9 +381,7 @@ func (container *Container) monitor() {
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
-	if err := container.releaseNetwork(); err != nil {
-		log.Printf("%v: Failed to release network: %v", container.Id, err)
-	}
+	container.releaseNetwork()
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			Debugf("%s: Error close stdin: %s", container.Id, err)
