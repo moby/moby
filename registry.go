@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -32,7 +33,7 @@ func NewImgJson(src []byte) (*Image, error) {
 func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	ret := []*Image{}
 
-	dec := json.NewDecoder(strings.NewReader(string(src)))
+	dec := json.NewDecoder(bytes.NewReader(src))
 	for {
 		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
@@ -226,7 +227,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		fmt.Fprintf(stdout, "Pushing %s metadata\n", img.Id)
 
 		// FIXME: try json with UTF8
-		jsonData := strings.NewReader(string(jsonRaw))
+		jsonData := bytes.NewReader(jsonRaw)
 		req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
 		if err != nil {
 			return err
