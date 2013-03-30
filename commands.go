@@ -65,7 +65,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	// Read a line on raw terminal with support for simple backspace
 	// sequences and echo.
 	//
-	// This function is necessary because the login command must be done a
+	// This function is necessary because the login command must be done in a
 	// raw terminal for two reasons:
 	// - we have to read a password (without echoing it);
 	// - the rcli "protocol" only supports cannonical and raw modes and you

@@ -131,7 +131,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 		status = "Account Created\n"
 		storeConfig = true
 	} else if reqStatusCode == 400 {
-		if string(reqBody) == "Username or email already exist" {
+		if string(reqBody) == "Username or email already exists" {
 			client := &http.Client{}
 			req, err := http.NewRequest("GET", REGISTRY_SERVER+"/v1/users", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)

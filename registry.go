@@ -21,7 +21,7 @@ func NewImgJson(src []byte) (*Image, error) {
 	ret := &Image{}
 
 	Debugf("Json string: {%s}\n", src)
-	// FIXME: Is there a cleaner way to "puryfy" the input json?
+	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
 	}
