@@ -203,6 +203,12 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		len(srv.runtime.List()),
 		VERSION,
 		imgcount)
+
+	if !rcli.DEBUG_FLAG {
+		return nil
+	}
+	fmt.Fprintf(stdout, "debug mode enabled\n")
+	fmt.Fprintf(stdout, "fds: %d\ngoroutines: %d\n", getTotalUsedFds(), runtime.NumGoroutine())
 	return nil
 }
 
