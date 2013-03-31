@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -114,8 +116,11 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
 	container, err := runtime.Create(&Config{
-		Image: GetTestImage(runtime).Id,
-		Cmd:   []string{"ls", "-al"},
+		Image:        GetTestImage(runtime).Id,
+		Cmd:          []string{"ls", "-al"},
+		PrivatePorts: []Port{{"tcp", 8888}},
+		// Deprecated format.
+		Ports: []int{1111},
 	},
 	)
 	if err != nil {
@@ -152,6 +157,28 @@ func TestRuntimeCreate(t *testing.T) {
 	if !runtime.Exists(container.Id) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
+
+	// Make sure the config has been updated to newer formats
+	if len(container.Config.Ports) != 0 {
+		t.Errorf("Config.Update() didn't change the config as expected. Got Ports config %v, expected empty", container.Config.Ports)
+	}
+
+	// Sorted list of ports in string format, separated by a space.
+	// This should be a merger of PrivatePorts and Ports.
+	want := "tcp/1111 tcp/8888"
+	got := sortPorts(container.Config.PrivatePorts)
+	if want != got {
+		t.Errorf("Config.Update() didn't change the config as expected. Got PrivatePorts config %v, wanted %v", got, want)
+	}
+}
+
+func sortPorts(ports []Port) string {
+	s := []string{}
+	for _, p := range ports {
+		s = append(s, p.String())
+	}
+	sort.Strings(s)
+	return strings.Join(s, " ")
 }
 
 func TestDestroy(t *testing.T) {

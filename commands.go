@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -848,20 +847,25 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
-// Ports type - Used to parse multiple -p flags
-type ports []int
+// PortList accepts multiple comma-separated port specification in the formats
+// "[protocol/]port", where the protocol is optional and defaults to "tcp".
+// Examples: 8881, udp/8882.
+type PortList []Port
 
-func (p *ports) String() string {
-	return fmt.Sprint(*p)
-}
-
-func (p *ports) Set(value string) error {
-	port, err := strconv.Atoi(value)
+func (ports PortList) Set(value string) (err error) {
+	port, err := newPort(value)
 	if err != nil {
-		return fmt.Errorf("Invalid port: %v", value)
+		return err
 	}
-	*p = append(*p, port)
+	ports = append(ports, port)
 	return nil
+}
+func (ports PortList) String() string {
+	var s []string
+	for _, x := range ports {
+		s = append(s, fmt.Sprintf("%v", x))
+	}
+	return fmt.Sprintf("%v", s)
 }
 
 // ListOpts type

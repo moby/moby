@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"sort"
@@ -57,7 +58,13 @@ func (runtime *Runtime) Get(name string) *Container {
 	if e == nil {
 		return nil
 	}
-	return e.Value.(*Container)
+	container := e.Value.(*Container)
+	// If the configuration format is old, update it.
+	if err := container.Config.Update(); err != nil {
+		log.Println(err)
+		return nil
+	}
+	return container
 }
 
 func (runtime *Runtime) Exists(id string) bool {
@@ -81,6 +88,11 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
+	// Update the config
+	if err := config.Update(); err != nil {
+		return nil, err
+	}
+
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		Id:              id,
@@ -113,6 +125,9 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 func (runtime *Runtime) Load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
+		return nil, err
+	}
+	if err := container.Config.Update(); err != nil {
 		return nil, err
 	}
 	if container.Id != id {
