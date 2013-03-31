@@ -555,6 +555,18 @@ func (container *Container) Unmount() error {
 	return Unmount(container.RootfsPath())
 }
 
+// ShortId returns a shorthand version of the container's id for convenience.
+// A collision with other container shorthands is very unlikely, but possible.
+// In case of a collision a lookup with Runtime.Get() will fail, and the caller
+// will need to use a langer prefix, or the full-length container Id.
+func (container *Container) ShortId() string {
+	shortLen := 12
+	if len(container.Id) < shortLen {
+		shortLen = len(container.Id)
+	}
+	return container.Id[:shortLen]
+}
+
 func (container *Container) logPath(name string) string {
 	return path.Join(container.root, fmt.Sprintf("%s-%s.log", container.Id, name))
 }

@@ -21,6 +21,7 @@ type Runtime struct {
 	graph          *Graph
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
+	idIndex        *TruncIndex
 }
 
 var sysInitPath string
@@ -47,7 +48,11 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 	return nil
 }
 
-func (runtime *Runtime) Get(id string) *Container {
+func (runtime *Runtime) Get(name string) *Container {
+	id, err := runtime.idIndex.Get(name)
+	if err != nil {
+		return nil
+	}
 	e := runtime.getContainerElement(id)
 	if e == nil {
 		return nil
@@ -72,6 +77,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	// Generate id
 	id := GenerateId()
 	// Generate default hostname
+	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
@@ -142,6 +148,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 	// done
 	runtime.containers.PushBack(container)
+	runtime.idIndex.Add(container.Id)
 	return nil
 }
 
@@ -171,6 +178,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		}
 	}
 	// Deregister the container before removing its directory, to avoid race conditions
+	runtime.idIndex.Delete(container.Id)
 	runtime.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
@@ -222,6 +230,7 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
+// FIXME: harmonize with NewGraph()
 func NewRuntime() (*Runtime, error) {
 	return NewRuntimeFromDirectory("/var/lib/docker")
 }
@@ -259,6 +268,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		graph:          g,
 		repositories:   repositories,
 		authConfig:     authConfig,
+		idIndex:        NewTruncIndex(),
 	}
 
 	if err := runtime.restore(); err != nil {

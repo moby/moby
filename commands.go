@@ -226,7 +226,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 			if err := container.Stop(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
 			return fmt.Errorf("No such container: %s", name)
 		}
@@ -248,7 +248,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 			if err := container.Restart(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
 			return fmt.Errorf("No such container: %s", name)
 		}
@@ -270,7 +270,7 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			if err := container.Start(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
 			return fmt.Errorf("No such container: %s", name)
 		}
@@ -659,7 +659,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				command = Trunc(command, 20)
 			}
 			for idx, field := range []string{
-				/* ID */ container.Id,
+				/* ID */ container.ShortId(),
 				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
 				/* COMMAND */ command,
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
@@ -674,7 +674,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			}
 			w.Write([]byte{'\n'})
 		} else {
-			stdout.Write([]byte(container.Id + "\n"))
+			stdout.Write([]byte(container.ShortId() + "\n"))
 		}
 	}
 	if !*quiet {
@@ -965,7 +965,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err := container.Start(); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, container.Id)
+		fmt.Fprintln(stdout, container.ShortId())
 	}
 	return nil
 }
