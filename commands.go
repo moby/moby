@@ -19,7 +19,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.1.0"
+const VERSION = "0.1.1"
 
 func (srv *Server) Name() string {
 	return "docker"
