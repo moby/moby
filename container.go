@@ -40,6 +40,10 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
+	ptyStdinMaster  io.Closer
+	ptyStdoutMaster io.Closer
+	ptyStderrMaster io.Closer
+
 	runtime *Runtime
 }
 
@@ -151,12 +155,14 @@ func (container *Container) startPty() error {
 	if err != nil {
 		return err
 	}
+	container.ptyStdoutMaster = stdoutMaster
 	container.cmd.Stdout = stdoutSlave
 
 	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
+	container.ptyStderrMaster = stderrMaster
 	container.cmd.Stderr = stderrSlave
 
 	// Copy the PTYs to our broadcasters
@@ -177,10 +183,12 @@ func (container *Container) startPty() error {
 	// stdin
 	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		stdinMaster, stdinSlave, err := pty.Open()
+		var stdinMaster io.WriteCloser
+		stdinMaster, stdinSlave, err = pty.Open()
 		if err != nil {
 			return err
 		}
+		container.ptyStdinMaster = stdinMaster
 		container.cmd.Stdin = stdinSlave
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
@@ -374,12 +382,34 @@ func (container *Container) monitor() {
 	if err := container.releaseNetwork(); err != nil {
 		log.Printf("%v: Failed to release network: %v", container.Id, err)
 	}
+	if container.Config.OpenStdin {
+		if err := container.stdin.Close(); err != nil {
+			Debugf("%s: Error close stdin: %s", container.Id, err)
+		}
+	}
 	if err := container.stdout.Close(); err != nil {
 		Debugf("%s: Error close stdout: %s", container.Id, err)
 	}
 	if err := container.stderr.Close(); err != nil {
 		Debugf("%s: Error close stderr: %s", container.Id, err)
 	}
+
+	if container.ptyStdinMaster != nil {
+		if err := container.ptyStdinMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stdin master: %s", container.Id, err)
+		}
+	}
+	if container.ptyStdoutMaster != nil {
+		if err := container.ptyStdoutMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stdout master: %s", container.Id, err)
+		}
+	}
+	if container.ptyStderrMaster != nil {
+		if err := container.ptyStderrMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stderr master: %s", container.Id, err)
+		}
+	}
+
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}

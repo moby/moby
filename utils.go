@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -259,4 +260,13 @@ func (w *writeBroadcaster) Close() error {
 
 func newWriteBroadcaster() *writeBroadcaster {
 	return &writeBroadcaster{list.New()}
+}
+
+func getTotalUsedFds() int {
+	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
+		Debugf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+	} else {
+		return len(fds)
+	}
+	return -1
 }
