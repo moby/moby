@@ -267,19 +267,21 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
 		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
-		if err != nil {
-			return fmt.Errorf("Failed to generate layer archive: %s", err)
-		}
-		req3, err := http.NewRequest("PUT", url.String(), layerData)
-		if err != nil {
-			return err
-		}
 		tmp, err := ioutil.ReadAll(layerData2)
 		if err != nil {
 			return err
 		}
-		req3.ContentLength = int64(len(tmp))
+		layerLength := len(tmp)
+
+		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
+		if err != nil {
+			return fmt.Errorf("Failed to generate layer archive: %s", err)
+		}
+		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(layerData.(io.ReadCloser), layerLength, stdout))
+		if err != nil {
+			return err
+		}
+		req3.ContentLength = int64(layerLength)
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)
