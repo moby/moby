@@ -927,7 +927,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if !config.Detach {
 			Go(func() error {
 				_, err := io.Copy(cmdStdin, stdin)
-				cmdStdin.Close()
 				return err
 			})
 		}
