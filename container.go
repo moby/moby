@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strconv"
 	"syscall"
 	"time"
 )
@@ -49,12 +48,27 @@ type Config struct {
 	Memory     int64 // Memory limit (in bytes)
 	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
 	Detach     bool
-	Ports      []int
-	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin  bool // Open stdin
-	Env        []string
-	Cmd        []string
-	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	// Ports has been *deprecated*. It was not extensive enough - not
+	// allowing the choice of different protocols other than TCP. For the
+	// time being, existing config files using this field are still
+	// understood, but new files will use `PrivatePorts` instead.
+	Ports        []int
+	PrivatePorts []Port
+	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin    bool // Open stdin
+	Env          []string
+	Cmd          []string
+	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
+}
+
+// Update transforms an existing container configuration to a newer format.
+func (config *Config) Update() error {
+	for _, num := range config.Ports {
+		config.PrivatePorts = append(config.PrivatePorts, Port{"tcp", num})
+	}
+	config.Ports = []int{}
+	// Doesn't currenly return errors, but may in the future.
+	return nil
 }
 
 func ParseRun(args []string, stdout io.Writer) (*Config, error) {
@@ -68,8 +82,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	var flPorts ports
-
+	var flPorts PortList
 	cmd.Var(&flPorts, "p", "Map a network port to the container")
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
@@ -85,16 +98,17 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
+
 	config := &Config{
-		Ports:     flPorts,
-		User:      *flUser,
-		Tty:       *flTty,
-		OpenStdin: *flStdin,
-		Memory:    *flMemory,
-		Detach:    *flDetach,
-		Env:       flEnv,
-		Cmd:       runCmd,
-		Image:     image,
+		PrivatePorts: flPorts,
+		User:         *flUser,
+		Tty:          *flTty,
+		OpenStdin:    *flStdin,
+		Memory:       *flMemory,
+		Detach:       *flDetach,
+		Env:          flEnv,
+		Cmd:          runCmd,
+		Image:        image,
 	}
 	return config, nil
 }
@@ -337,12 +351,14 @@ func (container *Container) allocateNetwork() error {
 		return err
 	}
 	container.NetworkSettings.PortMapping = make(map[string]string)
-	for _, port := range container.Config.Ports {
-		if extPort, err := iface.AllocatePort(port); err != nil {
+	container.Config.Update()
+	for _, port := range container.Config.PrivatePorts {
+		if extPort, err := iface.AllocatePort(port.Proto, port.Num); err != nil {
 			iface.Release()
 			return err
 		} else {
-			container.NetworkSettings.PortMapping[strconv.Itoa(port)] = strconv.Itoa(extPort)
+			formattedExtPort := Port{port.Proto, extPort}.String()
+			container.NetworkSettings.PortMapping[port.String()] = formattedExtPort
 		}
 	}
 	container.network = iface
