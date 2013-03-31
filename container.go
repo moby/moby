@@ -230,6 +230,9 @@ func (container *Container) start() error {
 }
 
 func (container *Container) Start() error {
+	if container.State.Running {
+		return fmt.Errorf("The container %s is already running.", container.Id)
+	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
