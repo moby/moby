@@ -135,7 +135,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *a
 	if err != nil {
 		return nil, nil, err
 	}
-	return img, res.Body, nil
+	return img, ProgressReader(res.Body, int(res.ContentLength), stdout), nil
 }
 
 func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
