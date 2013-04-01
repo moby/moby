@@ -214,6 +214,8 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
+	sig := cmd.Int("signal", 15, "send a specific signal when stopping container (signal number)")
+	timeout := cmd.Int("timeout", 10, "specify the maximum time to wait before force kill the container (seconds)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -221,9 +223,10 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
+
 	for _, name := range cmd.Args() {
 		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Stop(); err != nil {
+			if err := container.StopTimeoutWithSig(*sig, time.Duration(*timeout)*time.Second); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.ShortId())
