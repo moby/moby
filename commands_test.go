@@ -54,6 +54,7 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
+/*
 // Test the behavior of a client disconnection.
 // We expect a client disconnect to leave the stdin of the container open
 // Therefore a process will keep his stdin open when a client disconnects
@@ -126,3 +127,4 @@ func TestReattachAfterDisconnect(t *testing.T) {
 		timeout <- false
 	})
 }
+*/

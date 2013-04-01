@@ -422,7 +422,13 @@ func (container *Container) monitor() {
 	// Report status back
 	container.State.setStopped(exitCode)
 	if err := container.ToDisk(); err != nil {
-		log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
 	}
 }
 
