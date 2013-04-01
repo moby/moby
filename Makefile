@@ -43,4 +43,4 @@ test: all
 	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))
 
 fmt:
-	@find . -name "*.go" -exec gofmt -l -w {} \;
+	@gofmt -s -l -w .
