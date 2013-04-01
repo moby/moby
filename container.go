@@ -363,7 +363,7 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork()  {
+func (container *Container) releaseNetwork() {
 	container.network.Release()
 	container.network = nil
 	container.NetworkSettings = &NetworkSettings{}
