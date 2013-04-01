@@ -67,6 +67,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		cmd.SetOutput(ioutil.Discard)
 	}
 
+	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
 	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
@@ -92,6 +93,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		runCmd = parsedArgs[1:]
 	}
 	config := &Config{
+		Hostname:  *flHostname,
 		Ports:     flPorts,
 		User:      *flUser,
 		Tty:       *flTty,
