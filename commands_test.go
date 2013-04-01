@@ -100,3 +100,69 @@ func TestRunDisconnect(t *testing.T) {
 		t.Fatalf("/bin/cat is still running after closing stdin")
 	}
 }
+
+// Expected behaviour, the process stays alive when the client disconnects
+func TestAttachDisconnect(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Memory:    33554432,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Start the process
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	// Attach to it
+	c1 := make(chan struct{})
+	go func() {
+		if err := srv.CmdAttach(stdin, stdoutPipe, container.Id); err != nil {
+			t.Fatal(err)
+		}
+		close(c1)
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+		<-c1
+	})
+	// We closed stdin, expect /bin/cat to still be running
+	// Wait a little bit to make sure container.monitor() did his thing
+	err = container.WaitTimeout(500 * time.Millisecond)
+	if err == nil || !container.State.Running {
+		t.Fatalf("/bin/cat is not running after closing stdin")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
+}
