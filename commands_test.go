@@ -24,7 +24,7 @@ func closeWrap(args ...io.Closer) error {
 	return nil
 }
 
-func setTimeout(t *testing.T, msg string, d time.Duration, f func(chan bool)) {
+func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
 	c := make(chan bool)
 
 	// Make sure we are not too long
@@ -32,9 +32,12 @@ func setTimeout(t *testing.T, msg string, d time.Duration, f func(chan bool)) {
 		time.Sleep(d)
 		c <- true
 	}()
-	go f(c)
-	if timeout := <-c; timeout {
-		t.Fatalf("Timeout: %s", msg)
+	go func() {
+		f()
+		c <- false
+	}()
+	if <-c {
+		t.Fatal(msg)
 	}
 }
 
@@ -54,77 +57,46 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-/*
-// Test the behavior of a client disconnection.
-// We expect a client disconnect to leave the stdin of the container open
-// Therefore a process will keep his stdin open when a client disconnects
-func TestReattachAfterDisconnect(t *testing.T) {
+// Expected behaviour: the process dies when the client disconnects
+func TestRunDisconnect(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
 
-	// FIXME: low down the timeout (after #230)
-	setTimeout(t, "TestReattachAfterDisconnect", 12*time.Second, func(timeout chan bool) {
+	srv := &Server{runtime: runtime}
 
-		srv := &Server{runtime: runtime}
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+	c1 := make(chan struct{})
+	go func() {
+		if err := srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat"); err != nil {
+			t.Fatal(err)
+		}
+		close(c1)
+	}()
 
-		stdin, stdinPipe := io.Pipe()
-		stdout, stdoutPipe := io.Pipe()
-		c1 := make(chan struct{})
-		go func() {
-			if err := srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat"); err == nil {
-				t.Fatal("CmdRun should generate a read/write on closed pipe error. No error found.")
-			}
-			close(c1)
-		}()
-
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
-
-		// Close pipes (simulate disconnect)
-		if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-			t.Fatal(err)
-		}
-
-		container := runtime.containers.Back().Value.(*Container)
-
-		// Recreate the pipes
-		stdin, stdinPipe = io.Pipe()
-		stdout, stdoutPipe = io.Pipe()
-
-		// Attach to it
-		c2 := make(chan struct{})
-		go func() {
-			if err := srv.CmdAttach(stdin, stdoutPipe, container.Id); err != nil {
-				t.Fatal(err)
-			}
-			close(c2)
-		}()
-
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
-			t.Fatal(err)
-		}
-
-		// Close pipes
-		if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-			t.Fatal(err)
-		}
-
-		// FIXME: when #230 will be finished, send SIGINT instead of SIGTERM
-		//        we expect cat to stay alive so SIGTERM will have no effect
-		//        and Stop will timeout
-		if err := container.Stop(); err != nil {
-			t.Fatal(err)
-		}
-		// Wait for run and attach to finish
-		<-c1
-		<-c2
-
-		// Finished, no timeout
-		timeout <- false
 	})
+
+	// Close pipes (simulate disconnect)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// as the pipes are close, we expect the process to die,
+	// therefore CmdRun to unblock. Wait for CmdRun
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// Check the status of the container
+	container := runtime.containers.Back().Value.(*Container)
+	if container.State.Running {
+		t.Fatalf("/bin/cat is still running after closing stdin")
+	}
 }
-*/
