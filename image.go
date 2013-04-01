@@ -150,6 +150,10 @@ func (image *Image) Changes(rw string) ([]Change, error) {
 	return Changes(layers, rw)
 }
 
+func (image *Image) ShortId() string {
+	return TruncateId(image.Id)
+}
+
 func ValidateId(id string) error {
 	if id == "" {
 		return fmt.Errorf("Image id can't be empty")

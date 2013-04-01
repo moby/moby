@@ -372,7 +372,7 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
 	return image.WalkHistory(func(img *Image) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			srv.runtime.repositories.ImageName(img.Id),
+			srv.runtime.repositories.ImageName(img.ShortId()),
 			HumanDuration(time.Now().Sub(img.Created))+" ago",
 			strings.Join(img.ContainerConfig.Cmd, " "),
 		)
@@ -458,7 +458,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 
@@ -591,7 +591,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ name,
 					/* TAG */ tag,
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -603,7 +603,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -614,7 +614,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ "<none>",
 					/* TAG */ "<none>",
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -626,7 +626,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -700,7 +700,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 

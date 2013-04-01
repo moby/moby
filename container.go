@@ -566,11 +566,7 @@ func (container *Container) Unmount() error {
 // In case of a collision a lookup with Runtime.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length container Id.
 func (container *Container) ShortId() string {
-	shortLen := 12
-	if len(container.Id) < shortLen {
-		shortLen = len(container.Id)
-	}
-	return container.Id[:shortLen]
+	return TruncateId(container.Id)
 }
 
 func (container *Container) logPath(name string) string {
