@@ -161,7 +161,11 @@ func isNotEmpty(err error) bool {
 }
 
 // Delete atomically removes an image from the graph.
-func (graph *Graph) Delete(id string) error {
+func (graph *Graph) Delete(name string) error {
+	id, err := graph.idIndex.Get(name)
+	if err != nil {
+		return err
+	}
 	garbage, err := graph.Garbage()
 	if err != nil {
 		return err
