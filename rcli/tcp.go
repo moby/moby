@@ -51,8 +51,8 @@ func ListenAndServe(proto, addr string, service Service) error {
 					CLIENT_SOCKET = conn
 				}
 				if err := Serve(conn, service); err != nil {
-					log.Printf("Error: " + err.Error() + "\n")
-					fmt.Fprintf(conn, "Error: "+err.Error()+"\n")
+					log.Println("Error:", err.Error())
+					fmt.Fprintln(conn, "Error:", err.Error())
 				}
 				conn.Close()
 			}()
