@@ -7,8 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -132,6 +134,23 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateId(container.Id); err != nil {
 		return err
 	}
+
+	// FIXME: if the container is supposed to be running but is not, auto restart it?
+	// If the container is supposed to be running, make sure of if
+	if container.State.Running {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				Debugf("Container %s was supposed to be running be is not.", container.Id)
+				container.State.Running = false
+				if err := container.ToDisk(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	container.runtime = runtime
 	// Setup state lock (formerly in newState()
 	lock := new(sync.Mutex)
@@ -259,7 +278,6 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		// If the auth file does not exist, keep going
 		return nil, err
 	}
-
 	runtime := &Runtime{
 		root:           root,
 		repository:     runtimeRepo,
