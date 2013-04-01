@@ -263,6 +263,10 @@ func TestStart(t *testing.T) {
 	if err := container.Start(); err == nil {
 		t.Fatalf("A running containter should be able to be started")
 	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
 }
 
 func TestRun(t *testing.T) {
