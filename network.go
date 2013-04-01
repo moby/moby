@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -30,40 +29,25 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
-func ipToInt(ip net.IP) (int32, error) {
-	buf := bytes.NewBuffer(ip.To4())
-	var n int32
-	if err := binary.Read(buf, binary.BigEndian, &n); err != nil {
-		return 0, err
-	}
-	return n, nil
+func ipToInt(ip net.IP) int32 {
+	return int32(binary.BigEndian.Uint32(ip.To4()))
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
-func intToIp(n int32) (net.IP, error) {
-	var buf bytes.Buffer
-	if err := binary.Write(&buf, binary.BigEndian, &n); err != nil {
-		return net.IP{}, err
-	}
-	ip := net.IPv4(0, 0, 0, 0).To4()
-	for i := 0; i < net.IPv4len; i++ {
-		ip[i] = buf.Bytes()[i]
-	}
-	return ip, nil
+func intToIp(n int32) net.IP {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, uint32(n))
+	return net.IP(b)
 }
 
 // Given a netmask, calculates the number of available hosts
-func networkSize(mask net.IPMask) (int32, error) {
+func networkSize(mask net.IPMask) int32 {
 	m := net.IPv4Mask(0, 0, 0, 0)
 	for i := 0; i < net.IPv4len; i++ {
 		m[i] = ^mask[i]
 	}
-	buf := bytes.NewBuffer(m)
-	var n int32
-	if err := binary.Read(buf, binary.BigEndian, &n); err != nil {
-		return 0, err
-	}
-	return n + 1, nil
+
+	return int32(binary.BigEndian.Uint32(m)) + 1
 }
 
 // Wrapper around the iptables command
@@ -211,66 +195,97 @@ func newPortAllocator(start, end int) (*PortAllocator, error) {
 
 // IP allocator: Atomatically allocate and release networking ports
 type IPAllocator struct {
-	network *net.IPNet
-	queue   chan (net.IP)
+	network       *net.IPNet
+	queueAlloc    chan allocatedIP
+	queueReleased chan net.IP
+	inUse         map[int32]struct{}
 }
 
-func (alloc *IPAllocator) populate() error {
+type allocatedIP struct {
+	ip  net.IP
+	err error
+}
+
+func (alloc *IPAllocator) run() {
 	firstIP, _ := networkRange(alloc.network)
-	size, err := networkSize(alloc.network.Mask)
-	if err != nil {
-		return err
+	ipNum := ipToInt(firstIP)
+	ownIP := ipToInt(alloc.network.IP)
+	size := networkSize(alloc.network.Mask)
+
+	pos := int32(1)
+	max := size - 2 // -1 for the broadcast address, -1 for the gateway address
+	for {
+		var (
+			newNum int32
+			inUse  bool
+		)
+
+		// Find first unused IP, give up after one whole round
+		for attempt := int32(0); attempt < max; attempt++ {
+			newNum = ipNum + pos
+
+			pos = pos%max + 1
+
+			// The network's IP is never okay to use
+			if newNum == ownIP {
+				continue
+			}
+
+			if _, inUse = alloc.inUse[newNum]; !inUse {
+				// We found an unused IP
+				break
+			}
+		}
+
+		ip := allocatedIP{ip: intToIp(newNum)}
+		if inUse {
+			ip.err = errors.New("No unallocated IP available")
+		}
+
+		select {
+		case alloc.queueAlloc <- ip:
+			alloc.inUse[newNum] = struct{}{}
+		case released := <-alloc.queueReleased:
+			r := ipToInt(released)
+			delete(alloc.inUse, r)
+
+			if inUse {
+				// If we couldn't allocate a new IP, the released one
+				// will be the only free one now, so instantly use it
+				// next time
+				pos = r - ipNum
+			} else {
+				// Use same IP as last time
+				if pos == 1 {
+					pos = max
+				} else {
+					pos--
+				}
+			}
+		}
 	}
-	// The queue size should be the network size - 3
-	// -1 for the network address, -1 for the broadcast address and
-	// -1 for the gateway address
-	alloc.queue = make(chan net.IP, size-3)
-	for i := int32(1); i < size-1; i++ {
-		ipNum, err := ipToInt(firstIP)
-		if err != nil {
-			return err
-		}
-		ip, err := intToIp(ipNum + int32(i))
-		if err != nil {
-			return err
-		}
-		// Discard the network IP (that's the host IP address)
-		if ip.Equal(alloc.network.IP) {
-			continue
-		}
-		alloc.queue <- ip
-	}
-	return nil
 }
 
 func (alloc *IPAllocator) Acquire() (net.IP, error) {
-	select {
-	case ip := <-alloc.queue:
-		return ip, nil
-	default:
-		return net.IP{}, errors.New("No more IP addresses available")
-	}
-	return net.IP{}, nil
+	ip := <-alloc.queueAlloc
+	return ip.ip, ip.err
 }
 
-func (alloc *IPAllocator) Release(ip net.IP) error {
-	select {
-	case alloc.queue <- ip:
-		return nil
-	default:
-		return errors.New("Too many IP addresses have been released")
-	}
-	return nil
+func (alloc *IPAllocator) Release(ip net.IP) {
+	alloc.queueReleased <- ip
 }
 
-func newIPAllocator(network *net.IPNet) (*IPAllocator, error) {
+func newIPAllocator(network *net.IPNet) *IPAllocator {
 	alloc := &IPAllocator{
-		network: network,
+		network:       network,
+		queueAlloc:    make(chan allocatedIP),
+		queueReleased: make(chan net.IP),
+		inUse:         make(map[int32]struct{}),
 	}
-	if err := alloc.populate(); err != nil {
-		return nil, err
-	}
-	return alloc, nil
+
+	go alloc.run()
+
+	return alloc
 }
 
 // Network interface represents the networking stack of a container
@@ -297,7 +312,7 @@ func (iface *NetworkInterface) AllocatePort(port int) (int, error) {
 }
 
 // Release: Network cleanup - release all resources
-func (iface *NetworkInterface) Release() error {
+func (iface *NetworkInterface) Release() {
 	for _, port := range iface.extPorts {
 		if err := iface.manager.portMapper.Unmap(port); err != nil {
 			log.Printf("Unable to unmap port %v: %v", port, err)
@@ -307,7 +322,8 @@ func (iface *NetworkInterface) Release() error {
 		}
 
 	}
-	return iface.manager.ipAllocator.Release(iface.IPNet.IP)
+
+	iface.manager.ipAllocator.Release(iface.IPNet.IP)
 }
 
 // Network Manager manages a set of network interfaces
@@ -342,10 +358,7 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 	network := addr.(*net.IPNet)
 
-	ipAllocator, err := newIPAllocator(network)
-	if err != nil {
-		return nil, err
-	}
+	ipAllocator := newIPAllocator(network)
 
 	portAllocator, err := newPortAllocator(portRangeStart, portRangeEnd)
 	if err != nil {
