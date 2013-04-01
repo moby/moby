@@ -279,8 +279,32 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime1.Destroy(container1)
-	if len(runtime1.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime1.List()))
+
+	// Create a second container meant to be killed
+	container1_1, err := runtime1.Create(&Config{
+		Image:     GetTestImage(runtime1).Id,
+		Cmd:       []string{"/bin/cat"},
+		OpenStdin: true,
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime1.Destroy(container1_1)
+
+	// Start the container non blocking
+	if err := container1_1.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
+	if err := exec.Command("lxc-kill", "-n", container1_1.Id, "9").Run(); err == nil {
+		t.Fatalf("container supposed to be killed (return error 255). Success received.")
+	}
+	container1_1.State.Running = true
+
+	if len(runtime1.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
@@ -293,8 +317,17 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime2)
-	if len(runtime2.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime2.List()))
+	if len(runtime2.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
+	}
+	runningCount := 0
+	for _, c := range runtime2.List() {
+		if c.State.Running {
+			runningCount++
+		}
+	}
+	if runningCount != 0 {
+		t.Fatalf("Expected 0 container alive, %d found", runningCount)
 	}
 	container2 := runtime2.Get(container1.Id)
 	if container2 == nil {
