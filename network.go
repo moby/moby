@@ -31,18 +31,12 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 
 // Detects overlap between one IPNet and another
 func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	first, last := networkRange(netX)
-	if netY.Contains(first) {
+	firstIP, _ := networkRange(netX)
+	if netY.Contains(firstIP) {
 		return true
 	}
-	if netY.Contains(last) {
-		return true
-	}
-	first, last = networkRange(netY)
-	if netX.Contains(first) {
-		return true
-	}
-	if netX.Contains(first) {
+	firstIP, _ = networkRange(netY)
+	if netX.Contains(firstIP) {
 		return true
 	}
 	return false
