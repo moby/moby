@@ -218,7 +218,7 @@ func assertIPEquals(t *testing.T, ip1, ip2 net.IP) {
 	}
 }
 
-func AssertOverlap (CIDRx string, CIDRy string, t *testing.T) {
+func AssertOverlap(CIDRx string, CIDRy string, t *testing.T) {
 	_, netX, _ := net.ParseCIDR(CIDRx)
 	_, netY, _ := net.ParseCIDR(CIDRy)
 	if !networkOverlaps(netX, netY) {
@@ -226,7 +226,7 @@ func AssertOverlap (CIDRx string, CIDRy string, t *testing.T) {
 	}
 }
 
-func AssertNoOverlap (CIDRx string, CIDRy string, t *testing.T) {
+func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
 	_, netX, _ := net.ParseCIDR(CIDRx)
 	_, netY, _ := net.ParseCIDR(CIDRy)
 	if networkOverlaps(netX, netY) {
