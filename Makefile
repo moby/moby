@@ -10,7 +10,7 @@ ifeq ($(VERBOSE), 1)
 GO_OPTIONS += -v
 endif
 
-BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT `git rev-parse HEAD`"
+BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT `git rev-parse --short HEAD`"
 
 SRC_DIR := $(GOPATH)/src
 
