@@ -20,7 +20,7 @@ func ListenAndServeHTTP(addr string, service Service) error {
 		func(w http.ResponseWriter, r *http.Request) {
 			cmd, args := URLToCall(r.URL)
 			if err := call(service, r.Body, &AutoFlush{w}, append([]string{cmd}, args...)...); err != nil {
-				fmt.Fprintf(w, "Error: "+err.Error()+"\n")
+				fmt.Fprintln(w, "Error:", err.Error())
 			}
 		}))
 }

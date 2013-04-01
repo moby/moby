@@ -458,8 +458,8 @@ func (container *Container) Stop() error {
 
 	// 1. Send a SIGTERM
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
-		log.Printf(string(output))
-		log.Printf("Failed to send SIGTERM to the process, force killing")
+		log.Print(string(output))
+		log.Print("Failed to send SIGTERM to the process, force killing")
 		if err := container.Kill(); err != nil {
 			return err
 		}
