@@ -225,8 +225,7 @@ func (runtime *Runtime) restore() error {
 			Debugf("Failed to load container %v: %v", id, err)
 			continue
 		} else if container.State.Running {
-			_, err := os.Stat("/proc/" + string(container.State.Pid))
-			if err != nil {
+			if _, err := os.Stat(fmt.Sprintf("/proc/%d", container.State.Pid)); err != nil {
 				Debugf("Could not stat /proc/%v, assuming process has crashed.", container.State.Pid)
 				container.State.setStopped(-127)
 			}
