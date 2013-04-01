@@ -11,11 +11,14 @@ import (
 	"strings"
 )
 
+var (
+	NetworkBridgeIface = "dockbr0"
+	NetworkBridgeAddr  = "172.16.0.1/24"
+)
+
 const (
-	networkBridgeIface = "dockbr0"
-	networkBridgeAddr  = "172.16.0.1/24"
-	portRangeStart     = 49153
-	portRangeEnd       = 65535
+	portRangeStart = 49153
+	portRangeEnd   = 65535
 )
 
 // Calculates the first and last IP addresses in an IPNet
@@ -449,8 +452,14 @@ func newNetworkBridge(bridgeIface string, bridgeAddr string) (*NetworkBridge, er
 		Addr:  bridgeAddr,
 		Iface: bridgeIface,
 	}
-	if _, err := net.InterfaceByName(bridge.Iface); err == nil {
-		return bridge, nil
+	if iface, err := net.InterfaceByName(bridge.Iface); err == nil {
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			if addr.String() == bridge.Addr {
+				return bridge, nil
+			}
+		}
+		return nil, fmt.Errorf("Network bridge %v exists but doesn't match specified address %v", bridge.Iface, bridge.Addr)
 	}
 	if err := bridge.CheckAddr(); err != nil {
 		return nil, err

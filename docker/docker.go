@@ -17,6 +17,8 @@ func main() {
 		docker.SysInit()
 		return
 	}
+	flBridgeIface := flag.String("bridge-iface", "dockbr0", "Network Bridge Interface")
+	flBridgeAddr := flag.String("bridge-addr", "172.16.0.1/24", "Network Bridge Address")
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
@@ -24,6 +26,8 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+	docker.NetworkBridgeIface = *flBridgeIface
+	docker.NetworkBridgeAddr = *flBridgeAddr
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
