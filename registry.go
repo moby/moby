@@ -183,10 +183,10 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		return fmt.Errorf("HTTP code: %d", res.StatusCode)
 	}
-	defer res.Body.Close()
 	rawJson, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -237,6 +237,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		if err != nil {
 			return fmt.Errorf("Failed to upload metadata: %s", err)
 		}
+		defer res.Body.Close()
 		if res.StatusCode != 200 {
 			switch res.StatusCode {
 			case 204:
@@ -256,8 +257,12 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
-		if err != nil || res2.StatusCode != 307 {
+		if err != nil {
 			return fmt.Errorf("Registry returned error: %s", err)
+		}
+		res2.Body.Close()
+		if res2.StatusCode != 307 {
+			return fmt.Errorf("Registry returned unexpected HTTP status code %d, expected 307", res2.StatusCode)
 		}
 		url, err := res2.Location()
 		if err != nil || url == nil {
@@ -286,6 +291,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		if err != nil {
 			return fmt.Errorf("Failed to upload layer: %s", err)
 		}
+		res3.Body.Close()
 		if res3.StatusCode != 200 {
 			return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
 		}
@@ -315,11 +321,12 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil || (res.StatusCode != 200 && res.StatusCode != 201) {
-		if res != nil {
-			return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
-		}
+	if err != nil {
 		return err
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 && res.StatusCode != 201 {
+		return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
 	}
 	Debugf("Result of push tag: %d\n", res.StatusCode)
 	switch res.StatusCode {
