@@ -10,6 +10,8 @@ ifeq ($(VERBOSE), 1)
 GO_OPTIONS += -v
 endif
 
+BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT `git rev-parse HEAD`"
+
 SRC_DIR := $(GOPATH)/src
 
 DOCKER_DIR := $(SRC_DIR)/$(DOCKER_PACKAGE)
@@ -24,7 +26,7 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):

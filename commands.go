@@ -21,6 +21,8 @@ import (
 
 const VERSION = "0.1.0"
 
+var GIT_COMMIT string
+
 func (srv *Server) Name() string {
 	return "docker"
 }
@@ -128,6 +130,7 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 // 'docker version': show version information
 func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
+	fmt.Fprintf(stdout, "Git Commit:%s\n", GIT_COMMIT)
 	return nil
 }
 
