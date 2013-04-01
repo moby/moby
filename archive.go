@@ -15,6 +15,7 @@ const (
 	Uncompressed Compression = iota
 	Bzip2
 	Gzip
+	Xz
 )
 
 func (compression *Compression) Flag() string {
@@ -23,6 +24,8 @@ func (compression *Compression) Flag() string {
 		return "j"
 	case Gzip:
 		return "z"
+	case Xz:
+		return "J"
 	}
 	return ""
 }
