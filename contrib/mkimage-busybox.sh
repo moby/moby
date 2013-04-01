@@ -35,6 +35,5 @@ do
     cp -a /dev/$X dev
 done
 
-tar -cf- . | docker put busybox
-docker run -i -a -u root busybox /bin/echo Success.
-
+tar -cf- . | docker import - busybox
+docker run -i -u root busybox /bin/echo Success.
