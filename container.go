@@ -269,13 +269,20 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		} else {
 			go func() {
 				Debugf("[start] attach stdin\n")
-				defer Debugf("[end]  attach stdin\n")
+				defer Debugf("[end] attach stdin\n")
+				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
+				if cStdout != nil {
+					defer cStdout.Close()
+				}
+				if cStderr != nil {
+					defer cStderr.Close()
+				}
 				if container.Config.StdinOnce {
 					defer cStdin.Close()
 				}
 				_, err := io.Copy(cStdin, stdin)
 				if err != nil {
-					Debugf("[error] attach stdout: %s\n", err)
+					Debugf("[error] attach stdin: %s\n", err)
 				}
 				// Discard error, expecting pipe error
 				errors <- nil
