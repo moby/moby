@@ -799,7 +799,8 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-	return <-container.Attach(stdin, stdout, stdout)
+
+	return <-container.Attach(stdin, nil, stdout, stdout)
 }
 
 // Ports type - Used to parse multiple -p flags
@@ -901,11 +902,17 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		}
 	}
 	var (
-		cStdin           io.Reader
+		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
 	)
 	if config.AttachStdin {
-		cStdin = stdin
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close()
+			defer Debugf("Closing buffered stdin pipe")
+			io.Copy(w, stdin)
+		}()
+		cStdin = r
 	}
 	if config.AttachStdout {
 		cStdout = stdout
@@ -913,7 +920,8 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if config.AttachStderr {
 		cStderr = stdout // FIXME: rcli can't differentiate stdout from stderr
 	}
-	attachErr := container.Attach(cStdin, cStdout, cStderr)
+
+	attachErr := container.Attach(cStdin, stdin, cStdout, cStderr)
 	Debugf("Starting\n")
 	if err := container.Start(); err != nil {
 		return err
