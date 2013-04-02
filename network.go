@@ -92,15 +92,18 @@ func brctl(args ...string) error {
 }
 
 //Wrapper around the ip command
-func ip(args ...string) error {
+func ip(args ...string) (string, error) {
 	path, err := exec.LookPath("ip")
 	if err != nil {
-		return fmt.Errorf("command not found: ip")
+		return "", fmt.Errorf("command not found: ip")
 	}
-	if err := exec.Command(path, args...).Run(); err != nil {
-		return fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
+	if output, err := exec.Command(path, args...).CombinedOutput(); err != nil {
+		return "", fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
+	} else {
+		return string(output), nil
 	}
-	return nil
+	// Note: this return is useless in go1.1
+	return "", nil
 }
 
 // Return the IPv4 address of a network interface
@@ -433,11 +436,11 @@ func (bridge *NetworkBridge) CreateIface() error {
 	if err := brctl("addbr", bridge.Iface); err != nil {
 		return fmt.Errorf("Unable to create docker bridge: %v", err)
 	}
-	if err := ip("addr", "add", bridge.Addr, "dev", bridge.Iface); err != nil {
-		return fmt.Errorf("Unable to add private network: %v", err)
+	if output, err := ip("addr", "add", bridge.Addr, "dev", bridge.Iface); err != nil {
+		return fmt.Errorf("Unable to add private network: %v (%v)", err, output)
 	}
-	if err := ip("link", "set", bridge.Iface, "up"); err != nil {
-		return fmt.Errorf("Unable to start network bridge: %v", err)
+	if output, err := ip("link", "set", bridge.Iface, "up"); err != nil {
+		return fmt.Errorf("Unable to start network bridge: %v (%v)", err, output)
 	}
 	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", bridge.Addr,
 		"!", "-d", bridge.Addr, "-j", "MASQUERADE"); err != nil {
