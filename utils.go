@@ -242,7 +242,7 @@ func (w *writeBroadcaster) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (w *writeBroadcaster) Close() error {
+func (w *writeBroadcaster) CloseWriters() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for writer := range w.writers {
