@@ -136,14 +136,14 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
-	// If the container is supposed to be running, make sure of if
+	// If the container is supposed to be running, make sure of it
 	if container.State.Running {
 		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
 			return err
 		} else {
 			if !strings.Contains(string(output), "RUNNING") {
 				Debugf("Container %s was supposed to be running be is not.", container.Id)
-				container.State.Running = false
+				container.State.setStopped(-127)
 				if err := container.ToDisk(); err != nil {
 					return err
 				}

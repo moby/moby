@@ -297,10 +297,15 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
-	if err := exec.Command("lxc-kill", "-n", container1_1.Id, "9").Run(); err == nil {
-		t.Fatalf("container supposed to be killed (return error 255). Success received.")
+	if !container1_1.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container1_1.Id)
 	}
+
+	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
+	if err := container1_1.Stop(); err != nil {
+		t.Fatalf("Could not stop container: %v", err)
+	}
+
 	container1_1.State.Running = true
 
 	if len(runtime1.List()) != 2 {
@@ -308,6 +313,10 @@ func TestRestore(t *testing.T) {
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
+	}
+
+	if !container1_1.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container1_1.Id)
 	}
 
 	// Here are are simulating a docker restart - that is, reloading all containers
@@ -323,6 +332,7 @@ func TestRestore(t *testing.T) {
 	runningCount := 0
 	for _, c := range runtime2.List() {
 		if c.State.Running {
+			t.Errorf("Running container found: %v (%v)", c.Id, c.Path)
 			runningCount++
 		}
 	}
