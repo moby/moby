@@ -930,7 +930,9 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		fmt.Fprintln(stdout, container.ShortId())
 	}
 	Debugf("Waiting for attach to return\n")
-	return <-attachErr
+	<-attachErr
+	// Expecting I/O pipe error, discarding
+	return nil
 }
 
 func NewServer() (*Server, error) {
