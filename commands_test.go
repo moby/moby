@@ -94,11 +94,15 @@ func TestRunDisconnect(t *testing.T) {
 		<-c1
 	})
 
-	// Check the status of the container
-	container := runtime.containers.Back().Value.(*Container)
-	if container.State.Running {
-		t.Fatalf("/bin/cat is still running after closing stdin")
-	}
+	// Client disconnect after run -i should cause stdin to be closed, which should
+	// cause /bin/cat to exit.
+	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
+		container := runtime.List()[0]
+		container.Wait()
+		if container.State.Running {
+			t.Fatalf("/bin/cat is still running after closing stdin")
+		}
+	})
 }
 
 // Expected behaviour, the process stays alive when the client disconnects
