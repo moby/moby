@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -112,7 +111,8 @@ func Login(authConfig *AuthConfig) (string, error) {
 		return "", errors.New(errMsg)
 	}
 
-	b := bytes.NewReader(jsonBody)
+	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
+	b := strings.NewReader(string(jsonBody))
 	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
 	if err != nil {
 		errMsg = fmt.Sprintf("Server Error: %s", err)
