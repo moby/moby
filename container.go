@@ -101,6 +101,10 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		Cmd:       runCmd,
 		Image:     image,
 	}
+	// When allocating stdin in attached mode, close stdin at client disconnect
+	if config.OpenStdin && !config.Detach {
+		config.StdinOnce = true
+	}
 	return config, nil
 }
 

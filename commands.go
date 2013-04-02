@@ -874,7 +874,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if !config.Detach {
 		var attachErr chan error
 		if config.OpenStdin {
-			config.StdinOnce = true
 			Debugf("Attaching with stdin\n")
 			attachErr = container.Attach(stdin, stdout, stdout)
 		} else {
