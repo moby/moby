@@ -16,6 +16,7 @@ This documentation has the following resources:
    contributing/index
    commandline/index
    faq
+   future
 
 
 .. image:: http://www.docker.io/_static/lego_docker.jpg
