@@ -80,6 +80,62 @@ func TestRunHostname(t *testing.T) {
 	}
 }
 
+func TestRunExit(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+	c1 := make(chan struct{})
+	go func() {
+		if err := srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat"); err != nil {
+			t.Error(err)
+		}
+		close(c1)
+	}()
+
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := runtime.List()[0]
+
+	// Closing /bin/cat stdin, expect it to exit
+	p, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// as the process exited, CmdRun must finish and unblock. Wait for it
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// Make sure that the client has been disconnected
+	setTimeout(t, "The client should have been disconnected once the remote process exited.", 2*time.Second, func() {
+		if _, err := stdin.Read([]byte{}); err != nil {
+			if err != io.EOF {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	// Cleanup pipes
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Expected behaviour: the process dies when the client disconnects
 func TestRunDisconnect(t *testing.T) {
 	runtime, err := newTestRuntime()
