@@ -71,9 +71,9 @@ func TestRunDisconnect(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 	c1 := make(chan struct{})
 	go func() {
-		if err := srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat"); err != nil {
-			t.Fatal(err)
-		}
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdRun returns.
+		srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat")
 		close(c1)
 	}()
 
@@ -135,9 +135,9 @@ func TestAttachDisconnect(t *testing.T) {
 	// Attach to it
 	c1 := make(chan struct{})
 	go func() {
-		if err := srv.CmdAttach(stdin, stdoutPipe, container.Id); err != nil {
-			t.Fatal(err)
-		}
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdAttach returns.
+		srv.CmdAttach(stdin, stdoutPipe, container.Id)
 		close(c1)
 	}()
 
