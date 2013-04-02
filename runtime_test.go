@@ -281,7 +281,7 @@ func TestRestore(t *testing.T) {
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container1_1, err := runtime1.Create(&Config{
+	container2, err := runtime1.Create(&Config{
 		Image:     GetTestImage(runtime1).Id,
 		Cmd:       []string{"/bin/cat"},
 		OpenStdin: true,
@@ -290,23 +290,23 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime1.Destroy(container1_1)
+	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
-	if err := container1_1.Start(); err != nil {
+	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
 
-	if !container1_1.State.Running {
-		t.Fatalf("Container %v should appear as running but isn't", container1_1.Id)
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
-	if err := container1_1.Stop(); err != nil {
+	if err := container2.Stop(); err != nil {
 		t.Fatalf("Could not stop container: %v", err)
 	}
 
-	container1_1.State.Running = true
+	container2.State.Running = true
 
 	if len(runtime1.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
@@ -315,8 +315,8 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container1_1.State.Running {
-		t.Fatalf("Container %v should appear as running but isn't", container1_1.Id)
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
 	}
 
 	// Here are are simulating a docker restart - that is, reloading all containers
@@ -339,11 +339,11 @@ func TestRestore(t *testing.T) {
 	if runningCount != 0 {
 		t.Fatalf("Expected 0 container alive, %d found", runningCount)
 	}
-	container2 := runtime2.Get(container1.Id)
-	if container2 == nil {
+	container3 := runtime2.Get(container1.Id)
+	if container3 == nil {
 		t.Fatal("Unable to Get container")
 	}
-	if err := container2.Run(); err != nil {
+	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
 }
