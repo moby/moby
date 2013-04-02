@@ -230,6 +230,9 @@ func (container *Container) start() error {
 }
 
 func (container *Container) Start() error {
+	if container.State.Running {
+		return fmt.Errorf("The container %s is already running.", container.Id)
+	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
@@ -360,11 +363,10 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() error {
-	err := container.network.Release()
+func (container *Container) releaseNetwork() {
+	container.network.Release()
 	container.network = nil
 	container.NetworkSettings = &NetworkSettings{}
-	return err
 }
 
 func (container *Container) monitor() {
@@ -379,9 +381,7 @@ func (container *Container) monitor() {
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
-	if err := container.releaseNetwork(); err != nil {
-		log.Printf("%v: Failed to release network: %v", container.Id, err)
-	}
+	container.releaseNetwork()
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			Debugf("%s: Error close stdin: %s", container.Id, err)
@@ -422,7 +422,13 @@ func (container *Container) monitor() {
 	// Report status back
 	container.State.setStopped(exitCode)
 	if err := container.ToDisk(); err != nil {
-		log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
 	}
 }
 
@@ -452,8 +458,8 @@ func (container *Container) Stop() error {
 
 	// 1. Send a SIGTERM
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
-		log.Printf(string(output))
-		log.Printf("Failed to send SIGTERM to the process, force killing")
+		log.Print(string(output))
+		log.Print("Failed to send SIGTERM to the process, force killing")
 		if err := container.Kill(); err != nil {
 			return err
 		}
@@ -560,11 +566,7 @@ func (container *Container) Unmount() error {
 // In case of a collision a lookup with Runtime.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length container Id.
 func (container *Container) ShortId() string {
-	shortLen := 12
-	if len(container.Id) < shortLen {
-		shortLen = len(container.Id)
-	}
-	return container.Id[:shortLen]
+	return TruncateId(container.Id)
 }
 
 func (container *Container) logPath(name string) string {

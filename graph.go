@@ -10,12 +10,13 @@ import (
 	"time"
 )
 
-// A Graph is a store for versioned filesystem images, and the relationship between them.
+// A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root string
+	Root    string
+	idIndex *TruncIndex
 }
 
-// NewGraph instanciates a new graph at the given root path in the filesystem.
+// NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
 func NewGraph(root string) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
@@ -26,9 +27,26 @@ func NewGraph(root string) (*Graph, error) {
 	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	return &Graph{
-		Root: abspath,
-	}, nil
+	graph := &Graph{
+		Root:    abspath,
+		idIndex: NewTruncIndex(),
+	}
+	if err := graph.restore(); err != nil {
+		return nil, err
+	}
+	return graph, nil
+}
+
+func (graph *Graph) restore() error {
+	dir, err := ioutil.ReadDir(graph.Root)
+	if err != nil {
+		return err
+	}
+	for _, v := range dir {
+		id := v.Name()
+		graph.idIndex.Add(id)
+	}
+	return nil
 }
 
 // FIXME: Implement error subclass instead of looking at the error text
@@ -47,7 +65,11 @@ func (graph *Graph) Exists(id string) bool {
 }
 
 // Get returns the image with the given id, or an error if the image doesn't exist.
-func (graph *Graph) Get(id string) (*Image, error) {
+func (graph *Graph) Get(name string) (*Image, error) {
+	id, err := graph.idIndex.Get(name)
+	if err != nil {
+		return nil, err
+	}
 	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := LoadImage(graph.imageRoot(id))
 	if err != nil {
@@ -101,6 +123,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 		return err
 	}
 	img.graph = graph
+	graph.idIndex.Add(img.Id)
 	return nil
 }
 
@@ -117,14 +140,14 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 }
 
 // Garbage returns the "garbage", a staging area for deleted images.
-// This allows images ot be deleted atomically by os.Rename(), instead of
-// os.RemoveAll() which is prone to race conditions
+// This allows images to be deleted atomically by os.Rename(), instead of
+// os.RemoveAll() which is prone to race conditions.
 func (graph *Graph) Garbage() (*Graph, error) {
 	return NewGraph(path.Join(graph.Root, ":garbage:"))
 }
 
-// Check if given error is "not empty"
-// Note: this is the way golang do it internally with os.IsNotExists
+// Check if given error is "not empty".
+// Note: this is the way golang does it internally with os.IsNotExists.
 func isNotEmpty(err error) bool {
 	switch pe := err.(type) {
 	case nil:
@@ -138,13 +161,20 @@ func isNotEmpty(err error) bool {
 }
 
 // Delete atomically removes an image from the graph.
-func (graph *Graph) Delete(id string) error {
+func (graph *Graph) Delete(name string) error {
+	id, err := graph.idIndex.Get(name)
+	if err != nil {
+		return err
+	}
 	garbage, err := graph.Garbage()
 	if err != nil {
 		return err
 	}
+	graph.idIndex.Delete(id)
 	err = os.Rename(graph.imageRoot(id), garbage.imageRoot(id))
 	if err != nil {
+		// FIXME: this introduces a race condition in Delete() if the image is already present
+		// in garbage. Let's store at random names in grabage instead.
 		if isNotEmpty(err) {
 			Debugf("The image %s is already present in garbage. Removing it.", id)
 			if err = os.RemoveAll(garbage.imageRoot(id)); err != nil {
@@ -164,16 +194,20 @@ func (graph *Graph) Delete(id string) error {
 	return nil
 }
 
-// Undelete moves an image back from the garbage to the main graph
+// Undelete moves an image back from the garbage to the main graph.
 func (graph *Graph) Undelete(id string) error {
 	garbage, err := graph.Garbage()
 	if err != nil {
 		return err
 	}
-	return os.Rename(garbage.imageRoot(id), graph.imageRoot(id))
+	if err := os.Rename(garbage.imageRoot(id), graph.imageRoot(id)); err != nil {
+		return err
+	}
+	graph.idIndex.Add(id)
+	return nil
 }
 
-// GarbageCollect definitely deletes all images moved to the garbage
+// GarbageCollect definitely deletes all images moved to the garbage.
 func (graph *Graph) GarbageCollect() error {
 	garbage, err := graph.Garbage()
 	if err != nil {
@@ -182,7 +216,7 @@ func (graph *Graph) GarbageCollect() error {
 	return os.RemoveAll(garbage.Root)
 }
 
-// Map returns a list of all images in the graph, addressable by ID
+// Map returns a list of all images in the graph, addressable by ID.
 func (graph *Graph) Map() (map[string]*Image, error) {
 	// FIXME: this should replace All()
 	all, err := graph.All()
@@ -196,7 +230,7 @@ func (graph *Graph) Map() (map[string]*Image, error) {
 	return images, nil
 }
 
-// All returns a list of all images in the graph
+// All returns a list of all images in the graph.
 func (graph *Graph) All() ([]*Image, error) {
 	var images []*Image
 	err := graph.WalkAll(func(image *Image) {

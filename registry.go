@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -20,7 +21,7 @@ func NewImgJson(src []byte) (*Image, error) {
 	ret := &Image{}
 
 	Debugf("Json string: {%s}\n", src)
-	// FIXME: Is there a cleaner way to "puryfy" the input json?
+	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
 	}
@@ -32,7 +33,7 @@ func NewImgJson(src []byte) (*Image, error) {
 func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	ret := []*Image{}
 
-	dec := json.NewDecoder(strings.NewReader(string(src)))
+	dec := json.NewDecoder(bytes.NewReader(src))
 	for {
 		m := &Image{}
 		if err := dec.Decode(m); err == io.EOF {
@@ -135,7 +136,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *a
 	if err != nil {
 		return nil, nil, err
 	}
-	return img, res.Body, nil
+	return img, ProgressReader(res.Body, int(res.ContentLength), stdout), nil
 }
 
 func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
@@ -183,10 +184,10 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		return fmt.Errorf("HTTP code: %d", res.StatusCode)
 	}
-	defer res.Body.Close()
 	rawJson, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -226,7 +227,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		fmt.Fprintf(stdout, "Pushing %s metadata\n", img.Id)
 
 		// FIXME: try json with UTF8
-		jsonData := strings.NewReader(string(jsonRaw))
+		jsonData := bytes.NewReader(jsonRaw)
 		req, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/json", jsonData)
 		if err != nil {
 			return err
@@ -237,6 +238,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		if err != nil {
 			return fmt.Errorf("Failed to upload metadata: %s", err)
 		}
+		defer res.Body.Close()
 		if res.StatusCode != 200 {
 			switch res.StatusCode {
 			case 204:
@@ -256,8 +258,12 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
-		if err != nil || res2.StatusCode != 307 {
+		if err != nil {
 			return fmt.Errorf("Registry returned error: %s", err)
+		}
+		res2.Body.Close()
+		if res2.StatusCode != 307 {
+			return fmt.Errorf("Registry returned unexpected HTTP status code %d, expected 307", res2.StatusCode)
 		}
 		url, err := res2.Location()
 		if err != nil || url == nil {
@@ -267,25 +273,28 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
 		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
 		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
-		if err != nil {
-			return fmt.Errorf("Failed to generate layer archive: %s", err)
-		}
-		req3, err := http.NewRequest("PUT", url.String(), layerData)
-		if err != nil {
-			return err
-		}
 		tmp, err := ioutil.ReadAll(layerData2)
 		if err != nil {
 			return err
 		}
-		req3.ContentLength = int64(len(tmp))
+		layerLength := len(tmp)
+
+		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
+		if err != nil {
+			return fmt.Errorf("Failed to generate layer archive: %s", err)
+		}
+		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(layerData.(io.ReadCloser), layerLength, stdout))
+		if err != nil {
+			return err
+		}
+		req3.ContentLength = int64(layerLength)
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)
 		if err != nil {
 			return fmt.Errorf("Failed to upload layer: %s", err)
 		}
+		res3.Body.Close()
 		if res3.StatusCode != 200 {
 			return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
 		}
@@ -315,11 +324,12 @@ func (graph *Graph) pushTag(remote, revision, tag string, authConfig *auth.AuthC
 	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
-	if err != nil || (res.StatusCode != 200 && res.StatusCode != 201) {
-		if res != nil {
-			return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
-		}
+	if err != nil {
 		return err
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 && res.StatusCode != 201 {
+		return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
 	}
 	Debugf("Result of push tag: %d\n", res.StatusCode)
 	switch res.StatusCode {

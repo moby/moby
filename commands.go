@@ -28,7 +28,7 @@ func (srv *Server) Name() string {
 // FIXME: Stop violating DRY by repeating usage here and in Subcmd declarations
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
-	for _, cmd := range [][]interface{}{
+	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
@@ -65,7 +65,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	// Read a line on raw terminal with support for simple backspace
 	// sequences and echo.
 	//
-	// This function is necessary because the login command must be done a
+	// This function is necessary because the login command must be done in a
 	// raw terminal for two reasons:
 	// - we have to read a password (without echoing it);
 	// - the rcli "protocol" only supports cannonical and raw modes and you
@@ -146,12 +146,12 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	newAuthConfig := auth.NewAuthConfig(username, password, email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
-		fmt.Fprintf(stdout, "Error : %s\n", err)
+		fmt.Fprintln(stdout, "Error:", err)
 	} else {
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {
-		fmt.Fprintf(stdout, status)
+		fmt.Fprint(stdout, status)
 	}
 	return nil
 }
@@ -207,7 +207,7 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 	if !rcli.DEBUG_FLAG {
 		return nil
 	}
-	fmt.Fprintf(stdout, "debug mode enabled\n")
+	fmt.Fprintln(stdout, "debug mode enabled")
 	fmt.Fprintf(stdout, "fds: %d\ngoroutines: %d\n", getTotalUsedFds(), runtime.NumGoroutine())
 	return nil
 }
@@ -369,10 +369,10 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	defer w.Flush()
-	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
+	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 	return image.WalkHistory(func(img *Image) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			srv.runtime.repositories.ImageName(img.Id),
+			srv.runtime.repositories.ImageName(img.ShortId()),
 			HumanDuration(time.Now().Sub(img.Created))+" ago",
 			strings.Join(img.ContainerConfig.Cmd, " "),
 		)
@@ -438,7 +438,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			u.Host = src
 			u.Path = ""
 		}
-		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
+		fmt.Fprintln(stdout, "Downloading from", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
 		resp, err = Download(u.String(), stdout)
@@ -458,7 +458,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 
@@ -564,7 +564,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT\n")
+		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT")
 	}
 	var allImages map[string]*Image
 	var err error
@@ -591,7 +591,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ name,
 					/* TAG */ tag,
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -603,7 +603,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -614,7 +614,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ "<none>",
 					/* TAG */ "<none>",
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -626,7 +626,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -647,7 +647,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
 	}
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !*flAll {
@@ -700,7 +700,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 

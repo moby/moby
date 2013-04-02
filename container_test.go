@@ -227,8 +227,46 @@ func TestCommitRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(output) != "hello\n" {
-		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", string(output), string(output2))
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
 	}
+}
+
+func TestStart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Memory:    33554432,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+	if err := container.Start(); err == nil {
+		t.Fatalf("A running containter should be able to be started")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
 }
 
 func TestRun(t *testing.T) {
@@ -851,7 +889,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		if string(output) != "foo" {
-			b.Fatalf("Unexecpted output: %v", string(output))
+			b.Fatalf("Unexpected output: %s", output)
 		}
 		if err := runtime.Destroy(container); err != nil {
 			b.Fatal(err)

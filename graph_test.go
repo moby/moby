@@ -120,6 +120,29 @@ func TestMount(t *testing.T) {
 	}()
 }
 
+// Test that an image can be deleted by its shorthand prefix
+func TestDeletePrefix(t *testing.T) {
+	graph := tempGraph(t)
+	defer os.RemoveAll(graph.Root)
+	img := createTestImage(graph, t)
+	if err := graph.Delete(TruncateId(img.Id)); err != nil {
+		t.Fatal(err)
+	}
+	assertNImages(graph, t, 0)
+}
+
+func createTestImage(graph *Graph, t *testing.T) *Image {
+	archive, err := fakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := graph.Create(archive, nil, "Test image")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return img
+}
+
 func TestDelete(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)

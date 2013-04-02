@@ -106,7 +106,7 @@ func (store *TagStore) ImageName(id string) string {
 	if names, exists := store.ById()[id]; exists && len(names) > 0 {
 		return names[0]
 	}
-	return id
+	return TruncateId(id)
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
