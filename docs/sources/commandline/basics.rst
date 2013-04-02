@@ -6,6 +6,21 @@
 The basics
 =============
 
+Starting Docker
+---------------
+
+If you have used one of the quick install paths', Docker may have been installed with upstart, Ubuntu's
+system for starting processes at boot time. You should be able to run ``docker help`` and get output.
+
+If you get ``docker: command not found`` or something like ``/var/lib/docker/repositories: permission denied``
+you will need to specify the path to it and manually start it.
+
+.. code-block:: bash
+
+    # Run docker in daemon mode
+    sudo <path to>/docker -d &
+
+
 Running an interactive shell
 ----------------------------
 
@@ -23,9 +38,6 @@ Starting a long-running worker process
 --------------------------------------
 
 .. code-block:: bash
-
-  # Run docker in daemon mode
-  (sudo docker -d || echo "Docker daemon already running") &
 
   # Start a very useful long-running process
   JOB=$(docker run -d base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
@@ -56,33 +68,33 @@ Expose a service on a TCP port
   PORT=$(docker port $JOB 4444)
 
   # Connect to the public port via the host's public address
+  # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
   echo hello world | nc $(hostname) $PORT
 
   # Verify that the network connection worked
   echo "Daemon received: $(docker logs $JOB)"
 
-Continue to the complete `Command Line Interface`_
 
-.. _Command Line Interface: ../commandline/cli.html
+Committing (saving) an image
+-----------------------------
+
+Save your containers state to a container image, so the state can be re-used.
+
+When you commit your container only the differences between the image the container was created from
+and the current state of the container will be stored (as a diff). See which images you already have
+using ``docker images``
+
+.. code-block:: bash
+
+    # Commit your container to a new named image
+    docker commit <container_id> <some_name>
+
+    # List your containers
+    docker images
+
+You now have a image state from which you can create new instances.
 
 
-Committing an image
----------------------
 
-Committing your container to an (named) image is useful because this way it can be re-used. Compare it to creating
-a virtual machine image. Except your containers will generally be shorted lived so saving (committing) the state of
-it is more important.
-
-The state of a container can be saved at any time by running
-
-::
-
-    docker commit <container_id>
-
-However, it is probably more useful to commit it to a specific name
-
-::
-
-    docker commit <container_id> <your username>/some_name
-
+Read more about :ref:`working_with_the_repository` or continue to the complete :ref:`cli`
 

@@ -2,6 +2,7 @@
 :description: Docker's CLI command description and usage
 :keywords: Docker, Docker documentation, CLI, command line
 
+.. _cli:
 
 Command Line Interface
 ======================

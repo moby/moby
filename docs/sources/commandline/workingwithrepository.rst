@@ -1,4 +1,4 @@
-
+.. _working_with_the_repository:
 
 Working with the repository
 ============================
@@ -8,7 +8,7 @@ Connecting to the repository
 
 You create a user on the central docker repository by running
 
-::
+.. code-block:: bash
 
     docker login
 
@@ -20,33 +20,23 @@ automatically log you in.
 Committing a container to a named image
 ---------------------------------------
 
-Committing containers to named images is not only usefull when committing to the repository. But in order to commit to
-the repository it is required to have an image with your namespace.
+In order to commit to the repository it is required to have committed your container to an image with your namespace.
 
-The state of a container can be saved at any time by running
+.. code-block:: bash
 
-::
-
-    docker commit <container_id>
-
-However, it is probably more useful to commit it to a specific name
-
-::
-
-    docker commit <container_id> <your username>/some_name
+    # for example docker commit $CONTAINER_ID dhrp/kickassapp
+    docker commit <container_id> <your username>/<some_name>
 
 
-Committing a container to the repository
+Pushing a container to the repository
 -----------------------------------------
 
-In order to push an image to the repository you need to have committed your container to a named image including your
-repository username. e.g. by doing: docker commit <container_id> dhrp/nodejs
+In order to push an image to the repository you need to have committed your container to a named image (see above)
 
 Now you can commit this image to the repository
 
-::
+.. code-block:: bash
 
-    docker push image-name
-
-    # for example docker push dhrp/nodejs
+    # for example docker push dhrp/kickassapp
+    docker push <image-name>
 
