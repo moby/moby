@@ -10,6 +10,11 @@ ifeq ($(VERBOSE), 1)
 GO_OPTIONS += -v
 endif
 
+GIT_COMMIT = $(shell git rev-parse --short HEAD)
+GIT_STATUS = $(shell test -n "`git status --porcelain`" && echo "+CHANGES")
+
+BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT $(GIT_COMMIT)$(GIT_STATUS)"
+
 SRC_DIR := $(GOPATH)/src
 
 DOCKER_DIR := $(SRC_DIR)/$(DOCKER_PACKAGE)
@@ -24,7 +29,7 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):

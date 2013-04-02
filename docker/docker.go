@@ -11,6 +11,8 @@ import (
 	"os/signal"
 )
 
+var GIT_COMMIT string
+
 func main() {
 	if docker.SelfPath() == "/sbin/init" {
 		// Running in init mode
@@ -22,6 +24,7 @@ func main() {
 	flDebug := flag.Bool("D", false, "Debug mode")
 	flag.Parse()
 	rcli.DEBUG_FLAG = *flDebug
+	docker.GIT_COMMIT = GIT_COMMIT
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
