@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/user"
 	"testing"
+	"time"
 )
 
 // FIXME: this is no longer needed
@@ -302,11 +303,12 @@ func TestRestore(t *testing.T) {
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
-	if err := container2.Stop(); err != nil {
-		t.Fatalf("Could not stop container: %v", err)
-	}
-
+	cStdin, _ := container2.StdinPipe()
+	cStdin.Close()
+	container2.State.setStopped(-1)
+	time.Sleep(time.Second)
 	container2.State.Running = true
+	container2.ToDisk()
 
 	if len(runtime1.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))

@@ -127,6 +127,7 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil {
 		return err
 	}
+	container.State.resetLock()
 	return nil
 }
 
