@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode"
@@ -533,6 +532,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
+	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
 		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
@@ -796,56 +796,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
-	cStdout, err := container.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	cStderr, err := container.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	var wg sync.WaitGroup
-	if container.Config.OpenStdin {
-		cStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() {
-			Debugf("Begin stdin pipe [attach]")
-			io.Copy(cStdin, stdin)
-
-			// When stdin get closed, it means the client has been detached
-			// Make sure all pipes are closed.
-			if err := cStdout.Close(); err != nil {
-				Debugf("Error closing stdin pipe: %s", err)
-			}
-			if err := cStderr.Close(); err != nil {
-				Debugf("Error closing stderr pipe: %s", err)
-			}
-
-			wg.Add(-1)
-			Debugf("End of stdin pipe [attach]")
-		}()
-	}
-	wg.Add(1)
-	go func() {
-		Debugf("Begin stdout pipe [attach]")
-		io.Copy(stdout, cStdout)
-		wg.Add(-1)
-		Debugf("End of stdout pipe [attach]")
-	}()
-	wg.Add(1)
-	go func() {
-		Debugf("Begin stderr pipe [attach]")
-		io.Copy(stdout, cStderr)
-		wg.Add(-1)
-		Debugf("End of stderr pipe [attach]")
-	}()
-	wg.Wait()
-	return nil
+	return <-container.Attach(stdin, stdout, stdout)
 }
 
 // Ports type - Used to parse multiple -p flags
@@ -919,55 +870,28 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 	}
-	if config.OpenStdin {
-		cmdStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		if !config.Detach {
-			Go(func() error {
-				_, err := io.Copy(cmdStdin, stdin)
-				cmdStdin.Close()
-				return err
-			})
-		}
-	}
 	// Run the container
 	if !config.Detach {
-		cmdStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
+		var attachErr chan error
+		if config.OpenStdin {
+			config.StdinOnce = true
+			Debugf("Attaching with stdin\n")
+			attachErr = container.Attach(stdin, stdout, stdout)
+		} else {
+			Debugf("Attaching without stdin\n")
+			attachErr = container.Attach(nil, stdout, nil)
 		}
-		cmdStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
+		Debugf("Starting\n")
 		if err := container.Start(); err != nil {
 			return err
 		}
-		sendingStdout := Go(func() error {
-			_, err := io.Copy(stdout, cmdStdout)
-			return err
-		})
-		sendingStderr := Go(func() error {
-			_, err := io.Copy(stdout, cmdStderr)
-			return err
-		})
-		errSendingStdout := <-sendingStdout
-		errSendingStderr := <-sendingStderr
-		if errSendingStdout != nil {
-			return errSendingStdout
-		}
-		if errSendingStderr != nil {
-			return errSendingStderr
-		}
-		container.Wait()
-	} else {
-		if err := container.Start(); err != nil {
-			return err
-		}
-		fmt.Fprintln(stdout, container.ShortId())
+		Debugf("Waiting for attach to return\n")
+		return <-attachErr
 	}
+	if err := container.Start(); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, container.ShortId())
 	return nil
 }
 
