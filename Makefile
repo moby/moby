@@ -10,7 +10,10 @@ ifeq ($(VERBOSE), 1)
 GO_OPTIONS += -v
 endif
 
-BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT `git rev-parse --short HEAD`"
+GIT_COMMIT = $(shell git rev-parse --short HEAD)
+GIT_STATUS = $(shell test -n "`git status --porcelain`" && echo "+CHANGES")
+
+BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT $(GIT_COMMIT)$(GIT_STATUS)"
 
 SRC_DIR := $(GOPATH)/src
 
