@@ -7,7 +7,7 @@ Setting up a dev environment
 
 Instructions that have been verified to work on Ubuntu 12.10,
 
-.. code:: bash
+.. code-block:: bash
 
     sudo apt-get -y install lxc wget bsdtar curl golang git
 
@@ -24,7 +24,7 @@ Instructions that have been verified to work on Ubuntu 12.10,
 
 Then run the docker daemon,
 
-.. code:: bash
+.. code-block:: bash
 
     sudo $GOPATH/bin/docker -d
 
