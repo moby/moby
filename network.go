@@ -400,6 +400,24 @@ type NetworkBridge struct {
 	Iface string
 }
 
+func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
+	output, err := ip("route")
+	if err != nil {
+		return err
+	}
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "default") {
+			continue
+		}
+		if _, network, err := net.ParseCIDR(strings.Split(line, " ")[0]); err != nil {
+			return fmt.Errorf("Unexpected ip route output: %s", err)
+		} else if networkOverlaps(dockerNetwork, network) {
+			return fmt.Errorf("Docker bridge network %s is already routed: '%s'", dockerNetwork.String(), line)
+		}
+	}
+	return nil
+}
+
 func (bridge *NetworkBridge) CheckAddr() error {
 	_, dockerNetwork, err := net.ParseCIDR(bridge.Addr)
 	if err != nil {
@@ -419,6 +437,10 @@ func (bridge *NetworkBridge) CheckAddr() error {
 				}
 			}
 		}
+	}
+
+	if err := checkRouteOverlaps(dockerNetwork); err != nil {
+		return err
 	}
 
 	return nil
