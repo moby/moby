@@ -41,3 +41,6 @@ endif
 
 test: all
 	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))
+
+fmt:
+	@gofmt -s -l -w .

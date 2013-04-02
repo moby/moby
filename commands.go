@@ -3,7 +3,6 @@ package docker
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/rcli"
@@ -17,9 +16,10 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
+	"unicode"
 )
 
-const VERSION = "0.1.0"
+const VERSION = "0.1.1"
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -28,7 +28,7 @@ func (srv *Server) Name() string {
 // FIXME: Stop violating DRY by repeating usage here and in Subcmd declarations
 func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
-	for _, cmd := range [][]interface{}{
+	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
@@ -62,29 +62,80 @@ func (srv *Server) Help() string {
 
 // 'docker login': login / register a user to registry service.
 func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+	// Read a line on raw terminal with support for simple backspace
+	// sequences and echo.
+	//
+	// This function is necessary because the login command must be done in a
+	// raw terminal for two reasons:
+	// - we have to read a password (without echoing it);
+	// - the rcli "protocol" only supports cannonical and raw modes and you
+	//   can't tune it once the command as been started.
+	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
+		char := make([]byte, 1)
+		buffer := make([]byte, 64)
+		var i = 0
+		for i < len(buffer) {
+			n, err := stdin.Read(char)
+			if n > 0 {
+				if char[0] == '\r' || char[0] == '\n' {
+					stdout.Write([]byte{'\n'})
+					break
+				} else if char[0] == 127 || char[0] == '\b' {
+					if i > 0 {
+						if echo {
+							stdout.Write([]byte{'\b', ' ', '\b'})
+						}
+						i--
+					}
+				} else if !unicode.IsSpace(rune(char[0])) &&
+					!unicode.IsControl(rune(char[0])) {
+					if echo {
+						stdout.Write(char)
+					}
+					buffer[i] = char[0]
+					i++
+				}
+			}
+			if err != nil {
+				if err != io.EOF {
+					fmt.Fprint(stdout, "Read error: %v\n", err)
+				}
+				break
+			}
+		}
+		return string(buffer[:i])
+	}
+	var readAndEchoString = func(stdin io.Reader, stdout io.Writer) string {
+		return readStringOnRawTerminal(stdin, stdout, true)
+	}
+	var readString = func(stdin io.Reader, stdout io.Writer) string {
+		return readStringOnRawTerminal(stdin, stdout, false)
+	}
+
 	cmd := rcli.Subcmd(stdout, "login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	var username string
 	var password string
 	var email string
 
 	fmt.Fprint(stdout, "Username (", srv.runtime.authConfig.Username, "): ")
-	fmt.Fscanf(stdin, "%s", &username)
+	username = readAndEchoString(stdin, stdout)
 	if username == "" {
 		username = srv.runtime.authConfig.Username
 	}
 	if username != srv.runtime.authConfig.Username {
 		fmt.Fprint(stdout, "Password: ")
-		fmt.Fscanf(stdin, "%s", &password)
+		password = readString(stdin, stdout)
 
 		if password == "" {
-			return errors.New("Error : Password Required\n")
+			return fmt.Errorf("Error : Password Required")
 		}
 
 		fmt.Fprint(stdout, "Email (", srv.runtime.authConfig.Email, "): ")
-		fmt.Fscanf(stdin, "%s", &email)
+		email = readAndEchoString(stdin, stdout)
 		if email == "" {
 			email = srv.runtime.authConfig.Email
 		}
@@ -95,12 +146,12 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	newAuthConfig := auth.NewAuthConfig(username, password, email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
-		fmt.Fprintf(stdout, "Error : %s\n", err)
+		fmt.Fprintln(stdout, "Error:", err)
 	} else {
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {
-		fmt.Fprintf(stdout, status)
+		fmt.Fprint(stdout, status)
 	}
 	return nil
 }
@@ -119,7 +170,7 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 		if container := srv.runtime.Get(name); container != nil {
 			fmt.Fprintln(stdout, container.Wait())
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -152,6 +203,12 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		len(srv.runtime.List()),
 		VERSION,
 		imgcount)
+
+	if !rcli.DEBUG_FLAG {
+		return nil
+	}
+	fmt.Fprintln(stdout, "debug mode enabled")
+	fmt.Fprintf(stdout, "fds: %d\ngoroutines: %d\n", getTotalUsedFds(), runtime.NumGoroutine())
 	return nil
 }
 
@@ -169,9 +226,9 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 			if err := container.Stop(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -191,9 +248,9 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 			if err := container.Restart(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -213,9 +270,9 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			if err := container.Start(); err != nil {
 				return err
 			}
-			fmt.Fprintln(stdout, container.Id)
+			fmt.Fprintln(stdout, container.ShortId())
 		} else {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 	}
 	return nil
@@ -268,7 +325,7 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	name := cmd.Arg(0)
 	privatePort := cmd.Arg(1)
 	if container := srv.runtime.Get(name); container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	} else {
 		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
 			return fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
@@ -312,10 +369,10 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	defer w.Flush()
-	fmt.Fprintf(w, "ID\tCREATED\tCREATED BY\n")
+	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 	return image.WalkHistory(func(img *Image) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			srv.runtime.repositories.ImageName(img.Id),
+			srv.runtime.repositories.ImageName(img.ShortId()),
 			HumanDuration(time.Now().Sub(img.Created))+" ago",
 			strings.Join(img.ContainerConfig.Cmd, " "),
 		)
@@ -331,7 +388,7 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
@@ -349,7 +406,7 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
-			return errors.New("No such container: " + name)
+			return fmt.Errorf("No such container: %s", name)
 		}
 		if err := container.Kill(); err != nil {
 			fmt.Fprintln(stdout, "Error killing container "+name+": "+err.Error())
@@ -368,7 +425,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	src := cmd.Arg(0)
 	if src == "" {
-		return errors.New("Not enough arguments")
+		return fmt.Errorf("Not enough arguments")
 	} else if src == "-" {
 		archive = stdin
 	} else {
@@ -381,7 +438,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			u.Host = src
 			u.Path = ""
 		}
-		fmt.Fprintf(stdout, "Downloading from %s\n", u.String())
+		fmt.Fprintln(stdout, "Downloading from", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
 		resp, err = Download(u.String(), stdout)
@@ -401,7 +458,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return err
 		}
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 
@@ -507,7 +564,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT\n")
+		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT")
 	}
 	var allImages map[string]*Image
 	var err error
@@ -534,7 +591,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ name,
 					/* TAG */ tag,
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -546,7 +603,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -557,7 +614,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				for idx, field := range []string{
 					/* REPOSITORY */ "<none>",
 					/* TAG */ "<none>",
-					/* ID */ id,
+					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
 					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
@@ -569,7 +626,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 				}
 				w.Write([]byte{'\n'})
 			} else {
-				stdout.Write([]byte(image.Id + "\n"))
+				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
 	}
@@ -590,7 +647,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintf(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\n")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
 	}
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !*flAll {
@@ -602,7 +659,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				command = Trunc(command, 20)
 			}
 			for idx, field := range []string{
-				/* ID */ container.Id,
+				/* ID */ container.ShortId(),
 				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
 				/* COMMAND */ command,
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
@@ -617,7 +674,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 			}
 			w.Write([]byte{'\n'})
 		} else {
-			stdout.Write([]byte(container.Id + "\n"))
+			stdout.Write([]byte(container.ShortId() + "\n"))
 		}
 	}
 	if !*quiet {
@@ -643,7 +700,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, img.Id)
+	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
 
@@ -666,7 +723,7 @@ func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 		return nil
 	}
-	return errors.New("No such container: " + name)
+	return fmt.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -677,10 +734,10 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 	if cmd.NArg() < 1 {
-		return errors.New("Not enough arguments")
+		return fmt.Errorf("Not enough arguments")
 	}
 	if container := srv.runtime.Get(cmd.Arg(0)); container == nil {
-		return errors.New("No such container")
+		return fmt.Errorf("No such container")
 	} else {
 		changes, err := container.Changes()
 		if err != nil {
@@ -722,14 +779,11 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		return nil
 	}
-	return errors.New("No such container: " + cmd.Arg(0))
+	return fmt.Errorf("No such container: %s", cmd.Arg(0))
 }
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "attach", "[OPTIONS]", "Attach to a running container")
-	flStdin := cmd.Bool("i", false, "Attach to stdin")
-	flStdout := cmd.Bool("o", true, "Attach to stdout")
-	flStderr := cmd.Bool("e", true, "Attach to stderr")
+	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -740,33 +794,56 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	name := cmd.Arg(0)
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return errors.New("No such container: " + name)
+		return fmt.Errorf("No such container: %s", name)
 	}
+
+	cStdout, err := container.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	cStderr, err := container.StderrPipe()
+	if err != nil {
+		return err
+	}
+
 	var wg sync.WaitGroup
-	if *flStdin {
+	if container.Config.OpenStdin {
 		cStdin, err := container.StdinPipe()
 		if err != nil {
 			return err
 		}
 		wg.Add(1)
-		go func() { io.Copy(cStdin, stdin); wg.Add(-1) }()
+		go func() {
+			Debugf("Begin stdin pipe [attach]")
+			io.Copy(cStdin, stdin)
+
+			// When stdin get closed, it means the client has been detached
+			// Make sure all pipes are closed.
+			if err := cStdout.Close(); err != nil {
+				Debugf("Error closing stdin pipe: %s", err)
+			}
+			if err := cStderr.Close(); err != nil {
+				Debugf("Error closing stderr pipe: %s", err)
+			}
+
+			wg.Add(-1)
+			Debugf("End of stdin pipe [attach]")
+		}()
 	}
-	if *flStdout {
-		cStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStdout); wg.Add(-1) }()
-	}
-	if *flStderr {
-		cStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() { io.Copy(stdout, cStderr); wg.Add(-1) }()
-	}
+	wg.Add(1)
+	go func() {
+		Debugf("Begin stdout pipe [attach]")
+		io.Copy(stdout, cStdout)
+		wg.Add(-1)
+		Debugf("End of stdout pipe [attach]")
+	}()
+	wg.Add(1)
+	go func() {
+		Debugf("Begin stderr pipe [attach]")
+		io.Copy(stdout, cStderr)
+		wg.Add(-1)
+		Debugf("End of stderr pipe [attach]")
+	}()
 	wg.Wait()
 	return nil
 }
@@ -889,7 +966,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		if err := container.Start(); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, container.Id)
+		fmt.Fprintln(stdout, container.ShortId())
 	}
 	return nil
 }

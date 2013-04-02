@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/kr/pty"
@@ -41,9 +40,11 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	stdoutLog *os.File
-	stderrLog *os.File
-	runtime   *Runtime
+	ptyStdinMaster  io.Closer
+	ptyStdoutMaster io.Closer
+	ptyStderrMaster io.Closer
+
+	runtime *Runtime
 }
 
 type Config struct {
@@ -154,39 +155,49 @@ func (container *Container) startPty() error {
 	if err != nil {
 		return err
 	}
+	container.ptyStdoutMaster = stdoutMaster
 	container.cmd.Stdout = stdoutSlave
 
 	stderrMaster, stderrSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
+	container.ptyStderrMaster = stderrMaster
 	container.cmd.Stderr = stderrSlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.Close()
+		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
+		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
 		defer container.stderr.Close()
+		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
+		Debugf("[startPty] End of stderr pipe")
 	}()
 
 	// stdin
 	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		stdinMaster, stdinSlave, err := pty.Open()
+		var stdinMaster io.WriteCloser
+		stdinMaster, stdinSlave, err = pty.Open()
 		if err != nil {
 			return err
 		}
+		container.ptyStdinMaster = stdinMaster
 		container.cmd.Stdin = stdinSlave
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
+			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(stdinMaster, container.stdin)
+			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -210,13 +221,18 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
+			Debugf("Begin of stdin pipe [start]")
 			io.Copy(stdin, container.stdin)
+			Debugf("End of stdin pipe [start]")
 		}()
 	}
 	return container.cmd.Start()
 }
 
 func (container *Container) Start() error {
+	if container.State.Running {
+		return fmt.Errorf("The container %s is already running.", container.Id)
+	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
@@ -255,6 +271,14 @@ func (container *Container) Start() error {
 		},
 		container.Config.Env...,
 	)
+
+	// Setup logging of stdout and stderr to disk
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+		return err
+	}
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+		return err
+	}
 
 	var err error
 	if container.Config.Tty {
@@ -339,24 +363,53 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() error {
-	err := container.network.Release()
+func (container *Container) releaseNetwork() {
+	container.network.Release()
 	container.network = nil
 	container.NetworkSettings = &NetworkSettings{}
-	return err
 }
 
 func (container *Container) monitor() {
 	// Wait for the program to exit
-	container.cmd.Wait()
+	Debugf("Waiting for process")
+	if err := container.cmd.Wait(); err != nil {
+		// Discard the error as any signals or non 0 returns will generate an error
+		Debugf("%s: Process: %s", container.Id, err)
+	}
+	Debugf("Process finished")
+
 	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 	// Cleanup
-	if err := container.releaseNetwork(); err != nil {
-		log.Printf("%v: Failed to release network: %v", container.Id, err)
+	container.releaseNetwork()
+	if container.Config.OpenStdin {
+		if err := container.stdin.Close(); err != nil {
+			Debugf("%s: Error close stdin: %s", container.Id, err)
+		}
 	}
-	container.stdout.Close()
-	container.stderr.Close()
+	if err := container.stdout.Close(); err != nil {
+		Debugf("%s: Error close stdout: %s", container.Id, err)
+	}
+	if err := container.stderr.Close(); err != nil {
+		Debugf("%s: Error close stderr: %s", container.Id, err)
+	}
+
+	if container.ptyStdinMaster != nil {
+		if err := container.ptyStdinMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stdin master: %s", container.Id, err)
+		}
+	}
+	if container.ptyStdoutMaster != nil {
+		if err := container.ptyStdoutMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stdout master: %s", container.Id, err)
+		}
+	}
+	if container.ptyStderrMaster != nil {
+		if err := container.ptyStderrMaster.Close(); err != nil {
+			Debugf("%s: Error close pty stderr master: %s", container.Id, err)
+		}
+	}
+
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.Id, err)
 	}
@@ -368,7 +421,15 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.Id, err)
+	}
 }
 
 func (container *Container) kill() error {
@@ -397,8 +458,8 @@ func (container *Container) Stop() error {
 
 	// 1. Send a SIGTERM
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
-		log.Printf(string(output))
-		log.Printf("Failed to send SIGTERM to the process, force killing")
+		log.Print(string(output))
+		log.Print("Failed to send SIGTERM to the process, force killing")
 		if err := container.Kill(); err != nil {
 			return err
 		}
@@ -453,7 +514,7 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 
 	select {
 	case <-time.After(timeout):
-		return errors.New("Timed Out")
+		return fmt.Errorf("Timed Out")
 	case <-done:
 		return nil
 	}
@@ -498,6 +559,14 @@ func (container *Container) Mounted() (bool, error) {
 
 func (container *Container) Unmount() error {
 	return Unmount(container.RootfsPath())
+}
+
+// ShortId returns a shorthand version of the container's id for convenience.
+// A collision with other container shorthands is very unlikely, but possible.
+// In case of a collision a lookup with Runtime.Get() will fail, and the caller
+// will need to use a langer prefix, or the full-length container Id.
+func (container *Container) ShortId() string {
+	return TruncateId(container.Id)
 }
 
 func (container *Container) logPath(name string) string {

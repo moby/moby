@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -111,7 +112,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 		return "", errors.New(errMsg)
 	}
 
-	b := strings.NewReader(string(jsonBody))
+	b := bytes.NewReader(jsonBody)
 	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
 	if err != nil {
 		errMsg = fmt.Sprintf("Server Error: %s", err)
@@ -130,6 +131,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 		status = "Account Created\n"
 		storeConfig = true
 	} else if reqStatusCode == 400 {
+		// FIXME: This should be 'exists', not 'exist'. Need to change on the server first.
 		if string(reqBody) == "Username or email already exist" {
 			client := &http.Client{}
 			req, err := http.NewRequest("GET", REGISTRY_SERVER+"/v1/users", nil)
@@ -151,11 +153,11 @@ func Login(authConfig *AuthConfig) (string, error) {
 				return "", errors.New(status)
 			}
 		} else {
-			status = fmt.Sprintf("Registration: %s", string(reqBody))
+			status = fmt.Sprintf("Registration: %s", reqBody)
 			return "", errors.New(status)
 		}
 	} else {
-		status = fmt.Sprintf("[%s] : %s", reqStatusCode, string(reqBody))
+		status = fmt.Sprintf("[%s] : %s", reqStatusCode, reqBody)
 		return "", errors.New(status)
 	}
 	if storeConfig {

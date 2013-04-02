@@ -39,6 +39,117 @@ func TestIdFormat(t *testing.T) {
 	}
 }
 
+func TestMultipleAttachRestart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd: []string{"/bin/sh", "-c",
+				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
+			Memory: 33554432,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Simulate 3 client attaching to the container and stop/restart
+
+	stdout1, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	l1, err := bufio.NewReader(stdout1).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l1, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+	}
+	l2, err := bufio.NewReader(stdout2).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l2, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+	}
+	l3, err := bufio.NewReader(stdout3).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l3, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+	}
+
+	if err := container.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout1, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	timeout := make(chan bool)
+	go func() {
+		l1, err = bufio.NewReader(stdout1).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l1, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+		}
+		l2, err = bufio.NewReader(stdout2).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l2, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+		}
+		l3, err = bufio.NewReader(stdout3).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l3, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+		}
+		timeout <- false
+	}()
+	go func() {
+		time.Sleep(3 * time.Second)
+		timeout <- true
+	}()
+	if <-timeout {
+		t.Fatalf("Timeout reading from the process")
+	}
+}
+
 func TestCommitRun(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -89,20 +200,73 @@ func TestCommitRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container2)
-
 	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stderr, err := container2.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
 	container2.Wait()
 	output, err := ioutil.ReadAll(stdout)
-	output2, err := ioutil.ReadAll(stderr)
-	stdout.Close()
-	stderr.Close()
-	if string(output) != "hello\n" {
-		t.Fatalf("\nout: %s\nerr: %s\n", string(output), string(output2))
+	if err != nil {
+		t.Fatal(err)
 	}
+	output2, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderr.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "hello\n" {
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
+	}
+}
+
+func TestStart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Memory:    33554432,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+	if err := container.Start(); err == nil {
+		t.Fatalf("A running containter should be able to be started")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
 }
 
 func TestRun(t *testing.T) {
@@ -208,11 +372,9 @@ func TestExitCode(t *testing.T) {
 	defer nuke(runtime)
 
 	trueContainer, err := runtime.Create(&Config{
-
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/true", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,12 +382,14 @@ func TestExitCode(t *testing.T) {
 	if err := trueContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
+	if trueContainer.State.ExitCode != 0 {
+		t.Errorf("Unexpected exit code %d (expected 0)", trueContainer.State.ExitCode)
+	}
 
 	falseContainer, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/false", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,13 +397,8 @@ func TestExitCode(t *testing.T) {
 	if err := falseContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
-
-	if trueContainer.State.ExitCode != 0 {
-		t.Errorf("Unexpected exit code %v", trueContainer.State.ExitCode)
-	}
-
 	if falseContainer.State.ExitCode != 1 {
-		t.Errorf("Unexpected exit code %v", falseContainer.State.ExitCode)
+		t.Errorf("Unexpected exit code %d (expected 1)", falseContainer.State.ExitCode)
 	}
 }
 
@@ -295,32 +454,62 @@ func TestRestartStdin(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
-	stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 
 	// Restart and try again
 	stdin, err = container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world #2")
-	stdin.Close()
+	if _, err := io.WriteString(stdin, "hello world #2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err = ioutil.ReadAll(stdout)
-	stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world #2" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world #2", string(output))
 	}
 }
 
@@ -504,18 +693,31 @@ func TestStdin(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -538,18 +740,31 @@ func TestTty(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -568,6 +783,7 @@ func TestEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+
 	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -673,7 +889,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		if string(output) != "foo" {
-			b.Fatalf("Unexecpted output: %v", string(output))
+			b.Fatalf("Unexpected output: %s", output)
 		}
 		if err := runtime.Destroy(container); err != nil {
 			b.Fatal(err)
