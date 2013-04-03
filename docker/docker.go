@@ -22,7 +22,13 @@ func main() {
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
+	bridgeName := flag.String("br", "", "")
 	flag.Parse()
+	if *bridgeName != "" {
+		docker.NetworkBridgeIface = *bridgeName
+	} else {
+		docker.NetworkBridgeIface = "lxcbr0"
+	}
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
