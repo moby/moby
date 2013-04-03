@@ -2,8 +2,11 @@ package docker
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +106,61 @@ func TestRunDisconnect(t *testing.T) {
 			t.Fatalf("/bin/cat is still running after closing stdin")
 		}
 	})
+}
+
+// TestAttachStdin checks attaching to stdin without stdout and stderr.
+// 'docker run -i -a stdin' should sends the client's stdin to the command,
+// then detach from it and print the container id.
+func TestAttachStdin(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	stdinR, stdinW := io.Pipe()
+	var stdout bytes.Buffer
+
+	ch := make(chan struct{})
+	go func() {
+		srv.CmdRun(stdinR, &stdout, "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
+		close(ch)
+	}()
+
+	// Send input to the command, close stdin, wait for CmdRun to return
+	setTimeout(t, "Read/Write timed out", 2*time.Second, func() {
+		if _, err := stdinW.Write([]byte("hi there\n")); err != nil {
+			t.Fatal(err)
+		}
+		stdinW.Close()
+		<-ch
+	})
+
+	// Check output
+	cmdOutput := string(stdout.Bytes())
+	container := runtime.List()[0]
+	if cmdOutput != container.ShortId()+"\n" {
+		t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortId()+"\n", cmdOutput)
+	}
+
+	setTimeout(t, "Waiting for command to exit timed out", 2*time.Second, func() {
+		container.Wait()
+	})
+
+	// Check logs
+	if cmdLogs, err := container.ReadLog("stdout"); err != nil {
+		t.Fatal(err)
+	} else {
+		if output, err := ioutil.ReadAll(cmdLogs); err != nil {
+			t.Fatal(err)
+		} else {
+			expectedLog := "hello\nhi there\n"
+			if string(output) != expectedLog {
+				t.Fatalf("Unexpected logs: should be '%s', not '%s'\n", expectedLog, output)
+			}
+		}
+	}
 }
 
 // Expected behaviour, the process stays alive when the client disconnects
