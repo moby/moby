@@ -48,17 +48,20 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname   string
-	User       string
-	Memory     int64 // Memory limit (in bytes)
-	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	Detach     bool
-	Ports      []int
-	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin  bool // Open stdin
-	Env        []string
-	Cmd        []string
-	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Hostname     string
+	User         string
+	Memory       int64 // Memory limit (in bytes)
+	MemorySwap   int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	AttachStdin  bool
+	AttachStdout bool
+	AttachStderr bool
+	Ports        []int
+	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin    bool // Open stdin
+	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
+	Env          []string
+	Cmd          []string
+	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
 func ParseRun(args []string, stdout io.Writer) (*Config, error) {
@@ -70,6 +73,8 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
 	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flAttach := NewAttachOpts()
+	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
@@ -83,6 +88,19 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
+	if *flDetach && len(*flAttach) > 0 {
+		return nil, fmt.Errorf("Conflicting options: -a and -d")
+	}
+	// If neither -d or -a are set, attach to everything by default
+	if len(*flAttach) == 0 && !*flDetach {
+		if !*flDetach {
+			flAttach.Set("stdout")
+			flAttach.Set("stderr")
+			if *flStdin {
+				flAttach.Set("stdin")
+			}
+		}
+	}
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -93,16 +111,22 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		runCmd = parsedArgs[1:]
 	}
 	config := &Config{
-		Hostname:  *flHostname,
-		Ports:     flPorts,
-		User:      *flUser,
-		Tty:       *flTty,
-		OpenStdin: *flStdin,
-		Memory:    *flMemory,
-		Detach:    *flDetach,
-		Env:       flEnv,
-		Cmd:       runCmd,
-		Image:     image,
+		Hostname:     *flHostname,
+		Ports:        flPorts,
+		User:         *flUser,
+		Tty:          *flTty,
+		OpenStdin:    *flStdin,
+		Memory:       *flMemory,
+		AttachStdin:  flAttach.Get("stdin"),
+		AttachStdout: flAttach.Get("stdout"),
+		AttachStderr: flAttach.Get("stderr"),
+		Env:          flEnv,
+		Cmd:          runCmd,
+		Image:        image,
+	}
+	// When allocating stdin in attached mode, close stdin at client disconnect
+	if config.OpenStdin && config.AttachStdin {
+		config.StdinOnce = true
 	}
 	return config, nil
 }
@@ -231,6 +255,86 @@ func (container *Container) start() error {
 		}()
 	}
 	return container.cmd.Start()
+}
+
+func (container *Container) Attach(stdin io.Reader, stdout io.Writer, stderr io.Writer) chan error {
+	var cStdout io.ReadCloser
+	var cStderr io.ReadCloser
+	var nJobs int
+	errors := make(chan error, 3)
+	if stdin != nil && container.Config.OpenStdin {
+		nJobs += 1
+		if cStdin, err := container.StdinPipe(); err != nil {
+			errors <- err
+		} else {
+			go func() {
+				Debugf("[start] attach stdin\n")
+				defer Debugf("[end]  attach stdin\n")
+				if container.Config.StdinOnce {
+					defer cStdin.Close()
+				}
+				_, err := io.Copy(cStdin, stdin)
+				if err != nil {
+					Debugf("[error] attach stdout: %s\n", err)
+				}
+				errors <- err
+			}()
+		}
+	}
+	if stdout != nil {
+		nJobs += 1
+		if p, err := container.StdoutPipe(); err != nil {
+			errors <- err
+		} else {
+			cStdout = p
+			go func() {
+				Debugf("[start] attach stdout\n")
+				defer Debugf("[end]  attach stdout\n")
+				_, err := io.Copy(stdout, cStdout)
+				if err != nil {
+					Debugf("[error] attach stdout: %s\n", err)
+				}
+				errors <- err
+			}()
+		}
+	}
+	if stderr != nil {
+		nJobs += 1
+		if p, err := container.StderrPipe(); err != nil {
+			errors <- err
+		} else {
+			cStderr = p
+			go func() {
+				Debugf("[start] attach stderr\n")
+				defer Debugf("[end]  attach stderr\n")
+				_, err := io.Copy(stderr, cStderr)
+				if err != nil {
+					Debugf("[error] attach stderr: %s\n", err)
+				}
+				errors <- err
+			}()
+		}
+	}
+	return Go(func() error {
+		if cStdout != nil {
+			defer cStdout.Close()
+		}
+		if cStderr != nil {
+			defer cStderr.Close()
+		}
+		// FIXME: how do clean up the stdin goroutine without the unwanted side effect
+		// of closing the passed stdin? Add an intermediary io.Pipe?
+		for i := 0; i < nJobs; i += 1 {
+			Debugf("Waiting for job %d/%d\n", i+1, nJobs)
+			if err := <-errors; err != nil {
+				Debugf("Job %d returned error %s. Aborting all jobs\n", i+1, err)
+				return err
+			}
+			Debugf("Job %d completed successfully\n", i+1)
+		}
+		Debugf("All jobs completed successfully\n")
+		return nil
+	})
 }
 
 func (container *Container) Start() error {
