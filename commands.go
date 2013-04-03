@@ -99,7 +99,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			}
 			if err != nil {
 				if err != io.EOF {
-					fmt.Fprint(stdout, "Read error: %v\n", err)
+					fmt.Fprintf(stdout, "Read error: %v\n", err)
 				}
 				break
 			}
