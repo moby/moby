@@ -264,6 +264,7 @@ run
     -m=0: Memory limit (in bytes)
     -p=[]: Map a network port to the container
     -t=false: Allocate a pseudo-tty
+    -h="": Container host name
     -u="": Username or UID
 
 
