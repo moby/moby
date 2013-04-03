@@ -272,14 +272,14 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 
 		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
 		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
-		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
+		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
 		tmp, err := ioutil.ReadAll(layerData2)
 		if err != nil {
 			return err
 		}
 		layerLength := len(tmp)
 
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Gzip)
+		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
 		if err != nil {
 			return fmt.Errorf("Failed to generate layer archive: %s", err)
 		}
