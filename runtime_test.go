@@ -305,7 +305,9 @@ func TestRestore(t *testing.T) {
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
 	cStdin, _ := container2.StdinPipe()
 	cStdin.Close()
-	container2.WaitTimeout(time.Second)
+	if err := container2.WaitTimeout(time.Second); err != nil {
+		t.Fatal(err)
+	}
 	container2.State.Running = true
 	container2.ToDisk()
 

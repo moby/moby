@@ -11,7 +11,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -154,9 +153,7 @@ func (runtime *Runtime) Register(container *Container) error {
 
 	container.runtime = runtime
 	// Setup state lock (formerly in newState()
-	lock := new(sync.Mutex)
-	container.State.stateChangeLock = lock
-	container.State.stateChangeCond = sync.NewCond(lock)
+	container.State.initLock()
 	// Attach to stdout and stderr
 	container.stderr = newWriteBroadcaster()
 	container.stdout = newWriteBroadcaster()
