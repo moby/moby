@@ -29,6 +29,19 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 	return firstIP, lastIP
 }
 
+// Detects overlap between one IPNet and another
+func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
+	firstIP, _ := networkRange(netX)
+	if netY.Contains(firstIP) {
+		return true
+	}
+	firstIP, _ = networkRange(netY)
+	if netX.Contains(firstIP) {
+		return true
+	}
+	return false
+}
+
 // Converts a 4 bytes IP into a 32 bit integer
 func ipToInt(ip net.IP) int32 {
 	return int32(binary.BigEndian.Uint32(ip.To4()))
