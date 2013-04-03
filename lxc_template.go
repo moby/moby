@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"text/template"
 	"log"
-	"strings"
+	"regexp"
+	"text/template"
 )
 
 const LxcTemplate = `
@@ -84,7 +84,7 @@ lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 
 # Any persistent storage references go last
 {{range getMountEntries .Config}}
-lxc.mount.entry = {{.Host}} {{$ROOTFS}}{{.Container}} none bind,ro 0 0
+lxc.mount.entry = {{.Host}} {{$ROOTFS}}{{.Container}} none bind,{{.Mode}} 0 0
 {{end}}
 
 # drop linux capabilities (apply mainly to the user root in the container)
@@ -112,9 +112,13 @@ func getMemorySwap(config *Config) int64 {
 }
 
 type mountEntry struct {
-	Container   string
-	Host        string
+	Container string
+	Host      string
+	Mode      string
 }
+
+// the regexp is generic so a better diagnostics could be provided
+var entryRegExp = regexp.MustCompile("^([^:]+):([^=]+)=(.*)")
 
 func getMountEntries(config *Config) []mountEntry {
 	volumes := config.Volumes
@@ -122,24 +126,31 @@ func getMountEntries(config *Config) []mountEntry {
 	var result []mountEntry
 
 	for _, value := range volumes {
-		tempo := strings.SplitN(value, "=", 2)
+		matches := entryRegExp.FindStringSubmatch(value)
 
-		if len(tempo) != 2 {
+		if len(matches) == 0 {
 			log.Printf("Invalid volume specification: %s.  Ignored.", value)
 			continue
 		}
 
-		if tempo[0][0] != '/' {
-			log.Printf("Container path must be absolute: %s.  %s is ignored.", tempo[0], value)
+		// matches[0] -- the whole string
+
+		if matches[1] != "ro" && matches[1] != "rw" {
+			log.Printf("Invalid mode specification %s. %s is ignored.", matches[1], value)
 			continue
 		}
 
-		if tempo[1][0] != '/' {
-			log.Printf("Host path must be absolute: %s.  %s is ignored.", tempo[1], value)
+		if matches[2][0] != '/' {
+			log.Printf("Container path must be absolute: %s.  %s is ignored.", matches[2], value)
 			continue
 		}
 
-		result = append(result, mountEntry{tempo[0], tempo[1]})
+		if matches[3][0] != '/' {
+			log.Printf("Host path must be absolute: %s.  %s is ignored.", matches[3], value)
+			continue
+		}
+
+		result = append(result, mountEntry{matches[2], matches[3], matches[1]})
 	}
 
 	return result
@@ -148,7 +159,7 @@ func getMountEntries(config *Config) []mountEntry {
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap": getMemorySwap,
+		"getMemorySwap":   getMemorySwap,
 		"getMountEntries": getMountEntries,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
