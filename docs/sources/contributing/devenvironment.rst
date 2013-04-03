@@ -22,10 +22,12 @@ Instructions that have been verified to work on Ubuntu 12.10,
     go get -v github.com/dotcloud/docker/...
     go install -v github.com/dotcloud/docker/...
 
+
 Then run the docker daemon,
 
 .. code-block:: bash
 
     sudo $GOPATH/bin/docker -d
+
 
 Run the ``go install`` command (above) to recompile docker.

@@ -6,9 +6,7 @@
 
 Hello World
 ===========
-This is the most basic example available for using docker
-
-This example assumes you have Docker installed.
+This is the most basic example available for using Docker. The example assumes you have Docker installed.
 
 
 Download the base container

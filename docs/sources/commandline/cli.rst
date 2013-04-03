@@ -2,6 +2,7 @@
 :description: Docker's CLI command description and usage
 :keywords: Docker, Docker documentation, CLI, command line
 
+.. _cli:
 
 Command Line Interface
 ======================
@@ -118,9 +119,9 @@ import
 
 ::
 
-Usage: docker import [OPTIONS] URL|- [REPOSITORY [TAG]]
+    Usage: docker import [OPTIONS] URL|- [REPOSITORY [TAG]]
 
-Create a new filesystem image from the contents of a tarball
+    Create a new filesystem image from the contents of a tarball
 
 
 info
@@ -258,7 +259,6 @@ run
 
   Run a command in a new container
 
-    -a=false: Attach stdin and stdout
     -c="": Comment
     -i=false: Keep stdin open even if not attached
     -m=0: Memory limit (in bytes)

@@ -42,7 +42,15 @@ Run your first container!
 
     sudo ./docker run -i -t base /bin/bash
 
-Consider adding docker to your PATH for simplicity.
 
+To run docker as a daemon, in the background, and allow non-root users to run ``docker`` start
+docker -d
+
+::
+
+    sudo ./docker -d &
+
+
+Consider adding docker to your PATH for simplicity.
 
 Continue with the :ref:`hello_world` example.

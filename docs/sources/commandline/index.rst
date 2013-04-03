@@ -11,5 +11,6 @@ Contents:
 .. toctree::
   :maxdepth: 2
 
-  basecommands
+  basics
+  workingwithrepository
   cli

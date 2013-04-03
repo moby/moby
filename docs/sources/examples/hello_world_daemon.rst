@@ -79,11 +79,3 @@ See the example in action
     </div>
 
 Continue to the :ref:`python_web_app` example.
-
-
-Notes:
-------
-
-- **Docker daemon** The docker daemon is started by ``sudo docker -d``, Vagrant may have started
-  the Docker daemon for you, but you will need to restart it this way if it was terminated. Otherwise
-  it may give you ``Couldn't create Tag store: open /var/lib/docker/repositories: permission denied``
