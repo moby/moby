@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode"
@@ -533,6 +532,7 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
+	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
 		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
 			return err
@@ -796,56 +796,7 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
-	cStdout, err := container.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	cStderr, err := container.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	var wg sync.WaitGroup
-	if container.Config.OpenStdin {
-		cStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() {
-			Debugf("Begin stdin pipe [attach]")
-			io.Copy(cStdin, stdin)
-
-			// When stdin get closed, it means the client has been detached
-			// Make sure all pipes are closed.
-			if err := cStdout.Close(); err != nil {
-				Debugf("Error closing stdin pipe: %s", err)
-			}
-			if err := cStderr.Close(); err != nil {
-				Debugf("Error closing stderr pipe: %s", err)
-			}
-
-			wg.Add(-1)
-			Debugf("End of stdin pipe [attach]")
-		}()
-	}
-	wg.Add(1)
-	go func() {
-		Debugf("Begin stdout pipe [attach]")
-		io.Copy(stdout, cStdout)
-		wg.Add(-1)
-		Debugf("End of stdout pipe [attach]")
-	}()
-	wg.Add(1)
-	go func() {
-		Debugf("Begin stderr pipe [attach]")
-		io.Copy(stdout, cStderr)
-		wg.Add(-1)
-		Debugf("End of stderr pipe [attach]")
-	}()
-	wg.Wait()
-	return nil
+	return <-container.Attach(stdin, stdout, stdout)
 }
 
 // Ports type - Used to parse multiple -p flags
@@ -874,6 +825,33 @@ func (opts *ListOpts) String() string {
 func (opts *ListOpts) Set(value string) error {
 	*opts = append(*opts, value)
 	return nil
+}
+
+// AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
+type AttachOpts map[string]bool
+
+func NewAttachOpts() *AttachOpts {
+	opts := make(map[string]bool)
+	return (*AttachOpts)(&opts)
+}
+
+func (opts *AttachOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *AttachOpts) Set(val string) error {
+	if val != "stdin" && val != "stdout" && val != "stderr" {
+		return fmt.Errorf("Unsupported stream name: %s", val)
+	}
+	(*opts)[val] = true
+	return nil
+}
+
+func (opts *AttachOpts) Get(val string) bool {
+	if res, exists := (*opts)[val]; exists {
+		return res
+	}
+	return false
 }
 
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -919,56 +897,29 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 	}
-	if config.OpenStdin {
-		cmdStdin, err := container.StdinPipe()
-		if err != nil {
-			return err
-		}
-		if !config.Detach {
-			Go(func() error {
-				_, err := io.Copy(cmdStdin, stdin)
-				cmdStdin.Close()
-				return err
-			})
-		}
+	var (
+		cStdin           io.Reader
+		cStdout, cStderr io.Writer
+	)
+	if config.AttachStdin {
+		cStdin = stdin
 	}
-	// Run the container
-	if !config.Detach {
-		cmdStderr, err := container.StderrPipe()
-		if err != nil {
-			return err
-		}
-		cmdStdout, err := container.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		if err := container.Start(); err != nil {
-			return err
-		}
-		sendingStdout := Go(func() error {
-			_, err := io.Copy(stdout, cmdStdout)
-			return err
-		})
-		sendingStderr := Go(func() error {
-			_, err := io.Copy(stdout, cmdStderr)
-			return err
-		})
-		errSendingStdout := <-sendingStdout
-		errSendingStderr := <-sendingStderr
-		if errSendingStdout != nil {
-			return errSendingStdout
-		}
-		if errSendingStderr != nil {
-			return errSendingStderr
-		}
-		container.Wait()
-	} else {
-		if err := container.Start(); err != nil {
-			return err
-		}
+	if config.AttachStdout {
+		cStdout = stdout
+	}
+	if config.AttachStderr {
+		cStderr = stdout // FIXME: rcli can't differentiate stdout from stderr
+	}
+	attachErr := container.Attach(cStdin, cStdout, cStderr)
+	Debugf("Starting\n")
+	if err := container.Start(); err != nil {
+		return err
+	}
+	if cStdout == nil && cStderr == nil {
 		fmt.Fprintln(stdout, container.ShortId())
 	}
-	return nil
+	Debugf("Waiting for attach to return\n")
+	return <-attachErr
 }
 
 func NewServer() (*Server, error) {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"sync"
 	"testing"
 )
 
@@ -17,6 +18,15 @@ var unitTestStoreBase string
 var srv *Server
 
 func nuke(runtime *Runtime) error {
+	var wg sync.WaitGroup
+	for _, container := range runtime.List() {
+		wg.Add(1)
+		go func() {
+			container.Kill()
+			wg.Add(-1)
+		}()
+	}
+	wg.Wait()
 	return os.RemoveAll(runtime.root)
 }
 
