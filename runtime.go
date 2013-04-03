@@ -117,6 +117,7 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
+	container.State.initLock()
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
