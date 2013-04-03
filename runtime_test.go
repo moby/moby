@@ -21,10 +21,10 @@ func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
 	for _, container := range runtime.List() {
 		wg.Add(1)
-		go func() {
-			container.Kill()
+		go func(c *Container) {
+			c.Kill()
 			wg.Add(-1)
-		}()
+		}(container)
 	}
 	wg.Wait()
 	return os.RemoveAll(runtime.root)
