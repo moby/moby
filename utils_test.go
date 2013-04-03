@@ -122,7 +122,29 @@ func TestWriteBroadcaster(t *testing.T) {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
-	writer.Close()
+	writer.CloseWriters()
+}
+
+type devNullCloser int
+
+func (d devNullCloser) Close() error {
+	return nil
+}
+
+func (d devNullCloser) Write(buf []byte) (int, error) {
+	return len(buf), nil
+}
+
+// This test checks for races. It is only useful when run with the race detector.
+func TestRaceWriteBroadcaster(t *testing.T) {
+	writer := newWriteBroadcaster()
+	c := make(chan bool)
+	go func() {
+		writer.AddWriter(devNullCloser(0))
+		c <- true
+	}()
+	writer.Write([]byte("hello"))
+	<-c
 }
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
