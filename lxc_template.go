@@ -16,7 +16,7 @@ lxc.utsname = {{.Id}}
 # network configuration
 lxc.network.type = veth
 lxc.network.flags = up
-lxc.network.link = lxcbr0
+lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
 lxc.network.ipv4 = {{.NetworkSettings.IpAddress}}/{{.NetworkSettings.IpPrefixLen}}
