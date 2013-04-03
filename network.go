@@ -411,9 +411,8 @@ func (bridge *NetworkBridge) CheckAddr() error {
 			ip, network, _ := net.ParseCIDR(addr.String())
 			// Only check ipv4 addresses
 			if ipv4 := ip.To4(); ipv4 != nil {
-				err := fmt.Sprintf("Docker bridge network %s is in use by %s", bridge.Addr, iface.Name)
 				if networkOverlaps(dockerNetwork, network) {
-					return errors.New(err)
+					return fmt.Errorf("Docker bridge network %s is in use by %s", bridge.Addr, iface.Name)
 				}
 			}
 		}
