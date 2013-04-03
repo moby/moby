@@ -171,14 +171,14 @@ func (container *Container) startPty() error {
 
 	// Copy the PTYs to our broadcasters
 	go func() {
-		defer container.stdout.Close()
+		defer container.stdout.CloseWriters()
 		Debugf("[startPty] Begin of stdout pipe")
 		io.Copy(container.stdout, stdoutMaster)
 		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	go func() {
-		defer container.stderr.Close()
+		defer container.stderr.CloseWriters()
 		Debugf("[startPty] Begin of stderr pipe")
 		io.Copy(container.stderr, stderrMaster)
 		Debugf("[startPty] End of stderr pipe")
@@ -391,10 +391,10 @@ func (container *Container) monitor() {
 			Debugf("%s: Error close stdin: %s", container.Id, err)
 		}
 	}
-	if err := container.stdout.Close(); err != nil {
+	if err := container.stdout.CloseWriters(); err != nil {
 		Debugf("%s: Error close stdout: %s", container.Id, err)
 	}
-	if err := container.stderr.Close(); err != nil {
+	if err := container.stderr.CloseWriters(); err != nil {
 		Debugf("%s: Error close stderr: %s", container.Id, err)
 	}
 
