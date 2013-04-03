@@ -65,11 +65,9 @@ func setRawTerminal() (*term.State, error) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
-		for _ = range c {
-			term.Restore(int(os.Stdin.Fd()), oldState)
-			log.Printf("\nSIGINT received\n")
-			os.Exit(0)
-		}
+		_ = <-c
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		os.Exit(0)
 	}()
 	return oldState, err
 }
