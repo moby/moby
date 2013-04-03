@@ -13,9 +13,48 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"reflect"
 	"strings"
 )
+
+type DockerConnOptions struct {
+	RawTerminal bool
+}
+
+type DockerConn interface {
+	io.ReadWriteCloser
+	CloseWrite() error
+	CloseRead() error
+	GetOptions() *DockerConnOptions
+	SetOptionRawTerminal()
+}
+
+var UnknownDockerProto = errors.New("Only TCP is actually supported by Docker at the moment")
+
+func dialDocker(proto string, addr string) (DockerConn, error) {
+	conn, err := net.Dial(proto, addr)
+	if err != nil {
+		return nil, err
+	}
+	switch i := conn.(type) {
+	case *net.TCPConn:
+		return NewDockerTCPConn(i, true), nil
+	}
+	return nil, UnknownDockerProto
+}
+
+func newDockerFromConn(conn net.Conn, client bool) (DockerConn, error) {
+	switch i := conn.(type) {
+	case *net.TCPConn:
+		return NewDockerTCPConn(i, client), nil
+	}
+	return nil, UnknownDockerProto
+}
+
+func newDockerServerConn(conn net.Conn) (DockerConn, error) {
+	return newDockerFromConn(conn, false)
+}
 
 type Service interface {
 	Name() string
@@ -26,11 +65,11 @@ type Cmd func(io.ReadCloser, io.Writer, ...string) error
 type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
 
 // FIXME: For reverse compatibility
-func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func call(service Service, stdin io.ReadCloser, stdout DockerConn, args ...string) error {
 	return LocalCall(service, stdin, stdout, args...)
 }
 
-func LocalCall(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func LocalCall(service Service, stdin io.ReadCloser, stdout DockerConn, args ...string) error {
 	if len(args) == 0 {
 		args = []string{"help"}
 	}
