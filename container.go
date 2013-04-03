@@ -31,6 +31,7 @@ type Container struct {
 	Image  string
 
 	network         *NetworkInterface
+	NetworkBridge   string
 	NetworkSettings *NetworkSettings
 
 	SysInitPath string
@@ -361,6 +362,7 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 	container.network = iface
+	container.NetworkBridge = container.runtime.networkManager.bridgeIface
 	container.NetworkSettings.IpAddress = iface.IPNet.IP.String()
 	container.NetworkSettings.IpPrefixLen, _ = iface.IPNet.Mask.Size()
 	container.NetworkSettings.Gateway = iface.Gateway.String()

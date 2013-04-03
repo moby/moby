@@ -217,3 +217,38 @@ func assertIPEquals(t *testing.T, ip1, ip2 net.IP) {
 		t.Fatalf("Expected IP %s, got %s", ip1, ip2)
 	}
 }
+
+func AssertOverlap(CIDRx string, CIDRy string, t *testing.T) {
+	_, netX, _ := net.ParseCIDR(CIDRx)
+	_, netY, _ := net.ParseCIDR(CIDRy)
+	if !networkOverlaps(netX, netY) {
+		t.Errorf("%v and %v should overlap", netX, netY)
+	}
+}
+
+func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
+	_, netX, _ := net.ParseCIDR(CIDRx)
+	_, netY, _ := net.ParseCIDR(CIDRy)
+	if networkOverlaps(netX, netY) {
+		t.Errorf("%v and %v should not overlap", netX, netY)
+	}
+}
+
+func TestNetworkOverlaps(t *testing.T) {
+	//netY starts at same IP and ends within netX
+	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
+	//netY starts within netX and ends at same IP
+	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
+	//netY starts and ends within netX
+	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
+	//netY starts at same IP and ends outside of netX
+	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
+	//netY starts before and ends at same IP of netX
+	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	//netY starts before and ends outside of netX
+	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	//netY starts and ends before netX
+	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)
+	//netX starts and ends before netY
+	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
+}
