@@ -184,7 +184,7 @@ func (alloc *PortAllocator) Release(port int) error {
 	default:
 		return errors.New("Too many ports have been released")
 	}
-	return nil
+	panic("unreachable")
 }
 
 func newPortAllocator(start, end int) (*PortAllocator, error) {

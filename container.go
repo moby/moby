@@ -626,7 +626,7 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 	case <-done:
 		return nil
 	}
-	return nil
+	panic("unreachable")
 }
 
 func (container *Container) EnsureMounted() error {

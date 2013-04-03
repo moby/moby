@@ -202,7 +202,7 @@ func (r *bufReader) Read(p []byte) (n int, err error) {
 		}
 		r.wait.Wait()
 	}
-	return
+	panic("unreachable")
 }
 
 func (r *bufReader) Close() error {
