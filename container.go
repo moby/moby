@@ -67,16 +67,19 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		cmd.SetOutput(ioutil.Discard)
 	}
 
+	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
 	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	var flPorts ports
 
+	var flPorts ports
 	cmd.Var(&flPorts, "p", "Map a network port to the container")
+
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
@@ -90,6 +93,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		runCmd = parsedArgs[1:]
 	}
 	config := &Config{
+		Hostname:  *flHostname,
 		Ports:     flPorts,
 		User:      *flUser,
 		Tty:       *flTty,
