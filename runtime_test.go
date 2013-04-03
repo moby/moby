@@ -90,7 +90,6 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
-		panic(err)
 		return nil, err
 	}
 
