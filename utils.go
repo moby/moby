@@ -45,7 +45,7 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 // Debug function, if the debug flag is set, then display. Do nothing otherwise
 // If Docker is in damon mode, also send the debug info on the socket
 func Debugf(format string, a ...interface{}) {
-	if rcli.DEBUG_FLAG {
+	if os.Getenv("DEBUG") != "" {
 
 		// Retrieve the stack infos
 		_, file, line, ok := runtime.Caller(1)

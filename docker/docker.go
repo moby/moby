@@ -21,7 +21,9 @@ func main() {
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
 	flag.Parse()
-	rcli.DEBUG_FLAG = *flDebug
+	if *flDebug {
+		os.Setenv("DEBUG", "1")
+	}
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
