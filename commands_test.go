@@ -2,8 +2,10 @@ package docker
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +57,27 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 		}
 	}
 	return nil
+}
+
+// TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
+func TestRunHostname(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	var stdin, stdout bytes.Buffer
+	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
+		if err := srv.CmdRun(ioutil.NopCloser(&stdin), &nopWriteCloser{&stdout}, "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if output := string(stdout.Bytes()); output != "foobar\n" {
+		t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", output)
+	}
 }
 
 // Expected behaviour: the process dies when the client disconnects
