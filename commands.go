@@ -833,25 +833,25 @@ func (opts *ListOpts) Set(value string) error {
 // AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
 type AttachOpts map[string]bool
 
-func NewAttachOpts() *AttachOpts {
-	opts := make(map[string]bool)
-	return (*AttachOpts)(&opts)
+func NewAttachOpts() AttachOpts {
+	return make(AttachOpts)
 }
 
-func (opts *AttachOpts) String() string {
-	return fmt.Sprint(*opts)
+func (opts AttachOpts) String() string {
+	// Cast to underlying map type to avoid infinite recursion
+	return fmt.Sprintf("%v", map[string]bool(opts))
 }
 
-func (opts *AttachOpts) Set(val string) error {
+func (opts AttachOpts) Set(val string) error {
 	if val != "stdin" && val != "stdout" && val != "stderr" {
 		return fmt.Errorf("Unsupported stream name: %s", val)
 	}
-	(*opts)[val] = true
+	opts[val] = true
 	return nil
 }
 
-func (opts *AttachOpts) Get(val string) bool {
-	if res, exists := (*opts)[val]; exists {
+func (opts AttachOpts) Get(val string) bool {
+	if res, exists := opts[val]; exists {
 		return res
 	}
 	return false

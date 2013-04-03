@@ -88,11 +88,11 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
-	if *flDetach && len(*flAttach) > 0 {
+	if *flDetach && len(flAttach) > 0 {
 		return nil, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	// If neither -d or -a are set, attach to everything by default
-	if len(*flAttach) == 0 && !*flDetach {
+	if len(flAttach) == 0 && !*flDetach {
 		if !*flDetach {
 			flAttach.Set("stdout")
 			flAttach.Set("stderr")
