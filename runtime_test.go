@@ -23,7 +23,7 @@ func nuke(runtime *Runtime) error {
 		wg.Add(1)
 		go func(c *Container) {
 			c.Kill()
-			wg.Add(-1)
+			wg.Done()
 		}(container)
 	}
 	wg.Wait()
