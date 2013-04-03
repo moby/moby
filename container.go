@@ -48,18 +48,20 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname   string
-	User       string
-	Memory     int64 // Memory limit (in bytes)
-	MemorySwap int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	Detach     bool
-	Ports      []int
-	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin  bool // Open stdin
-	StdinOnce  bool // If true, close stdin after the 1 attached client disconnects.
-	Env        []string
-	Cmd        []string
-	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Hostname     string
+	User         string
+	Memory       int64 // Memory limit (in bytes)
+	MemorySwap   int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	AttachStdin  bool
+	AttachStdout bool
+	AttachStderr bool
+	Ports        []int
+	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin    bool // Open stdin
+	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
+	Env          []string
+	Cmd          []string
+	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
 func ParseRun(args []string, stdout io.Writer) (*Config, error) {
@@ -70,6 +72,8 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 
 	flUser := cmd.String("u", "", "Username or UID")
 	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flAttach := NewAttachOpts()
+	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
@@ -81,6 +85,19 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
+	if *flDetach && len(*flAttach) > 0 {
+		return nil, fmt.Errorf("Conflicting options: -a and -d")
+	}
+	// If neither -d or -a are set, attach to everything by default
+	if len(*flAttach) == 0 && !*flDetach {
+		if !*flDetach {
+			flAttach.Set("stdout")
+			flAttach.Set("stderr")
+			if *flStdin {
+				flAttach.Set("stdin")
+			}
+		}
+	}
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -91,18 +108,20 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		runCmd = parsedArgs[1:]
 	}
 	config := &Config{
-		Ports:     flPorts,
-		User:      *flUser,
-		Tty:       *flTty,
-		OpenStdin: *flStdin,
-		Memory:    *flMemory,
-		Detach:    *flDetach,
-		Env:       flEnv,
-		Cmd:       runCmd,
-		Image:     image,
+		Ports:        flPorts,
+		User:         *flUser,
+		Tty:          *flTty,
+		OpenStdin:    *flStdin,
+		Memory:       *flMemory,
+		AttachStdin:  flAttach.Get("stdin"),
+		AttachStdout: flAttach.Get("stdout"),
+		AttachStderr: flAttach.Get("stderr"),
+		Env:          flEnv,
+		Cmd:          runCmd,
+		Image:        image,
 	}
 	// When allocating stdin in attached mode, close stdin at client disconnect
-	if config.OpenStdin && !config.Detach {
+	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
 	return config, nil

@@ -827,6 +827,33 @@ func (opts *ListOpts) Set(value string) error {
 	return nil
 }
 
+// AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
+type AttachOpts map[string]bool
+
+func NewAttachOpts() *AttachOpts {
+	opts := make(map[string]bool)
+	return (*AttachOpts)(&opts)
+}
+
+func (opts *AttachOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *AttachOpts) Set(val string) error {
+	if val != "stdin" && val != "stdout" && val != "stderr" {
+		return fmt.Errorf("Unsupported stream name: %s", val)
+	}
+	(*opts)[val] = true
+	return nil
+}
+
+func (opts *AttachOpts) Get(val string) bool {
+	if res, exists := (*opts)[val]; exists {
+		return res
+	}
+	return false
+}
+
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
@@ -870,28 +897,29 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 			return err
 		}
 	}
-	// Run the container
-	if !config.Detach {
-		var attachErr chan error
-		if config.OpenStdin {
-			Debugf("Attaching with stdin\n")
-			attachErr = container.Attach(stdin, stdout, stdout)
-		} else {
-			Debugf("Attaching without stdin\n")
-			attachErr = container.Attach(nil, stdout, nil)
-		}
-		Debugf("Starting\n")
-		if err := container.Start(); err != nil {
-			return err
-		}
-		Debugf("Waiting for attach to return\n")
-		return <-attachErr
+	var (
+		cStdin           io.Reader
+		cStdout, cStderr io.Writer
+	)
+	if config.AttachStdin {
+		cStdin = stdin
 	}
+	if config.AttachStdout {
+		cStdout = stdout
+	}
+	if config.AttachStderr {
+		cStderr = stdout // FIXME: rcli can't differentiate stdout from stderr
+	}
+	attachErr := container.Attach(cStdin, cStdout, cStderr)
+	Debugf("Starting\n")
 	if err := container.Start(); err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, container.ShortId())
-	return nil
+	if cStdout == nil && cStderr == nil {
+		fmt.Fprintln(stdout, container.ShortId())
+	}
+	Debugf("Waiting for attach to return\n")
+	return <-attachErr
 }
 
 func NewServer() (*Server, error) {
