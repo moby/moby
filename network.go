@@ -98,8 +98,8 @@ type PortMapper struct {
 
 func (mapper *PortMapper) cleanup() error {
 	// Ignore errors - This could mean the chains were never set up
-	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
 	iptables("-t", "nat", "-F", "DOCKER")
 	iptables("-t", "nat", "-X", "DOCKER")
 	mapper.mapping = make(map[int]net.TCPAddr)
@@ -110,10 +110,10 @@ func (mapper *PortMapper) setup() error {
 	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
 	}
-	if err := iptables("-t", "nat", "-A", "PREROUTING", "-j", "DOCKER"); err != nil {
+	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
-	if err := iptables("-t", "nat", "-A", "OUTPUT", "-j", "DOCKER"); err != nil {
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 	}
 	return nil
