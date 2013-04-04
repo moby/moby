@@ -22,10 +22,10 @@ func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
 	for _, container := range runtime.List() {
 		wg.Add(1)
-		go func() {
-			container.Kill()
-			wg.Add(-1)
-		}()
+		go func(c *Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
 	}
 	wg.Wait()
 	return os.RemoveAll(runtime.root)
@@ -91,7 +91,6 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
-		panic(err)
 		return nil, err
 	}
 

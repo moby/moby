@@ -99,7 +99,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 			}
 			if err != nil {
 				if err != io.EOF {
-					fmt.Fprint(stdout, "Read error: %v\n", err)
+					fmt.Fprintf(stdout, "Read error: %v\n", err)
 				}
 				break
 			}
@@ -512,10 +512,9 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string
 				return err
 			}
 			return nil
-		} else {
-			return err
 		}
-		return nil
+
+		return err
 	}
 	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
 	if err != nil {
