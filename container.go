@@ -257,9 +257,9 @@ func (container *Container) start() error {
 	return container.cmd.Start()
 }
 
-func (container *Container) Attach(stdin io.Reader, stdout io.Writer, stderr io.Writer) chan error {
-	var cStdout io.ReadCloser
-	var cStderr io.ReadCloser
+func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
+	var cStdout, cStderr io.ReadCloser
+
 	var nJobs int
 	errors := make(chan error, 3)
 	if stdin != nil && container.Config.OpenStdin {
@@ -269,15 +269,23 @@ func (container *Container) Attach(stdin io.Reader, stdout io.Writer, stderr io.
 		} else {
 			go func() {
 				Debugf("[start] attach stdin\n")
-				defer Debugf("[end]  attach stdin\n")
+				defer Debugf("[end] attach stdin\n")
+				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
+				if cStdout != nil {
+					defer cStdout.Close()
+				}
+				if cStderr != nil {
+					defer cStderr.Close()
+				}
 				if container.Config.StdinOnce {
 					defer cStdin.Close()
 				}
 				_, err := io.Copy(cStdin, stdin)
 				if err != nil {
-					Debugf("[error] attach stdout: %s\n", err)
+					Debugf("[error] attach stdin: %s\n", err)
 				}
-				errors <- err
+				// Discard error, expecting pipe error
+				errors <- nil
 			}()
 		}
 	}
@@ -290,6 +298,15 @@ func (container *Container) Attach(stdin io.Reader, stdout io.Writer, stderr io.
 			go func() {
 				Debugf("[start] attach stdout\n")
 				defer Debugf("[end]  attach stdout\n")
+				// If we are in StdinOnce mode, then close stdin
+				if container.Config.StdinOnce {
+					if stdin != nil {
+						defer stdin.Close()
+					}
+					if stdinCloser != nil {
+						defer stdinCloser.Close()
+					}
+				}
 				_, err := io.Copy(stdout, cStdout)
 				if err != nil {
 					Debugf("[error] attach stdout: %s\n", err)
@@ -307,6 +324,15 @@ func (container *Container) Attach(stdin io.Reader, stdout io.Writer, stderr io.
 			go func() {
 				Debugf("[start] attach stderr\n")
 				defer Debugf("[end]  attach stderr\n")
+				// If we are in StdinOnce mode, then close stdin
+				if container.Config.StdinOnce {
+					if stdin != nil {
+						defer stdin.Close()
+					}
+					if stdinCloser != nil {
+						defer stdinCloser.Close()
+					}
+				}
 				_, err := io.Copy(stderr, cStderr)
 				if err != nil {
 					Debugf("[error] attach stderr: %s\n", err)
