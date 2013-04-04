@@ -129,6 +129,9 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
+	if id == "" {
+		id = GenerateId()
+	}
 	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create temp: %s", err)
@@ -137,13 +140,6 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 		return "", fmt.Errorf("Image %d already exists", id)
 	}
 	return tmp.imageRoot(id), nil
-}
-
-// Garbage returns the "garbage", a staging area for deleted images.
-// This allows images to be deleted atomically by os.Rename(), instead of
-// os.RemoveAll() which is prone to race conditions.
-func (graph *Graph) Garbage() (*Graph, error) {
-	return NewGraph(path.Join(graph.Root, ":garbage:"))
 }
 
 // Check if given error is "not empty".
@@ -166,54 +162,16 @@ func (graph *Graph) Delete(name string) error {
 	if err != nil {
 		return err
 	}
-	garbage, err := graph.Garbage()
+	tmp, err := graph.Mktemp("")
 	if err != nil {
 		return err
 	}
 	graph.idIndex.Delete(id)
-	err = os.Rename(graph.imageRoot(id), garbage.imageRoot(id))
-	if err != nil {
-		// FIXME: this introduces a race condition in Delete() if the image is already present
-		// in garbage. Let's store at random names in grabage instead.
-		if isNotEmpty(err) {
-			Debugf("The image %s is already present in garbage. Removing it.", id)
-			if err = os.RemoveAll(garbage.imageRoot(id)); err != nil {
-				Debugf("Error while removing the image %s from garbage: %s\n", id, err)
-				return err
-			}
-			Debugf("Image %s removed from garbage", id)
-			if err = os.Rename(graph.imageRoot(id), garbage.imageRoot(id)); err != nil {
-				return err
-			}
-			Debugf("Image %s put in the garbage", id)
-		} else {
-			Debugf("Error putting the image %s to garbage: %s\n", id, err)
-		}
-		return err
-	}
-	return nil
-}
-
-// Undelete moves an image back from the garbage to the main graph.
-func (graph *Graph) Undelete(id string) error {
-	garbage, err := graph.Garbage()
+	err = os.Rename(graph.imageRoot(id), tmp)
 	if err != nil {
 		return err
 	}
-	if err := os.Rename(garbage.imageRoot(id), graph.imageRoot(id)); err != nil {
-		return err
-	}
-	graph.idIndex.Add(id)
-	return nil
-}
-
-// GarbageCollect definitely deletes all images moved to the garbage.
-func (graph *Graph) GarbageCollect() error {
-	garbage, err := graph.Garbage()
-	if err != nil {
-		return err
-	}
-	return os.RemoveAll(garbage.Root)
+	return os.RemoveAll(tmp)
 }
 
 // Map returns a list of all images in the graph, addressable by ID.
