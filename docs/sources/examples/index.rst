@@ -15,4 +15,4 @@ Contents:
    hello_world
    hello_world_daemon
    python_web_app
-   runningsshservice
+   running_ssh_service
