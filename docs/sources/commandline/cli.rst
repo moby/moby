@@ -266,6 +266,7 @@ run
     -t=false: Allocate a pseudo-tty
     -h="": Container host name
     -u="": Username or UID
+    -volume=[]: Specify directories to use inside container
 
 
 start

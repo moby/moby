@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"log"
+	"regexp"
 	"text/template"
 )
 
@@ -80,6 +82,10 @@ lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
 lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 
+# Any persistent storage references go last
+{{range getMountEntries .Config}}
+lxc.mount.entry = {{.Host}} {{$ROOTFS}}{{.Container}} none bind,{{.Mode}} 0 0
+{{end}}
 
 # drop linux capabilities (apply mainly to the user root in the container)
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
@@ -105,10 +111,56 @@ func getMemorySwap(config *Config) int64 {
 	return config.Memory * 2
 }
 
+type mountEntry struct {
+	Container string
+	Host      string
+	Mode      string
+}
+
+// the regexp is generic so a better diagnostics could be provided
+var entryRegExp = regexp.MustCompile("^([^:]+):([^=]+)=(.*)")
+
+func getMountEntries(config *Config) []mountEntry {
+	volumes := config.Volumes
+
+	var result []mountEntry
+
+	for _, value := range volumes {
+		matches := entryRegExp.FindStringSubmatch(value)
+
+		if len(matches) == 0 {
+			log.Printf("Invalid volume specification: %s.  Ignored.", value)
+			continue
+		}
+
+		// matches[0] -- the whole string
+
+		if matches[1] != "ro" && matches[1] != "rw" {
+			log.Printf("Invalid mode specification %s. %s is ignored.", matches[1], value)
+			continue
+		}
+
+		if matches[2][0] != '/' {
+			log.Printf("Container path must be absolute: %s.  %s is ignored.", matches[2], value)
+			continue
+		}
+
+		if matches[3][0] != '/' {
+			log.Printf("Host path must be absolute: %s.  %s is ignored.", matches[3], value)
+			continue
+		}
+
+		result = append(result, mountEntry{matches[2], matches[3], matches[1]})
+	}
+
+	return result
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap": getMemorySwap,
+		"getMemorySwap":   getMemorySwap,
+		"getMountEntries": getMountEntries,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

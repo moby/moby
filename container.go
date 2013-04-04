@@ -60,6 +60,7 @@ type Config struct {
 	OpenStdin    bool // Open stdin
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
 	Env          []string
+	Volumes      []string
 	Cmd          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
@@ -85,6 +86,9 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
 
+	var flVolumes ListOpts
+	cmd.Var(&flVolumes, "volume", "Specify directories to use inside container")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
@@ -101,6 +105,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 			}
 		}
 	}
+
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -121,6 +126,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		AttachStdout: flAttach.Get("stdout"),
 		AttachStderr: flAttach.Get("stderr"),
 		Env:          flEnv,
+		Volumes:      flVolumes,
 		Cmd:          runCmd,
 		Image:        image,
 	}
