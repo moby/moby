@@ -100,6 +100,9 @@ func (mapper *PortMapper) cleanup() error {
 	// Ignore errors - This could mean the chains were never set up
 	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
 	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
+	// Also cleanup rules created by older versions, or -X might fail.
+	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
 	iptables("-t", "nat", "-F", "DOCKER")
 	iptables("-t", "nat", "-X", "DOCKER")
 	mapper.mapping = make(map[int]net.TCPAddr)
