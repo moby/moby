@@ -14,8 +14,9 @@ import (
 var NetworkBridgeIface string
 
 const (
-	portRangeStart = 49153
-	portRangeEnd   = 65535
+	DefaultNetworkBridge = "lxcbr0"
+	portRangeStart       = 49153
+	portRangeEnd         = 65535
 )
 
 // Calculates the first and last IP addresses in an IPNet

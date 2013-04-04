@@ -27,7 +27,7 @@ func main() {
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
 	} else {
-		docker.NetworkBridgeIface = "lxcbr0"
+		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
