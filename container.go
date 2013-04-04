@@ -40,9 +40,7 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	ptyStdinMaster  io.Closer
-	ptyStdoutMaster io.Closer
-	ptyStderrMaster io.Closer
+	ptyMaster io.Closer
 
 	runtime *Runtime
 }
@@ -180,40 +178,37 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) startPty() error {
-
-	stdoutMaster, stdoutSlave, err := pty.Open()
+	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
-	container.ptyStdoutMaster = stdoutMaster
-	container.cmd.Stdout = stdoutSlave
-	container.cmd.Stderr = stdoutSlave
+	container.ptyMaster = ptyMaster
+	container.cmd.Stdout = ptySlave
+	container.cmd.Stderr = ptySlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.CloseWriters()
 		Debugf("[startPty] Begin of stdout pipe")
-		io.Copy(container.stdout, stdoutMaster)
+		io.Copy(container.stdout, ptyMaster)
 		Debugf("[startPty] End of stdout pipe")
 	}()
 
 	// stdin
 	if container.Config.OpenStdin {
-		container.cmd.Stdin = stdoutSlave
-		// FIXME: The following appears to be broken.
-		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
+		container.cmd.Stdin = ptySlave
 		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
 			Debugf("[startPty] Begin of stdin pipe")
-			io.Copy(stdoutMaster, container.stdin)
+			io.Copy(ptyMaster, container.stdin)
 			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
 		return err
 	}
-	stdoutSlave.Close()
+	ptySlave.Close()
 	return nil
 }
 
@@ -507,19 +502,9 @@ func (container *Container) monitor() {
 		Debugf("%s: Error close stderr: %s", container.Id, err)
 	}
 
-	if container.ptyStdinMaster != nil {
-		if err := container.ptyStdinMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stdin master: %s", container.Id, err)
-		}
-	}
-	if container.ptyStdoutMaster != nil {
-		if err := container.ptyStdoutMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stdout master: %s", container.Id, err)
-		}
-	}
-	if container.ptyStderrMaster != nil {
-		if err := container.ptyStderrMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stderr master: %s", container.Id, err)
+	if container.ptyMaster != nil {
+		if err := container.ptyMaster.Close(); err != nil {
+			Debugf("%s: Error closing Pty master: %s", container.Id, err)
 		}
 	}
 
