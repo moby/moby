@@ -7,9 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"sort"
-	"sync"
+	"strings"
 	"time"
 )
 
@@ -115,6 +116,7 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
+	container.State.initLock()
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
@@ -132,11 +134,26 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateId(container.Id); err != nil {
 		return err
 	}
+
+	// FIXME: if the container is supposed to be running but is not, auto restart it?
+	// If the container is supposed to be running, make sure of it
+	if container.State.Running {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				Debugf("Container %s was supposed to be running be is not.", container.Id)
+				container.State.setStopped(-127)
+				if err := container.ToDisk(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	container.runtime = runtime
 	// Setup state lock (formerly in newState()
-	lock := new(sync.Mutex)
-	container.State.stateChangeLock = lock
-	container.State.stateChangeCond = sync.NewCond(lock)
+	container.State.initLock()
 	// Attach to stdout and stderr
 	container.stderr = newWriteBroadcaster()
 	container.stdout = newWriteBroadcaster()
@@ -259,7 +276,6 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		// If the auth file does not exist, keep going
 		return nil, err
 	}
-
 	runtime := &Runtime{
 		root:           root,
 		repository:     runtimeRepo,
