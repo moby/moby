@@ -341,3 +341,53 @@ func TruncateId(id string) string {
 	}
 	return id[:shortLen]
 }
+
+// Code c/c from io.Copy() modified to handle escape sequence
+func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
+	// If the writer has a ReadFrom method, use it to do the copy.
+	// Avoids an allocation and a copy.
+	if rt, ok := dst.(io.ReaderFrom); ok {
+		return rt.ReadFrom(src)
+	}
+	// Similarly, if the reader has a WriteTo method, use it to do the copy.
+	if wt, ok := src.(io.WriterTo); ok {
+		return wt.WriteTo(dst)
+	}
+	buf := make([]byte, 32*1024)
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			// ---- Docker addition
+			if nr == 1 && buf[0] == '' {
+				nr, er = src.Read(buf)
+				if nr == 1 && buf[0] == '' {
+					if err := src.Close(); err != nil {
+						return 0, err
+					}
+					return 0, io.EOF
+				}
+			}
+			// ---- End of docker
+			nw, ew := dst.Write(buf[0:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er == io.EOF {
+			break
+		}
+		if er != nil {
+			err = er
+			break
+		}
+	}
+	return written, err
+}

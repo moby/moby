@@ -255,7 +255,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
 				}
-				_, err := io.Copy(cStdin, stdin)
+				_, err := CopyEscapable(cStdin, stdin)
 				if err != nil {
 					Debugf("[error] attach stdin: %s\n", err)
 				}
