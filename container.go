@@ -180,19 +180,14 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) startPty() error {
+
 	stdoutMaster, stdoutSlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
 	container.ptyStdoutMaster = stdoutMaster
 	container.cmd.Stdout = stdoutSlave
-
-	stderrMaster, stderrSlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyStderrMaster = stderrMaster
-	container.cmd.Stderr = stderrSlave
+	container.cmd.Stderr = stdoutSlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
@@ -202,30 +197,16 @@ func (container *Container) startPty() error {
 		Debugf("[startPty] End of stdout pipe")
 	}()
 
-	go func() {
-		defer container.stderr.CloseWriters()
-		Debugf("[startPty] Begin of stderr pipe")
-		io.Copy(container.stderr, stderrMaster)
-		Debugf("[startPty] End of stderr pipe")
-	}()
-
 	// stdin
-	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		var stdinMaster io.WriteCloser
-		stdinMaster, stdinSlave, err = pty.Open()
-		if err != nil {
-			return err
-		}
-		container.ptyStdinMaster = stdinMaster
-		container.cmd.Stdin = stdinSlave
+		container.cmd.Stdin = stdoutSlave
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
 		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
 			Debugf("[startPty] Begin of stdin pipe")
-			io.Copy(stdinMaster, container.stdin)
+			io.Copy(stdoutMaster, container.stdin)
 			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
@@ -233,10 +214,6 @@ func (container *Container) startPty() error {
 		return err
 	}
 	stdoutSlave.Close()
-	stderrSlave.Close()
-	if stdinSlave != nil {
-		stdinSlave.Close()
-	}
 	return nil
 }
 
