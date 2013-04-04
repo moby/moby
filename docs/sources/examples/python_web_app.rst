@@ -65,6 +65,4 @@ See the example in action
       <iframe width="720" height="350" src="http://ascii.io/a/2573/raw" frameborder="0"></iframe>
     </div>
 
-Continue to the `base commands`_
-
-.. _base commands: ../commandline/basecommands.html
+Continue to :ref:`running_ssh_service`.
