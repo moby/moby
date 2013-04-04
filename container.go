@@ -202,7 +202,7 @@ func (container *Container) startPty() error {
 		container.cmd.Stdin = stdoutSlave
 		// FIXME: The following appears to be broken.
 		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
-		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
 			Debugf("[startPty] Begin of stdin pipe")
