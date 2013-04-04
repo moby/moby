@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"sync"
 	"testing"
+	"time"
 )
 
 // FIXME: this is no longer needed
@@ -289,11 +290,46 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime1.Destroy(container1)
-	if len(runtime1.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime1.List()))
+
+	// Create a second container meant to be killed
+	container2, err := runtime1.Create(&Config{
+		Image:     GetTestImage(runtime1).Id,
+		Cmd:       []string{"/bin/cat"},
+		OpenStdin: true,
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime1.Destroy(container2)
+
+	// Start the container non blocking
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
+	}
+
+	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
+	cStdin, _ := container2.StdinPipe()
+	cStdin.Close()
+	if err := container2.WaitTimeout(time.Second); err != nil {
+		t.Fatal(err)
+	}
+	container2.State.Running = true
+	container2.ToDisk()
+
+	if len(runtime1.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
 	}
 
 	// Here are are simulating a docker restart - that is, reloading all containers
@@ -303,14 +339,24 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime2)
-	if len(runtime2.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime2.List()))
+	if len(runtime2.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
 	}
-	container2 := runtime2.Get(container1.Id)
-	if container2 == nil {
+	runningCount := 0
+	for _, c := range runtime2.List() {
+		if c.State.Running {
+			t.Errorf("Running container found: %v (%v)", c.Id, c.Path)
+			runningCount++
+		}
+	}
+	if runningCount != 0 {
+		t.Fatalf("Expected 0 container alive, %d found", runningCount)
+	}
+	container3 := runtime2.Get(container1.Id)
+	if container3 == nil {
 		t.Fatal("Unable to Get container")
 	}
-	if err := container2.Run(); err != nil {
+	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
 }

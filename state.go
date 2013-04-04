@@ -39,6 +39,13 @@ func (s *State) setStopped(exitCode int) {
 	s.broadcast()
 }
 
+func (s *State) initLock() {
+	if s.stateChangeLock == nil {
+		s.stateChangeLock = &sync.Mutex{}
+		s.stateChangeCond = sync.NewCond(s.stateChangeLock)
+	}
+}
+
 func (s *State) broadcast() {
 	s.stateChangeLock.Lock()
 	s.stateChangeCond.Broadcast()
