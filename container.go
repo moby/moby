@@ -135,6 +135,7 @@ type NetworkSettings struct {
 	IpAddress   string
 	IpPrefixLen int
 	Gateway     string
+	Bridge      string
 	PortMapping map[string]string
 }
 
@@ -491,6 +492,7 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 	container.network = iface
+	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
 	container.NetworkSettings.IpAddress = iface.IPNet.IP.String()
 	container.NetworkSettings.IpPrefixLen, _ = iface.IPNet.Mask.Size()
 	container.NetworkSettings.Gateway = iface.Gateway.String()
