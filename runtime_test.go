@@ -358,4 +358,5 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
+	container2.State.Running = false
 }
