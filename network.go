@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -160,39 +161,55 @@ func newPortMapper() (*PortMapper, error) {
 
 // Port allocator: Atomatically allocate and release networking ports
 type PortAllocator struct {
-	ports chan (int)
+	inUse map[int]struct{}
+	fountain chan (int)
+	lock sync.Mutex
 }
 
-func (alloc *PortAllocator) run(start, end int) {
-	alloc.ports = make(chan int, end-start)
-	for port := start; port < end; port++ {
-		alloc.ports <- port
+func (alloc *PortAllocator) runFountain() {
+	if alloc.fountain != nil {
+		return
+	}
+	alloc.fountain = make(chan int)
+	for {
+		for port := portRangeStart; port < portRangeEnd; port++ {
+			alloc.fountain <- port
+		}
 	}
 }
 
-func (alloc *PortAllocator) Acquire() (int, error) {
-	select {
-	case port := <-alloc.ports:
-		return port, nil
-	default:
-		return -1, errors.New("No more ports available")
-	}
-	return -1, nil
-}
-
+// FIXME: Release can no longer fail, change its prototype to reflect that.
 func (alloc *PortAllocator) Release(port int) error {
-	select {
-	case alloc.ports <- port:
-		return nil
-	default:
-		return errors.New("Too many ports have been released")
-	}
-	panic("unreachable")
+	alloc.lock.Lock()
+	delete(alloc.inUse, port)
+	alloc.lock.Unlock()
+	return nil
 }
 
-func newPortAllocator(start, end int) (*PortAllocator, error) {
-	allocator := &PortAllocator{}
-	allocator.run(start, end)
+func (alloc *PortAllocator) Acquire(port int) (int, error) {
+	if port == 0 {
+		// Allocate a port from the fountain
+		for port := range alloc.fountain {
+			if _, err := alloc.Acquire(port); err == nil {
+				return port, nil
+			}
+		}
+		return -1, fmt.Errorf("Port generator ended unexpectedly")
+	}
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+	if _, inUse := alloc.inUse[port]; inUse {
+		return -1, fmt.Errorf("Port already in use: %d", port)
+	}
+	alloc.inUse[port] = struct{}{}
+	return port, nil
+}
+
+func newPortAllocator() (*PortAllocator, error) {
+	allocator := &PortAllocator{
+		inUse:		make(map[int]struct{}),
+	}
+	go allocator.runFountain()
 	return allocator, nil
 }
 
@@ -302,7 +319,7 @@ type NetworkInterface struct {
 
 // Allocate an external TCP port and map it to the interface
 func (iface *NetworkInterface) AllocatePort(port int) (int, error) {
-	extPort, err := iface.manager.portAllocator.Acquire()
+	extPort, err := iface.manager.portAllocator.Acquire(0)
 	if err != nil {
 		return -1, err
 	}
@@ -363,7 +380,7 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 
 	ipAllocator := newIPAllocator(network)
 
-	portAllocator, err := newPortAllocator(portRangeStart, portRangeEnd)
+	portAllocator, err := newPortAllocator()
 	if err != nil {
 		return nil, err
 	}
