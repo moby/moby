@@ -161,9 +161,9 @@ func newPortMapper() (*PortMapper, error) {
 
 // Port allocator: Atomatically allocate and release networking ports
 type PortAllocator struct {
-	inUse map[int]struct{}
+	inUse    map[int]struct{}
 	fountain chan (int)
-	lock sync.Mutex
+	lock     sync.Mutex
 }
 
 func (alloc *PortAllocator) runFountain() {
@@ -207,7 +207,7 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 
 func newPortAllocator() (*PortAllocator, error) {
 	allocator := &PortAllocator{
-		inUse:		make(map[int]struct{}),
+		inUse: make(map[int]struct{}),
 	}
 	go allocator.runFountain()
 	return allocator, nil
@@ -318,17 +318,50 @@ type NetworkInterface struct {
 }
 
 // Allocate an external TCP port and map it to the interface
-func (iface *NetworkInterface) AllocatePort(port int) (int, error) {
-	extPort, err := iface.manager.portAllocator.Acquire(0)
+func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
+	nat, err := parseNat(spec)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	if err := iface.manager.portMapper.Map(extPort, net.TCPAddr{IP: iface.IPNet.IP, Port: port}); err != nil {
-		iface.manager.portAllocator.Release(extPort)
-		return -1, err
+	// Allocate a random port if Frontend==0
+	if extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend); err != nil {
+		return nil, err
+	} else {
+		nat.Frontend = extPort
 	}
-	iface.extPorts = append(iface.extPorts, extPort)
-	return extPort, nil
+	if err := iface.manager.portMapper.Map(nat.Frontend, net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}); err != nil {
+		iface.manager.portAllocator.Release(nat.Frontend)
+		return nil, err
+	}
+	iface.extPorts = append(iface.extPorts, nat.Frontend)
+	return nat, nil
+}
+
+type Nat struct {
+	Proto    string
+	Frontend int
+	Backend  int
+}
+
+func parseNat(spec string) (*Nat, error) {
+	var nat Nat
+	// If spec starts with ':', external and internal ports must be the same.
+	// This might fail if the requested external port is not available.
+	var sameFrontend bool
+	if spec[0] == ':' {
+		sameFrontend = true
+		spec = spec[1:]
+	}
+	port, err := strconv.ParseUint(spec, 10, 16)
+	if err != nil {
+		return nil, err
+	}
+	nat.Backend = int(port)
+	if sameFrontend {
+		nat.Frontend = nat.Backend
+	}
+	nat.Proto = "tcp"
+	return &nat, nil
 }
 
 // Release: Network cleanup - release all resources

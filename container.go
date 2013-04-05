@@ -55,7 +55,7 @@ type Config struct {
 	AttachStdin  bool
 	AttachStdout bool
 	AttachStderr bool
-	Ports        []int
+	PortSpecs    []string
 	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin    bool // Open stdin
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
@@ -79,7 +79,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
-	var flPorts ports
+	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
 	var flEnv ListOpts
@@ -112,7 +112,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	}
 	config := &Config{
 		Hostname:     *flHostname,
-		Ports:        flPorts,
+		PortSpecs:    flPorts,
 		User:         *flUser,
 		Tty:          *flTty,
 		OpenStdin:    *flStdin,
@@ -482,12 +482,12 @@ func (container *Container) allocateNetwork() error {
 		return err
 	}
 	container.NetworkSettings.PortMapping = make(map[string]string)
-	for _, port := range container.Config.Ports {
-		if extPort, err := iface.AllocatePort(port); err != nil {
+	for _, spec := range container.Config.PortSpecs {
+		if nat, err := iface.AllocatePort(spec); err != nil {
 			iface.Release()
 			return err
 		} else {
-			container.NetworkSettings.PortMapping[strconv.Itoa(port)] = strconv.Itoa(extPort)
+			container.NetworkSettings.PortMapping[strconv.Itoa(nat.Backend)] = strconv.Itoa(nat.Frontend)
 		}
 	}
 	container.network = iface
