@@ -2,14 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"io"
 	"log"
 	"os"
-	"os/signal"
 )
 
 var GIT_COMMIT string
@@ -57,64 +55,6 @@ func daemon() error {
 	return rcli.ListenAndServe("tcp", "127.0.0.1:4242", service)
 }
 
-func setRawTerminal() (*term.State, error) {
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		return nil, err
-	}
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		_ = <-c
-		term.Restore(int(os.Stdin.Fd()), oldState)
-		os.Exit(0)
-	}()
-	return oldState, err
-}
-
-func restoreTerminal(state *term.State) {
-	term.Restore(int(os.Stdin.Fd()), state)
-}
-
-type DockerLocalConn struct {
-	file       *os.File
-	savedState *term.State
-}
-
-func newDockerLocalConn(output *os.File) *DockerLocalConn {
-	return &DockerLocalConn{file: output}
-}
-
-func (c *DockerLocalConn) Read(b []byte) (int, error) { return c.file.Read(b) }
-
-func (c *DockerLocalConn) Write(b []byte) (int, error) { return c.file.Write(b) }
-
-func (c *DockerLocalConn) Close() error {
-	if c.savedState != nil {
-		restoreTerminal(c.savedState)
-		c.savedState = nil
-	}
-	return c.file.Close()
-}
-
-func (c *DockerLocalConn) CloseWrite() error { return nil }
-
-func (c *DockerLocalConn) CloseRead() error { return nil }
-
-func (c *DockerLocalConn) GetOptions() *rcli.DockerConnOptions { return nil }
-
-func (c *DockerLocalConn) SetOptionRawTerminal() {
-	if state, err := setRawTerminal(); err != nil {
-		fmt.Fprintf(
-			os.Stderr,
-			"Can't set the terminal in raw mode: %v",
-			err.Error(),
-		)
-	} else {
-		c.savedState = state
-	}
-}
-
 func runCommand(args []string) error {
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
@@ -125,10 +65,10 @@ func runCommand(args []string) error {
 		if options.RawTerminal &&
 			term.IsTerminal(int(os.Stdin.Fd())) &&
 			os.Getenv("NORAW") == "" {
-			if oldState, err := setRawTerminal(); err != nil {
+			if oldState, err := rcli.SetRawTerminal(); err != nil {
 				return err
 			} else {
-				defer restoreTerminal(oldState)
+				defer rcli.RestoreTerminal(oldState)
 			}
 		}
 		receiveStdout := docker.Go(func() error {
@@ -155,7 +95,7 @@ func runCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		dockerConn := newDockerLocalConn(os.Stdout)
+		dockerConn := rcli.NewDockerLocalConn(os.Stdout)
 		defer dockerConn.Close()
 		if err := rcli.LocalCall(service, os.Stdin, dockerConn, args...); err != nil {
 			return err

@@ -11,9 +11,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/term"
 	"io"
 	"log"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -28,6 +30,45 @@ type DockerConn interface {
 	CloseRead() error
 	GetOptions() *DockerConnOptions
 	SetOptionRawTerminal()
+}
+
+type DockerLocalConn struct {
+	file       *os.File
+	savedState *term.State
+}
+
+func NewDockerLocalConn(output *os.File) *DockerLocalConn {
+	return &DockerLocalConn{file: output}
+}
+
+func (c *DockerLocalConn) Read(b []byte) (int, error) { return c.file.Read(b) }
+
+func (c *DockerLocalConn) Write(b []byte) (int, error) { return c.file.Write(b) }
+
+func (c *DockerLocalConn) Close() error {
+	if c.savedState != nil {
+		RestoreTerminal(c.savedState)
+		c.savedState = nil
+	}
+	return c.file.Close()
+}
+
+func (c *DockerLocalConn) CloseWrite() error { return nil }
+
+func (c *DockerLocalConn) CloseRead() error { return nil }
+
+func (c *DockerLocalConn) GetOptions() *DockerConnOptions { return nil }
+
+func (c *DockerLocalConn) SetOptionRawTerminal() {
+	if state, err := SetRawTerminal(); err != nil {
+		fmt.Fprintf(
+			os.Stderr,
+			"Can't set the terminal in raw mode: %v",
+			err.Error(),
+		)
+	} else {
+		c.savedState = state
+	}
 }
 
 var UnknownDockerProto = errors.New("Only TCP is actually supported by Docker at the moment")
