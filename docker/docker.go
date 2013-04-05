@@ -22,7 +22,7 @@ func main() {
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
-	bridgeName := flag.String("br", "", "")
+	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
