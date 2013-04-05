@@ -12,10 +12,12 @@ import (
 	"sync"
 )
 
+var NetworkBridgeIface string
+
 const (
-	networkBridgeIface = "lxcbr0"
-	portRangeStart     = 49153
-	portRangeEnd       = 65535
+	DefaultNetworkBridge = "lxcbr0"
+	portRangeStart       = 49153
+	portRangeEnd         = 65535
 )
 
 // Calculates the first and last IP addresses in an IPNet
@@ -27,6 +29,19 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
 	}
 	return firstIP, lastIP
+}
+
+// Detects overlap between one IPNet and another
+func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
+	firstIP, _ := networkRange(netX)
+	if netY.Contains(firstIP) {
+		return true
+	}
+	firstIP, _ = networkRange(netY)
+	if netX.Contains(firstIP) {
+		return true
+	}
+	return false
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
@@ -51,6 +66,19 @@ func networkSize(mask net.IPMask) int32 {
 	return int32(binary.BigEndian.Uint32(m)) + 1
 }
 
+//Wrapper around the ip command
+func ip(args ...string) (string, error) {
+	path, err := exec.LookPath("ip")
+	if err != nil {
+		return "", fmt.Errorf("command not found: ip")
+	}
+	output, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
+	}
+	return string(output), nil
+}
+
 // Wrapper around the iptables command
 func iptables(args ...string) error {
 	path, err := exec.LookPath("iptables")
@@ -59,6 +87,64 @@ func iptables(args ...string) error {
 	}
 	if err := exec.Command(path, args...).Run(); err != nil {
 		return fmt.Errorf("iptables failed: iptables %v", strings.Join(args, " "))
+	}
+	return nil
+}
+
+func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
+	output, err := ip("route")
+	if err != nil {
+		return err
+	}
+	Debugf("Routes:\n\n%s", output)
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Trim(line, "\r\n\t ") == "" || strings.Contains(line, "default") {
+			continue
+		}
+		if _, network, err := net.ParseCIDR(strings.Split(line, " ")[0]); err != nil {
+			return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
+		} else if networkOverlaps(dockerNetwork, network) {
+			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork.String(), line)
+		}
+	}
+	return nil
+}
+
+func CreateBridgeIface(ifaceName string) error {
+	addrs := []string{"172.16.42.1/24", "10.0.42.1/24", "192.168.42.1/24"}
+
+	var ifaceAddr string
+	for _, addr := range addrs {
+		_, dockerNetwork, err := net.ParseCIDR(addr)
+		if err != nil {
+			return err
+		}
+		if err := checkRouteOverlaps(dockerNetwork); err == nil {
+			ifaceAddr = addr
+			break
+		} else {
+			Debugf("%s: %s", addr, err)
+		}
+	}
+	if ifaceAddr == "" {
+		return fmt.Errorf("Impossible to create a bridge. Please create a bridge manually and restart docker with -br <bridgeName>")
+	} else {
+		Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
+	}
+
+	if output, err := ip("link", "add", ifaceName, "type", "bridge"); err != nil {
+		return fmt.Errorf("Error creating bridge: %s (output: %s)", err, output)
+	}
+
+	if output, err := ip("addr", "add", ifaceAddr, "dev", ifaceName); err != nil {
+		return fmt.Errorf("Unable to add private network: %s (%s)", err, output)
+	}
+	if output, err := ip("link", "set", ifaceName, "up"); err != nil {
+		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
+	}
+	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+		"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
+		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 	}
 	return nil
 }
@@ -406,7 +492,14 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't find bridge interface %s (%s).\nPlease create it with 'ip link add lxcbr0 type bridge; ip addr add ADDRESS/MASK dev lxcbr0'", bridgeIface, err)
+		// If the iface is not found, try to create it
+		if err := CreateBridgeIface(bridgeIface); err != nil {
+			return nil, err
+		}
+		addr, err = getIfaceAddr(bridgeIface)
+		if err != nil {
+			return nil, err
+		}
 	}
 	network := addr.(*net.IPNet)
 
