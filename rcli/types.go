@@ -33,24 +33,28 @@ type DockerConn interface {
 }
 
 type DockerLocalConn struct {
-	file       *os.File
+	writer     io.WriteCloser
 	savedState *term.State
 }
 
-func NewDockerLocalConn(output *os.File) *DockerLocalConn {
-	return &DockerLocalConn{file: output}
+func NewDockerLocalConn(w io.WriteCloser) *DockerLocalConn {
+	return &DockerLocalConn{
+		writer: w,
+	}
 }
 
-func (c *DockerLocalConn) Read(b []byte) (int, error) { return c.file.Read(b) }
+func (c *DockerLocalConn) Read(b []byte) (int, error) {
+	return 0, fmt.Errorf("DockerLocalConn does not implement Read()")
+}
 
-func (c *DockerLocalConn) Write(b []byte) (int, error) { return c.file.Write(b) }
+func (c *DockerLocalConn) Write(b []byte) (int, error) { return c.writer.Write(b) }
 
 func (c *DockerLocalConn) Close() error {
 	if c.savedState != nil {
 		RestoreTerminal(c.savedState)
 		c.savedState = nil
 	}
-	return c.file.Close()
+	return c.writer.Close()
 }
 
 func (c *DockerLocalConn) CloseWrite() error { return nil }
