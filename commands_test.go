@@ -2,11 +2,10 @@ package docker
 
 import (
 	"bufio"
-	_ "bytes"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"io"
-	_ "io/ioutil"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -62,23 +61,35 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	srv := &Server{runtime: runtime}
 
-	// var stdin, stdout bytes.Buffer
-	// setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
-	// 	if err := srv.CmdRun(ioutil.NopCloser(&stdin), &nopWriteCloser{&stdout}, "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// })
-	// if output := string(stdout.Bytes()); output != "foobar\n" {
-	// 	t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", output)
-	// }
+	stdin, _ := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	c := make(chan struct{})
+	go func() {
+		if err := srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
+			t.Fatal(err)
+		}
+		close(c)
+	}()
+	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmdOutput != "foobar\n" {
+		t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", cmdOutput)
+	}
+
+	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
+		<-c
+	})
 }
 
 func TestRunExit(t *testing.T) {
@@ -183,56 +194,66 @@ func TestRunDisconnect(t *testing.T) {
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
-func TestAttachStdin(t *testing.T) {
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
-	// srv := &Server{runtime: runtime}
+func TestRunAttachStdin(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
 
-	// stdinR, stdinW := io.Pipe()
-	// var stdout bytes.Buffer
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
 
-	// ch := make(chan struct{})
-	// go func() {
-	// 	srv.CmdRun(stdinR, &stdout, "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
-	// 	close(ch)
-	// }()
+	ch := make(chan struct{})
+	go func() {
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
+		close(ch)
+	}()
 
-	// // Send input to the command, close stdin, wait for CmdRun to return
-	// setTimeout(t, "Read/Write timed out", 2*time.Second, func() {
-	// 	if _, err := stdinW.Write([]byte("hi there\n")); err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	stdinW.Close()
-	// 	<-ch
-	// })
+	// Send input to the command, close stdin
+	setTimeout(t, "Write timed out", 2*time.Second, func() {
+		if _, err := stdinPipe.Write([]byte("hi there\n")); err != nil {
+			t.Fatal(err)
+		}
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	// // Check output
-	// cmdOutput := string(stdout.Bytes())
-	// container := runtime.List()[0]
-	// if cmdOutput != container.ShortId()+"\n" {
-	// 	t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortId()+"\n", cmdOutput)
-	// }
+	container := runtime.List()[0]
 
-	// setTimeout(t, "Waiting for command to exit timed out", 2*time.Second, func() {
-	// 	container.Wait()
-	// })
+	// Check output
+	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmdOutput != container.ShortId()+"\n" {
+		t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortId()+"\n", cmdOutput)
+	}
 
-	// // Check logs
-	// if cmdLogs, err := container.ReadLog("stdout"); err != nil {
-	// 	t.Fatal(err)
-	// } else {
-	// 	if output, err := ioutil.ReadAll(cmdLogs); err != nil {
-	// 		t.Fatal(err)
-	// 	} else {
-	// 		expectedLog := "hello\nhi there\n"
-	// 		if string(output) != expectedLog {
-	// 			t.Fatalf("Unexpected logs: should be '%s', not '%s'\n", expectedLog, output)
-	// 		}
-	// 	}
-	// }
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-ch
+	})
+
+	setTimeout(t, "Waiting for command to exit timed out", 2*time.Second, func() {
+		container.Wait()
+	})
+
+	// Check logs
+	if cmdLogs, err := container.ReadLog("stdout"); err != nil {
+		t.Fatal(err)
+	} else {
+		if output, err := ioutil.ReadAll(cmdLogs); err != nil {
+			t.Fatal(err)
+		} else {
+			expectedLog := "hello\nhi there\n"
+			if string(output) != expectedLog {
+				t.Fatalf("Unexpected logs: should be '%s', not '%s'\n", expectedLog, output)
+			}
+		}
+	}
 }
 
 // Expected behaviour, the process stays alive when the client disconnects
