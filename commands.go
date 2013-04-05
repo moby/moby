@@ -787,7 +787,6 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	stdout.SetOptionRawTerminal()
 	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -802,6 +801,9 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		return fmt.Errorf("No such container: %s", name)
 	}
 
+	if container.Config.Tty {
+		stdout.SetOptionRawTerminal()
+	}
 	return <-container.Attach(stdin, nil, stdout, stdout)
 }
 
@@ -874,7 +876,6 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	stdout.SetOptionRawTerminal()
 	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
@@ -886,6 +887,9 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	if len(config.Cmd) == 0 {
 		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
+	}
+	if config.Tty {
+		stdout.SetOptionRawTerminal()
 	}
 
 	// Create new container
