@@ -167,10 +167,6 @@ type PortAllocator struct {
 }
 
 func (alloc *PortAllocator) runFountain() {
-	if alloc.fountain != nil {
-		return
-	}
-	alloc.fountain = make(chan int)
 	for {
 		for port := portRangeStart; port < portRangeEnd; port++ {
 			alloc.fountain <- port
@@ -208,6 +204,7 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 func newPortAllocator() (*PortAllocator, error) {
 	allocator := &PortAllocator{
 		inUse: make(map[int]struct{}),
+		fountain: make(chan int),
 	}
 	go allocator.runFountain()
 	return allocator, nil
