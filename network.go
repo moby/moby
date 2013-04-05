@@ -357,7 +357,7 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Couldn't find bridge interface %s (%s).\nPlease create it with 'ip link add lxcbr0 type bridge; ip addr add ADDRESS/MASK dev lxcbr0'", bridgeIface, err)
 	}
 	network := addr.(*net.IPNet)
 
