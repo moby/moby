@@ -349,9 +349,11 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
-			if nr == 1 && buf[0] == '' {
+			// char 16 is C-p
+			if nr == 1 && buf[0] == 16 {
 				nr, er = src.Read(buf)
-				if nr == 1 && buf[0] == '' {
+				// char 17 is C-q
+				if nr == 1 && buf[0] == 17 {
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
