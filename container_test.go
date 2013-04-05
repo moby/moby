@@ -267,8 +267,7 @@ func TestStart(t *testing.T) {
 	// Try to avoid the timeoout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
-	container.WaitTimeout(500 * time.Millisecond)
-	container.State.setStopped(0)
+	container.WaitTimeout(2 * time.Second)
 }
 
 func TestRun(t *testing.T) {
