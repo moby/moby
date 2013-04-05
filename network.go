@@ -15,7 +15,7 @@ import (
 var NetworkBridgeIface string
 
 const (
-	DefaultNetworkBridge = "lxcbr0"
+	DefaultNetworkBridge = "docker0"
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 )
