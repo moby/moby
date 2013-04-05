@@ -163,7 +163,7 @@ type PortAllocator struct {
 	ports chan (int)
 }
 
-func (alloc *PortAllocator) populate(start, end int) {
+func (alloc *PortAllocator) run(start, end int) {
 	alloc.ports = make(chan int, end-start)
 	for port := start; port < end; port++ {
 		alloc.ports <- port
@@ -192,7 +192,7 @@ func (alloc *PortAllocator) Release(port int) error {
 
 func newPortAllocator(start, end int) (*PortAllocator, error) {
 	allocator := &PortAllocator{}
-	allocator.populate(start, end)
+	allocator.run(start, end)
 	return allocator, nil
 }
 
