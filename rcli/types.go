@@ -8,7 +8,6 @@ package rcli
 // are the usual suspects.
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/term"
@@ -65,17 +64,15 @@ func (c *DockerLocalConn) GetOptions() *DockerConnOptions { return nil }
 
 func (c *DockerLocalConn) SetOptionRawTerminal() {
 	if state, err := SetRawTerminal(); err != nil {
-		fmt.Fprintf(
-			os.Stderr,
-			"Can't set the terminal in raw mode: %v",
-			err.Error(),
-		)
+		if os.Getenv("DEBUG") != "" {
+			log.Printf("Can't set the terminal in raw mode: %s", err)
+		}
 	} else {
 		c.savedState = state
 	}
 }
 
-var UnknownDockerProto = errors.New("Only TCP is actually supported by Docker at the moment")
+var UnknownDockerProto = fmt.Errorf("Only TCP is actually supported by Docker at the moment")
 
 func dialDocker(proto string, addr string) (DockerConn, error) {
 	conn, err := net.Dial(proto, addr)
@@ -133,7 +130,7 @@ func LocalCall(service Service, stdin io.ReadCloser, stdout DockerConn, args ...
 	if method != nil {
 		return method(stdin, stdout, flags.Args()[1:]...)
 	}
-	return errors.New("No such command: " + cmd)
+	return fmt.Errorf("No such command: %s", cmd)
 }
 
 func getMethod(service Service, name string) Cmd {
@@ -143,7 +140,7 @@ func getMethod(service Service, name string) Cmd {
 				stdout.Write([]byte(service.Help()))
 			} else {
 				if method := getMethod(service, args[0]); method == nil {
-					return errors.New("No such command: " + args[0])
+					return fmt.Errorf("No such command: %s", args[0])
 				} else {
 					method(stdin, stdout, "--help")
 				}
