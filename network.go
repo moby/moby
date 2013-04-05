@@ -176,6 +176,7 @@ func (alloc *PortAllocator) runFountain() {
 
 // FIXME: Release can no longer fail, change its prototype to reflect that.
 func (alloc *PortAllocator) Release(port int) error {
+	Debugf("Releasing %d", port)
 	alloc.lock.Lock()
 	delete(alloc.inUse, port)
 	alloc.lock.Unlock()
@@ -183,6 +184,7 @@ func (alloc *PortAllocator) Release(port int) error {
 }
 
 func (alloc *PortAllocator) Acquire(port int) (int, error) {
+	Debugf("Acquiring %d", port)
 	if port == 0 {
 		// Allocate a port from the fountain
 		for port := range alloc.fountain {
