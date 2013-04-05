@@ -45,6 +45,9 @@ func TestGraphCreate(t *testing.T) {
 	if image.Comment != "Testing" {
 		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", image.Comment)
 	}
+	if image.DockerVersion != VERSION {
+		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", VERSION, image.DockerVersion)
+	}
 	if images, err := graph.All(); err != nil {
 		t.Fatal(err)
 	} else if l := len(images); l != 1 {

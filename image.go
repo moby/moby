@@ -20,6 +20,7 @@ type Image struct {
 	Created         time.Time `json:"created"`
 	Container       string    `json:"container,omitempty"`
 	ContainerConfig Config    `json:"container_config,omitempty"`
+	DockerVersion   string    `json:"docker_version,omitempty"`
 	graph           *Graph
 }
 
