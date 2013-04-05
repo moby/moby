@@ -1,3 +1,8 @@
+:title: Running an SSH service
+:description: A screencast of installing and running an sshd service
+:keywords: docker, example, package installation, networking
+
+.. _running_ssh_service:
 
 Create an ssh daemon service
 ============================

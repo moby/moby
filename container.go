@@ -80,7 +80,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
 	var flPorts ports
-	cmd.Var(&flPorts, "p", "Map a network port to the container")
+	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
