@@ -344,15 +344,6 @@ func TruncateId(id string) string {
 
 // Code c/c from io.Copy() modified to handle escape sequence
 func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
-	// If the writer has a ReadFrom method, use it to do the copy.
-	// Avoids an allocation and a copy.
-	if rt, ok := dst.(io.ReaderFrom); ok {
-		return rt.ReadFrom(src)
-	}
-	// Similarly, if the reader has a WriteTo method, use it to do the copy.
-	if wt, ok := src.(io.WriterTo); ok {
-		return wt.WriteTo(dst)
-	}
 	buf := make([]byte, 32*1024)
 	for {
 		nr, er := src.Read(buf)
