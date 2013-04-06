@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -911,6 +912,25 @@ func (opts AttachOpts) Get(val string) bool {
 		return res
 	}
 	return false
+}
+
+// PathOpts stores a unique set of absolute paths
+type PathOpts map[string]struct{}
+
+func NewPathOpts() PathOpts {
+	return make(PathOpts)
+}
+
+func (opts PathOpts) String() string {
+	return fmt.Sprintf("%v", map[string]struct{}(opts))
+}
+
+func (opts PathOpts) Set(val string) error {
+	if !filepath.IsAbs(val) {
+		return fmt.Errorf("%s is not an absolute path", val)
+	}
+	opts[filepath.Clean(val)] = struct{}{}
+	return nil
 }
 
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
