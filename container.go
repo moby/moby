@@ -251,6 +251,9 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					defer cStderr.Close()
 				}
 				if container.Config.StdinOnce {
+					if container.Config.Tty {
+						defer container.Kill()
+					}
 					defer cStdin.Close()
 				}
 				_, err := io.Copy(cStdin, stdin)

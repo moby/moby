@@ -191,6 +191,54 @@ func TestRunDisconnect(t *testing.T) {
 	})
 }
 
+// Expected behaviour: the process dies when the client disconnects
+func TestRunDisconnectTty(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+	c1 := make(chan struct{})
+	go func() {
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdRun returns.
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", "-t", GetTestImage(runtime).Id, "/bin/cat")
+		close(c1)
+	}()
+
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (simulate disconnect)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// as the pipes are close, we expect the process to die,
+	// therefore CmdRun to unblock. Wait for CmdRun
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// Client disconnect after run -i should cause stdin to be closed, which should
+	// cause /bin/cat to exit.
+	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
+		container := runtime.List()[0]
+		container.Wait()
+		if container.State.Running {
+			t.Fatalf("/bin/cat is still running after closing stdin")
+		}
+	})
+}
+
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
