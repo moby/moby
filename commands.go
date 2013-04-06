@@ -803,6 +803,8 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 
 	if container.Config.Tty {
 		stdout.SetOptionRawTerminal()
+		// Flush the options to make sure the client sets the raw mode
+		stdout.Write([]byte{})
 	}
 	return <-container.Attach(stdin, nil, stdout, stdout)
 }
@@ -888,8 +890,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
 	}
+
 	if config.Tty {
 		stdout.SetOptionRawTerminal()
+		// Flush the options to make sure the client sets the raw mode
+		stdout.Write([]byte{})
 	}
 
 	// Create new container
