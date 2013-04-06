@@ -189,9 +189,9 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.CloseWriters()
-		Debugf("[startPty] Begin of stdout pipe")
+		Debugf("[startPty] Begin of stdout/stderr pipe")
 		io.Copy(container.stdout, ptyMaster)
-		Debugf("[startPty] End of stdout pipe")
+		Debugf("[startPty] End of stdout/stder pipe")
 	}()
 
 	// stdin
@@ -199,10 +199,17 @@ func (container *Container) startPty() error {
 		container.cmd.Stdin = ptySlave
 		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
-			defer container.stdin.Close()
 			Debugf("[startPty] Begin of stdin pipe")
 			io.Copy(ptyMaster, container.stdin)
 			Debugf("[startPty] End of stdin pipe")
+
+			// Note: ptyMaster is still open in the child.
+			//       therefore the stdout/stderr pipe won't unlock
+			//       Manually send EOT.
+			ptyMaster.Write([]byte{4})
+			if err := ptyMaster.Close(); err != nil {
+				Debugf("[startPty] Error closing stdin pipe: %s", err)
+			}
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {

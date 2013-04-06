@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -206,7 +207,7 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		VERSION,
 		imgcount)
 
-	if !rcli.DEBUG_FLAG {
+	if os.Getenv("DEBUG") == "" {
 		return nil
 	}
 	fmt.Fprintln(stdout, "debug mode enabled")
