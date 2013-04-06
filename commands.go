@@ -894,7 +894,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	if config.Tty {
 		stdout.SetOptionRawTerminal()
 		// Flush the options to make sure the client sets the raw mode
-		stdout.Write([]byte{})
+		stdout.Flush()
 	}
 
 	// Create new container
