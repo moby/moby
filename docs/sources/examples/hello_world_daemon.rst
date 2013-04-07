@@ -6,6 +6,9 @@
 
 Hello World Daemon
 ==================
+
+.. include:: example_header.inc
+
 The most boring daemon ever written.
 
 This example assumes you have Docker installed and with the base image already imported ``docker pull base``.
@@ -18,7 +21,7 @@ out every second. It will continue to do this until we stop it.
 
     CONTAINER_ID=$(docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
-We are going to run a simple hello world daemon in a new container made from the busybox daemon.
+We are going to run a simple hello world daemon in a new container made from the base image.
 
 - **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
 - **"base"** is the image we want to run the command inside of.
