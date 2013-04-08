@@ -159,8 +159,8 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 
 	for i := 0; i < maxWorkers; i++ {
 		go func () {
-			for len(idChan) > 0 {
-				img, layer, err := graph.getRemoteImage(stdout, <-idChan, authConfig)
+			for id := range idChan {
+				img, layer, err := graph.getRemoteImage(stdout, id, authConfig)
 				if err != nil {
 					errChan <- err
 					continue
