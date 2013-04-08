@@ -144,7 +144,6 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 		return err
 	}
 	// FIXME: Try to stream the images?
-	// FIXME: Lunch the getRemoteImage() in goroutines
 
 	idChan := make(chan string, len(history))
 
