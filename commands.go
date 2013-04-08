@@ -62,7 +62,7 @@ func (srv *Server) Help() string {
 }
 
 // 'docker login': login / register a user to registry service.
-func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	// Read a line on raw terminal with support for simple backspace
 	// sequences and echo.
 	//
@@ -112,6 +112,8 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout io.Writer, args ...strin
 	var readString = func(stdin io.Reader, stdout io.Writer) string {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
+
+	stdout.SetOptionRawTerminal()
 
 	cmd := rcli.Subcmd(stdout, "login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
@@ -464,7 +466,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	return nil
 }
 
-func (srv *Server) CmdPush(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -784,7 +786,7 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return fmt.Errorf("No such container: %s", cmd.Arg(0))
 }
 
-func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -799,6 +801,9 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return fmt.Errorf("No such container: %s", name)
 	}
 
+	if container.Config.Tty {
+		stdout.SetOptionRawTerminal()
+	}
 	return <-container.Attach(stdin, nil, stdout, stdout)
 }
 
@@ -870,7 +875,7 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	return srv.runtime.repositories.Set(cmd.Arg(1), cmd.Arg(2), cmd.Arg(0), *force)
 }
 
-func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	config, err := ParseRun(args, stdout)
 	if err != nil {
 		return err
@@ -882,6 +887,9 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	if len(config.Cmd) == 0 {
 		fmt.Fprintln(stdout, "Error: Command not specified")
 		return fmt.Errorf("Command not specified")
+	}
+	if config.Tty {
+		stdout.SetOptionRawTerminal()
 	}
 
 	// Create new container

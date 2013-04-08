@@ -2,8 +2,8 @@ package docker
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -69,15 +69,27 @@ func TestRunHostname(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	var stdin, stdout bytes.Buffer
-	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
-		if err := srv.CmdRun(ioutil.NopCloser(&stdin), &nopWriteCloser{&stdout}, "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
+	stdin, _ := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	c := make(chan struct{})
+	go func() {
+		if err := srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
 			t.Fatal(err)
 		}
-	})
-	if output := string(stdout.Bytes()); output != "foobar\n" {
-		t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", output)
+		close(c)
+	}()
+	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
 	}
+	if cmdOutput != "foobar\n" {
+		t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", cmdOutput)
+	}
+
+	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
+		<-c
+	})
 }
 
 func TestRunExit(t *testing.T) {
@@ -93,7 +105,7 @@ func TestRunExit(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 	c1 := make(chan struct{})
 	go func() {
-		srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat")
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", GetTestImage(runtime).Id, "/bin/cat")
 		close(c1)
 	}()
 
@@ -147,7 +159,7 @@ func TestRunDisconnect(t *testing.T) {
 	go func() {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
-		srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat")
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", GetTestImage(runtime).Id, "/bin/cat")
 		close(c1)
 	}()
 
@@ -182,7 +194,7 @@ func TestRunDisconnect(t *testing.T) {
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
-func TestAttachStdin(t *testing.T) {
+func TestRunAttachStdin(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -190,30 +202,40 @@ func TestAttachStdin(t *testing.T) {
 	defer nuke(runtime)
 	srv := &Server{runtime: runtime}
 
-	stdinR, stdinW := io.Pipe()
-	var stdout bytes.Buffer
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
 
 	ch := make(chan struct{})
 	go func() {
-		srv.CmdRun(stdinR, &stdout, "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
 		close(ch)
 	}()
 
-	// Send input to the command, close stdin, wait for CmdRun to return
-	setTimeout(t, "Read/Write timed out", 2*time.Second, func() {
-		if _, err := stdinW.Write([]byte("hi there\n")); err != nil {
+	// Send input to the command, close stdin
+	setTimeout(t, "Write timed out", 2*time.Second, func() {
+		if _, err := stdinPipe.Write([]byte("hi there\n")); err != nil {
 			t.Fatal(err)
 		}
-		stdinW.Close()
-		<-ch
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
 	})
 
-	// Check output
-	cmdOutput := string(stdout.Bytes())
 	container := runtime.List()[0]
+
+	// Check output
+	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cmdOutput != container.ShortId()+"\n" {
 		t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortId()+"\n", cmdOutput)
 	}
+
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-ch
+	})
 
 	setTimeout(t, "Waiting for command to exit timed out", 2*time.Second, func() {
 		container.Wait()
@@ -270,7 +292,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdAttach returns.
-		srv.CmdAttach(stdin, stdoutPipe, container.Id)
+		srv.CmdAttach(stdin, rcli.NewDockerLocalConn(stdoutPipe), container.Id)
 		close(c1)
 	}()
 
