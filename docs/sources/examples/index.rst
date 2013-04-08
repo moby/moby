@@ -12,6 +12,7 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
+   running_examples
    hello_world
    hello_world_daemon
    python_web_app

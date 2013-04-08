@@ -6,6 +6,9 @@
 
 Building a python web app
 =========================
+
+.. include:: example_header.inc
+
 The goal of this example is to show you how you can author your own docker images using a parent image, making changes to it, and then saving the results as a new image. We will do that by making a simple hello flask web application image.
 
 **Steps:**
