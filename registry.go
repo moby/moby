@@ -145,16 +145,38 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 	}
 	// FIXME: Try to stream the images?
 	// FIXME: Lunch the getRemoteImage() in goroutines
+
+	idChan := make(chan string, len(history))
+
 	for _, j := range history {
-		if !graph.Exists(j.Id) {
-			img, layer, err := graph.getRemoteImage(stdout, j.Id, authConfig)
-			if err != nil {
-				// FIXME: Keep goging in case of error?
-				return err
+		if !graph.Exists(j.Id){
+			idChan <- j.Id
+		}
+	}
+
+	expectedResponseCount := len(idChan)
+	errChan := make(chan error)
+	maxWorkers := 4
+
+	for i := 0; i < maxWorkers; i++ {
+		go func () {
+			for len(idChan) > 0 {
+				img, layer, err := graph.getRemoteImage(stdout, <-idChan, authConfig)
+				if err != nil {
+					// FIXME: Keep goging in case of error?
+					errChan <- err
+				}
+				if err = graph.Register(layer, img); err != nil {
+					errChan <- err
+				}
+				errChan <- nil
 			}
-			if err = graph.Register(layer, img); err != nil {
-				return err
-			}
+		}()
+	}
+
+	for i := 0; i < expectedResponseCount; i++ {
+		if err = <- errChan; err != nil {
+			return err
 		}
 	}
 	return nil
