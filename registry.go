@@ -152,6 +152,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 			idChan <- j.Id
 		}
 	}
+	close(idChan)
 
 	expectedResponseCount := len(idChan)
 	errChan := make(chan error)
