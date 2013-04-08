@@ -105,7 +105,7 @@ func TestRunExit(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 	c1 := make(chan struct{})
 	go func() {
-		srv.CmdRun(stdin, stdoutPipe, "-i", GetTestImage(runtime).Id, "/bin/cat")
+		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", GetTestImage(runtime).Id, "/bin/cat")
 		close(c1)
 	}()
 
