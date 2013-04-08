@@ -163,21 +163,30 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 			for len(idChan) > 0 {
 				img, layer, err := graph.getRemoteImage(stdout, <-idChan, authConfig)
 				if err != nil {
-					// FIXME: Keep goging in case of error?
 					errChan <- err
+					continue
 				}
 				if err = graph.Register(layer, img); err != nil {
 					errChan <- err
+					continue
 				}
 				errChan <- nil
 			}
 		}()
 	}
 
+	var errMsg error
+
 	for i := 0; i < expectedResponseCount; i++ {
 		if err = <- errChan; err != nil {
-			return err
+			if errMsg == nil {
+				errMsg = fmt.Errorf("The following errors were encountered while downloading images:\n")
+			}
+			errMsg = fmt.Errorf("%s\n%s",errMsg, err)
 		}
+	}
+	if errMsg != nil {
+		return errMsg
 	}
 	return nil
 }
