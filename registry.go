@@ -148,7 +148,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 	idChan := make(chan string, len(history))
 
 	for _, j := range history {
-		if !graph.Exists(j.Id){
+		if !graph.Exists(j.Id) {
 			idChan <- j.Id
 		}
 	}
@@ -158,7 +158,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 	maxWorkers := 4
 
 	for i := 0; i < maxWorkers; i++ {
-		go func () {
+		go func() {
 			for id := range idChan {
 				img, layer, err := graph.getRemoteImage(stdout, id, authConfig)
 				if err != nil {
@@ -177,11 +177,11 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 	var errMsg error
 
 	for i := 0; i < expectedResponseCount; i++ {
-		if err = <- errChan; err != nil {
+		if err = <-errChan; err != nil {
 			if errMsg == nil {
 				errMsg = fmt.Errorf("The following errors were encountered while downloading images:\n")
 			}
-			errMsg = fmt.Errorf("%s\n%s",errMsg, err)
+			errMsg = fmt.Errorf("%s\n%s", errMsg, err)
 		}
 	}
 	if errMsg != nil {
