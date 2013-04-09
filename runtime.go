@@ -116,7 +116,6 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
-	container.State.initLock()
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
@@ -136,6 +135,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
+	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.Running {
 		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
@@ -152,8 +152,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 
 	container.runtime = runtime
-	// Setup state lock (formerly in newState()
-	container.State.initLock()
+
 	// Attach to stdout and stderr
 	container.stderr = newWriteBroadcaster()
 	container.stdout = newWriteBroadcaster()

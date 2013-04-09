@@ -43,6 +43,8 @@ type Container struct {
 	ptyMaster io.Closer
 
 	runtime *Runtime
+
+	waitLock chan struct{}
 }
 
 type Config struct {
@@ -406,6 +408,10 @@ func (container *Container) Start() error {
 	// FIXME: save state on disk *first*, then converge
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
+
+	// Init the lock
+	container.waitLock = make(chan struct{})
+
 	container.ToDisk()
 	go container.monitor()
 	return nil
@@ -522,6 +528,10 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
+
+	// Release the lock
+	close(container.waitLock)
+
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
 		// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -588,10 +598,7 @@ func (container *Container) Restart() error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-
-	for container.State.Running {
-		container.State.wait()
-	}
+	<-container.waitLock
 	return container.State.ExitCode
 }
 
