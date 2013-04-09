@@ -150,6 +150,7 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 		}
 	}
+	container.State.initLock()
 
 	container.runtime = runtime
 

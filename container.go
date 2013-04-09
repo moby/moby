@@ -342,6 +342,9 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start() error {
+	container.State.lock()
+	defer container.State.unlock()
+
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.Id)
 	}
@@ -411,7 +414,6 @@ func (container *Container) Start() error {
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
-
 	container.ToDisk()
 	go container.monitor()
 	return nil
@@ -544,7 +546,7 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	if container.cmd == nil {
+	if !container.State.Running || container.cmd == nil {
 		return nil
 	}
 	if err := container.cmd.Process.Kill(); err != nil {
@@ -556,13 +558,14 @@ func (container *Container) kill() error {
 }
 
 func (container *Container) Kill() error {
-	if !container.State.Running {
-		return nil
-	}
+	container.State.lock()
+	defer container.State.unlock()
 	return container.kill()
 }
 
 func (container *Container) Stop() error {
+	container.State.lock()
+	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
 	}
@@ -571,7 +574,7 @@ func (container *Container) Stop() error {
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
 		log.Print(string(output))
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.Kill(); err != nil {
+		if err := container.kill(); err != nil {
 			return err
 		}
 	}

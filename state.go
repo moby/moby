@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type State struct {
 	Pid       int
 	ExitCode  int
 	StartedAt time.Time
+	l         *sync.Mutex
 }
 
 // String returns a human-readable description of the state
@@ -31,4 +33,16 @@ func (s *State) setStopped(exitCode int) {
 	s.Running = false
 	s.Pid = 0
 	s.ExitCode = exitCode
+}
+
+func (s *State) initLock() {
+	s.l = &sync.Mutex{}
+}
+
+func (s *State) lock() {
+	s.l.Lock()
+}
+
+func (s *State) unlock() {
+	s.l.Unlock()
 }
