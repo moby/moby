@@ -228,15 +228,13 @@ func TestRunDisconnectTty(t *testing.T) {
 		<-c1
 	})
 
-	// Client disconnect after run -i should cause stdin to be closed, which should
-	// cause /bin/cat to exit.
-	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
-		container := runtime.List()[0]
-		container.Wait()
-		if container.State.Running {
-			t.Fatalf("/bin/cat is still running after closing stdin")
-		}
-	})
+	// Client disconnect after run -i should keep stdin out in TTY mode
+	container := runtime.List()[0]
+	// Give some time to monitor to do his thing
+	container.WaitTimeout(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
+	}
 }
 
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
