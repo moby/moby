@@ -803,9 +803,9 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 
 	if container.Config.Tty {
 		stdout.SetOptionRawTerminal()
-		// Flush the options to make sure the client sets the raw mode
-		stdout.Write([]byte{})
 	}
+	// Flush the options to make sure the client sets the raw mode
+	stdout.Flush()
 	return <-container.Attach(stdin, nil, stdout, stdout)
 }
 
@@ -893,9 +893,10 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 
 	if config.Tty {
 		stdout.SetOptionRawTerminal()
-		// Flush the options to make sure the client sets the raw mode
-		stdout.Flush()
 	}
+	// Flush the options to make sure the client sets the raw mode
+	// or tell the client there is no options
+	stdout.Flush()
 
 	// Create new container
 	container, err := srv.runtime.Create(config)
