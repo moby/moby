@@ -134,6 +134,12 @@ docker pull base
 docker run -i -t base /bin/bash
 ```
 
+Detaching from the interactive shell
+------------------------------------
+```
+# In order to detach without killing the shell, you can use the escape sequence Ctrl-p + Ctrl-q
+# Note: this works only in tty mode (run with -t option).
+```
 
 Starting a long-running worker process
 --------------------------------------
