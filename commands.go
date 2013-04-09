@@ -419,7 +419,8 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return nil
 }
 
-func (srv *Server) CmdImport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	stdout.Flush()
 	cmd := rcli.Subcmd(stdout, "import", "[OPTIONS] URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 	var archive io.Reader
 	var resp *http.Response
