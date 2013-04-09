@@ -29,6 +29,7 @@ type DockerConn interface {
 	CloseRead() error
 	GetOptions() *DockerConnOptions
 	SetOptionRawTerminal()
+	Flush() error
 }
 
 type DockerLocalConn struct {
@@ -55,6 +56,8 @@ func (c *DockerLocalConn) Close() error {
 	}
 	return c.writer.Close()
 }
+
+func (c *DockerLocalConn) Flush() error { return nil }
 
 func (c *DockerLocalConn) CloseWrite() error { return nil }
 

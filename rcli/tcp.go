@@ -92,6 +92,11 @@ func (c *DockerTCPConn) Write(b []byte) (int, error) {
 	return n + optionsLen, err
 }
 
+func (c *DockerTCPConn) Flush() error {
+	_, err := c.conn.Write([]byte{})
+	return err
+}
+
 func (c *DockerTCPConn) Close() error { return c.conn.Close() }
 
 func (c *DockerTCPConn) CloseWrite() error { return c.conn.CloseWrite() }
