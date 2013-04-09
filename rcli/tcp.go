@@ -93,7 +93,7 @@ func (c *DockerTCPConn) Write(b []byte) (int, error) {
 }
 
 func (c *DockerTCPConn) Flush() error {
-	_, err := c.conn.Write([]byte{})
+	_, err := c.Write([]byte{})
 	return err
 }
 
