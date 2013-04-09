@@ -49,3 +49,6 @@ test: all
 
 fmt:
 	@gofmt -s -l -w .
+
+hack:
+	@(cd $(CURDIR)/buildbot; vagrant up)
