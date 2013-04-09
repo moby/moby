@@ -579,7 +579,7 @@ func (container *Container) Stop() error {
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
-		if err := container.Kill(); err != nil {
+		if err := container.kill(); err != nil {
 			return err
 		}
 	}
