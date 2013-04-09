@@ -175,18 +175,15 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 		}()
 	}
 
-	var errMsg error
+	errMsgs := []string{"The following errors were encountered while downloading images:"}
 
 	for i := 0; i < expectedResponseCount; i++ {
 		if err = <-errChan; err != nil {
-			if errMsg == nil {
-				errMsg = fmt.Errorf("The following errors were encountered while downloading images:\n")
-			}
-			errMsg = fmt.Errorf("%s\n%s", errMsg, err)
+			errMsgs = append(errMsgs, err.Error())
 		}
 	}
-	if errMsg != nil {
-		return errMsg
+	if len(errMsgs) > 1 {
+		return fmt.Errorf(strings.Join(errMsgs, "\n"))
 	}
 	return nil
 }
