@@ -183,7 +183,9 @@ JOB=$(docker run -d -p 4444 base /bin/nc -l -p 4444)
 PORT=$(docker port $JOB 4444)
 
 # Connect to the public port via the host's public address
-echo hello world | nc $(hostname) $PORT
+# Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
+IP=$(ifconfig eth0 | perl -n -e 'if (m/inet addr:([\d\.]+)/g) { print $1 }')
+echo hello world | nc $IP $PORT
 
 # Verify that the network connection worked
 echo "Daemon received: $(docker logs $JOB)"
