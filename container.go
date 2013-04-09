@@ -43,6 +43,8 @@ type Container struct {
 	ptyMaster io.Closer
 
 	runtime *Runtime
+
+	waitLock chan struct{}
 }
 
 type Config struct {
@@ -250,13 +252,14 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				if cStderr != nil {
 					defer cStderr.Close()
 				}
-				if container.Config.StdinOnce {
-					if container.Config.Tty {
-						defer container.Kill()
-					}
+				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
 				}
-				_, err := io.Copy(cStdin, stdin)
+				if container.Config.Tty {
+					_, err = CopyEscapable(cStdin, stdin)
+				} else {
+					_, err = io.Copy(cStdin, stdin)
+				}
 				if err != nil {
 					Debugf("[error] attach stdin: %s\n", err)
 				}
@@ -340,6 +343,9 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start() error {
+	container.State.lock()
+	defer container.State.unlock()
+
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.Id)
 	}
@@ -406,6 +412,9 @@ func (container *Container) Start() error {
 	// FIXME: save state on disk *first*, then converge
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
+
+	// Init the lock
+	container.waitLock = make(chan struct{})
 	container.ToDisk()
 	go container.monitor()
 	return nil
@@ -522,6 +531,10 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
+
+	// Release the lock
+	close(container.waitLock)
+
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
 		// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -534,7 +547,7 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	if container.cmd == nil {
+	if !container.State.Running || container.cmd == nil {
 		return nil
 	}
 	if err := container.cmd.Process.Kill(); err != nil {
@@ -546,13 +559,14 @@ func (container *Container) kill() error {
 }
 
 func (container *Container) Kill() error {
-	if !container.State.Running {
-		return nil
-	}
+	container.State.lock()
+	defer container.State.unlock()
 	return container.kill()
 }
 
 func (container *Container) Stop() error {
+	container.State.lock()
+	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
 	}
@@ -561,7 +575,7 @@ func (container *Container) Stop() error {
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
 		log.Print(string(output))
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.Kill(); err != nil {
+		if err := container.kill(); err != nil {
 			return err
 		}
 	}
@@ -588,10 +602,7 @@ func (container *Container) Restart() error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-
-	for container.State.Running {
-		container.State.wait()
-	}
+	<-container.waitLock
 	return container.State.ExitCode
 }
 

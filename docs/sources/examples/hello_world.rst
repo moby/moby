@@ -9,7 +9,7 @@ Hello World
 
 .. include:: example_header.inc
 
-This is the most basic example available for using Docker. The example assumes you have Docker installed.
+This is the most basic example available for using Docker.
 
 Download the base container
 
