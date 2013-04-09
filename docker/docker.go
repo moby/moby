@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/signal"
 )
 
 var GIT_COMMIT string
@@ -57,29 +56,21 @@ func daemon() error {
 }
 
 func runCommand(args []string) error {
-	var oldState *term.State
-	var err error
-	if term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
-		oldState, err = term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			return err
-		}
-		defer term.Restore(int(os.Stdin.Fd()), oldState)
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-		go func() {
-			for _ = range c {
-				term.Restore(int(os.Stdin.Fd()), oldState)
-				log.Printf("\nSIGINT received\n")
-				os.Exit(0)
-			}
-		}()
-	}
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
 	// closing the connection.
 	// See http://code.google.com/p/go/issues/detail?id=3345
 	if conn, err := rcli.Call("tcp", "127.0.0.1:4242", args...); err == nil {
+		options := conn.GetOptions()
+		if options.RawTerminal &&
+			term.IsTerminal(int(os.Stdin.Fd())) &&
+			os.Getenv("NORAW") == "" {
+			if oldState, err := rcli.SetRawTerminal(); err != nil {
+				return err
+			} else {
+				defer rcli.RestoreTerminal(oldState)
+			}
+		}
 		receiveStdout := docker.Go(func() error {
 			_, err := io.Copy(os.Stdout, conn)
 			return err
@@ -104,12 +95,11 @@ func runCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := rcli.LocalCall(service, os.Stdin, os.Stdout, args...); err != nil {
+		dockerConn := rcli.NewDockerLocalConn(os.Stdout)
+		defer dockerConn.Close()
+		if err := rcli.LocalCall(service, os.Stdin, dockerConn, args...); err != nil {
 			return err
 		}
-	}
-	if oldState != nil {
-		term.Restore(int(os.Stdin.Fd()), oldState)
 	}
 	return nil
 }

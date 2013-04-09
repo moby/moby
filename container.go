@@ -40,11 +40,11 @@ type Container struct {
 	stdin       io.ReadCloser
 	stdinPipe   io.WriteCloser
 
-	ptyStdinMaster  io.Closer
-	ptyStdoutMaster io.Closer
-	ptyStderrMaster io.Closer
+	ptyMaster io.Closer
 
 	runtime *Runtime
+
+	waitLock chan struct{}
 }
 
 type Config struct {
@@ -180,63 +180,37 @@ func (container *Container) generateLXCConfig() error {
 }
 
 func (container *Container) startPty() error {
-	stdoutMaster, stdoutSlave, err := pty.Open()
+	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
 		return err
 	}
-	container.ptyStdoutMaster = stdoutMaster
-	container.cmd.Stdout = stdoutSlave
-
-	stderrMaster, stderrSlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyStderrMaster = stderrMaster
-	container.cmd.Stderr = stderrSlave
+	container.ptyMaster = ptyMaster
+	container.cmd.Stdout = ptySlave
+	container.cmd.Stderr = ptySlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.CloseWriters()
 		Debugf("[startPty] Begin of stdout pipe")
-		io.Copy(container.stdout, stdoutMaster)
+		io.Copy(container.stdout, ptyMaster)
 		Debugf("[startPty] End of stdout pipe")
 	}()
 
-	go func() {
-		defer container.stderr.CloseWriters()
-		Debugf("[startPty] Begin of stderr pipe")
-		io.Copy(container.stderr, stderrMaster)
-		Debugf("[startPty] End of stderr pipe")
-	}()
-
 	// stdin
-	var stdinSlave io.ReadCloser
 	if container.Config.OpenStdin {
-		var stdinMaster io.WriteCloser
-		stdinMaster, stdinSlave, err = pty.Open()
-		if err != nil {
-			return err
-		}
-		container.ptyStdinMaster = stdinMaster
-		container.cmd.Stdin = stdinSlave
-		// FIXME: The following appears to be broken.
-		// "cannot set terminal process group (-1): Inappropriate ioctl for device"
-		// container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		container.cmd.Stdin = ptySlave
+		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		go func() {
 			defer container.stdin.Close()
 			Debugf("[startPty] Begin of stdin pipe")
-			io.Copy(stdinMaster, container.stdin)
+			io.Copy(ptyMaster, container.stdin)
 			Debugf("[startPty] End of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
 		return err
 	}
-	stdoutSlave.Close()
-	stderrSlave.Close()
-	if stdinSlave != nil {
-		stdinSlave.Close()
-	}
+	ptySlave.Close()
 	return nil
 }
 
@@ -278,10 +252,14 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				if cStderr != nil {
 					defer cStderr.Close()
 				}
-				if container.Config.StdinOnce {
+				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
 				}
-				_, err := io.Copy(cStdin, stdin)
+				if container.Config.Tty {
+					_, err = CopyEscapable(cStdin, stdin)
+				} else {
+					_, err = io.Copy(cStdin, stdin)
+				}
 				if err != nil {
 					Debugf("[error] attach stdin: %s\n", err)
 				}
@@ -365,6 +343,9 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start() error {
+	container.State.lock()
+	defer container.State.unlock()
+
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.Id)
 	}
@@ -431,6 +412,9 @@ func (container *Container) Start() error {
 	// FIXME: save state on disk *first*, then converge
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning(container.cmd.Process.Pid)
+
+	// Init the lock
+	container.waitLock = make(chan struct{})
 	container.ToDisk()
 	go container.monitor()
 	return nil
@@ -530,19 +514,9 @@ func (container *Container) monitor() {
 		Debugf("%s: Error close stderr: %s", container.Id, err)
 	}
 
-	if container.ptyStdinMaster != nil {
-		if err := container.ptyStdinMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stdin master: %s", container.Id, err)
-		}
-	}
-	if container.ptyStdoutMaster != nil {
-		if err := container.ptyStdoutMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stdout master: %s", container.Id, err)
-		}
-	}
-	if container.ptyStderrMaster != nil {
-		if err := container.ptyStderrMaster.Close(); err != nil {
-			Debugf("%s: Error close pty stderr master: %s", container.Id, err)
+	if container.ptyMaster != nil {
+		if err := container.ptyMaster.Close(); err != nil {
+			Debugf("%s: Error closing Pty master: %s", container.Id, err)
 		}
 	}
 
@@ -557,6 +531,10 @@ func (container *Container) monitor() {
 
 	// Report status back
 	container.State.setStopped(exitCode)
+
+	// Release the lock
+	close(container.waitLock)
+
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
 		// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -569,7 +547,7 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	if container.cmd == nil {
+	if !container.State.Running || container.cmd == nil {
 		return nil
 	}
 	if err := container.cmd.Process.Kill(); err != nil {
@@ -581,13 +559,14 @@ func (container *Container) kill() error {
 }
 
 func (container *Container) Kill() error {
-	if !container.State.Running {
-		return nil
-	}
+	container.State.lock()
+	defer container.State.unlock()
 	return container.kill()
 }
 
 func (container *Container) Stop() error {
+	container.State.lock()
+	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
 	}
@@ -596,7 +575,7 @@ func (container *Container) Stop() error {
 	if output, err := exec.Command("lxc-kill", "-n", container.Id, "15").CombinedOutput(); err != nil {
 		log.Print(string(output))
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.Kill(); err != nil {
+		if err := container.kill(); err != nil {
 			return err
 		}
 	}
@@ -604,7 +583,7 @@ func (container *Container) Stop() error {
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
-		if err := container.Kill(); err != nil {
+		if err := container.kill(); err != nil {
 			return err
 		}
 	}
@@ -623,10 +602,7 @@ func (container *Container) Restart() error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-
-	for container.State.Running {
-		container.State.wait()
-	}
+	<-container.waitLock
 	return container.State.ExitCode
 }
 

@@ -40,3 +40,35 @@ Notes
 So changes to those pages should be made directly in html
 * For the template the css is compiled from less. When changes are needed they can be compiled using
 lessc ``lessc main.less`` or watched using watch-lessc ``watch-lessc -i main.less -o main.css``
+
+
+Guides on using sphinx
+----------------------
+* To make links to certain pages create a link target like so:
+
+  ```
+    .. _hello_world:
+
+    Hello world
+    ===========
+
+    This is.. (etc.)
+  ```
+
+  The ``_hello_world:`` will make it possible to link to this position (page and marker) from all other pages.
+
+* Notes, warnings and alarms
+
+  ```
+    # a note (use when something is important)
+    .. note::
+
+    # a warning (orange)
+    .. warning::
+
+    # danger (red, use sparsely)
+    .. danger::
+
+* Code examples
+
+  Start without $, so it's easy to copy and paste.

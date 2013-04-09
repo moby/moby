@@ -6,6 +6,9 @@
 
 Building a python web app
 =========================
+
+.. include:: example_header.inc
+
 The goal of this example is to show you how you can author your own docker images using a parent image, making changes to it, and then saving the results as a new image. We will do that by making a simple hello flask web application image.
 
 **Steps:**
@@ -45,6 +48,11 @@ Save the changed we just made in the container to a new image called "_/builds/g
 
     WEB_WORKER=$(docker run -d -p 5000 $BUILD_IMG /usr/local/bin/runapp)
 
+- **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
+  **"-p 5000"* the web app is going to listen on this port, so it must be mapped from the container to the host system.
+- **"$BUILD_IMG"** is the image we want to run the command inside of.
+- **/usr/local/bin/runapp** is the command which starts the web app.
+
 Use the new image we just created and create a new container with network port 5000, and return the container id and store in the WEB_WORKER variable.
 
 .. code-block:: bash
@@ -54,6 +62,18 @@ Use the new image we just created and create a new container with network port 5
 
 view the logs for the new container using the WEB_WORKER variable, and if everything worked as planned you should see the line "Running on http://0.0.0.0:5000/" in the log output.
 
+.. code-block:: bash
+
+    WEB_PORT=$(docker port $WEB_WORKER 5000)
+
+lookup the public-facing port which is NAT-ed store the private port used by the container and store it inside of the WEB_PORT variable.
+
+.. code-block:: bash
+
+    curl http://`hostname`:$WEB_PORT
+      Hello world!
+
+access the web app using curl. If everything worked as planned you should see the line "Hello world!" inside of your console.
 
 **Video:**
 
