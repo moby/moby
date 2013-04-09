@@ -111,6 +111,8 @@ func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
 }
 
 func CreateBridgeIface(ifaceName string) error {
+	// FIXME: try more IP ranges
+	// FIXME: try bigger ranges! /24 is too small.
 	addrs := []string{"172.16.42.1/24", "10.0.42.1/24", "192.168.42.1/24"}
 
 	var ifaceAddr string
@@ -127,7 +129,7 @@ func CreateBridgeIface(ifaceName string) error {
 		}
 	}
 	if ifaceAddr == "" {
-		return fmt.Errorf("Impossible to create a bridge. Please create a bridge manually and restart docker with -br <bridgeName>")
+		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", ifaceName, ifaceName)
 	} else {
 		Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 	}
