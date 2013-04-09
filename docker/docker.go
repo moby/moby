@@ -56,15 +56,6 @@ func daemon() error {
 }
 
 func runCommand(args []string) error {
-	var oldState *term.State
-	var err error
-	if term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
-		oldState, err = term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			return err
-		}
-		defer term.Restore(int(os.Stdin.Fd()), oldState)
-	}
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
 	// closing the connection.
