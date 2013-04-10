@@ -915,21 +915,21 @@ func (opts AttachOpts) Get(val string) bool {
 }
 
 // PathOpts stores a unique set of absolute paths
-type PathOpts map[string]string
+type PathOpts map[string]struct{}
 
 func NewPathOpts() PathOpts {
 	return make(PathOpts)
 }
 
 func (opts PathOpts) String() string {
-	return fmt.Sprintf("%v", map[string]string(opts))
+	return fmt.Sprintf("%v", map[string]struct{}(opts))
 }
 
 func (opts PathOpts) Set(val string) error {
 	if !filepath.IsAbs(val) {
 		return fmt.Errorf("%s is not an absolute path", val)
 	}
-	opts[filepath.Clean(val)] = ""
+	opts[filepath.Clean(val)] = struct{}{}
 	return nil
 }
 
