@@ -138,7 +138,8 @@ func ListenAndServe(proto, addr string, service Service) error {
 			if err != nil {
 				return err
 			}
-			go func() {
+			go func(conn DockerConn) {
+				defer conn.Close()
 				if DEBUG_FLAG {
 					CLIENT_SOCKET = conn
 				}
@@ -146,8 +147,7 @@ func ListenAndServe(proto, addr string, service Service) error {
 					log.Println("Error:", err.Error())
 					fmt.Fprintln(conn, "Error:", err.Error())
 				}
-				conn.Close()
-			}()
+			}(conn)
 		}
 	}
 	return nil
