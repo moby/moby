@@ -647,16 +647,24 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	flAll := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	flFull := cmd.Bool("notrunc", false, "Don't truncate output")
+	latest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
+	n_last := cmd.Int("last", -1, "Show last created containers, include non-running ones.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+	if *n_last == -1 && *latest {
+		*n_last = 1
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
 		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
 	}
-	for _, container := range srv.runtime.List() {
-		if !container.State.Running && !*flAll {
+	for i, container := range srv.runtime.List() {
+		if !container.State.Running && !*flAll && *n_last == -1{
 			continue
+		}
+		if i == *n_last {
+			break
 		}
 		if !*quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
