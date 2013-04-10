@@ -648,7 +648,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	flAll := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	flFull := cmd.Bool("notrunc", false, "Don't truncate output")
 	latest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
-	n_last := cmd.Int("last", -1, "Show last created containers, include non-running ones.")
+	n_last := cmd.Int("n", -1, "Show n last created containers, include non-running ones.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
