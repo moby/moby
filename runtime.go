@@ -134,6 +134,9 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 
+	// init the wait lock
+	container.waitLock = make(chan struct{})
+
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
@@ -150,6 +153,14 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 		}
 	}
+
+	// If the container is not running or just has been flagged not running
+	// then close the wait lock chan (will be reset upon start)
+	if !container.State.Running {
+		close(container.waitLock)
+	}
+
+	// Even if not running, we init the lock (prevents races in start/stop/kill)
 	container.State.initLock()
 
 	container.runtime = runtime
