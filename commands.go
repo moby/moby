@@ -959,10 +959,12 @@ func NewServer() (*Server, error) {
 	}
 	srv := &Server{
 		runtime: runtime,
+		restEndpoint: NewRestEndpoint(runtime),
 	}
 	return srv, nil
 }
 
 type Server struct {
 	runtime *Runtime
+	restEndpoint *RestEndpoint
 }

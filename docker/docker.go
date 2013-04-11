@@ -52,6 +52,9 @@ func daemon() error {
 	if err != nil {
 		return err
 	}
+	if err := http.ListenAndServe("0.0.0.0:4243", service.restEndpoint); err != nil {
+		return err
+	}
 	return rcli.ListenAndServe("tcp", "127.0.0.1:4242", service)
 }
 
