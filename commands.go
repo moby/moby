@@ -351,7 +351,11 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		if err := srv.runtime.graph.Delete(name); err != nil {
+		img, err := srv.runtime.repositories.LookupImage(name)
+		if err != nil {
+			return err
+		}
+		if err := srv.runtime.graph.Delete(img.Id); err != nil {
 			return err
 		}
 	}
