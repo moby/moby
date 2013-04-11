@@ -62,6 +62,7 @@ type Config struct {
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
 	Env          []string
 	Cmd          []string
+	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
@@ -85,6 +86,9 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
+
+	var flDns ListOpts
+	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
@@ -123,6 +127,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		AttachStderr: flAttach.Get("stderr"),
 		Env:          flEnv,
 		Cmd:          runCmd,
+		Dns:          flDns,
 		Image:        image,
 	}
 	// When allocating stdin in attached mode, close stdin at client disconnect
