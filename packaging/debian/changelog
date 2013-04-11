@@ -1,0 +1,14 @@
+lxc-docker (0.1.4-1) unstable; urgency=low
+
+  Improvements [+], Updates [*], Bug fixes [-]:
+  * Changed default bridge interface do 'docker0'
+  - Fix a race condition when running the port allocator
+
+ -- Daniel Mizyrycki <daniel@dotcloud.com>  Wed, 10 Apr 2013 18:06:21 -0700
+
+
+lxc-docker (0.1.0-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Daniel Mizyrycki <daniel@dotcloud.com>  Mon, 29 Mar 2013 18:09:55 -0700

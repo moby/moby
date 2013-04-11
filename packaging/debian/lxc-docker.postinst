@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Ensure cgroup is mounted
+if [ -z "`/bin/egrep -e '^cgroup' /etc/fstab`" ]; then
+    /bin/echo 'cgroup  /sys/fs/cgroup  cgroup  defaults  0   0' >>/etc/fstab
+fi
+if [ -z "`/bin/mount | /bin/egrep -e '^cgroup'`" ]; then
+    /bin/mount /sys/fs/cgroup
+fi
+
+# Start docker
+/usr/sbin/update-rc.d docker defaults
+/etc/init.d/docker start
