@@ -17,8 +17,7 @@ func setupNetworking(gw string) {
 	if gw == "" {
 		return
 	}
-	cmd := exec.Command("/sbin/route", "add", "default", "gw", gw)
-	if err := cmd.Run(); err != nil {
+	if _, err := ip("route", "add", "default", "via", gw); err != nil {
 		log.Fatalf("Unable to set up networking: %v", err)
 	}
 }
