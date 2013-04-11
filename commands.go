@@ -577,7 +577,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tPARENT")
+		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
 	}
 	var allImages map[string]*Image
 	var err error
@@ -606,7 +606,6 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* TAG */ tag,
 					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -629,7 +628,6 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* TAG */ "<none>",
 					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-					/* PARENT */ srv.runtime.repositories.ImageName(image.Parent),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
