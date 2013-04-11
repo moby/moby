@@ -161,7 +161,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 
 // 'docker wait': block until a container stops
 func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] NAME", "Block until a container stops, then print its exit code.")
+	cmd := rcli.Subcmd(stdout, "wait", "[OPTIONS] CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -217,7 +217,7 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] NAME", "Stop a running container")
+	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -239,7 +239,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "restart", "[OPTIONS] NAME", "Restart a running container")
+	cmd := rcli.Subcmd(stdout, "restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -261,7 +261,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 }
 
 func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "start", "[OPTIONS] NAME", "Start a stopped container")
+	cmd := rcli.Subcmd(stdout, "start", "[OPTIONS] CONTAINER [CONTAINER...]", "Start a stopped container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -340,9 +340,9 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	return nil
 }
 
-// 'docker rmi NAME' removes all images with the name NAME
+// 'docker rmi IMAGE' removes all images with the name IMAGE
 func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
-	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE", "Remove an image")
+	cmd := rcli.Subcmd(stdout, "rmimage", "[OPTIONS] IMAGE [IMAGE...]", "Remove an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -385,7 +385,7 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 }
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER", "Remove a container")
+	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
