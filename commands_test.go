@@ -59,6 +59,20 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
+func cmdWait(srv *Server, container *Container) error {
+	stdout, stdoutPipe := io.Pipe()
+
+	go func() {
+		srv.CmdWait(nil, stdoutPipe, container.Id)
+	}()
+
+	if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+		return err
+	}
+	// Cleanup pipes
+	return closeWrap(stdout, stdoutPipe)
+}
+
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
 	runtime, err := newTestRuntime()
@@ -89,7 +103,9 @@ func TestRunHostname(t *testing.T) {
 
 	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
 		<-c
+		cmdWait(srv, srv.runtime.List()[0])
 	})
+
 }
 
 func TestRunExit(t *testing.T) {
@@ -129,6 +145,7 @@ func TestRunExit(t *testing.T) {
 	// as the process exited, CmdRun must finish and unblock. Wait for it
 	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
 		<-c1
+		cmdWait(srv, container)
 	})
 
 	// Make sure that the client has been disconnected

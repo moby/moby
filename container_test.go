@@ -324,6 +324,54 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestKillDifferentUser(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(&Config{
+		Image: GetTestImage(runtime).Id,
+		Cmd:   []string{"tail", "-f", "/etc/resolv.conf"},
+		User:  "daemon",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to lxc to spawn the process (setuid might take some time)
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	container.Wait()
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	// Try stopping twice
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestKill(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -346,6 +394,10 @@ func TestKill(t *testing.T) {
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Give some time to lxc to spawn the process
+	container.WaitTimeout(500 * time.Millisecond)
+
 	if !container.State.Running {
 		t.Errorf("Container should be running")
 	}
@@ -656,6 +708,10 @@ func TestMultipleContainers(t *testing.T) {
 	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Make sure they are running before trying to kill them
+	container1.WaitTimeout(250 * time.Millisecond)
+	container2.WaitTimeout(250 * time.Millisecond)
 
 	// If we are here, both containers should be running
 	if !container1.State.Running {

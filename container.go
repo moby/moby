@@ -551,15 +551,15 @@ func (container *Container) kill() error {
 		return nil
 	}
 
-	// Sending SIGINT to the process via lxc
+	// Sending SIGKILL to the process via lxc
 	output, err := exec.Command("lxc-kill", "-n", container.Id, "9").CombinedOutput()
 	if err != nil {
-		Debugf("error killing container %s (%s, %s)", container.Id, output, err)
+		log.Printf("error killing container %s (%s, %s)", container.Id, output, err)
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %s failed to exit within 10 seconds of SIGINT - trying direct SIGKILL", container.Id)
+		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.Id)
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
