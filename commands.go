@@ -389,6 +389,10 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
