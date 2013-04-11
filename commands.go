@@ -79,7 +79,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 			n, err := stdin.Read(char)
 			if n > 0 {
 				if char[0] == '\r' || char[0] == '\n' {
-					stdout.Write([]byte{'\n'})
+					stdout.Write([]byte{'\r', '\n'})
 					break
 				} else if char[0] == 127 || char[0] == '\b' {
 					if i > 0 {
@@ -99,7 +99,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 			}
 			if err != nil {
 				if err != io.EOF {
-					fmt.Fprintf(stdout, "Read error: %v\n", err)
+					fmt.Fprintf(stdout, "Read error: %v\r\n", err)
 				}
 				break
 			}
@@ -149,7 +149,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 	newAuthConfig := auth.NewAuthConfig(username, password, email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
-		fmt.Fprintln(stdout, "Error:", err)
+		fmt.Fprintf(stdout, "Error: %s\r\n", err)
 	} else {
 		srv.runtime.authConfig = newAuthConfig
 	}
