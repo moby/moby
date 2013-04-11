@@ -82,6 +82,9 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
+
+	resolvConfPath := "/etc/resolv.conf"
+
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		Id:              id,
@@ -92,7 +95,8 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		Image:           img.Id, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
+		SysInitPath:    sysInitPath,
+		ResolvConfPath: resolvConfPath,
 	}
 	container.root = runtime.containerRoot(container.Id)
 	// Step 1: create the container directory.

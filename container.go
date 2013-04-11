@@ -33,13 +33,14 @@ type Container struct {
 	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
-	SysInitPath string
-	cmd         *exec.Cmd
-	stdout      *writeBroadcaster
-	stderr      *writeBroadcaster
-	stdin       io.ReadCloser
-	stdinPipe   io.WriteCloser
+	SysInitPath    string
+	ResolvConfPath string
 
+	cmd       *exec.Cmd
+	stdout    *writeBroadcaster
+	stderr    *writeBroadcaster
+	stdin     io.ReadCloser
+	stdinPipe io.WriteCloser
 	ptyMaster io.Closer
 
 	runtime *Runtime
