@@ -119,6 +119,9 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
+	if container.State.Running {
+		container.State.Ghost = true
+	}
 	if err := runtime.Register(container); err != nil {
 		return nil, err
 	}
