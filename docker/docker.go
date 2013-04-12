@@ -74,19 +74,19 @@ func removePidFile(pidfile string) {
 }
 
 func daemon(pidfile string) error {
-		if err := createPidFile(pidfile); err != nil {
-			log.Fatal(err)
-		}
-		defer removePidFile(pidfile)
+	if err := createPidFile(pidfile); err != nil {
+		log.Fatal(err)
+	}
+	defer removePidFile(pidfile)
 
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-		go func() {
-			sig := <-c
-			log.Printf("Received signal '%v', exiting\n", sig)
-			removePidFile(pidfile)
-			os.Exit(0)
-		}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		removePidFile(pidfile)
+		os.Exit(0)
+	}()
 
 	service, err := docker.NewServer()
 	if err != nil {
