@@ -2,12 +2,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"io"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var GIT_COMMIT string
@@ -22,6 +25,7 @@ func main() {
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
+	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
@@ -37,7 +41,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(); err != nil {
+		if err := daemon(*pidfile); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -47,7 +51,43 @@ func main() {
 	}
 }
 
-func daemon() error {
+func createPidFile(pidfile string) error {
+	if _, err := os.Stat(pidfile); err == nil {
+		return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
+	}
+
+	file, err := os.Create(pidfile)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	_, err = fmt.Fprintf(file, "%d", os.Getpid())
+	return err
+}
+
+func removePidFile(pidfile string) {
+	if err := os.Remove(pidfile); err != nil {
+		log.Printf("Error removing %s: %s", pidfile, err)
+	}
+}
+
+func daemon(pidfile string) error {
+		if err := createPidFile(pidfile); err != nil {
+			log.Fatal(err)
+		}
+		defer removePidFile(pidfile)
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+		go func() {
+			sig := <-c
+			log.Printf("Received signal '%v', exiting\n", sig)
+			removePidFile(pidfile)
+			os.Exit(0)
+		}()
+
 	service, err := docker.NewServer()
 	if err != nil {
 		return err
