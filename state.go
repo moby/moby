@@ -19,7 +19,7 @@ type State struct {
 func (s *State) String() string {
 	if s.Running {
 		if s.Ghost {
-			return fmt.Sprintf("Running ghost")
+			return fmt.Sprintf("Ghost")
 		}
 		return fmt.Sprintf("Up %s", HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
