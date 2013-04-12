@@ -421,7 +421,7 @@ func (container *Container) Start() error {
 	if container.Config.VolumesFrom != "" {
 		c := container.runtime.Get(container.Config.VolumesFrom)
 		if c == nil {
-			return fmt.Errorf("Container %s not found. Impossible to mount its volumes")
+			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.Id)
 		}
 		for volPath, id := range c.Volumes {
 			if _, exists := container.Volumes[volPath]; exists {

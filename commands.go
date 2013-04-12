@@ -401,7 +401,8 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 }
 
 func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "rm", "CONTAINER [CONTAINER...]", "Remove a container")
+	cmd := rcli.Subcmd(stdout, "rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
+	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -409,13 +410,38 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		cmd.Usage()
 		return nil
 	}
+	volumes := make(map[string]struct{})
 	for _, name := range cmd.Args() {
 		container := srv.runtime.Get(name)
 		if container == nil {
 			return fmt.Errorf("No such container: %s", name)
 		}
+		// Store all the deleted containers volumes
+		for _, volumeId := range container.Volumes {
+			volumes[volumeId] = struct{}{}
+		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
+		}
+	}
+	if *v {
+		// Retrieve all volumes from all remaining containers
+		usedVolumes := make(map[string]*Container)
+		for _, container := range srv.runtime.List() {
+			for _, containerVolumeId := range container.Volumes {
+				usedVolumes[containerVolumeId] = container
+			}
+		}
+
+		for volumeId := range volumes {
+			// If the requested volu
+			if c, exists := usedVolumes[volumeId]; exists {
+				fmt.Fprintf(stdout, "The volume %s is used by the container %s. Impossible to remove it. Skipping.\n", volumeId, c.Id)
+				continue
+			}
+			if err := srv.runtime.volumes.Delete(volumeId); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
