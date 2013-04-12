@@ -573,6 +573,12 @@ func (container *Container) kill() error {
 func (container *Container) Kill() error {
 	container.State.lock()
 	defer container.State.unlock()
+	if !container.State.Running {
+		return nil
+	}
+	if container.State.Ghost {
+		return fmt.Errorf("Impossible to kill ghost containers")
+	}
 	return container.kill()
 }
 
@@ -581,6 +587,9 @@ func (container *Container) Stop() error {
 	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
+	}
+	if container.State.Ghost {
+		return fmt.Errorf("Impossible to stop ghost containers")
 	}
 
 	// 1. Send a SIGTERM
