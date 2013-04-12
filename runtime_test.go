@@ -17,7 +17,6 @@ const testLayerPath string = "/var/lib/docker/docker-ut.tar"
 const unitTestImageName string = "docker-ut"
 
 var unitTestStoreBase string
-var srv *Server
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
