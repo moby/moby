@@ -925,7 +925,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	if err != nil {
 		// If container not found, try to pull it
 		if srv.runtime.graph.IsNotExist(err) {
-			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\n", config.Image)
+			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\r\n", config.Image)
 			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
 				return err
 			}
