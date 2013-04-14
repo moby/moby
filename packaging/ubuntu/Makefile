@@ -1,4 +1,4 @@
-PKG_NAME=dotcloud-docker
+PKG_NAME=lxc-docker
 PKG_ARCH=amd64
 PKG_VERSION=1
 ROOT_PATH:=$(PWD)
