@@ -20,7 +20,10 @@ import (
 
 const VERSION = "0.1.4"
 
-var GIT_COMMIT string
+var (
+	GIT_COMMIT      string
+	NO_MEMORY_LIMIT bool
+)
 
 func (srv *Server) Name() string {
 	return "docker"
@@ -183,6 +186,9 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
 	fmt.Fprintf(stdout, "Git Commit:%s\n", GIT_COMMIT)
+	if NO_MEMORY_LIMIT {
+		fmt.Fprintf(stdout, "Memory limit disabled\n")
+	}
 	return nil
 }
 

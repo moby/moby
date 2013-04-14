@@ -81,6 +81,11 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
+	if *flMemory > 0 && NO_MEMORY_LIMIT {
+		fmt.Fprintf(stdout, "WARNING: This version of docker has been compiled without memory limit support. Discarding -m.")
+		*flMemory = 0
+	}
+
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
@@ -361,6 +366,12 @@ func (container *Container) Start() error {
 	if err := container.allocateNetwork(); err != nil {
 		return err
 	}
+
+	if container.Config.Memory > 0 && NO_MEMORY_LIMIT {
+		log.Printf("WARNING: This version of docker has been compiled without memory limit support. Discarding the limit.")
+		container.Config.Memory = 0
+	}
+
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
