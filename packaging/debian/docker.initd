@@ -1,0 +1,49 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          docker
+# Required-Start:    $local_fs
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: docker
+# Description:       docker daemon
+### END INIT INFO
+
+DOCKER=/usr/bin/docker
+PIDFILE=/var/run/docker.pid
+
+# Check docker is present
+[ -x $DOCKER ] || log_success_msg "Docker not present"
+
+# Get lsb functions
+. /lib/lsb/init-functions
+
+
+case "$1" in
+  start)
+    log_begin_msg "Starting docker..."
+    start-stop-daemon --start --background --exec "$DOCKER" -- -d
+    log_end_msg $?
+    ;;
+  stop)
+    log_begin_msg "Stopping docker..."
+    docker_pid=`pgrep -f "$DOCKER -d"`
+    [ -n "$docker_pid" ] && kill $docker_pid
+    log_end_msg $?
+    ;;
+  status)
+    docker_pid=`pgrep -f "$DOCKER -d"`
+    if [ -z "$docker_pid" ] ; then
+      echo "docker not running"
+    else
+      echo "docker running (pid $docker_pid)"
+    fi
+    ;;
+  *)
+    echo "Usage: /etc/init.d/docker {start|stop|status}"
+    exit 1
+    ;;
+esac
+
+exit 0
