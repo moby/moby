@@ -13,7 +13,10 @@ import (
 	"syscall"
 )
 
-var GIT_COMMIT string
+var (
+	GIT_COMMIT      string
+	NO_MEMORY_LIMIT string
+)
 
 func main() {
 	if docker.SelfPath() == "/sbin/init" {
@@ -36,10 +39,14 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 	docker.GIT_COMMIT = GIT_COMMIT
+	docker.NO_MEMORY_LIMIT = NO_MEMORY_LIMIT == "1"
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
+		}
+		if NO_MEMORY_LIMIT == "1" {
+			log.Printf("WARNING: This version of docker has been compiled without memory limit support.")
 		}
 		if err := daemon(*pidfile); err != nil {
 			log.Fatal(err)

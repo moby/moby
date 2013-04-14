@@ -48,6 +48,8 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 func init() {
+	NO_MEMORY_LIMIT = os.Getenv("NO_MEMORY_LIMIT") == "1"
+
 	// Hack to run sys init during unit testing
 	if SelfPath() == "/sbin/init" {
 		SysInit()
