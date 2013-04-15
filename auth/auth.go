@@ -16,7 +16,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const REGISTRY_SERVER = "https://registry.docker.io"
+const INDEX_SERVER = "https://index.docker.io"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -113,7 +113,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
+	req1, err := http.Post(INDEX_SERVER+"/v1/users", "application/json; charset=utf-8", b)
 	if err != nil {
 		errMsg = fmt.Sprintf("Server Error: %s", err)
 		return "", errors.New(errMsg)
@@ -134,7 +134,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 		// FIXME: This should be 'exists', not 'exist'. Need to change on the server first.
 		if string(reqBody) == "Username or email already exist" {
 			client := &http.Client{}
-			req, err := http.NewRequest("GET", REGISTRY_SERVER+"/v1/users", nil)
+			req, err := http.NewRequest("GET", INDEX_SERVER+"/v1/users", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {
