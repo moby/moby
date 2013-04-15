@@ -553,6 +553,8 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
+	tag := cmd.String("t", "", "Download tagged image in repository")
+	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -563,14 +565,14 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 
 	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
-	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
+	if *registry != "" {
+		if err := srv.runtime.graph.PullImage(stdout, remote, *registry, nil); err != nil {
 			return err
 		}
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	if err := srv.runtime.graph.PullRepository(stdout, remote, *tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
 	return nil
