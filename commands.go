@@ -589,7 +589,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
 	}
 	var allImages map[string]*Image
 	var err error
@@ -618,6 +618,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 					/* TAG */ tag,
 					/* ID */ TruncateId(id),
 					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
+					/* SIZE */ image.GetSize(),
 				} {
 					if idx == 0 {
 						w.Write([]byte(field))
@@ -675,7 +676,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tSIZE")
 	}
 	for i, container := range srv.runtime.List() {
 		if !container.State.Running && !*flAll && *nLast == -1 {
@@ -695,7 +696,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				/* COMMAND */ command,
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */ container.State.String(),
-				/* COMMENT */ "",
+				/* SIZE */ container.GetSize(),
 			} {
 				if idx == 0 {
 					w.Write([]byte(field))

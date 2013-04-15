@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -749,4 +750,28 @@ func validateId(id string) error {
 		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
+}
+
+// GetSize, return real size, virtual size
+func (container *Container) GetSize() string {
+	var sizeRw, sizeRootfs int64
+	var strSize string
+
+	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
+		sizeRw += fileInfo.Size()
+		return nil
+	})
+
+	_, err := os.Stat(container.RootfsPath())
+	if err == nil {
+		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
+			sizeRootfs += fileInfo.Size()
+			return nil
+		})
+	}
+	strSize = HumanSize(sizeRw)
+	if sizeRootfs > 0 {
+		strSize += " (virtual " + HumanSize(sizeRootfs) + ")"
+	}
+	return strSize
 }
