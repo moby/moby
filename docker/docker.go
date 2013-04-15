@@ -138,15 +138,7 @@ func runCommand(args []string) error {
 			}
 		}
 	} else {
-		service, err := docker.NewServer()
-		if err != nil {
-			return err
-		}
-		dockerConn := rcli.NewDockerLocalConn(os.Stdout)
-		defer dockerConn.Close()
-		if err := rcli.LocalCall(service, os.Stdin, dockerConn, args...); err != nil {
-			return err
-		}
+		return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 	}
 	return nil
 }
