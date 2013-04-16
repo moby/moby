@@ -599,7 +599,7 @@ func (container *Container) Kill() error {
 	return container.kill()
 }
 
-func (container *Container) Stop() error {
+func (container *Container) Stop(seconds int) error {
 	container.State.lock()
 	defer container.State.unlock()
 	if !container.State.Running {
@@ -619,8 +619,8 @@ func (container *Container) Stop() error {
 	}
 
 	// 2. Wait for the process to exit on its own
-	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
+	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
+		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.Id, seconds)
 		if err := container.kill(); err != nil {
 			return err
 		}
@@ -628,8 +628,8 @@ func (container *Container) Stop() error {
 	return nil
 }
 
-func (container *Container) Restart() error {
-	if err := container.Stop(); err != nil {
+func (container *Container) Restart(seconds int) error {
+	if err := container.Stop(seconds); err != nil {
 		return err
 	}
 	if err := container.Start(); err != nil {

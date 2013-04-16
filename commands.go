@@ -223,7 +223,8 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "stop", "CONTAINER [CONTAINER...]", "Stop a running container")
+	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -233,7 +234,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	for _, name := range cmd.Args() {
 		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Stop(); err != nil {
+			if err := container.Stop(*nSeconds); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.ShortId())
@@ -246,6 +247,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "restart", "CONTAINER [CONTAINER...]", "Restart a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -255,7 +257,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	for _, name := range cmd.Args() {
 		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Restart(); err != nil {
+			if err := container.Restart(*nSeconds); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.ShortId())
