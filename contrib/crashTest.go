@@ -11,6 +11,7 @@ import (
 const DOCKER_PATH = "/home/creack/dotcloud/docker/docker/docker"
 
 func runDaemon() (*exec.Cmd, error) {
+	os.Remove("/var/run/docker.pid")
 	cmd := exec.Command(DOCKER_PATH, "-d")
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -42,10 +43,12 @@ func crashTest() error {
 		if err != nil {
 			return err
 		}
-		time.Sleep(5000 * time.Millisecond)
+		//		time.Sleep(5000 * time.Millisecond)
+		var stop bool
 		go func() error {
-			for i := 0; i < 100; i++ {
-				go func() error {
+			stop = false
+			for i := 0; i < 100 && !stop; i++ {
+				func() error {
 					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", "hello", "world")
 					log.Printf("%d", i)
 					outPipe, err := cmd.StdoutPipe()
@@ -74,12 +77,11 @@ func crashTest() error {
 					outPipe.Close()
 					return nil
 				}()
-				time.Sleep(250 * time.Millisecond)
 			}
 			return nil
 		}()
-
 		time.Sleep(20 * time.Second)
+		stop = true
 		if err := daemon.Process.Kill(); err != nil {
 			return err
 		}
