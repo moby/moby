@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Stop docker
+/sbin/stop docker

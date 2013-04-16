@@ -1,4 +1,21 @@
-lxc-docker (1) precise; urgency=low
+lxc-docker (0.1.4.1-1) precise; urgency=low
+
+  Improvements [+], Updates [*], Bug fixes [-]:
+  * Test PPA
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 15 Apr 2013 12:14:50 -0700
+
+
+lxc-docker (0.1.4-1) precise; urgency=low
+
+  Improvements [+], Updates [*], Bug fixes [-]:
+  * Changed default bridge interface do 'docker0'
+  - Fix a race condition when running the port allocator
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 12 Apr 2013 12:20:06 -0700
+
+
+lxc-docker (0.1.0-1) unstable; urgency=low
 
   * Initial release
 

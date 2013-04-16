@@ -1,0 +1,12 @@
+BUILDBOT_IP = '192.168.33.32'
+
+Vagrant::Config.run do |config|
+  config.vm.box = 'quantal64_3.5.0-25'
+  config.vm.box_url = 'http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box'
+  config.vm.share_folder 'v-data', '/data/docker', "#{File.dirname(__FILE__)}/../.."
+  config.vm.network :hostonly,BUILDBOT_IP
+
+  # Install ubuntu packaging dependencies and create ubuntu packages
+  config.vm.provision :shell, :inline => 'export DEBIAN_FRONTEND=noninteractive; apt-get -qq update; apt-get install -qq -y debhelper autotools-dev devscripts golang'
+  config.vm.provision :shell, :inline => "export GPG_KEY='#{ENV['GPG_KEY']}'; cd /data/docker/packaging/ubuntu; make ubuntu"
+end
