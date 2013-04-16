@@ -83,7 +83,7 @@ Installing on Ubuntu 12.04 and 12.10
 1. Install dependencies:
 
     ```bash
-    sudo apt-get install lxc wget bsdtar curl
+    sudo apt-get install lxc bsdtar
     sudo apt-get install linux-image-extra-`uname -r`
     ```
 
