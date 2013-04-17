@@ -12,11 +12,9 @@ import (
 	"time"
 )
 
-// FIXME: this is no longer needed
-const testLayerPath string = "/var/lib/docker/docker-ut.tar"
 const unitTestImageName string = "docker-ut"
 
-var unitTestStoreBase string
+const unitTestStoreBase string = "/var/lib/docker/unit-tests"
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -62,15 +60,8 @@ func init() {
 		panic("docker tests needs to be run as root")
 	}
 
-	// Create a temp directory
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		panic(err)
-	}
-	unitTestStoreBase = root
-
 	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase)
 	if err != nil {
 		panic(err)
 	}
