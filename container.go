@@ -390,20 +390,25 @@ func (container *Container) Start() error {
 		params = append(params, "-u", container.Config.User)
 	}
 
+	if container.Config.Tty {
+		params = append(params, "-e", "TERM=xterm")
+	}
+
+	// Setup environment
+	params = append(params,
+		"-e", "HOME=/",
+		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	)
+
+	for _, elem := range container.Config.Env {
+		params = append(params, "-e", elem)
+	}
+
 	// Program
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
 	container.cmd = exec.Command("lxc-start", params...)
-
-	// Setup environment
-	container.cmd.Env = append(
-		[]string{
-			"HOME=/",
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
-		container.Config.Env...,
-	)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
@@ -415,10 +420,6 @@ func (container *Container) Start() error {
 
 	var err error
 	if container.Config.Tty {
-		container.cmd.Env = append(
-			[]string{"TERM=xterm"},
-			container.cmd.Env...,
-		)
 		err = container.startPty()
 	} else {
 		err = container.start()
