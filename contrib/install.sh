@@ -45,7 +45,7 @@ then
   echo "Upstart script already exists."
 else
   echo "Creating /etc/init/dockerd.conf..."
-  echo "exec /usr/local/bin/docker -d" > /etc/init/dockerd.conf
+  echo "exec env LANG=\"en_US.UTF-8\" /usr/local/bin/docker -d" > /etc/init/dockerd.conf
 fi
 
 echo "Starting dockerd..."
