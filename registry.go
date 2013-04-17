@@ -139,6 +139,79 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 	return img, ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
 }
 
+func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
+	client := &http.Client{}
+	for _, host := range registries {
+		endpoint := "https://" + host + "/v1/repositories/users/" + repository + "/tags"
+		req, err := http.NewRequest("GET", endpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header["X-Docker-Token"] = token
+		res, err := client.Do(req)
+		defer res.Body.Close()
+		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
+			Debugf("Registry isn't responding: trying another registry endpoint")
+			continue
+		} else if res.StatusCode == 404 {
+			return nil, fmt.Errorf("Repository not found")
+		}
+
+		var result *map[string]string
+
+		rawJson, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal(rawJson, result); err != nil {
+			return nil, err
+		}
+
+		return *result, nil
+
+	}
+	return nil, fmt.Errorf("Could not reach any registry endpoint")
+}
+
+func (graph *Graph) getImageForTag(stdout io.Writer, tag, remote, registry string, token []string) (string, error) {
+	client := &http.Client{}
+	registryEndpoint := "https://" + registry + "/v1"
+	var repositoryTarget string
+	if strings.Index(remote, "/") == -1 {
+		repositoryTarget = registryEndpoint + "/repositories/library/" +
+			remote + "/tags/" + tag
+	} else {
+		repositoryTarget = registryEndpoint + "/repositories/users/" +
+			remote + "/tags/" + tag
+	}
+
+	req, err := http.NewRequest("GET", repositoryTarget, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header["X-Docker-Token"] = token
+	res, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Error while retrieving repository info: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode == 403 {
+		return "", fmt.Errorf("You aren't authorized to access this resource")
+	} else if res.StatusCode != 200 {
+		return "", fmt.Errorf("HTTP code: %d", res.StatusCode)
+	}
+
+	var imgId string
+	rawJson, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	if err = json.Unmarshal(rawJson, &imgId); err != nil {
+		return "", err
+	}
+	return imgId, nil
+}
+
 func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []string) error {
 	history, err := graph.getRemoteHistory(imgId, registry, token)
 	if err != nil {
@@ -160,56 +233,6 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 	}
 	return nil
 }
-
-// // FIXME: Handle the askedTag parameter
-// func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag, registry string, repositories *TagStore, authConfig *auth.AuthConfig) error {
-// 	client := &http.Client{}
-
-// 	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)
-
-// 	var repositoryTarget string
-// 	// If we are asking for 'root' repository, lookup on the Library's registry
-// 	if strings.Index(remote, "/") == -1 {
-// 		repositoryTarget = registry + "/library/" + remote
-// 	} else {
-// 		repositoryTarget = registry + "/users/" + remote
-// 	}
-
-// 	req, err := http.NewRequest("GET", repositoryTarget, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
-// 	res, err := client.Do(req)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer res.Body.Close()
-// 	if res.StatusCode != 200 {
-// 		return fmt.Errorf("HTTP code: %d", res.StatusCode)
-// 	}
-// 	rawJson, err := ioutil.ReadAll(res.Body)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	t := map[string]string{}
-// 	if err = json.Unmarshal(rawJson, &t); err != nil {
-// 		return err
-// 	}
-// 	for tag, rev := range t {
-// 		fmt.Fprintf(stdout, "Pulling tag %s:%s\r\n", remote, tag)
-// 		if err = graph.PullImage(stdout, rev, registry, authConfig); err != nil {
-// 			return err
-// 		}
-// 		if err = repositories.Set(remote, tag, rev, true); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	if err = repositories.Save(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
 
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
@@ -253,66 +276,48 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	}
 
 	// FIXME: If askedTag is empty, fetch all tags.
+	var tagsList map[string]string
 	if askedTag == "" {
-		askedTag = "latest"
-	}
-
-	for _, registry := range endpoints {
-		registryEndpoint := "https://" + registry + "/v1"
-		if strings.Index(remote, "/") == -1 {
-			repositoryTarget = registryEndpoint + "/repositories/library/" +
-				remote + "/tags/" + askedTag
-		} else {
-			repositoryTarget = registryEndpoint + "/repositories/users/" +
-				remote + "/tags/" + askedTag
-		}
-
-		req, err = http.NewRequest("GET", repositoryTarget, nil)
+		tagsList, err = graph.getRemoteTags(stdout, endpoints, remote, token)
 		if err != nil {
 			return err
 		}
-		req.Header["X-Docker-Token"] = token
-		res, err := client.Do(req)
-		if err != nil {
-			fmt.Fprintf(stdout, "Error while retrieving repository info: %v ; " +
-				"checking next endpoint")
-			continue
-		}
-		defer res.Body.Close()
-		if res.StatusCode == 403 {
-			if authConfig == nil {
-				return fmt.Errorf("You need to be authenticated to access this resource")
-			} else {
-				return fmt.Errorf("You aren't authorized to access this resource")
+	} else {
+		tagsList = map[string]string{ askedTag : "" }
+	}
+
+	for askedTag, imgId := range tagsList {
+		success := false
+		for _, registry := range endpoints {
+			if imgId == "" {
+				imgId, err = graph.getImageForTag(stdout, askedTag, remote, registry, token)
+				if err != nil {
+					fmt.Fprintf(stdout, "Error while retrieving image for tag: %v (%v) ; " +
+					"checking next endpoint", askedTag, err)
+					continue
+				}
 			}
-		} else if res.StatusCode != 200 {
-			return fmt.Errorf("HTTP code: %d", res.StatusCode)
+
+			if err := graph.PullImage(stdout, imgId, "https://" + registry + "/v1", token); err != nil {
+				return err
+			}
+
+			if err = repositories.Set(remote, askedTag, imgId, true); err != nil {
+				return err
+			}
+			success = true
 		}
 
-		var imgId string
-		rawJson, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return err
+		if !success {
+			return fmt.Errorf("Could not find repository on any of the indexed registries.")
 		}
-		if err = json.Unmarshal(rawJson, &imgId); err != nil {
-			return err
-		}
-
-		if err := graph.PullImage(stdout, imgId, registryEndpoint, token); err != nil {
-			return err
-		}
-
-		if err = repositories.Set(remote, askedTag, imgId, true); err != nil {
-			return err
-		}
-
-		if err = repositories.Save(); err != nil {
-			return err
-		}
-
-		return nil
 	}
-	return fmt.Errorf("Could not find repository on any of the indexed registries.")
+
+	if err = repositories.Save(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Push a local image to the registry with its history if needed
