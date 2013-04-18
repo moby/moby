@@ -49,7 +49,7 @@ func NewMultipleImgJson(src []byte) ([]*Image, error) {
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
 func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]*Image, error) {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/ancestry", nil)
 	if err != nil {
@@ -78,6 +78,13 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 	return history, nil
 }
 
+func (graph *Graph) getHttpClient() *http.Client {
+	if graph.httpClient == nil {
+		graph.httpClient = new(http.Client)
+	}
+	return graph.httpClient
+}
+
 // Check if an image exists in the Registry
 func (graph *Graph) LookupRemoteImage(imgId, registry string, authConfig *auth.AuthConfig) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
@@ -94,7 +101,7 @@ func (graph *Graph) LookupRemoteImage(imgId, registry string, authConfig *auth.A
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
 func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, token []string) (*Image, Archive, error) {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 
 	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId)
 	// Get the Json
@@ -140,9 +147,9 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 }
 
 func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 	for _, host := range registries {
-		endpoint := "https://" + host + "/v1/repositories/users/" + repository + "/tags"
+		endpoint := "https://" + host + "/v1/repositories/" + repository + "/tags"
 		req, err := http.NewRequest("GET", endpoint, nil)
 		if err != nil {
 			return nil, err
@@ -174,16 +181,9 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 }
 
 func (graph *Graph) getImageForTag(stdout io.Writer, tag, remote, registry string, token []string) (string, error) {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 	registryEndpoint := "https://" + registry + "/v1"
-	var repositoryTarget string
-	if strings.Index(remote, "/") == -1 {
-		repositoryTarget = registryEndpoint + "/repositories/library/" +
-			remote + "/tags/" + tag
-	} else {
-		repositoryTarget = registryEndpoint + "/repositories/users/" +
-			remote + "/tags/" + tag
-	}
+	repositoryTarget := registryEndpoint + "/repositories/" + remote + "/tags/" + tag
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -235,16 +235,10 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 }
 
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 
 	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)
-	var repositoryTarget string
-	// If we are asking for 'root' repository, lookup on the Library's registry
-	if strings.Index(remote, "/") == -1 {
-		repositoryTarget = INDEX_ENDPOINT + "/repositories/library/" + remote + "/checksums"
-	} else {
-		repositoryTarget = INDEX_ENDPOINT + "/repositories/" + remote + "/checksums"
-	}
+	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/checksums"
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -322,7 +316,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 
 // Push a local image to the registry with its history if needed
 func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string, authConfig *auth.AuthConfig) error {
-	client := &http.Client{}
+	client := graph.getHttpClient()
 
 	// FIXME: Factorize the code
 	// FIXME: Do the puts in goroutines
@@ -424,7 +418,7 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, authConfig *
 
 	Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
 
-	client := &http.Client{}
+	client := graph.getHttpClient()
 	req, err := http.NewRequest("PUT", registry+"/users/"+remote+"/"+tag, strings.NewReader(revision))
 	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
@@ -444,41 +438,6 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, authConfig *
 	case 201:
 	}
 	return nil
-}
-
-func (graph *Graph) LookupRemoteRepository(remote, registry string, authConfig *auth.AuthConfig) bool {
-	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
-
-	var repositoryTarget string
-	// If we are asking for 'root' repository, lookup on the Library's registry
-	if strings.Index(remote, "/") == -1 {
-		repositoryTarget = registry + "/library/" + remote + "/lookup"
-	} else {
-		parts := strings.Split(remote, "/")
-		if len(parts) != 2 {
-			Debugf("Repository must abide to following format: user/repo_name")
-			return false
-		}
-		repositoryTarget = registry + "/users/" + parts[0] + "/repositories/" + parts[1]
-	}
-	Debugf("Checking for permissions on: %s", repositoryTarget)
-	req, err := http.NewRequest("PUT", repositoryTarget, strings.NewReader("\"\""))
-	if err != nil {
-		Debugf("%s\n", err)
-		return false
-	}
-	req.SetBasicAuth(authConfig.Username, authConfig.Password)
-	req.Header.Add("Content-type", "application/json")
-	res, err := rt.RoundTrip(req)
-	if err != nil || res.StatusCode != 404 {
-		errBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			errBody = []byte(err.Error())
-		}
-		Debugf("Lookup status code: %d (body: %s)", res.StatusCode, errBody)
-		return false
-	}
-	return true
 }
 
 // FIXME: this should really be PushTag
@@ -506,17 +465,17 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId, registry
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(stdout io.Writer, remote, registry string, localRepo Repository, authConfig *auth.AuthConfig) error {
 	// Check if the remote repository exists/if we have the permission
-	if !graph.LookupRemoteRepository(remote, registry, authConfig) {
-		return fmt.Errorf("Permission denied on repository %s\n", remote)
-	}
+	// if !graph.LookupRemoteRepository(remote, registry, authConfig) {
+	// 	return fmt.Errorf("Permission denied on repository %s\n", remote)
+	// }
 
-	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\r\n", remote, len(localRepo))
-	// For each image within the repo, push them
-	for tag, imgId := range localRepo {
-		if err := graph.pushPrimitive(stdout, remote, tag, imgId, registry, authConfig); err != nil {
-			// FIXME: Continue on error?
-			return err
-		}
-	}
+	// fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\r\n", remote, len(localRepo))
+	// // For each image within the repo, push them
+	// for tag, imgId := range localRepo {
+	// 	if err := graph.pushPrimitive(stdout, remote, tag, imgId, registry, authConfig); err != nil {
+	// 		// FIXME: Continue on error?
+	// 		return err
+	// 	}
+	// }
 	return nil
 }
