@@ -97,7 +97,7 @@ func TestMultipleAttachRestart(t *testing.T) {
 		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
 	}
 
-	if err := container.Stop(); err != nil {
+	if err := container.Stop(10); err != nil {
 		t.Fatal(err)
 	}
 
