@@ -719,6 +719,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
 		"Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
+	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -727,7 +728,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, "")
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor)
 	if err != nil {
 		return err
 	}
