@@ -472,7 +472,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		}
 		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
 	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src)
+	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "")
 	if err != nil {
 		return err
 	}
@@ -727,7 +727,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment)
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, "")
 	if err != nil {
 		return err
 	}
