@@ -277,7 +277,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 			return err
 		}
 	} else {
-		tagsList = map[string]string{ askedTag : "" }
+		tagsList = map[string]string{askedTag: ""}
 	}
 
 	for askedTag, imgId := range tagsList {
@@ -286,13 +286,13 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 			if imgId == "" {
 				imgId, err = graph.getImageForTag(stdout, askedTag, remote, registry, token)
 				if err != nil {
-					fmt.Fprintf(stdout, "Error while retrieving image for tag: %v (%v) ; " +
-					"checking next endpoint", askedTag, err)
+					fmt.Fprintf(stdout, "Error while retrieving image for tag: %v (%v) ; "+
+						"checking next endpoint", askedTag, err)
 					continue
 				}
 			}
 
-			if err := graph.PullImage(stdout, imgId, "https://" + registry + "/v1", token); err != nil {
+			if err := graph.PullImage(stdout, imgId, "https://"+registry+"/v1", token); err != nil {
 				return err
 			}
 
