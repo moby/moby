@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 )
 
@@ -52,7 +53,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		if err := runCommand(flag.Args()); err != nil {
+		if err := docker.ParseCommands(flag.Args()); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -95,14 +96,15 @@ func daemon(pidfile string) error {
 		os.Exit(0)
 	}()
 
-	service, err := docker.NewServer()
+	if runtime.GOARCH != "amd64" {
+		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+	}
+	runtime, err := docker.NewRuntime()
 	if err != nil {
 		return err
 	}
-	if err := http.ListenAndServe("0.0.0.0:4243", service.restEndpoint); err != nil {
-		return err
-	}
-	return rcli.ListenAndServe("tcp", "127.0.0.1:4242", service)
+
+	return docker.ListenAndServe("0.0.0.0:4243", runtime)
 }
 
 func runCommand(args []string) error {

@@ -976,22 +976,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	return nil
 }
 
-func NewServer() (*Server, error) {
-	if runtime.GOARCH != "amd64" {
-		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
-	runtime, err := NewRuntime()
-	if err != nil {
-		return nil, err
-	}
-	srv := &Server{
-		runtime: runtime,
-		restEndpoint: NewRestEndpoint(runtime),
-	}
-	return srv, nil
-}
 
 type Server struct {
 	runtime *Runtime
-	restEndpoint *RestEndpoint
 }
