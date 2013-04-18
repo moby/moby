@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"net/http"
 	"io/ioutil"
 	"os"
 	"path"
@@ -14,6 +15,7 @@ import (
 type Graph struct {
 	Root    string
 	idIndex *TruncIndex
+	httpClient *http.Client
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
