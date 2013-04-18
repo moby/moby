@@ -5,6 +5,6 @@ stop on starting rc RUNLEVEL=[016]
 respawn
 
 script
-    /usr/bin/test -f /etc/default/locale && . /etc/default/locale || true
-    LANG=$LANG LC_ALL=$LANG /usr/bin/docker -d
+    # FIXME: docker should not depend on the system having en_US.UTF-8
+    LC_ALL='en_US.UTF-8' /usr/bin/docker -d
 end script

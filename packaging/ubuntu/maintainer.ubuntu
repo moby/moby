@@ -5,14 +5,15 @@ Ubuntu allows developers to use their PPA (Personal Package Archive)
 repository. This is very convenient for the users as they just need to add
 the PPA address, update their package database and use the apt-get tool.
 
-The official lxc-docker package is located on launchpad and can be accessed
-adding the following line to /etc/apt/sources.list ::
+For now, the official lxc-docker package is located on launchpad and can be
+accessed adding the following line to /etc/apt/sources.list ::
+
 
   deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main
 
 
-Realeasing a new package
-~~~~~~~~~~~~~~~~~~~~~~~~
+Releasing a new package
+~~~~~~~~~~~~~~~~~~~~~~~
 
 The most relevant information to update is the changelog file:
 Each new release should create a new first paragraph with new release version,
