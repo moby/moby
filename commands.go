@@ -976,7 +976,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	return nil
 }
 
-
 type Server struct {
 	runtime *Runtime
 }
