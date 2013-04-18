@@ -2,8 +2,8 @@ package docker
 
 import (
 	"fmt"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,8 +13,8 @@ import (
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root    string
-	idIndex *TruncIndex
+	Root       string
+	idIndex    *TruncIndex
 	httpClient *http.Client
 }
 
