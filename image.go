@@ -92,7 +92,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro:", layer)
+		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
 
@@ -127,33 +127,8 @@ func (image *Image) Mount(root, rw string) error {
 	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	// FIXME: @creack shouldn't we do this after going over changes?
 	if err := MountAUFS(layers, rw, root); err != nil {
 		return err
-	}
-	// FIXME: Create tests for deletion
-	// FIXME: move this part to change.go
-	// Retrieve the changeset from the parent and apply it to the container
-	//  - Retrieve the changes
-	changes, err := Changes(layers, layers[0])
-	if err != nil {
-		return err
-	}
-	// Iterate on changes
-	for _, c := range changes {
-		// If there is a delete
-		if c.Kind == ChangeDelete {
-			// Make sure the directory exists
-			file_path, file_name := path.Dir(c.Path), path.Base(c.Path)
-			if err := os.MkdirAll(path.Join(rw, file_path), 0755); err != nil {
-				return err
-			}
-			// And create the whiteout (we just need to create empty file, discard the return)
-			if _, err := os.Create(path.Join(path.Join(rw, file_path),
-				".wh."+path.Base(file_name))); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }
