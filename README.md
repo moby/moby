@@ -144,12 +144,11 @@ Throwaway shell in a base ubuntu image
 --------------------------------------
 
 ```bash
-# Download a base image
-docker pull base
+docker pull ubuntu:12.10
 
-# Run an interactive shell in the base image,
+# Run an interactive shell
 # allocate a tty, attach stdin and stdout
-docker run -i -t base /bin/bash
+docker run -i -t ubuntu:12.10 /bin/bash
 ```
 
 Detaching from the interactive shell
@@ -164,7 +163,7 @@ Starting a long-running worker process
 
 ```bash
 # Start a very useful long-running process
-JOB=$(docker run -d base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
 # Collect the output of the job so far
 docker logs $JOB
@@ -173,21 +172,27 @@ docker logs $JOB
 docker kill $JOB
 ```
 
-
-Listing all running containers
-------------------------------
+Run an irc bouncer
+------------------
 
 ```bash
-docker ps
+BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
+echo "Configure your irc client to connect to port $(port $BOUNCER_ID 6667) of this machine"
 ```
 
+Run Redis
+---------
+
+```bash
+REDIS_ID=$(docker run -d -p 6379 shykes/redis redis-server)
+echo "Configure your redis client to connect to port $(port $REDIS_ID 6379) of this machine"
+```
 
 Share your own image!
 ---------------------
 
 ```bash
-docker pull base
-CONTAINER=$(docker run -d base apt-get install -y curl)
+CONTAINER=$(docker run -d ubuntu:12.10 apt-get install -y curl)
 docker commit -m "Installed curl" $CONTAINER $USER/betterbase
 docker push $USER/betterbase
 ```
