@@ -154,7 +154,7 @@ docker run -i -t ubuntu:12.10 /bin/bash
 Detaching from the interactive shell
 ------------------------------------
 ```
-# In order to detach without killing the shell, you can use the escape sequence Ctrl-p + Ctrl-q
+# To detach without killing the shell, you can use the escape sequence Ctrl-p + Ctrl-q
 # Note: this works only in tty mode (run with -t option).
 ```
 
