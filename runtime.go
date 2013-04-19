@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -23,6 +24,7 @@ type Runtime struct {
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
 	idIndex        *TruncIndex
+	kernelVersion  *KernelVersionInfo
 }
 
 var sysInitPath string
@@ -282,7 +284,22 @@ func (runtime *Runtime) restore() error {
 
 // FIXME: harmonize with NewGraph()
 func NewRuntime() (*Runtime, error) {
-	return NewRuntimeFromDirectory("/var/lib/docker")
+	runtime, err := NewRuntimeFromDirectory("/var/lib/docker")
+	if err != nil {
+		return nil, err
+	}
+
+	k, err := GetKernelVersion()
+	if err != nil {
+		return nil, err
+	}
+	runtime.kernelVersion = k
+
+	if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+		log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+	}
+
+	return runtime, nil
 }
 
 func NewRuntimeFromDirectory(root string) (*Runtime, error) {
