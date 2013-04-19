@@ -14,6 +14,7 @@ GITHUB_PATH=github.com/dotcloud/docker
 DOCKER_VERSION=${PKG_NAME}_${VERSION}
 DOCKER_FVERSION=${PKG_NAME}_$(shell head -1 changelog | sed 's/^.\+(\(.\+\)).\+$$/\1/')
 BUILD_SRC=${CURDIR}/../../build_src
+VERSION_TAG=v$(shell head -1 changelog | sed 's/^.\+(\(.\+\)-[0-9]\+).\+$$/\1/')
 
 all:
 	# Compile docker. Used by dpkg-buildpackage.
@@ -33,7 +34,8 @@ ubuntu:
 	# This Makefile will compile the github master branch of dotcloud/docker
 	# Retrieve docker project and its go structure from internet
 	rm -rf ${BUILD_SRC}
-	GOPATH=${BUILD_SRC} go get ${GITHUB_PATH}
+	git clone $(shell git rev-parse --show-toplevel) ${BUILD_SRC}/${GITHUB_PATH}
+	cd ${BUILD_SRC}/${GITHUB_PATH}; git checkout ${VERSION_TAG} && GOPATH=${BUILD_SRC} go get -d
 	# Add debianization
 	mkdir ${BUILD_SRC}/debian
 	cp Makefile ${BUILD_SRC}
