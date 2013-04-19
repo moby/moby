@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -121,6 +122,19 @@ func HumanDuration(d time.Duration) string {
 		return fmt.Sprintf("%d months", hours/24/30)
 	}
 	return fmt.Sprintf("%d years", d.Hours()/24/365)
+}
+
+// HumanSize returns a human-readabla approximation of a size
+// (eg. "44K", "17M", "66G")
+
+func HumanSize(size int64) string {
+	if size/1024 > 1024 {
+		if size/1024/1024 > 1024 {
+			return strconv.FormatInt(size/1024/1024, 10) + "G"
+		}
+		return strconv.FormatInt(size/1024/1024, 10) + "M"
+	}
+	return strconv.FormatInt(size/1024, 10) + "K"
 }
 
 func Trunc(s string, maxlen int) string {
