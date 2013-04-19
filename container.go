@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
@@ -693,6 +694,18 @@ func (container *Container) Wait() int {
 
 func (container *Container) ExportRw() (Archive, error) {
 	return Tar(container.rwPath(), Uncompressed)
+}
+
+func (container *Container) RwChecksum() (string, error) {
+	h := sha256.New()
+	rwData, err := container.ExportRw()
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(h, rwData); err != nil {
+		return "", err
+	}
+	return string(h.Sum(nil)), nil
 }
 
 func (container *Container) Export() (Archive, error) {
