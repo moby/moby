@@ -530,16 +530,42 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
+// FIXME: replace this with a control socket within docker-init
+func (container *Container) waitLxc() error {
+	for {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				return nil
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return nil
+}
+
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
-	if err := container.cmd.Wait(); err != nil {
-		// Discard the error as any signals or non 0 returns will generate an error
-		Debugf("%s: Process: %s", container.Id, err)
+
+	// If the command does not exists, try to wait via lxc
+	if container.cmd == nil {
+		if err := container.waitLxc(); err != nil {
+			Debugf("%s: Process: %s", container.Id, err)
+		}
+	} else {
+		if err := container.cmd.Wait(); err != nil {
+			// Discard the error as any signals or non 0 returns will generate an error
+			Debugf("%s: Process: %s", container.Id, err)
+		}
 	}
 	Debugf("Process finished")
 
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	var exitCode int = -1
+	if container.cmd != nil {
+		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	}
 
 	// Cleanup
 	container.releaseNetwork()
