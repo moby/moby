@@ -1,73 +1,60 @@
+# Ubuntu package Makefile
+#
+# Dependencies:  debhelper autotools-dev devscripts golang
+# Notes:
+# Use 'make ubuntu' to create the ubuntu package
+# GPG_KEY environment variable needs to contain a GPG private key for package to be signed
+# and uploaded to docker PPA.
+# If GPG_KEY is not defined, make ubuntu will create docker package and exit with
+# status code 2
+
 PKG_NAME=lxc-docker
-PKG_ARCH=amd64
-PKG_VERSION=1
-ROOT_PATH:=$(PWD)
-BUILD_PATH=build	# Do not change, decided by dpkg-buildpackage
-BUILD_SRC=build_src
-GITHUB_PATH=src/github.com/dotcloud/docker
-INSDIR=usr/bin
-SOURCE_PACKAGE=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz
-DEB_PACKAGE=$(PKG_NAME)_$(PKG_VERSION)_$(PKG_ARCH).deb
-EXTRA_GO_PKG=./auth
+VERSION=$(shell head -1 changelog | sed 's/^.\+(\(.\+\)..).\+$$/\1/')
+GITHUB_PATH=github.com/dotcloud/docker
+DOCKER_VERSION=${PKG_NAME}_${VERSION}
+DOCKER_FVERSION=${PKG_NAME}_$(shell head -1 changelog | sed 's/^.\+(\(.\+\)).\+$$/\1/')
+BUILD_SRC=${CURDIR}/../../build_src
 
-TMPDIR=$(shell mktemp -d -t XXXXXX)
+all:
+	# Compile docker. Used by dpkg-buildpackage.
+	cd src/${GITHUB_PATH}/docker; GOPATH=${CURDIR} go build
 
-
-# Build a debian source package
-all: clean build_in_deb
-
-build_in_deb:
-	echo "GOPATH = " $(ROOT_PATH)
-	mkdir bin
-	cd $(GITHUB_PATH)/docker; GOPATH=$(ROOT_PATH) go build -o $(ROOT_PATH)/bin/docker
-
-# DESTDIR provided by Debian packaging
 install:
-	# Call this from a go environment (as packaged for deb source package)
-	mkdir -p $(DESTDIR)/$(INSDIR)
-	mkdir -p $(DESTDIR)/etc/init
-	install -m 0755 bin/docker $(DESTDIR)/$(INSDIR)
-	install -o root -m 0755 etc/docker.upstart $(DESTDIR)/etc/init/docker.conf
+	# Used by dpkg-buildpackage
+	mkdir -p ${DESTDIR}/usr/bin
+	mkdir -p ${DESTDIR}/etc/init
+	mkdir -p ${DESTDIR}/DEBIAN
+	install -m 0755 src/${GITHUB_PATH}/docker/docker ${DESTDIR}/usr/bin
+	install -o root -m 0755 debian/docker.upstart ${DESTDIR}/etc/init/docker.conf
+	install debian/lxc-docker.prerm ${DESTDIR}/DEBIAN/prerm
+	install debian/lxc-docker.postinst ${DESTDIR}/DEBIAN/postinst
 
-$(BUILD_SRC): clean
-	# Copy ourselves into $BUILD_SRC to comply with unusual golang constraints
-	tar --exclude=*.tar.gz --exclude=checkout.tgz -f checkout.tgz -cz *
-	mkdir -p $(BUILD_SRC)/$(GITHUB_PATH)
-	tar -f checkout.tgz -C $(BUILD_SRC)/$(GITHUB_PATH) -xz
-	cd $(BUILD_SRC)/$(GITHUB_PATH)/docker; GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go get -d
-	for d in `find $(BUILD_SRC) -name '.git*'`; do rm -rf $$d; done
-	# Populate source build with debian stuff
-	cp -R -L ./deb/* $(BUILD_SRC)
-
-$(SOURCE_PACKAGE): $(BUILD_SRC)
-	rm -f $(SOURCE_PACKAGE)
-	# Create the debian source package
-	tar -f $(SOURCE_PACKAGE) -C ${ROOT_PATH}/${BUILD_SRC} -cz .
-
-# Build deb package fetching go dependencies and cleaning up git repositories
-deb: $(DEB_PACKAGE)
-
-$(DEB_PACKAGE): $(SOURCE_PACKAGE)
-	# dpkg-buildpackage looks for source package tarball in ../
-	cd $(BUILD_SRC); dpkg-buildpackage
-	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files
-
-debsrc: $(SOURCE_PACKAGE)
-
-# Build local sources
-#$(PKG_NAME): build_local
-
-build_local:
-	-@mkdir -p bin
-	cd docker && go build -o ../bin/docker
-
-gotest:
-	@echo "\033[36m[Testing]\033[00m docker..."
-	@sudo -E GOPATH=$(ROOT_PATH)/$(BUILD_SRC) go test -v . $(EXTRA_GO_PKG) && \
-		echo -n "\033[32m[OK]\033[00m" || \
-		echo -n "\033[31m[FAIL]\033[00m"; \
-		echo " docker"
-	@sudo rm -rf /tmp/docker-*
-
-clean:
-	rm -rf $(BUILD_PATH) debian/$(PKG_NAME)* debian/files $(BUILD_SRC) checkout.tgz bin
+ubuntu:
+	# This Makefile will compile the github master branch of dotcloud/docker
+	# Retrieve docker project and its go structure from internet
+	rm -rf ${BUILD_SRC}
+	GOPATH=${BUILD_SRC} go get ${GITHUB_PATH}
+	# Add debianization
+	mkdir ${BUILD_SRC}/debian
+	cp Makefile ${BUILD_SRC}
+	cp -r * ${BUILD_SRC}/debian
+	cp ../../README.md ${BUILD_SRC}
+	# Cleanup
+	for d in `find ${BUILD_SRC} -name '.git*'`; do rm -rf $$d; done
+	rm -rf ${BUILD_SRC}/../${DOCKER_VERSION}.orig.tar.gz
+	rm -rf ${BUILD_SRC}/pkg
+	# Create docker debian files
+	cd ${BUILD_SRC}; tar czf ../${DOCKER_VERSION}.orig.tar.gz .
+	cd ${BUILD_SRC}; dpkg-buildpackage -us -uc
+	rm -rf ${BUILD_SRC}
+	# Sign package and upload it to PPA if GPG_KEY environment variable
+	# holds a private GPG KEY
+	if /usr/bin/test "$${GPG_KEY}" == ""; then exit 2; fi
+	mkdir ${BUILD_SRC}
+	# Import gpg signing key
+	echo "$${GPG_KEY}" | gpg --allow-secret-key-import --import
+	# Sign the package
+	cd ${BUILD_SRC}; dpkg-source -x ${BUILD_SRC}/../${DOCKER_FVERSION}.dsc
+	cd ${BUILD_SRC}/${PKG_NAME}-${VERSION}; debuild -S -sa
+	cd ${BUILD_SRC};dput ppa:dotcloud/lxc-docker ${DOCKER_FVERSION}_source.changes
+	rm -rf ${BUILD_SRC}
