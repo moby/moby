@@ -127,17 +127,17 @@ First run the docker daemon
 
 All the examples assume your machine is running the docker daemon. To run the docker daemon in the background, simply type:
 
-   .. code-block:: bash
+```bash
+# On a production system you want this running in an init script
+sudo docker -d &
+```
 
-      sudo docker -d &
+Now you can run docker in client mode: all commands will be forwarded to the docker daemon, so the client can run from any account.
 
-Now you can run docker in client mode: all commands will be forwarded to the docker daemon, so the client
-can run from any account.
-
-   .. code-block:: bash
-
-      # now you can run docker commands from any account.
-      docker help
+```bash
+# Now you can run docker commands from any account.
+docker help
+```
 
 
 Throwaway shell in a base ubuntu image
@@ -146,16 +146,9 @@ Throwaway shell in a base ubuntu image
 ```bash
 docker pull ubuntu:12.10
 
-# Run an interactive shell
-# allocate a tty, attach stdin and stdout
+# Run an interactive shell, allocate a tty, attach stdin and stdout
+# To detach the tty without exiting the shell, use the escape sequence Ctrl-p + Ctrl-q
 docker run -i -t ubuntu:12.10 /bin/bash
-```
-
-Detaching from the interactive shell
-------------------------------------
-```
-# To detach without killing the shell, you can use the escape sequence Ctrl-p + Ctrl-q
-# Note: this works only in tty mode (run with -t option).
 ```
 
 Starting a long-running worker process
@@ -172,16 +165,16 @@ docker logs $JOB
 docker kill $JOB
 ```
 
-Run an irc bouncer
-------------------
+Running an irc bouncer
+----------------------
 
 ```bash
 BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
 echo "Configure your irc client to connect to port $(port $BOUNCER_ID 6667) of this machine"
 ```
 
-Run Redis
----------
+Running Redis
+-------------
 
 ```bash
 REDIS_ID=$(docker run -d -p 6379 shykes/redis redis-server)
