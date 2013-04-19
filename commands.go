@@ -906,7 +906,7 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	config, err := ParseRun(args, stdout)
+	config, err := ParseRun(args)
 	if err != nil {
 		return err
 	}
