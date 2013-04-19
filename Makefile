@@ -26,7 +26,7 @@ DOCKER_MAIN := $(DOCKER_DIR)/docker
 DOCKER_BIN_RELATIVE := bin/docker
 DOCKER_BIN := $(CURDIR)/$(DOCKER_BIN_RELATIVE)
 
-.PHONY: all clean test
+.PHONY: all clean test hack
 
 all: $(DOCKER_BIN)
 
