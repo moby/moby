@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -477,4 +478,21 @@ func CompareKernelVersion(a, b *KernelVersionInfo) int {
 		return 1
 	}
 	return 0
+}
+
+func FindCgroupMountpoint(cgroupType string) (string, error) {
+	output, err := exec.Command("mount").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	reg := regexp.MustCompile(`^cgroup on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
+	for _, line := range strings.Split(string(output), "\n") {
+		r := reg.FindStringSubmatch(line)
+		if len(r) == 2 {
+			return r[1], nil
+		}
+		fmt.Printf("line: %s (%d)\n", line, len(r))
+	}
+	return "", fmt.Errorf("cgroup mountpoint not found")
 }

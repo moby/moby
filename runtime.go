@@ -305,11 +305,16 @@ func NewRuntime() (*Runtime, error) {
 		log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 	}
 
-	_, err1 := ioutil.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
-	_, err2 := ioutil.ReadFile("/sys/fs/cgroup/memory/memory.soft_limit_in_bytes")
+	cgroupMemoryMountpoint, err := FindCgroupMountpoint("memory")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "/memory.limit_in_bytes"))
+	_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
 	runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
 
-	_, err = ioutil.ReadFile("/sys/fs/cgroup/memory/memeory.memsw.limit_in_bytes")
+	_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memeory.memsw.limit_in_bytes"))
 	runtime.capabilities.SwapLimit = err == nil
 
 	return runtime, nil
