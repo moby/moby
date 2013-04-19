@@ -122,8 +122,26 @@ Some streamlined (but possibly outdated) installation paths' are available from 
 Usage examples
 ==============
 
-Running an interactive shell
-----------------------------
+First run the docker daemon
+---------------------------
+
+All the examples assume your machine is running the docker daemon. To run the docker daemon in the background, simply type:
+
+   .. code-block:: bash
+
+      sudo docker -d &
+
+Now you can run docker in client mode: all commands will be forwarded to the docker daemon, so the client
+can run from any account.
+
+   .. code-block:: bash
+
+      # now you can run docker commands from any account.
+      docker help
+
+
+Throwaway shell in a base ubuntu image
+--------------------------------------
 
 ```bash
 # Download a base image
@@ -145,9 +163,6 @@ Starting a long-running worker process
 --------------------------------------
 
 ```bash
-# Run docker in daemon mode
-(docker -d || echo "Docker daemon already running") &
-
 # Start a very useful long-running process
 JOB=$(docker run -d base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
