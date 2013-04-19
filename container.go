@@ -614,7 +614,7 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	if !container.State.Running || container.cmd == nil {
+	if !container.State.Running {
 		return nil
 	}
 
@@ -626,6 +626,9 @@ func (container *Container) kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
+		if container.cmd == nil {
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.Id)
+		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.Id)
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
