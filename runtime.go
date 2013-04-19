@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+type Capabilities struct {
+	MemoryLimit bool
+	SwapLimit   bool
+}
+
 type Runtime struct {
 	root           string
 	repository     string
@@ -24,6 +29,7 @@ type Runtime struct {
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
 	idIndex        *TruncIndex
+	capabilities   *Capabilities
 	kernelVersion  *KernelVersionInfo
 }
 
@@ -299,6 +305,13 @@ func NewRuntime() (*Runtime, error) {
 		log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 	}
 
+	_, err1 := ioutil.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	_, err2 := ioutil.ReadFile("/sys/fs/cgroup/memory/memory.soft_limit_in_bytes")
+	runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
+
+	_, err = ioutil.ReadFile("/sys/fs/cgroup/memory/memeory.memsw.limit_in_bytes")
+	runtime.capabilities.SwapLimit = err == nil
+
 	return runtime, nil
 }
 
@@ -338,6 +351,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		repositories:   repositories,
 		authConfig:     authConfig,
 		idIndex:        NewTruncIndex(),
+		capabilities:   &Capabilities{},
 	}
 
 	if err := runtime.restore(); err != nil {

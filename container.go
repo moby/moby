@@ -66,7 +66,7 @@ type Config struct {
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
-func ParseRun(args []string, stdout io.Writer) (*Config, error) {
+func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Config, error) {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -81,8 +81,8 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
-	if *flMemory > 0 && NO_MEMORY_LIMIT {
-		fmt.Fprintf(stdout, "WARNING: This version of docker has been compiled without memory limit support. Discarding -m.")
+	if *flMemory > 0 && !capabilities.MemoryLimit {
+		fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		*flMemory = 0
 	}
 
@@ -135,6 +135,12 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		Dns:          flDns,
 		Image:        image,
 	}
+
+	if *flMemory > 0 && !capabilities.SwapLimit {
+		fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		config.MemorySwap = -1
+	}
+
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
