@@ -373,9 +373,14 @@ func (container *Container) Start() error {
 		return err
 	}
 
-	if container.Config.Memory > 0 && NO_MEMORY_LIMIT {
-		log.Printf("WARNING: This version of docker has been compiled without memory limit support. Discarding the limit.")
+	// Make sure the config is compatible with the current kernel
+	if container.Config.Memory > 0 && !container.runtime.capabilities.MemoryLimit {
+		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		container.Config.Memory = 0
+	}
+	if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
+		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		container.Config.MemorySwap = -1
 	}
 
 	if err := container.generateLXCConfig(); err != nil {

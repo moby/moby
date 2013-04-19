@@ -21,8 +21,7 @@ import (
 const VERSION = "0.1.6"
 
 var (
-	GIT_COMMIT      string
-	NO_MEMORY_LIMIT bool
+	GIT_COMMIT string
 )
 
 func (srv *Server) Name() string {
