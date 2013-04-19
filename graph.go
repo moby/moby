@@ -96,6 +96,13 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment stri
 		img.Parent = container.Image
 		img.Container = container.Id
 		img.ContainerConfig = *container.Config
+		// FIXME: If an image is pulled from a raw URL (not created from a container),
+		// its checksum will not be computed, which will cause a push to fail
+		checksum, err := container.RwChecksum()
+		if err != nil {
+			return nil, err
+		}
+		img.Checksum = checksum
 	}
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err
