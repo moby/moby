@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -148,6 +150,16 @@ type NetworkSettings struct {
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]string
+}
+
+// String returns a human-readable description of the port mapping defined in the settings
+func (settings *NetworkSettings) PortMappingHuman() string {
+	var mapping []string
+	for private, public := range settings.PortMapping {
+		mapping = append(mapping, fmt.Sprintf("%s->%s", public, private))
+	}
+	sort.Strings(mapping)
+	return strings.Join(mapping, ", ")
 }
 
 func (container *Container) Cmd() *exec.Cmd {

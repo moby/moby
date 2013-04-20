@@ -677,7 +677,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\tPORTS")
 	}
 	for i, container := range srv.runtime.List() {
 		if !container.State.Running && !*flAll && *nLast == -1 {
@@ -698,6 +698,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */ container.State.String(),
 				/* COMMENT */ "",
+				/* PORTS */ container.NetworkSettings.PortMappingHuman(),
 			} {
 				if idx == 0 {
 					w.Write([]byte(field))
