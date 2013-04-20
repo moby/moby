@@ -975,6 +975,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	}
 	Debugf("Waiting for attach to return\n")
 	<-attachErr
+	container.Wait()
 	// Expecting I/O pipe error, discarding
 	return nil
 }
