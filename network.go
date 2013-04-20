@@ -184,6 +184,7 @@ func getIfaceAddr(name string) (net.Addr, error) {
 // It keeps track of all mappings and is able to unmap at will
 type PortMapper struct {
 	mapping map[int]net.TCPAddr
+	proxies map[int]net.Listener
 }
 
 func (mapper *PortMapper) cleanup() error {
@@ -197,6 +198,7 @@ func (mapper *PortMapper) cleanup() error {
 	iptables("-t", "nat", "-F", "DOCKER")
 	iptables("-t", "nat", "-X", "DOCKER")
 	mapper.mapping = make(map[int]net.TCPAddr)
+	mapper.proxies = make(map[int]net.Listener)
 	return nil
 }
 
@@ -229,7 +231,7 @@ func (mapper *PortMapper) Map(port int, dest net.TCPAddr) error {
 		mapper.Unmap(port)
 		return err
 	}
-	// FIXME: store the listener so we can close it at Unmap
+	mapper.proxies[port] = listener
 	go proxy(listener, "tcp", dest.String())
 	return nil
 }
@@ -275,6 +277,10 @@ func (mapper *PortMapper) Unmap(port int) error {
 	dest, ok := mapper.mapping[port]
 	if !ok {
 		return errors.New("Port is not mapped")
+	}
+	if proxy, exists := mapper.proxies[port]; exists {
+		proxy.Close()
+		delete(mapper.proxies, port)
 	}
 	if err := mapper.iptablesForward("-D", port, dest); err != nil {
 		return err
