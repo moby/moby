@@ -188,7 +188,8 @@ type PortMapper struct {
 func (mapper *PortMapper) cleanup() error {
 	// Ignore errors - This could mean the chains were never set up
 	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
 	// Also cleanup rules created by older versions, or -X might fail.
 	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
 	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
@@ -205,7 +206,7 @@ func (mapper *PortMapper) setup() error {
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
-	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 	}
 	return nil
