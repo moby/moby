@@ -1,56 +1,42 @@
-.. _ubuntu_linux:
+Docker on Ubuntu
+================
 
-Ubuntu Linux
-============
+Docker is now available as a Ubuntu PPA (Personal Package Archive), which makes installing Docker on Ubuntu super easy!
 
-  **Please note this project is currently under heavy development. It should not be used in production.**
+**The Requirements**
 
-
-
-Installing on Ubuntu 12.04 and 12.10
-
-Right now, the officially supported distributions are:
-
-Ubuntu 12.04 (precise LTS)
-Ubuntu 12.10 (quantal)
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
-
-Install dependencies:
----------------------
-
-::
-
-    sudo apt-get install lxc wget bsdtar curl
-    sudo apt-get install linux-image-extra-`uname -r`
-
-The linux-image-extra package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
-
-Install the latest docker binary:
-
-::
-
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-    tar -xf docker-master.tgz
-
-Run your first container!
-
-::
-
-    cd docker-master
-
-::
-
-    sudo ./docker run -i -t base /bin/bash
+* Ubuntu 12.04 (LTS) or Ubuntu 12.10
+* **64-bit Operating system**
 
 
-To run docker as a daemon, in the background, and allow non-root users to run ``docker`` start
-docker -d
+Add the custom package sources to your apt sources list. Copy and paste both the following lines at once.
 
-::
+.. code-block:: bash
 
-    sudo ./docker -d &
+   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' \
+   >> /etc/apt/sources.list"
 
 
-Consider adding docker to your PATH for simplicity.
+Update your sources. You will see a warning that GPG signatures cannot be verified
 
-Continue with the :ref:`hello_world` example.
+.. code-block:: bash
+
+   sudo apt-get update
+
+
+Now install it, you will see another warning that the package cannot be authenticated.
+
+.. code-block:: bash
+
+   sudo apt-get install lxc-docker
+
+
+**Run!**
+
+.. code-block:: bash
+
+   docker
+
+
+
+Probably you would like to continue with the :ref:`hello_world` example.
