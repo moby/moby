@@ -13,7 +13,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
-   macos
+   vagrant
    windows
    amazon
    upgrading
