@@ -1,9 +1,11 @@
 package docker
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -252,6 +254,47 @@ func TestGet(t *testing.T) {
 		t.Errorf("Get(test3) returned %v while expecting %v", runtime.Get(container3.Id), container3)
 	}
 
+}
+
+// Run a container with a TCP port allocated, and test that it can receive connections on localhost
+func TestAllocatePortLocalhost(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := runtime.Create(&Config{
+		Image:     GetTestImage(runtime).Id,
+		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p 5555"},
+		PortSpecs: []string{"5555"},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer container.Kill()
+	time.Sleep(300 * time.Millisecond) // Wait for the container to run
+	conn, err := net.Dial("tcp",
+		fmt.Sprintf(
+			"localhost:%s", container.NetworkSettings.PortMapping["5555"],
+		),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	output, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "well hello there\n" {
+		t.Fatalf("Received wrong output from network connection: should be '%s', not '%s'",
+			"well hello there\n",
+			string(output),
+		)
+	}
 }
 
 func TestRestore(t *testing.T) {
