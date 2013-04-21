@@ -6,16 +6,16 @@ Arch Linux
 Installing on Arch Linux is not officially supported but can be handled via 
 either of the following AUR packages:
 
-* `dotcloud-docker <https://aur.archlinux.org/packages/dotcloud-docker/>`_
-* `dotcloud-docker-git <https://aur.archlinux.org/packages/dotcloud-docker-git/>`_
+* `lxc-docker <https://aur.archlinux.org/packages/lxc-docker/>`_
+* `lxc-docker-git <https://aur.archlinux.org/packages/lxc-docker-git/>`_
 
-The dotcloud-docker package will install the latest tagged version of docker. 
-The dotcloud-docker-git package will build from the current master branch.
+The lxc-docker package will install the latest tagged version of docker. 
+The lxc-docker-git package will build from the current master branch.
 
 Dependencies
 ------------
 
-Docker depends on several packages which will be installed automatically with
+Docker depends on several packages which are specified as dependencies in
 either AUR package.
 
 * aufs3
@@ -23,6 +23,7 @@ either AUR package.
 * go
 * iproute2
 * linux-aufs_friendly
+* lxc
 
 Installation
 ------------
@@ -37,7 +38,22 @@ new kernel will be compiled and this can take quite a while.
 
 ::
 
-    yaourt -S dotcloud-docker-git
+    yaourt -S lxc-docker-git
+
+Starting Docker
+---------------
 
 Prior to starting docker modify your bootloader to use the 
 **linux-aufs_friendly** kernel and reboot your system.
+
+There is a systemd service unit created for docker.  To start the docker service:
+
+::
+
+    sudo systemctl start docker
+
+To start on system boot:
+
+::
+
+    sudo systemctl enable docker
