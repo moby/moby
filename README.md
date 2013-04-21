@@ -88,55 +88,8 @@ Installing from source
    ```bash
    cd docker
    make VERBOSE=1
+   sudo cp ./bin/docker /usr/local/bin/docker
    ```
-
-4. Execute the docker daemon
-
-   ```bash
-   sudo ./bin/docker -d
-   ```
-
-Installing on Ubuntu 12.04 and 12.10
-------------------------------------
-
-1. Install dependencies:
-
-    ```bash
-    sudo apt-get install lxc bsdtar
-    sudo apt-get install linux-image-extra-`uname -r`
-    ```
-
-    The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
-
-2. Install the latest docker binary:
-
-    ```bash
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-    tar -xf docker-master.tgz
-    ```
-
-3. Run your first container!
-
-    ```bash
-    cd docker-master
-    sudo ./docker pull base
-    sudo ./docker run -i -t base /bin/bash
-    ```
-
-    Consider adding docker to your `PATH` for simplicity.
-
-Installing on other Linux distributions
----------------------------------------
-
-Right now, the officially supported distributions are:
-
-* Ubuntu 12.04 (precise LTS)
-* Ubuntu 12.10 (quantal)
-
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
-
-Some streamlined (but possibly outdated) installation paths' are available from the website: http://docker.io/documentation/ 
-
 
 Usage examples
 ==============
