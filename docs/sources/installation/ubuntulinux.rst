@@ -11,9 +11,8 @@ Installing on Ubuntu 12.04 and 12.10
 
 Right now, the officially supported distributions are:
 
-Ubuntu 12.04 (precise LTS)
-Ubuntu 12.10 (quantal)
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
+* Ubuntu 12.04 (precise LTS)
+* Ubuntu 12.10 (quantal)
 
 Install dependencies:
 ---------------------
