@@ -33,23 +33,6 @@ Notable features
 
 * Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.
 
-
-
-Under the hood
---------------
-
-Under the hood, Docker is built on the following components:
-
-
-* The [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c) and [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part) capabilities of the Linux kernel;
-
-* [AUFS](http://aufs.sourceforge.net/aufs.html), a powerful union filesystem with copy-on-write capabilities;
-
-* The [Go](http://golang.org) programming language;
-
-* [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
-
-
 Install instructions
 ==================
 
@@ -182,6 +165,22 @@ echo hello world | nc $IP $PORT
 # Verify that the network connection worked
 echo "Daemon received: $(docker logs $JOB)"
 ```
+
+Under the hood
+--------------
+
+Under the hood, Docker is built on the following components:
+
+
+* The [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c) and [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part) capabilities of the Linux kernel;
+
+* [AUFS](http://aufs.sourceforge.net/aufs.html), a powerful union filesystem with copy-on-write capabilities;
+
+* The [Go](http://golang.org) programming language;
+
+* [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
+
+
 
 Contributing to Docker
 ======================
