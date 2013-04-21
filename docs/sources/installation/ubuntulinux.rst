@@ -1,7 +1,7 @@
 .. _ubuntu_linux:
 
-Ubuntu Linux
-============
+Installing on Ubuntu Linux
+==========================
 
   **Please note this project is currently under heavy development. It should not be used in production.**
 
