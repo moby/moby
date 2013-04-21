@@ -19,37 +19,38 @@ Install dependencies:
 
 ::
 
-    sudo apt-get install lxc wget bsdtar curl
+    sudo apt-get install lxc bsdtar
     sudo apt-get install linux-image-extra-`uname -r`
 
 The linux-image-extra package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
 
-Install the latest docker binary:
+Install the docker binary
+-------------------------
 
 ::
 
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+    wget http://get.docker.io/builds/Linux/x86_64/docker-master.tgz
     tar -xf docker-master.tgz
+    sudo cp ./docker-master /usr/local/bin
+
+Note: docker currently only supports 64-bit Linux hosts.
+
+
+Run the docker daemon
+---------------------
+
+::
+
+    sudo docker -d &
 
 Run your first container!
+-------------------------
 
 ::
-
-    cd docker-master
-
-::
-
-    sudo ./docker run -i -t base /bin/bash
+    docker run -i -t ubuntu /bin/bash
 
 
-To run docker as a daemon, in the background, and allow non-root users to run ``docker`` start
-docker -d
-
-::
-
-    sudo ./docker -d &
-
-
-Consider adding docker to your PATH for simplicity.
+Check out more examples
+-----------------------
 
 Continue with the :ref:`hello_world` example.
