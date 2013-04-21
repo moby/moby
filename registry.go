@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 )
@@ -269,24 +270,20 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			return fmt.Errorf("Failed to retrieve layer upload location: %s", err)
 		}
 
-		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
-		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
-		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		tmp, err := ioutil.ReadAll(layerData2)
+		// FIXME: stream the archive directly to the registry instead of buffering it on disk. This requires either:
+		//	a) Implementing S3's proprietary streaming logic, or
+		//	b) Stream directly to the registry instead of S3.
+		// I prefer option b. because it doesn't lock us into a proprietary cloud service.
+		tmpLayer, err := graph.TempLayerArchive(img.Id, Xz)
 		if err != nil {
 			return err
 		}
-		layerLength := len(tmp)
-
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		if err != nil {
-			return fmt.Errorf("Failed to generate layer archive: %s", err)
-		}
-		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(layerData.(io.ReadCloser), layerLength, stdout))
+		defer os.Remove(tmpLayer.Name())
+		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(tmpLayer, int(tmpLayer.Size), stdout))
 		if err != nil {
 			return err
 		}
-		req3.ContentLength = int64(layerLength)
+		req3.ContentLength = int64(tmpLayer.Size)
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)

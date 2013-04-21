@@ -110,6 +110,15 @@ func MountAUFS(ro []string, rw string, target string) error {
 	return nil
 }
 
+// TarLayer returns a tar archive of the image's filesystem layer.
+func (image *Image) TarLayer(compression Compression) (Archive, error) {
+	layerPath, err := image.layer()
+	if err != nil {
+		return nil, err
+	}
+	return Tar(layerPath, compression)
+}
+
 func (image *Image) Mount(root, rw string) error {
 	if mounted, err := Mounted(root); err != nil {
 		return err

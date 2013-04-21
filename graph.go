@@ -129,12 +129,30 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	return nil
 }
 
+// TempLayerArchive creates a temporary archive of the given image's filesystem layer.
+//   The archive is stored on disk and will be automatically deleted as soon as has been read.
+func (graph *Graph) TempLayerArchive(id string, compression Compression) (*TempArchive, error) {
+	image, err := graph.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	tmp, err := graph.tmp()
+	if err != nil {
+		return nil, err
+	}
+	archive, err := image.TarLayer(compression)
+	if err != nil {
+		return nil, err
+	}
+	return NewTempArchive(archive, tmp.Root)
+}
+
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
 	if id == "" {
 		id = GenerateId()
 	}
-	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
+	tmp, err := graph.tmp()
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create temp: %s", err)
 	}
@@ -142,6 +160,10 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 		return "", fmt.Errorf("Image %d already exists", id)
 	}
 	return tmp.imageRoot(id), nil
+}
+
+func (graph *Graph) tmp() (*Graph, error) {
+	return NewGraph(path.Join(graph.Root, ":tmp:"))
 }
 
 // Check if given error is "not empty".
