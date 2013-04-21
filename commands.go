@@ -475,7 +475,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		if err != nil {
 			return err
 		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
+		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout, "Importing %v/%v (%v)")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "")
 	if err != nil {

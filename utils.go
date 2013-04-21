@@ -72,23 +72,30 @@ type progressReader struct {
 	readTotal    int           // Expected stream length (bytes)
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
+	template     string        // Template to print. Default "%v/%v (%v)"
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.readProgress += read
 
-	// Only update progress for every 1% read
-	updateEvery := int(0.01 * float64(r.readTotal))
-	if r.readProgress-r.lastUpdate > updateEvery || r.readProgress == r.readTotal {
-		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r",
-			r.readProgress,
-			r.readTotal,
-			float64(r.readProgress)/float64(r.readTotal)*100)
+	updateEvery := 4096
+	if r.readTotal > 0 {
+		// Only update progress for every 1% read
+		if increment := int(0.01 * float64(r.readTotal)); increment > updateEvery {
+			updateEvery = increment
+		}
+	}
+	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
+		if r.readTotal > 0 {
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+		} else {
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, "?", "n/a")
+		}
 		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
-	if err == io.EOF {
+	if err != nil {
 		fmt.Fprintf(r.output, "\n")
 	}
 
@@ -97,8 +104,11 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer) *progressReader {
-	return &progressReader{r, output, size, 0, 0}
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string) *progressReader {
+	if template == "" {
+		template = "%v/%v (%v)"
+	}
+	return &progressReader{r, output, size, 0, 0, template}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -395,6 +405,7 @@ type KernelVersionInfo struct {
 	Specific int
 }
 
+// FIXME: this doens't build on Darwin
 func GetKernelVersion() (*KernelVersionInfo, error) {
 	var uts syscall.Utsname
 

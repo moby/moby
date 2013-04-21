@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -131,7 +132,9 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 
 // TempLayerArchive creates a temporary archive of the given image's filesystem layer.
 //   The archive is stored on disk and will be automatically deleted as soon as has been read.
-func (graph *Graph) TempLayerArchive(id string, compression Compression) (*TempArchive, error) {
+//   If output is not nil, a human-readable progress bar will be written to it.
+//   FIXME: does this belong in Graph? How about MktempFile, let the caller use it for archives?
+func (graph *Graph) TempLayerArchive(id string, compression Compression, output io.Writer) (*TempArchive, error) {
 	image, err := graph.Get(id)
 	if err != nil {
 		return nil, err
@@ -144,7 +147,7 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression) (*TempA
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(archive, tmp.Root)
+	return NewTempArchive(ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.

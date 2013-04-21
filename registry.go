@@ -136,7 +136,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *a
 	if err != nil {
 		return nil, nil, err
 	}
-	return img, ProgressReader(res.Body, int(res.ContentLength), stdout), nil
+	return img, ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
 }
 
 func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
@@ -274,12 +274,12 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 		//	a) Implementing S3's proprietary streaming logic, or
 		//	b) Stream directly to the registry instead of S3.
 		// I prefer option b. because it doesn't lock us into a proprietary cloud service.
-		tmpLayer, err := graph.TempLayerArchive(img.Id, Xz)
+		tmpLayer, err := graph.TempLayerArchive(img.Id, Xz, stdout)
 		if err != nil {
 			return err
 		}
 		defer os.Remove(tmpLayer.Name())
-		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(tmpLayer, int(tmpLayer.Size), stdout))
+		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(tmpLayer, int(tmpLayer.Size), stdout, "Uploading %v/%v (%v)"))
 		if err != nil {
 			return err
 		}
