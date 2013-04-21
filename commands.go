@@ -21,8 +21,7 @@ import (
 const VERSION = "0.1.7"
 
 var (
-	GIT_COMMIT      string
-	NO_MEMORY_LIMIT bool
+	GIT_COMMIT string
 )
 
 func (srv *Server) Name() string {
@@ -184,10 +183,14 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 // 'docker version': show version information
 func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
-	fmt.Fprintf(stdout, "Git Commit:%s\n", GIT_COMMIT)
-	if NO_MEMORY_LIMIT {
-		fmt.Fprintf(stdout, "Memory limit disabled\n")
+	fmt.Fprintf(stdout, "Version: %s\n", VERSION)
+	fmt.Fprintf(stdout, "Git Commit: %s\n", GIT_COMMIT)
+	fmt.Fprintf(stdout, "Kernel: %s\n", srv.runtime.kernelVersion)
+	if !srv.runtime.capabilities.MemoryLimit {
+		fmt.Fprintf(stdout, "WARNING: No memory limit support\n")
+	}
+	if !srv.runtime.capabilities.SwapLimit {
+		fmt.Fprintf(stdout, "WARNING: No swap limit support\n")
 	}
 	return nil
 }
@@ -910,7 +913,7 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	config, err := ParseRun(args, stdout)
+	config, err := ParseRun(args, stdout, srv.runtime.capabilities)
 	if err != nil {
 		return err
 	}
