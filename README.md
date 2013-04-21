@@ -162,6 +162,7 @@ docker commit -m "Installed curl" $CONTAINER $USER/betterbase
 docker push $USER/betterbase
 ```
 
+A list of publicly available images is [available here](https://github.com/dotcloud/docker/wiki/Public-docker-images).
 
 Expose a service on a TCP port
 ------------------------------
