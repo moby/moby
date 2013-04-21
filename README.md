@@ -53,29 +53,48 @@ Under the hood, Docker is built on the following components:
 Install instructions
 ==================
 
-Building from source
---------------------
+Quick install on Ubuntu 12.04 and 12.10
+---------------------------------------
 
-1. Make sure you have a [Go language](http://golang.org) compiler.
+```bash
+curl get.docker.io | sh -x
+```
 
-    On a Debian/wheezy or Ubuntu 12.10 install the package:
+Binary installs
+----------------
 
-    ```bash
+Docker supports the following binary installation methods.
+Note that some methods are community contributions and not yet officially supported.
 
-    $ sudo apt-get install golang-go
-    ```
+* [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
+* [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
+* [MacOS X (with Vagrant)](http://docs.docker.io/en/latest/installation/macos/)
+* [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
+* [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
-2. Execute ``make``
+Installing from source
+----------------------
 
-   This command will install all necessary dependencies and build the
-   executable that you can find in ``bin/docker``
+1. Make sure you have a [Go language](http://golang.org/doc/install) compiler and [git](http://git-scm.com) installed.
 
-3. Should you like to see what's happening, run ``make`` with ``VERBOSE=1`` parameter:
+2. Checkout the source code
 
-    ```bash
+   ```bash
+   git clone http://github.com/dotcloud/docker
+   ```
 
-    $ make VERBOSE=1
-    ```
+3. Build the docker binary
+
+   ```bash
+   cd docker
+   make VERBOSE=1
+   ```
+
+4. Execute the docker daemon
+
+   ```bash
+   sudo ./bin/docker -d
+   ```
 
 Installing on Ubuntu 12.04 and 12.10
 ------------------------------------
