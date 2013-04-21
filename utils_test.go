@@ -228,3 +228,36 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 		t.Fatalf("Getting '%s' returned '%s' instead of '%s'", input, result, expectedResult)
 	}
 }
+
+func assertKernelVersion(t *testing.T, a, b *KernelVersionInfo, result int) {
+	if r := CompareKernelVersion(a, b); r != result {
+		t.Fatalf("Unepected kernel version comparaison result. Found %d, expected %d", r, result)
+	}
+}
+
+func TestCompareKernelVersion(t *testing.T) {
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		0)
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		-1)
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0, Specific: 0},
+		1)
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 16},
+		-1)
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 5, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		1)
+	assertKernelVersion(t,
+		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20, Specific: 25},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		-1)
+}

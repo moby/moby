@@ -12,9 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -383,4 +386,113 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+type KernelVersionInfo struct {
+	Kernel   int
+	Major    int
+	Minor    int
+	Specific int
+}
+
+func GetKernelVersion() (*KernelVersionInfo, error) {
+	var uts syscall.Utsname
+
+	if err := syscall.Uname(&uts); err != nil {
+		return nil, err
+	}
+
+	release := make([]byte, len(uts.Release))
+
+	i := 0
+	for _, c := range uts.Release {
+		release[i] = byte(c)
+		i++
+	}
+
+	tmp := strings.SplitN(string(release), "-", 2)
+	if len(tmp) != 2 {
+		return nil, fmt.Errorf("Unrecognized kernel version")
+	}
+	tmp2 := strings.SplitN(tmp[0], ".", 3)
+	if len(tmp2) != 3 {
+		return nil, fmt.Errorf("Unrecognized kernel version")
+	}
+
+	kernel, err := strconv.Atoi(tmp2[0])
+	if err != nil {
+		return nil, err
+	}
+
+	major, err := strconv.Atoi(tmp2[1])
+	if err != nil {
+		return nil, err
+	}
+
+	minor, err := strconv.Atoi(tmp2[2])
+	if err != nil {
+		return nil, err
+	}
+
+	specific, err := strconv.Atoi(strings.Split(tmp[1], "-")[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &KernelVersionInfo{
+		Kernel:   kernel,
+		Major:    major,
+		Minor:    minor,
+		Specific: specific,
+	}, nil
+}
+
+func (k *KernelVersionInfo) String() string {
+	return fmt.Sprintf("%d.%d.%d-%d", k.Kernel, k.Major, k.Minor, k.Specific)
+}
+
+// Compare two KernelVersionInfo struct.
+// Returns -1 if a < b, = if a == b, 1 it a > b
+func CompareKernelVersion(a, b *KernelVersionInfo) int {
+	if a.Kernel < b.Kernel {
+		return -1
+	} else if a.Kernel > b.Kernel {
+		return 1
+	}
+
+	if a.Major < b.Major {
+		return -1
+	} else if a.Major > b.Major {
+		return 1
+	}
+
+	if a.Minor < b.Minor {
+		return -1
+	} else if a.Minor > b.Minor {
+		return 1
+	}
+
+	if a.Specific < b.Specific {
+		return -1
+	} else if a.Specific > b.Specific {
+		return 1
+	}
+	return 0
+}
+
+func FindCgroupMountpoint(cgroupType string) (string, error) {
+	output, err := exec.Command("mount").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	reg := regexp.MustCompile(`^cgroup on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
+	for _, line := range strings.Split(string(output), "\n") {
+		r := reg.FindStringSubmatch(line)
+		if len(r) == 2 {
+			return r[1], nil
+		}
+		fmt.Printf("line: %s (%d)\n", line, len(r))
+	}
+	return "", fmt.Errorf("cgroup mountpoint not found")
 }
