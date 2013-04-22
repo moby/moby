@@ -71,34 +71,42 @@
                 <h2>
                     <a name="installing-on-ubuntu-1204-and-1210" class="anchor" href="#installing-on-ubuntu-1204-and-1210"><span class="mini-icon mini-icon-link"></span>
                     </a>Installing on Ubuntu</h2>
+                    <strong>Requirements</strong>
+                    <ul>
+                        <li>Ubuntu 12.04 (LTS) or Ubuntu 12.10</li>
+                        <li><strong>64-bit Operating system</strong></li>
+                    </ul>
                 <ol>
                     <li>
-                        <p>Install dependencies:</p>
+                        <p>Add the Ubuntu PPA (Personal Package Archive) sources to your apt sources list. Copy and
+                            paste the following lines at once.</p>
 
                         <div class="highlight">
-                            <pre>sudo apt-get install lxc wget bsdtar curl</pre>
-                            <pre>sudo apt-get install linux-image-extra-<span class="sb">`</span>uname -r<span class="sb">`</span></pre></div>
+                            <pre>sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"</pre>
 
-                        <p>The <code>linux-image-extra</code> package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.</p>
                     </li>
                     <li>
-                        <p>Install the latest docker binary:</p>
+                        <p>Update your sources. You will see a warning that GPG signatures cannot be verified.</p>
 
                         <div class="highlight">
-                            <pre>wget http://get.docker.io/builds/<span class="k">$(</span>uname -s<span class="k">)</span>/<span class="k">$(</span>uname -m<span class="k">)</span>/docker-master.tgz</pre>
-                            <pre>tar -xf docker-master.tgz</pre>
+                            <pre>sudo apt-get update</pre>
                         </div>
                     </li>
                     <li>
-                        <p>Run your first container!</p>
+                        <p>Now install it, you will see another warning that the package cannot be authenticated. Confirm install.</p>
 
-                        <div class="highlight"><pre><span class="nb">cd </span>docker-master</pre>
-                            <pre>sudo ./docker run -i -t base /bin/bash</pre>
+                        <div class="highlight">
+                            <pre>sudo apt-get install lxc-docker</pre>
                         </div>
-                        <p>Done!</p>
-                        <p>Consider adding docker to your <code>PATH</code> for simplicity.</p>
                     </li>
 
+                    <li>
+                        <p><strong>Run!</strong></p>
+
+                        <div class="highlight">
+                            <pre>docker</pre>
+                        </div>
+                    </li>
                     Continue with the <a href="http://docs.docker.io/en/latest/examples/hello_world/">Hello world</a> example.
                 </ol>
             </section>
@@ -117,7 +125,7 @@
                     vagrant and an Ubuntu virtual machine.</strong></p>
 
                 <ul>
-                    <li><a href="http://docs.docker.io/en/latest/installation/macos/">Mac OS X and other linuxes</a></li>
+                    <li><a href="http://docs.docker.io/en/latest/installation/vagrant/">Mac OS X and other linuxes</a></li>
                     <li><a href="http://docs.docker.io/en/latest/installation/windows/">Windows</a></li>
                 </ul>
 
