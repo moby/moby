@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"syscall"
@@ -25,6 +26,9 @@ func getKernelVersion() (*KernelVersionInfo, error) {
 		release[i] = byte(c)
 		i++
 	}
+
+	// Remove the \x00 from the release for Atoi to parse correctly
+	release = release[:bytes.IndexByte(release, 0)]
 
 	tmp := strings.SplitN(string(release), "-", 2)
 	tmp2 := strings.SplitN(tmp[0], ".", 3)
