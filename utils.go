@@ -503,7 +503,6 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 		if len(r) == 2 {
 			return r[1], nil
 		}
-		fmt.Printf("line: %s (%d)\n", line, len(r))
 	}
-	return "", fmt.Errorf("cgroup mountpoint not found")
+	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }
