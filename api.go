@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,56 +18,42 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
-	r.Path("/version").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Path("/version").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
 		m := VersionOut{VERSION, GIT_COMMIT, NO_MEMORY_LIMIT}
 		b, err := json.Marshal(m)
 		if err != nil {
-			w.WriteHeader(500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			w.Write(b)
 		}
 	})
 
-	r.Path("/kill").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ids []string
-		if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
-			w.WriteHeader(500)
-			return
-		}
-
-		var ret SimpleMessage
-		for _, name := range ids {
-			container := rtime.Get(name)
-			if container == nil {
-				ret.Message = "No such container: " + name + "\n"
-				break
-			}
-			if err := container.Kill(); err != nil {
-				ret.Message = ret.Message + "Error killing container " + name + ": " + err.Error() + "\n"
-			}
-		}
-		if ret.Message == "" {
-			w.WriteHeader(200)
-		} else {
-			w.WriteHeader(500)
-		}
-
-		b, err := json.Marshal(ret)
-		if err != nil {
-			w.WriteHeader(500)
-		} else {
-			w.Write(b)
-		}
-
+	r.Path("/containers/{name:.*}/kill").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+                name := vars["name"]
+                if container := rtime.Get(name); container != nil {
+                        if err := container.Kill(); err != nil {
+                                http.Error(w, "Error restarting container "+name+": "+err.Error(), http.StatusInternalServerError)
+                                return
+                        }
+                } else {
+                        http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+                        return
+                }
+                w.WriteHeader(200)
 	})
 
-	r.Path("/images").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var in ImagesIn
-		json.NewDecoder(r.Body).Decode(&in)
+	r.Path("/images").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		All := r.Form.Get("all")
+		NameFilter :=  r.Form.Get("filter")
+		Quiet :=  r.Form.Get("quiet")
 
 		var allImages map[string]*Image
 		var err error
-		if in.All {
+		if All == "true" {
 			allImages, err = rtime.graph.Map()
 		} else {
 			allImages, err = rtime.graph.Heads()
@@ -77,7 +64,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		var outs []ImagesOut
 		for name, repository := range rtime.repositories.Repositories {
-			if in.NameFilter != "" && name != in.NameFilter {
+			if NameFilter != "" && name != NameFilter {
 				continue
 			}
 			for tag, id := range repository {
@@ -88,7 +75,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 					continue
 				}
 				delete(allImages, id)
-				if !in.Quiet {
+				if Quiet != "true" {
 					out.Repository = name
 					out.Tag = tag
 					out.Id = TruncateId(id)
@@ -100,10 +87,10 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 		}
 		// Display images which aren't part of a
-		if in.NameFilter == "" {
+		if NameFilter == "" {
 			for id, image := range allImages {
 				var out ImagesOut
-				if !in.Quiet {
+				if Quiet != "true" {
 					out.Repository = "<none>"
 					out.Tag = "<none>"
 					out.Id = TruncateId(id)
@@ -121,10 +108,10 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		} else {
 			w.Write(b)
 		}
-
 	})
 
-	r.Path("/info").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Path("/info").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
 		images, _ := rtime.graph.All()
 		var imgcount int
 		if images == nil {
@@ -149,13 +136,12 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 	})
 
-	r.Path("/history").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Path("/images/{name:.*}/history").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
 
-		var in HistoryIn
-		json.NewDecoder(r.Body).Decode(&in)
-
-		image, err := rtime.repositories.LookupImage(in.Name)
+		image, err := rtime.repositories.LookupImage(name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -175,15 +161,14 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		} else {
 			w.Write(b)
 		}
-
 	})
 
-	r.Path("/logs").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Path("/containers/{name:.*}/logs").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
 
-		var in LogsIn
-		json.NewDecoder(r.Body).Decode(&in)
-
-		if container := rtime.Get(in.Name); container != nil {
+		if container := rtime.Get(name); container != nil {
 			var out LogsOut
 
 			logStdout, err := container.ReadLog("stdout")
@@ -220,28 +205,34 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 
 		} else {
-			http.Error(w, "No such container: "+in.Name, http.StatusInternalServerError)
+			http.Error(w, "No such container: "+name, http.StatusInternalServerError)
 		}
 	})
 
-	r.Path("/ps").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var in PsIn
-		json.NewDecoder(r.Body).Decode(&in)
-
+	r.Path("/containers").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		All := r.Form.Get("all")
+		NoTrunc :=  r.Form.Get("notrunc")
+		Quiet :=  r.Form.Get("quiet")
+		Last := r.Form.Get("n")
+		n, err := strconv.Atoi(Last)
+		if err != nil {
+			n = -1
+		}
 		var outs []PsOut
 
 		for i, container := range rtime.List() {
-			if !container.State.Running && !in.All && in.Last == -1 {
+			if !container.State.Running && All != "true" && n == -1 {
 				continue
 			}
-			if i == in.Last {
+			if i == n {
 				break
 			}
 			var out PsOut
 			out.Id = container.ShortId()
-			if !in.Quiet {
+			if Quiet != "true" {
 				command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-				if !in.Full {
+				if NoTrunc != "true" {
 					command = Trunc(command, 20)
 				}
 				out.Image = rtime.repositories.ImageName(container.Image)
@@ -258,173 +249,88 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		} else {
 			w.Write(b)
 		}
-
 	})
 
-	r.Path("/restart").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ins, outs []string
-		json.NewDecoder(r.Body).Decode(&ins)
-
-		for _, name := range ins {
-			if container := rtime.Get(name); container != nil {
-				if err := container.Restart(); err != nil {
-					http.Error(w, "Error restaring container "+name+": "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				outs = append(outs, container.ShortId())
-			} else {
-				http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+	r.Path("/containers/{name:.*}/restart").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		if container := rtime.Get(name); container != nil {
+			if err := container.Restart(); err != nil {
+				http.Error(w, "Error restarting container "+name+": "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			w.Write(b)
-		}
-	})
-
-	r.Path("/rm").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ins, outs []string
-		json.NewDecoder(r.Body).Decode(&ins)
-
-		for _, name := range ins {
-			if container := rtime.Get(name); container != nil {
-				if err := rtime.Destroy(container); err != nil {
-					http.Error(w, "Error destroying container "+name+": "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				outs = append(outs, container.ShortId())
-			} else {
-				http.Error(w, "No such container: "+name, http.StatusInternalServerError)
-				return
-			}
-		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.Write(b)
-		}
-
-	})
-
-	r.Path("/rmi").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ins, outs []string
-		json.NewDecoder(r.Body).Decode(&ins)
-
-		for _, name := range ins {
-			img, err := rtime.repositories.LookupImage(name)
-			if err != nil {
-				http.Error(w, "No such image: "+name, http.StatusInternalServerError)
-				return
-			} else {
-				if err := rtime.graph.Delete(img.Id); err != nil {
-					http.Error(w, "Error deleting image "+name+": "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				outs = append(outs, img.ShortId())
-			}
-		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.Write(b)
-		}
-
-	})
-
-	r.Path("/run").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		var config Config
-		json.NewDecoder(r.Body).Decode(&config)
-
-		hj, ok := w.(http.Hijacker)
-		if !ok {
-			http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
+			http.Error(w, "No such container: "+name, http.StatusInternalServerError)
 			return
 		}
-		conn, bufrw, err := hj.Hijack()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(200)
+	})
+
+	r.Path("/containers/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		if container := rtime.Get(name); container != nil {
+			if err := rtime.Destroy(container); err != nil {
+				http.Error(w, "Error destroying container "+name+": "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			http.Error(w, "No such container: "+name, http.StatusInternalServerError)
 			return
 		}
-		defer conn.Close()
-
-		//TODO  config.Tty
-
-		// Create new container                                         
-		container, err := rtime.Create(&config)
-		if err != nil {
-			// If container not found, try to pull it                  
-			if rtime.graph.IsNotExist(err) {
-				bufrw.WriteString("Image " + config.Image + " not found, trying to pull it from registry.\r\n")
-				bufrw.Flush()
-				//TODO if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
-				//return err
-				//}
-				if container, err = rtime.Create(&config); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-		container = container
+		w.WriteHeader(200)
 	})
 
-	r.Path("/start").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ins, outs []string
-		json.NewDecoder(r.Body).Decode(&ins)
-
-		for _, name := range ins {
-			if container := rtime.Get(name); container != nil {
-				if err := container.Start(); err != nil {
-					http.Error(w, "Error starting container "+name+": "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				outs = append(outs, container.ShortId())
-			} else {
-				http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+	r.Path("/images/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		
+		img, err := rtime.repositories.LookupImage(name)
+		if err != nil {
+			http.Error(w, "No such image: "+name, http.StatusInternalServerError)
+			return
+		} else {
+			if err := rtime.graph.Delete(img.Id); err != nil {
+				http.Error(w, "Error deleting image "+name+": "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.Write(b)
-		}
-
+		w.WriteHeader(200)
 	})
 
-	r.Path("/stop").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ins, outs []string
-		json.NewDecoder(r.Body).Decode(&ins)
-
-		for _, name := range ins {
-			if container := rtime.Get(name); container != nil {
-				if err := container.Stop(); err != nil {
-					http.Error(w, "Error stopping container "+name+": "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				outs = append(outs, container.ShortId())
-			} else {
-				http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+	r.Path("/containers/{name:.*}/start").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		if container := rtime.Get(name); container != nil {
+			if err := container.Start(); err != nil {
+				http.Error(w, "Error starting container "+name+": "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			w.Write(b)
+			http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+			return
 		}
+		w.WriteHeader(200)
+	})
 
+	r.Path("/containers/{name:.*}/stop").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		if container := rtime.Get(name); container != nil {
+			if err := container.Stop(); err != nil {
+				http.Error(w, "Error stopping container "+name+": "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			http.Error(w, "No such container: "+name, http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(200)
 	})
 
 	return http.ListenAndServe(addr, r)

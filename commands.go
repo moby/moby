@@ -1,21 +1,17 @@
 package docker
 
 import (
-	"bytes"
+	_"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/rcli"
-	"io"
-	"log"
+	_"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"runtime"
+	"os"
 	"strconv"
-	"strings"
 	"text/tabwriter"
-	"time"
-	"unicode"
 )
 
 const VERSION = "0.1.4"
@@ -25,45 +21,70 @@ var (
 	NO_MEMORY_LIMIT bool
 )
 
-func (srv *Server) Name() string {
-	return "docker"
+func ParseCommands(args []string) error {
+
+	cmds := map[string]func(args []string) error{
+		"images":  CmdImages,
+		"info":    CmdInfo,
+		"history": CmdHistory,
+		"kill":    CmdKill,
+		"logs":    CmdLogs,
+		"ps":      CmdPs,
+		"restart": CmdRestart,
+		"rm":      CmdRm,
+		"rmi":     CmdRmi,
+		"start":   CmdStart,
+		"stop":    CmdStop,
+		"version": CmdVersion,
+	}
+
+	if len(args) > 0 {
+		cmd, exists := cmds[args[0]]
+		if !exists {
+			//TODO display commend not found
+			return cmdHelp(args)
+		}
+		return cmd(args[1:])
+	}
+	return cmdHelp(args)
 }
 
-// FIXME: Stop violating DRY by repeating usage here and in Subcmd declarations
-func (srv *Server) Help() string {
+func cmdHelp(args []string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
-		{"attach", "Attach to a running container"},
-		{"commit", "Create a new image from a container's changes"},
-		{"diff", "Inspect changes on a container's filesystem"},
-		{"export", "Stream the contents of a container as a tar archive"},
+		//		{"attach", "Attach to a running container"},
+		//		{"commit", "Create a new image from a container's changes"},
+		//		{"diff", "Inspect changes on a container's filesystem"},
+		//		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
+		//		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
-		{"inspect", "Return low-level information on a container"},
+		//		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
-		{"login", "Register or Login to the docker registry server"},
+		//		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		//		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
-		{"pull", "Pull an image or a repository from the docker registry server"},
-		{"push", "Push an image or a repository to the docker registry server"},
+		//		{"pull", "Pull an image or a repository from the docker registry server"},
+		//		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
-		{"run", "Run a command in a new container"},
+		//		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		{"tag", "Tag an image into a repository"},
+		//		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
-		{"wait", "Block until a container stops, then print its exit code"},
+		//		{"wait", "Block until a container stops, then print its exit code"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
-	return help
+	fmt.Println(help)
+	return nil
 }
 
+/*
 // 'docker login': login / register a user to registry service.
 func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	// Read a line on raw terminal with support for simple backspace
@@ -161,7 +182,9 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 	}
 	return nil
 }
+*/
 
+/*
 // 'docker wait': block until a container stops
 func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
@@ -181,27 +204,12 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return nil
 }
+*/
+
 
 // 'docker version': show version information
-func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
-	fmt.Fprintf(stdout, "Git Commit:%s\n", GIT_COMMIT)
-	if NO_MEMORY_LIMIT {
-		fmt.Fprintf(stdout, "Memory limit disabled\n")
-	}
-	return nil
-}
-
-// 'docker info': display system-wide information.
-func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	images, _ := srv.runtime.graph.All()
-	var imgcount int
-	if images == nil {
-		imgcount = 0
-	} else {
-		imgcount = len(images)
-	}
-	cmd := rcli.Subcmd(stdout, "info", "", "Display system-wide information.")
+func CmdVersion(args []string) error {
+	cmd := Subcmd("version", "", "Show the docker version information.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -209,21 +217,57 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	fmt.Fprintf(stdout, "containers: %d\nversion: %s\nimages: %d\n",
-		len(srv.runtime.List()),
-		VERSION,
-		imgcount)
 
-	if !rcli.DEBUG_FLAG {
-		return nil
+	body, err := call("GET", "version")
+	if err != nil {
+		return err
 	}
-	fmt.Fprintln(stdout, "debug mode enabled")
-	fmt.Fprintf(stdout, "fds: %d\ngoroutines: %d\n", getTotalUsedFds(), runtime.NumGoroutine())
+
+	var out VersionOut
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Version:", out.Version)
+	fmt.Println("Git Commit:", out.GitCommit)
+	if out.MemoryLimitDisabled {
+		fmt.Println("Memory limit disabled")
+	}
+
 	return nil
 }
 
-func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "stop", "CONTAINER [CONTAINER...]", "Stop a running container")
+// 'docker info': display system-wide information.
+func CmdInfo(args []string) error {
+	cmd := Subcmd("info", "", "Display system-wide information")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() > 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	body, err := call("GET", "info")
+	if err != nil {
+		return err
+	}
+
+	var out InfoOut
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("containers: %d\nversion: %s\nimages: %d\n", out.Containers, out.Version, out.Images)
+	if out.Debug {
+		fmt.Println("debug mode enabled")
+		fmt.Printf("fds: %d\ngoroutines: %d\n", out.NFd, out.NGoroutines)
+	}
+	return nil
+}
+
+func CmdStop(args []string) error {
+	cmd := Subcmd("stop", "CONTAINER [CONTAINER...]", "Stop a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -231,21 +275,20 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Stop(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.ShortId())
+
+	for _, name := range args {
+		_, err := call("GET", "/containers/"+name+"/stop")
+		if err != nil {
+			fmt.Printf("%s", err)
 		} else {
-			return fmt.Errorf("No such container: %s", name)
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
-func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "restart", "CONTAINER [CONTAINER...]", "Restart a running container")
+func CmdRestart(args []string) error {
+	cmd := Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -253,21 +296,20 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Restart(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.ShortId())
+
+	for _, name := range args {
+		_, err := call("GET", "/containers/"+name+"/restart")
+		if err != nil {
+			fmt.Printf("%s", err)
 		} else {
-			return fmt.Errorf("No such container: %s", name)
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
-func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "start", "CONTAINER [CONTAINER...]", "Start a stopped container")
+func CmdStart(args []string) error {
+	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -275,19 +317,19 @@ func (srv *Server) CmdStart(stdin io.ReadCloser, stdout io.Writer, args ...strin
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Start(); err != nil {
-				return err
-			}
-			fmt.Fprintln(stdout, container.ShortId())
+
+	for _, name := range args {
+		_, err := call("GET", "/containers/"+name+"/start")
+		if err != nil {
+			fmt.Printf("%s", err)
 		} else {
-			return fmt.Errorf("No such container: %s", name)
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
+/*
 func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "inspect", "CONTAINER", "Return low-level information on a container")
 	if err := cmd.Parse(args); err != nil {
@@ -322,7 +364,9 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 	stdout.Write([]byte{'\n'})
 	return nil
 }
+*/
 
+/*
 func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
@@ -345,10 +389,11 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return nil
 }
+*/
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
-func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string) (err error) {
-	cmd := rcli.Subcmd(stdout, "rmimage", "IMAGE [IMAGE...]", "Remove an image")
+func CmdRmi(args []string) error {
+	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -356,20 +401,20 @@ func (srv *Server) CmdRmi(stdin io.ReadCloser, stdout io.Writer, args ...string)
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		img, err := srv.runtime.repositories.LookupImage(name)
+
+	for _, name := range args {
+		_, err := call("DELETE", "/images/"+name)
 		if err != nil {
-			return err
-		}
-		if err := srv.runtime.graph.Delete(img.Id); err != nil {
-			return err
+			fmt.Printf("%s", err)
+		} else {
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
-func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "history", "IMAGE", "Show the history of an image")
+func CmdHistory(args []string) error {
+	cmd := Subcmd("history", "IMAGE", "Show the history of an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -377,25 +422,29 @@ func (srv *Server) CmdHistory(stdin io.ReadCloser, stdout io.Writer, args ...str
 		cmd.Usage()
 		return nil
 	}
-	image, err := srv.runtime.repositories.LookupImage(cmd.Arg(0))
+
+	body, err := call("GET", "images/"+cmd.Arg(0)+"/history")
 	if err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	defer w.Flush()
+
+	var outs []HistoryOut
+	err = json.Unmarshal(body, &outs)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
-	return image.WalkHistory(func(img *Image) error {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			srv.runtime.repositories.ImageName(img.ShortId()),
-			HumanDuration(time.Now().Sub(img.Created))+" ago",
-			strings.Join(img.ContainerConfig.Cmd, " "),
-		)
-		return nil
-	})
+
+	for _, out := range outs {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", out.Id, out.Created, out.CreatedBy)
+	}
+	w.Flush()
+	return nil
 }
 
-func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "rm", "CONTAINER [CONTAINER...]", "Remove a container")
+func CmdRm(args []string) error {
+	cmd := Subcmd("rm", "CONTAINER [CONTAINER...]", "Remove a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -403,21 +452,21 @@ func (srv *Server) CmdRm(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		container := srv.runtime.Get(name)
-		if container == nil {
-			return fmt.Errorf("No such container: %s", name)
-		}
-		if err := srv.runtime.Destroy(container); err != nil {
-			fmt.Fprintln(stdout, "Error destroying container "+name+": "+err.Error())
+
+	for _, name := range args {
+		_, err := call("DELETE", "/containers/"+name)
+		if err != nil {
+			fmt.Printf("%s", err)
+		} else {
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
 // 'docker kill NAME' kills a running container
-func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "kill", "CONTAINER [CONTAINER...]", "Kill a running container")
+func CmdKill(args []string) error {
+	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -425,18 +474,19 @@ func (srv *Server) CmdKill(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	for _, name := range cmd.Args() {
-		container := srv.runtime.Get(name)
-		if container == nil {
-			return fmt.Errorf("No such container: %s", name)
-		}
-		if err := container.Kill(); err != nil {
-			fmt.Fprintln(stdout, "Error killing container "+name+": "+err.Error())
+
+	for _, name := range args {
+		_, err := call("POST", "/containers/"+name+"/kill")
+		if err != nil {
+			fmt.Printf("%s", err)
+		} else {
+			fmt.Println(name)
 		}
 	}
 	return nil
 }
 
+/*
 func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	stdout.Flush()
 	cmd := rcli.Subcmd(stdout, "import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
@@ -486,7 +536,9 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
+*/
 
+/*
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
@@ -545,7 +597,9 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...
 	}
 	return nil
 }
+*/
 
+/*
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
@@ -570,12 +624,13 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return nil
 }
+*/
 
-func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "images", "[OPTIONS] [NAME]", "List images")
-	//limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
+func CmdImages(args []string) error {
+	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	flAll := cmd.Bool("a", false, "show all images")
+	all := cmd.Bool("a", false, "show all images")
+	
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -583,137 +638,104 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	var nameFilter string
+	v := url.Values{}
 	if cmd.NArg() == 1 {
-		nameFilter = cmd.Arg(0)
+		v.Set("filter", cmd.Arg(0))
 	}
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+	if *quiet {
+		v.Set("quiet", "true")
 	}
-	var allImages map[string]*Image
-	var err error
-	if *flAll {
-		allImages, err = srv.runtime.graph.Map()
-	} else {
-		allImages, err = srv.runtime.graph.Heads()
+	if *all {
+		v.Set("all", "true")
 	}
+
+	body, err := call("GET", "images?"+v.Encode())
 	if err != nil {
 		return err
 	}
-	for name, repository := range srv.runtime.repositories.Repositories {
-		if nameFilter != "" && name != nameFilter {
-			continue
-		}
-		for tag, id := range repository {
-			image, err := srv.runtime.graph.Get(id)
-			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
-				continue
-			}
-			delete(allImages, id)
-			if !*quiet {
-				for idx, field := range []string{
-					/* REPOSITORY */ name,
-					/* TAG */ tag,
-					/* ID */ TruncateId(id),
-					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-				} {
-					if idx == 0 {
-						w.Write([]byte(field))
-					} else {
-						w.Write([]byte("\t" + field))
-					}
-				}
-				w.Write([]byte{'\n'})
-			} else {
-				stdout.Write([]byte(image.ShortId() + "\n"))
-			}
+
+	var outs []ImagesOut
+	err = json.Unmarshal(body, &outs)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
+	if !*quiet {
+		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+	}
+
+	for _, out := range outs {
+		if !*quiet {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", out.Repository, out.Tag, out.Id, out.Created)
+		} else {
+			fmt.Fprintln(w, out.Id)
 		}
 	}
-	// Display images which aren't part of a
-	if nameFilter == "" {
-		for id, image := range allImages {
-			if !*quiet {
-				for idx, field := range []string{
-					/* REPOSITORY */ "<none>",
-					/* TAG */ "<none>",
-					/* ID */ TruncateId(id),
-					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-				} {
-					if idx == 0 {
-						w.Write([]byte(field))
-					} else {
-						w.Write([]byte("\t" + field))
-					}
-				}
-				w.Write([]byte{'\n'})
-			} else {
-				stdout.Write([]byte(image.ShortId() + "\n"))
-			}
-		}
-	}
+
 	if !*quiet {
 		w.Flush()
 	}
 	return nil
 }
 
-func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"ps", "[OPTIONS]", "List containers")
+func CmdPs(args []string) error {
+	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
-	flAll := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
-	flFull := cmd.Bool("notrunc", false, "Don't truncate output")
-	latest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
-	nLast := cmd.Int("n", -1, "Show n last created containers, include non-running ones.")
+	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	nLatest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
+	last := cmd.Int("n", -1, "Show n last created containers, include non-running ones.")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if *nLast == -1 && *latest {
-		*nLast = 1
+	v := url.Values{}
+	if *last == -1 && *nLatest {
+		*last = 1
 	}
-	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
+	if *quiet {
+		v.Set("quiet", "true")
+	}
+	if *all {
+		v.Set("all", "true")
+	}
+	if *noTrunc {
+		v.Set("notrunc", "true")
+	}
+	if *last != -1 {
+		v.Set("n", strconv.Itoa(*last))
+	}
+	
+	body, err := call("GET", "containers?"+v.Encode())
+	if err != nil {
+		return err
+	}
+
+	var outs []PsOut
+	err = json.Unmarshal(body, &outs)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS")
 	}
-	for i, container := range srv.runtime.List() {
-		if !container.State.Running && !*flAll && *nLast == -1 {
-			continue
-		}
-		if i == *nLast {
-			break
-		}
+
+	for _, out := range outs {
 		if !*quiet {
-			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-			if !*flFull {
-				command = Trunc(command, 20)
-			}
-			for idx, field := range []string{
-				/* ID */ container.ShortId(),
-				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
-				/* COMMAND */ command,
-				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
-				/* STATUS */ container.State.String(),
-				/* COMMENT */ "",
-			} {
-				if idx == 0 {
-					w.Write([]byte(field))
-				} else {
-					w.Write([]byte("\t" + field))
-				}
-			}
-			w.Write([]byte{'\n'})
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", out.Id, out.Image, out.Command, out.Status, out.Created)
 		} else {
-			stdout.Write([]byte(container.ShortId() + "\n"))
+			fmt.Fprintln(w, out.Id)
 		}
 	}
+
 	if !*quiet {
 		w.Flush()
 	}
 	return nil
 }
 
+/*
 func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
 		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
@@ -734,7 +756,9 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
+*/
 
+/*
 func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
 		"export", "CONTAINER",
@@ -756,7 +780,9 @@ func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	}
 	return fmt.Errorf("No such container: %s", name)
 }
+*/
 
+/*
 func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout,
 		"diff", "CONTAINER",
@@ -781,9 +807,10 @@ func (srv *Server) CmdDiff(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	return nil
 }
+*/
 
-func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "logs", "CONTAINER", "Fetch the logs of a container")
+func CmdLogs(args []string) error {
+	cmd := Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -791,29 +818,23 @@ func (srv *Server) CmdLogs(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	name := cmd.Arg(0)
-	if container := srv.runtime.Get(name); container != nil {
-		logStdout, err := container.ReadLog("stdout")
-		if err != nil {
-			return err
-		}
-		logStderr, err := container.ReadLog("stderr")
-		if err != nil {
-			return err
-		}
-		// FIXME: Interpolate stdout and stderr instead of concatenating them
-		// FIXME: Differentiate stdout and stderr in the remote protocol
-		if _, err := io.Copy(stdout, logStdout); err != nil {
-			return err
-		}
-		if _, err := io.Copy(stdout, logStderr); err != nil {
-			return err
-		}
-		return nil
+	body, err := call("GET", "containers/"+cmd.Arg(0)+"/logs")
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("No such container: %s", cmd.Arg(0))
+
+	var out LogsOut
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stdout, out.Stdout)
+	fmt.Fprintln(os.Stderr, out.Stderr)
+
+	return nil
 }
 
+/*
 func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
@@ -836,7 +857,8 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	stdout.Flush()
 	return <-container.Attach(stdin, nil, stdout, stdout)
 }
-
+*/
+/*
 // Ports type - Used to parse multiple -p flags
 type ports []int
 
@@ -852,6 +874,7 @@ func (p *ports) Set(value string) error {
 	*p = append(*p, port)
 	return nil
 }
+*/
 
 // ListOpts type
 type ListOpts []string
@@ -892,6 +915,8 @@ func (opts AttachOpts) Get(val string) bool {
 	return false
 }
 
+
+/*
 func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
@@ -904,7 +929,9 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 	}
 	return srv.runtime.repositories.Set(cmd.Arg(1), cmd.Arg(2), cmd.Arg(0), *force)
 }
+*/
 
+/*
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	config, err := ParseRun(args)
 	if err != nil {
@@ -974,8 +1001,72 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	<-attachErr
 	// Expecting I/O pipe error, discarding
 	return nil
+ }
+ */
+
+	
+func call(method, path string) ([]byte, error) {
+	req, err := http.NewRequest(method, "http://0.0.0.0:4243/" + path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("error: %s", body)
+	}
+	return body, nil
+
+}
+/*
+func apiPost(path string, data interface{}) ([]byte, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	dataBuf := bytes.NewBuffer(buf)
+	resp, err := http.Post("http://0.0.0.0:4243/"+path, "application/json", dataBuf)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("[error] %s", body)
+	}
+	return body, nil
 }
 
-type Server struct {
-	runtime *Runtime
+func apiPostHijack(path string, data interface{}) (io.ReadCloser, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	dataBuf := bytes.NewBuffer(buf)
+	resp, err := http.Post("http://0.0.0.0:4243/"+path, "application/json", dataBuf)
+	if err != nil {
+		return nil, err
+	}
+	//TODO check status code
+
+	return resp.Body, nil
+}
+*/
+func Subcmd(name, signature, description string) *flag.FlagSet {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.Usage = func() {
+		fmt.Printf("\nUsage: docker %s %s\n\n%s\n\n", name, signature, description)
+		flags.PrintDefaults()
+	}
+	return flags
 }
