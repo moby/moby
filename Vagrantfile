@@ -8,7 +8,6 @@ def v10(config)
   # Install ubuntu packaging dependencies and create ubuntu packages
   config.vm.provision :shell, :inline => "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >>/etc/apt/sources.list"
   config.vm.provision :shell, :inline => 'export DEBIAN_FRONTEND=noninteractive; apt-get -qq update; apt-get install -qq -y --force-yes lxc-docker'
-
 end
 
 Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
@@ -45,8 +44,8 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   end
 
   config.vm.provider :virtualbox do |vb|
-    config.vm.box = "quantal64_3.5.0-25"
-    config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
+    config.vm.box = 'precise64'
+    config.vm.box_url = 'http://files.vagrantup.com/precise64.box'
   end
 end
 
@@ -76,7 +75,8 @@ Vagrant::VERSION >= "1.2.0" and Vagrant.configure("2") do |config|
   end
 
   config.vm.provider :virtualbox do |vb|
-    config.vm.box = "quantal64_3.5.0-25"
-    config.vm.box_url = "http://get.docker.io/vbox/ubuntu/12.10/quantal64_3.5.0-25.box"
+    config.vm.box = 'precise64'
+    config.vm.box_url = 'http://files.vagrantup.com/precise64.box'
   end
+
 end

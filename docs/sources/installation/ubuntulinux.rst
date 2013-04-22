@@ -1,7 +1,9 @@
 Docker on Ubuntu
 ================
 
-Docker is now available as a Ubuntu PPA (Personal Package Archive), which makes installing Docker on Ubuntu super easy!
+Docker is now available as a Ubuntu PPA (Personal Package Archive),
+`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
+which makes installing Docker on Ubuntu very easy.
 
 **The Requirements**
 
@@ -17,14 +19,14 @@ Add the custom package sources to your apt sources list. Copy and paste both the
    >> /etc/apt/sources.list"
 
 
-Update your sources. You will see a warning that GPG signatures cannot be verified
+Update your sources. You will see a warning that GPG signatures cannot be verified.
 
 .. code-block:: bash
 
    sudo apt-get update
 
 
-Now install it, you will see another warning that the package cannot be authenticated.
+Now install it, you will see another warning that the package cannot be authenticated. Confirm install.
 
 .. code-block:: bash
 
