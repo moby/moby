@@ -237,27 +237,27 @@ func assertKernelVersion(t *testing.T, a, b *KernelVersionInfo, result int) {
 
 func TestCompareKernelVersion(t *testing.T) {
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		0)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0, Specific: 0},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		-1)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
-		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
+		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0},
 		1)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 16},
-		-1)
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "16"},
+		0)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 5, Specific: 0},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 5},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		1)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20, Specific: 25},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Specific: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20, Flavor: "25"},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
 		-1)
 }
