@@ -979,8 +979,13 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	}
 	Debugf("Waiting for attach to return\n")
 	<-attachErr
-	container.Wait()
 	// Expecting I/O pipe error, discarding
+
+	// If we are in stdinonce mode, wait for the process to end
+	// otherwise, simply return
+	if config.StdinOnce && !config.Tty {
+		container.Wait()
+	}
 	return nil
 }
 
