@@ -630,7 +630,7 @@ func (container *Container) Stop(seconds int) error {
 		return nil
 	}
 	if container.State.Ghost {
-		return fmt.Errorf("Can't stop ghot container")
+		return fmt.Errorf("Can't stop ghost container")
 	}
 
 	// 1. Send a SIGTERM
