@@ -399,10 +399,10 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 }
 
 type KernelVersionInfo struct {
-	Kernel   int
-	Major    int
-	Minor    int
-	Specific int
+	Kernel int
+	Major  int
+	Minor  int
+	Flavor string
 }
 
 // FIXME: this doens't build on Darwin
@@ -445,21 +445,18 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 		return nil, err
 	}
 
-	specific, err := strconv.Atoi(strings.Split(tmp[1], "-")[0])
-	if err != nil {
-		return nil, err
-	}
+	flavor := tmp[1]
 
 	return &KernelVersionInfo{
-		Kernel:   kernel,
-		Major:    major,
-		Minor:    minor,
-		Specific: specific,
+		Kernel: kernel,
+		Major:  major,
+		Minor:  minor,
+		Flavor: flavor,
 	}, nil
 }
 
 func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d-%d", k.Kernel, k.Major, k.Minor, k.Specific)
+	return fmt.Sprintf("%d.%d.%d-%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
 // Compare two KernelVersionInfo struct.
@@ -483,11 +480,6 @@ func CompareKernelVersion(a, b *KernelVersionInfo) int {
 		return 1
 	}
 
-	if a.Specific < b.Specific {
-		return -1
-	} else if a.Specific > b.Specific {
-		return 1
-	}
 	return 0
 }
 
