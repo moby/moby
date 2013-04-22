@@ -125,7 +125,7 @@ Running an irc bouncer
 
 ```bash
 BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
-echo "Configure your irc client to connect to port $(port $BOUNCER_ID 6667) of this machine"
+echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
 ```
 
 Running Redis
@@ -133,7 +133,7 @@ Running Redis
 
 ```bash
 REDIS_ID=$(docker run -d -p 6379 shykes/redis redis-server)
-echo "Configure your redis client to connect to port $(port $REDIS_ID 6379) of this machine"
+echo "Configure your redis client to connect to port $(docker port $REDIS_ID 6379) of this machine"
 ```
 
 Share your own image!
