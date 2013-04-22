@@ -51,6 +51,10 @@ type PsOut struct {
 	Status  string `json:",omitempty"`
 }
 
+type PullIn struct {
+	Name string
+}
+
 type LogsIn struct {
 	Name string
 }

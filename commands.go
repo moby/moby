@@ -613,15 +613,15 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
 	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-		if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
-			return err
-		}
+	//	if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
+	//		return err
+	//	}
 		return nil
 	}
 	// FIXME: Allow pull repo:tag
-	if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
-		return err
-	}
+	//if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	//	return err
+	//}
 	return nil
 }
 */

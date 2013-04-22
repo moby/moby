@@ -1,6 +1,7 @@
 package docker
 
 import (
+	_"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -250,6 +251,39 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			w.Write(b)
 		}
 	})
+
+	r.Path("/pull").Methods("GET", "POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in PullIn
+		//json.NewDecoder(r.Body).Decode(&in)
+		in.Name = "base"
+
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
+			return
+		}
+		conn, bufrw, err := hj.Hijack()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Don't forget to close the connection:
+		defer conn.Close()
+
+
+
+		if rtime.graph.LookupRemoteImage(in.Name, rtime.authConfig) {
+			if err := rtime.graph.PullImage(bufrw, in.Name, rtime.authConfig); err != nil {
+				//http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return 
+		}
+		if err := rtime.graph.PullRepository(bufrw, in.Name, "", rtime.repositories, rtime.authConfig); err != nil {
+			//http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	})
+
 
 	r.Path("/containers/{name:.*}/restart").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.RequestURI)
