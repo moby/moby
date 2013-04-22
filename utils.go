@@ -407,7 +407,12 @@ type KernelVersionInfo struct {
 
 // FIXME: this doens't build on Darwin
 func GetKernelVersion() (*KernelVersionInfo, error) {
-	var uts syscall.Utsname
+	var (
+		uts                  syscall.Utsname
+		flavor               string
+		kernel, major, minor int
+		err                  error
+	)
 
 	if err := syscall.Uname(&uts); err != nil {
 		return nil, err
@@ -422,30 +427,34 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}
 
 	tmp := strings.SplitN(string(release), "-", 2)
-	if len(tmp) != 2 {
-		return nil, fmt.Errorf("Unrecognized kernel version")
-	}
 	tmp2 := strings.SplitN(tmp[0], ".", 3)
-	if len(tmp2) != 3 {
-		return nil, fmt.Errorf("Unrecognized kernel version")
+
+	if len(tmp2) > 0 {
+		kernel, err = strconv.Atoi(tmp2[0])
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	kernel, err := strconv.Atoi(tmp2[0])
-	if err != nil {
-		return nil, err
+	if len(tmp2) > 1 {
+		major, err = strconv.Atoi(tmp2[1])
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	major, err := strconv.Atoi(tmp2[1])
-	if err != nil {
-		return nil, err
+	if len(tmp2) > 2 {
+		minor, err = strconv.Atoi(tmp2[2])
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	minor, err := strconv.Atoi(tmp2[2])
-	if err != nil {
-		return nil, err
+	if len(tmp) == 2 {
+		flavor = tmp[1]
+	} else {
+		flavor = ""
 	}
-
-	flavor := tmp[1]
 
 	return &KernelVersionInfo{
 		Kernel: kernel,
