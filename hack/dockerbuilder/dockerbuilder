@@ -11,9 +11,6 @@ fi
 
 export REVISION=$1 AWS_ID=$2 AWS_KEY=$3
 
-
-export PATH=/usr/local/bin:$PATH
-
 mkdir -p /go/src/$PACKAGE
 git clone "https://$PACKAGE" /go/src/$PACKAGE
 cd /go/src/$PACKAGE
