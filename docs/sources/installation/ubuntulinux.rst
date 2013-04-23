@@ -6,17 +6,31 @@ Ubuntu Linux
   **Please note this project is currently under heavy development. It should not be used in production.**
 
 
-Docker is now available as a Ubuntu PPA (Personal Package Archive),
+Right now, the officially supported distributions are:
+
+- Ubuntu 12.04 (precise LTS) (64-bit)
+- Ubuntu 12.10 (quantal) (64-bit)
+
+Dependencies
+------------
+
+The linux-image-extra package is only needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
+
+.. code-block:: bash
+
+   sudo apt-get install linux-image-extra-`uname -r`
+
+
+Installation
+------------
+
+Docker is available as a Ubuntu PPA (Personal Package Archive),
 `hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
 which makes installing Docker on Ubuntu very easy.
 
-**The Requirements**
-
-* Ubuntu 12.04 (LTS) or Ubuntu 12.10
-* **64-bit Operating system**
 
 
-Add the custom package sources to your apt sources list. Copy and paste both the following lines at once.
+Add the custom package sources to your apt sources list. Copy and paste the following lines at once.
 
 .. code-block:: bash
 

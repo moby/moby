@@ -273,7 +273,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer container.Kill()
-	time.Sleep(300 * time.Millisecond) // Wait for the container to run
+	time.Sleep(600 * time.Millisecond) // Wait for the container to run
 	conn, err := net.Dial("tcp",
 		fmt.Sprintf(
 			"localhost:%s", container.NetworkSettings.PortMapping["5555"],

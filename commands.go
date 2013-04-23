@@ -18,7 +18,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.1.7"
+const VERSION = "0.1.8"
 
 var (
 	GIT_COMMIT string
@@ -834,6 +834,10 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
+	}
+
+	if container.State.Ghost {
+		return fmt.Errorf("Impossible to attach to a ghost container")
 	}
 
 	if container.Config.Tty {

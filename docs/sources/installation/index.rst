@@ -13,6 +13,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   binaries
    archlinux
    vagrant
    windows

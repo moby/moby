@@ -44,6 +44,7 @@ new kernel will be compiled and this can take quite a while.
 
     yaourt -S lxc-docker-git
 
+
 Starting Docker
 ---------------
 
@@ -56,10 +57,7 @@ There is a systemd service unit created for docker.  To start the docker service
 
     sudo systemctl start docker
 
-<<<<<<< HEAD
 
-=======
->>>>>>> dotcloud/master
 To start on system boot:
 
 ::

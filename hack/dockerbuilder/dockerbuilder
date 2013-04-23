@@ -1,0 +1,29 @@
+#!/bin/sh
+set -x
+set -e
+
+PACKAGE=github.com/dotcloud/docker
+
+if [ $# -lt 3 ]; then
+	echo "Usage: $0 REVISION AWS_ID AWS_KEY"
+	exit 1
+fi
+
+export REVISION=$1 AWS_ID=$2 AWS_KEY=$3
+
+
+export PATH=/usr/local/bin:$PATH
+
+mkdir -p /go/src/$PACKAGE
+git clone "https://$PACKAGE" /go/src/$PACKAGE
+cd /go/src/$PACKAGE
+git checkout $REVISION
+
+# FIXME: checkout to specific revision
+
+BUILDDIR=/tmp/docker-$REVISION
+mkdir -p $BUILDDIR
+(cd docker && go get && go build -o $BUILDDIR/docker)
+
+tar -f /tmp/docker.tgz -C $(dirname $BUILDDIR) -zc $(basename $BUILDDIR)
+s3cmd -P put /tmp/docker.tgz s3://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-$REVISION.tgz

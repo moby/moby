@@ -71,40 +71,38 @@
                 <h2>
                     <a name="installing-on-ubuntu-1204-and-1210" class="anchor" href="#installing-on-ubuntu-1204-and-1210"><span class="mini-icon mini-icon-link"></span>
                     </a>Installing on Ubuntu</h2>
-                    <strong>Requirements</strong>
+
+                    <p><strong>Requirements</strong></p>
                     <ul>
-                        <li>Ubuntu 12.04 (LTS) or Ubuntu 12.10</li>
-                        <li><strong>64-bit Operating system</strong></li>
+                        <li>Ubuntu 12.04 (LTS) (64-bit)</li>
+                        <li> or Ubuntu 12.10 (quantal) (64-bit)</li>
                     </ul>
                 <ol>
                     <li>
-                        <p>Add the Ubuntu PPA (Personal Package Archive) sources to your apt sources list. Copy and
-                            paste the following lines at once.</p>
+                    <p><strong>Install dependencies</strong></p>
+                    The linux-image-extra package is only needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
+                    <pre>sudo apt-get install linux-image-extra-`uname -r`</pre>
 
+
+                    </li>
+                    <li>
+                        <p><strong>Install Docker</strong></p>
+                        <p>Add the Ubuntu PPA (Personal Package Archive) sources to your apt sources list, update and install.</p>
+                        <p>You may see some warnings that the GPG keys cannot be verified.</p>
                         <div class="highlight">
                             <pre>sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"</pre>
-
-                    </li>
-                    <li>
-                        <p>Update your sources. You will see a warning that GPG signatures cannot be verified.</p>
-
-                        <div class="highlight">
                             <pre>sudo apt-get update</pre>
-                        </div>
-                    </li>
-                    <li>
-                        <p>Now install it, you will see another warning that the package cannot be authenticated. Confirm install.</p>
-
-                        <div class="highlight">
                             <pre>sudo apt-get install lxc-docker</pre>
                         </div>
+
+
                     </li>
 
                     <li>
                         <p><strong>Run!</strong></p>
 
                         <div class="highlight">
-                            <pre>docker</pre>
+                            <pre>docker run -i -t ubuntu /bin/bash</pre>
                         </div>
                     </li>
                     Continue with the <a href="http://docs.docker.io/en/latest/examples/hello_world/">Hello world</a> example.

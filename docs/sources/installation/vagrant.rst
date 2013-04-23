@@ -1,8 +1,8 @@
 
 .. _install_using_vagrant:
 
-Install using Vagrant
-=====================
+Using Vagrant
+=============
 
   Please note this is a community contributed installation path. The only 'official' installation is using the
   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
@@ -27,37 +27,44 @@ Spin it up
 
 1. Fetch the docker sources (this includes the Vagrantfile for machine setup).
 
-.. code-block:: bash
+   .. code-block:: bash
 
-   git clone https://github.com/dotcloud/docker.git
+      git clone https://github.com/dotcloud/docker.git
 
 2. Run vagrant from the sources directory
 
-.. code-block:: bash
+   .. code-block:: bash
 
-    vagrant up
+      vagrant up
 
-Vagrant will:
+   Vagrant will:
 
-* Download the 'official' Precise64 base ubuntu virtual machine image from vagrantup.com
-* Boot this image in virtualbox
-* Add the `Docker PPA sources <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_ to /etc/apt/sources.lst
-* Update your sources
-* Install lxc-docker
+   * Download the 'official' Precise64 base ubuntu virtual machine image from vagrantup.com
+   * Boot this image in virtualbox
+   * Add the `Docker PPA sources <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_ to /etc/apt/sources.lst
+   * Update your sources
+   * Install lxc-docker
 
-You now have a Ubuntu Virtual Machine running with docker pre-installed.
+   You now have a Ubuntu Virtual Machine running with docker pre-installed.
+
+Connect
+-------
 
 To access the VM and use Docker, Run ``vagrant ssh`` from the same directory as where you ran
 ``vagrant up``. Vagrant will connect you to the correct VM.
 
 .. code-block:: bash
 
-    vagrant ssh
+   vagrant ssh
+
+Run
+-----
 
 Now you are in the VM, run docker
 
 .. code-block:: bash
 
-    docker
+   docker
+
 
 Continue with the :ref:`hello_world` example.
