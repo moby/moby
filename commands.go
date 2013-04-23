@@ -1,13 +1,15 @@
 package docker
 
 import (
-	_"bytes"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
-	_"io"
+	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strconv"
@@ -29,10 +31,14 @@ func ParseCommands(args []string) error {
 		"history": CmdHistory,
 		"kill":    CmdKill,
 		"logs":    CmdLogs,
+		"port":    CmdPort,
 		"ps":      CmdPs,
+		"pull":    CmdPull,
 		"restart": CmdRestart,
 		"rm":      CmdRm,
 		"rmi":     CmdRmi,
+		"run":     CmdRun,
+		"tag":     CmdTag,
 		"start":   CmdStart,
 		"stop":    CmdStop,
 		"version": CmdVersion,
@@ -41,7 +47,7 @@ func ParseCommands(args []string) error {
 	if len(args) > 0 {
 		cmd, exists := cmds[args[0]]
 		if !exists {
-			//TODO display commend not found
+			fmt.Println("Error: Command not found:", args[0])
 			return cmdHelp(args)
 		}
 		return cmd(args[1:])
@@ -64,17 +70,17 @@ func cmdHelp(args []string) error {
 		{"kill", "Kill a running container"},
 		//		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		//		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
-		//		{"pull", "Pull an image or a repository from the docker registry server"},
+		{"pull", "Pull an image or a repository from the docker registry server"},
 		//		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
-		//		{"run", "Run a command in a new container"},
+		{"run", "Run a command in a new container"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
-		//		{"tag", "Tag an image into a repository"},
+		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
 		//		{"wait", "Block until a container stops, then print its exit code"},
 	} {
@@ -206,7 +212,6 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 */
 
-
 // 'docker version': show version information
 func CmdVersion(args []string) error {
 	cmd := Subcmd("version", "", "Show the docker version information.")
@@ -218,12 +223,12 @@ func CmdVersion(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "version")
+	body, err := call("GET", "/version")
 	if err != nil {
 		return err
 	}
 
-	var out VersionOut
+	var out ApiVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
@@ -248,12 +253,12 @@ func CmdInfo(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "info")
+	body, err := call("GET", "/info")
 	if err != nil {
 		return err
 	}
 
-	var out InfoOut
+	var out ApiInfo
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
@@ -277,7 +282,7 @@ func CmdStop(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("GET", "/containers/"+name+"/stop")
+		_, err := call("POST", "/containers/"+name+"/stop")
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -298,7 +303,7 @@ func CmdRestart(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("GET", "/containers/"+name+"/restart")
+		_, err := call("POST", "/containers/"+name+"/restart")
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -319,7 +324,7 @@ func CmdStart(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("GET", "/containers/"+name+"/start")
+		_, err := call("POST", "/containers/"+name+"/start")
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -366,9 +371,8 @@ func (srv *Server) CmdInspect(stdin io.ReadCloser, stdout io.Writer, args ...str
 }
 */
 
-/*
-func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+func CmdPort(args []string) error {
+	cmd := Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -376,20 +380,21 @@ func (srv *Server) CmdPort(stdin io.ReadCloser, stdout io.Writer, args ...string
 		cmd.Usage()
 		return nil
 	}
-	name := cmd.Arg(0)
-	privatePort := cmd.Arg(1)
-	if container := srv.runtime.Get(name); container == nil {
-		return fmt.Errorf("No such container: %s", name)
-	} else {
-		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
-			return fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
-		} else {
-			fmt.Fprintln(stdout, frontend)
-		}
+	v := url.Values{}
+	v.Set("port", cmd.Arg(1))
+	body, err := call("GET", "/containers/"+cmd.Arg(0)+"/port?"+v.Encode())
+	if err != nil {
+		return err
 	}
+
+	var out ApiPort
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+	fmt.Println(out.Port)
 	return nil
 }
-*/
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func CmdRmi(args []string) error {
@@ -423,12 +428,12 @@ func CmdHistory(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "images/"+cmd.Arg(0)+"/history")
+	body, err := call("GET", "/images/"+cmd.Arg(0)+"/history")
 	if err != nil {
 		return err
 	}
 
-	var outs []HistoryOut
+	var outs []ApiHistory
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -599,38 +604,29 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...
 }
 */
 
-/*
-func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")
+func CmdPull(args []string) error {
+	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	remote := cmd.Arg(0)
-	if remote == "" {
+
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 
-	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
-	if srv.runtime.graph.LookupRemoteImage(remote, srv.runtime.authConfig) {
-	//	if err := srv.runtime.graph.PullImage(stdout, remote, srv.runtime.authConfig); err != nil {
-	//		return err
-	//	}
-		return nil
+	if err := callStream("POST", "/images/"+cmd.Arg(0)+"/pull", nil, false); err != nil {
+		return err
 	}
-	// FIXME: Allow pull repo:tag
-	//if err := srv.runtime.graph.PullRepository(stdout, remote, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
-	//	return err
-	//}
+
 	return nil
 }
-*/
 
 func CmdImages(args []string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
-	
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -649,12 +645,12 @@ func CmdImages(args []string) error {
 		v.Set("all", "true")
 	}
 
-	body, err := call("GET", "images?"+v.Encode())
+	body, err := call("GET", "/images?"+v.Encode())
 	if err != nil {
 		return err
 	}
 
-	var outs []ImagesOut
+	var outs []ApiImages
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -705,13 +701,13 @@ func CmdPs(args []string) error {
 	if *last != -1 {
 		v.Set("n", strconv.Itoa(*last))
 	}
-	
-	body, err := call("GET", "containers?"+v.Encode())
+
+	body, err := call("GET", "/containers?"+v.Encode())
 	if err != nil {
 		return err
 	}
 
-	var outs []PsOut
+	var outs []ApiContainers
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -723,7 +719,7 @@ func CmdPs(args []string) error {
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", out.Id, out.Image, out.Command, out.Status, out.Created)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", out.Id, out.Image, out.Command, out.Status, out.Created)
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}
@@ -818,12 +814,12 @@ func CmdLogs(args []string) error {
 		cmd.Usage()
 		return nil
 	}
-	body, err := call("GET", "containers/"+cmd.Arg(0)+"/logs")
+	body, err := call("GET", "/containers/"+cmd.Arg(0)+"/logs")
 	if err != nil {
 		return err
 	}
 
-	var out LogsOut
+	var out ApiLogs
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
@@ -915,98 +911,56 @@ func (opts AttachOpts) Get(val string) bool {
 	return false
 }
 
-
-/*
-func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
+func CmdTag(args []string) error {
+	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 2 {
+	if cmd.NArg() != 2 && cmd.NArg() != 3 {
 		cmd.Usage()
 		return nil
 	}
-	return srv.runtime.repositories.Set(cmd.Arg(1), cmd.Arg(2), cmd.Arg(0), *force)
-}
-*/
 
-/*
-func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	config, err := ParseRun(args)
+	v := url.Values{}
+	v.Set("repo", cmd.Arg(1))
+	if cmd.NArg() == 3 {
+		v.Set("tag", cmd.Arg(2))
+	}
+
+	if *force {
+		v.Set("force", "true")
+	}
+
+	if err := callStream("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil, false); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CmdRun(args []string) error {
+	fmt.Println("CmdRun")
+	config, cmd, err := ParseRun(args)
 	if err != nil {
 		return err
 	}
 	if config.Image == "" {
-		fmt.Fprintln(stdout, "Error: Image not specified")
-		return fmt.Errorf("Image not specified")
+		cmd.Usage()
+		return nil
 	}
 	if len(config.Cmd) == 0 {
-		fmt.Fprintln(stdout, "Error: Command not specified")
-		return fmt.Errorf("Command not specified")
+		cmd.Usage()
+		return nil
 	}
 
-	if config.Tty {
-		stdout.SetOptionRawTerminal()
-	}
-	// Flush the options to make sure the client sets the raw mode
-	// or tell the client there is no options
-	stdout.Flush()
-
-	// Create new container
-	container, err := srv.runtime.Create(config)
-	if err != nil {
-		// If container not found, try to pull it
-		if srv.runtime.graph.IsNotExist(err) {
-			fmt.Fprintf(stdout, "Image %s not found, trying to pull it from registry.\r\n", config.Image)
-			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
-				return err
-			}
-			if container, err = srv.runtime.Create(config); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	var (
-		cStdin           io.ReadCloser
-		cStdout, cStderr io.Writer
-	)
-	if config.AttachStdin {
-		r, w := io.Pipe()
-		go func() {
-			defer w.Close()
-			defer Debugf("Closing buffered stdin pipe")
-			io.Copy(w, stdin)
-		}()
-		cStdin = r
-	}
-	if config.AttachStdout {
-		cStdout = stdout
-	}
-	if config.AttachStderr {
-		cStderr = stdout // FIXME: rcli can't differentiate stdout from stderr
-	}
-
-	attachErr := container.Attach(cStdin, stdin, cStdout, cStderr)
-	Debugf("Starting\n")
-	if err := container.Start(); err != nil {
+	if err := callStream("POST", "/containers", *config, config.Tty); err != nil {
 		return err
 	}
-	if cStdout == nil && cStderr == nil {
-		fmt.Fprintln(stdout, container.ShortId())
-	}
-	Debugf("Waiting for attach to return\n")
-	<-attachErr
-	// Expecting I/O pipe error, discarding
 	return nil
- }
- */
+}
 
-	
 func call(method, path string) ([]byte, error) {
-	req, err := http.NewRequest(method, "http://0.0.0.0:4243/" + path, nil)
+	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1025,43 +979,59 @@ func call(method, path string) ([]byte, error) {
 	return body, nil
 
 }
-/*
-func apiPost(path string, data interface{}) ([]byte, error) {
-	buf, err := json.Marshal(data)
+
+func callStream(method, path string, data interface{}, isTerminal bool) error {
+	var body io.Reader
+	if data != nil {
+		buf, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBuffer(buf)
+	}
+	req, err := http.NewRequest(method, path, body)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	dataBuf := bytes.NewBuffer(buf)
-	resp, err := http.Post("http://0.0.0.0:4243/"+path, "application/json", dataBuf)
+
+	if data != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	dial, err := net.Dial("tcp", "0.0.0.0:4243")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	clientconn := httputil.NewClientConn(dial, nil)
+	clientconn.Do(req)
+	defer clientconn.Close()
+
+	rwc, _ := clientconn.Hijack()
+	defer rwc.Close()
+
+	receiveStdout := Go(func() error {
+		_, err := io.Copy(os.Stdout, rwc)
+		return err
+	})
+	sendStdin := Go(func() error {
+		_, err := io.Copy(rwc, os.Stdin)
+		rwc.Close()
+		return err
+	})
+
+	if err := <-receiveStdout; err != nil {
+		return err
 	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[error] %s", body)
+	if isTerminal {
+		if err := <-sendStdin; err != nil {
+			return err
+		}
 	}
-	return body, nil
+
+	return nil
+
 }
 
-func apiPostHijack(path string, data interface{}) (io.ReadCloser, error) {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	dataBuf := bytes.NewBuffer(buf)
-	resp, err := http.Post("http://0.0.0.0:4243/"+path, "application/json", dataBuf)
-	if err != nil {
-		return nil, err
-	}
-	//TODO check status code
-
-	return resp.Body, nil
-}
-*/
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {

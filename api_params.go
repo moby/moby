@@ -1,33 +1,19 @@
 package docker
 
-type SimpleMessage struct {
-	Message string
-}
-
-type HistoryIn struct {
-	Name string
-}
-
-type HistoryOut struct {
+type ApiHistory struct {
 	Id        string
 	Created   string
 	CreatedBy string
 }
 
-type ImagesIn struct {
-	NameFilter string
-	Quiet      bool
-	All        bool
-}
-
-type ImagesOut struct {
+type ApiImages struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
 	Id         string
 	Created    string `json:",omitempty"`
 }
 
-type InfoOut struct {
+type ApiInfo struct {
 	Containers  int
 	Version     string
 	Images      int
@@ -36,14 +22,7 @@ type InfoOut struct {
 	NGoroutines int `json:",omitempty"`
 }
 
-type PsIn struct {
-	Quiet bool
-	All   bool
-	Full  bool
-	Last  int
-}
-
-type PsOut struct {
+type ApiContainers struct {
 	Id      string
 	Image   string `json:",omitempty"`
 	Command string `json:",omitempty"`
@@ -51,20 +30,16 @@ type PsOut struct {
 	Status  string `json:",omitempty"`
 }
 
-type PullIn struct {
-	Name string
-}
-
-type LogsIn struct {
-	Name string
-}
-
-type LogsOut struct {
+type ApiLogs struct {
 	Stdout string
 	Stderr string
 }
 
-type VersionOut struct {
+type ApiPort struct {
+	Port string
+}
+
+type ApiVersion struct {
 	Version             string
 	GitCommit           string
 	MemoryLimitDisabled bool

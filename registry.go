@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -95,10 +94,10 @@ func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig)
 
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
-func (graph *Graph) getRemoteImage(stdout *bufio.ReadWriter, imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
+func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
 	client := &http.Client{}
 
-	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId);stdout.Flush()
+	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId)
 	// Get the Json
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
 	if err != nil {
@@ -126,7 +125,7 @@ func (graph *Graph) getRemoteImage(stdout *bufio.ReadWriter, imgId string, authC
 	img.Id = imgId
 
 	// Get the layer
-	fmt.Fprintf(stdout, "Pulling %s fs layer\r\n", imgId);stdout.Flush()
+	fmt.Fprintf(stdout, "Pulling %s fs layer\r\n", imgId)
 	req, err = http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/layer", nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
@@ -139,7 +138,7 @@ func (graph *Graph) getRemoteImage(stdout *bufio.ReadWriter, imgId string, authC
 	return img, ProgressReader(res.Body, int(res.ContentLength), stdout), nil
 }
 
-func (graph *Graph) PullImage(stdout *bufio.ReadWriter, imgId string, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
 	history, err := graph.getRemoteHistory(imgId, authConfig)
 	if err != nil {
 		return err
@@ -162,7 +161,7 @@ func (graph *Graph) PullImage(stdout *bufio.ReadWriter, imgId string, authConfig
 }
 
 // FIXME: Handle the askedTag parameter
-func (graph *Graph) PullRepository(stdout *bufio.ReadWriter, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
+func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
 	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)

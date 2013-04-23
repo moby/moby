@@ -2,6 +2,7 @@ package docker
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/kr/pty"
 	"io"
@@ -65,7 +66,7 @@ type Config struct {
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
-func ParseRun(args []string) (*Config, error) {
+func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -95,10 +96,10 @@ func ParseRun(args []string) (*Config, error) {
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	if err := cmd.Parse(args); err != nil {
-		return nil, err
+		return nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -138,7 +139,7 @@ func ParseRun(args []string) (*Config, error) {
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, nil
+	return config, cmd, nil
 }
 
 type NetworkSettings struct {
