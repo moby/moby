@@ -492,64 +492,65 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	return nil
 }
 
-// func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-// 	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
-// 	if err := cmd.Parse(args); err != nil {
-// 		return nil
-// 	}
-// 	local := cmd.Arg(0)
+func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
+	registry := cmd.String("registry", "", "Registry host to push the image to")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	local := cmd.Arg(0)
 
-// 	if local == "" {
-// 		cmd.Usage()
-// 		return nil
-// 	}
+	if local == "" {
+		cmd.Usage()
+		return nil
+	}
 
-// 	// If the login failed, abort
-// 	if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
-// 		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
-// 			return err
-// 		}
-// 		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
-// 			return fmt.Errorf("Please login prior to push. ('docker login')")
-// 		}
-// 	}
+	// If the login failed AND we're using the index, abort
+	if *registry == "" && (srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "") {
+		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
+			return err
+		}
+		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+			return fmt.Errorf("Please login prior to push. ('docker login')")
+		}
+	}
 
-// 	var remote string
+	var remote string
 
-// 	tmp := strings.SplitN(local, "/", 2)
-// 	if len(tmp) == 1 {
-// 		return fmt.Errorf(
-// 			"Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)",
-// 			srv.runtime.authConfig.Username, local)
-// 	} else {
-// 		remote = local
-// 	}
+	tmp := strings.SplitN(local, "/", 2)
+	if len(tmp) == 1 {
+		return fmt.Errorf(
+			"Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)",
+			srv.runtime.authConfig.Username, local)
+	} else {
+		remote = local
+	}
 
-// 	Debugf("Pushing [%s] to [%s]\n", local, remote)
+	Debugf("Pushing [%s] to [%s]\n", local, remote)
 
-// 	// Try to get the image
-// 	// FIXME: Handle lookup
-// 	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
-// 	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
-// 	img, err := srv.runtime.graph.Get(local)
-// 	if err != nil {
-// 		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
-// 		// If it fails, try to get the repository
-// 		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
-// 			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
-// 				return err
-// 			}
-// 			return nil
-// 		}
+	// Try to get the image
+	// FIXME: Handle lookup
+	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
+	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
+	img, err := srv.runtime.graph.Get(local)
+	if err != nil {
+		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
+		// If it fails, try to get the repository
+		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
+			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
+				return err
+			}
+			return nil
+		}
 
-// 		return err
-// 	}
-// 	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+		return err
+	}
+	err = srv.runtime.graph.PushImage(stdout, img, *registry, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "pull", "NAME", "Pull an image or a repository from the registry")

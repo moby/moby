@@ -312,7 +312,7 @@ func (graph *Graph) Checksums(repo Repository) ([]map[string]string, error) {
 	i := 0
 	for id, sum := range checksums {
 		result[i] = map[string]string{
-			"id": id,
+			"id":       id,
 			"checksum": sum,
 		}
 		i++
