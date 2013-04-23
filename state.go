@@ -12,11 +12,15 @@ type State struct {
 	ExitCode  int
 	StartedAt time.Time
 	l         *sync.Mutex
+	Ghost     bool
 }
 
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
+		if s.Ghost {
+			return fmt.Sprintf("Ghost")
+		}
 		return fmt.Sprintf("Up %s", HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
 	return fmt.Sprintf("Exit %d", s.ExitCode)

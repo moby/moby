@@ -12,9 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -69,23 +72,30 @@ type progressReader struct {
 	readTotal    int           // Expected stream length (bytes)
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
+	template     string        // Template to print. Default "%v/%v (%v)"
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.readProgress += read
 
-	// Only update progress for every 1% read
-	updateEvery := int(0.01 * float64(r.readTotal))
-	if r.readProgress-r.lastUpdate > updateEvery || r.readProgress == r.readTotal {
-		fmt.Fprintf(r.output, "%d/%d (%.0f%%)\r",
-			r.readProgress,
-			r.readTotal,
-			float64(r.readProgress)/float64(r.readTotal)*100)
+	updateEvery := 4096
+	if r.readTotal > 0 {
+		// Only update progress for every 1% read
+		if increment := int(0.01 * float64(r.readTotal)); increment > updateEvery {
+			updateEvery = increment
+		}
+	}
+	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
+		if r.readTotal > 0 {
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+		} else {
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, "?", "n/a")
+		}
 		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
-	if err == io.EOF {
+	if err != nil {
 		fmt.Fprintf(r.output, "\n")
 	}
 
@@ -94,8 +104,11 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer) *progressReader {
-	return &progressReader{r, output, size, 0, 0}
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string) *progressReader {
+	if template == "" {
+		template = "%v/%v (%v)"
+	}
+	return &progressReader{r, output, size, 0, 0, template}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -383,4 +396,105 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+type KernelVersionInfo struct {
+	Kernel int
+	Major  int
+	Minor  int
+	Flavor string
+}
+
+// FIXME: this doens't build on Darwin
+func GetKernelVersion() (*KernelVersionInfo, error) {
+	var uts syscall.Utsname
+
+	if err := syscall.Uname(&uts); err != nil {
+		return nil, err
+	}
+
+	release := make([]byte, len(uts.Release))
+
+	i := 0
+	for _, c := range uts.Release {
+		release[i] = byte(c)
+		i++
+	}
+
+	tmp := strings.SplitN(string(release), "-", 2)
+	if len(tmp) != 2 {
+		return nil, fmt.Errorf("Unrecognized kernel version")
+	}
+	tmp2 := strings.SplitN(tmp[0], ".", 3)
+	if len(tmp2) != 3 {
+		return nil, fmt.Errorf("Unrecognized kernel version")
+	}
+
+	kernel, err := strconv.Atoi(tmp2[0])
+	if err != nil {
+		return nil, err
+	}
+
+	major, err := strconv.Atoi(tmp2[1])
+	if err != nil {
+		return nil, err
+	}
+
+	minor, err := strconv.Atoi(tmp2[2])
+	if err != nil {
+		return nil, err
+	}
+
+	flavor := tmp[1]
+
+	return &KernelVersionInfo{
+		Kernel: kernel,
+		Major:  major,
+		Minor:  minor,
+		Flavor: flavor,
+	}, nil
+}
+
+func (k *KernelVersionInfo) String() string {
+	return fmt.Sprintf("%d.%d.%d-%s", k.Kernel, k.Major, k.Minor, k.Flavor)
+}
+
+// Compare two KernelVersionInfo struct.
+// Returns -1 if a < b, = if a == b, 1 it a > b
+func CompareKernelVersion(a, b *KernelVersionInfo) int {
+	if a.Kernel < b.Kernel {
+		return -1
+	} else if a.Kernel > b.Kernel {
+		return 1
+	}
+
+	if a.Major < b.Major {
+		return -1
+	} else if a.Major > b.Major {
+		return 1
+	}
+
+	if a.Minor < b.Minor {
+		return -1
+	} else if a.Minor > b.Minor {
+		return 1
+	}
+
+	return 0
+}
+
+func FindCgroupMountpoint(cgroupType string) (string, error) {
+	output, err := exec.Command("mount").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	reg := regexp.MustCompile(`^cgroup on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
+	for _, line := range strings.Split(string(output), "\n") {
+		r := reg.FindStringSubmatch(line)
+		if len(r) == 2 {
+			return r[1], nil
+		}
+	}
+	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }

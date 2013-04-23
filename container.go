@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -33,13 +35,14 @@ type Container struct {
 	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
-	SysInitPath string
-	cmd         *exec.Cmd
-	stdout      *writeBroadcaster
-	stderr      *writeBroadcaster
-	stdin       io.ReadCloser
-	stdinPipe   io.WriteCloser
+	SysInitPath    string
+	ResolvConfPath string
 
+	cmd       *exec.Cmd
+	stdout    *writeBroadcaster
+	stderr    *writeBroadcaster
+	stdin     io.ReadCloser
+	stdinPipe io.WriteCloser
 	ptyMaster io.Closer
 
 	runtime *Runtime
@@ -61,10 +64,11 @@ type Config struct {
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
 	Env          []string
 	Cmd          []string
+	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 }
 
-func ParseRun(args []string, stdout io.Writer) (*Config, error) {
+func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Config, error) {
 	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -79,11 +83,19 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
+	if *flMemory > 0 && !capabilities.MemoryLimit {
+		fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		*flMemory = 0
+	}
+
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
+
+	var flDns ListOpts
+	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
@@ -122,8 +134,15 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		AttachStderr: flAttach.Get("stderr"),
 		Env:          flEnv,
 		Cmd:          runCmd,
+		Dns:          flDns,
 		Image:        image,
 	}
+
+	if *flMemory > 0 && !capabilities.SwapLimit {
+		fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		config.MemorySwap = -1
+	}
+
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
@@ -137,6 +156,16 @@ type NetworkSettings struct {
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]string
+}
+
+// String returns a human-readable description of the port mapping defined in the settings
+func (settings *NetworkSettings) PortMappingHuman() string {
+	var mapping []string
+	for private, public := range settings.PortMapping {
+		mapping = append(mapping, fmt.Sprintf("%s->%s", public, private))
+	}
+	sort.Strings(mapping)
+	return strings.Join(mapping, ", ")
 }
 
 func (container *Container) Cmd() *exec.Cmd {
@@ -355,6 +384,17 @@ func (container *Container) Start() error {
 	if err := container.allocateNetwork(); err != nil {
 		return err
 	}
+
+	// Make sure the config is compatible with the current kernel
+	if container.Config.Memory > 0 && !container.runtime.capabilities.MemoryLimit {
+		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		container.Config.Memory = 0
+	}
+	if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
+		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		container.Config.MemorySwap = -1
+	}
+
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
@@ -373,20 +413,25 @@ func (container *Container) Start() error {
 		params = append(params, "-u", container.Config.User)
 	}
 
+	if container.Config.Tty {
+		params = append(params, "-e", "TERM=xterm")
+	}
+
+	// Setup environment
+	params = append(params,
+		"-e", "HOME=/",
+		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	)
+
+	for _, elem := range container.Config.Env {
+		params = append(params, "-e", elem)
+	}
+
 	// Program
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
 	container.cmd = exec.Command("lxc-start", params...)
-
-	// Setup environment
-	container.cmd.Env = append(
-		[]string{
-			"HOME=/",
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
-		container.Config.Env...,
-	)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
@@ -398,10 +443,6 @@ func (container *Container) Start() error {
 
 	var err error
 	if container.Config.Tty {
-		container.cmd.Env = append(
-			[]string{"TERM=xterm"},
-			container.cmd.Env...,
-		)
 		err = container.startPty()
 	} else {
 		err = container.start()
@@ -550,9 +591,21 @@ func (container *Container) kill() error {
 	if !container.State.Running || container.cmd == nil {
 		return nil
 	}
-	if err := container.cmd.Process.Kill(); err != nil {
-		return err
+
+	// Sending SIGKILL to the process via lxc
+	output, err := exec.Command("lxc-kill", "-n", container.Id, "9").CombinedOutput()
+	if err != nil {
+		log.Printf("error killing container %s (%s, %s)", container.Id, output, err)
 	}
+
+	// 2. Wait for the process to die, in last resort, try to kill the process directly
+	if err := container.WaitTimeout(10 * time.Second); err != nil {
+		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.Id)
+		if err := container.cmd.Process.Kill(); err != nil {
+			return err
+		}
+	}
+
 	// Wait for the container to be actually stopped
 	container.Wait()
 	return nil
@@ -561,14 +614,23 @@ func (container *Container) kill() error {
 func (container *Container) Kill() error {
 	container.State.lock()
 	defer container.State.unlock()
+	if !container.State.Running {
+		return nil
+	}
+	if container.State.Ghost {
+		return fmt.Errorf("Can't kill ghost container")
+	}
 	return container.kill()
 }
 
-func (container *Container) Stop() error {
+func (container *Container) Stop(seconds int) error {
 	container.State.lock()
 	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
+	}
+	if container.State.Ghost {
+		return fmt.Errorf("Can't stop ghost container")
 	}
 
 	// 1. Send a SIGTERM
@@ -581,8 +643,8 @@ func (container *Container) Stop() error {
 	}
 
 	// 2. Wait for the process to exit on its own
-	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within 10 seconds of SIGTERM - using the force", container.Id)
+	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
+		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.Id, seconds)
 		if err := container.kill(); err != nil {
 			return err
 		}
@@ -590,8 +652,8 @@ func (container *Container) Stop() error {
 	return nil
 }
 
-func (container *Container) Restart() error {
-	if err := container.Stop(); err != nil {
+func (container *Container) Restart(seconds int) error {
+	if err := container.Stop(seconds); err != nil {
 		return err
 	}
 	if err := container.Start(); err != nil {

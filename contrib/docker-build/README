@@ -1,0 +1,68 @@
+# docker-build: build your software with docker
+
+## Description
+
+docker-build is a script to build docker images from source. It will be deprecated once the 'build' feature is incorporated into docker itself (See https://github.com/dotcloud/docker/issues/278)
+
+Author: Solomon Hykes <solomon@dotcloud.com>
+
+
+## Install
+
+docker-builder requires:
+
+1) A reasonably recent Python setup (tested on 2.7.2).
+
+2) A running docker daemon at version 0.1.4 or more recent (http://www.docker.io/gettingstarted)
+
+
+## Usage
+
+First create a valid Changefile, which defines a sequence of changes to apply to a base image.
+
+    $ cat Changefile
+    # Start build from a know base image
+    from	base:ubuntu-12.10
+    # Update ubuntu sources
+    run	echo 'deb http://archive.ubuntu.com/ubuntu quantal main universe multiverse' > /etc/apt/sources.list
+    run	apt-get update
+    # Install system packages
+    run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q git
+    run DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
+    run DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang
+    # Insert files from the host (./myscript must be present in the current directory)
+    copy	myscript /usr/local/bin/myscript
+
+
+Run docker-build, and pass the contents of your Changefile as standard input.
+
+    $ IMG=$(./docker-build < Changefile)
+
+This will take a while: for each line of the changefile, docker-build will:
+
+1. Create a new container to execute the given command or insert the given file
+2. Wait for the container to complete execution
+3. Commit the resulting changes as a new image
+4. Use the resulting image as the input of the next step
+
+
+If all the steps succeed, the result will be an image containing the combined results of each build step.
+You can trace back those build steps by inspecting the image's history:
+
+    $ docker history $IMG
+    ID                  CREATED             CREATED BY
+    1e9e2045de86        A few seconds ago   /bin/sh -c cat > /usr/local/bin/myscript; chmod +x /usr/local/bin/git
+    77db140aa62a        A few seconds ago   /bin/sh -c DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang
+    77db140aa62a        A few seconds ago   /bin/sh -c DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
+    77db140aa62a        A few seconds ago   /bin/sh -c DEBIAN_FRONTEND=noninteractive apt-get install -y -q git 
+    83e85d155451        A few seconds ago   /bin/sh -c apt-get update
+    bfd53b36d9d3        A few seconds ago   /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu quantal main universe multiverse' > /etc/apt/sources.list
+    base		2 weeks ago         /bin/bash
+    27cf78414709        2 weeks ago
+
+
+Note that your build started from 'base', as instructed by your Changefile. But that base image itself seems to have been built in 2 steps - hence the extra step in the history.
+
+
+You can use this build technique to create any image you want: a database, a web application, or anything else that can be build by a sequence of unix commands - in other words, anything else.
+

@@ -13,6 +13,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   archlinux
    vagrant
    windows
    amazon

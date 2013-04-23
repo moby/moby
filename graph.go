@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -83,12 +84,13 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData Archive, container *Container, comment string) (*Image, error) {
+func (graph *Graph) Create(layerData Archive, container *Container, comment, author string) (*Image, error) {
 	img := &Image{
 		Id:            GenerateId(),
 		Comment:       comment,
 		Created:       time.Now(),
 		DockerVersion: VERSION,
+		Author:        author,
 	}
 	if container != nil {
 		img.Parent = container.Image
@@ -111,7 +113,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	if graph.Exists(img.Id) {
 		return fmt.Errorf("Image %s already exists", img.Id)
 	}
-	tmp, err := graph.Mktemp(img.Id)
+	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
@@ -128,12 +130,32 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	return nil
 }
 
+// TempLayerArchive creates a temporary archive of the given image's filesystem layer.
+//   The archive is stored on disk and will be automatically deleted as soon as has been read.
+//   If output is not nil, a human-readable progress bar will be written to it.
+//   FIXME: does this belong in Graph? How about MktempFile, let the caller use it for archives?
+func (graph *Graph) TempLayerArchive(id string, compression Compression, output io.Writer) (*TempArchive, error) {
+	image, err := graph.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	tmp, err := graph.tmp()
+	if err != nil {
+		return nil, err
+	}
+	archive, err := image.TarLayer(compression)
+	if err != nil {
+		return nil, err
+	}
+	return NewTempArchive(ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
+}
+
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
 	if id == "" {
 		id = GenerateId()
 	}
-	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
+	tmp, err := graph.tmp()
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create temp: %s", err)
 	}
@@ -141,6 +163,10 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 		return "", fmt.Errorf("Image %d already exists", id)
 	}
 	return tmp.imageRoot(id), nil
+}
+
+func (graph *Graph) tmp() (*Graph, error) {
+	return NewGraph(path.Join(graph.Root, ":tmp:"))
 }
 
 // Check if given error is "not empty".

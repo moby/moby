@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 )
@@ -97,7 +98,7 @@ func (graph *Graph) LookupRemoteImage(imgId string, authConfig *auth.AuthConfig)
 func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) (*Image, Archive, error) {
 	client := &http.Client{}
 
-	fmt.Fprintf(stdout, "Pulling %s metadata\n", imgId)
+	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId)
 	// Get the Json
 	req, err := http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/json", nil)
 	if err != nil {
@@ -125,7 +126,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *a
 	img.Id = imgId
 
 	// Get the layer
-	fmt.Fprintf(stdout, "Pulling %s fs layer\n", imgId)
+	fmt.Fprintf(stdout, "Pulling %s fs layer\r\n", imgId)
 	req, err = http.NewRequest("GET", REGISTRY_ENDPOINT+"/images/"+imgId+"/layer", nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
@@ -135,7 +136,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId string, authConfig *a
 	if err != nil {
 		return nil, nil, err
 	}
-	return img, ProgressReader(res.Body, int(res.ContentLength), stdout), nil
+	return img, ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
 }
 
 func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.AuthConfig) error {
@@ -164,7 +165,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := &http.Client{}
 
-	fmt.Fprintf(stdout, "Pulling repository %s\n", remote)
+	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)
 
 	var repositoryTarget string
 	// If we are asking for 'root' repository, lookup on the Library's registry
@@ -196,7 +197,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		return err
 	}
 	for tag, rev := range t {
-		fmt.Fprintf(stdout, "Pulling tag %s:%s\n", remote, tag)
+		fmt.Fprintf(stdout, "Pulling tag %s:%s\r\n", remote, tag)
 		if err = graph.PullImage(stdout, rev, authConfig); err != nil {
 			return err
 		}
@@ -223,7 +224,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
 		}
 
-		fmt.Fprintf(stdout, "Pushing %s metadata\n", img.Id)
+		fmt.Fprintf(stdout, "Pushing %s metadata\r\n", img.Id)
 
 		// FIXME: try json with UTF8
 		jsonData := strings.NewReader(string(jsonRaw))
@@ -253,7 +254,7 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			}
 		}
 
-		fmt.Fprintf(stdout, "Pushing %s fs layer\n", img.Id)
+		fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
 		req2, err := http.NewRequest("PUT", REGISTRY_ENDPOINT+"/images/"+img.Id+"/layer", nil)
 		req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 		res2, err := client.Do(req2)
@@ -269,24 +270,20 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, authConfig *auth
 			return fmt.Errorf("Failed to retrieve layer upload location: %s", err)
 		}
 
-		// FIXME: Don't do this :D. Check the S3 requierement and implement chunks of 5MB
-		// FIXME2: I won't stress it enough, DON'T DO THIS! very high priority
-		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		tmp, err := ioutil.ReadAll(layerData2)
+		// FIXME: stream the archive directly to the registry instead of buffering it on disk. This requires either:
+		//	a) Implementing S3's proprietary streaming logic, or
+		//	b) Stream directly to the registry instead of S3.
+		// I prefer option b. because it doesn't lock us into a proprietary cloud service.
+		tmpLayer, err := graph.TempLayerArchive(img.Id, Xz, stdout)
 		if err != nil {
 			return err
 		}
-		layerLength := len(tmp)
-
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		if err != nil {
-			return fmt.Errorf("Failed to generate layer archive: %s", err)
-		}
-		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(layerData.(io.ReadCloser), layerLength, stdout))
+		defer os.Remove(tmpLayer.Name())
+		req3, err := http.NewRequest("PUT", url.String(), ProgressReader(tmpLayer, int(tmpLayer.Size), stdout, "Uploading %v/%v (%v)"))
 		if err != nil {
 			return err
 		}
-		req3.ContentLength = int64(layerLength)
+		req3.ContentLength = int64(tmpLayer.Size)
 
 		req3.TransferEncoding = []string{"none"}
 		res3, err := client.Do(req3)
@@ -375,15 +372,15 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, a
 	// Check if the local impage exists
 	img, err := graph.Get(imgId)
 	if err != nil {
-		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\n", remote, tag, imgId)
+		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\r\n", remote, tag, imgId)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Pushing tag %s:%s\n", remote, tag)
+	fmt.Fprintf(stdout, "Pushing tag %s:%s\r\n", remote, tag)
 	// Push the image
 	if err = graph.PushImage(stdout, img, authConfig); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Registering tag %s:%s\n", remote, tag)
+	fmt.Fprintf(stdout, "Registering tag %s:%s\r\n", remote, tag)
 	// And then the tag
 	if err = graph.pushTag(remote, imgId, tag, authConfig); err != nil {
 		return err
@@ -399,7 +396,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return fmt.Errorf("Permission denied on repository %s\n", remote)
 	}
 
-	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\n", remote, len(localRepo))
+	fmt.Fprintf(stdout, "Pushing repository %s (%d tags)\r\n", remote, len(localRepo))
 	// For each image within the repo, push them
 	for tag, imgId := range localRepo {
 		if err := graph.pushPrimitive(stdout, remote, tag, imgId, authConfig); err != nil {

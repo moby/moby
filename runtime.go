@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -13,6 +14,11 @@ import (
 	"strings"
 	"time"
 )
+
+type Capabilities struct {
+	MemoryLimit bool
+	SwapLimit   bool
+}
 
 type Runtime struct {
 	root           string
@@ -23,6 +29,8 @@ type Runtime struct {
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
 	idIndex        *TruncIndex
+	capabilities   *Capabilities
+	kernelVersion  *KernelVersionInfo
 }
 
 var sysInitPath string
@@ -82,6 +90,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
+
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		Id:              id,
@@ -100,6 +109,24 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if err := os.Mkdir(container.root, 0700); err != nil {
 		return nil, err
 	}
+
+	// If custom dns exists, then create a resolv.conf for the container
+	if len(config.Dns) > 0 {
+		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
+		f, err := os.Create(container.ResolvConfPath)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		for _, dns := range config.Dns {
+			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		container.ResolvConfPath = "/etc/resolv.conf"
+	}
+
 	// Step 2: save the container json
 	if err := container.ToDisk(); err != nil {
 		return nil, err
@@ -119,6 +146,9 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if container.Id != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
 	}
+	if container.State.Running {
+		container.State.Ghost = true
+	}
 	if err := runtime.Register(container); err != nil {
 		return nil, err
 	}
@@ -133,6 +163,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateId(container.Id); err != nil {
 		return err
 	}
+
+	// init the wait lock
+	container.waitLock = make(chan struct{})
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -150,6 +183,14 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 		}
 	}
+
+	// If the container is not running or just has been flagged not running
+	// then close the wait lock chan (will be reset upon start)
+	if !container.State.Running {
+		close(container.waitLock)
+	}
+
+	// Even if not running, we init the lock (prevents races in start/stop/kill)
 	container.State.initLock()
 
 	container.runtime = runtime
@@ -184,7 +225,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
 	}
 
-	if err := container.Stop(); err != nil {
+	if err := container.Stop(10); err != nil {
 		return err
 	}
 	if mounted, err := container.Mounted(); err != nil {
@@ -205,7 +246,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag, comment string) (*Image, error) {
+func (runtime *Runtime) Commit(id, repository, tag, comment, author string) (*Image, error) {
 	container := runtime.Get(id)
 	if container == nil {
 		return nil, fmt.Errorf("No such container: %s", id)
@@ -217,7 +258,7 @@ func (runtime *Runtime) Commit(id, repository, tag, comment string) (*Image, err
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment)
+	img, err := runtime.graph.Create(rwTar, container, comment, author)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +290,38 @@ func (runtime *Runtime) restore() error {
 
 // FIXME: harmonize with NewGraph()
 func NewRuntime() (*Runtime, error) {
-	return NewRuntimeFromDirectory("/var/lib/docker")
+	runtime, err := NewRuntimeFromDirectory("/var/lib/docker")
+	if err != nil {
+		return nil, err
+	}
+
+	k, err := GetKernelVersion()
+	if err != nil {
+		return nil, err
+	}
+	runtime.kernelVersion = k
+
+	if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+		log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+	}
+
+	if cgroupMemoryMountpoint, err := FindCgroupMountpoint("memory"); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
+		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
+		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
+		if !runtime.capabilities.MemoryLimit {
+		   	log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
+		}
+
+		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
+		runtime.capabilities.SwapLimit = err == nil
+		if !runtime.capabilities.SwapLimit {
+		   	log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
+		}
+	}
+	return runtime, nil
 }
 
 func NewRuntimeFromDirectory(root string) (*Runtime, error) {
@@ -288,6 +360,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		repositories:   repositories,
 		authConfig:     authConfig,
 		idIndex:        NewTruncIndex(),
+		capabilities:   &Capabilities{},
 	}
 
 	if err := runtime.restore(); err != nil {

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -21,6 +23,7 @@ type Image struct {
 	Container       string    `json:"container,omitempty"`
 	ContainerConfig Config    `json:"container_config,omitempty"`
 	DockerVersion   string    `json:"docker_version,omitempty"`
+	Author          string    `json:"author,omitempty"`
 	graph           *Graph
 }
 
@@ -92,7 +95,28 @@ func MountAUFS(ro []string, rw string, target string) error {
 		roBranches += fmt.Sprintf("%v=ro:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	return mount("none", target, "aufs", 0, branches)
+
+	//if error, try to load aufs kernel module
+	if err := mount("none", target, "aufs", 0, branches); err != nil {
+		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
+		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
+			return fmt.Errorf("Unable to load the AUFS module")
+		}
+		log.Printf("...module loaded.")
+		if err := mount("none", target, "aufs", 0, branches); err != nil {
+			return fmt.Errorf("Unable to mount using aufs")
+		}
+	}
+	return nil
+}
+
+// TarLayer returns a tar archive of the image's filesystem layer.
+func (image *Image) TarLayer(compression Compression) (Archive, error) {
+	layerPath, err := image.layer()
+	if err != nil {
+		return nil, err
+	}
+	return Tar(layerPath, compression)
 }
 
 func (image *Image) Mount(root, rw string) error {

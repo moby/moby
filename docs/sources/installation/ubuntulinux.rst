@@ -1,5 +1,10 @@
-Docker on Ubuntu
-================
+.. _ubuntu_linux:
+
+Ubuntu Linux
+============
+
+  **Please note this project is currently under heavy development. It should not be used in production.**
+
 
 Docker is now available as a Ubuntu PPA (Personal Package Archive),
 `hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
@@ -15,8 +20,7 @@ Add the custom package sources to your apt sources list. Copy and paste both the
 
 .. code-block:: bash
 
-   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' \
-   >> /etc/apt/sources.list"
+   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"
 
 
 Update your sources. You will see a warning that GPG signatures cannot be verified.
@@ -33,12 +37,11 @@ Now install it, you will see another warning that the package cannot be authenti
    sudo apt-get install lxc-docker
 
 
-**Run!**
+Verify it worked
 
 .. code-block:: bash
 
    docker
 
 
-
-Probably you would like to continue with the :ref:`hello_world` example.
+**Done!**, now continue with the :ref:`hello_world` example.

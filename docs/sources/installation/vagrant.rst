@@ -7,7 +7,7 @@ Install using Vagrant
   Please note this is a community contributed installation path. The only 'official' installation is using the
   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
 
-**requirements**
+**Requirements:**
 This guide will setup a new virtual machine with docker installed on your computer. This works on most operating
 systems, including MacOX, Windows, Linux, FreeBSD and others. If you can install these and have at least 400Mb RAM
 to spare you should be good.
@@ -22,10 +22,10 @@ Install Vagrant and Virtualbox
    ``git`` in a terminal window
 
 
-Spin up your machine
---------------------
+Spin it up
+----------
 
-1. Fetch the docker sources (this includes the instructions for machine setup).
+1. Fetch the docker sources (this includes the Vagrantfile for machine setup).
 
 .. code-block:: bash
 
