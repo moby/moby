@@ -530,16 +530,42 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
+// FIXME: replace this with a control socket within docker-init
+func (container *Container) waitLxc() error {
+	for {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				return nil
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return nil
+}
+
 func (container *Container) monitor() {
 	// Wait for the program to exit
 	Debugf("Waiting for process")
-	if err := container.cmd.Wait(); err != nil {
-		// Discard the error as any signals or non 0 returns will generate an error
-		Debugf("%s: Process: %s", container.Id, err)
+
+	// If the command does not exists, try to wait via lxc
+	if container.cmd == nil {
+		if err := container.waitLxc(); err != nil {
+			Debugf("%s: Process: %s", container.Id, err)
+		}
+	} else {
+		if err := container.cmd.Wait(); err != nil {
+			// Discard the error as any signals or non 0 returns will generate an error
+			Debugf("%s: Process: %s", container.Id, err)
+		}
 	}
 	Debugf("Process finished")
 
-	exitCode := container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	var exitCode int = -1
+	if container.cmd != nil {
+		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	}
 
 	// Cleanup
 	container.releaseNetwork()
@@ -588,7 +614,7 @@ func (container *Container) monitor() {
 }
 
 func (container *Container) kill() error {
-	if !container.State.Running || container.cmd == nil {
+	if !container.State.Running {
 		return nil
 	}
 
@@ -600,6 +626,9 @@ func (container *Container) kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
+		if container.cmd == nil {
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.Id)
+		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.Id)
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
@@ -617,9 +646,6 @@ func (container *Container) Kill() error {
 	if !container.State.Running {
 		return nil
 	}
-	if container.State.Ghost {
-		return fmt.Errorf("Can't kill ghost container")
-	}
 	return container.kill()
 }
 
@@ -628,9 +654,6 @@ func (container *Container) Stop(seconds int) error {
 	defer container.State.unlock()
 	if !container.State.Running {
 		return nil
-	}
-	if container.State.Ghost {
-		return fmt.Errorf("Can't stop ghost container")
 	}
 
 	// 1. Send a SIGTERM
