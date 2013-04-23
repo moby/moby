@@ -408,7 +408,7 @@ func (container *Container) Start() error {
 
 	// Create the requested volumes volumes
 	for volPath := range container.Config.Volumes {
-		if c, err := container.runtime.volumes.Create(nil, container, ""); err != nil {
+		if c, err := container.runtime.volumes.Create(nil, container, "", ""); err != nil {
 			return err
 		} else {
 			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
