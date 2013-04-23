@@ -1,30 +1,110 @@
+lxc-docker (0.1.8-1) precise; urgency=low
+
+  - Dynamically detect cgroup capabilities
+  - Issue stability warning on kernels <3.8
+  - 'docker push' buffers on disk instead of memory
+  - Fix 'docker diff' for removed files
+  - Fix 'docker stop' for ghost containers
+  - Fix handling of pidfile
+  - Various bugfixes and stability improvements
+
+ -- dotCloud <ops@dotcloud.com>  Mon, 22 Apr 2013 00:00:00 -0700
+
+
+lxc-docker (0.1.7-1) precise; urgency=low
+
+  - Container ports are available on localhost
+  - 'docker ps' shows allocated TCP ports
+  - Contributors can run 'make hack' to start a continuous integration VM
+  - Streamline ubuntu packaging & uploading
+  - Various bugfixes and stability improvements
+
+ -- dotCloud <ops@dotcloud.com>  Thu, 18 Apr 2013 00:00:00 -0700
+
+
 lxc-docker (0.1.6-1) precise; urgency=low
 
-  Improvements [+], Updates [*], Bug fixes [-]:
-  + Multiple improvements, updates and bug fixes
+  - Record the author an image with 'docker commit -author'
 
- -- dotCloud <ops@dotcloud.com>  Wed, 17 Apr 2013 20:43:43 -0700
+ -- dotCloud <ops@dotcloud.com>  Wed, 17 Apr 2013 00:00:00 -0700
 
 
-lxc-docker (0.1.4.1-1) precise; urgency=low
+lxc-docker (0.1.5-1) precise; urgency=low
 
-  Improvements [+], Updates [*], Bug fixes [-]:
-  * Test PPA
+  - Disable standalone mode
+  - Use a custom DNS resolver with 'docker -d -dns'
+  - Detect ghost containers
+  - Improve diagnosis of missing system capabilities
+  - Allow disabling memory limits at compile time
+  - Add debian packaging
+  - Documentation: installing on Arch Linux
+  - Documentation: running Redis on docker
+  - Fixed lxc 0.9 compatibility
+  - Automatically load aufs module
+  - Various bugfixes and stability improvements
 
- -- dotCloud <ops@dotcloud.com>  Mon, 15 Apr 2013 12:14:50 -0700
+ -- dotCloud <ops@dotcloud.com>  Wed, 17 Apr 2013 00:00:00 -0700
 
 
 lxc-docker (0.1.4-1) precise; urgency=low
 
-  Improvements [+], Updates [*], Bug fixes [-]:
-  * Changed default bridge interface do 'docker0'
-  - Fix a race condition when running the port allocator
+  - Full support for TTY emulation
+  - Detach from a TTY session with the escape sequence `C-p C-q`
+  - Various bugfixes and stability improvements
+  - Minor UI improvements
+  - Automatically create our own bridge interface 'docker0'
 
- -- dotCloud <ops@dotcloud.com>  Fri, 12 Apr 2013 12:20:06 -0700
+ -- dotCloud <ops@dotcloud.com>  Tue,  9 Apr 2013 00:00:00 -0700
 
 
-lxc-docker (0.1.0-1) unstable; urgency=low
+lxc-docker (0.1.3-1) precise; urgency=low
 
-  * Initial release
+  - Choose TCP frontend port with '-p :PORT'
+  - Layer format is versioned
+  - Major reliability improvements to the process manager
+  - Various bugfixes and stability improvements
 
- -- dotCloud <ops@dotcloud.com>  Mon, 25 Mar 2013 05:51:12 -0700
+ -- dotCloud <ops@dotcloud.com>  Thu,  4 Apr 2013 00:00:00 -0700
+
+
+lxc-docker (0.1.2-1) precise; urgency=low
+
+  - Set container hostname with 'docker run -h'
+  - Selective attach at run with 'docker run -a [stdin[,stdout[,stderr]]]'
+  - Various bugfixes and stability improvements
+  - UI polish
+  - Progress bar on push/pull
+  - Use XZ compression by default
+  - Make IP allocator lazy
+
+ -- dotCloud <ops@dotcloud.com>  Wed,  3 Apr 2013 00:00:00 -0700
+
+
+lxc-docker (0.1.1-1) precise; urgency=low
+
+  - Display shorthand IDs for convenience
+  - Stabilize process management
+  - Layers can include a commit message
+  - Simplified 'docker attach'
+  - Fixed support for re-attaching
+  - Various bugfixes and stability improvements
+  - Auto-download at run
+  - Auto-login on push
+  - Beefed up documentation
+
+ -- dotCloud <ops@dotcloud.com>  Sun, 31 Mar 2013 00:00:00 -0700
+
+
+lxc-docker (0.1.0-1) precise; urgency=low
+
+  - First release
+  - Implement registry in order to push/pull images
+  - TCP port allocation
+  - Fix termcaps on Linux
+  - Add documentation
+  - Add Vagrant support with Vagrantfile
+  - Add unit tests
+  - Add repository/tags to ease image management
+  - Improve the layer implementation
+
+ -- dotCloud <ops@dotcloud.com>  Sat, 23 Mar 2013 00:00:00 -0700
