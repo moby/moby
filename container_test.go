@@ -150,6 +150,82 @@ func TestMultipleAttachRestart(t *testing.T) {
 	}
 }
 
+func TestDiff(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	// Create a container and remove a file
+	container1, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container1)
+
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	c, err := container1.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	success := false
+	for _, elem := range c {
+		if elem.Path == "/etc/passwd" && elem.Kind == 2 {
+			success = true
+		}
+	}
+	if !success {
+		t.Fatalf("/etc/passwd as been removed but is not present in the diff")
+	}
+
+	// Commit the container
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create a new container from the commited image
+	container2, err := runtime.Create(
+		&Config{
+			Image: img.Id,
+			Cmd:   []string{"cat", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	if err := container2.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	c, err = container2.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, elem := range c {
+		if elem.Path == "/etc/passwd" {
+			t.Fatalf("/etc/passwd should not be present in the diff after commit.")
+		}
+	}
+}
+
 func TestCommitRun(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
