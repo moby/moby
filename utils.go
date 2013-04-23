@@ -442,7 +442,7 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 		return "", err
 	}
 
-	reg := regexp.MustCompile(`^cgroup on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
+	reg := regexp.MustCompile(`^.* on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
 	for _, line := range strings.Split(string(output), "\n") {
 		r := reg.FindStringSubmatch(line)
 		if len(r) == 2 {
