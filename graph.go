@@ -292,3 +292,30 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
 }
+
+func (graph *Graph) Checksums(repo Repository) ([]map[string]string, error) {
+	var checksums map[string]string
+	var result []map[string]string
+	for _, id := range repo {
+		img, err := graph.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		err = img.WalkHistory(func(image *Image) error {
+			checksums[image.Id] = image.Checksum
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	i := 0
+	for id, sum := range checksums {
+		result[i] = map[string]string{
+			"id": id,
+			"checksum": sum,
+		}
+		i++
+	}
+	return result, nil
+}
