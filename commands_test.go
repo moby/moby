@@ -394,4 +394,5 @@ func TestAttachDisconnect(t *testing.T) {
 	// Try to avoid the timeoout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
+	container.Wait()
 }
