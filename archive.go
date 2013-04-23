@@ -1,11 +1,13 @@
 package docker
 
 import (
+	"crypto/sha256"
 	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type Archive io.Reader
@@ -29,6 +31,25 @@ func (compression *Compression) Flag() string {
 		return "J"
 	}
 	return ""
+}
+
+func HashAndTar(path string, compression Compression) (io.Reader, error, []byte) {
+	hash := sha256.New()
+
+	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-c"+compression.Flag(), "-T", "-")
+	stdin, _ := cmd.StdinPipe()
+	filepath.Walk(".", func(path string, _ os.FileInfo, _ error) error {
+		r, _ := os.Open(path)
+		defer r.Close()
+
+		io.WriteString(stdin, path+"\n")
+		io.Copy(hash, r)
+
+		return nil
+	})
+
+	r, e := CmdStream(cmd)
+	return r, e, hash.Sum(nil)
 }
 
 func Tar(path string, compression Compression) (io.Reader, error) {
