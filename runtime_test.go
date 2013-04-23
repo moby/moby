@@ -273,7 +273,16 @@ func TestAllocatePortLocalhost(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer container.Kill()
-	time.Sleep(600 * time.Millisecond) // Wait for the container to run
+
+	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
+		for {
+			if container.State.Running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
 	conn, err := net.Dial("tcp",
 		fmt.Sprintf(
 			"localhost:%s", container.NetworkSettings.PortMapping["5555"],
@@ -293,6 +302,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 			string(output),
 		)
 	}
+	container.Wait()
 }
 
 func TestRestore(t *testing.T) {
