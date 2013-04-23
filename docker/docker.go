@@ -7,9 +7,11 @@ import (
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 )
 
@@ -54,8 +56,13 @@ func main() {
 }
 
 func createPidFile(pidfile string) error {
-	if _, err := os.Stat(pidfile); err == nil {
-		return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
+	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
+		pid, err := strconv.Atoi(string(pidString))
+		if err == nil {
+			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
+				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
+			}
+		}
 	}
 
 	file, err := os.Create(pidfile)
