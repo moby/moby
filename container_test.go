@@ -22,9 +22,8 @@ func TestIdFormat(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
 	)
 	if err != nil {
@@ -50,7 +49,6 @@ func TestMultipleAttachRestart(t *testing.T) {
 			Image: GetTestImage(runtime).Id,
 			Cmd: []string{"/bin/sh", "-c",
 				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
-			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -227,9 +225,8 @@ func TestCommitRun(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello > /world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
 		},
 	)
 	if err != nil {
@@ -260,9 +257,8 @@ func TestCommitRun(t *testing.T) {
 
 	container2, err := runtime.Create(
 		&Config{
-			Image:  img.Id,
-			Memory: 33554432,
-			Cmd:    []string{"cat", "/world"},
+			Image: img.Id,
+			Cmd:   []string{"cat", "/world"},
 		},
 	)
 	if err != nil {
@@ -347,9 +343,8 @@ func TestRun(t *testing.T) {
 	defer nuke(runtime)
 	container, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Memory: 33554432,
-			Cmd:    []string{"ls", "-al"},
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"ls", "-al"},
 		},
 	)
 	if err != nil {
