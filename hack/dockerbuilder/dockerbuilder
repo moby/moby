@@ -12,16 +12,13 @@ fi
 export REVISION=$1 AWS_ID=$2 AWS_KEY=$3
 
 START=$(pwd)
-mkdir -p go/src/$PACKAGE
-git clone "https://$PACKAGE" go/src/$PACKAGE
-cd go/src/$PACKAGE
+git clone "https://$PACKAGE" docker-checkout-$REVISION
+cd docker-checkout-$REVISION
 git checkout $REVISION
 
-# FIXME: checkout to specific revision
-
+make
 BUILDDIR=${START}/docker-$REVISION
-mkdir -p $BUILDDIR
-(export GOPATH=${START}/go; cd docker && go get -v && go build -v -o $BUILDDIR/docker)
+cp -R ./bin $BUILDDIR
 
 BUILD_ARCHIVE=${START}/docker-$REVISION.tgz
 tar -f $BUILD_ARCHIVE -C $(dirname $BUILDDIR) -zc $(basename $BUILDDIR)
