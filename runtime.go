@@ -295,14 +295,13 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	k, err := GetKernelVersion()
-	if err != nil {
-		return nil, err
-	}
-	runtime.kernelVersion = k
-
-	if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-		log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+	if k, err := GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		runtime.kernelVersion = k
+		if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+		}
 	}
 
 	if cgroupMemoryMountpoint, err := FindCgroupMountpoint("memory"); err != nil {

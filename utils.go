@@ -14,10 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -407,52 +405,7 @@ type KernelVersionInfo struct {
 
 // FIXME: this doens't build on Darwin
 func GetKernelVersion() (*KernelVersionInfo, error) {
-	var uts syscall.Utsname
-
-	if err := syscall.Uname(&uts); err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	tmp := strings.SplitN(string(release), "-", 2)
-	if len(tmp) != 2 {
-		return nil, fmt.Errorf("Unrecognized kernel version")
-	}
-	tmp2 := strings.SplitN(tmp[0], ".", 3)
-	if len(tmp2) != 3 {
-		return nil, fmt.Errorf("Unrecognized kernel version")
-	}
-
-	kernel, err := strconv.Atoi(tmp2[0])
-	if err != nil {
-		return nil, err
-	}
-
-	major, err := strconv.Atoi(tmp2[1])
-	if err != nil {
-		return nil, err
-	}
-
-	minor, err := strconv.Atoi(tmp2[2])
-	if err != nil {
-		return nil, err
-	}
-
-	flavor := tmp[1]
-
-	return &KernelVersionInfo{
-		Kernel: kernel,
-		Major:  major,
-		Minor:  minor,
-		Flavor: flavor,
-	}, nil
+	return getKernelVersion()
 }
 
 func (k *KernelVersionInfo) String() string {
