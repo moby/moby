@@ -116,8 +116,8 @@ func TestMultipleAttachRestart(t *testing.T) {
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	timeout := make(chan bool)
-	go func() {
+
+	setTimeout(t, "Timeout reading from the process", 3*time.Second, func() {
 		l1, err = bufio.NewReader(stdout1).ReadString('\n')
 		if err != nil {
 			t.Fatal(err)
@@ -139,15 +139,8 @@ func TestMultipleAttachRestart(t *testing.T) {
 		if strings.Trim(l3, " \r\n") != "hello" {
 			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
 		}
-		timeout <- false
-	}()
-	go func() {
-		time.Sleep(3 * time.Second)
-		timeout <- true
-	}()
-	if <-timeout {
-		t.Fatalf("Timeout reading from the process")
-	}
+	})
+	container.Wait()
 }
 
 func TestDiff(t *testing.T) {
