@@ -352,20 +352,14 @@ func CmdInspect(args []string) error {
 		cmd.Usage()
 		return nil
 	}
-	var obj interface{}
-	var err error
-	obj, err = call("GET", "/containers/"+cmd.Arg(0))
+	obj, err := call("GET", "/containers/"+cmd.Arg(0))
 	if err != nil {
 		obj, err = call("GET", "/images/"+cmd.Arg(0))
 		if err != nil {
 			return err
 		}
 	}
-	b, err := json.MarshalIndent(obj, "", "    ")
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\n", b)
+	fmt.Printf("%s\n", obj)
 	return nil
 }
 
@@ -1004,18 +998,8 @@ func callStream(method, path string, data interface{}, isTerminal bool) error {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
-	resp, err := clientconn.Do(req)
+	clientconn.Do(req)
 	defer clientconn.Close()
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("error: %s", body)
-	}
 
 	rwc, _ := clientconn.Hijack()
 	defer rwc.Close()
