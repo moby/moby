@@ -17,9 +17,9 @@ func NewBuilder(runtime *Runtime) *Builder {
 	}
 }
 
-func (builder *Builder) run(image *Image, cmd string) (*Container, error) {
+func (builder *Builder) Run(image *Image, cmd ...string) (*Container, error) {
 	// FIXME: pass a NopWriter instead of nil
-	config, err := ParseRun([]string{"-d", image.Id, "/bin/sh", "-c", cmd}, nil, builder.runtime.capabilities)
+	config, err := ParseRun(append([]string{"-d", image.Id}, cmd...), nil, builder.runtime.capabilities)
 	if config.Image == "" {
 		return nil, fmt.Errorf("Image not specified")
 	}
@@ -94,7 +94,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			}
 
 			// Create the container and start it
-			c, err := builder.run(image, tmp[1])
+			c, err := builder.Run(image, "/bin/sh", "-c", tmp[1])
 			if err != nil {
 				return err
 			}
