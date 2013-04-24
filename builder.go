@@ -110,7 +110,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			}
 
 			// Commit the container
-			base, err := builder.Commit(c, "", "", "", "")
+			base, err = builder.Commit(c, "", "", "", "")
 			if err != nil {
 				return err
 			}
