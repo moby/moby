@@ -44,3 +44,7 @@ type ApiVersion struct {
 	GitCommit           string
 	MemoryLimitDisabled bool
 }
+
+type ApiWait struct {
+	StatusCode int
+}
