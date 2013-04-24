@@ -339,7 +339,7 @@ func TestAttachDisconnect(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, err := NewBuilder(runtime).Create(
 		&Config{
 			Image:     GetTestImage(runtime).Id,
 			Memory:    33554432,
