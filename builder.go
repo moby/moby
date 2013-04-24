@@ -116,10 +116,39 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			}
 			tmpImages[base.Id] = struct{}{}
 
-			fmt.Fprintf(stdout, "===> %s\n", base.Id)
+			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
 			break
 		case "copy":
-			return fmt.Errorf("The copy operator has not yet been implemented")
+			if image == nil {
+				return fmt.Errorf("Please provide a source image with `from` prior to copy")
+			}
+			tmp2 := strings.SplitN(tmp[1], " ", 2)
+			if len(tmp) != 2 {
+				return fmt.Errorf("Invalid COPY format")
+			}
+			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", tmp2[0], tmp2[1], base.ShortId())
+
+			file, err := Download(tmp2[0], stdout)
+			if err != nil {
+				return err
+			}
+			defer file.Body.Close()
+
+			c, err := builder.Run(base, "echo", "insert", tmp2[0], tmp2[1])
+			if err != nil {
+				return err
+			}
+
+			if err := c.Inject(file.Body, tmp2[1]); err != nil {
+				return err
+			}
+
+			base, err = builder.Commit(c, "", "", "", "")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+			break
 		default:
 			fmt.Fprintf(stdout, "Skipping unknown op %s\n", tmp[0])
 		}
@@ -132,7 +161,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 		for i := range tmpContainers {
 			delete(tmpContainers, i)
 		}
-		fmt.Fprintf(stdout, "Build finished. image id: %s\n", base.Id)
+		fmt.Fprintf(stdout, "Build finished. image id: %s\n", base.ShortId())
 	} else {
 		fmt.Fprintf(stdout, "An error occured during the build\n")
 	}
