@@ -1,8 +1,9 @@
 Amazon EC2
 ==========
 
-    Please note this is a community contributed installation path. The only 'official' installation is using the :ref:`ubuntu_linux` installation path. This version
-    may be out of date because it depends on some binaries to be updated and published
+  Please note this is a community contributed installation path. The only 'official' installation is using the
+  :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
+
 
 Installation
 ------------
@@ -17,7 +18,7 @@ Docker can now be installed on Amazon EC2 with a single vagrant command. Vagrant
        vagrant plugin install vagrant-aws
 
 
-3. Get the docker sources, this will give you the latest Vagrantfile and puppet manifests.
+3. Get the docker sources, this will give you the latest Vagrantfile.
 
    ::
 

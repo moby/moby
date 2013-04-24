@@ -3,6 +3,10 @@
 Arch Linux
 ==========
 
+  Please note this is a community contributed installation path. The only 'official' installation is using the
+  :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
+
+
 Installing on Arch Linux is not officially supported but can be handled via 
 either of the following AUR packages:
 
@@ -40,6 +44,7 @@ new kernel will be compiled and this can take quite a while.
 
     yaourt -S lxc-docker-git
 
+
 Starting Docker
 ---------------
 
@@ -51,6 +56,7 @@ There is a systemd service unit created for docker.  To start the docker service
 ::
 
     sudo systemctl start docker
+
 
 To start on system boot:
 
