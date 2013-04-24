@@ -49,7 +49,7 @@ Save the changed we just made in the container to a new image called "_/builds/g
     WEB_WORKER=$(docker run -d -p 5000 $BUILD_IMG /usr/local/bin/runapp)
 
 - **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
-  **"-p 5000"* the web app is going to listen on this port, so it must be mapped from the container to the host system.
+- **"-p 5000"** the web app is going to listen on this port, so it must be mapped from the container to the host system.
 - **"$BUILD_IMG"** is the image we want to run the command inside of.
 - **/usr/local/bin/runapp** is the command which starts the web app.
 
