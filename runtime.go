@@ -309,33 +309,6 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	return nil
 }
 
-// Commit creates a new filesystem image from the current state of a container.
-// The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag, comment, author string, config *Config) (*Image, error) {
-	container := runtime.Get(id)
-	if container == nil {
-		return nil, fmt.Errorf("No such container: %s", id)
-	}
-	// FIXME: freeze the container before copying it to avoid data corruption?
-	// FIXME: this shouldn't be in commands.
-	rwTar, err := container.ExportRw()
-	if err != nil {
-		return nil, err
-	}
-	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
-	if err != nil {
-		return nil, err
-	}
-	// Register the image if needed
-	if repository != "" {
-		if err := runtime.repositories.Set(repository, tag, img.Id, true); err != nil {
-			return img, err
-		}
-	}
-	return img, nil
-}
-
 func (runtime *Runtime) restore() error {
 	dir, err := ioutil.ReadDir(runtime.repository)
 	if err != nil {
