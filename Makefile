@@ -48,7 +48,7 @@ release: $(BINRELEASE)
 $(SRCRELEASE):
 	rm -fr $(SRCRELEASE)
 	git clone $(GIT_ROOT) $(SRCRELEASE)
-	cd $(SRCRELEASE); git checkout -b $(RELEASE_VERSION)
+	cd $(SRCRELEASE); git checkout -q $(RELEASE_VERSION)
 
 # A binary release ready to be uploaded to a mirror
 $(BINRELEASE): $(SRCRELEASE)
