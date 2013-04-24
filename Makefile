@@ -27,24 +27,29 @@ DOCKER_MAIN := $(DOCKER_DIR)/docker
 DOCKER_BIN_RELATIVE := bin/docker
 DOCKER_BIN := $(CURDIR)/$(DOCKER_BIN_RELATIVE)
 
-.PHONY: all clean test hack release $(BINRELEASE) $(SRCRELEASE)
+.PHONY: all clean test hack release srcrelease $(BINRELEASE) $(SRCRELEASE) $(DOCKER_BIN) $(DOCKER_DIR)
 
 all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
+	@rm -f $@
 	@ln -sf $(CURDIR)/ $@
+	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
 
 whichrelease:
 	echo $(RELEASE_VERSION)
 
 release: $(BINRELEASE)
+srcrelease: $(SRCRELEASE)
+deps: $(DOCKER_DIR)
 
+# A clean checkout of $RELEASE_VERSION, with vendored dependencies
 $(SRCRELEASE):
 	rm -fr $(SRCRELEASE)
 	git clone $(GIT_ROOT) $(SRCRELEASE)
