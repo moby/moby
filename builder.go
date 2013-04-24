@@ -41,23 +41,25 @@ func (builder *Builder) run(image *Image, cmd string) (*Container, error) {
 	return container, nil
 }
 
-func (builder *Builder) runCommit(image *Image, cmd string) (*Image, error) {
-	c, err := builder.run(image, cmd)
-	if err != nil {
-		return nil, err
+func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
+	for c := range containers {
+		tmp := builder.runtime.Get(c)
+		builder.runtime.Destroy(tmp)
+		Debugf("Removing container %s", c)
 	}
-	if result := c.Wait(); result != 0 {
-		return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", cmd, result)
+	for i := range images {
+		builder.runtime.graph.Delete(i)
+		Debugf("Removing image %s", i)
 	}
-	img, err := builder.runtime.Commit(c.Id, "", "", "", "")
-	if err != nil {
-		return nil, err
-	}
-	return img, nil
 }
 
 func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
-	var image, base *Image
+	var (
+		image, base   *Image
+		tmpContainers map[string]struct{} = make(map[string]struct{})
+		tmpImages     map[string]struct{} = make(map[string]struct{})
+	)
+	defer builder.clearTmp(tmpContainers, tmpImages)
 
 	file := bufio.NewReader(dockerfile)
 	for {
@@ -90,10 +92,26 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			if image == nil {
 				return fmt.Errorf("Please provide a source image with `from` prior to run")
 			}
-			base, err = builder.runCommit(image, tmp[1])
+
+			// Create the container and start it
+			c, err := builder.run(image, tmp[1])
 			if err != nil {
 				return err
 			}
+			tmpContainers[c.Id] = struct{}{}
+
+			// Wait for it to finish
+			if result := c.Wait(); result != 0 {
+				return fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", tmp[1], result)
+			}
+
+			// Commit the container
+			base, err := builder.runtime.Commit(c.Id, "", "", "", "")
+			if err != nil {
+				return err
+			}
+			tmpImages[base.Id] = struct{}{}
+
 			fmt.Fprintf(stdout, "===> %s\n", base.Id)
 			break
 		case "copy":
@@ -103,6 +121,13 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 		}
 	}
 	if base != nil {
+		// The build is successful, keep the temporary containers and images
+		for i := range tmpImages {
+			delete(tmpImages, i)
+		}
+		for i := range tmpContainers {
+			delete(tmpContainers, i)
+		}
 		fmt.Fprintf(stdout, "Build finished. image id: %s\n", base.Id)
 	} else {
 		fmt.Fprintf(stdout, "An error occured during the build\n")
