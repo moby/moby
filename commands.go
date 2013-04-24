@@ -104,7 +104,7 @@ func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%s\n", img)
+	fmt.Fprintf(stdout, "%s\n", img.Id)
 	return nil
 }
 

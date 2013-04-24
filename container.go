@@ -170,7 +170,12 @@ func (settings *NetworkSettings) PortMappingHuman() string {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	dest, err := os.Open(path.Join(container.rwPath(), pth))
+	// Make sure the directory exists
+	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
+		return err
+	}
+	// FIXME: Handle permissions/already existing dest
+	dest, err := os.Create(path.Join(container.rwPath(), pth))
 	if err != nil {
 		return err
 	}
