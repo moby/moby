@@ -168,6 +168,18 @@ func (settings *NetworkSettings) PortMappingHuman() string {
 	return strings.Join(mapping, ", ")
 }
 
+// Inject the io.Reader at the given path. Note: do not close the reader
+func (container *Container) Inject(file io.Reader, pth string) error {
+	dest, err := os.Open(path.Join(container.rwPath(), pth))
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dest, file); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (container *Container) Cmd() *exec.Cmd {
 	return container.cmd
 }

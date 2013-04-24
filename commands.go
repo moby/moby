@@ -42,6 +42,7 @@ func (srv *Server) Help() string {
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
+		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
@@ -63,6 +64,48 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
 	return help
+}
+
+func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	stdout.Flush()
+	cmd := rcli.Subcmd(stdout, "insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+	imageId := cmd.Arg(0)
+	url := cmd.Arg(1)
+	path := cmd.Arg(2)
+
+	img, err := srv.runtime.repositories.LookupImage(imageId)
+	if err != nil {
+		return err
+	}
+	file, err := Download(url, stdout)
+	if err != nil {
+		return err
+	}
+	defer file.Body.Close()
+
+	b := NewBuilder(srv.runtime)
+	c, err := b.Run(img, "echo", "insert", url, path)
+	if err != nil {
+		return err
+	}
+
+	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), stdout, "Downloading %v/%v (%v)"), path); err != nil {
+		return err
+	}
+	// FIXME: Handle custom repo, tag comment, author
+	img, err = b.Commit(c, "", "", img.Comment, img.Author)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n", img)
+	return nil
 }
 
 func (srv *Server) CmdBuild(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
