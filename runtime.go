@@ -12,7 +12,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"time"
 )
 
 type Capabilities struct {
@@ -116,7 +115,6 @@ func (runtime *Runtime) mergeConfig(userConf, imageConf *Config) {
 }
 
 func (runtime *Runtime) Create(config *Config) (*Container, error) {
-
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
@@ -151,7 +149,6 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 	}
-
 	container.root = runtime.containerRoot(container.Id)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
@@ -187,6 +184,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	return container, nil
 }
 
+======= end
 func (runtime *Runtime) Load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {

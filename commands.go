@@ -91,8 +91,13 @@ func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	}
 	defer file.Body.Close()
 
+	config, err := ParseRun([]string{img.Id, "echo", "insert", url, path}, nil, srv.runtime.capabilities)
+	if err != nil {
+		return err
+	}
+
 	b := NewBuilder(srv.runtime)
-	c, err := b.Run(img, "echo", "insert", url, path)
+	c, err := b.Create(config)
 	if err != nil {
 		return err
 	}
@@ -1065,8 +1070,10 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	// or tell the client there is no options
 	stdout.Flush()
 
+	b := NewBuilder(srv.runtime)
+
 	// Create new container
-	container, err := srv.runtime.Create(config)
+	container, err := b.Create(config)
 	if err != nil {
 		// If container not found, try to pull it
 		if srv.runtime.graph.IsNotExist(err) {
@@ -1074,7 +1081,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
 				return err
 			}
-			if container, err = srv.runtime.Create(config); err != nil {
+			if container, err = b.Create(config); err != nil {
 				return err
 			}
 		} else {
