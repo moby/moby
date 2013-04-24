@@ -30,6 +30,10 @@ type ApiContainers struct {
 	Status  string `json:",omitempty"`
 }
 
+type ApiCommit struct {
+	Id string
+}
+
 type ApiLogs struct {
 	Stdout string
 	Stderr string

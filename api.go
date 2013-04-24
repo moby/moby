@@ -347,6 +347,32 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 	})
 
+	r.Path("/containers/{name:.*}/commit").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		vars := mux.Vars(r)
+		name := vars["name"]
+		repo := r.Form.Get("repo")
+		tag := r.Form.Get("tag")
+		comment := r.Form.Get("comment")
+
+		img, err := rtime.Commit(name, repo, tag, comment)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		b, err := json.Marshal(ApiCommit{img.ShortId()})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(b)
+		}
+	})
+
 	r.Path("/images/{name:.*}/tag").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {

@@ -26,6 +26,7 @@ var (
 func ParseCommands(args []string) error {
 
 	cmds := map[string]func(args []string) error{
+		"commit":  CmdCommit,
 		"diff":    CmdDiff,
 		"images":  CmdImages,
 		"info":    CmdInfo,
@@ -62,7 +63,7 @@ func cmdHelp(args []string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		//		{"attach", "Attach to a running container"},
-		//		{"commit", "Create a new image from a container's changes"},
+		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		//		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
@@ -727,28 +728,36 @@ func CmdPs(args []string) error {
 	return nil
 }
 
-/*
-func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
-		"Create a new image from a container's changes")
+func CmdCommit(args []string) error {
+	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	containerName, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
-	if containerName == "" {
+	name, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	if name == "" {
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment)
+	v := url.Values{}
+	v.Set("repo", repository)
+	v.Set("tag", tag)
+	v.Set("comment", *flComment)
+
+	body, err := call("POST", "/containers/"+name+"/commit?"+v.Encode())
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, img.ShortId())
+
+	var out ApiCommit
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(out.Id)
 	return nil
 }
-*/
 
 /*
 func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
@@ -958,6 +967,9 @@ func call(method, path string) ([]byte, error) {
 	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, nil)
 	if err != nil {
 		return nil, err
+	}
+	if method == "POST" {
+		req.Header.Set("Content-Type", "plain/text")
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
