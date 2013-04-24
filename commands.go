@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
+		{"build", "Build a container from Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -61,6 +63,32 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
 	return help
+}
+
+func (srv *Server) CmdBuild(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	stdout.Flush()
+	cmd := rcli.Subcmd(stdout, "build", "[Dockerfile|-]", "Build a container from Dockerfile")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	dockerfile := cmd.Arg(0)
+	if dockerfile == "" {
+		dockerfile = "Dockerfile"
+	}
+
+	var file io.Reader
+
+	if dockerfile != "-" {
+		f, err := os.Open(dockerfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		file = f
+	} else {
+		file = stdin
+	}
+	return NewBuilder(srv.runtime).Build(file, stdout)
 }
 
 // 'docker login': login / register a user to registry service.
