@@ -15,7 +15,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const INDEX_SERVER = "https://indexstaging-docker.dotcloud.com"
+const INDEX_SERVER = "http://indexstaging-docker.dotcloud.com"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -100,6 +100,7 @@ func saveConfig(rootPath, authStr string, email string) error {
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig) (string, error) {
 	storeConfig := false
+	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
 	var reqBody []byte
@@ -110,11 +111,10 @@ func Login(authConfig *AuthConfig) (string, error) {
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(INDEX_SERVER+"/v1/users", "application/json; charset=utf-8", b)
+	req1, err := http.Post(INDEX_SERVER+"/v1/users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
-
 	reqStatusCode = req1.StatusCode
 	defer req1.Body.Close()
 	reqBody, err = ioutil.ReadAll(req1.Body)
@@ -127,9 +127,8 @@ func Login(authConfig *AuthConfig) (string, error) {
 		storeConfig = true
 	} else if reqStatusCode == 400 {
 		// FIXME: This should be 'exists', not 'exist'. Need to change on the server first.
-		if string(reqBody) == "Username or email already exist" {
-			client := &http.Client{}
-			req, err := http.NewRequest("GET", INDEX_SERVER+"/v1/users", nil)
+		if string(reqBody) == "\"Username or email already exist\"" {
+			req, err := http.NewRequest("GET", INDEX_SERVER+"/v1/users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {
