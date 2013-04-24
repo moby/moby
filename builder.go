@@ -13,11 +13,13 @@ import (
 type Builder struct {
 	runtime      *Runtime
 	repositories *TagStore
+	graph        *Graph
 }
 
 func NewBuilder(runtime *Runtime) *Builder {
 	return &Builder{
 		runtime:      runtime,
+		graph:        runtime.graph,
 		repositories: runtime.repositories,
 	}
 }
@@ -83,8 +85,27 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 	return container, nil
 }
 
+// Commit creates a new filesystem image from the current state of a container.
+// The image can optionally be tagged into a repository
 func (builder *Builder) Commit(container *Container, repository, tag, comment, author string) (*Image, error) {
-	return builder.runtime.Commit(container.Id, repository, tag, comment, author)
+	// FIXME: freeze the container before copying it to avoid data corruption?
+	// FIXME: this shouldn't be in commands.
+	rwTar, err := container.ExportRw()
+	if err != nil {
+		return nil, err
+	}
+	// Create a new image from the container's base layers + a new layer from container changes
+	img, err := builder.graph.Create(rwTar, container, comment, author)
+	if err != nil {
+		return nil, err
+	}
+	// Register the image if needed
+	if repository != "" {
+		if err := builder.repositories.Set(repository, tag, img.Id, true); err != nil {
+			return img, err
+		}
+	}
+	return img, nil
 }
 
 func (builder *Builder) clearTmp(containers, images map[string]struct{}) {

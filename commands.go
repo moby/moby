@@ -810,7 +810,13 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor)
+
+	container := srv.runtime.Get(containerName)
+	if container == nil {
+		return fmt.Errorf("No such container: %s", containerName)
+	}
+
+	img, err := NewBuilder(srv.runtime).Commit(container, repository, tag, *flComment, *flAuthor)
 	if err != nil {
 		return err
 	}
