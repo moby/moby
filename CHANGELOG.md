@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 (2012-04-23)
+ - Runtime: ghost containers can be killed and waited for
+ * Documentation: update install intructions
+ - Packaging: fix Vagrantfile
+ - Development: automate releasing binaries and ubuntu packages
+ + Add a changelog
+ - Various bugfixes
+
+
 ## 0.1.8 (2013-04-22)
  - Dynamically detect cgroup capabilities
  - Issue stability warning on kernels <3.8

@@ -1,3 +1,15 @@
+lxc-docker (0.2.0-1) precise; urgency=low
+
+  - Runtime: ghost containers can be killed and waited for
+  - Documentation: update install intructions
+  - Packaging: fix Vagrantfile
+  - Development: automate releasing binaries and ubuntu packages
+  - Add a changelog
+  - Various bugfixes
+
+ -- dotCloud <ops@dotcloud.com>  Mon, 23 Apr 2013 00:00:00 -0700
+
+
 lxc-docker (0.1.8-1) precise; urgency=low
 
   - Dynamically detect cgroup capabilities
