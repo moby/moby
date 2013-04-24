@@ -41,6 +41,10 @@ func (builder *Builder) Run(image *Image, cmd ...string) (*Container, error) {
 	return container, nil
 }
 
+func (builder *Builder) Commit(container *Container, repository, tag, comment, author string) (*Image, error) {
+	return builder.runtime.Commit(container.Id, repository, tag, comment, author)
+}
+
 func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
 	for c := range containers {
 		tmp := builder.runtime.Get(c)
@@ -106,7 +110,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			}
 
 			// Commit the container
-			base, err := builder.runtime.Commit(c.Id, "", "", "", "")
+			base, err := builder.Commit(c, "", "", "", "")
 			if err != nil {
 				return err
 			}
