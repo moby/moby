@@ -51,6 +51,7 @@ docs:
 	cp sources/dotcloud.yml $(BUILDDIR)/html/
 	cp sources/CNAME $(BUILDDIR)/html/
 	cp sources/.nojekyll $(BUILDDIR)/html/
+	cp sources/nginx.conf $(BUILDDIR)/html/
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 

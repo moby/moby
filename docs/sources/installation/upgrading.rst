@@ -3,7 +3,8 @@
 Upgrading
 ============
 
-   We assume you are upgrading from within the operating system which runs your docker daemon.
+These instructions are for upgrading your Docker binary for when you had a custom (non package manager) installation.
+If you istalled docker using apt-get, use that to upgrade.
 
 
 Get the latest docker binary:
