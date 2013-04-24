@@ -3,7 +3,6 @@ package auth
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const INDEX_SERVER = "https://index.docker.io"
+const INDEX_SERVER = "https://indexstaging-docker.dotcloud.com"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -103,28 +102,24 @@ func Login(authConfig *AuthConfig) (string, error) {
 	storeConfig := false
 	reqStatusCode := 0
 	var status string
-	var errMsg string
 	var reqBody []byte
 	jsonBody, err := json.Marshal(authConfig)
 	if err != nil {
-		errMsg = fmt.Sprintf("Config Error: %s", err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Config Error: %s", err)
 	}
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
 	req1, err := http.Post(INDEX_SERVER+"/v1/users", "application/json; charset=utf-8", b)
 	if err != nil {
-		errMsg = fmt.Sprintf("Server Error: %s", err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Server Error: %s", err)
 	}
 
 	reqStatusCode = req1.StatusCode
 	defer req1.Body.Close()
 	reqBody, err = ioutil.ReadAll(req1.Body)
 	if err != nil {
-		errMsg = fmt.Sprintf("Server Error: [%#v] %s", reqStatusCode, err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
 	}
 
 	if reqStatusCode == 201 {
@@ -149,16 +144,13 @@ func Login(authConfig *AuthConfig) (string, error) {
 				status = "Login Succeeded\n"
 				storeConfig = true
 			} else {
-				status = fmt.Sprintf("Login: %s", body)
-				return "", errors.New(status)
+				return "", fmt.Errorf("Login: %s", body)
 			}
 		} else {
-			status = fmt.Sprintf("Registration: %s", reqBody)
-			return "", errors.New(status)
+			return "", fmt.Errorf("Registration: %s", reqBody)
 		}
 	} else {
-		status = fmt.Sprintf("[%s] : %s", reqStatusCode, reqBody)
-		return "", errors.New(status)
+		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
 	}
 	if storeConfig {
 		authStr := EncodeAuth(authConfig)
