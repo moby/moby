@@ -1,5 +1,9 @@
 DOCKER_PACKAGE := github.com/dotcloud/docker
+RELEASE_VERSION := $(shell git tag | grep -E "v[0-9\.]+$$" | sort -nr | head -n 1)
+SRCRELEASE := docker-$(RELEASE_VERSION)
+BINRELEASE := docker-$(RELEASE_VERSION).tgz
 
+GIT_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(CURDIR)/.gopath
 
 GOPATH ?= $(BUILD_DIR)
@@ -23,7 +27,7 @@ DOCKER_MAIN := $(DOCKER_DIR)/docker
 DOCKER_BIN_RELATIVE := bin/docker
 DOCKER_BIN := $(CURDIR)/$(DOCKER_BIN_RELATIVE)
 
-.PHONY: all clean test hack
+.PHONY: all clean test hack release $(BINRELEASE) $(SRCRELEASE)
 
 all: $(DOCKER_BIN)
 
@@ -35,6 +39,21 @@ $(DOCKER_BIN): $(DOCKER_DIR)
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
 	@ln -sf $(CURDIR)/ $@
+
+whichrelease:
+	echo $(RELEASE_VERSION)
+
+release: $(BINRELEASE)
+
+$(SRCRELEASE):
+	rm -fr $(SRCRELEASE)
+	git clone $(GIT_ROOT) $(SRCRELEASE)
+	cd $(SRCRELEASE); git checkout -b $(RELEASE_VERSION)
+
+# A binary release ready to be uploaded to a mirror
+$(BINRELEASE): $(SRCRELEASE)
+	rm -f $(BINRELEASE)
+	cd $(SRCRELEASE); make; cp -R bin docker-$(RELEASE_VERSION); tar -f ../$(BINRELEASE) -zv -c docker-$(RELEASE_VERSION)
 
 clean:
 	@rm -rf $(dir $(DOCKER_BIN))
