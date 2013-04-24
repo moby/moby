@@ -65,6 +65,43 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		http.Error(w, "No such image: "+name, http.StatusNotFound)
 	})
 
+	r.Path("/containers/{name:.*}/export").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		if container := rtime.Get(name); container != nil {
+
+			data, err := container.Export()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer conn.Close()
+			file, err := conn.(*net.TCPConn).File()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
+
+			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n\r\n")
+			// Stream the entire contents of the container (basically a volatile snapshot)
+			if _, err := io.Copy(file, data); err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
+				return
+			}
+		} else {
+			http.Error(w, "No such container: "+name, http.StatusNotFound)
+		}
+
+	})
+
 	r.Path("/containers/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)

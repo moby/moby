@@ -28,6 +28,7 @@ func ParseCommands(args []string) error {
 	cmds := map[string]func(args []string) error{
 		"commit":  CmdCommit,
 		"diff":    CmdDiff,
+		"export":  CmdExport,
 		"images":  CmdImages,
 		"info":    CmdInfo,
 		"inspect": CmdInspect,
@@ -65,7 +66,7 @@ func cmdHelp(args []string) error {
 		//		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
-		//		{"export", "Stream the contents of a container as a tar archive"},
+		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
 		//		{"import", "Create a new filesystem image from the contents of a tarball"},
@@ -759,29 +760,22 @@ func CmdCommit(args []string) error {
 	return nil
 }
 
-/*
-func (srv *Server) CmdExport(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout,
-		"export", "CONTAINER",
-		"Export the contents of a filesystem as a tar archive")
+func CmdExport(args []string) error {
+	cmd := Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := cmd.Arg(0)
-	if container := srv.runtime.Get(name); container != nil {
-		data, err := container.Export()
-		if err != nil {
-			return err
-		}
-		// Stream the entire contents of the container (basically a volatile snapshot)
-		if _, err := io.Copy(stdout, data); err != nil {
-			return err
-		}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
 		return nil
 	}
-	return fmt.Errorf("No such container: %s", name)
+
+	if err := callStream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, false); err != nil {
+		return err
+	}
+	return nil
 }
-*/
 
 func CmdDiff(args []string) error {
 	cmd := Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
@@ -1010,8 +1004,18 @@ func callStream(method, path string, data interface{}, isTerminal bool) error {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
-	clientconn.Do(req)
+	resp, err := clientconn.Do(req)
 	defer clientconn.Close()
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("error: %s", body)
+	}
 
 	rwc, _ := clientconn.Hijack()
 	defer rwc.Close()
