@@ -706,7 +706,7 @@ func (container *Container) RwChecksum() (string, error) {
 	if _, err := io.Copy(h, rwData); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return "sha256:"+hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func (container *Container) Export() (Archive, error) {
