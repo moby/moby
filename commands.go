@@ -477,7 +477,7 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		}
 		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout, "Importing %v/%v (%v)")
 	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "")
+	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
 		return err
 	}
@@ -726,6 +726,8 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		"Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
+	flConfig := cmd.String("config", "", "Config automatically applied when the image is run. This option must be the last one.")
+	flCommand := cmd.String("command", "", "Command to run when starting the image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -734,7 +736,22 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor)
+
+	var config []string
+	if *flConfig != "" {
+		config = strings.Split(*flConfig, " ")
+	}
+	if *flCommand != "" {
+		config = append(config, "", "/bin/sh", "-c", *flCommand)
+	} else if *flConfig != "" {
+		config = append(config, "", "")
+	}
+	c, err := ParseRun(config, stdout, srv.runtime.capabilities)
+	if err != nil {
+		return err
+	}
+
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor, c)
 	if err != nil {
 		return err
 	}
@@ -924,10 +941,6 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	if config.Image == "" {
 		fmt.Fprintln(stdout, "Error: Image not specified")
 		return fmt.Errorf("Image not specified")
-	}
-	if len(config.Cmd) == 0 {
-		fmt.Fprintln(stdout, "Error: Command not specified")
-		return fmt.Errorf("Command not specified")
 	}
 
 	if config.Tty {

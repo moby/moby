@@ -77,12 +77,59 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
+func (runtime *Runtime) mergeConfig(userConf, imageConf *Config) {
+	if userConf.Hostname != "" {
+		userConf.Hostname = imageConf.Hostname
+	}
+	if userConf.User != "" {
+		userConf.User = imageConf.User
+	}
+	if userConf.Memory == 0 {
+		userConf.Memory = imageConf.Memory
+	}
+	if userConf.MemorySwap == 0 {
+		userConf.MemorySwap = imageConf.MemorySwap
+	}
+	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
+		userConf.PortSpecs = imageConf.PortSpecs
+	}
+	if !userConf.Tty {
+		userConf.Tty = userConf.Tty
+	}
+	if !userConf.OpenStdin {
+		userConf.OpenStdin = imageConf.OpenStdin
+	}
+	if !userConf.StdinOnce {
+		userConf.StdinOnce = imageConf.StdinOnce
+	}
+	if userConf.Env == nil || len(userConf.Env) == 0 {
+		userConf.Env = imageConf.Env
+	}
+	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
+		userConf.Cmd = imageConf.Cmd
+	}
+	if userConf.Dns == nil || len(userConf.Dns) == 0 {
+		userConf.Dns = imageConf.Dns
+	}
+}
+
 func (runtime *Runtime) Create(config *Config) (*Container, error) {
+
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
 		return nil, err
 	}
+
+	//runtime.mergeConfig(config, img.Config)
+	if img.Config != nil {
+		config = img.Config
+	}
+
+	if config.Cmd == nil {
+		return nil, fmt.Errorf("No command specified")
+	}
+
 	// Generate id
 	id := GenerateId()
 	// Generate default hostname
@@ -103,6 +150,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 	}
+
 	container.root = runtime.containerRoot(container.Id)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
@@ -249,7 +297,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag, comment, author string) (*Image, error) {
+func (runtime *Runtime) Commit(id, repository, tag, comment, author string, config *Config) (*Image, error) {
 	container := runtime.Get(id)
 	if container == nil {
 		return nil, fmt.Errorf("No such container: %s", id)
@@ -261,7 +309,7 @@ func (runtime *Runtime) Commit(id, repository, tag, comment, author string) (*Im
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author)
+	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
 	if err != nil {
 		return nil, err
 	}
@@ -314,13 +362,13 @@ func NewRuntime() (*Runtime, error) {
 		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
 		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
 		if !runtime.capabilities.MemoryLimit {
-		   	log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
+			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
 		}
 
 		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
 		runtime.capabilities.SwapLimit = err == nil
 		if !runtime.capabilities.SwapLimit {
-		   	log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
+			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
 		}
 	}
 	return runtime, nil
