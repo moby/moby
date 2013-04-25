@@ -136,7 +136,12 @@ func (srv *Server) CmdBuild(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 	} else {
 		file = stdin
 	}
-	return NewBuilder(srv.runtime).Build(file, stdout)
+	img, err := NewBuilder(srv.runtime).Build(file, stdout)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n", img.ShortId())
+	return nil
 }
 
 // 'docker login': login / register a user to registry service.
