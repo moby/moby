@@ -50,4 +50,9 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     config.vm.box = BOX_NAME
     config.vm.box_url = BOX_URI
   end
+
+  config.vm.provider :vmware_fusion do |vm|
+    config.vm.box = "precise64"
+    config.vm.box_url = "http://files.vagrantup.com/precise64_vmware_fusion.box"
+  end
 end
