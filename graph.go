@@ -294,8 +294,8 @@ func (graph *Graph) imageRoot(id string) string {
 }
 
 func (graph *Graph) Checksums(repo Repository) ([]map[string]string, error) {
-	var checksums map[string]string
 	var result []map[string]string
+	checksums := map[string]string{}
 	for _, id := range repo {
 		img, err := graph.Get(id)
 		if err != nil {
@@ -310,6 +310,7 @@ func (graph *Graph) Checksums(repo Repository) ([]map[string]string, error) {
 		}
 	}
 	i := 0
+	result = make([]map[string]string, len(checksums))
 	for id, sum := range checksums {
 		result[i] = map[string]string{
 			"id":       id,
