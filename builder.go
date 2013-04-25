@@ -187,6 +187,10 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			tmpImages[base.Id] = struct{}{}
 
 			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+
+			// use the base as the new image
+			image = base
+
 			break
 		case "copy":
 			if image == nil {
