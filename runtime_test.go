@@ -63,7 +63,7 @@ func init() {
 	NetworkBridgeIface = "testdockbr0"
 
 	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase)
+	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runtime1, err := NewRuntimeFromDirectory(root)
+	runtime1, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +369,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(root)
+	runtime2, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}

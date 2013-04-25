@@ -993,11 +993,11 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	return nil
 }
 
-func NewServer() (*Server, error) {
+func NewServer(autoRestart bool) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime()
+	runtime, err := NewRuntime(autoRestart)
 	if err != nil {
 		return nil, err
 	}
