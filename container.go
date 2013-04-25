@@ -2,6 +2,7 @@ package docker
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
@@ -705,7 +706,7 @@ func (container *Container) RwChecksum() (string, error) {
 	if _, err := io.Copy(h, rwData); err != nil {
 		return "", err
 	}
-	return string(h.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func (container *Container) Export() (Archive, error) {
