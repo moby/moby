@@ -239,7 +239,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	client := graph.getHttpClient()
 
 	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)
-	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/checksums"
+	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/checksums/"
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -248,6 +248,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	if authConfig != nil {
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	}
+	req.Header.Set("X-Docker-Token", "true")
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -461,6 +462,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return err
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	req.Header.Set("X-Docker-Token", "true")
 	res, err := client.Do(req)
 	if err != nil {
 		return err
@@ -473,6 +475,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 			return err
 		}
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+		req.Header.Set("X-Docker-Token", "true")
 		res, err = client.Do(req)
 		if err != nil {
 			return err
@@ -488,6 +491,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	if res.Header.Get("X-Docker-Token") != "" {
 		token = res.Header["X-Docker-Token"]
 	} else {
+		Debugf("Response headers:\n %s\n", res.Header)
 		return fmt.Errorf("Index response didn't contain an access token")
 	}
 	if res.Header.Get("X-Docker-Endpoints") != "" {
