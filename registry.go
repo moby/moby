@@ -466,6 +466,20 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return err
 	}
 	res.Body.Close()
+	for res.StatusCode >= 300 && res.StatusCode < 400 {
+		Debugf("Redirected to %s\n", res.Header.Get("Location"))
+		req, err = http.NewRequest("PUT", res.Header.Get("Location"), nil)
+		if err != nil {
+			return err
+		}
+		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+		res, err = client.Do(req)
+		if err != nil {
+			return err
+		}
+		res.Body.Close()
+	}
+
 	if res.StatusCode != 200 && res.StatusCode != 201 {
 		return fmt.Errorf("Error: Status %d trying to push repository %s", res.StatusCode, remote)
 	}
