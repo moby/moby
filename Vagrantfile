@@ -54,5 +54,10 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :vmware_fusion do |vm|
     config.vm.box = "precise64"
     config.vm.box_url = "http://files.vagrantup.com/precise64_vmware_fusion.box"
+    config.vm.provision :shell, :inline => <<-UPDATE
+      apt-get update
+      apt-get dist-upgrade
+      apt-get install linux-image-extra-3.2.0-40-virtual
+    UPDATE
   end
 end
