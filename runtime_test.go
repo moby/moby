@@ -60,6 +60,8 @@ func init() {
 		panic("docker tests needs to be run as root")
 	}
 
+	NetworkBridgeIface = "testdockbr0"
+
 	// Make it our Store root
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase)
 	if err != nil {
