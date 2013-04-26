@@ -22,9 +22,8 @@ func TestIdFormat(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
 	)
 	if err != nil {
@@ -50,7 +49,6 @@ func TestMultipleAttachRestart(t *testing.T) {
 			Image: GetTestImage(runtime).Id,
 			Cmd: []string{"/bin/sh", "-c",
 				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
-			Memory: 33554432,
 		},
 	)
 	if err != nil {
@@ -116,8 +114,8 @@ func TestMultipleAttachRestart(t *testing.T) {
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	timeout := make(chan bool)
-	go func() {
+
+	setTimeout(t, "Timeout reading from the process", 3*time.Second, func() {
 		l1, err = bufio.NewReader(stdout1).ReadString('\n')
 		if err != nil {
 			t.Fatal(err)
@@ -139,15 +137,8 @@ func TestMultipleAttachRestart(t *testing.T) {
 		if strings.Trim(l3, " \r\n") != "hello" {
 			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
 		}
-		timeout <- false
-	}()
-	go func() {
-		time.Sleep(3 * time.Second)
-		timeout <- true
-	}()
-	if <-timeout {
-		t.Fatalf("Timeout reading from the process")
-	}
+	})
+	container.Wait()
 }
 
 func TestDiff(t *testing.T) {
@@ -234,9 +225,8 @@ func TestCommitRun(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello > /world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
 		},
 	)
 	if err != nil {
@@ -267,9 +257,8 @@ func TestCommitRun(t *testing.T) {
 
 	container2, err := runtime.Create(
 		&Config{
-			Image:  img.Id,
-			Memory: 33554432,
-			Cmd:    []string{"cat", "/world"},
+			Image: img.Id,
+			Cmd:   []string{"cat", "/world"},
 		},
 	)
 	if err != nil {
@@ -354,9 +343,8 @@ func TestRun(t *testing.T) {
 	defer nuke(runtime)
 	container, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Memory: 33554432,
-			Cmd:    []string{"ls", "-al"},
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"ls", "-al"},
 		},
 	)
 	if err != nil {
