@@ -193,7 +193,7 @@ func TestDiff(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -258,7 +258,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", nil)
 	if err != nil {
 		t.Error(err)
 	}
