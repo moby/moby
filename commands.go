@@ -26,6 +26,7 @@ var (
 func ParseCommands(args []string) error {
 
 	cmds := map[string]func(args []string) error{
+		"attach":  CmdAttach,
 		"commit":  CmdCommit,
 		"diff":    CmdDiff,
 		"export":  CmdExport,
@@ -63,7 +64,7 @@ func ParseCommands(args []string) error {
 func cmdHelp(args []string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
-		//		{"attach", "Attach to a running container"},
+		{"attach", "Attach to a running container"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -631,10 +632,10 @@ func CmdImages(args []string) error {
 		v.Set("filter", cmd.Arg(0))
 	}
 	if *quiet {
-		v.Set("quiet", "true")
+		v.Set("quiet", "1")
 	}
 	if *all {
-		v.Set("all", "true")
+		v.Set("all", "1")
 	}
 
 	body, err := call("GET", "/images?"+v.Encode())
@@ -682,13 +683,13 @@ func CmdPs(args []string) error {
 		*last = 1
 	}
 	if *quiet {
-		v.Set("quiet", "true")
+		v.Set("quiet", "1")
 	}
 	if *all {
-		v.Set("all", "true")
+		v.Set("all", "1")
 	}
 	if *noTrunc {
-		v.Set("notrunc", "true")
+		v.Set("notrunc", "1")
 	}
 	if *last != -1 {
 		v.Set("n", strconv.Itoa(*last))
@@ -822,9 +823,8 @@ func CmdLogs(args []string) error {
 	return nil
 }
 
-/*
-func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "attach", "CONTAINER", "Attach to a running container")
+func CmdAttach(args []string) error {
+	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -832,20 +832,13 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		cmd.Usage()
 		return nil
 	}
-	name := cmd.Arg(0)
-	container := srv.runtime.Get(name)
-	if container == nil {
-		return fmt.Errorf("No such container: %s", name)
-	}
 
-	if container.Config.Tty {
-		stdout.SetOptionRawTerminal()
+	if err := callStream("POST", "/containers/"+cmd.Arg(0)+"/attach", nil, true); err != nil {
+		return err
 	}
-	// Flush the options to make sure the client sets the raw mode
-	stdout.Flush()
-	return <-container.Attach(stdin, nil, stdout, stdout)
+	return nil
 }
-*/
+
 /*
 // Ports type - Used to parse multiple -p flags
 type ports []int
@@ -921,7 +914,7 @@ func CmdTag(args []string) error {
 	}
 
 	if *force {
-		v.Set("force", "true")
+		v.Set("force", "1")
 	}
 
 	if err := callStream("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil, false); err != nil {
@@ -931,7 +924,6 @@ func CmdTag(args []string) error {
 }
 
 func CmdRun(args []string) error {
-	fmt.Println("CmdRun")
 	config, cmd, err := ParseRun(args)
 	if err != nil {
 		return err

@@ -130,7 +130,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 		var allImages map[string]*Image
 		var err error
-		if All == "true" {
+		if All == "1" {
 			allImages, err = rtime.graph.Map()
 		} else {
 			allImages, err = rtime.graph.Heads()
@@ -152,7 +152,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 					continue
 				}
 				delete(allImages, id)
-				if Quiet != "true" {
+				if Quiet != "1" {
 					out.Repository = name
 					out.Tag = tag
 					out.Id = TruncateId(id)
@@ -167,7 +167,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if NameFilter == "" {
 			for id, image := range allImages {
 				var out ApiImages
-				if Quiet != "true" {
+				if Quiet != "1" {
 					out.Repository = "<none>"
 					out.Tag = "<none>"
 					out.Id = TruncateId(id)
@@ -355,7 +355,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		var outs []ApiContainers
 
 		for i, container := range rtime.List() {
-			if !container.State.Running && All != "true" && n == -1 {
+			if !container.State.Running && All != "1" && n == -1 {
 				continue
 			}
 			if i == n {
@@ -363,9 +363,9 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 			var out ApiContainers
 			out.Id = container.ShortId()
-			if Quiet != "true" {
+			if Quiet != "1" {
 				command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-				if NoTrunc != "true" {
+				if NoTrunc != "1" {
 					command = Trunc(command, 20)
 				}
 				out.Image = rtime.repositories.ImageName(container.Image)
@@ -420,7 +420,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
 		var force bool
-		if r.Form.Get("force") == "true" {
+		if r.Form.Get("force") == "1" {
 			force = true
 		}
 
@@ -451,14 +451,14 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
 		if rtime.graph.LookupRemoteImage(name, rtime.authConfig) {
-			if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
-				fmt.Fprintln(file, "Error: "+err.Error())
-			}
-			return
-		}
-		if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
-			fmt.Fprintln(file, "Error: "+err.Error())
-		}
+                        if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
+                                fmt.Fprintln(file, "Error: "+err.Error())
+                        }
+                        return nil
+                }
+                if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
+                        fmt.Fprintln(file, "Error: "+err.Error())
+                }
 	})
 
 	r.Path("/containers").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -488,14 +488,19 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			// If container not found, try to pull it
 			if rtime.graph.IsNotExist(err) {
 				fmt.Fprintf(file, "Image %s not found, trying to pull it from registry.\r\n", config.Image)
-				//if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
-				//	fmt.Fprintln(file, "Error: "+err.Error())
-				//	return
-				//}
-				//if container, err = srv.runtime.Create(config); err != nil {
-				//	fmt.Fprintln(file, "Error: "+err.Error())
-				//	return
-				//}
+				if rtime.graph.LookupRemoteImage(name, rtime.authConfig) {
+					if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
+						fmt.Fprintln(file, "Error: "+err.Error())
+						return
+					}
+				} else  if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
+					fmt.Fprintln(file, "Error: "+err.Error())
+					return
+				}
+				if container, err = rtime.Create(&config); err != nil {
+					fmt.Fprintln(file, "Error: "+err.Error())
+					return
+				}
 			} else {
 				fmt.Fprintln(file, "Error: "+err.Error())
 				return
@@ -532,8 +537,43 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		Debugf("Waiting for attach to return\n")
 		<-attachErr
-		// Expecting I/O pipe error, discarding        
+		// Expecting I/O pipe error, discarding
+	})
 
+	r.Path("/containers/{name:.*}/attach").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+		if container := rtime.Get(name); container != nil {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer conn.Close()
+			file, err := conn.(*net.TCPConn).File()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
+
+			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
+			r, w := io.Pipe()
+			go func() {
+				defer w.Close()
+				defer Debugf("Closing buffered stdin pipe")
+				io.Copy(w, file)
+			}()
+			cStdin := r
+
+			<-container.Attach(cStdin, nil, file, file)
+			// Expecting I/O pipe error, discarding                     
+
+		} else {
+			http.Error(w, "No such container: "+name, http.StatusNotFound)
+			return
+		}
 	})
 
 	r.Path("/containers/{name:.*}/restart").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
