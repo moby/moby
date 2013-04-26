@@ -31,6 +31,7 @@ type Runtime struct {
 	idIndex        *TruncIndex
 	capabilities   *Capabilities
 	kernelVersion  *KernelVersionInfo
+	autoRestart    bool
 }
 
 var sysInitPath string
@@ -167,23 +168,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	// init the wait lock
 	container.waitLock = make(chan struct{})
 
-	// FIXME: if the container is supposed to be running but is not, auto restart it?
-	//        if so, then we need to restart monitor and init a new lock
-	// If the container is supposed to be running, make sure of it
-	if container.State.Running {
-		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
-			return err
-		} else {
-			if !strings.Contains(string(output), "RUNNING") {
-				Debugf("Container %s was supposed to be running be is not.", container.Id)
-				container.State.setStopped(-127)
-				if err := container.ToDisk(); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
 	// Even if not running, we init the lock (prevents races in start/stop/kill)
 	container.State.initLock()
 
@@ -202,11 +186,43 @@ func (runtime *Runtime) Register(container *Container) error {
 	runtime.containers.PushBack(container)
 	runtime.idIndex.Add(container.Id)
 
+	// When we actually restart, Start() do the monitoring.
+	// However, when we simply 'reattach', we have to restart a monitor
+	nomonitor := false
+
+	// FIXME: if the container is supposed to be running but is not, auto restart it?
+	//        if so, then we need to restart monitor and init a new lock
+	// If the container is supposed to be running, make sure of it
+	if container.State.Running {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				Debugf("Container %s was supposed to be running be is not.", container.Id)
+				if runtime.autoRestart {
+					Debugf("Restarting")
+					container.State.Ghost = false
+					container.State.setStopped(0)
+					if err := container.Start(); err != nil {
+						return err
+					}
+					nomonitor = true
+				} else {
+					Debugf("Marking as stopped")
+					container.State.setStopped(-127)
+					if err := container.ToDisk(); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
 	// If the container is not running or just has been flagged not running
 	// then close the wait lock chan (will be reset upon start)
 	if !container.State.Running {
 		close(container.waitLock)
-	} else {
+	} else if !nomonitor {
 		container.allocateNetwork()
 		go container.monitor()
 	}
@@ -292,8 +308,8 @@ func (runtime *Runtime) restore() error {
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime() (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory("/var/lib/docker")
+func NewRuntime(autoRestart bool) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory("/var/lib/docker", autoRestart)
 	if err != nil {
 		return nil, err
 	}
@@ -314,19 +330,19 @@ func NewRuntime() (*Runtime, error) {
 		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
 		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
 		if !runtime.capabilities.MemoryLimit {
-		   	log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
+			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
 		}
 
 		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
 		runtime.capabilities.SwapLimit = err == nil
 		if !runtime.capabilities.SwapLimit {
-		   	log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
+			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
 		}
 	}
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -363,6 +379,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		authConfig:     authConfig,
 		idIndex:        NewTruncIndex(),
 		capabilities:   &Capabilities{},
+		autoRestart:    autoRestart,
 	}
 
 	if err := runtime.restore(); err != nil {

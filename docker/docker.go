@@ -28,6 +28,7 @@ func main() {
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
+	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
 	flag.Parse()
@@ -45,7 +46,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile); err != nil {
+		if err := daemon(*pidfile, *flAutoRestart); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -82,7 +83,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string) error {
+func daemon(pidfile string, autoRestart bool) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func daemon(pidfile string) error {
 		os.Exit(0)
 	}()
 
-	service, err := docker.NewServer()
+	service, err := docker.NewServer(autoRestart)
 	if err != nil {
 		return err
 	}
