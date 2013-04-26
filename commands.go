@@ -726,8 +726,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		"Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
-	flConfig := cmd.String("config", "", "Config automatically applied when the image is run. This option must be the last one.")
-	flCommand := cmd.String("command", "", "Command to run when starting the image")
+	flConfig := cmd.String("config", "", "Config automatically applied when the image is run. "+`(ex: -config '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -737,21 +736,14 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return nil
 	}
 
-	var config []string
+	config := &Config{}
 	if *flConfig != "" {
-		config = strings.Split(*flConfig, " ")
-	}
-	if *flCommand != "" {
-		config = append(config, "", "/bin/sh", "-c", *flCommand)
-	} else if *flConfig != "" {
-		config = append(config, "", "")
-	}
-	c, err := ParseRun(config, stdout, srv.runtime.capabilities)
-	if err != nil {
-		return err
+		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
+			return err
+		}
 	}
 
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor, c)
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor, config)
 	if err != nil {
 		return err
 	}
