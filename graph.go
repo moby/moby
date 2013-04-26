@@ -81,6 +81,13 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
 	}
 	img.graph = graph
+
+	if img.Checksum == "" {
+		err := img.FixChecksum()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return img, nil
 }
 
@@ -98,7 +105,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Parent = container.Image
 		img.Container = container.Id
 		img.ContainerConfig = *container.Config
-		// FIXME: If an image is pulled from a raw URL (not created from a container),
+		// FIXME: If an image is imported from a raw URL (not created from a container),
 		// its checksum will not be computed, which will cause a push to fail
 		checksum, err := container.RwChecksum()
 		if err != nil {

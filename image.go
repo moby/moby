@@ -52,6 +52,7 @@ func LoadImage(root string) (*Image, error) {
 	} else if !stat.IsDir() {
 		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.Id, layerPath(root))
 	}
+
 	return &img, nil
 }
 
@@ -257,4 +258,32 @@ func (img *Image) layer() (string, error) {
 		return "", err
 	}
 	return layerPath(root), nil
+}
+
+func (img *Image) FixChecksum() error {
+	layer, err := img.layer()
+	if err != nil {
+		return err
+	}
+	layerData, err := Tar(layer, Xz)
+	if err != nil {
+		return err
+	}
+	sum, err := HashData(layerData)
+	if err != nil {
+		return err
+	}
+	img.Checksum = sum
+	jsonData, err := json.Marshal(img)
+	if err != nil {
+		return err
+	}
+	root, err := img.root()
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+		return err
+	}
+	return nil
 }

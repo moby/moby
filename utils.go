@@ -2,6 +2,8 @@ package docker
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/rcli"
@@ -455,4 +457,12 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 	}
 
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
+}
+
+func HashData(src io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, src); err != nil {
+		return "", err
+	}
+	return "sha256:"+hex.EncodeToString(h.Sum(nil)), nil
 }

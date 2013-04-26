@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/shin-/cookiejar"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 )
 
 //FIXME: Set the endpoint in a conf file or via commandline
-//const INDEX_ENDPOINT = "http://registry-creack.dotcloud.com/v1"
 const INDEX_ENDPOINT = auth.INDEX_SERVER + "/v1"
 
 // Build an Image object from raw json data
@@ -47,6 +47,13 @@ func NewMultipleImgJson(src []byte) ([]*Image, error) {
 	return ret, nil
 }
 
+func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
+	for _, cookie := range c.Jar.Cookies(req.URL) {
+		req.AddCookie(cookie)
+	}
+	return c.Do(req)
+}
+
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
 func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]*Image, error) {
@@ -57,7 +64,6 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 		return nil, err
 	}
 	req.Header["X-Docker-Token"] = token
-	// req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
@@ -82,7 +88,9 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 func (graph *Graph) getHttpClient() *http.Client {
 	if graph.httpClient == nil {
 		graph.httpClient = new(http.Client)
+		graph.httpClient.Jar = cookiejar.NewCookieJar()
 	}
+	Debugf("cookies: %v",graph.httpClient.Jar)
 	return graph.httpClient
 }
 
@@ -111,7 +119,6 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 	req.Header["X-Docker-Token"] = token
-	// req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
@@ -139,7 +146,6 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	req.Header["X-Docker-Token"] = token
-	// req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err = client.Do(req)
 	if err != nil {
 		return nil, nil, err
@@ -271,7 +277,6 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		return fmt.Errorf("Index response didn't contain any endpoints")
 	}
 
-	// FIXME: If askedTag is empty, fetch all tags.
 	var tagsList map[string]string
 	if askedTag == "" {
 		tagsList, err = graph.getRemoteTags(stdout, endpoints, remote, token)
@@ -316,84 +321,84 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	return nil
 }
 
-// Push a local image to the registry with its history if needed
-func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string, token []string) error {
+func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, token []string) error {
+	if parent, err := img.GetParent(); err != nil {
+		return err
+	} else if parent != nil {
+		if err := pushImageRec(graph, stdout, parent, registry, token); err != nil {
+			return err
+		}
+	}
 	client := graph.getHttpClient()
-	registry = "https://" + registry + "/v1"
+	jsonRaw, err := ioutil.ReadFile(path.Join(graph.Root, img.Id, "json"))
+	if err != nil {
+		return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
+	}
 
-	// FIXME: Factorize the code
-	// FIXME: Do the puts in goroutines
-	if err := imgOrig.WalkHistory(func(img *Image) error {
+	fmt.Fprintf(stdout, "Pushing %s metadata\r\n", img.Id)
 
-		jsonRaw, err := ioutil.ReadFile(path.Join(graph.Root, img.Id, "json"))
-		if err != nil {
-			return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
-		}
-
-		fmt.Fprintf(stdout, "Pushing %s metadata\r\n", img.Id)
-
-		// FIXME: try json with UTF8
-		jsonData := strings.NewReader(string(jsonRaw))
-		req, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/json", jsonData)
-		if err != nil {
-			return err
-		}
-		req.Header.Add("Content-type", "application/json")
-		req.Header["X-Docker-Token"] = token
-		res, err := client.Do(req)
-		if err != nil {
-			return fmt.Errorf("Failed to upload metadata: %s", err)
-		}
-		defer res.Body.Close()
-		if res.StatusCode != 200 {
-			switch res.StatusCode {
-			case 204:
-				// Case where the image is already on the Registry
-				fmt.Fprintf(stdout, "Image %s already uploaded ; skipping.", img.Id)
-				return nil
-			default:
-				errBody, err := ioutil.ReadAll(res.Body)
-				if err != nil {
-					errBody = []byte(err.Error())
-				}
-				return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
-			}
-		}
-
-		fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
-		layerData2, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		tmp, err := ioutil.ReadAll(layerData2)
-		if err != nil {
-			return err
-		}
-		layerLength := len(tmp)
-
-		layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
-		if err != nil {
-			return fmt.Errorf("Failed to generate layer archive: %s", err)
-		}
-		req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
-			ProgressReader(layerData.(io.ReadCloser), layerLength, stdout))
-		if err != nil {
-			return err
-		}
-		req3.ContentLength = int64(tmpLayer.Size)
-
-		req3.TransferEncoding = []string{"none"}
-		req3.Header["X-Docker-Token"] = token
-		res3, err := client.Do(req3)
-		if err != nil {
-			return fmt.Errorf("Failed to upload layer: %s", err)
-		}
-		res3.Body.Close()
-		if res3.StatusCode != 200 {
-			return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
-		}
-		return nil
-	}); err != nil {
+	// FIXME: try json with UTF8
+	jsonData := strings.NewReader(string(jsonRaw))
+	req, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/json", jsonData)
+	if err != nil {
 		return err
 	}
+	req.Header.Add("Content-type", "application/json")
+	req.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	res, err := doWithCookies(client, req)
+	if err != nil {
+		return fmt.Errorf("Failed to upload metadata: %s", err)
+	}
+	defer res.Body.Close()
+	if len(res.Cookies()) > 0 {
+		client.Jar.SetCookies(req.URL, res.Cookies())
+	}
+	if res.StatusCode != 200 {
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			errBody = []byte(err.Error())
+		}
+		var jsonBody map[string]string
+		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
+			errBody = []byte(err.Error())
+		} else if jsonBody["error"] == "Image already exists" {
+			fmt.Fprintf(stdout, "Image %v already uploaded ; skipping\n", img.Id)
+			return nil
+		}
+		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
+	}
+
+	fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
+
+	layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
+	if err != nil {
+		return fmt.Errorf("Failed to generate layer archive: %s", err)
+	}
+	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
+		layerData)
+	if err != nil {
+		return err
+	}
+
+	req3.ContentLength = -1
+	req3.TransferEncoding = []string{"chunked"}
+	req3.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	fmt.Printf("%v", req3.Header)
+	res3, err := doWithCookies(client, req3)
+	if err != nil {
+		return fmt.Errorf("Failed to upload layer: %s", err)
+	}
+	res3.Body.Close()
+	if res3.StatusCode != 200 {
+		return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
+	}
 	return nil
+}
+
+// Push a local image to the registry with its history if needed
+func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string, token []string) error {
+	registry = "https://" + registry + "/v1"
+	return pushImageRec(graph, stdout, imgOrig, registry, token)
 }
 
 // push a tag on the registry.
@@ -413,9 +418,13 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, token []stri
 
 	client := graph.getHttpClient()
 	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
+	if err != nil {
+		return err
+	}
 	req.Header.Add("Content-type", "application/json")
-	req.Header["X-Docker-Token"] = token
-	res, err := client.Do(req)
+	req.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	req.ContentLength = int64(len(revision))
+	res, err := doWithCookies(client, req)
 	if err != nil {
 		return err
 	}
@@ -441,7 +450,7 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId, registry
 	}
 	fmt.Fprintf(stdout, "Registering tag %s:%s\r\n", remote, tag)
 	// And then the tag
-	if err = graph.pushTag(remote, imgId, registry, tag, token); err != nil {
+	if err = graph.pushTag(remote, imgId, tag, registry, token); err != nil {
 		return err
 	}
 	return nil
@@ -453,15 +462,25 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	client := graph.getHttpClient()
 
 	checksums, err := graph.Checksums(localRepo)
+	imgList := make([]map[string]string, len(checksums))
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote, nil)
+	for i, obj := range checksums {
+		imgList[i] = map[string]string{"id": obj["id"]}
+	}
+	imgListJson, err := json.Marshal(imgList)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote, bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	req.ContentLength = int64(len(imgListJson))
 	req.Header.Set("X-Docker-Token", "true")
 	res, err := client.Do(req)
 	if err != nil {
@@ -470,11 +489,12 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	res.Body.Close()
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		Debugf("Redirected to %s\n", res.Header.Get("Location"))
-		req, err = http.NewRequest("PUT", res.Header.Get("Location"), nil)
+		req, err = http.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJson))
 		if err != nil {
 			return err
 		}
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+		req.ContentLength = int64(len(imgListJson))
 		req.Header.Set("X-Docker-Token", "true")
 		res, err = client.Do(req)
 		if err != nil {
@@ -490,6 +510,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	var token, endpoints []string
 	if res.Header.Get("X-Docker-Token") != "" {
 		token = res.Header["X-Docker-Token"]
+		Debugf("Auth token: %v", token)
 	} else {
 		Debugf("Response headers:\n %s\n", res.Header)
 		return fmt.Errorf("Index response didn't contain an access token")
@@ -515,13 +536,14 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	if err != nil {
 		return err
 	}
-	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewBuffer(checksumsJson))
+	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(checksumsJson))
 	if err != nil {
 		return err
 	}
 	req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 	req2.Header["X-Docker-Endpoints"] = endpoints
-	res2, err := client.Do(req)
+	req2.ContentLength = int64(len(checksumsJson))
+	res2, err := client.Do(req2)
 	if err != nil {
 		return err
 	}
