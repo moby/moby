@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -13,8 +14,10 @@ import (
 
 var DOCKER_PATH string = path.Join(os.Getenv("DOCKERPATH"), "docker")
 
+// WARNING: this crashTest will 1) crash your host, 2) remove all containers
 func runDaemon() (*exec.Cmd, error) {
 	os.Remove("/var/run/docker.pid")
+	exec.Command("rm", "-rf", "/var/lib/docker/containers")
 	cmd := exec.Command(DOCKER_PATH, "-d")
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -47,7 +50,19 @@ func crashTest() error {
 	} else {
 		endpoint = ep
 	}
-	conn, _ := net.Dial("tcp", endpoint)
+
+	c := make(chan bool)
+	var conn io.Writer
+
+	go func() {
+		conn, _ = net.Dial("tcp", endpoint)
+		c <- false
+	}()
+	go func() {
+		time.Sleep(2 * time.Second)
+		c <- true
+	}()
+	<-c
 
 	restartCount := 0
 	totalTestCount := 1
@@ -56,22 +71,17 @@ func crashTest() error {
 		if err != nil {
 			return err
 		}
-		if conn != nil {
-			fmt.Fprintf(conn, "RESTART: %d\n", restartCount)
-		}
 		restartCount++
 		//		time.Sleep(5000 * time.Millisecond)
 		var stop bool
 		go func() error {
 			stop = false
-			for i := 0; i < 100 && !stop; i++ {
+			for i := 0; i < 100 && !stop; {
 				func() error {
 					if conn != nil {
-						fmt.Fprintf(conn, "TEST: %d\n", totalTestCount)
+						fmt.Fprintf(conn, "%d\n", totalTestCount)
 					}
-					totalTestCount++
 					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", "hello", "world")
-					log.Printf("%d", i)
 					outPipe, err := cmd.StdoutPipe()
 					if err != nil {
 						return err
@@ -92,6 +102,20 @@ func crashTest() error {
 					go inPipe.Write([]byte("hello world!!!!!\n"))
 					inPipe.Close()
 
+					go func() error {
+						r := bufio.NewReader(outPipe)
+						if out, err := r.ReadString('\n'); err != nil {
+							return err
+						} else if out == "hello world\n" {
+							log.Printf("%d", i)
+							if conn != nil {
+								fmt.Fprintf(conn, "%d\n", totalTestCount)
+							}
+							i++
+							totalTestCount++
+						}
+						return nil
+					}()
 					if err := cmd.Wait(); err != nil {
 						return err
 					}
