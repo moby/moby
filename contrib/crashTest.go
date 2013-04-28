@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -17,7 +16,7 @@ var DOCKER_PATH string = path.Join(os.Getenv("DOCKERPATH"), "docker")
 // WARNING: this crashTest will 1) crash your host, 2) remove all containers
 func runDaemon() (*exec.Cmd, error) {
 	os.Remove("/var/run/docker.pid")
-	exec.Command("rm", "-rf", "/var/lib/docker/containers")
+	exec.Command("rm", "-rf", "/var/lib/docker/containers").Run()
 	cmd := exec.Command(DOCKER_PATH, "-d")
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -86,10 +85,10 @@ func crashTest() error {
 					if err != nil {
 						return err
 					}
-					inPipe, err := cmd.StdinPipe()
-					if err != nil {
-						return err
-					}
+					// inPipe, err := cmd.StdinPipe()
+					// if err != nil {
+					// 	return err
+					// }
 					if err := cmd.Start(); err != nil {
 						return err
 					}
@@ -97,27 +96,34 @@ func crashTest() error {
 						io.Copy(os.Stdout, outPipe)
 					}()
 					// Expecting error, do not check
-					inPipe.Write([]byte("hello world!!!!!\n"))
-					go inPipe.Write([]byte("hello world!!!!!\n"))
-					go inPipe.Write([]byte("hello world!!!!!\n"))
-					inPipe.Close()
+					// inPipe.Write([]byte("hello world!!!!!\n"))
+					// go inPipe.Write([]byte("hello world!!!!!\n"))
+					// go inPipe.Write([]byte("hello world!!!!!\n"))
+					// inPipe.Close()
 
-					go func() error {
-						r := bufio.NewReader(outPipe)
-						if out, err := r.ReadString('\n'); err != nil {
-							return err
-						} else if out == "hello world\n" {
-							log.Printf("%d", i)
-							if conn != nil {
-								fmt.Fprintf(conn, "%d\n", totalTestCount)
-							}
-							i++
-							totalTestCount++
-						}
-						return nil
-					}()
+					// go func() error {
+					// 	r := bufio.NewReader(outPipe)
+					// 	if out, err := r.ReadString('\n'); err != nil {
+					// 		return err
+					// 	} else if out == "hello world\n" {
+					// 		log.Printf("%d", i)
+					// 		if conn != nil {
+					// 			fmt.Fprintf(conn, "%d\n", totalTestCount)
+					// 		}
+					// 		i++
+					// 		totalTestCount++
+					// 	}
+					// 	return nil
+					// }()
 					if err := cmd.Wait(); err != nil {
 						return err
+					} else {
+						log.Printf("%d", i)
+						if conn != nil {
+							fmt.Fprintf(conn, "%d\n", totalTestCount)
+						}
+						i++
+						totalTestCount++
 					}
 					outPipe.Close()
 					return nil
