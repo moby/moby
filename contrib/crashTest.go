@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -39,17 +41,35 @@ func crashTest() error {
 		return err
 	}
 
+	var endpoint string
+	if ep := os.Getenv("TEST_ENDPOINT"); ep == "" {
+		endpoint = "192.168.56.1:7979"
+	} else {
+		endpoint = ep
+	}
+	conn, _ := net.Dial("tcp", endpoint)
+
+	restartCount := 0
+	totalTestCount := 1
 	for {
 		daemon, err := runDaemon()
 		if err != nil {
 			return err
 		}
+		if conn != nil {
+			fmt.Fprintf(conn, "RESTART: %d\n", restartCount)
+		}
+		restartCount++
 		//		time.Sleep(5000 * time.Millisecond)
 		var stop bool
 		go func() error {
 			stop = false
 			for i := 0; i < 100 && !stop; i++ {
 				func() error {
+					if conn != nil {
+						fmt.Fprintf(conn, "TEST: %d\n", totalTestCount)
+					}
+					totalTestCount++
 					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", "hello", "world")
 					log.Printf("%d", i)
 					outPipe, err := cmd.StdoutPipe()
