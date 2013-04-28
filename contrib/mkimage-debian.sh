@@ -14,7 +14,7 @@ include='iproute,iputils-ping'
 
 repo="$1"
 suite="${2:-$latestSuite}"
-mirror="${3:-http://ftp.us.debian.org/debian}"
+mirror="${3:-}" # stick to the default debootstrap mirror if one is not provided
 
 if [ ! "$repo" ]; then
 	echo >&2 "usage: $0 repo [suite [mirror]]"
@@ -22,7 +22,7 @@ if [ ! "$repo" ]; then
 	exit 1
 fi
 
-target="/tmp/docker-rootfs-$$-$RANDOM-debian-$suite"
+target="/tmp/docker-rootfs-debian-$suite-$$-$RANDOM"
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"
