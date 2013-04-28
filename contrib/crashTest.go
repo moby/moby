@@ -5,10 +5,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"time"
 )
 
-const DOCKER_PATH = "/home/creack/dotcloud/docker/docker/docker"
+var DOCKER_PATH string = path.Join(os.Getenv("DOCKERPATH"), "docker")
 
 func runDaemon() (*exec.Cmd, error) {
 	os.Remove("/var/run/docker.pid")
