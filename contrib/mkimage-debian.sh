@@ -1,7 +1,16 @@
 #!/bin/bash
 set -e
 
-latestSuite='wheezy'
+# these should match the names found at http://www.debian.org/releases/
+stableSuite='squeeze'
+testingSuite='wheezy'
+unstableSuite='sid'
+
+# if suite is equal to this, it gets the "latest" tag
+latestSuite="$testingSuite"
+
+variant='minbase'
+include='iproute,iputils-ping'
 
 repo="$1"
 suite="${2:-$latestSuite}"
@@ -22,7 +31,7 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-sudo debootstrap --verbose --variant=minbase --include=iproute,iputils-ping "$suite" "$target" "$mirror"
+sudo debootstrap --verbose --variant="$variant" --include="$include" "$suite" "$target" "$mirror"
 
 cd "$target"
 
@@ -39,6 +48,13 @@ fi
 
 # test the image
 docker run -i -t $repo:$suite echo success
+
+# unstable's version numbers match testing (since it's mostly just a sandbox for testing), so it doesn't get a version number tag
+if [ "$suite" != "$unstableSuite" -a "$suite" != 'unstable' ]; then
+	# tag the specific version
+	ver=$(docker run $repo:$suite cat /etc/debian_version)
+	docker tag $img $repo $ver
+fi
 
 # cleanup
 cd "$returnTo"
