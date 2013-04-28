@@ -235,6 +235,9 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				return nil, err
 			}
 			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+
+			image = base
+
 			break
 		default:
 			fmt.Fprintf(stdout, "Skipping unknown op %s\n", tmp[0])
