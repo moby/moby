@@ -451,14 +451,14 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
 		if rtime.graph.LookupRemoteImage(name, rtime.authConfig) {
-                        if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
-                                fmt.Fprintln(file, "Error: "+err.Error())
-                        }
-                        return
-                }
-                if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
-                        fmt.Fprintln(file, "Error: "+err.Error())
-                }
+			if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
+			}
+			return
+		}
+		if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
+		}
 	})
 
 	r.Path("/containers").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -482,6 +482,18 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		defer file.Close()
 
+		if config.Tty {
+			oldState, err := SetRawTerminal()
+			if err != nil {
+				if os.Getenv("DEBUG") != "" {
+					log.Printf("Can't set the terminal in raw mode: %s", err)
+				}
+			} else {
+				defer RestoreTerminal(oldState)
+			}
+
+		}
+
 		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
 		container, err := rtime.Create(&config)
 		if err != nil {
@@ -493,7 +505,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 						fmt.Fprintln(file, "Error: "+err.Error())
 						return
 					}
-				} else  if err := rtime.graph.PullRepository(file, config.Image, "", rtime.repositories, rtime.authConfig); err != nil {
+				} else if err := rtime.graph.PullRepository(file, config.Image, "", rtime.repositories, rtime.authConfig); err != nil {
 					fmt.Fprintln(file, "Error: "+err.Error())
 					return
 				}
@@ -523,7 +535,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			cStdout = file
 		}
 		if config.AttachStderr {
-			cStderr = file // FIXME: rcli can't differentiate stdout from stderr                                                         
+			cStderr = file // FIXME: api can't differentiate stdout from stderr
 		}
 
 		attachErr := container.Attach(cStdin, file, cStdout, cStderr)
@@ -538,6 +550,12 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		Debugf("Waiting for attach to return\n")
 		<-attachErr
 		// Expecting I/O pipe error, discarding
+
+		// If we are in stdinonce mode, wait for the process to end
+		// otherwise, simply return
+		if config.StdinOnce && !config.Tty {
+			container.Wait()
+		}
 	})
 
 	r.Path("/containers/{name:.*}/attach").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

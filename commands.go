@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/term"
 	"io"
 	"io/ioutil"
 	"net"
@@ -967,7 +968,7 @@ func call(method, path string) ([]byte, error) {
 
 }
 
-func callStream(method, path string, data interface{}, isTerminal bool) error {
+func callStream(method, path string, data interface{}, setRawTerminal bool) error {
 	var body io.Reader
 	if data != nil {
 		buf, err := json.Marshal(data)
@@ -996,6 +997,14 @@ func callStream(method, path string, data interface{}, isTerminal bool) error {
 	rwc, _ := clientconn.Hijack()
 	defer rwc.Close()
 
+	if setRawTerminal && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
+		if oldState, err := SetRawTerminal(); err != nil {
+			return err
+		} else {
+			defer RestoreTerminal(oldState)
+		}
+	}
+
 	receiveStdout := Go(func() error {
 		_, err := io.Copy(os.Stdout, rwc)
 		return err
@@ -1009,7 +1018,7 @@ func callStream(method, path string, data interface{}, isTerminal bool) error {
 	if err := <-receiveStdout; err != nil {
 		return err
 	}
-	if isTerminal {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		if err := <-sendStdin; err != nil {
 			return err
 		}
