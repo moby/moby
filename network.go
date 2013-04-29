@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os/exec"
@@ -183,18 +184,21 @@ func getIfaceAddr(name string) (net.Addr, error) {
 // It keeps track of all mappings and is able to unmap at will
 type PortMapper struct {
 	mapping map[int]net.TCPAddr
+	proxies map[int]net.Listener
 }
 
 func (mapper *PortMapper) cleanup() error {
 	// Ignore errors - This could mean the chains were never set up
 	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
 	// Also cleanup rules created by older versions, or -X might fail.
 	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
 	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
 	iptables("-t", "nat", "-F", "DOCKER")
 	iptables("-t", "nat", "-X", "DOCKER")
 	mapper.mapping = make(map[int]net.TCPAddr)
+	mapper.proxies = make(map[int]net.Listener)
 	return nil
 }
 
@@ -205,7 +209,7 @@ func (mapper *PortMapper) setup() error {
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
-	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 	}
 	return nil
@@ -220,14 +224,63 @@ func (mapper *PortMapper) Map(port int, dest net.TCPAddr) error {
 	if err := mapper.iptablesForward("-A", port, dest); err != nil {
 		return err
 	}
+
 	mapper.mapping[port] = dest
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		mapper.Unmap(port)
+		return err
+	}
+	mapper.proxies[port] = listener
+	go proxy(listener, "tcp", dest.String())
 	return nil
+}
+
+// proxy listens for socket connections on `listener`, and forwards them unmodified
+// to `proto:address`
+func proxy(listener net.Listener, proto, address string) error {
+	Debugf("proxying to %s:%s", proto, address)
+	defer Debugf("Done proxying to %s:%s", proto, address)
+	for {
+		Debugf("Listening on %s", listener)
+		src, err := listener.Accept()
+		if err != nil {
+			return err
+		}
+		Debugf("Connecting to %s:%s", proto, address)
+		dst, err := net.Dial(proto, address)
+		if err != nil {
+			log.Printf("Error connecting to %s:%s: %s", proto, address, err)
+			src.Close()
+			continue
+		}
+		Debugf("Connected to backend, splicing")
+		splice(src, dst)
+	}
+	return nil
+}
+
+func halfSplice(dst, src net.Conn) error {
+	_, err := io.Copy(dst, src)
+	// FIXME: on EOF from a tcp connection, pass WriteClose()
+	dst.Close()
+	src.Close()
+	return err
+}
+
+func splice(a, b net.Conn) {
+	go halfSplice(a, b)
+	go halfSplice(b, a)
 }
 
 func (mapper *PortMapper) Unmap(port int) error {
 	dest, ok := mapper.mapping[port]
 	if !ok {
 		return errors.New("Port is not mapped")
+	}
+	if proxy, exists := mapper.proxies[port]; exists {
+		proxy.Close()
+		delete(mapper.proxies, port)
 	}
 	if err := mapper.iptablesForward("-D", port, dest); err != nil {
 		return err

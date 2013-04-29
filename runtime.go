@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -13,6 +14,11 @@ import (
 	"strings"
 	"time"
 )
+
+type Capabilities struct {
+	MemoryLimit bool
+	SwapLimit   bool
+}
 
 type Runtime struct {
 	root           string
@@ -23,6 +29,9 @@ type Runtime struct {
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
 	idIndex        *TruncIndex
+	capabilities   *Capabilities
+	kernelVersion  *KernelVersionInfo
+	autoRestart    bool
 }
 
 var sysInitPath string
@@ -159,29 +168,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	// init the wait lock
 	container.waitLock = make(chan struct{})
 
-	// FIXME: if the container is supposed to be running but is not, auto restart it?
-	//        if so, then we need to restart monitor and init a new lock
-	// If the container is supposed to be running, make sure of it
-	if container.State.Running {
-		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
-			return err
-		} else {
-			if !strings.Contains(string(output), "RUNNING") {
-				Debugf("Container %s was supposed to be running be is not.", container.Id)
-				container.State.setStopped(-127)
-				if err := container.ToDisk(); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	// If the container is not running or just has been flagged not running
-	// then close the wait lock chan (will be reset upon start)
-	if !container.State.Running {
-		close(container.waitLock)
-	}
-
 	// Even if not running, we init the lock (prevents races in start/stop/kill)
 	container.State.initLock()
 
@@ -199,6 +185,47 @@ func (runtime *Runtime) Register(container *Container) error {
 	// done
 	runtime.containers.PushBack(container)
 	runtime.idIndex.Add(container.Id)
+
+	// When we actually restart, Start() do the monitoring.
+	// However, when we simply 'reattach', we have to restart a monitor
+	nomonitor := false
+
+	// FIXME: if the container is supposed to be running but is not, auto restart it?
+	//        if so, then we need to restart monitor and init a new lock
+	// If the container is supposed to be running, make sure of it
+	if container.State.Running {
+		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+			return err
+		} else {
+			if !strings.Contains(string(output), "RUNNING") {
+				Debugf("Container %s was supposed to be running be is not.", container.Id)
+				if runtime.autoRestart {
+					Debugf("Restarting")
+					container.State.Ghost = false
+					container.State.setStopped(0)
+					if err := container.Start(); err != nil {
+						return err
+					}
+					nomonitor = true
+				} else {
+					Debugf("Marking as stopped")
+					container.State.setStopped(-127)
+					if err := container.ToDisk(); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// If the container is not running or just has been flagged not running
+	// then close the wait lock chan (will be reset upon start)
+	if !container.State.Running {
+		close(container.waitLock)
+	} else if !nomonitor {
+		container.allocateNetwork()
+		go container.monitor()
+	}
 	return nil
 }
 
@@ -217,7 +244,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
 	}
 
-	if err := container.Stop(); err != nil {
+	if err := container.Stop(10); err != nil {
 		return err
 	}
 	if mounted, err := container.Mounted(); err != nil {
@@ -238,7 +265,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag, comment string) (*Image, error) {
+func (runtime *Runtime) Commit(id, repository, tag, comment, author string) (*Image, error) {
 	container := runtime.Get(id)
 	if container == nil {
 		return nil, fmt.Errorf("No such container: %s", id)
@@ -250,7 +277,7 @@ func (runtime *Runtime) Commit(id, repository, tag, comment string) (*Image, err
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment)
+	img, err := runtime.graph.Create(rwTar, container, comment, author)
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +308,41 @@ func (runtime *Runtime) restore() error {
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime() (*Runtime, error) {
-	return NewRuntimeFromDirectory("/var/lib/docker")
+func NewRuntime(autoRestart bool) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory("/var/lib/docker", autoRestart)
+	if err != nil {
+		return nil, err
+	}
+
+	if k, err := GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		runtime.kernelVersion = k
+		if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+		}
+	}
+
+	if cgroupMemoryMountpoint, err := FindCgroupMountpoint("memory"); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
+		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
+		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
+		if !runtime.capabilities.MemoryLimit {
+			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
+		}
+
+		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
+		runtime.capabilities.SwapLimit = err == nil
+		if !runtime.capabilities.SwapLimit {
+			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
+		}
+	}
+	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -321,6 +378,8 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		repositories:   repositories,
 		authConfig:     authConfig,
 		idIndex:        NewTruncIndex(),
+		capabilities:   &Capabilities{},
+		autoRestart:    autoRestart,
 	}
 
 	if err := runtime.restore(); err != nil {

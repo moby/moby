@@ -96,7 +96,7 @@ def main():
 			else:
 				print "Skipping uknown op " + op
 	except:
-		docker(["rmi"] + steps)
+		docker(["rmi"] + steps[1:])
 		raise
 	print base
 

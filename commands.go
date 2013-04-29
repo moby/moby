@@ -18,11 +18,10 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.1.4"
+const VERSION = "0.2.0"
 
 var (
-	GIT_COMMIT      string
-	NO_MEMORY_LIMIT bool
+	GIT_COMMIT string
 )
 
 func (srv *Server) Name() string {
@@ -184,10 +183,14 @@ func (srv *Server) CmdWait(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 // 'docker version': show version information
 func (srv *Server) CmdVersion(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	fmt.Fprintf(stdout, "Version:%s\n", VERSION)
-	fmt.Fprintf(stdout, "Git Commit:%s\n", GIT_COMMIT)
-	if NO_MEMORY_LIMIT {
-		fmt.Fprintf(stdout, "Memory limit disabled\n")
+	fmt.Fprintf(stdout, "Version: %s\n", VERSION)
+	fmt.Fprintf(stdout, "Git Commit: %s\n", GIT_COMMIT)
+	fmt.Fprintf(stdout, "Kernel: %s\n", srv.runtime.kernelVersion)
+	if !srv.runtime.capabilities.MemoryLimit {
+		fmt.Fprintf(stdout, "WARNING: No memory limit support\n")
+	}
+	if !srv.runtime.capabilities.SwapLimit {
+		fmt.Fprintf(stdout, "WARNING: No swap limit support\n")
 	}
 	return nil
 }
@@ -223,7 +226,8 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 }
 
 func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "stop", "CONTAINER [CONTAINER...]", "Stop a running container")
+	cmd := rcli.Subcmd(stdout, "stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -233,7 +237,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 	}
 	for _, name := range cmd.Args() {
 		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Stop(); err != nil {
+			if err := container.Stop(*nSeconds); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.ShortId())
@@ -246,6 +250,7 @@ func (srv *Server) CmdStop(stdin io.ReadCloser, stdout io.Writer, args ...string
 
 func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...string) error {
 	cmd := rcli.Subcmd(stdout, "restart", "CONTAINER [CONTAINER...]", "Restart a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -255,7 +260,7 @@ func (srv *Server) CmdRestart(stdin io.ReadCloser, stdout io.Writer, args ...str
 	}
 	for _, name := range cmd.Args() {
 		if container := srv.runtime.Get(name); container != nil {
-			if err := container.Restart(); err != nil {
+			if err := container.Restart(*nSeconds); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout, container.ShortId())
@@ -470,9 +475,9 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		if err != nil {
 			return err
 		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
+		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout, "Importing %v/%v (%v)")
 	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src)
+	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "")
 	if err != nil {
 		return err
 	}
@@ -678,7 +683,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 	}
 	w := tabwriter.NewWriter(stdout, 12, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tCOMMENT\tPORTS")
 	}
 	for i, container := range srv.runtime.List() {
 		if !container.State.Running && !*flAll && *nLast == -1 {
@@ -699,6 +704,7 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
 				/* STATUS */ container.State.String(),
 				/* COMMENT */ "",
+				/* PORTS */ container.NetworkSettings.PortMappingHuman(),
 			} {
 				if idx == 0 {
 					w.Write([]byte(field))
@@ -722,6 +728,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		"commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]",
 		"Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
+	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -730,7 +737,7 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		cmd.Usage()
 		return nil
 	}
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment)
+	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor)
 	if err != nil {
 		return err
 	}
@@ -832,6 +839,10 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		return fmt.Errorf("No such container: %s", name)
 	}
 
+	if container.State.Ghost {
+		return fmt.Errorf("Impossible to attach to a ghost container")
+	}
+
 	if container.Config.Tty {
 		stdout.SetOptionRawTerminal()
 	}
@@ -909,7 +920,7 @@ func (srv *Server) CmdTag(stdin io.ReadCloser, stdout io.Writer, args ...string)
 }
 
 func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	config, err := ParseRun(args, stdout)
+	config, err := ParseRun(args, stdout, srv.runtime.capabilities)
 	if err != nil {
 		return err
 	}
@@ -976,14 +987,20 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	Debugf("Waiting for attach to return\n")
 	<-attachErr
 	// Expecting I/O pipe error, discarding
+
+	// If we are in stdinonce mode, wait for the process to end
+	// otherwise, simply return
+	if config.StdinOnce && !config.Tty {
+		container.Wait()
+	}
 	return nil
 }
 
-func NewServer() (*Server, error) {
+func NewServer(autoRestart bool) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime()
+	runtime, err := NewRuntime(autoRestart)
 	if err != nil {
 		return nil, err
 	}

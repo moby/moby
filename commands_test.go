@@ -228,6 +228,21 @@ func TestRunDisconnectTty(t *testing.T) {
 		close(c1)
 	}()
 
+	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
+		for {
+			// Client disconnect after run -i should keep stdin out in TTY mode
+			l := runtime.List()
+			if len(l) == 1 && l[0].State.Running {
+				break
+			}
+
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	// Client disconnect after run -i should keep stdin out in TTY mode
+	container := runtime.List()[0]
+
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
@@ -239,14 +254,9 @@ func TestRunDisconnectTty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// as the pipes are close, we expect the process to die,
-	// therefore CmdRun to unblock. Wait for CmdRun
-	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
-		<-c1
-	})
+	// In tty mode, we expect the process to stay alive even after client's stdin closes.
+	// Do not wait for run to finish
 
-	// Client disconnect after run -i should keep stdin out in TTY mode
-	container := runtime.List()[0]
 	// Give some time to monitor to do his thing
 	container.WaitTimeout(500 * time.Millisecond)
 	if !container.State.Running {
@@ -384,4 +394,5 @@ func TestAttachDisconnect(t *testing.T) {
 	// Try to avoid the timeoout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
+	container.Wait()
 }

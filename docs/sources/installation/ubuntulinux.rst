@@ -6,51 +6,56 @@ Ubuntu Linux
   **Please note this project is currently under heavy development. It should not be used in production.**
 
 
-
-Installing on Ubuntu 12.04 and 12.10
-
 Right now, the officially supported distributions are:
 
-Ubuntu 12.04 (precise LTS)
-Ubuntu 12.10 (quantal)
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
+- Ubuntu 12.04 (precise LTS) (64-bit)
+- Ubuntu 12.10 (quantal) (64-bit)
 
-Install dependencies:
----------------------
+Dependencies
+------------
 
-::
+The linux-image-extra package is only needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
 
-    sudo apt-get install lxc wget bsdtar curl
-    sudo apt-get install linux-image-extra-`uname -r`
+.. code-block:: bash
 
-The linux-image-extra package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
-
-Install the latest docker binary:
-
-::
-
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-    tar -xf docker-master.tgz
-
-Run your first container!
-
-::
-
-    cd docker-master
-
-::
-
-    sudo ./docker run -i -t base /bin/bash
+   sudo apt-get install linux-image-extra-`uname -r`
 
 
-To run docker as a daemon, in the background, and allow non-root users to run ``docker`` start
-docker -d
+Installation
+------------
 
-::
+Docker is available as a Ubuntu PPA (Personal Package Archive),
+`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
+which makes installing Docker on Ubuntu very easy.
 
-    sudo ./docker -d &
 
 
-Consider adding docker to your PATH for simplicity.
+Add the custom package sources to your apt sources list. Copy and paste the following lines at once.
 
-Continue with the :ref:`hello_world` example.
+.. code-block:: bash
+
+   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"
+
+
+Update your sources. You will see a warning that GPG signatures cannot be verified.
+
+.. code-block:: bash
+
+   sudo apt-get update
+
+
+Now install it, you will see another warning that the package cannot be authenticated. Confirm install.
+
+.. code-block:: bash
+
+   sudo apt-get install lxc-docker
+
+
+Verify it worked
+
+.. code-block:: bash
+
+   docker
+
+
+**Done!**, now continue with the :ref:`hello_world` example.
