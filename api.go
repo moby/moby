@@ -45,24 +45,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(200)
-	})
-
-	r.Path("/images/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		vars := mux.Vars(r)
-		name := vars["name"]
-
-		if image, err := rtime.repositories.LookupImage(name); err == nil && image != nil {
-			b, err := json.Marshal(image)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-			return
-		}
-		http.Error(w, "No such image: "+name, http.StatusNotFound)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/export").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,23 +83,6 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 		}
 
-	})
-
-	r.Path("/containers/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		vars := mux.Vars(r)
-		name := vars["name"]
-
-		if container := rtime.Get(name); container != nil {
-			b, err := json.Marshal(container)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-			return
-		}
-		http.Error(w, "No such container: "+name, http.StatusNotFound)
 	})
 
 	r.Path("/images").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -428,7 +394,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusCreated)
 	})
 
 	r.Path("/images/{name:.*}/pull").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -491,10 +457,13 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			} else {
 				defer RestoreTerminal(oldState)
 			}
-
 		}
 
-		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
+		// Flush the options to make sure the client sets the raw mode
+		// or tell the client there is no options
+		conn.Write([]byte{})
+
+		fmt.Fprintln(file, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\n\r\n")
 		container, err := rtime.Create(&config)
 		if err != nil {
 			// If container not found, try to pull it
@@ -576,6 +545,21 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 			defer file.Close()
 
+			if container.Config.Tty {
+				oldState, err := SetRawTerminal()
+				if err != nil {
+					if os.Getenv("DEBUG") != "" {
+						log.Printf("Can't set the terminal in raw mode: %s", err)
+					}
+				} else {
+					defer RestoreTerminal(oldState)
+				}
+
+			}
+
+			// Flush the options to make sure the client sets the raw mode
+			conn.Write([]byte{})
+
 			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
 			r, w := io.Pipe()
 			go func() {
@@ -607,7 +591,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -623,7 +607,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/images/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -641,7 +625,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 				return
 			}
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/start").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -657,7 +641,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/stop").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -673,7 +657,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/wait").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -692,6 +676,40 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
 		}
+	})
+
+	r.Path("/containers/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		if container := rtime.Get(name); container != nil {
+			b, err := json.Marshal(container)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Write(b)
+			}
+			return
+		}
+		http.Error(w, "No such container: "+name, http.StatusNotFound)
+	})
+
+	r.Path("/images/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		if image, err := rtime.repositories.LookupImage(name); err == nil && image != nil {
+			b, err := json.Marshal(image)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Write(b)
+			}
+			return
+		}
+		http.Error(w, "No such image: "+name, http.StatusNotFound)
 	})
 
 	return http.ListenAndServe(addr, r)

@@ -834,7 +834,18 @@ func CmdAttach(args []string) error {
 		return nil
 	}
 
-	if err := callStream("POST", "/containers/"+cmd.Arg(0)+"/attach", nil, true); err != nil {
+	body, err := call("GET", "/containers/"+cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+
+	var container Container
+	err = json.Unmarshal(body, &container)
+	if err != nil {
+		return err
+	}
+
+	if err := callStream("POST", "/containers/"+cmd.Arg(0)+"/attach", nil, container.Config.Tty); err != nil {
 		return err
 	}
 	return nil
