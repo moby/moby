@@ -283,20 +283,24 @@ func (img *Image) Checksum() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	layerData, err := Tar(layer, Xz)
-	if err != nil {
-		return "", err
-	}
-	h := sha256.New()
-	if _, err := io.Copy(h, layerData); err != nil {
-		return "", err
-	}
-
 	jsonData, err := ioutil.ReadFile(jsonPath(root))
 	if err != nil {
 		return "", err
 	}
+
+	layerData, err := Tar(layer, Xz)
+	if err != nil {
+		return "", err
+	}
+
+	h := sha256.New()
 	if _, err := io.Copy(h, bytes.NewBuffer(jsonData)); err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(h, strings.NewReader("\n")); err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(h, layerData); err != nil {
 		return "", err
 	}
 
