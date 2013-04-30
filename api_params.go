@@ -2,7 +2,7 @@ package docker
 
 type ApiHistory struct {
 	Id        string
-	Created   string
+	Created   int64
 	CreatedBy string
 }
 
@@ -10,7 +10,7 @@ type ApiImages struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
 	Id         string
-	Created    string `json:",omitempty"`
+	Created    int64 `json:",omitempty"`
 }
 
 type ApiInfo struct {
@@ -26,7 +26,7 @@ type ApiContainers struct {
 	Id      string
 	Image   string `json:",omitempty"`
 	Command string `json:",omitempty"`
-	Created string `json:",omitempty"`
+	Created int64  `json:",omitempty"`
 	Status  string `json:",omitempty"`
 }
 

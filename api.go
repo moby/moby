@@ -10,11 +10,11 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func ListenAndServe(addr string, rtime *Runtime) error {
@@ -105,7 +105,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			w.WriteHeader(500)
 			return
 		}
-		var outs []ApiImages
+		var outs []ApiImages = []ApiImages{} //produce [] when empty instead of 'null'
 		for name, repository := range rtime.repositories.Repositories {
 			if NameFilter != "" && name != NameFilter {
 				continue
@@ -122,7 +122,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 					out.Repository = name
 					out.Tag = tag
 					out.Id = TruncateId(id)
-					out.Created = HumanDuration(time.Now().Sub(image.Created)) + " ago"
+					out.Created = image.Created.Unix()
 				} else {
 					out.Id = image.ShortId()
 				}
@@ -137,7 +137,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 					out.Repository = "<none>"
 					out.Tag = "<none>"
 					out.Id = TruncateId(id)
-					out.Created = HumanDuration(time.Now().Sub(image.Created)) + " ago"
+					out.Created = image.Created.Unix()
 				} else {
 					out.Id = image.ShortId()
 				}
@@ -189,11 +189,12 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var outs []ApiHistory
+
+		var outs []ApiHistory = []ApiHistory{} //produce [] when empty instead of 'null'
 		err = image.WalkHistory(func(img *Image) error {
 			var out ApiHistory
 			out.Id = rtime.repositories.ImageName(img.ShortId())
-			out.Created = HumanDuration(time.Now().Sub(img.Created)) + " ago"
+			out.Created = img.Created.Unix()
 			out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
 			return nil
 		})
@@ -318,8 +319,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err != nil {
 			n = -1
 		}
-		var outs []ApiContainers
-
+		var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
 		for i, container := range rtime.List() {
 			if !container.State.Running && All != "1" && n == -1 {
 				continue
@@ -336,7 +336,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 				}
 				out.Image = rtime.repositories.ImageName(container.Image)
 				out.Command = command
-				out.Created = HumanDuration(time.Now().Sub(container.Created)) + " ago"
+				out.Created = container.Created.Unix()
 				out.Status = container.State.String()
 			}
 			outs = append(outs, out)
@@ -425,6 +425,77 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
 			fmt.Fprintln(file, "Error: "+err.Error())
 		}
+	})
+
+	/* /!\ W.I.P /!\ */
+	r.Path("/images").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		src := r.Form.Get("src")
+		repo := r.Form.Get("repo")
+		tag := r.Form.Get("tag")
+
+		var archive io.Reader
+		var resp *http.Response
+
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer conn.Close()
+		file, err := conn.(*net.TCPConn).File()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		fmt.Fprintln(file, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\n\r\n")
+		if src == "-" {
+			r, w := io.Pipe()
+			go func() {
+				defer w.Close()
+				defer Debugf("Closing buffered stdin pipe")
+				io.Copy(w, file)
+			}()
+			archive = r
+		} else {
+			u, err := url.Parse(src)
+			if err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
+			}
+			if u.Scheme == "" {
+				u.Scheme = "http"
+				u.Host = src
+				u.Path = ""
+			}
+			fmt.Fprintln(file, "Downloading from", u)
+			// Download with curl (pretty progress bar)
+			// If curl is not available, fallback to http.Get()
+			resp, err = Download(u.String(), file)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			archive = ProgressReader(resp.Body, int(resp.ContentLength), file)
+		}
+		img, err := rtime.graph.Create(archive, nil, "Imported from "+src)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Optionally register the image at REPO/TAG
+		if repo != "" {
+			if err := rtime.repositories.Set(repo, tag, img.Id, true); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		fmt.Fprintln(file, img.ShortId())
 	})
 
 	r.Path("/containers").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

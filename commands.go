@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
 )
 
 const VERSION = "0.1.4"
@@ -34,6 +35,7 @@ func ParseCommands(args []string) error {
 		"images":  CmdImages,
 		"info":    CmdInfo,
 		"inspect": CmdInspect,
+		//"import":  CmdImport,
 		"history": CmdHistory,
 		"kill":    CmdKill,
 		"logs":    CmdLogs,
@@ -71,7 +73,7 @@ func cmdHelp(args []string) error {
 		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
-		//		{"import", "Create a new filesystem image from the contents of a tarball"},
+		//{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container/image"},
 		{"kill", "Kill a running container"},
@@ -436,7 +438,7 @@ func CmdHistory(args []string) error {
 	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 
 	for _, out := range outs {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", out.Id, out.Created, out.CreatedBy)
+		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil
@@ -485,12 +487,9 @@ func CmdKill(args []string) error {
 	return nil
 }
 
-/*
-func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	stdout.Flush()
-	cmd := rcli.Subcmd(stdout, "import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
-	var archive io.Reader
-	var resp *http.Response
+/* /!\ W.I.P /!\ */
+func CmdImport(args []string) error {
+	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -499,43 +498,18 @@ func (srv *Server) CmdImport(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		cmd.Usage()
 		return nil
 	}
-	src := cmd.Arg(0)
-	if src == "-" {
-		archive = stdin
-	} else {
-		u, err := url.Parse(src)
-		if err != nil {
-			return err
-		}
-		if u.Scheme == "" {
-			u.Scheme = "http"
-			u.Host = src
-			u.Path = ""
-		}
-		fmt.Fprintln(stdout, "Downloading from", u)
-		// Download with curl (pretty progress bar)
-		// If curl is not available, fallback to http.Get()
-		resp, err = Download(u.String(), stdout)
-		if err != nil {
-			return err
-		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), stdout)
-	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src)
+	src, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	v := url.Values{}
+	v.Set("repo", repository)
+	v.Set("tag", tag)
+	v.Set("src", src)
+
+	err := callStream("POST", "/images?"+v.Encode(), nil, false)
 	if err != nil {
 		return err
 	}
-	// Optionally register the image at REPO/TAG
-	if repository := cmd.Arg(1); repository != "" {
-		tag := cmd.Arg(2) // Repository will handle an empty tag properly
-		if err := srv.runtime.repositories.Set(repository, tag, img.Id, true); err != nil {
-			return err
-		}
-	}
-	fmt.Fprintln(stdout, img.ShortId())
 	return nil
 }
-*/
 
 /*
 func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
@@ -656,7 +630,7 @@ func CmdImages(args []string) error {
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", out.Repository, out.Tag, out.Id, out.Created)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}
@@ -713,7 +687,7 @@ func CmdPs(args []string) error {
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", out.Id, out.Image, out.Command, out.Status, out.Created)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}
