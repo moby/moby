@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -437,17 +436,23 @@ func CompareKernelVersion(a, b *KernelVersionInfo) int {
 }
 
 func FindCgroupMountpoint(cgroupType string) (string, error) {
-	output, err := exec.Command("mount").CombinedOutput()
+	output, err := ioutil.ReadFile("/proc/mounts")
 	if err != nil {
 		return "", err
 	}
 
-	reg := regexp.MustCompile(`^.* on (.*) type cgroup \(.*` + cgroupType + `[,\)]`)
+	// /proc/mounts has 6 fields per line, one mount per line, e.g.
+	// cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
 	for _, line := range strings.Split(string(output), "\n") {
-		r := reg.FindStringSubmatch(line)
-		if len(r) == 2 {
-			return r[1], nil
+		parts := strings.Split(line, " ")
+		if parts[2] == "cgroup" {
+			for _, opt := range strings.Split(parts[3], ",") {
+				if opt == cgroupType {
+					return parts[1], nil
+				}
+			}
 		}
 	}
+
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }
