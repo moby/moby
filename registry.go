@@ -89,6 +89,37 @@ func (graph *Graph) LookupRemoteImage(imgId, registry string, authConfig *auth.A
 	return err == nil && res.StatusCode == 307
 }
 
+func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.AuthConfig) ([]map[string]string, error) {
+	u := INDEX_ENDPOINT+"/repositories/"+repository+"/images"
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	res, err := graph.getHttpClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	// Repository doesn't exist yet
+	if res.StatusCode == 404 {
+		return nil, nil
+	}
+
+	jsonData, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	imageList := []map[string]string{}
+	err = json.Unmarshal(jsonData, &imageList)
+	if err != nil {
+		return nil, err
+	}
+
+	return imageList, nil
+}
+
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
 func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, token []string) (*Image, Archive, error) {
@@ -362,6 +393,7 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	if err != nil {
 		return fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
+
 	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
 		layerData)
 	if err != nil {
@@ -451,13 +483,36 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 
 	checksums, err := graph.Checksums(localRepo)
 	imgList := make([]map[string]string, len(checksums))
+	checksums2 := make([]map[string]string, len(checksums))
 	if err != nil {
 		return err
 	}
 
-	for i, obj := range checksums {
-		imgList[i] = map[string]string{"id": obj["id"]}
+	uploadedImages, err := graph.getImagesInRepository(remote, authConfig)
+	if err != nil {
+		return fmt.Errorf("Error occured while fetching the list")
 	}
+
+
+	// Filter list to only send images/checksums not already uploaded
+	i := 0
+	for _, obj := range checksums {
+		found := false
+		for _, uploadedImg := range uploadedImages {
+			if obj["id"] == uploadedImg["id"] && uploadedImg["checksum"] != "" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			imgList[i] = map[string]string{"id": obj["id"]}
+			checksums2[i] = obj
+			i += 1
+		}
+	}
+	checksums = checksums2[:i]
+	imgList = imgList[:i]
+
 	imgListJson, err := json.Marshal(imgList)
 	if err != nil {
 		return err
@@ -492,8 +547,6 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	}
 
 	if res.StatusCode != 200 && res.StatusCode != 201 {
-		info, err := ioutil.ReadAll(res.Body)
-		Debugf("%v %v", err, string(info))
 		return fmt.Errorf("Error: Status %d trying to push repository %s", res.StatusCode, remote)
 	}
 
@@ -525,6 +578,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	if err != nil {
 		return err
 	}
+
 	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(checksumsJson))
 	if err != nil {
 		return err
