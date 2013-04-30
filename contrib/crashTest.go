@@ -77,53 +77,32 @@ func crashTest() error {
 			stop = false
 			for i := 0; i < 100 && !stop; {
 				func() error {
-					if conn != nil {
-						fmt.Fprintf(conn, "%d\n", totalTestCount)
-					}
-					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", "hello", "world")
+					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", fmt.Sprintf("%d", totalTestCount))
+					i++
+					totalTestCount++
 					outPipe, err := cmd.StdoutPipe()
 					if err != nil {
 						return err
 					}
-					// inPipe, err := cmd.StdinPipe()
-					// if err != nil {
-					// 	return err
-					// }
+					inPipe, err := cmd.StdinPipe()
+					if err != nil {
+						return err
+					}
 					if err := cmd.Start(); err != nil {
 						return err
 					}
-					go func() {
-						io.Copy(os.Stdout, outPipe)
-					}()
-					// Expecting error, do not check
-					// inPipe.Write([]byte("hello world!!!!!\n"))
-					// go inPipe.Write([]byte("hello world!!!!!\n"))
-					// go inPipe.Write([]byte("hello world!!!!!\n"))
-					// inPipe.Close()
+					if conn != nil {
+						go io.Copy(conn, outPipe)
+					}
 
-					// go func() error {
-					// 	r := bufio.NewReader(outPipe)
-					// 	if out, err := r.ReadString('\n'); err != nil {
-					// 		return err
-					// 	} else if out == "hello world\n" {
-					// 		log.Printf("%d", i)
-					// 		if conn != nil {
-					// 			fmt.Fprintf(conn, "%d\n", totalTestCount)
-					// 		}
-					// 		i++
-					// 		totalTestCount++
-					// 	}
-					// 	return nil
-					// }()
+					// Expecting error, do not check
+					inPipe.Write([]byte("hello world!!!!!\n"))
+					go inPipe.Write([]byte("hello world!!!!!\n"))
+					go inPipe.Write([]byte("hello world!!!!!\n"))
+					inPipe.Close()
+
 					if err := cmd.Wait(); err != nil {
 						return err
-					} else {
-						log.Printf("%d", i)
-						if conn != nil {
-							fmt.Fprintf(conn, "%d\n", totalTestCount)
-						}
-						i++
-						totalTestCount++
 					}
 					outPipe.Close()
 					return nil
