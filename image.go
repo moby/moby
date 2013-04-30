@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,7 +20,6 @@ import (
 type Image struct {
 	Id              string    `json:"id"`
 	Parent          string    `json:"parent,omitempty"`
-	Checksum        string    `json:"checksum,omitempty"`
 	Comment         string    `json:"comment,omitempty"`
 	Created         time.Time `json:"created"`
 	Container       string    `json:"container,omitempty"`
@@ -260,30 +261,57 @@ func (img *Image) layer() (string, error) {
 	return layerPath(root), nil
 }
 
-func (img *Image) FixChecksum() error {
+func (img *Image) Checksum() (string, error) {
+	root, err := img.root()
+	if err != nil {
+		return "", err
+	}
+
+	checksumDictPth := path.Join(root, "..", "..", "checksums")
+	checksums := new(map[string]string)
+
+	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
+		if err := json.Unmarshal(checksumDict, checksums); err != nil {
+			return "", err
+		}
+		if checksum, ok := (*checksums)[img.Id]; ok {
+			return checksum, nil
+		}
+	}
+
 	layer, err := img.layer()
 	if err != nil {
-		return err
+		return "", err
 	}
 	layerData, err := Tar(layer, Xz)
 	if err != nil {
-		return err
+		return "", err
 	}
-	sum, err := HashData(layerData)
+	h := sha256.New()
+	if _, err := io.Copy(h, layerData); err != nil {
+		return "", err
+	}
+
+	jsonData, err := ioutil.ReadFile(jsonPath(root))
 	if err != nil {
-		return err
+		return "", err
 	}
-	img.Checksum = sum
-	jsonData, err := json.Marshal(img)
+	if _, err := io.Copy(h, bytes.NewBuffer(jsonData)); err != nil {
+		return "", err
+	}
+
+	hash := "sha256:"+hex.EncodeToString(h.Sum(nil))
+	if *checksums == nil {
+		*checksums = map[string]string{}
+	}
+	(*checksums)[img.Id] = hash
+	checksumJson, err := json.Marshal(checksums)
 	if err != nil {
-		return err
+		return hash, err
 	}
-	root, err := img.root()
-	if err != nil {
-		return err
+
+	if err := ioutil.WriteFile(checksumDictPth, checksumJson, 0600); err != nil {
+		return hash, err
 	}
-	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-		return err
-	}
-	return nil
+	return hash, nil
 }

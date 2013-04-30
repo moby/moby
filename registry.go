@@ -327,6 +327,12 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+
+	checksum, err := img.Checksum()
+	if err != nil {
+		return fmt.Errorf("Error while retrieving checksum for %s: %v", img.Id, err)
+	}
+	req.Header.Set("X-Docker-Checksum", checksum)
 	res, err := doWithCookies(client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
@@ -457,7 +463,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote, bytes.NewReader(imgListJson))
+	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
 	}
@@ -468,7 +474,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	if err != nil {
 		return err
 	}
-	res.Body.Close()
+	defer res.Body.Close()
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		Debugf("Redirected to %s\n", res.Header.Get("Location"))
 		req, err = http.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJson))
@@ -482,10 +488,12 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		if err != nil {
 			return err
 		}
-		res.Body.Close()
+		defer res.Body.Close()
 	}
 
 	if res.StatusCode != 200 && res.StatusCode != 201 {
+		info, err := ioutil.ReadAll(res.Body)
+		Debugf("%v %v", err, string(info))
 		return fmt.Errorf("Error: Status %d trying to push repository %s", res.StatusCode, remote)
 	}
 
