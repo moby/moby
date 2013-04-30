@@ -529,9 +529,6 @@ func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...
 	Debugf("Pushing [%s] to [%s]\n", local, remote)
 
 	// Try to get the image
-	// FIXME: Handle lookup
-	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
-	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
 	img, err := srv.runtime.graph.Get(local)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
