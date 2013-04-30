@@ -565,6 +565,12 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		return nil
 	}
 
+	if strings.Contains(remote, ":") {
+		remoteParts := strings.Split(remote, ":")
+		tag = &remoteParts[1]
+		remote = remoteParts[0]
+	}
+
 	// FIXME: CmdPull should be a wrapper around Runtime.Pull()
 	if *registry != "" {
 		if err := srv.runtime.graph.PullImage(stdout, remote, *registry, nil); err != nil {
@@ -572,7 +578,6 @@ func (srv *Server) CmdPull(stdin io.ReadCloser, stdout io.Writer, args ...string
 		}
 		return nil
 	}
-	// FIXME: Allow pull repo:tag
 	if err := srv.runtime.graph.PullRepository(stdout, remote, *tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
