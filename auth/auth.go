@@ -75,6 +75,9 @@ func LoadConfig(rootPath string) (*AuthConfig, error) {
 		return nil, err
 	}
 	arr := strings.Split(string(b), "\n")
+	if len(arr) < 2 {
+		return nil, fmt.Errorf("The Auth config file is empty")
+	}
 	origAuth := strings.Split(arr[0], " = ")
 	origEmail := strings.Split(arr[1], " = ")
 	authConfig, err := DecodeAuth(origAuth[1])
@@ -88,9 +91,14 @@ func LoadConfig(rootPath string) (*AuthConfig, error) {
 
 // save the auth config
 func saveConfig(rootPath, authStr string, email string) error {
+	confFile := path.Join(rootPath, CONFIGFILE)
+	if len(email) == 0 {
+		os.Remove(confFile)
+		return nil
+	}
 	lines := "auth = " + authStr + "\n" + "email = " + email + "\n"
 	b := []byte(lines)
-	err := ioutil.WriteFile(path.Join(rootPath, CONFIGFILE), b, 0600)
+	err := ioutil.WriteFile(confFile, b, 0600)
 	if err != nil {
 		return err
 	}
@@ -145,8 +153,12 @@ func Login(authConfig *AuthConfig) (string, error) {
 			if resp.StatusCode == 200 {
 				status = "Login Succeeded\n"
 				storeConfig = true
+			} else if resp.StatusCode == 401 {
+				saveConfig(authConfig.rootPath, "", "")
+				return "", fmt.Errorf("Wrong login/password, please try again")
 			} else {
-				return "", fmt.Errorf("Login: %s", body)
+				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+					resp.StatusCode, resp.Header)
 			}
 		} else {
 			return "", fmt.Errorf("Registration: %s", reqBody)
