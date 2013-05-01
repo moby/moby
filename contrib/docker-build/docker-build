@@ -65,7 +65,13 @@ def insert(base, src, dst, author=None):
 	stdin = file(src)
 	stdin.seek(0)
 	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin, author=author)
-	
+
+def push(base, dst, author=None):
+	print "PUSH to {} in {}".format(dst, base)
+	if dst == "":
+		raise Exception("Missing argument to push")
+	tar = subprocess.Popen(["tar", "-c", "."], stdout=subprocess.PIPE).stdout
+	return run_and_commit(base, "mkdir -p '{0}' && tar -C '{0}' -x".format(dst), stdin=tar, author=author)
 
 def main():
 	base=""
@@ -94,6 +100,11 @@ def main():
 				result = insert(base, src, dst, author=maintainer)
 				steps.append(result)
 				base = result
+				print "===> " + base
+			elif op == "push":
+				result = push(base, param.strip(), author=maintainer)
+				steps.append(result)
+				base=result
 				print "===> " + base
 			else:
 				print "Skipping uknown op " + op
