@@ -375,7 +375,8 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			errBody = []byte(err.Error())
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when"+
+				" trying to parse response body: %v", res.StatusCode, err)
 		}
 		var jsonBody map[string]string
 		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
