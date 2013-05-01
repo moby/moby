@@ -145,18 +145,46 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId string, authConfig *auth.A
 		return err
 	}
 	// FIXME: Try to stream the images?
-	// FIXME: Lunch the getRemoteImage() in goroutines
+
+	idChan := make(chan string, len(history))
+
 	for _, j := range history {
 		if !graph.Exists(j.Id) {
-			img, layer, err := graph.getRemoteImage(stdout, j.Id, authConfig)
-			if err != nil {
-				// FIXME: Keep goging in case of error?
-				return err
-			}
-			if err = graph.Register(layer, img); err != nil {
-				return err
-			}
+			idChan <- j.Id
 		}
+	}
+	close(idChan)
+
+	expectedResponseCount := len(idChan)
+	errChan := make(chan error)
+	maxWorkers := 4
+
+	for i := 0; i < maxWorkers; i++ {
+		go func() {
+			for id := range idChan {
+				img, layer, err := graph.getRemoteImage(stdout, id, authConfig)
+				if err != nil {
+					errChan <- err
+					continue
+				}
+				if err = graph.Register(layer, img); err != nil {
+					errChan <- err
+					continue
+				}
+				errChan <- nil
+			}
+		}()
+	}
+
+	errMsgs := []string{"The following errors were encountered while downloading images:"}
+
+	for i := 0; i < expectedResponseCount; i++ {
+		if err = <-errChan; err != nil {
+			errMsgs = append(errMsgs, err.Error())
+		}
+	}
+	if len(errMsgs) > 1 {
+		return fmt.Errorf(strings.Join(errMsgs, "\n"))
 	}
 	return nil
 }
