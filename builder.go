@@ -146,20 +146,22 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("Invalid Dockerfile format")
 		}
-		switch tmp[0] {
+		instruction := tmp[0]
+		arguments := tmp[1]
+		switch strings.ToLower(instruction) {
 		case "from":
-			fmt.Fprintf(stdout, "FROM %s\n", tmp[1])
-			image, err = builder.runtime.repositories.LookupImage(tmp[1])
+			fmt.Fprintf(stdout, "FROM %s\n", arguments)
+			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
 				return nil, err
 			}
 			break
 		case "run":
-			fmt.Fprintf(stdout, "RUN %s\n", tmp[1])
+			fmt.Fprintf(stdout, "RUN %s\n", arguments)
 			if image == nil {
 				return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 			}
-			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", tmp[1]}, nil, builder.runtime.capabilities)
+			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", arguments}, nil, builder.runtime.capabilities)
 			if err != nil {
 				return nil, err
 			}
@@ -176,7 +178,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 
 			// Wait for it to finish
 			if result := c.Wait(); result != 0 {
-				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", tmp[1], result)
+				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", arguments, result)
 			}
 
 			// Commit the container
@@ -196,19 +198,21 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			if image == nil {
 				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
 			}
-			tmp2 := strings.SplitN(tmp[1], " ", 2)
+			tmp = strings.SplitN(arguments, " ", 2)
 			if len(tmp) != 2 {
 				return nil, fmt.Errorf("Invalid INSERT format")
 			}
-			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", tmp2[0], tmp2[1], base.ShortId())
+			sourceUrl := tmp[0]
+			destPath := tmp[1]
+			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
 
-			file, err := Download(tmp2[0], stdout)
+			file, err := Download(sourceUrl, stdout)
 			if err != nil {
 				return nil, err
 			}
 			defer file.Body.Close()
 
-			config, err := ParseRun([]string{base.Id, "echo", "insert", tmp2[0], tmp2[1]}, nil, builder.runtime.capabilities)
+			config, err := ParseRun([]string{base.Id, "echo", "insert", sourceUrl, destPath}, nil, builder.runtime.capabilities)
 			if err != nil {
 				return nil, err
 			}
@@ -223,10 +227,10 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 
 			// Wait for echo to finish
 			if result := c.Wait(); result != 0 {
-				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", tmp[1], result)
+				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", arguments, result)
 			}
 
-			if err := c.Inject(file.Body, tmp2[1]); err != nil {
+			if err := c.Inject(file.Body, destPath); err != nil {
 				return nil, err
 			}
 
