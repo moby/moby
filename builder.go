@@ -168,6 +168,7 @@ func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
 func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, error) {
 	var (
 		image, base   *Image
+		maintainer    string
 		tmpContainers map[string]struct{} = make(map[string]struct{})
 		tmpImages     map[string]struct{} = make(map[string]struct{})
 	)
@@ -220,6 +221,10 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 
 			break
+		case "mainainer":
+			fmt.Fprintf(stdout, "MAINTAINER %s\n", arguments)
+			maintainer = arguments
+			break
 		case "run":
 			fmt.Fprintf(stdout, "RUN %s\n", arguments)
 			if image == nil {
@@ -246,7 +251,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 
 			// Commit the container
-			base, err = builder.Commit(c, "", "", "", "", nil)
+			base, err = builder.Commit(c, "", "", "", maintainer, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -266,7 +271,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			if len(tmp) != 2 {
 				return nil, fmt.Errorf("Invalid INSERT format")
 			}
-			sourceUrl := strings.Trim(tmp[0], "")
+			sourceUrl := strings.Trim(tmp[0], " ")
 			destPath := strings.Trim(tmp[1], " ")
 			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
 
@@ -298,7 +303,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				return nil, err
 			}
 
-			base, err = builder.Commit(c, "", "", "", "", nil)
+			base, err = builder.Commit(c, "", "", "", maintainer, nil)
 			if err != nil {
 				return nil, err
 			}
