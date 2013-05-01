@@ -9,7 +9,7 @@ const Dockerfile = `
 # VERSION		0.1
 # DOCKER-VERSION	0.2
 
-from   docker-ut
+from   ` + unitTestImageName + `
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
 insert https://raw.github.com/dotcloud/docker/master/CHANGELOG.md /tmp/CHANGELOG.md
