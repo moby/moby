@@ -15,6 +15,7 @@ This documentation has the following resources:
    examples/index
    contributing/index
    commandline/index
+   builder/index
    faq
 
 

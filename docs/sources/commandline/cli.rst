@@ -27,6 +27,7 @@ Available Commands
    :maxdepth: 1
 
    command/attach
+   command/build
    command/commit
    command/diff
    command/export
