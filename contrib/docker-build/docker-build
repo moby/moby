@@ -49,14 +49,17 @@ def docker(args, stdin=None):
 def image_exists(img):
 	return docker(["inspect", img]).read().strip() != ""
 
-def run_and_commit(img_in, cmd, stdin=None, author=None):
+def image_config(img):
+	return json.loads(docker(["inspect", img]).read()).get("Config", {})
+
+def run_and_commit(img_in, cmd, stdin=None, author=None, run=None):
 	run_id = docker(["run"] + (["-i", "-a", "stdin"] if stdin else ["-d"]) + [img_in, "/bin/sh", "-c", cmd], stdin=stdin).read().rstrip()
 	print "---> Waiting for " + run_id
 	result=int(docker(["wait", run_id]).read().rstrip())
 	if result != 0:
 		print "!!! '{}' return non-zero exit code '{}'. Aborting.".format(cmd, result)
 		sys.exit(1)
-	return docker(["commit"] + (["-author", author] if author else []) + [run_id]).read().rstrip()
+	return docker(["commit"] + (["-author", author] if author else []) + (["-run", json.dumps(run)] if run is not None else []) + [run_id]).read().rstrip()
 
 def insert(base, src, dst, author=None):
 	print "COPY {} to {} in {}".format(src, dst, base)
@@ -103,6 +106,14 @@ def main():
 				print "===> " + base
 			elif op == "push":
 				result = push(base, param.strip(), author=maintainer)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "expose":
+				config = image_config(base)
+				portspec = param.strip()
+				config.setdefault("PortSpecs", []).append(portspec)
+				result = run_and_commit(base, "# (nop) expose port {}".format(portspec), author=maintainer, run=config)
 				steps.append(result)
 				base=result
 				print "===> " + base
