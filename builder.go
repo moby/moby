@@ -191,8 +191,8 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("Invalid Dockerfile format")
 		}
-		instruction := tmp[0]
-		arguments := tmp[1]
+		instruction := strings.Trim(tmp[0], " ")
+		arguments := strings.Trim(tmp[1], " ")
 		switch strings.ToLower(instruction) {
 		case "from":
 			fmt.Fprintf(stdout, "FROM %s\n", arguments)
@@ -247,8 +247,8 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			if len(tmp) != 2 {
 				return nil, fmt.Errorf("Invalid INSERT format")
 			}
-			sourceUrl := tmp[0]
-			destPath := tmp[1]
+			sourceUrl := strings.Trim(tmp[0], "")
+			destPath := strings.Trim(tmp[1], " ")
 			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
 
 			file, err := Download(sourceUrl, stdout)
