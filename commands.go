@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -34,7 +33,7 @@ func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
-		{"build", "Build a container from Dockerfile"},
+		{"build", "Build a container from Dockerfile via stdin"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -115,28 +114,11 @@ func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 
 func (srv *Server) CmdBuild(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
 	stdout.Flush()
-	cmd := rcli.Subcmd(stdout, "build", "[Dockerfile|-]", "Build a container from Dockerfile")
+	cmd := rcli.Subcmd(stdout, "build", "-", "Build a container from Dockerfile via stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	dockerfile := cmd.Arg(0)
-	if dockerfile == "" {
-		dockerfile = "Dockerfile"
-	}
-
-	var file io.Reader
-
-	if dockerfile != "-" {
-		f, err := os.Open(dockerfile)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		file = f
-	} else {
-		file = stdin
-	}
-	img, err := NewBuilder(srv.runtime).Build(file, stdout)
+	img, err := NewBuilder(srv.runtime).Build(stdin, stdout)
 	if err != nil {
 		return err
 	}
