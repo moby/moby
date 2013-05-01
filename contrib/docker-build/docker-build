@@ -50,7 +50,7 @@ def image_exists(img):
 	return docker(["inspect", img]).read().strip() != ""
 
 def image_config(img):
-	return json.loads(docker(["inspect", img]).read()).get("Config", {})
+	return json.loads(docker(["inspect", img]).read()).get("config", {})
 
 def run_and_commit(img_in, cmd, stdin=None, author=None, run=None):
 	run_id = docker(["run"] + (["-i", "-a", "stdin"] if stdin else ["-d"]) + [img_in, "/bin/sh", "-c", cmd], stdin=stdin).read().rstrip()
@@ -111,9 +111,19 @@ def main():
 				print "===> " + base
 			elif op == "expose":
 				config = image_config(base)
+				if config.get("PortSpecs") is None:
+					config["PortSpecs"] = []
 				portspec = param.strip()
-				config.setdefault("PortSpecs", []).append(portspec)
+				config["PortSpecs"].append(portspec)
 				result = run_and_commit(base, "# (nop) expose port {}".format(portspec), author=maintainer, run=config)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "cmd":
+				config  = image_config(base)
+				cmd = list(json.loads(param))
+				config["Cmd"] = cmd
+				result = run_and_commit(base, "# (nop) set default command to '{}'".format(" ".join(cmd)), author=maintainer, run=config)
 				steps.append(result)
 				base=result
 				print "===> " + base
