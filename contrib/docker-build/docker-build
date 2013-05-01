@@ -49,26 +49,27 @@ def docker(args, stdin=None):
 def image_exists(img):
 	return docker(["inspect", img]).read().strip() != ""
 
-def run_and_commit(img_in, cmd, stdin=None):
+def run_and_commit(img_in, cmd, stdin=None, author=None):
 	run_id = docker(["run"] + (["-i", "-a", "stdin"] if stdin else ["-d"]) + [img_in, "/bin/sh", "-c", cmd], stdin=stdin).read().rstrip()
 	print "---> Waiting for " + run_id
 	result=int(docker(["wait", run_id]).read().rstrip())
 	if result != 0:
 		print "!!! '{}' return non-zero exit code '{}'. Aborting.".format(cmd, result)
 		sys.exit(1)
-	return docker(["commit", run_id]).read().rstrip()
+	return docker(["commit"] + (["-author", author] if author else []) + [run_id]).read().rstrip()
 
-def insert(base, src, dst):
+def insert(base, src, dst, author=None):
 	print "COPY {} to {} in {}".format(src, dst, base)
 	if dst == "":
 		raise Exception("Missing destination path")
 	stdin = file(src)
 	stdin.seek(0)
-	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin)
+	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin, author=author)
 	
 
 def main():
 	base=""
+	maintainer=""
 	steps = []
 	try:
 		for line in sys.stdin.readlines():
@@ -77,19 +78,20 @@ def main():
 			if line == "" or line[0] == "#":
 				continue
 			op, param = line.split("	", 1)
+			print op.upper() + " " + param
 			if op == "from":
-				print "FROM " + param
 				base = param
 				steps.append(base)
+			elif op == "maintainer":
+				maintainer = param
 			elif op == "run":
-				print "RUN " + param
-				result = run_and_commit(base, param)
+				result = run_and_commit(base, param, author=maintainer)
 				steps.append(result)
 				base = result
 				print "===> " + base
 			elif op == "copy":
 				src, dst = param.split("	", 1)
-				result = insert(base, src, dst)
+				result = insert(base, src, dst, author=maintainer)
 				steps.append(result)
 				base = result
 				print "===> " + base

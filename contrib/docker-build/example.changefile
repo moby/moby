@@ -1,4 +1,5 @@
 # Start build from a know base image
+maintainer	Solomon Hykes <solomon@dotcloud.com>
 from	base:ubuntu-12.10
 # Update ubuntu sources
 run	echo 'deb http://archive.ubuntu.com/ubuntu quantal main universe multiverse' > /etc/apt/sources.list
