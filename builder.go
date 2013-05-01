@@ -142,7 +142,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, "	", 2)
+		tmp := strings.SplitN(line, " ", 2)
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("Invalid Dockerfile format")
 		}
@@ -192,13 +192,13 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			image = base
 
 			break
-		case "copy":
+		case "insert":
 			if image == nil {
 				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
 			}
 			tmp2 := strings.SplitN(tmp[1], " ", 2)
 			if len(tmp) != 2 {
-				return nil, fmt.Errorf("Invalid COPY format")
+				return nil, fmt.Errorf("Invalid INSERT format")
 			}
 			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", tmp2[0], tmp2[1], base.ShortId())
 
@@ -240,7 +240,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 
 			break
 		default:
-			fmt.Fprintf(stdout, "Skipping unknown op %s\n", tmp[0])
+			fmt.Fprintf(stdout, "Skipping unknown instruction %s\n", instruction)
 		}
 	}
 	if base != nil {
