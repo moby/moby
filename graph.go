@@ -84,13 +84,14 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData Archive, container *Container, comment, author string) (*Image, error) {
+func (graph *Graph) Create(layerData Archive, container *Container, comment, author string, config *Config) (*Image, error) {
 	img := &Image{
 		Id:            GenerateId(),
 		Comment:       comment,
 		Created:       time.Now(),
 		DockerVersion: VERSION,
 		Author:        author,
+		Config:        config,
 	}
 	if container != nil {
 		img.Parent = container.Image

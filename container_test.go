@@ -184,7 +184,7 @@ func TestDiff(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -214,6 +214,84 @@ func TestDiff(t *testing.T) {
 		if elem.Path == "/etc/passwd" {
 			t.Fatalf("/etc/passwd should not be present in the diff after commit.")
 		}
+	}
+}
+
+func TestCommitAutoRun(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container1, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container1)
+
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", &Config{Cmd: []string{"cat", "/world"}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+
+	container2, err := runtime.Create(
+		&Config{
+			Image: img.Id,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr, err := container2.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	container2.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output2, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderr.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "hello\n" {
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
 	}
 }
 
@@ -248,7 +326,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", nil)
 	if err != nil {
 		t.Error(err)
 	}
