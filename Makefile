@@ -38,8 +38,7 @@ $(DOCKER_BIN): $(DOCKER_DIR)
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
-	@rm -f $@
-	@ln -sf $(CURDIR)/ $@
+	@if [ -h $@ ]; then rm -f $@; ln -sf $(CURDIR)/ $@; fi
 	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
 
 whichrelease:
@@ -75,4 +74,7 @@ fmt:
 	@gofmt -s -l -w .
 
 hack:
-	cd $(CURDIR)/buildbot && vagrant up
+	cd $(CURDIR)/hack && vagrant up
+
+ssh-dev:
+	cd $(CURDIR)/hack && vagrant ssh
