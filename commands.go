@@ -106,7 +106,7 @@ func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
-	img, err = b.Commit(c, "", "", img.Comment, img.Author)
+	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
 		return err
 	}

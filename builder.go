@@ -24,12 +24,57 @@ func NewBuilder(runtime *Runtime) *Builder {
 	}
 }
 
+func (builder *Builder) mergeConfig(userConf, imageConf *Config) {
+	if userConf.Hostname != "" {
+		userConf.Hostname = imageConf.Hostname
+	}
+	if userConf.User != "" {
+		userConf.User = imageConf.User
+	}
+	if userConf.Memory == 0 {
+		userConf.Memory = imageConf.Memory
+	}
+	if userConf.MemorySwap == 0 {
+		userConf.MemorySwap = imageConf.MemorySwap
+	}
+	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
+		userConf.PortSpecs = imageConf.PortSpecs
+	}
+	if !userConf.Tty {
+		userConf.Tty = userConf.Tty
+	}
+	if !userConf.OpenStdin {
+		userConf.OpenStdin = imageConf.OpenStdin
+	}
+	if !userConf.StdinOnce {
+		userConf.StdinOnce = imageConf.StdinOnce
+	}
+	if userConf.Env == nil || len(userConf.Env) == 0 {
+		userConf.Env = imageConf.Env
+	}
+	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
+		userConf.Cmd = imageConf.Cmd
+	}
+	if userConf.Dns == nil || len(userConf.Dns) == 0 {
+		userConf.Dns = imageConf.Dns
+	}
+}
+
 func (builder *Builder) Create(config *Config) (*Container, error) {
 	// Lookup image
 	img, err := builder.repositories.LookupImage(config.Image)
 	if err != nil {
 		return nil, err
 	}
+
+	if img.Config != nil {
+		builder.mergeConfig(config, img.Config)
+	}
+
+	if config.Cmd == nil {
+		return nil, fmt.Errorf("No command specified")
+	}
+
 	// Generate id
 	id := GenerateId()
 	// Generate default hostname
@@ -87,7 +132,7 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (builder *Builder) Commit(container *Container, repository, tag, comment, author string) (*Image, error) {
+func (builder *Builder) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	rwTar, err := container.ExportRw()
@@ -95,7 +140,7 @@ func (builder *Builder) Commit(container *Container, repository, tag, comment, a
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := builder.graph.Create(rwTar, container, comment, author)
+	img, err := builder.graph.Create(rwTar, container, comment, author, config)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +227,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 
 			// Commit the container
-			base, err = builder.Commit(c, "", "", "", "")
+			base, err = builder.Commit(c, "", "", "", "", nil)
 			if err != nil {
 				return nil, err
 			}
@@ -234,7 +279,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				return nil, err
 			}
 
-			base, err = builder.Commit(c, "", "", "", "")
+			base, err = builder.Commit(c, "", "", "", "", nil)
 			if err != nil {
 				return nil, err
 			}

@@ -225,7 +225,9 @@ func TestCommitAutoRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container1, err := runtime.Create(
+
+	builder := NewBuilder(runtime)
+	container1, err := builder.Create(
 		&Config{
 			Image: GetTestImage(runtime).Id,
 			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
@@ -256,8 +258,7 @@ func TestCommitAutoRun(t *testing.T) {
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-
-	container2, err := runtime.Create(
+	container2, err := builder.Create(
 		&Config{
 			Image: img.Id,
 		},
