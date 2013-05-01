@@ -121,9 +121,8 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		return nil, err
 	}
 
-	//runtime.mergeConfig(config, img.Config)
 	if img.Config != nil {
-		config = img.Config
+		runtime.mergeConfig(config, img.Config)
 	}
 
 	if config.Cmd == nil {
