@@ -198,8 +198,27 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			fmt.Fprintf(stdout, "FROM %s\n", arguments)
 			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
-				return nil, err
+				if builder.runtime.graph.IsNotExist(err) {
+					if builder.runtime.graph.LookupRemoteImage(arguments, builder.runtime.authConfig) {
+						if err := builder.runtime.graph.PullImage(stdout, arguments, builder.runtime.authConfig); err != nil {
+							return nil, err
+						}
+					} else {
+						// FIXME: Allow pull repo:tag
+						if err := builder.runtime.graph.PullRepository(stdout, arguments, "", builder.runtime.repositories, builder.runtime.authConfig); err != nil {
+							return nil, err
+						}
+					}
+
+					image, err = builder.runtime.repositories.LookupImage(arguments)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, err
+				}
 			}
+
 			break
 		case "run":
 			fmt.Fprintf(stdout, "RUN %s\n", arguments)
