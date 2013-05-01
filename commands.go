@@ -608,85 +608,126 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 	//limit := cmd.Int("l", 0, "Only show the N most recent versions of each image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	flAll := cmd.Bool("a", false, "show all images")
+	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() > 1 {
-		cmd.Usage()
-		return nil
-	}
-	var nameFilter string
-	if cmd.NArg() == 1 {
-		nameFilter = cmd.Arg(0)
-	}
-	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
-	}
-	var allImages map[string]*Image
-	var err error
-	if *flAll {
-		allImages, err = srv.runtime.graph.Map()
-	} else {
-		allImages, err = srv.runtime.graph.Heads()
-	}
-	if err != nil {
-		return err
-	}
-	for name, repository := range srv.runtime.repositories.Repositories {
-		if nameFilter != "" && name != nameFilter {
-			continue
+
+	if *flViz {
+		images, _ := srv.runtime.graph.All()
+		if images == nil {
+			return nil
 		}
-		for tag, id := range repository {
-			image, err := srv.runtime.graph.Get(id)
+
+		fmt.Fprintf(stdout, "digraph G {\n")
+
+		var parentImage *Image
+		var err error
+		for _, image := range images {
+			parentImage, err = image.GetParent()
 			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
+				fmt.Errorf("Error while getting parent image: %v", err)
+				return nil
+			}
+			if parentImage != nil {
+				fmt.Fprintf(stdout, "  \"%s\" -> \"%s\"\n", parentImage.ShortId(), image.ShortId())
+			} else {
+				fmt.Fprintf(stdout, "  base -> \"%s\" [style=invis]\n", image.ShortId())
+			}
+		}
+
+		reporefs := make(map[string][]string)
+
+		for name, repository := range srv.runtime.repositories.Repositories {
+			for tag, id := range repository {
+				reporefs[TruncateId(id)] = append(reporefs[TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
+			}
+		}
+
+		for id, repos := range reporefs {
+			fmt.Fprintf(stdout, "  \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", id, id, strings.Join(repos, "\\n"))
+		}
+
+		fmt.Fprintf(stdout, "  base [style=invisible]\n")
+		fmt.Fprintf(stdout, "}\n")
+	} else {
+		if cmd.NArg() > 1 {
+			cmd.Usage()
+			return nil
+		}
+		var nameFilter string
+		if cmd.NArg() == 1 {
+			nameFilter = cmd.Arg(0)
+		}
+		w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+		if !*quiet {
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+		}
+		var allImages map[string]*Image
+		var err error
+		if *flAll {
+			allImages, err = srv.runtime.graph.Map()
+		} else {
+			allImages, err = srv.runtime.graph.Heads()
+		}
+		if err != nil {
+			return err
+		}
+		for name, repository := range srv.runtime.repositories.Repositories {
+			if nameFilter != "" && name != nameFilter {
 				continue
 			}
-			delete(allImages, id)
-			if !*quiet {
-				for idx, field := range []string{
-					/* REPOSITORY */ name,
-					/* TAG */ tag,
-					/* ID */ TruncateId(id),
-					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-				} {
-					if idx == 0 {
-						w.Write([]byte(field))
-					} else {
-						w.Write([]byte("\t" + field))
-					}
+			for tag, id := range repository {
+				image, err := srv.runtime.graph.Get(id)
+				if err != nil {
+					log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
+					continue
 				}
-				w.Write([]byte{'\n'})
-			} else {
-				stdout.Write([]byte(image.ShortId() + "\n"))
+				delete(allImages, id)
+				if !*quiet {
+					for idx, field := range []string{
+						/* REPOSITORY */ name,
+						/* TAG */ tag,
+						/* ID */ TruncateId(id),
+						/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
+					} {
+						if idx == 0 {
+							w.Write([]byte(field))
+						} else {
+							w.Write([]byte("\t" + field))
+						}
+					}
+					w.Write([]byte{'\n'})
+				} else {
+					stdout.Write([]byte(image.ShortId() + "\n"))
+				}
 			}
 		}
-	}
-	// Display images which aren't part of a
-	if nameFilter == "" {
-		for id, image := range allImages {
-			if !*quiet {
-				for idx, field := range []string{
-					/* REPOSITORY */ "<none>",
-					/* TAG */ "<none>",
-					/* ID */ TruncateId(id),
-					/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
-				} {
-					if idx == 0 {
-						w.Write([]byte(field))
-					} else {
-						w.Write([]byte("\t" + field))
+		// Display images which aren't part of a
+		if nameFilter == "" {
+			for id, image := range allImages {
+				if !*quiet {
+					for idx, field := range []string{
+						/* REPOSITORY */ "<none>",
+						/* TAG */ "<none>",
+						/* ID */ TruncateId(id),
+						/* CREATED */ HumanDuration(time.Now().Sub(image.Created)) + " ago",
+					} {
+						if idx == 0 {
+							w.Write([]byte(field))
+						} else {
+							w.Write([]byte("\t" + field))
+						}
 					}
+					w.Write([]byte{'\n'})
+				} else {
+					stdout.Write([]byte(image.ShortId() + "\n"))
 				}
-				w.Write([]byte{'\n'})
-			} else {
-				stdout.Write([]byte(image.ShortId() + "\n"))
 			}
 		}
-	}
-	if !*quiet {
-		w.Flush()
+		if !*quiet {
+			w.Flush()
+		}
 	}
 	return nil
 }
