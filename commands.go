@@ -736,8 +736,9 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		return nil
 	}
 
-	config := &Config{}
+	var config *Config
 	if *flConfig != "" {
+		config = &Config{}
 		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
 			return err
 		}
