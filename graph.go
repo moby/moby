@@ -297,10 +297,7 @@ func (graph *Graph) Checksums(repo Repository) ([]map[string]string, error) {
 		}
 		err = img.WalkHistory(func(image *Image) error {
 			checksums[image.Id], err = image.Checksum()
-			if err != nil {
-				return err
-			}
-			return nil
+			return err
 		})
 		if err != nil {
 			return nil, err
