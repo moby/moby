@@ -263,6 +263,35 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			image = base
 
 			break
+		case "expose":
+			ports := strings.Split(arguments, " ")
+
+			fmt.Fprintf(stdout, "EXPOSE %v\n", ports)
+			if image == nil {
+				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
+			}
+
+			// Create the container and start it
+			c, err := builder.Create(&Config{Image: image.Id, Cmd: []string{"", ""}})
+			if err != nil {
+				return nil, err
+			}
+			if err := c.Start(); err != nil {
+				return nil, err
+			}
+			tmpContainers[c.Id] = struct{}{}
+
+			// Commit the container
+			base, err = builder.Commit(c, "", "", "", maintainer, &Config{PortSpecs: ports})
+			if err != nil {
+				return nil, err
+			}
+			tmpImages[base.Id] = struct{}{}
+
+			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+
+			image = base
+			break
 		case "insert":
 			if image == nil {
 				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
