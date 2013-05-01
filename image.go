@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -294,10 +293,10 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	h := sha256.New()
-	if _, err := io.Copy(h, bytes.NewBuffer(jsonData)); err != nil {
+	if _, err := h.Write(jsonData); err != nil {
 		return "", err
 	}
-	if _, err := io.Copy(h, strings.NewReader("\n")); err != nil {
+	if _, err := h.Write([]byte("\n")); err != nil {
 		return "", err
 	}
 	if _, err := io.Copy(h, layerData); err != nil {
