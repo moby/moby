@@ -4,8 +4,12 @@ maintainer	Solomon Hykes <solomon@dotcloud.com>
 from	ubuntu:12.10
 run	apt-get update
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd
+run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
 # Packages required to checkout and build docker
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang
+run	curl -s -o /go.tar.gz https://go.googlecode.com/files/go1.0.3.linux-amd64.tar.gz
+run	tar -C /usr/local -xzf /go.tar.gz
+run	echo "export PATH=$PATH:/usr/local/go/bin" > /.bashrc
+run	echo "export PATH=$PATH:/usr/local/go/bin" > /.bash_profile
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q git
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q build-essential
 # Packages required to build an ubuntu package
