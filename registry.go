@@ -390,13 +390,13 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 
 	fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
 
-	layerData, err := Tar(path.Join(graph.Root, img.Id, "layer"), Xz)
+	layerData, err := graph.TempLayerArchive(img.Id, Xz, stdout)
 	if err != nil {
 		return fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
 
 	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
-		layerData)
+		ProgressReader(layerData, -1, stdout, ""))
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,6 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	req3.ContentLength = -1
 	req3.TransferEncoding = []string{"chunked"}
 	req3.Header.Set("Authorization", "Token " + strings.Join(token, ","))
-	fmt.Printf("%v", req3.Header)
 	res3, err := doWithCookies(client, req3)
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
@@ -491,7 +490,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 
 	uploadedImages, err := graph.getImagesInRepository(remote, authConfig)
 	if err != nil {
-		return fmt.Errorf("Error occured while fetching the list")
+		return fmt.Errorf("Error occured while fetching the list: %v", err)
 	}
 
 
