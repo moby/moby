@@ -93,7 +93,7 @@ func newTestRuntime() (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	runtime.UpdateCapabilities(true)
 	return runtime, nil
 }
 
