@@ -397,6 +397,15 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 	return written, err
 }
 
+
+func HashData(src io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, src); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
 type KernelVersionInfo struct {
 	Kernel int
 	Major  int
@@ -457,12 +466,4 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 	}
 
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
-}
-
-func HashData(src io.Reader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, src); err != nil {
-		return "", err
-	}
-	return "sha256:"+hex.EncodeToString(h.Sum(nil)), nil
 }

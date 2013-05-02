@@ -303,7 +303,7 @@ func (img *Image) Checksum() (string, error) {
 		return "", err
 	}
 
-	hash := "sha256:"+hex.EncodeToString(h.Sum(nil))
+	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
 	if *checksums == nil {
 		*checksums = map[string]string{}
 	}

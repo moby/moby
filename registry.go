@@ -45,7 +45,7 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ", "))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
@@ -90,7 +90,7 @@ func (graph *Graph) LookupRemoteImage(imgId, registry string, authConfig *auth.A
 }
 
 func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.AuthConfig) ([]map[string]string, error) {
-	u := INDEX_ENDPOINT+"/repositories/"+repository+"/images"
+	u := INDEX_ENDPOINT + "/repositories/" + repository + "/images"
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ", "))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to download json: %s", err)
@@ -158,7 +158,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ", "))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err = client.Do(req)
 	if err != nil {
 		return nil, nil, err
@@ -174,7 +174,7 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Authorization", "Token " + strings.Join(token, ", "))
+		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		res, err := client.Do(req)
 		defer res.Body.Close()
 		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
@@ -209,7 +209,7 @@ func (graph *Graph) getImageForTag(stdout io.Writer, tag, remote, registry strin
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ", "))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Error while retrieving repository info: %v", err)
@@ -357,7 +357,7 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 
 	checksum, err := img.Checksum()
 	if err != nil {
@@ -403,7 +403,7 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 
 	req3.ContentLength = -1
 	req3.TransferEncoding = []string{"chunked"}
-	req3.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	req3.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	res3, err := doWithCookies(client, req3)
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
@@ -442,7 +442,7 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, token []stri
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
-	req.Header.Set("Authorization", "Token " + strings.Join(token, ","))
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	req.ContentLength = int64(len(revision))
 	res, err := doWithCookies(client, req)
 	if err != nil {
@@ -492,7 +492,6 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	if err != nil {
 		return fmt.Errorf("Error occured while fetching the list: %v", err)
 	}
-
 
 	// Filter list to only send images/checksums not already uploaded
 	i := 0
