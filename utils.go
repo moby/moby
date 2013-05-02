@@ -403,7 +403,7 @@ func HashData(src io.Reader) (string, error) {
 	if _, err := io.Copy(h, src); err != nil {
 		return "", err
 	}
-	return "sha256:"+hex.EncodeToString(h.Sum(nil)), nil
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
 type KernelVersionInfo struct {
