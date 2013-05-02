@@ -256,7 +256,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			config = &Config{}
 
 			break
-		case "mainainer":
+		case "maintainer":
 			fmt.Fprintf(stdout, "MAINTAINER %s\n", arguments)
 			maintainer = arguments
 			break
