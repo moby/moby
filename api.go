@@ -22,7 +22,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 	r.Path("/version").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
-		m := ApiVersion{VERSION, GIT_COMMIT, NO_MEMORY_LIMIT}
+		m := ApiVersion{VERSION, GIT_COMMIT, rtime.capabilities.MemoryLimit, rtime.capabilities.SwapLimit}
 		b, err := json.Marshal(m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -291,6 +291,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 				out.Command = command
 				out.Created = container.Created.Unix()
 				out.Status = container.State.String()
+				out.Ports = container.NetworkSettings.PortMappingHuman()
 			}
 			outs = append(outs, out)
 		}
@@ -305,6 +306,12 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 	r.Path("/containers/{name:.*}/commit").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
+		var config Config
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -313,9 +320,10 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		name := vars["name"]
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
+		author := r.Form.Get("author")
 		comment := r.Form.Get("comment")
 
-		img, err := rtime.Commit(name, repo, tag, comment)
+		img, err := rtime.Commit(name, repo, tag, comment, author, &config)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -433,9 +441,9 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			archive = ProgressReader(resp.Body, int(resp.ContentLength), file)
+			archive = ProgressReader(resp.Body, int(resp.ContentLength), file, "Importing %v/%v (%v)")
 		}
-		img, err := rtime.graph.Create(archive, nil, "Imported from "+src)
+		img, err := rtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -458,7 +466,19 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		var memoryW, swapW bool
 
+		if config.Memory > 0 && !rtime.capabilities.MemoryLimit {
+			memoryW = true
+			log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
+			config.Memory = 0
+		}
+
+		if config.Memory > 0 && !rtime.capabilities.SwapLimit {
+			swapW = true
+			log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
+			config.MemorySwap = -1
+		}
 		container, err := rtime.Create(&config)
 		if err != nil {
 			if rtime.graph.IsNotExist(err) {
@@ -468,8 +488,16 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 			return
 		}
+		var out ApiRun
+		out.Id = container.ShortId()
+		if memoryW {
+			out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
+		}
+		if swapW {
+			out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
+		}
 
-		b, err := json.Marshal(ApiId{container.ShortId()})
+		b, err := json.Marshal(out)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -479,10 +507,17 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 	r.Path("/containers/{name:.*}/restart").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		t, err := strconv.Atoi(r.Form.Get("t"))
+		if err != nil || t < 0 {
+			t = 10
+		}
 		vars := mux.Vars(r)
 		name := vars["name"]
 		if container := rtime.Get(name); container != nil {
-			if err := container.Restart(); err != nil {
+			if err := container.Restart(t); err != nil {
 				http.Error(w, "Error restarting container "+name+": "+err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -545,10 +580,17 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 	r.Path("/containers/{name:.*}/stop").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		t, err := strconv.Atoi(r.Form.Get("t"))
+		if err != nil || t < 0 {
+			t = 10
+		}
 		vars := mux.Vars(r)
 		name := vars["name"]
 		if container := rtime.Get(name); container != nil {
-			if err := container.Stop(); err != nil {
+			if err := container.Stop(t); err != nil {
 				http.Error(w, "Error stopping container "+name+": "+err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -603,17 +645,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 				return
 			}
 			defer file.Close()
-			if container.Config.Tty {
-				oldState, err := SetRawTerminal()
-				if err != nil {
-					if os.Getenv("DEBUG") != "" {
-						log.Printf("Can't set the terminal in raw mode: %s", err)
-					}
-				} else {
-					defer RestoreTerminal(oldState)
-				}
 
-			}
 			// Flush the options to make sure the client sets the raw mode
 			conn.Write([]byte{})
 
@@ -640,6 +672,23 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 			//stream
 			if stream == "1" {
+
+				if container.State.Ghost {
+					fmt.Fprintf(file, "error: Impossible to attach to a ghost container")
+					return
+				}
+
+				if container.Config.Tty {
+					oldState, err := SetRawTerminal()
+					if err != nil {
+						if os.Getenv("DEBUG") != "" {
+							log.Printf("Can't set the terminal in raw mode: %s", err)
+						}
+					} else {
+						defer RestoreTerminal(oldState)
+					}
+
+				}
 				var (
 					cStdin           io.ReadCloser
 					cStdout, cStderr io.Writer

@@ -18,11 +18,10 @@ import (
 	"time"
 )
 
-const VERSION = "0.1.4"
+const VERSION = "0.2.1"
 
 var (
-	GIT_COMMIT      string
-	NO_MEMORY_LIMIT bool
+	GIT_COMMIT string
 )
 
 func ParseCommands(args []string) error {
@@ -248,8 +247,11 @@ func CmdVersion(args []string) error {
 	}
 	fmt.Println("Version:", out.Version)
 	fmt.Println("Git Commit:", out.GitCommit)
-	if out.MemoryLimitDisabled {
-		fmt.Println("Memory limit disabled")
+	if !out.MemoryLimit {
+		fmt.Println("WARNING: No memory limit support")
+	}
+	if !out.SwapLimit {
+		fmt.Println("WARNING: No swap limit support")
 	}
 
 	return nil
@@ -285,7 +287,8 @@ func CmdInfo(args []string) error {
 }
 
 func CmdStop(args []string) error {
-	cmd := Subcmd("stop", "CONTAINER [CONTAINER...]", "Stop a running container")
+	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -294,8 +297,11 @@ func CmdStop(args []string) error {
 		return nil
 	}
 
-	for _, name := range args {
-		_, _, err := call("POST", "/containers/"+name+"/stop", nil)
+	v := url.Values{}
+	v.Set("t", strconv.Itoa(*nSeconds))
+
+	for _, name := range cmd.Args() {
+		_, _, err := call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -306,7 +312,8 @@ func CmdStop(args []string) error {
 }
 
 func CmdRestart(args []string) error {
-	cmd := Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container")
+	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -315,8 +322,11 @@ func CmdRestart(args []string) error {
 		return nil
 	}
 
-	for _, name := range args {
-		_, _, err := call("POST", "/containers/"+name+"/restart", nil)
+	v := url.Values{}
+	v.Set("t", strconv.Itoa(*nSeconds))
+
+	for _, name := range cmd.Args() {
+		_, _, err := call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -682,12 +692,12 @@ func CmdPs(args []string) error {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
 	}
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}
@@ -702,6 +712,8 @@ func CmdPs(args []string) error {
 func CmdCommit(args []string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
+	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
+	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -710,12 +722,21 @@ func CmdCommit(args []string) error {
 		cmd.Usage()
 		return nil
 	}
+
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
+	v.Set("author", *flAuthor)
+	var config *Config
+	if *flConfig != "" {
+		config = &Config{}
+		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
+			return err
+		}
+	}
 
-	body, _, err := call("POST", "/containers/"+name+"/commit?"+v.Encode(), nil)
+	body, _, err := call("POST", "/containers/"+name+"/commit?"+v.Encode(), config)
 	if err != nil {
 		return err
 	}
@@ -941,10 +962,14 @@ func CmdRun(args []string) error {
 		return err
 	}
 
-	var out ApiId
+	var out ApiRun
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
+	}
+
+	for _, warning := range out.Warnings {
+		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
 	v := url.Values{}
@@ -972,17 +997,13 @@ func CmdRun(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
-		return err
-	}
-
-	/*
-		if err := <-attach; err != nil {
+	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+		if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
 		}
-	*/
-
+	} else {
+		fmt.Println(out.Id)
+	}
 	return nil
 }
 

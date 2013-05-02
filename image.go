@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -21,6 +23,8 @@ type Image struct {
 	Container       string    `json:"container,omitempty"`
 	ContainerConfig Config    `json:"container_config,omitempty"`
 	DockerVersion   string    `json:"docker_version,omitempty"`
+	Author          string    `json:"author,omitempty"`
+	Config          *Config   `json:"config,omitempty"`
 	graph           *Graph
 }
 
@@ -89,10 +93,31 @@ func MountAUFS(ro []string, rw string, target string) error {
 	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro:", layer)
+		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	return mount("none", target, "aufs", 0, branches)
+
+	//if error, try to load aufs kernel module
+	if err := mount("none", target, "aufs", 0, branches); err != nil {
+		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
+		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
+			return fmt.Errorf("Unable to load the AUFS module")
+		}
+		log.Printf("...module loaded.")
+		if err := mount("none", target, "aufs", 0, branches); err != nil {
+			return fmt.Errorf("Unable to mount using aufs")
+		}
+	}
+	return nil
+}
+
+// TarLayer returns a tar archive of the image's filesystem layer.
+func (image *Image) TarLayer(compression Compression) (Archive, error) {
+	layerPath, err := image.layer()
+	if err != nil {
+		return nil, err
+	}
+	return Tar(layerPath, compression)
 }
 
 func (image *Image) Mount(root, rw string) error {
@@ -112,33 +137,8 @@ func (image *Image) Mount(root, rw string) error {
 	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	// FIXME: @creack shouldn't we do this after going over changes?
 	if err := MountAUFS(layers, rw, root); err != nil {
 		return err
-	}
-	// FIXME: Create tests for deletion
-	// FIXME: move this part to change.go
-	// Retrieve the changeset from the parent and apply it to the container
-	//  - Retrieve the changes
-	changes, err := Changes(layers, layers[0])
-	if err != nil {
-		return err
-	}
-	// Iterate on changes
-	for _, c := range changes {
-		// If there is a delete
-		if c.Kind == ChangeDelete {
-			// Make sure the directory exists
-			file_path, file_name := path.Dir(c.Path), path.Base(c.Path)
-			if err := os.MkdirAll(path.Join(rw, file_path), 0755); err != nil {
-				return err
-			}
-			// And create the whiteout (we just need to create empty file, discard the return)
-			if _, err := os.Create(path.Join(path.Join(rw, file_path),
-				".wh."+path.Base(file_name))); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

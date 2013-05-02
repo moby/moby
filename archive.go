@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 )
 
@@ -85,4 +86,39 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		return nil, err
 	}
 	return pipeR, nil
+}
+
+// NewTempArchive reads the content of src into a temporary file, and returns the contents
+// of that file as an archive. The archive can only be read once - as soon as reading completes,
+// the file will be deleted.
+func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
+	f, err := ioutil.TempFile(dir, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(f, src); err != nil {
+		return nil, err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	size := st.Size()
+	return &TempArchive{f, size}, nil
+}
+
+type TempArchive struct {
+	*os.File
+	Size int64 // Pre-computed from Stat().Size() as a convenience
+}
+
+func (archive *TempArchive) Read(data []byte) (int, error) {
+	n, err := archive.File.Read(data)
+	if err != nil {
+		os.Remove(archive.File.Name())
+	}
+	return n, err
 }

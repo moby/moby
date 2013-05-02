@@ -53,8 +53,7 @@ func changeUser(u string) {
 }
 
 // Clear environment pollution introduced by lxc-start
-func cleanupEnv() {
-	env := os.Environ()
+func cleanupEnv(env ListOpts) {
 	os.Clearenv()
 	for _, kv := range env {
 		parts := strings.SplitN(kv, "=", 2)
@@ -91,10 +90,13 @@ func SysInit() {
 	var u = flag.String("u", "", "username or uid")
 	var gw = flag.String("g", "", "gateway address")
 
+	var flEnv ListOpts
+	flag.Var(&flEnv, "e", "Set environment variables")
+
 	flag.Parse()
 
+	cleanupEnv(flEnv)
 	setupNetworking(*gw)
-	cleanupEnv()
 	changeUser(*u)
 	executeProgram(flag.Arg(0), flag.Args())
 }

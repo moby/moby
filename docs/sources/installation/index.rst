@@ -13,7 +13,9 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
-   macos
+   binaries
+   archlinux
+   vagrant
    windows
    amazon
    upgrading

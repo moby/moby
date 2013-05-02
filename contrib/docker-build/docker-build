@@ -49,26 +49,39 @@ def docker(args, stdin=None):
 def image_exists(img):
 	return docker(["inspect", img]).read().strip() != ""
 
-def run_and_commit(img_in, cmd, stdin=None):
+def image_config(img):
+	return json.loads(docker(["inspect", img]).read()).get("config", {})
+
+def run_and_commit(img_in, cmd, stdin=None, author=None, run=None):
 	run_id = docker(["run"] + (["-i", "-a", "stdin"] if stdin else ["-d"]) + [img_in, "/bin/sh", "-c", cmd], stdin=stdin).read().rstrip()
 	print "---> Waiting for " + run_id
 	result=int(docker(["wait", run_id]).read().rstrip())
 	if result != 0:
 		print "!!! '{}' return non-zero exit code '{}'. Aborting.".format(cmd, result)
 		sys.exit(1)
-	return docker(["commit", run_id]).read().rstrip()
+	return docker(["commit"] + (["-author", author] if author else []) + (["-run", json.dumps(run)] if run is not None else []) + [run_id]).read().rstrip()
 
-def insert(base, src, dst):
+def insert(base, src, dst, author=None):
 	print "COPY {} to {} in {}".format(src, dst, base)
 	if dst == "":
 		raise Exception("Missing destination path")
 	stdin = file(src)
 	stdin.seek(0)
-	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin)
-	
+	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin, author=author)
+
+def add(base, src, dst, author=None):
+	print "PUSH to {} in {}".format(dst, base)
+	if src == ".":
+		tar = subprocess.Popen(["tar", "-c", "."], stdout=subprocess.PIPE).stdout
+	else:
+		tar = subprocess.Popen(["curl", src], stdout=subprocess.PIPE).stdout
+	if dst == "":
+		raise Exception("Missing argument to push")
+	return run_and_commit(base, "mkdir -p '{0}' && tar -C '{0}' -x".format(dst), stdin=tar, author=author)
 
 def main():
 	base=""
+	maintainer=""
 	steps = []
 	try:
 		for line in sys.stdin.readlines():
@@ -77,26 +90,51 @@ def main():
 			if line == "" or line[0] == "#":
 				continue
 			op, param = line.split("	", 1)
+			print op.upper() + " " + param
 			if op == "from":
-				print "FROM " + param
 				base = param
 				steps.append(base)
+			elif op == "maintainer":
+				maintainer = param
 			elif op == "run":
-				print "RUN " + param
-				result = run_and_commit(base, param)
+				result = run_and_commit(base, param, author=maintainer)
 				steps.append(result)
 				base = result
 				print "===> " + base
 			elif op == "copy":
 				src, dst = param.split("	", 1)
-				result = insert(base, src, dst)
+				result = insert(base, src, dst, author=maintainer)
 				steps.append(result)
 				base = result
+				print "===> " + base
+			elif op == "add":
+				src, dst = param.split("	", 1)
+				result = add(base, src, dst, author=maintainer)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "expose":
+				config = image_config(base)
+				if config.get("PortSpecs") is None:
+					config["PortSpecs"] = []
+				portspec = param.strip()
+				config["PortSpecs"].append(portspec)
+				result = run_and_commit(base, "# (nop) expose port {}".format(portspec), author=maintainer, run=config)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "cmd":
+				config  = image_config(base)
+				cmd = list(json.loads(param))
+				config["Cmd"] = cmd
+				result = run_and_commit(base, "# (nop) set default command to '{}'".format(" ".join(cmd)), author=maintainer, run=config)
+				steps.append(result)
+				base=result
 				print "===> " + base
 			else:
 				print "Skipping uknown op " + op
 	except:
-		docker(["rmi"] + steps)
+		docker(["rmi"] + steps[1:])
 		raise
 	print base
 

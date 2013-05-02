@@ -28,10 +28,16 @@ type ApiContainers struct {
 	Command string `json:",omitempty"`
 	Created int64  `json:",omitempty"`
 	Status  string `json:",omitempty"`
+	Ports   string `json:",omitempty"`
 }
 
 type ApiId struct {
 	Id string
+}
+
+type ApiRun struct {
+	Id       string
+	Warnings []string
 }
 
 type ApiPort struct {
@@ -39,9 +45,10 @@ type ApiPort struct {
 }
 
 type ApiVersion struct {
-	Version             string
-	GitCommit           string
-	MemoryLimitDisabled bool
+	Version     string
+	GitCommit   string
+	MemoryLimit bool
+	SwapLimit   bool
 }
 
 type ApiWait struct {

@@ -1,0 +1,53 @@
+#!/bin/sh
+set -x
+set -e
+
+PACKAGE=github.com/dotcloud/docker
+
+if [ $# -gt 1 ]; then
+	echo "Usage: $0 [REVISION]"
+	exit 1
+fi
+
+export REVISION=$1
+
+if [ -z "$AWS_ID" ]; then
+	echo "Warning: environment variable AWS_ID is not set. Won't upload to S3."
+	NO_S3=1
+fi
+
+if [ -z "$AWS_KEY" ]; then
+	echo "Warning: environment variable AWS_KEY is not set. Won't upload to S3."
+	NO_S3=1
+fi
+
+if [ -z "$GPG_KEY" ]; then
+	echo "Warning: environment variable GPG_KEY is not set. Ubuntu package upload will not succeed."
+	NO_UBUNTU=1
+fi
+
+if [ -z "$REVISION" ]; then
+	rm -fr docker-master
+	git clone https://github.com/dotcloud/docker docker-master
+	cd docker-master
+else 
+	rm -fr docker-$REVISION
+	git init docker-$REVISION
+	cd docker-$REVISION
+	git fetch -t https://github.com/dotcloud/docker $REVISION:$REVISION
+	git reset --hard FETCH_HEAD
+fi
+
+if [ -z "$REVISION" ]; then
+	make release
+else
+	make release RELEASE_VERSION=$REVISION
+fi
+
+if [ -z "$NO_S3" ]; then
+	s3cmd -P put docker-$REVISION.tgz s3://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-$REVISION.tgz
+fi
+
+if [ -z "$NO_UBUNTU" ]; then
+	(cd packaging/ubuntu && make ubuntu)
+fi
