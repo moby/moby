@@ -1,5 +1,6 @@
 # This will build a container capable of producing an official binary build of docker and
 # uploading it to S3
+maintainer	Solomon Hykes <solomon@dotcloud.com>
 from	ubuntu:12.10
 run	apt-get update
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd
@@ -10,8 +11,9 @@ run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q build-essential
 # Packages required to build an ubuntu package
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q debhelper
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q autotools-dev
-copy	fake_initctl	/usr/local/bin/initctl
+add	.	/src
+run	cp /src/dockerbuilder /usr/local/bin/ && chmod +x /usr/local/bin/dockerbuilder
+run	cp /src/fake_initctl /usr/local/bin/initctl && chmod +x /usr/local/bin/initctl
+run	cp /src/s3cfg /.s3cfg
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q devscripts
-copy	dockerbuilder	/usr/local/bin/dockerbuilder
-copy	s3cfg	/.s3cfg
-# run $img dockerbuilder $REVISION_OR_TAG $S3_ID $S3_KEY
+cmd	["dockerbuilder"]

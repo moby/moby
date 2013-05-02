@@ -69,11 +69,14 @@ def insert(base, src, dst, author=None):
 	stdin.seek(0)
 	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin, author=author)
 
-def push(base, dst, author=None):
+def add(base, src, dst, author=None):
 	print "PUSH to {} in {}".format(dst, base)
+	if src == ".":
+		tar = subprocess.Popen(["tar", "-c", "."], stdout=subprocess.PIPE).stdout
+	else:
+		tar = subprocess.Popen(["curl", src], stdout=subprocess.PIPE).stdout
 	if dst == "":
 		raise Exception("Missing argument to push")
-	tar = subprocess.Popen(["tar", "-c", "."], stdout=subprocess.PIPE).stdout
 	return run_and_commit(base, "mkdir -p '{0}' && tar -C '{0}' -x".format(dst), stdin=tar, author=author)
 
 def main():
@@ -104,8 +107,9 @@ def main():
 				steps.append(result)
 				base = result
 				print "===> " + base
-			elif op == "push":
-				result = push(base, param.strip(), author=maintainer)
+			elif op == "add":
+				src, dst = param.split("	", 1)
+				result = add(base, src, dst, author=maintainer)
 				steps.append(result)
 				base=result
 				print "===> " + base
