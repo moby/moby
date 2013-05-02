@@ -210,7 +210,7 @@ func CmdWait(args []string) error {
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		body, err := call("POST", "/containers/"+name+"/wait")
+		body, _, err := call("POST", "/containers/"+name+"/wait", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -236,7 +236,7 @@ func CmdVersion(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "/version")
+	body, _, err := call("GET", "/version", nil)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func CmdInfo(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "/info")
+	body, _, err := call("GET", "/info", nil)
 	if err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func CmdStop(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("POST", "/containers/"+name+"/stop")
+		_, _, err := call("POST", "/containers/"+name+"/stop", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -316,7 +316,7 @@ func CmdRestart(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("POST", "/containers/"+name+"/restart")
+		_, _, err := call("POST", "/containers/"+name+"/restart", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -337,7 +337,7 @@ func CmdStart(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("POST", "/containers/"+name+"/start")
+		_, _, err := call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -356,9 +356,9 @@ func CmdInspect(args []string) error {
 		cmd.Usage()
 		return nil
 	}
-	obj, err := call("GET", "/containers/"+cmd.Arg(0))
+	obj, _, err := call("GET", "/containers/"+cmd.Arg(0), nil)
 	if err != nil {
-		obj, err = call("GET", "/images/"+cmd.Arg(0))
+		obj, _, err = call("GET", "/images/"+cmd.Arg(0), nil)
 		if err != nil {
 			return err
 		}
@@ -378,7 +378,7 @@ func CmdPort(args []string) error {
 	}
 	v := url.Values{}
 	v.Set("port", cmd.Arg(1))
-	body, err := call("GET", "/containers/"+cmd.Arg(0)+"/port?"+v.Encode())
+	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/port?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func CmdRmi(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("DELETE", "/images/"+name)
+		_, _, err := call("DELETE", "/images/"+name, nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -424,7 +424,7 @@ func CmdHistory(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "/images/"+cmd.Arg(0)+"/history")
+	body, _, err := call("GET", "/images/"+cmd.Arg(0)+"/history", nil)
 	if err != nil {
 		return err
 	}
@@ -455,7 +455,7 @@ func CmdRm(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("DELETE", "/containers/"+name)
+		_, _, err := call("DELETE", "/containers/"+name, nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -477,7 +477,7 @@ func CmdKill(args []string) error {
 	}
 
 	for _, name := range args {
-		_, err := call("POST", "/containers/"+name+"/kill")
+		_, _, err := call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -504,7 +504,7 @@ func CmdImport(args []string) error {
 	v.Set("tag", tag)
 	v.Set("src", src)
 
-	err := callStream("POST", "/images?"+v.Encode(), nil, false)
+	err := hijack("POST", "/images?"+v.Encode(), false)
 	if err != nil {
 		return err
 	}
@@ -583,7 +583,7 @@ func CmdPull(args []string) error {
 		return nil
 	}
 
-	if err := callStream("POST", "/images/"+cmd.Arg(0)+"/pull", nil, false); err != nil {
+	if err := hijack("POST", "/images/"+cmd.Arg(0)+"/pull", false); err != nil {
 		return err
 	}
 
@@ -613,7 +613,7 @@ func CmdImages(args []string) error {
 		v.Set("all", "1")
 	}
 
-	body, err := call("GET", "/images?"+v.Encode())
+	body, _, err := call("GET", "/images?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -670,7 +670,7 @@ func CmdPs(args []string) error {
 		v.Set("n", strconv.Itoa(*last))
 	}
 
-	body, err := call("GET", "/containers?"+v.Encode())
+	body, _, err := call("GET", "/containers?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -715,12 +715,12 @@ func CmdCommit(args []string) error {
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
 
-	body, err := call("POST", "/containers/"+name+"/commit?"+v.Encode())
+	body, _, err := call("POST", "/containers/"+name+"/commit?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
 
-	var out ApiCommit
+	var out ApiId
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
@@ -741,7 +741,7 @@ func CmdExport(args []string) error {
 		return nil
 	}
 
-	if err := callStream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, false); err != nil {
+	if err := hijack("GET", "/containers/"+cmd.Arg(0)+"/export", false); err != nil {
 		return err
 	}
 	return nil
@@ -757,7 +757,7 @@ func CmdDiff(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "/containers/"+cmd.Arg(0)+"/changes")
+	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil)
 	if err != nil {
 		return err
 	}
@@ -782,19 +782,15 @@ func CmdLogs(args []string) error {
 		cmd.Usage()
 		return nil
 	}
-	body, err := call("GET", "/containers/"+cmd.Arg(0)+"/logs")
-	if err != nil {
+
+	v := url.Values{}
+	v.Set("logs", "1")
+	v.Set("stdout", "1")
+	v.Set("stderr", "1")
+
+	if err := hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
 		return err
 	}
-
-	var out ApiLogs
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(os.Stdout, out.Stdout)
-	fmt.Fprintln(os.Stderr, out.Stderr)
-
 	return nil
 }
 
@@ -808,7 +804,7 @@ func CmdAttach(args []string) error {
 		return nil
 	}
 
-	body, err := call("GET", "/containers/"+cmd.Arg(0))
+	body, _, err := call("GET", "/containers/"+cmd.Arg(0), nil)
 	if err != nil {
 		return err
 	}
@@ -819,7 +815,14 @@ func CmdAttach(args []string) error {
 		return err
 	}
 
-	if err := callStream("POST", "/containers/"+cmd.Arg(0)+"/attach", nil, container.Config.Tty); err != nil {
+	v := url.Values{}
+	v.Set("logs", "1")
+	v.Set("stream", "1")
+	v.Set("stdout", "1")
+	v.Set("stderr", "1")
+	v.Set("stdin", "1")
+
+	if err := hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
 		return err
 	}
 	return nil
@@ -903,7 +906,7 @@ func CmdTag(args []string) error {
 		v.Set("force", "1")
 	}
 
-	if err := callStream("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil, false); err != nil {
+	if _, _, err := call("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil); err != nil {
 		return err
 	}
 	return nil
@@ -923,54 +926,105 @@ func CmdRun(args []string) error {
 		return nil
 	}
 
-	if err := callStream("POST", "/containers", *config, config.Tty); err != nil {
+	//create the container
+	body, statusCode, err := call("POST", "/containers", *config)
+
+	//if image not found try to pull it
+	if statusCode == 404 {
+		err = hijack("POST", "/images/"+config.Image+"/pull", false)
+		if err != nil {
+			return err
+		}
+		body, _, err = call("POST", "/containers", *config)
+	}
+	if err != nil {
 		return err
 	}
+
+	var out ApiId
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("logs", "1")
+	v.Set("stream", "1")
+
+	if config.AttachStdin {
+		v.Set("stdin", "1")
+	}
+	if config.AttachStdout {
+		v.Set("stdout", "1")
+	}
+	if config.AttachStderr {
+		v.Set("stderr", "1")
+
+	}
+	/*
+		attach := Go(func() error {
+			err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty)
+			return err
+		})*/
+
+	//start the container
+	_, _, err = call("POST", "/containers/"+out.Id+"/start", nil)
+	if err != nil {
+		return err
+	}
+
+	if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
+		return err
+	}
+
+	/*
+		if err := <-attach; err != nil {
+			return err
+		}
+	*/
+
 	return nil
 }
 
-func call(method, path string) ([]byte, error) {
-	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, nil)
-	if err != nil {
-		return nil, err
+func call(method, path string, data interface{}) ([]byte, int, error) {
+	var params io.Reader
+	if data != nil {
+		buf, err := json.Marshal(data)
+		if err != nil {
+			return nil, -1, err
+		}
+		params = bytes.NewBuffer(buf)
 	}
-	if method == "POST" {
+	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, params)
+	if err != nil {
+		return nil, -1, err
+	}
+	if data != nil {
+		req.Header.Set("Content-Type", "application/json")
+	} else if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("error: %s", body)
+		return nil, resp.StatusCode, fmt.Errorf("error: %s", body)
 	}
-	return body, nil
+	return body, resp.StatusCode, nil
 
 }
 
-func callStream(method, path string, data interface{}, setRawTerminal bool) error {
-	var body io.Reader
-	if data != nil {
-		buf, err := json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewBuffer(buf)
-	}
-	req, err := http.NewRequest(method, path, body)
+func hijack(method, path string, setRawTerminal bool) error {
+	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
 		return err
 	}
-
-	if data != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
 	dial, err := net.Dial("tcp", "0.0.0.0:4243")
 	if err != nil {
 		return err

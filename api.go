@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -73,7 +72,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			}
 			defer file.Close()
 
-			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n\r\n")
+			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 			// Stream the entire contents of the container (basically a volatile snapshot)
 			if _, err := io.Copy(file, data); err != nil {
 				fmt.Fprintln(file, "Error: "+err.Error())
@@ -207,52 +206,6 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 	})
 
-	r.Path("/containers/{name:.*}/logs").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		vars := mux.Vars(r)
-		name := vars["name"]
-
-		if container := rtime.Get(name); container != nil {
-			var out ApiLogs
-
-			logStdout, err := container.ReadLog("stdout")
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			logStderr, err := container.ReadLog("stderr")
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			stdout, errStdout := ioutil.ReadAll(logStdout)
-			if errStdout != nil {
-				http.Error(w, errStdout.Error(), http.StatusInternalServerError)
-				return
-			} else {
-				out.Stdout = fmt.Sprintf("%s", stdout)
-			}
-			stderr, errStderr := ioutil.ReadAll(logStderr)
-			if errStderr != nil {
-				http.Error(w, errStderr.Error(), http.StatusInternalServerError)
-				return
-			} else {
-				out.Stderr = fmt.Sprintf("%s", stderr)
-			}
-
-			b, err := json.Marshal(out)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-
-		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-		}
-	})
-
 	r.Path("/containers/{name:.*}/changes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
@@ -368,7 +321,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			return
 		}
 
-		b, err := json.Marshal(ApiCommit{img.ShortId()})
+		b, err := json.Marshal(ApiId{img.ShortId()})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -415,7 +368,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		defer file.Close()
 
-		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
+		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 		if rtime.graph.LookupRemoteImage(name, rtime.authConfig) {
 			if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
 				fmt.Fprintln(file, "Error: "+err.Error())
@@ -506,146 +459,21 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			return
 		}
 
-		conn, _, err := w.(http.Hijacker).Hijack()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer conn.Close()
-		file, err := conn.(*net.TCPConn).File()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
-
-		if config.Tty {
-			oldState, err := SetRawTerminal()
-			if err != nil {
-				if os.Getenv("DEBUG") != "" {
-					log.Printf("Can't set the terminal in raw mode: %s", err)
-				}
-			} else {
-				defer RestoreTerminal(oldState)
-			}
-		}
-
-		// Flush the options to make sure the client sets the raw mode
-		// or tell the client there is no options
-		conn.Write([]byte{})
-
-		fmt.Fprintln(file, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\n\r\n")
 		container, err := rtime.Create(&config)
 		if err != nil {
-			// If container not found, try to pull it
 			if rtime.graph.IsNotExist(err) {
-				fmt.Fprintf(file, "Image %s not found, trying to pull it from registry.\r\n", config.Image)
-				if rtime.graph.LookupRemoteImage(config.Image, rtime.authConfig) {
-					if err := rtime.graph.PullImage(file, config.Image, rtime.authConfig); err != nil {
-						fmt.Fprintln(file, "Error: "+err.Error())
-						return
-					}
-				} else if err := rtime.graph.PullRepository(file, config.Image, "", rtime.repositories, rtime.authConfig); err != nil {
-					fmt.Fprintln(file, "Error: "+err.Error())
-					return
-				}
-				if container, err = rtime.Create(&config); err != nil {
-					fmt.Fprintln(file, "Error: "+err.Error())
-					return
-				}
+				http.Error(w, "No such image: "+config.Image, http.StatusNotFound)
 			} else {
-				fmt.Fprintln(file, "Error: "+err.Error())
-				return
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-		}
-		var (
-			cStdin           io.ReadCloser
-			cStdout, cStderr io.Writer
-		)
-		if config.AttachStdin {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer Debugf("Closing buffered stdin pipe")
-				io.Copy(w, file)
-			}()
-			cStdin = r
-		}
-		if config.AttachStdout {
-			cStdout = file
-		}
-		if config.AttachStderr {
-			cStderr = file // FIXME: api can't differentiate stdout from stderr
-		}
-
-		attachErr := container.Attach(cStdin, file, cStdout, cStderr)
-		Debugf("Starting\n")
-		if err := container.Start(); err != nil {
-			fmt.Fprintln(file, "Error: "+err.Error())
 			return
 		}
-		if cStdout == nil && cStderr == nil {
-			fmt.Fprintln(file, container.ShortId())
-		}
-		Debugf("Waiting for attach to return\n")
-		<-attachErr
-		// Expecting I/O pipe error, discarding
 
-		// If we are in stdinonce mode, wait for the process to end
-		// otherwise, simply return
-		if config.StdinOnce && !config.Tty {
-			container.Wait()
-		}
-	})
-
-	r.Path("/containers/{name:.*}/attach").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		vars := mux.Vars(r)
-		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			conn, _, err := w.(http.Hijacker).Hijack()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer conn.Close()
-			file, err := conn.(*net.TCPConn).File()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer file.Close()
-
-			if container.Config.Tty {
-				oldState, err := SetRawTerminal()
-				if err != nil {
-					if os.Getenv("DEBUG") != "" {
-						log.Printf("Can't set the terminal in raw mode: %s", err)
-					}
-				} else {
-					defer RestoreTerminal(oldState)
-				}
-
-			}
-
-			// Flush the options to make sure the client sets the raw mode
-			conn.Write([]byte{})
-
-			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer Debugf("Closing buffered stdin pipe")
-				io.Copy(w, file)
-			}()
-			cStdin := r
-
-			<-container.Attach(cStdin, nil, file, file)
-			// Expecting I/O pipe error, discarding                     
-
+		b, err := json.Marshal(ApiId{container.ShortId()})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.Write(b)
 		}
 	})
 
@@ -746,6 +574,99 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		} else {
 			http.Error(w, "No such container: "+name, http.StatusNotFound)
 			return
+		}
+	})
+
+	r.Path("/containers/{name:.*}/attach").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		logs := r.Form.Get("logs")
+		stream := r.Form.Get("stream")
+		stdin := r.Form.Get("stdin")
+		stdout := r.Form.Get("stdout")
+		stderr := r.Form.Get("stderr")
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		if container := rtime.Get(name); container != nil {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer conn.Close()
+			file, err := conn.(*net.TCPConn).File()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
+			if container.Config.Tty {
+				oldState, err := SetRawTerminal()
+				if err != nil {
+					if os.Getenv("DEBUG") != "" {
+						log.Printf("Can't set the terminal in raw mode: %s", err)
+					}
+				} else {
+					defer RestoreTerminal(oldState)
+				}
+
+			}
+			// Flush the options to make sure the client sets the raw mode
+			conn.Write([]byte{})
+
+			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+			//logs
+			if logs == "1" {
+				if stdout == "1" {
+					cLog, err := container.ReadLog("stdout")
+					if err != nil {
+						Debugf(err.Error())
+					} else if _, err := io.Copy(file, cLog); err != nil {
+						Debugf(err.Error())
+					}
+				}
+				if stderr == "1" {
+					cLog, err := container.ReadLog("stderr")
+					if err != nil {
+						Debugf(err.Error())
+					} else if _, err := io.Copy(file, cLog); err != nil {
+						Debugf(err.Error())
+					}
+				}
+			}
+
+			//stream
+			if stream == "1" {
+				var (
+					cStdin           io.ReadCloser
+					cStdout, cStderr io.Writer
+					cStdinCloser     io.Closer
+				)
+
+				if stdin == "1" {
+					r, w := io.Pipe()
+					go func() {
+						defer w.Close()
+						defer Debugf("Closing buffered stdin pipe")
+						io.Copy(w, file)
+					}()
+					cStdin = r
+					cStdinCloser = file
+				}
+				if stdout == "1" {
+					cStdout = file
+				}
+				if stderr == "1" {
+					cStderr = file
+				}
+
+				<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
+			}
+		} else {
+			http.Error(w, "No such container: "+name, http.StatusNotFound)
 		}
 	})
 
