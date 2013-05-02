@@ -15,7 +15,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const INDEX_SERVER = "https://indexstaging-docker.dotcloud.com"
+const INDEX_SERVER = "https://index.docker.io"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -131,11 +131,11 @@ func Login(authConfig *AuthConfig) (string, error) {
 	}
 
 	if reqStatusCode == 201 {
-		status = "Account created. Please use the confirmation link we sent"+
+		status = "Account created. Please use the confirmation link we sent" +
 			" to your e-mail to activate it.\n"
 		storeConfig = true
 	} else if reqStatusCode == 403 {
-		return "", fmt.Errorf("Login: Your account hasn't been activated. "+
+		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
 			"Please check your e-mail for a confirmation link.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
