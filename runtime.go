@@ -80,10 +80,10 @@ func (runtime *Runtime) containerRoot(id string) string {
 }
 
 func (runtime *Runtime) mergeConfig(userConf, imageConf *Config) {
-	if userConf.Hostname != "" {
+	if userConf.Hostname == "" {
 		userConf.Hostname = imageConf.Hostname
 	}
-	if userConf.User != "" {
+	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
 	if userConf.Memory == 0 {
