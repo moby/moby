@@ -34,7 +34,7 @@ else
 	rm -fr docker-$REVISION
 	git init docker-$REVISION
 	cd docker-$REVISION
-	git fetch -t https://github.com/dotcloud/docker $REVISION
+	git fetch -t https://github.com/dotcloud/docker $REVISION:$REVISION
 	git reset --hard FETCH_HEAD
 fi
 
