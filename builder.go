@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -312,6 +313,35 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			image = base
 
 			break
+		case "cmd":
+			fmt.Fprintf(stdout, "CMD %s\n", arguments)
+
+			// Create the container and start it
+			c, err := builder.Create(&Config{Image: image.Id, Cmd: []string{"", ""}})
+			if err != nil {
+				return nil, err
+			}
+			if err := c.Start(); err != nil {
+				return nil, err
+			}
+			tmpContainers[c.Id] = struct{}{}
+
+			cmd := []string{}
+			if err := json.Unmarshal([]byte(arguments), &cmd); err != nil {
+				return nil, err
+			}
+			config.Cmd = cmd
+
+			// Commit the container
+			base, err = builder.Commit(c, "", "", "", maintainer, config)
+			if err != nil {
+				return nil, err
+			}
+			tmpImages[base.Id] = struct{}{}
+
+			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+			image = base
+			break
 		case "expose":
 			ports := strings.Split(arguments, " ")
 
@@ -340,7 +370,6 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			tmpImages[base.Id] = struct{}{}
 
 			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
-
 			image = base
 			break
 		case "insert":
