@@ -95,7 +95,9 @@ func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.Au
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	if authConfig != nil && len(authConfig.Username) > 0 {
+		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	}
 	res, err := graph.getHttpClient().Do(req)
 	if err != nil {
 		return nil, err
@@ -111,9 +113,12 @@ func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.Au
 	if err != nil {
 		return nil, err
 	}
+
 	imageList := []map[string]string{}
+
 	err = json.Unmarshal(jsonData, &imageList)
 	if err != nil {
+		Debugf("Body: %s (%s)\n", res.Body, u)
 		return nil, err
 	}
 
@@ -174,7 +179,7 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 		repository = "library/" + repository
 	}
 	for _, host := range registries {
-		endpoint := "https://" + host + "/v1/repositories/" + repository + "/tags"
+		endpoint := fmt.Sprintf("https://%s/v1/repositories/%s/tags", host, repository)
 		req, err := http.NewRequest("GET", endpoint, nil)
 		if err != nil {
 			return nil, err
@@ -433,12 +438,6 @@ func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string,
 // push a tag on the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) pushTag(remote, revision, tag, registry string, token []string) error {
-
-	// Keep this for backward compatibility
-	if tag == "" {
-		tag = "lastest"
-	}
-
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
 	registry = "https://" + registry + "/v1"
@@ -490,16 +489,17 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId, registry
 func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
 	client := graph.getHttpClient()
 
-	checksums, err := graph.Checksums(localRepo)
-	imgList := make([]map[string]string, len(checksums))
-	checksums2 := make([]map[string]string, len(checksums))
+	checksums, err := graph.Checksums(stdout, localRepo)
 	if err != nil {
 		return err
 	}
 
+	imgList := make([]map[string]string, len(checksums))
+	checksums2 := make([]map[string]string, len(checksums))
+
 	uploadedImages, err := graph.getImagesInRepository(remote, authConfig)
 	if err != nil {
-		return fmt.Errorf("Error occured while fetching the list: %v", err)
+		return fmt.Errorf("Error occured while fetching the list: %s", err)
 	}
 
 	// Filter list to only send images/checksums not already uploaded
@@ -604,4 +604,38 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	}
 
 	return nil
+}
+
+func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]string, error) {
+	var result []map[string]string
+	checksums := map[string]string{}
+	for _, id := range repo {
+		img, err := graph.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		err = img.WalkHistory(func(image *Image) error {
+			fmt.Fprintf(output, "Computing checksum for image %s\n", image.Id)
+			if _, exists := checksums[image.Id]; !exists {
+				checksums[image.Id], err = image.Checksum()
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	i := 0
+	result = make([]map[string]string, len(checksums))
+	for id, sum := range checksums {
+		result[i] = map[string]string{
+			"id":       id,
+			"checksum": sum,
+		}
+		i++
+	}
+	return result, nil
 }
