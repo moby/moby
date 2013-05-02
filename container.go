@@ -66,6 +66,7 @@ type Config struct {
 	Cmd          []string
 	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	JsonMap      interface{} // JSON object which will be injected into the lxc_template
 }
 
 func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Config, error) {
@@ -82,6 +83,7 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flJson := cmd.String("j", "{}", "inject lxc_template values from a JSON object")
 
 	if *flMemory > 0 && !capabilities.MemoryLimit {
 		fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -113,6 +115,12 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 			}
 		}
 	}
+
+	var jsonMap interface{}
+	if err := json.Unmarshal([]byte(*flJson), &jsonMap); err != nil {
+		return nil, fmt.Errorf("Problems parsing -j option's JSON: " + err.Error())
+	}
+
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -136,6 +144,7 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 		Cmd:          runCmd,
 		Dns:          flDns,
 		Image:        image,
+		JsonMap:      jsonMap,
 	}
 
 	if *flMemory > 0 && !capabilities.SwapLimit {

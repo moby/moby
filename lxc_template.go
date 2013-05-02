@@ -92,6 +92,12 @@ lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Memory}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
+
+{{if .Config.JsonMap}}{{if .Config.JsonMap.cgroup}}
+# JSON: cgroup key-values
+{{range $k, $v := .Config.JsonMap.cgroup}}lxc.cgroup.{{$k}} = {{$v}}
+{{end}}{{end}}
+{{end}}
 `
 
 var LxcTemplateCompiled *template.Template

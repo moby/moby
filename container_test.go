@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1047,12 +1048,18 @@ func TestLXCConfig(t *testing.T) {
 	memMin := 33554432
 	memMax := 536870912
 	mem := memMin + rand.Intn(memMax-memMin)
+
+        // JSON with cgroup
+	var jsonMap interface{}
+	json.Unmarshal([]byte("{\"cgroup\":{\"cpufoo\":\"dotbar\"}}"), &jsonMap)
+
 	container, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/true"},
 
 		Hostname: "foobar",
 		Memory:   int64(mem),
+		JsonMap:  jsonMap,
 	},
 	)
 	if err != nil {
@@ -1065,6 +1072,7 @@ func TestLXCConfig(t *testing.T) {
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
+	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpufoo = dotbar")
 }
 
 func BenchmarkRunSequencial(b *testing.B) {
