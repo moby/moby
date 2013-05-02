@@ -45,6 +45,8 @@ whichrelease:
 	echo $(RELEASE_VERSION)
 
 release: $(BINRELEASE)
+	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
+
 srcrelease: $(SRCRELEASE)
 deps: $(DOCKER_DIR)
 
@@ -58,9 +60,6 @@ $(SRCRELEASE):
 $(BINRELEASE): $(SRCRELEASE)
 	rm -f $(BINRELEASE)
 	cd $(SRCRELEASE); make; cp -R bin docker-$(RELEASE_VERSION); tar -f ../$(BINRELEASE) -zv -c docker-$(RELEASE_VERSION)
-
-s3release: $(BINRELEASE)
-	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
 
 clean:
 	@rm -rf $(dir $(DOCKER_BIN))
