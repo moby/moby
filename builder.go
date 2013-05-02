@@ -197,6 +197,7 @@ func (builder *Builder) getCachedImage(image *Image, config *Config) (*Image, er
 func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, error) {
 	var (
 		image, base   *Image
+		config        *Config
 		maintainer    string
 		tmpContainers map[string]struct{} = make(map[string]struct{})
 		tmpImages     map[string]struct{} = make(map[string]struct{})
@@ -251,6 +252,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 					return nil, err
 				}
 			}
+			config = &Config{}
 
 			break
 		case "mainainer":
@@ -328,8 +330,10 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 			tmpContainers[c.Id] = struct{}{}
 
+			config.PortSpecs = append(ports, config.PortSpecs...)
+
 			// Commit the container
-			base, err = builder.Commit(c, "", "", "", maintainer, &Config{PortSpecs: ports})
+			base, err = builder.Commit(c, "", "", "", maintainer, config)
 			if err != nil {
 				return nil, err
 			}
