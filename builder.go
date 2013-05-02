@@ -145,8 +145,55 @@ func (builder *Builder) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
-	var image, base *Image
+func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
+	for c := range containers {
+		tmp := builder.runtime.Get(c)
+		builder.runtime.Destroy(tmp)
+		Debugf("Removing container %s", c)
+	}
+	for i := range images {
+		builder.runtime.graph.Delete(i)
+		Debugf("Removing image %s", i)
+	}
+}
+
+func (builder *Builder) getCachedImage(image *Image, config *Config) (*Image, error) {
+	// Retrieve all images
+	images, err := builder.graph.All()
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the tree in a map of map (map[parentId][childId])
+	imageMap := make(map[string]map[string]struct{})
+	for _, img := range images {
+		if _, exists := imageMap[img.Parent]; !exists {
+			imageMap[img.Parent] = make(map[string]struct{})
+		}
+		imageMap[img.Parent][img.Id] = struct{}{}
+	}
+
+	// Loop on the children of the given image and check the config
+	for elem := range imageMap[image.Id] {
+		img, err := builder.graph.Get(elem)
+		if err != nil {
+			return nil, err
+		}
+		if CompareConfig(&img.ContainerConfig, config) {
+			return img, nil
+		}
+	}
+	return nil, nil
+}
+
+func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, error) {
+	var (
+		image, base   *Image
+		maintainer    string
+		tmpContainers map[string]struct{} = make(map[string]struct{})
+		tmpImages     map[string]struct{} = make(map[string]struct{})
+	)
+	defer builder.clearTmp(tmpContainers, tmpImages)
 
 	file := bufio.NewReader(dockerfile)
 	for {
@@ -202,6 +249,14 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", tmp[1]}, nil, builder.runtime.capabilities)
 			if err != nil {
 				return err
+			}
+
+			if cache, err := builder.getCachedImage(image, config); err != nil {
+				return nil, err
+			} else if cache != nil {
+				image = cache
+				fmt.Fprintf(stdout, "===> %s\n", image.ShortId())
+				break
 			}
 
 			// Create the container and start it
@@ -276,10 +331,16 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "Skipping unknown op %s\n", tmp[0])
 		}
 	}
-	if base != nil {
-		fmt.Fprintf(stdout, "Build finished. image id: %s\n", base.Id)
-	} else {
-		fmt.Fprintf(stdout, "An error occured during the build\n")
+	if image != nil {
+		// The build is successful, keep the temporary containers and images
+		for i := range tmpImages {
+			delete(tmpImages, i)
+		}
+		for i := range tmpContainers {
+			delete(tmpContainers, i)
+		}
+		fmt.Fprintf(stdout, "Build finished. image id: %s\n", image.ShortId())
+		return image, nil
 	}
-	return nil
+	return nil, fmt.Errorf("An error occured during the build\n")
 }
