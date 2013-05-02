@@ -2,6 +2,8 @@
 set -x
 set -e
 
+export PATH=$PATH:/usr/local/go/bin
+
 PACKAGE=github.com/dotcloud/docker
 
 if [ $# -gt 1 ]; then
