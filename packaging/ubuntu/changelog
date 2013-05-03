@@ -1,3 +1,18 @@
+
+lxc-docker (0.2.1-1) precise; urgency=low
+
+  - 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
+  - Improve install process on Vagrant
+  - New Dockerfile operation: "maintainer"
+  - New Dockerfile operation: "expose"
+  - New Dockerfile operation: "cmd"
+  - Contrib script to build a Debian base layer
+  - 'docker -d -r': restart crashed containers at daemon startup
+  - Runtime: improve test coverage
+
+ -- dotCloud <ops@dotcloud.com>  Wed, 1 May 2013 00:00:00 -0700
+
+
 lxc-docker (0.2.0-1) precise; urgency=low
 
   - Runtime: ghost containers can be killed and waited for

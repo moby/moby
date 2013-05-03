@@ -10,8 +10,8 @@ Vagrant::Config.run do |config|
   config.vm.box = BOX_NAME
   config.vm.box_url = BOX_URI
   # Add docker PPA key to the local repository and install docker
-  pkg_cmd = "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys #{PPA_KEY}; "
-  pkg_cmd << "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >>/etc/apt/sources.list; "
+  pkg_cmd = "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys #{PPA_KEY}; "
+  pkg_cmd << "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >/etc/apt/sources.list.d/lxc-docker.list; "
   pkg_cmd << "apt-get update -qq; apt-get install -q -y lxc-docker"
   if ARGV.include?("--provider=aws".downcase)
     # Add AUFS dependency to amazon's VM
@@ -49,13 +49,5 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :virtualbox do |vb|
     config.vm.box = BOX_NAME
     config.vm.box_url = BOX_URI
-  end
-
-  config.vm.provider :vmware_fusion do |vm|
-    config.vm.box = "precise64"
-    config.vm.box_url = "http://files.vagrantup.com/precise64_vmware_fusion.box"
-    config.vm.provision :shell, :inline => <<-UPDATE
-      apt-get install -y linux-image-extra-3.2.0-29-virtual
-    UPDATE
   end
 end

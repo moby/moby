@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 (2012-05-01)
+ + 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
+ * Improve install process on Vagrant
+ + New Dockerfile operation: "maintainer"
+ + New Dockerfile operation: "expose"
+ + New Dockerfile operation: "cmd"
+ + Contrib script to build a Debian base layer
+ + 'docker -d -r': restart crashed containers at daemon startup
+ * Runtime: improve test coverage
+
 ## 0.2.0 (2012-04-23)
  - Runtime: ghost containers can be killed and waited for
  * Documentation: update install intructions
