@@ -32,6 +32,7 @@ type Runtime struct {
 	capabilities   *Capabilities
 	kernelVersion  *KernelVersionInfo
 	autoRestart    bool
+	volumes        *Graph
 }
 
 var sysInitPath string
@@ -405,6 +406,10 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	volumes, err := NewGraph(path.Join(root, "volumes"))
+	if err != nil {
+		return nil, err
+	}
 	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
@@ -432,6 +437,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		idIndex:        NewTruncIndex(),
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
+		volumes:        volumes,
 	}
 
 	if err := runtime.restore(); err != nil {
