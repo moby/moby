@@ -269,7 +269,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	if err != nil {
 		return err
 	}
-	if authConfig != nil {
+	if authConfig != nil && len(authConfig.Username) > 0 {
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	}
 	req.Header.Set("X-Docker-Token", "true")
@@ -309,6 +309,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	}
 
 	for askedTag, imgId := range tagsList {
+		fmt.Fprintf(stdout, "Resolving tag \"%s:%s\" from %s\n", remote, askedTag, endpoints)
 		success := false
 		for _, registry := range endpoints {
 			if imgId == "" {
