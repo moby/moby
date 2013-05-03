@@ -127,7 +127,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		runtime.mergeConfig(config, img.Config)
 	}
 
-	if config.Cmd == nil || len(config.Cmd) < 2 {
+	if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
 
