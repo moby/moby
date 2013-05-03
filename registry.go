@@ -168,6 +168,11 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 
 func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
 	client := graph.getHttpClient()
+	if strings.Count(repository, "/") == 0 {
+		// This will be removed once the Registry supports auto-resolution on
+		// the "library" namespace
+		repository = "library/" + repository
+	}
 	for _, host := range registries {
 		endpoint := "https://" + host + "/v1/repositories/" + repository + "/tags"
 		req, err := http.NewRequest("GET", endpoint, nil)
@@ -257,7 +262,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := graph.getHttpClient()
 
-	fmt.Fprintf(stdout, "Pulling repository %s\r\n", remote)
+	fmt.Fprintf(stdout, "Pulling repository %s from %s\r\n", remote, INDEX_ENDPOINT)
 	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/images"
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
