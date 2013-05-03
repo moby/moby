@@ -619,7 +619,7 @@ func (srv *Server) CmdImages(stdin io.ReadCloser, stdout io.Writer, args ...stri
 			return nil
 		}
 
-		fmt.Fprintf(stdout, "digraph G {\n")
+		fmt.Fprintf(stdout, "digraph docker {\n")
 
 		var parentImage *Image
 		var err error
