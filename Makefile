@@ -38,7 +38,7 @@ $(DOCKER_BIN): $(DOCKER_DIR)
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
-	@if [ -h $@ ]; then rm -f $@; ln -sf $(CURDIR)/ $@; fi
+	@if [ -h $@ ]; then rm -f $@; fi; ln -sf $(CURDIR)/ $@
 	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
 
 whichrelease:
