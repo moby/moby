@@ -15,9 +15,9 @@ run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q build-essential
 # Packages required to build an ubuntu package
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q debhelper
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q autotools-dev
+copy	fake_initctl	/usr/local/bin/initctl
+run	apt-get install -y -q devscripts
 add	.	/src
 run	cp /src/dockerbuilder /usr/local/bin/ && chmod +x /usr/local/bin/dockerbuilder
-run	cp /src/fake_initctl /usr/local/bin/initctl && chmod +x /usr/local/bin/initctl
 run	cp /src/s3cfg /.s3cfg
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q devscripts
 cmd	["dockerbuilder"]
