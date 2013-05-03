@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 (2012-05-03)
+ + Support for data volumes ('docker run -v=PATH')
+ + Share data volumes between containers ('docker run -volumes-from')
+ + Improved documentation
+ * Upgrade to Go 1.0.3
+ * Various upgrades to the dev environment for contributors
+
 ## 0.2.1 (2012-05-01)
  + 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
  * Improve install process on Vagrant

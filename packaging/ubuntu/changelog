@@ -1,3 +1,12 @@
+lxc-docker (0.2.2-1) precise; urgency=low
+ - Support for data volumes ('docker run -v=PATH')
+ - Share data volumes between containers ('docker run -volumes-from')
+ - Improved documentation
+ - Upgrade to Go 1.0.3
+ - Various upgrades to the dev environment for contributors
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 3 May 2013 00:00:00 -0700
+
 
 lxc-docker (0.2.1-1) precise; urgency=low
 
