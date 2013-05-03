@@ -445,7 +445,7 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 	// cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
 	for _, line := range strings.Split(string(output), "\n") {
 		parts := strings.Split(line, " ")
-		if len(parts) > 1 && parts[2] == "cgroup" {
+		if len(parts) == 6 && parts[2] == "cgroup" {
 			for _, opt := range strings.Split(parts[3], ",") {
 				if opt == cgroupType {
 					return parts[1], nil
