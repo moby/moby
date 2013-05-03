@@ -6,7 +6,7 @@ BINRELEASE := docker-$(RELEASE_VERSION).tgz
 GIT_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(CURDIR)/.gopath
 
-GOPATH ?= $(BUILD_DIR)
+GOPATH = $(BUILD_DIR)
 export GOPATH
 
 GO_OPTIONS ?=
@@ -38,8 +38,9 @@ $(DOCKER_BIN): $(DOCKER_DIR)
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
-	@if [ -h $@ ]; then rm -f $@; ln -sf $(CURDIR)/ $@; fi
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
+	@if [ -h $@ ]; then rm -f $@; fi
+	@[ -e $@ ] || ln -sf $(CURDIR)/ $@
+	@(cd $(DOCKER_MAIN) && go get $(GO_OPTIONS))
 
 whichrelease:
 	echo $(RELEASE_VERSION)
