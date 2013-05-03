@@ -6,7 +6,7 @@ BINRELEASE := docker-$(RELEASE_VERSION).tgz
 GIT_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(CURDIR)/.gopath
 
-GOPATH ?= $(BUILD_DIR)
+GOPATH = $(BUILD_DIR)
 export GOPATH
 
 GO_OPTIONS ?=
