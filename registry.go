@@ -279,6 +279,9 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		return err
 	}
 	defer res.Body.Close()
+	if res.StatusCode == 401 {
+		return fmt.Errorf("Please login first (HTTP code %d)", res.StatusCode)
+	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
 	if res.StatusCode != 200 {
