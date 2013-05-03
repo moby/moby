@@ -33,17 +33,20 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
-	@ln -sf $(CURDIR)/ $@
+	@if [ -h $@ ]; then rm -f $@; ln -sf $(CURDIR)/ $@; fi
+	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
 
 whichrelease:
 	echo $(RELEASE_VERSION)
 
 release: $(BINRELEASE)
+	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
+
 srcrelease: $(SRCRELEASE)
 deps: $(DOCKER_DIR)
 
