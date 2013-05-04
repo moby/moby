@@ -187,8 +187,8 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		res, err := client.Do(req)
 		defer res.Body.Close()
+		Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
-			Debugf("Registry isn't responding: trying another registry endpoint")
 			continue
 		} else if res.StatusCode == 404 {
 			return nil, fmt.Errorf("Repository not found")
