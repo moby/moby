@@ -1,8 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-BOX_NAME = "ubuntu"
-BOX_URI = "http://files.vagrantup.com/precise64.box"
+BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
+BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64.box"
 PPA_KEY = "E61D797F63561DC6"
 
 Vagrant::Config.run do |config|
