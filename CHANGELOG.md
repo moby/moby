@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 (2013-05-06)
+ + Registry: Implement the new registry
+ + Documentation: new example: sharing data between 2 couchdb databases
+ - Runtime: Fix the command existance check
+ - Runtime: strings.Split may return an empty string on no match
+ - Runtime: Fix an index out of range crash if cgroup memory is not
+ * Documentation: Various improvments
+ * Vagrant: Use only one deb line in /etc/apt
+
 ## 0.2.2 (2013-05-03)
  + Support for data volumes ('docker run -v=PATH')
  + Share data volumes between containers ('docker run -volumes-from')
@@ -8,7 +17,7 @@
  * Various upgrades to the dev environment for contributors
 
 ## 0.2.1 (2013-05-01)
- + 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
+ + 'docker commit -run' bundles a layer with default runtime options: command, ports etc.
  * Improve install process on Vagrant
  + New Dockerfile operation: "maintainer"
  + New Dockerfile operation: "expose"
@@ -25,13 +34,12 @@
  + Add a changelog
  - Various bugfixes
 
-
 ## 0.1.8 (2013-04-22)
  - Dynamically detect cgroup capabilities
  - Issue stability warning on kernels <3.8
  - 'docker push' buffers on disk instead of memory
  - Fix 'docker diff' for removed files
- - Fix 'docker stop' for ghost containers 
+ - Fix 'docker stop' for ghost containers
  - Fix handling of pidfile
  - Various bugfixes and stability improvements
 
@@ -52,7 +60,7 @@
  - Improve diagnosis of missing system capabilities
  - Allow disabling memory limits at compile time
  - Add debian packaging
- - Documentation: installing on Arch Linux 
+ - Documentation: installing on Arch Linux
  - Documentation: running Redis on docker
  - Fixed lxc 0.9 compatibility
  - Automatically load aufs module
