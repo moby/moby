@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.1 (2012-05-01)
+## 0.2.2 (2013-05-03)
+ + Support for data volumes ('docker run -v=PATH')
+ + Share data volumes between containers ('docker run -volumes-from')
+ + Improved documentation
+ * Upgrade to Go 1.0.3
+ * Various upgrades to the dev environment for contributors
+
+## 0.2.1 (2013-05-01)
  + 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
  * Improve install process on Vagrant
  + New Dockerfile operation: "maintainer"
@@ -10,7 +17,7 @@
  + 'docker -d -r': restart crashed containers at daemon startup
  * Runtime: improve test coverage
 
-## 0.2.0 (2012-04-23)
+## 0.2.0 (2013-04-23)
  - Runtime: ghost containers can be killed and waited for
  * Documentation: update install intructions
  - Packaging: fix Vagrantfile

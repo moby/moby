@@ -320,9 +320,16 @@ func ListenAndServe(addr string, srv *Server) error {
 
 	r.Path("/containers/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if err := srv.ContainerDestroy(name); err != nil {
+		var v bool
+		if r.Form.Get("v") == "1" {
+			v = true
+		}
+		if err := srv.ContainerDestroy(name, v); err != nil {
 			httpError(w, err)
 		} else {
 			w.WriteHeader(http.StatusOK)

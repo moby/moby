@@ -294,10 +294,37 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerDestroy(name string) error {
+func (srv *Server) ContainerDestroy(name string, v bool) error {
+
 	if container := srv.runtime.Get(name); container != nil {
+		volumes := make(map[string]struct{})
+		// Store all the deleted containers volumes
+		for _, volumeId := range container.Volumes {
+			volumes[volumeId] = struct{}{}
+		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			return fmt.Errorf("Error destroying container %s: %s", name, err.Error())
+		}
+
+		if v {
+			// Retrieve all volumes from all remaining containers
+			usedVolumes := make(map[string]*Container)
+			for _, container := range srv.runtime.List() {
+				for _, containerVolumeId := range container.Volumes {
+					usedVolumes[containerVolumeId] = container
+				}
+			}
+
+			for volumeId := range volumes {
+				// If the requested volu
+				if c, exists := usedVolumes[volumeId]; exists {
+					log.Printf("The volume %s is used by the container %s. Impossible to remove it. Skipping.\n", volumeId, c.Id)
+					continue
+				}
+				if err := srv.runtime.volumes.Delete(volumeId); err != nil {
+					return err
+				}
+			}
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)

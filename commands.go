@@ -13,12 +13,13 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"text/tabwriter"
 	"time"
 )
 
-const VERSION = "0.2.1"
+const VERSION = "0.2.2"
 
 var (
 	GIT_COMMIT string
@@ -434,7 +435,7 @@ func CmdRmi(args ...string) error {
 		return nil
 	}
 
-	for _, name := range args {
+	for _, name := range cmd.Args() {
 		_, _, err := call("DELETE", "/images/"+name, nil)
 		if err != nil {
 			fmt.Printf("%s", err)
@@ -476,7 +477,8 @@ func CmdHistory(args ...string) error {
 }
 
 func CmdRm(args ...string) error {
-	cmd := Subcmd("rm", "CONTAINER [CONTAINER...]", "Remove a container")
+	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
+	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -484,9 +486,12 @@ func CmdRm(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	for _, name := range args {
-		_, _, err := call("DELETE", "/containers/"+name, nil)
+	val := url.Values{}
+	if *v {
+		val.Set("v", "1")
+	}
+	for _, name := range cmd.Args() {
+		_, _, err := call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -928,6 +933,25 @@ func (opts AttachOpts) Get(val string) bool {
 		return res
 	}
 	return false
+}
+
+// PathOpts stores a unique set of absolute paths
+type PathOpts map[string]struct{}
+
+func NewPathOpts() PathOpts {
+	return make(PathOpts)
+}
+
+func (opts PathOpts) String() string {
+	return fmt.Sprintf("%v", map[string]struct{}(opts))
+}
+
+func (opts PathOpts) Set(val string) error {
+	if !filepath.IsAbs(val) {
+		return fmt.Errorf("%s is not an absolute path", val)
+	}
+	opts[filepath.Clean(val)] = struct{}{}
+	return nil
 }
 
 func CmdTag(args ...string) error {

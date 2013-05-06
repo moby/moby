@@ -48,6 +48,7 @@ type Container struct {
 	runtime *Runtime
 
 	waitLock chan struct{}
+	Volumes  map[string]string
 }
 
 type Config struct {
@@ -66,6 +67,8 @@ type Config struct {
 	Cmd          []string
 	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Volumes      map[string]struct{}
+	VolumesFrom  string
 }
 
 func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
@@ -91,6 +94,11 @@ func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
 
 	var flDns ListOpts
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
+
+	flVolumes := NewPathOpts()
+	cmd.Var(flVolumes, "v", "Attach a data volume")
+
+	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, cmd, err
@@ -131,6 +139,8 @@ func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
 		Cmd:          runCmd,
 		Dns:          flDns,
 		Image:        image,
+		Volumes:      flVolumes,
+		VolumesFrom:  *flVolumesFrom,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -384,10 +394,40 @@ func (container *Container) Start() error {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
+	container.Volumes = make(map[string]string)
+
+	// Create the requested volumes volumes
+	for volPath := range container.Config.Volumes {
+		if c, err := container.runtime.volumes.Create(nil, container, "", "", nil); err != nil {
+			return err
+		} else {
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
+			}
+			container.Volumes[volPath] = c.Id
+		}
+	}
+
+	if container.Config.VolumesFrom != "" {
+		c := container.runtime.Get(container.Config.VolumesFrom)
+		if c == nil {
+			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.Id)
+		}
+		for volPath, id := range c.Volumes {
+			if _, exists := container.Volumes[volPath]; exists {
+				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.Id)
+			}
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
+			}
+			container.Volumes[volPath] = id
+		}
+	}
 
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
+
 	params := []string{
 		"-n", container.Id,
 		"-f", container.lxcConfigPath(),
@@ -446,6 +486,7 @@ func (container *Container) Start() error {
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
+
 	container.ToDisk()
 	go container.monitor()
 	return nil
@@ -775,6 +816,22 @@ func (container *Container) lxcConfigPath() string {
 // This method must be exported to be used from the lxc template
 func (container *Container) RootfsPath() string {
 	return path.Join(container.root, "rootfs")
+}
+
+func (container *Container) GetVolumes() (map[string]string, error) {
+	ret := make(map[string]string)
+	for volPath, id := range container.Volumes {
+		volume, err := container.runtime.volumes.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		root, err := volume.root()
+		if err != nil {
+			return nil, err
+		}
+		ret[volPath] = path.Join(root, "layer")
+	}
+	return ret, nil
 }
 
 func (container *Container) rwPath() string {
