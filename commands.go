@@ -52,6 +52,7 @@ func (srv *Server) Help() string {
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
 		{"run", "Run a command in a new container"},
+		{"search", "Search for images in the docker index"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
