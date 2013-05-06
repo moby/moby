@@ -736,6 +736,14 @@ func (container *Container) ExportRw() (Archive, error) {
 	return Tar(container.rwPath(), Uncompressed)
 }
 
+func (container *Container) RwChecksum() (string, error) {
+	rwData, err := Tar(container.rwPath(), Xz)
+	if err != nil {
+		return "", err
+	}
+	return HashData(rwData)
+}
+
 func (container *Container) Export() (Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err

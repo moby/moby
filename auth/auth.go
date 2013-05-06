@@ -3,7 +3,6 @@ package auth
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const REGISTRY_SERVER = "https://registry.docker.io"
+const INDEX_SERVER = "https://index.docker.io"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -76,6 +75,9 @@ func LoadConfig(rootPath string) (*AuthConfig, error) {
 		return nil, err
 	}
 	arr := strings.Split(string(b), "\n")
+	if len(arr) < 2 {
+		return nil, fmt.Errorf("The Auth config file is empty")
+	}
 	origAuth := strings.Split(arr[0], " = ")
 	origEmail := strings.Split(arr[1], " = ")
 	authConfig, err := DecodeAuth(origAuth[1])
@@ -89,9 +91,14 @@ func LoadConfig(rootPath string) (*AuthConfig, error) {
 
 // save the auth config
 func saveConfig(rootPath, authStr string, email string) error {
+	confFile := path.Join(rootPath, CONFIGFILE)
+	if len(email) == 0 {
+		os.Remove(confFile)
+		return nil
+	}
 	lines := "auth = " + authStr + "\n" + "email = " + email + "\n"
 	b := []byte(lines)
-	err := ioutil.WriteFile(path.Join(rootPath, CONFIGFILE), b, 0600)
+	err := ioutil.WriteFile(confFile, b, 0600)
 	if err != nil {
 		return err
 	}
@@ -101,40 +108,38 @@ func saveConfig(rootPath, authStr string, email string) error {
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig) (string, error) {
 	storeConfig := false
+	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
-	var errMsg string
 	var reqBody []byte
 	jsonBody, err := json.Marshal(authConfig)
 	if err != nil {
-		errMsg = fmt.Sprintf("Config Error: %s", err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Config Error: %s", err)
 	}
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(REGISTRY_SERVER+"/v1/users", "application/json; charset=utf-8", b)
+	req1, err := http.Post(INDEX_SERVER+"/v1/users/", "application/json; charset=utf-8", b)
 	if err != nil {
-		errMsg = fmt.Sprintf("Server Error: %s", err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Server Error: %s", err)
 	}
-
 	reqStatusCode = req1.StatusCode
 	defer req1.Body.Close()
 	reqBody, err = ioutil.ReadAll(req1.Body)
 	if err != nil {
-		errMsg = fmt.Sprintf("Server Error: [%#v] %s", reqStatusCode, err)
-		return "", errors.New(errMsg)
+		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
 	}
 
 	if reqStatusCode == 201 {
-		status = "Account Created\n"
+		status = "Account created. Please use the confirmation link we sent" +
+			" to your e-mail to activate it.\n"
 		storeConfig = true
+	} else if reqStatusCode == 403 {
+		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
+			"Please check your e-mail for a confirmation link.")
 	} else if reqStatusCode == 400 {
-		// FIXME: This should be 'exists', not 'exist'. Need to change on the server first.
-		if string(reqBody) == "Username or email already exist" {
-			client := &http.Client{}
-			req, err := http.NewRequest("GET", REGISTRY_SERVER+"/v1/users", nil)
+		if string(reqBody) == "\"Username or email already exists\"" {
+			req, err := http.NewRequest("GET", INDEX_SERVER+"/v1/users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {
@@ -148,17 +153,18 @@ func Login(authConfig *AuthConfig) (string, error) {
 			if resp.StatusCode == 200 {
 				status = "Login Succeeded\n"
 				storeConfig = true
+			} else if resp.StatusCode == 401 {
+				saveConfig(authConfig.rootPath, "", "")
+				return "", fmt.Errorf("Wrong login/password, please try again")
 			} else {
-				status = fmt.Sprintf("Login: %s", body)
-				return "", errors.New(status)
+				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+					resp.StatusCode, resp.Header)
 			}
 		} else {
-			status = fmt.Sprintf("Registration: %s", reqBody)
-			return "", errors.New(status)
+			return "", fmt.Errorf("Registration: %s", reqBody)
 		}
 	} else {
-		status = fmt.Sprintf("[%s] : %s", reqStatusCode, reqBody)
-		return "", errors.New(status)
+		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
 	}
 	if storeConfig {
 		authStr := EncodeAuth(authConfig)
