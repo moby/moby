@@ -34,6 +34,7 @@ func (srv *Server) Help() string {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
+		{"build", "Build a container from Dockerfile via stdin"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -41,6 +42,7 @@ func (srv *Server) Help() string {
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
+		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
@@ -62,6 +64,67 @@ func (srv *Server) Help() string {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
 	return help
+}
+
+func (srv *Server) CmdInsert(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	stdout.Flush()
+	cmd := rcli.Subcmd(stdout, "insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+	imageId := cmd.Arg(0)
+	url := cmd.Arg(1)
+	path := cmd.Arg(2)
+
+	img, err := srv.runtime.repositories.LookupImage(imageId)
+	if err != nil {
+		return err
+	}
+	file, err := Download(url, stdout)
+	if err != nil {
+		return err
+	}
+	defer file.Body.Close()
+
+	config, err := ParseRun([]string{img.Id, "echo", "insert", url, path}, nil, srv.runtime.capabilities)
+	if err != nil {
+		return err
+	}
+
+	b := NewBuilder(srv.runtime)
+	c, err := b.Create(config)
+	if err != nil {
+		return err
+	}
+
+	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), stdout, "Downloading %v/%v (%v)"), path); err != nil {
+		return err
+	}
+	// FIXME: Handle custom repo, tag comment, author
+	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n", img.Id)
+	return nil
+}
+
+func (srv *Server) CmdBuild(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	stdout.Flush()
+	cmd := rcli.Subcmd(stdout, "build", "-", "Build a container from Dockerfile via stdin")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	img, err := NewBuilder(srv.runtime).Build(stdin, stdout)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n", img.ShortId())
+	return nil
 }
 
 // 'docker login': login / register a user to registry service.
@@ -776,7 +839,12 @@ func (srv *Server) CmdCommit(stdin io.ReadCloser, stdout io.Writer, args ...stri
 		}
 	}
 
-	img, err := srv.runtime.Commit(containerName, repository, tag, *flComment, *flAuthor, config)
+	container := srv.runtime.Get(containerName)
+	if container == nil {
+		return fmt.Errorf("No such container: %s", containerName)
+	}
+
+	img, err := NewBuilder(srv.runtime).Commit(container, repository, tag, *flComment, *flAuthor, config)
 	if err != nil {
 		return err
 	}
@@ -994,8 +1062,10 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 	// or tell the client there is no options
 	stdout.Flush()
 
+	b := NewBuilder(srv.runtime)
+
 	// Create new container
-	container, err := srv.runtime.Create(config)
+	container, err := b.Create(config)
 	if err != nil {
 		// If container not found, try to pull it
 		if srv.runtime.graph.IsNotExist(err) {
@@ -1003,7 +1073,7 @@ func (srv *Server) CmdRun(stdin io.ReadCloser, stdout rcli.DockerConn, args ...s
 			if err = srv.CmdPull(stdin, stdout, config.Image); err != nil {
 				return err
 			}
-			if container, err = srv.runtime.Create(config); err != nil {
+			if container, err = b.Create(config); err != nil {
 				return err
 			}
 		} else {
