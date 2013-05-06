@@ -48,8 +48,7 @@ Now install it, you will see another warning that the package cannot be authenti
 
 .. code-block:: bash
 
-    curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz |  tar  -zxf- docker-master/docker
-    sudo cp docker-master/docker /usr/local/bin/docker
+    curl get.docker.io | sudo sh -x
 
 
 Verify it worked

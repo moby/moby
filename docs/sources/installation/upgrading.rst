@@ -11,7 +11,7 @@ Get the latest docker binary:
 
 ::
 
-  wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
+  wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz
 
 
 
@@ -19,7 +19,7 @@ Unpack it to your current dir
 
 ::
 
-   tar -xf docker-master.tgz
+   tar -xf docker-latest.tgz
 
 
 Stop your current daemon. How you stop your daemon depends on how you started it.
