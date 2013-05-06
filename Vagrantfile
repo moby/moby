@@ -1,8 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-BOX_NAME = "ubuntu"
-BOX_URI = "http://files.vagrantup.com/precise64.box"
+BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
+BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64.box"
 PPA_KEY = "E61D797F63561DC6"
 
 Vagrant::Config.run do |config|
@@ -11,7 +11,7 @@ Vagrant::Config.run do |config|
   config.vm.box_url = BOX_URI
   # Add docker PPA key to the local repository and install docker
   pkg_cmd = "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys #{PPA_KEY}; "
-  pkg_cmd << "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >>/etc/apt/sources.list; "
+  pkg_cmd << "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >/etc/apt/sources.list.d/lxc-docker.list; "
   pkg_cmd << "apt-get update -qq; apt-get install -q -y lxc-docker"
   if ARGV.include?("--provider=aws".downcase)
     # Add AUFS dependency to amazon's VM

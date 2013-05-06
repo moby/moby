@@ -17,3 +17,6 @@
       -p=[]: Map a network port to the container
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
+      -d=[]: Set custom dns servers for the container
+      -v=[]: Creates a new volumes and mount it at the specified path.
+      -volumes-from="": Mount all volumes from the given container.

@@ -32,6 +32,7 @@ type Runtime struct {
 	capabilities   *Capabilities
 	kernelVersion  *KernelVersionInfo
 	autoRestart    bool
+	volumes        *Graph
 }
 
 var sysInitPath string
@@ -79,10 +80,10 @@ func (runtime *Runtime) containerRoot(id string) string {
 }
 
 func (runtime *Runtime) mergeConfig(userConf, imageConf *Config) {
-	if userConf.Hostname != "" {
+	if userConf.Hostname == "" {
 		userConf.Hostname = imageConf.Hostname
 	}
-	if userConf.User != "" {
+	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
 	if userConf.Memory == 0 {
@@ -126,7 +127,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		runtime.mergeConfig(config, img.Config)
 	}
 
-	if config.Cmd == nil {
+	if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
 
@@ -405,6 +406,10 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	volumes, err := NewGraph(path.Join(root, "volumes"))
+	if err != nil {
+		return nil, err
+	}
 	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
@@ -432,6 +437,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		idIndex:        NewTruncIndex(),
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
+		volumes:        volumes,
 	}
 
 	if err := runtime.restore(); err != nil {
