@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
