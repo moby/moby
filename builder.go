@@ -200,21 +200,23 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
 				if builder.runtime.graph.IsNotExist(err) {
-					if builder.runtime.graph.LookupRemoteImage(arguments, builder.runtime.authConfig) {
-						if err := builder.runtime.graph.PullImage(stdout, arguments, builder.runtime.authConfig); err != nil {
-							return nil, err
-						}
-					} else {
-						// FIXME: Allow pull repo:tag
-						if err := builder.runtime.graph.PullRepository(stdout, arguments, "", builder.runtime.repositories, builder.runtime.authConfig); err != nil {
-							return nil, err
-						}
+
+					var tag, remote string
+					if strings.Contains(remote, ":") {
+						remoteParts := strings.Split(remote, ":")
+						tag = remoteParts[1]
+						remote = remoteParts[0]
+					}
+
+					if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
+						return nil, err
 					}
 
 					image, err = builder.runtime.repositories.LookupImage(arguments)
 					if err != nil {
 						return nil, err
 					}
+
 				} else {
 					return nil, err
 				}
