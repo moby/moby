@@ -13,11 +13,13 @@ import (
 type Builder struct {
 	runtime      *Runtime
 	repositories *TagStore
+	graph        *Graph
 }
 
 func NewBuilder(runtime *Runtime) *Builder {
 	return &Builder{
 		runtime:      runtime,
+		graph:        runtime.graph,
 		repositories: runtime.repositories,
 	}
 }
@@ -142,6 +144,12 @@ func (builder *Builder) Commit(container *Container, repository, tag, comment, a
 	if err != nil {
 		return nil, err
 	}
+	// Register the image if needed
+	if repository != "" {
+		if err := builder.repositories.Set(repository, tag, img.Id, true); err != nil {
+			return img, err
+		}
+	}
 	return img, nil
 }
 
@@ -202,29 +210,33 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			if err == io.EOF {
 				break
 			}
-			return err
+			return nil, err
 		}
 		line = strings.Replace(strings.TrimSpace(line), "	", " ", 1)
 		// Skip comments and empty line
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, "	", 2)
+		tmp := strings.SplitN(line, " ", 2)
 		if len(tmp) != 2 {
-			return fmt.Errorf("Invalid Dockerfile format")
+			return nil, fmt.Errorf("Invalid Dockerfile format")
 		}
-		switch tmp[0] {
+		instruction := strings.Trim(tmp[0], " ")
+		arguments := strings.Trim(tmp[1], " ")
+		switch strings.ToLower(instruction) {
 		case "from":
-			fmt.Fprintf(stdout, "FROM %s\n", tmp[1])
-			image, err = builder.runtime.repositories.LookupImage(tmp[1])
+			fmt.Fprintf(stdout, "FROM %s\n", arguments)
+			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
 				if builder.runtime.graph.IsNotExist(err) {
 
 					var tag, remote string
-					if strings.Contains(remote, ":") {
-						remoteParts := strings.Split(remote, ":")
+					if strings.Contains(arguments, ":") {
+						remoteParts := strings.Split(arguments, ":")
 						tag = remoteParts[1]
 						remote = remoteParts[0]
+					} else {
+						remote = arguments
 					}
 
 					if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
@@ -235,20 +247,24 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 					if err != nil {
 						return nil, err
 					}
-
 				} else {
 					return nil, err
 				}
 			}
+
+			break
+		case "mainainer":
+			fmt.Fprintf(stdout, "MAINTAINER %s\n", arguments)
+			maintainer = arguments
 			break
 		case "run":
-			fmt.Fprintf(stdout, "RUN %s\n", tmp[1])
+			fmt.Fprintf(stdout, "RUN %s\n", arguments)
 			if image == nil {
-				return fmt.Errorf("Please provide a source image with `from` prior to run")
+				return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 			}
-			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", tmp[1]}, nil, builder.runtime.capabilities)
+			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", arguments}, nil, builder.runtime.capabilities)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if cache, err := builder.getCachedImage(image, config); err != nil {
@@ -262,70 +278,108 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			// Create the container and start it
 			c, err := builder.Create(config)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if err := c.Start(); err != nil {
-				return err
+				return nil, err
 			}
 			tmpContainers[c.Id] = struct{}{}
 
 			// Wait for it to finish
 			if result := c.Wait(); result != 0 {
-				return fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", tmp[1], result)
+				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", arguments, result)
 			}
 
 			// Commit the container
-			base, err = builder.Commit(c, "", "", "", "", nil)
+			base, err = builder.Commit(c, "", "", "", maintainer, nil)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			tmpImages[base.Id] = struct{}{}
 
 			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
-			break
-		case "copy":
-			if image == nil {
-				return fmt.Errorf("Please provide a source image with `from` prior to copy")
-			}
-			tmp2 := strings.SplitN(tmp[1], " ", 2)
-			if len(tmp) != 2 {
-				return fmt.Errorf("Invalid COPY format")
-			}
-			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", tmp2[0], tmp2[1], base.ShortId())
 
-			file, err := Download(tmp2[0], stdout)
+			// use the base as the new image
+			image = base
+
+			break
+		case "expose":
+			ports := strings.Split(arguments, " ")
+
+			fmt.Fprintf(stdout, "EXPOSE %v\n", ports)
+			if image == nil {
+				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
+			}
+
+			// Create the container and start it
+			c, err := builder.Create(&Config{Image: image.Id, Cmd: []string{"", ""}})
 			if err != nil {
-				return err
+				return nil, err
+			}
+			if err := c.Start(); err != nil {
+				return nil, err
+			}
+			tmpContainers[c.Id] = struct{}{}
+
+			// Commit the container
+			base, err = builder.Commit(c, "", "", "", maintainer, &Config{PortSpecs: ports})
+			if err != nil {
+				return nil, err
+			}
+			tmpImages[base.Id] = struct{}{}
+
+			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+
+			image = base
+			break
+		case "insert":
+			if image == nil {
+				return nil, fmt.Errorf("Please provide a source image with `from` prior to copy")
+			}
+			tmp = strings.SplitN(arguments, " ", 2)
+			if len(tmp) != 2 {
+				return nil, fmt.Errorf("Invalid INSERT format")
+			}
+			sourceUrl := strings.Trim(tmp[0], " ")
+			destPath := strings.Trim(tmp[1], " ")
+			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
+
+			file, err := Download(sourceUrl, stdout)
+			if err != nil {
+				return nil, err
 			}
 			defer file.Body.Close()
 
-			config, err := ParseRun([]string{base.Id, "echo", "insert", tmp2[0], tmp2[1]}, nil, builder.runtime.capabilities)
+			config, err := ParseRun([]string{base.Id, "echo", "insert", sourceUrl, destPath}, nil, builder.runtime.capabilities)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			c, err := builder.Create(config)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if err := c.Start(); err != nil {
-				return err
+				return nil, err
 			}
 
 			// Wait for echo to finish
 			if result := c.Wait(); result != 0 {
-				return fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", tmp[1], result)
+				return nil, fmt.Errorf("!!! '%s' return non-zero exit code '%d'. Aborting.", arguments, result)
 			}
 
-			if err := c.Inject(file.Body, tmp2[1]); err != nil {
-				return err
+			if err := c.Inject(file.Body, destPath); err != nil {
+				return nil, err
 			}
 
-			base, err = builder.Commit(c, "", "", "", "", nil)
+			base, err = builder.Commit(c, "", "", "", maintainer, nil)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			fmt.Fprintf(stdout, "===> %s\n", base.ShortId())
+
+			image = base
+
 			break
 		default:
 			fmt.Fprintf(stdout, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
