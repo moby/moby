@@ -26,9 +26,9 @@ Install the docker binary:
 
 ::
 
-    wget http://get.docker.io/builds/Linux/x86_64/docker-master.tgz
-    tar -xf docker-master.tgz
-    sudo cp ./docker-master /usr/local/bin
+    wget http://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
+    tar -xf docker-latest.tgz
+    sudo cp ./docker-latest/docker /usr/local/bin
 
 Note: docker currently only supports 64-bit Linux hosts.
 

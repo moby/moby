@@ -1,3 +1,15 @@
+lxc-docker (0.3.0-1) precise; urgency=low
+ - Registry: Implement the new registry
+ - Documentation: new example: sharing data between 2 couchdb databases
+ - Runtime: Fix the command existance check
+ - Runtime: strings.Split may return an empty string on no match
+ - Runtime: Fix an index out of range crash if cgroup memory is not
+ - Documentation: Various improvments
+ - Vagrant: Use only one deb line in /etc/apt
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 5 May 2013 00:00:00 -0700
+
+
 lxc-docker (0.2.2-1) precise; urgency=low
  - Support for data volumes ('docker run -v=PATH')
  - Share data volumes between containers ('docker run -volumes-from')
@@ -10,7 +22,7 @@ lxc-docker (0.2.2-1) precise; urgency=low
 
 lxc-docker (0.2.1-1) precise; urgency=low
 
-  - 'docker commit -run' bundles a layer with default runtime options: command, ports etc. 
+  - 'docker commit -run' bundles a layer with default runtime options: command, ports etc.
   - Improve install process on Vagrant
   - New Dockerfile operation: "maintainer"
   - New Dockerfile operation: "expose"

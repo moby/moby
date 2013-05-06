@@ -36,9 +36,9 @@ else
 fi
 
 echo "Downloading docker binary and uncompressing into /usr/local/bin..."
-curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz |
+curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz |
 tar -C /usr/local/bin --strip-components=1 -zxf- \
-docker-master/docker
+docker-latest/docker
 
 if [ -f /etc/init/dockerd.conf ]
 then
