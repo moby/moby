@@ -477,3 +477,37 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }
+
+/*
+func ReadStringOnTerminal(prompt string) (string, error) {
+	fmt.Print(prompt)
+	in := bufio.NewReader(os.Stdin);
+	return in.ReadString('\n');
+}
+
+func ReadPasswdOnTerminal(prompt string) (string, error) {
+	fmt.Print(prompt);
+	const stty_arg0  = "/bin/stty";
+	stty_argv_e_off := []string{"stty","-echo"};
+	stty_argv_e_on  := []string{"stty","echo"};
+	const exec_cwdir = "";
+	fd := []*os.File{os.Stdin,os.Stdout,os.Stderr};
+	pid, err := os.StartProcess(stty_arg0,stty_argv_e_off,nil,exec_cwdir,fd);
+	if err != nil {
+		return "", err
+	}
+	rd := bufio.NewReader(os.Stdin);
+	os.Wait(pid,0);
+	line, err := rd.ReadString('\n');
+	if err != nil {
+		return "", err
+	}
+	passwd := strings.TrimSpace(line)
+	pid, e := os.StartProcess(stty_arg0,stty_argv_e_on,nil,exec_cwdir,fd);
+	if e =! nil {
+		return "", err
+	}
+	os.Wait(pid,0)
+	return passwd, err
+}
+*/

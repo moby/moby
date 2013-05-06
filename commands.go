@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/term"
 	"io"
 	"io/ioutil"
@@ -15,8 +16,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
+	"unicode"
 )
 
 const VERSION = "0.2.2"
@@ -59,10 +62,12 @@ func ParseCommands(args ...string) error {
 		"import":  CmdImport,
 		"history": CmdHistory,
 		"kill":    CmdKill,
+		"login":   CmdLogin,
 		"logs":    CmdLogs,
 		"port":    CmdPort,
 		"ps":      CmdPs,
 		"pull":    CmdPull,
+		"push":    CmdPush,
 		"restart": CmdRestart,
 		"rm":      CmdRm,
 		"rmi":     CmdRmi,
@@ -98,12 +103,12 @@ func cmdHelp(args ...string) error {
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container/image"},
 		{"kill", "Kill a running container"},
-		//		{"login", "Register or Login to the docker registry server"},
+		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
-		//		{"push", "Push an image or a repository to the docker registry server"},
+		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
@@ -120,17 +125,8 @@ func cmdHelp(args ...string) error {
 	return nil
 }
 
-/*
 // 'docker login': login / register a user to registry service.
-func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	// Read a line on raw terminal with support for simple backspace
-	// sequences and echo.
-	//
-	// This function is necessary because the login command must be done in a
-	// raw terminal for two reasons:
-	// - we have to read a password (without echoing it);
-	// - the rcli "protocol" only supports cannonical and raw modes and you
-	//   can't tune it once the command as been started.
+func CmdLogin(args ...string) error {
 	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
 		char := make([]byte, 1)
 		buffer := make([]byte, 64)
@@ -173,52 +169,74 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	stdout.SetOptionRawTerminal()
+	oldState, err := SetRawTerminal()
+	if err != nil {
+		return err
+	} else {
+		defer RestoreTerminal(oldState)
+	}
 
-	cmd := rcli.Subcmd(stdout, "login", "", "Register or Login to the docker registry server")
+	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+
+	body, _, err := call("GET", "/auth", nil)
+	if err != nil {
+		return err
+	}
+
+	var out auth.AuthConfig
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
 	}
 
 	var username string
 	var password string
 	var email string
 
-	fmt.Fprint(stdout, "Username (", srv.runtime.authConfig.Username, "): ")
-	username = readAndEchoString(stdin, stdout)
+	fmt.Print("Username (", out.Username, "): ")
+	username = readAndEchoString(os.Stdin, os.Stdout)
 	if username == "" {
-		username = srv.runtime.authConfig.Username
+		username = out.Username
 	}
-	if username != srv.runtime.authConfig.Username {
-		fmt.Fprint(stdout, "Password: ")
-		password = readString(stdin, stdout)
+	if username != out.Username {
+		fmt.Print("Password: ")
+		password = readString(os.Stdin, os.Stdout)
 
 		if password == "" {
 			return fmt.Errorf("Error : Password Required")
 		}
 
-		fmt.Fprint(stdout, "Email (", srv.runtime.authConfig.Email, "): ")
-		email = readAndEchoString(stdin, stdout)
+		fmt.Print("Email (", out.Email, "): ")
+		email = readAndEchoString(os.Stdin, os.Stdout)
 		if email == "" {
-			email = srv.runtime.authConfig.Email
+			email = out.Email
 		}
 	} else {
-		password = srv.runtime.authConfig.Password
-		email = srv.runtime.authConfig.Email
+		email = out.Email
 	}
-	newAuthConfig := auth.NewAuthConfig(username, password, email, srv.runtime.root)
-	status, err := auth.Login(newAuthConfig)
+
+	out.Username = username
+	out.Password = password
+	out.Email = email
+
+	body, _, err = call("POST", "/auth", out)
 	if err != nil {
-		fmt.Fprintf(stdout, "Error: %s\r\n", err)
-	} else {
-		srv.runtime.authConfig = newAuthConfig
+		return err
 	}
-	if status != "" {
-		fmt.Fprint(stdout, status)
+
+	var out2 ApiAuth
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+	if out2.Status != "" {
+		fmt.Print(out2.Status)
 	}
 	return nil
 }
-*/
 
 // 'docker wait': block until a container stops
 func CmdWait(args ...string) error {
@@ -547,66 +565,60 @@ func CmdImport(args ...string) error {
 	return nil
 }
 
-/*
-func (srv *Server) CmdPush(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
-	cmd := rcli.Subcmd(stdout, "push", "NAME", "Push an image or a repository to the registry")
+func CmdPush(args ...string) error {
+	cmd := Subcmd("push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	local := cmd.Arg(0)
+	name := cmd.Arg(0)
 
-	if local == "" {
+	if name == "" {
 		cmd.Usage()
 		return nil
 	}
 
+	body, _, err := call("GET", "/auth", nil)
+	if err != nil {
+		return err
+	}
+
+	var out auth.AuthConfig
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+
 	// If the login failed, abort
-	if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
-		if err := srv.CmdLogin(stdin, stdout, args...); err != nil {
+	if out.Username == "" {
+		if err := CmdLogin(args...); err != nil {
 			return err
 		}
-		if srv.runtime.authConfig == nil || srv.runtime.authConfig.Username == "" {
+
+		body, _, err = call("GET", "/auth", nil)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(body, &out)
+		if err != nil {
+			return err
+		}
+
+		if out.Username == "" {
 			return fmt.Errorf("Please login prior to push. ('docker login')")
 		}
 	}
 
-	var remote string
-
-	tmp := strings.SplitN(local, "/", 2)
-	if len(tmp) == 1 {
+	if len(strings.SplitN(name, "/", 2)) == 1 {
 		return fmt.Errorf(
 			"Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)",
-			srv.runtime.authConfig.Username, local)
-	} else {
-		remote = local
+			out.Username, name)
 	}
 
-	Debugf("Pushing [%s] to [%s]\n", local, remote)
-
-	// Try to get the image
-	// FIXME: Handle lookup
-	// FIXME: Also push the tags in case of ./docker push myrepo:mytag
-	//	img, err := srv.runtime.LookupImage(cmd.Arg(0))
-	img, err := srv.runtime.graph.Get(local)
-	if err != nil {
-		Debugf("The push refers to a repository [%s] (len: %d)\n", local, len(srv.runtime.repositories.Repositories[local]))
-		// If it fails, try to get the repository
-		if localRepo, exists := srv.runtime.repositories.Repositories[local]; exists {
-			if err := srv.runtime.graph.PushRepository(stdout, remote, localRepo, srv.runtime.authConfig); err != nil {
-				return err
-			}
-			return nil
-		}
-
-		return err
-	}
-	err = srv.runtime.graph.PushImage(stdout, img, srv.runtime.authConfig)
-	if err != nil {
+	if err := hijack("POST", "/images"+name+"/pull", false); err != nil {
 		return err
 	}
 	return nil
 }
-*/
 
 func CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")

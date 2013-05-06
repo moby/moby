@@ -214,6 +214,27 @@ func (srv *Server) ImagePull(name string, file *os.File) error {
 	return nil
 }
 
+func (srv *Server) ImagePush(name string, file *os.File) error {
+	img, err := srv.runtime.graph.Get(name)
+	if err != nil {
+		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		// If it fails, try to get the repository                                                                                                                      
+		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
+			if err := srv.runtime.graph.PushRepository(file, name, localRepo, srv.runtime.authConfig); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		return err
+	}
+	err = srv.runtime.graph.PushImage(file, img, srv.runtime.authConfig)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 	var archive io.Reader
 	var resp *http.Response

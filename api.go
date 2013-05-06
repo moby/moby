@@ -4,6 +4,7 @@ import (
 	_ "bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"github.com/gorilla/mux"
 	"log"
 	"net"
@@ -41,6 +42,51 @@ func httpError(w http.ResponseWriter, err error) {
 func ListenAndServe(addr string, srv *Server) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
+
+	r.Path("/auth").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		var out auth.AuthConfig
+		out.Username = srv.runtime.authConfig.Username
+		out.Email = srv.runtime.authConfig.Email
+		b, err := json.Marshal(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(b)
+		}
+	})
+
+	r.Path("/auth").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		var config auth.AuthConfig
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if config.Username == srv.runtime.authConfig.Username {
+			config.Password = srv.runtime.authConfig.Password
+		}
+
+		newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
+		status, err := auth.Login(newAuthConfig)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			srv.runtime.authConfig = newAuthConfig
+		}
+		if status != "" {
+			b, err := json.Marshal(ApiAuth{status})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Write(b)
+			}
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
 
 	r.Path("/version").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
@@ -269,6 +315,28 @@ func ListenAndServe(addr string, srv *Server) error {
 			}
 		} else {
 			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+
+	r.Path("/images/{name:*.}/push").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		file, rwc, err := hijackServer(w)
+		if file != nil {
+			defer file.Close()
+		}
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if err := srv.ImagePush(name, file); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
 		}
 	})
 

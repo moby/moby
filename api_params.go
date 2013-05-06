@@ -54,3 +54,7 @@ type ApiVersion struct {
 type ApiWait struct {
 	StatusCode int
 }
+
+type ApiAuth struct {
+	Status string
+}
