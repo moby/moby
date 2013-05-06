@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -637,4 +638,34 @@ func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]s
 		i++
 	}
 	return result, nil
+}
+
+type SearchResults struct {
+	Query      string              `json:"query"`
+	NumResults int                 `json:"num_results"`
+	Results    []map[string]string `json:"results"`
+}
+
+func (graph *Graph) SearchRepositories(stdout io.Writer, term string) (*SearchResults, error) {
+	client := graph.getHttpClient()
+	u := INDEX_ENDPOINT + "/search?q=" + url.QueryEscape(term)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Unexepected status code %d", res.StatusCode)
+	}
+	rawData, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	result := new(SearchResults)
+	err = json.Unmarshal(rawData, result)
+	return result, err
 }
