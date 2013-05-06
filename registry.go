@@ -642,7 +642,7 @@ func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]s
 
 type SearchResults struct {
 	Query      string              `json:"query"`
-	NumResults int    			   `json:"num_results"`
+	NumResults int                 `json:"num_results"`
 	Results    []map[string]string `json:"results"`
 }
 
