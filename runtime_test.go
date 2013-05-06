@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
 	"net"
@@ -67,12 +66,13 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
 	// Create the "Server"
 	srv := &Server{
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.CmdPull(os.Stdin, rcli.NewDockerLocalConn(os.Stdout), unitTestImageName); err != nil {
+	if err := srv.ImagePull(unitTestImageName, os.Stdout); err != nil {
 		panic(err)
 	}
 }

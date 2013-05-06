@@ -5,24 +5,46 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"io"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
-func ListenAndServe(addr string, rtime *Runtime) error {
+func hijackServer(w http.ResponseWriter) (*os.File, net.Conn, error) {
+	rwc, _, err := w.(http.Hijacker).Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	file, err := rwc.(*net.TCPConn).File()
+	if err != nil {
+		return nil, rwc, err
+	}
+
+	// Flush the options to make sure the client sets the raw mode
+	rwc.Write([]byte{})
+
+	return file, rwc, nil
+}
+
+func httpError(w http.ResponseWriter, err error) {
+	if strings.HasPrefix(err.Error(), "No such") {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func ListenAndServe(addr string, srv *Server) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
 	r.Path("/version").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
-		m := ApiVersion{VERSION, GIT_COMMIT, rtime.capabilities.MemoryLimit, rtime.capabilities.SwapLimit}
+		m := srv.DockerVersion()
 		b, err := json.Marshal(m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -35,16 +57,11 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			if err := container.Kill(); err != nil {
-				http.Error(w, "Error restarting container "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if err := srv.ContainerKill(name); err != nil {
+			httpError(w, err)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/export").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,36 +69,21 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		vars := mux.Vars(r)
 		name := vars["name"]
 
-		if container := rtime.Get(name); container != nil {
-
-			data, err := container.Export()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			conn, _, err := w.(http.Hijacker).Hijack()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer conn.Close()
-			file, err := conn.(*net.TCPConn).File()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		file, rwc, err := hijackServer(w)
+		if file != nil {
 			defer file.Close()
-
-			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
-			// Stream the entire contents of the container (basically a volatile snapshot)
-			if _, err := io.Copy(file, data); err != nil {
-				fmt.Fprintln(file, "Error: "+err.Error())
-				return
-			}
-		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
 		}
-
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if err := srv.ContainerExport(name, file); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
+		}
 	})
 
 	r.Path("/images").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,61 +91,14 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		All := r.Form.Get("all")
-		NameFilter := r.Form.Get("filter")
-		Quiet := r.Form.Get("quiet")
+		all := r.Form.Get("all")
+		filter := r.Form.Get("filter")
+		quiet := r.Form.Get("quiet")
 
-		var allImages map[string]*Image
-		var err error
-		if All == "1" {
-			allImages, err = rtime.graph.Map()
-		} else {
-			allImages, err = rtime.graph.Heads()
-		}
+		outs, err := srv.Images(all, filter, quiet)
 		if err != nil {
-			w.WriteHeader(500)
-			return
+			httpError(w, err)
 		}
-		var outs []ApiImages = []ApiImages{} //produce [] when empty instead of 'null'
-		for name, repository := range rtime.repositories.Repositories {
-			if NameFilter != "" && name != NameFilter {
-				continue
-			}
-			for tag, id := range repository {
-				var out ApiImages
-				image, err := rtime.graph.Get(id)
-				if err != nil {
-					log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
-					continue
-				}
-				delete(allImages, id)
-				if Quiet != "1" {
-					out.Repository = name
-					out.Tag = tag
-					out.Id = TruncateId(id)
-					out.Created = image.Created.Unix()
-				} else {
-					out.Id = image.ShortId()
-				}
-				outs = append(outs, out)
-			}
-		}
-		// Display images which aren't part of a
-		if NameFilter == "" {
-			for id, image := range allImages {
-				var out ApiImages
-				if Quiet != "1" {
-					out.Repository = "<none>"
-					out.Tag = "<none>"
-					out.Id = TruncateId(id)
-					out.Created = image.Created.Unix()
-				} else {
-					out.Id = image.ShortId()
-				}
-				outs = append(outs, out)
-			}
-		}
-
 		b, err := json.Marshal(outs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,22 +109,7 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 
 	r.Path("/info").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
-		images, _ := rtime.graph.All()
-		var imgcount int
-		if images == nil {
-			imgcount = 0
-		} else {
-			imgcount = len(images)
-		}
-		var out ApiInfo
-		out.Containers = len(rtime.List())
-		out.Version = VERSION
-		out.Images = imgcount
-		if os.Getenv("DEBUG") == "1" {
-			out.Debug = true
-			out.NFd = getTotalUsedFds()
-			out.NGoroutines = runtime.NumGoroutine()
-		}
+		out := srv.DockerInfo()
 		b, err := json.Marshal(out)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -182,22 +122,10 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-
-		image, err := rtime.repositories.LookupImage(name)
+		outs, err := srv.ImageHistory(name)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			httpError(w, err)
 		}
-
-		var outs []ApiHistory = []ApiHistory{} //produce [] when empty instead of 'null'
-		err = image.WalkHistory(func(img *Image) error {
-			var out ApiHistory
-			out.Id = rtime.repositories.ImageName(img.ShortId())
-			out.Created = img.Created.Unix()
-			out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
-			return nil
-		})
-
 		b, err := json.Marshal(outs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -210,25 +138,15 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-
-		if container := rtime.Get(name); container != nil {
-			changes, err := container.Changes()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			var changesStr []string
-			for _, name := range changes {
-				changesStr = append(changesStr, name.String())
-			}
-			b, err := json.Marshal(changesStr)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
+		changesStr, err := srv.ContainerChanges(name)
+		if err != nil {
+			httpError(w, err)
+		}
+		b, err := json.Marshal(changesStr)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
+			w.Write(b)
 		}
 	})
 
@@ -237,26 +155,19 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		privatePort := r.Form.Get("port")
 		vars := mux.Vars(r)
 		name := vars["name"]
-
-		if container := rtime.Get(name); container == nil {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
-		} else {
-			if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; !exists {
-				http.Error(w, "No private port '"+privatePort+"' allocated on "+name, http.StatusInternalServerError)
-				return
-			} else {
-				b, err := json.Marshal(ApiPort{frontend})
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-				} else {
-					w.Write(b)
-				}
-			}
+		out, err := srv.ContainerPort(name, r.Form.Get("port"))
+		if err != nil {
+			httpError(w, err)
 		}
+		b, err := json.Marshal(ApiPort{out})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(b)
+		}
+
 	})
 
 	r.Path("/containers").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -264,72 +175,16 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		All := r.Form.Get("all")
-		NoTrunc := r.Form.Get("notrunc")
-		Quiet := r.Form.Get("quiet")
-		Last := r.Form.Get("n")
-		n, err := strconv.Atoi(Last)
+		all := r.Form.Get("all")
+		notrunc := r.Form.Get("notrunc")
+		quiet := r.Form.Get("quiet")
+		n, err := strconv.Atoi(r.Form.Get("n"))
 		if err != nil {
 			n = -1
 		}
-		var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
-		for i, container := range rtime.List() {
-			if !container.State.Running && All != "1" && n == -1 {
-				continue
-			}
-			if i == n {
-				break
-			}
-			var out ApiContainers
-			out.Id = container.ShortId()
-			if Quiet != "1" {
-				command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-				if NoTrunc != "1" {
-					command = Trunc(command, 20)
-				}
-				out.Image = rtime.repositories.ImageName(container.Image)
-				out.Command = command
-				out.Created = container.Created.Unix()
-				out.Status = container.State.String()
-				out.Ports = container.NetworkSettings.PortMappingHuman()
-			}
-			outs = append(outs, out)
-		}
 
+		outs := srv.Containers(all, notrunc, quiet, n)
 		b, err := json.Marshal(outs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.Write(b)
-		}
-	})
-
-	r.Path("/containers/{name:.*}/commit").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		var config Config
-		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		vars := mux.Vars(r)
-		name := vars["name"]
-		repo := r.Form.Get("repo")
-		tag := r.Form.Get("tag")
-		author := r.Form.Get("author")
-		comment := r.Form.Get("comment")
-
-		img, err := rtime.Commit(name, repo, tag, comment, author, &config)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		b, err := json.Marshal(ApiId{img.ShortId()})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -342,121 +197,79 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		vars := mux.Vars(r)
-		name := vars["name"]
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
+		vars := mux.Vars(r)
+		name := vars["name"]
 		var force bool
 		if r.Form.Get("force") == "1" {
 			force = true
 		}
 
-		if err := rtime.repositories.Set(repo, tag, name, force); err != nil {
+		if err := srv.ContainerTag(name, repo, tag, force); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 	})
 
-	r.Path("/images/{name:.*}/pull").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.Method, r.RequestURI)
-		vars := mux.Vars(r)
-		name := vars["name"]
-
-		conn, _, err := w.(http.Hijacker).Hijack()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer conn.Close()
-		file, err := conn.(*net.TCPConn).File()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
-
-		fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
-		if rtime.graph.LookupRemoteImage(name, rtime.authConfig) {
-			if err := rtime.graph.PullImage(file, name, rtime.authConfig); err != nil {
-				fmt.Fprintln(file, "Error: "+err.Error())
-			}
-			return
-		}
-		if err := rtime.graph.PullRepository(file, name, "", rtime.repositories, rtime.authConfig); err != nil {
-			fmt.Fprintln(file, "Error: "+err.Error())
-		}
-	})
-
-	/* /!\ W.I.P /!\ */
 	r.Path("/images").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		src := r.Form.Get("src")
+
+		src := r.Form.Get("fromSrc")
+		image := r.Form.Get("fromImage")
+		container := r.Form.Get("fromContainer")
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
 
-		var archive io.Reader
-		var resp *http.Response
+		if container != "" { //commit
+			var config Config
+			if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			author := r.Form.Get("author")
+			comment := r.Form.Get("comment")
 
-		conn, _, err := w.(http.Hijacker).Hijack()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer conn.Close()
-		file, err := conn.(*net.TCPConn).File()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
+			id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
+			if err != nil {
+				httpError(w, err)
+			}
+			b, err := json.Marshal(ApiId{id})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Write(b)
+			}
+		} else if image != "" || src != "" {
+			file, rwc, err := hijackServer(w)
+			if file != nil {
+				defer file.Close()
+			}
+			if rwc != nil {
+				defer rwc.Close()
+			}
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+			fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 
-		fmt.Fprintln(file, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\n\r\n")
-		if src == "-" {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer Debugf("Closing buffered stdin pipe")
-				io.Copy(w, file)
-			}()
-			archive = r
+			if image != "" { //pull
+				if err := srv.ImagePull(image, file); err != nil {
+					fmt.Fprintln(file, "Error: "+err.Error())
+				}
+			} else { //import
+				if err := srv.ImageImport(src, repo, tag, file); err != nil {
+					fmt.Fprintln(file, "Error: "+err.Error())
+				}
+			}
 		} else {
-			u, err := url.Parse(src)
-			if err != nil {
-				fmt.Fprintln(file, "Error: "+err.Error())
-			}
-			if u.Scheme == "" {
-				u.Scheme = "http"
-				u.Host = src
-				u.Path = ""
-			}
-			fmt.Fprintln(file, "Downloading from", u)
-			// Download with curl (pretty progress bar)
-			// If curl is not available, fallback to http.Get()
-			resp, err = Download(u.String(), file)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			archive = ProgressReader(resp.Body, int(resp.ContentLength), file, "Importing %v/%v (%v)")
+			w.WriteHeader(http.StatusNotFound)
 		}
-		img, err := rtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		// Optionally register the image at REPO/TAG
-		if repo != "" {
-			if err := rtime.repositories.Set(repo, tag, img.Id, true); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
-		fmt.Fprintln(file, img.ShortId())
 	})
 
 	r.Path("/containers").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -466,37 +279,19 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var memoryW, swapW bool
-
-		if config.Memory > 0 && !rtime.capabilities.MemoryLimit {
-			memoryW = true
-			log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
-			config.Memory = 0
-		}
-
-		if config.Memory > 0 && !rtime.capabilities.SwapLimit {
-			swapW = true
-			log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
-			config.MemorySwap = -1
-		}
-		container, err := rtime.Create(&config)
+		id, memoryW, swapW, err := srv.ContainerCreate(config)
 		if err != nil {
-			if rtime.graph.IsNotExist(err) {
-				http.Error(w, "No such image: "+config.Image, http.StatusNotFound)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+			httpError(w, err)
 			return
 		}
 		var out ApiRun
-		out.Id = container.ShortId()
+		out.Id = id
 		if memoryW {
 			out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 		}
 		if swapW {
 			out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 		}
-
 		b, err := json.Marshal(out)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -516,66 +311,44 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			if err := container.Restart(t); err != nil {
-				http.Error(w, "Error restarting container "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if err := srv.ContainerRestart(name, t); err != nil {
+			httpError(w, err)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			if err := rtime.Destroy(container); err != nil {
-				http.Error(w, "Error destroying container "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if err := srv.ContainerDestroy(name); err != nil {
+			httpError(w, err)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/images/{name:.*}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-
-		img, err := rtime.repositories.LookupImage(name)
-		if err != nil {
-			http.Error(w, "No such image: "+name, http.StatusNotFound)
-			return
+		if err := srv.ImageDelete(name); err != nil {
+			httpError(w, err)
 		} else {
-			if err := rtime.graph.Delete(img.Id); err != nil {
-				http.Error(w, "Error deleting image "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/start").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			if err := container.Start(); err != nil {
-				http.Error(w, "Error starting container "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if err := srv.ContainerStart(name); err != nil {
+			httpError(w, err)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/stop").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -589,33 +362,27 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		}
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			if err := container.Stop(t); err != nil {
-				http.Error(w, "Error stopping container "+name+": "+err.Error(), http.StatusInternalServerError)
-				return
-			}
+
+		if err := srv.ContainerStop(name, t); err != nil {
+			httpError(w, err)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusOK)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	r.Path("/containers/{name:.*}/wait").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		vars := mux.Vars(r)
 		name := vars["name"]
-		if container := rtime.Get(name); container != nil {
-			b, err := json.Marshal(ApiWait{container.Wait()})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-			return
+		status, err := srv.ContainerWait(name)
+		if err != nil {
+			httpError(w, err)
+		}
+		b, err := json.Marshal(ApiWait{status})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
-			return
+			w.Write(b)
 		}
 	})
 
@@ -632,90 +399,21 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		vars := mux.Vars(r)
 		name := vars["name"]
 
-		if container := rtime.Get(name); container != nil {
-			conn, _, err := w.(http.Hijacker).Hijack()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer conn.Close()
-			file, err := conn.(*net.TCPConn).File()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		file, rwc, err := hijackServer(w)
+		if file != nil {
 			defer file.Close()
+		}
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
 
-			// Flush the options to make sure the client sets the raw mode
-			conn.Write([]byte{})
-
-			fmt.Fprintln(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
-			//logs
-			if logs == "1" {
-				if stdout == "1" {
-					cLog, err := container.ReadLog("stdout")
-					if err != nil {
-						Debugf(err.Error())
-					} else if _, err := io.Copy(file, cLog); err != nil {
-						Debugf(err.Error())
-					}
-				}
-				if stderr == "1" {
-					cLog, err := container.ReadLog("stderr")
-					if err != nil {
-						Debugf(err.Error())
-					} else if _, err := io.Copy(file, cLog); err != nil {
-						Debugf(err.Error())
-					}
-				}
-			}
-
-			//stream
-			if stream == "1" {
-
-				if container.State.Ghost {
-					fmt.Fprintf(file, "error: Impossible to attach to a ghost container")
-					return
-				}
-
-				if container.Config.Tty {
-					oldState, err := SetRawTerminal()
-					if err != nil {
-						if os.Getenv("DEBUG") != "" {
-							log.Printf("Can't set the terminal in raw mode: %s", err)
-						}
-					} else {
-						defer RestoreTerminal(oldState)
-					}
-
-				}
-				var (
-					cStdin           io.ReadCloser
-					cStdout, cStderr io.Writer
-					cStdinCloser     io.Closer
-				)
-
-				if stdin == "1" {
-					r, w := io.Pipe()
-					go func() {
-						defer w.Close()
-						defer Debugf("Closing buffered stdin pipe")
-						io.Copy(w, file)
-					}()
-					cStdin = r
-					cStdinCloser = file
-				}
-				if stdout == "1" {
-					cStdout = file
-				}
-				if stderr == "1" {
-					cStderr = file
-				}
-
-				<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
-			}
-		} else {
-			http.Error(w, "No such container: "+name, http.StatusNotFound)
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, file); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
 		}
 	})
 
@@ -724,16 +422,16 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		vars := mux.Vars(r)
 		name := vars["name"]
 
-		if container := rtime.Get(name); container != nil {
-			b, err := json.Marshal(container)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-			return
+		container, err := srv.ContainerInspect(name)
+		if err != nil {
+			httpError(w, err)
 		}
-		http.Error(w, "No such container: "+name, http.StatusNotFound)
+		b, err := json.Marshal(container)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(b)
+		}
 	})
 
 	r.Path("/images/{name:.*}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -741,16 +439,16 @@ func ListenAndServe(addr string, rtime *Runtime) error {
 		vars := mux.Vars(r)
 		name := vars["name"]
 
-		if image, err := rtime.repositories.LookupImage(name); err == nil && image != nil {
-			b, err := json.Marshal(image)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-			return
+		image, err := srv.ImageInspect(name)
+		if err != nil {
+			httpError(w, err)
 		}
-		http.Error(w, "No such image: "+name, http.StatusNotFound)
+		b, err := json.Marshal(image)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(b)
+		}
 	})
 
 	return http.ListenAndServe(addr, r)
