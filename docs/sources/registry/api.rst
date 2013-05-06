@@ -84,7 +84,9 @@ It’s possible to run docker pull https://<registry>/repositories/samalba/busyb
 
 Currently registry redirects to s3 urls for downloads, going forward all downloads need to be streamed through the registry. The Registry will then abstract the calls to S3 by a top-level class which implements sub-classes for S3 and local storage.
 
-Token is only returned when it is a private repo, public repos do not require tokens to be returned. The Registry will still contact the Index to make sure the pull is authorized (“is it ok to download this repos without a Token?”).
+Token is only returned when the 'X-Docker-Token' header is sent with request.
+
+Basic Auth is required to pull private repos. Basic auth isn't required for pulling public repos, but if one is provided, it needs to be valid and for an active account.
 
 API (pulling repository foo/bar):
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -426,6 +428,8 @@ You have 3 options:
         - X-Docker-Token: true
 
     In this case, along with the 200 response, you’ll get a new token (if user auth is ok):
+    If authorization isn't correct you get a 401 response.
+    If account isn't active you will get a 403 response.
 
     **Response**:
         - 200 OK
