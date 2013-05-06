@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"index/suffixarray"
 	"io"
@@ -58,9 +57,6 @@ func Debugf(format string, a ...interface{}) {
 		}
 
 		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-		if rcli.CLIENT_SOCKET != nil {
-			fmt.Fprintf(rcli.CLIENT_SOCKET, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-		}
 	}
 }
 

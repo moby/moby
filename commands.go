@@ -890,24 +890,6 @@ func CmdAttach(args ...string) error {
 	return nil
 }
 
-/*
-// Ports type - Used to parse multiple -p flags
-type ports []int
-
-func (p *ports) String() string {
-	return fmt.Sprint(*p)
-}
-
-func (p *ports) Set(value string) error {
-	port, err := strconv.Atoi(value)
-	if err != nil {
-		return fmt.Errorf("Invalid port: %v", value)
-	}
-	*p = append(*p, port)
-	return nil
-}
-*/
-
 // ListOpts type
 type ListOpts []string
 
@@ -1053,11 +1035,6 @@ func CmdRun(args ...string) error {
 		v.Set("stderr", "1")
 
 	}
-	/*
-		attach := Go(func() error {
-			err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty)
-			return err
-		})*/
 
 	//start the container
 	_, _, err = call("POST", "/containers/"+out.Id+"/start", nil)
