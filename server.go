@@ -338,13 +338,7 @@ func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 	var resp *http.Response
 
 	if src == "-" {
-		r, w := io.Pipe()
-		go func() {
-			defer w.Close()
-			defer Debugf("Closing buffered stdin pipe")
-			io.Copy(w, file)
-		}()
-		archive = r
+		archive = file
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
