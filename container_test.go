@@ -390,6 +390,7 @@ func TestStart(t *testing.T) {
 		&Config{
 			Image:     GetTestImage(runtime).Id,
 			Memory:    33554432,
+			CpuShares: 1000,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
@@ -1059,12 +1060,17 @@ func TestLXCConfig(t *testing.T) {
 	memMin := 33554432
 	memMax := 536870912
 	mem := memMin + rand.Intn(memMax-memMin)
+	// CPU shares as well
+	cpuMin := 100
+	cpuMax := 10000
+	cpu := cpuMin + rand.Intn(cpuMax-cpuMin)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/true"},
 
-		Hostname: "foobar",
-		Memory:   int64(mem),
+		Hostname:  "foobar",
+		Memory:    int64(mem),
+		CpuShares: int64(cpu),
 	},
 	)
 	if err != nil {

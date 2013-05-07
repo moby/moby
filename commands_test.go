@@ -413,6 +413,7 @@ func TestAttachDisconnect(t *testing.T) {
 	container, err := NewBuilder(runtime).Create(
 		&Config{
 			Image:     GetTestImage(runtime).Id,
+			CpuShares: 1024,
 			Memory:    33554432,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,

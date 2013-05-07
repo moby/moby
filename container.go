@@ -56,6 +56,7 @@ type Config struct {
 	User         string
 	Memory       int64 // Memory limit (in bytes)
 	MemorySwap   int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares    int64 // CPU shares (relative weight vs. other containers)
 	AttachStdin  bool
 	AttachStdout bool
 	AttachStderr bool
@@ -90,6 +91,8 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 		fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		*flMemory = 0
 	}
+
+	flCpuShares := cmd.Int64("c", 1024, "CPU shares (relative weight)")
 
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
@@ -137,6 +140,7 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 		Tty:          *flTty,
 		OpenStdin:    *flStdin,
 		Memory:       *flMemory,
+		CpuShares:    *flCpuShares,
 		AttachStdin:  flAttach.Get("stdin"),
 		AttachStdout: flAttach.Get("stdout"),
 		AttachStderr: flAttach.Get("stderr"),
