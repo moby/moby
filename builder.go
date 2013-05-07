@@ -200,6 +200,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 		image, base   *Image
 		config        *Config
 		maintainer    string
+		env           map[string]string   = make(map[string]string)
 		tmpContainers map[string]struct{} = make(map[string]struct{})
 		tmpImages     map[string]struct{} = make(map[string]struct{})
 	)
@@ -270,6 +271,10 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				return nil, err
 			}
 
+			for key, value := range env {
+				config.Env = append(config.Env, fmt.Sprintf("%s=%s", key, value))
+			}
+
 			if cache, err := builder.getCachedImage(image, config); err != nil {
 				return nil, err
 			} else if cache != nil {
@@ -278,11 +283,21 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				break
 			}
 
+			Debugf("Env -----> %v ------ %v\n", config.Env, env)
+
 			// Create the container and start it
 			c, err := builder.Create(config)
 			if err != nil {
 				return nil, err
 			}
+
+			if os.Getenv("DEBUG") != "" {
+				out, _ := c.StdoutPipe()
+				err2, _ := c.StderrPipe()
+				go io.Copy(os.Stdout, out)
+				go io.Copy(os.Stdout, err2)
+			}
+
 			if err := c.Start(); err != nil {
 				return nil, err
 			}
@@ -305,6 +320,21 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			// use the base as the new image
 			image = base
 
+			break
+		case "env":
+			tmp := strings.SplitN(arguments, " ", 2)
+			if len(tmp) != 2 {
+				return nil, fmt.Errorf("Invalid ENV format")
+			}
+			key := strings.Trim(tmp[0], " ")
+			value := strings.Trim(tmp[1], " ")
+			fmt.Fprintf(stdout, "ENV %s %s\n", key, value)
+			env[key] = value
+			if image != nil {
+				fmt.Fprintf(stdout, "===> %s\n", image.ShortId())
+			} else {
+				fmt.Fprintf(stdout, "===> <nil>\n")
+			}
 			break
 		case "cmd":
 			fmt.Fprintf(stdout, "CMD %s\n", arguments)
