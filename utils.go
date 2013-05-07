@@ -425,7 +425,11 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 }
 
 func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d-%s", k.Kernel, k.Major, k.Minor, k.Flavor)
+	flavor := ""
+	if len(k.Flavor) > 0 {
+		flavor = fmt.Sprintf("-%s", k.Flavor)
+	}
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
 }
 
 // Compare two KernelVersionInfo struct.
