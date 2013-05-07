@@ -136,10 +136,10 @@ func (srv *Server) ImagesViz(file *os.File) error {
 	return nil
 }
 
-func (srv *Server) Images(all, filter, quiet string) ([]ApiImages, error) {
+func (srv *Server) Images(all, quiet bool, filter string) ([]ApiImages, error) {
 	var allImages map[string]*Image
 	var err error
-	if all == "1" {
+	if all {
 		allImages, err = srv.runtime.graph.Map()
 	} else {
 		allImages, err = srv.runtime.graph.Heads()
@@ -160,7 +160,7 @@ func (srv *Server) Images(all, filter, quiet string) ([]ApiImages, error) {
 				continue
 			}
 			delete(allImages, id)
-			if quiet != "1" {
+			if !quiet {
 				out.Repository = name
 				out.Tag = tag
 				out.Id = TruncateId(id)
@@ -175,7 +175,7 @@ func (srv *Server) Images(all, filter, quiet string) ([]ApiImages, error) {
 	if filter == "" {
 		for id, image := range allImages {
 			var out ApiImages
-			if quiet != "1" {
+			if !quiet {
 				out.Repository = "<none>"
 				out.Tag = "<none>"
 				out.Id = TruncateId(id)
@@ -201,7 +201,7 @@ func (srv *Server) DockerInfo() ApiInfo {
 	out.Containers = len(srv.runtime.List())
 	out.Version = VERSION
 	out.Images = imgcount
-	if os.Getenv("DEBUG") == "1" {
+	if os.Getenv("DEBUG") != "" {
 		out.Debug = true
 		out.NFd = getTotalUsedFds()
 		out.NGoroutines = runtime.NumGoroutine()
@@ -253,10 +253,10 @@ func (srv *Server) ContainerPort(name, privatePort string) (string, error) {
 	return "", fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all, notrunc, quiet string, n int) []ApiContainers {
+func (srv *Server) Containers(all, notrunc, quiet bool, n int) []ApiContainers {
 	var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
 	for i, container := range srv.runtime.List() {
-		if !container.State.Running && all != "1" && n == -1 {
+		if !container.State.Running && !all && n == -1 {
 			continue
 		}
 		if i == n {
@@ -264,9 +264,9 @@ func (srv *Server) Containers(all, notrunc, quiet string, n int) []ApiContainers
 		}
 		var out ApiContainers
 		out.Id = container.ShortId()
-		if quiet != "1" {
+		if !quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-			if notrunc != "1" {
+			if !notrunc {
 				command = Trunc(command, 20)
 			}
 			out.Image = srv.runtime.repositories.ImageName(container.Image)
@@ -496,11 +496,11 @@ func (srv *Server) ContainerWait(name string) (int, error) {
 	return 0, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr string, file *os.File) error {
+func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, file *os.File) error {
 	if container := srv.runtime.Get(name); container != nil {
 		//logs
-		if logs == "1" {
-			if stdout == "1" {
+		if logs {
+			if stdout {
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
 					Debugf(err.Error())
@@ -508,7 +508,7 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 					Debugf(err.Error())
 				}
 			}
-			if stderr == "1" {
+			if stderr {
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
 					Debugf(err.Error())
@@ -519,7 +519,7 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 		}
 
 		//stream
-		if stream == "1" {
+		if stream {
 			if container.State.Ghost {
 				return fmt.Errorf("Impossible to attach to a ghost container")
 			}
@@ -530,7 +530,7 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 				cStdinCloser     io.Closer
 			)
 
-			if stdin == "1" {
+			if stdin {
 				r, w := io.Pipe()
 				go func() {
 					defer w.Close()
@@ -540,10 +540,10 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 				cStdin = r
 				cStdinCloser = file
 			}
-			if stdout == "1" {
+			if stdout {
 				cStdout = file
 			}
-			if stderr == "1" {
+			if stderr {
 				cStderr = file
 			}
 

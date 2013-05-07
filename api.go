@@ -150,8 +150,8 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	viz := r.Form.Get("viz")
-	if viz == "1" {
+	viz := r.Form.Get("viz") == "1"
+	if viz {
 		file, rwc, err := hijackServer(w)
 		if file != nil {
 			defer file.Close()
@@ -170,11 +170,11 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	all := r.Form.Get("all")
+	all := r.Form.Get("all") == "1"
 	filter := r.Form.Get("filter")
-	quiet := r.Form.Get("quiet")
+	quiet := r.Form.Get("quiet") == "1"
 
-	outs, err := srv.Images(all, filter, quiet)
+	outs, err := srv.Images(all, quiet, filter)
 	if err != nil {
 		httpError(w, err)
 		return err
@@ -274,9 +274,9 @@ func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return err
 	}
-	all := r.Form.Get("all")
-	notrunc := r.Form.Get("notrunc")
-	quiet := r.Form.Get("quiet")
+	all := r.Form.Get("all") == "1"
+	notrunc := r.Form.Get("notrunc") == "1"
+	quiet := r.Form.Get("quiet") == "1"
 	n, err := strconv.Atoi(r.Form.Get("n"))
 	if err != nil {
 		n = -1
@@ -304,10 +304,7 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	tag := r.Form.Get("tag")
 	vars := mux.Vars(r)
 	name := vars["name"]
-	var force bool
-	if r.Form.Get("force") == "1" {
-		force = true
-	}
+	force := r.Form.Get("force") == "1"
 
 	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -556,10 +553,8 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) error
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
-	var v bool
-	if r.Form.Get("v") == "1" {
-		v = true
-	}
+	v := r.Form.Get("v") == "1"
+
 	if err := srv.ContainerDestroy(name, v); err != nil {
 		httpError(w, err)
 		return err
@@ -643,11 +638,11 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) e
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return err
 	}
-	logs := r.Form.Get("logs")
-	stream := r.Form.Get("stream")
-	stdin := r.Form.Get("stdin")
-	stdout := r.Form.Get("stdout")
-	stderr := r.Form.Get("stderr")
+	logs := r.Form.Get("logs") == "1"
+	stream := r.Form.Get("stream") == "1"
+	stdin := r.Form.Get("stdin") == "1"
+	stdout := r.Form.Get("stdout") == "1"
+	stderr := r.Form.Get("stderr") == "1"
 	vars := mux.Vars(r)
 	name := vars["name"]
 
