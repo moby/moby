@@ -72,7 +72,7 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		builder.mergeConfig(config, img.Config)
 	}
 
-	if config.Cmd == nil {
+	if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
 
