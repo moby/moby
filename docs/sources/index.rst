@@ -17,6 +17,7 @@ This documentation has the following resources:
    commandline/index
    registry/index
    index/index
+   builder/index
    faq
 
 

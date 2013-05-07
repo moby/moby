@@ -118,7 +118,7 @@ func TestRuntimeCreate(t *testing.T) {
 	if len(runtime.List()) != 0 {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
-	container, err := runtime.Create(&Config{
+	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -165,7 +165,7 @@ func TestDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -212,7 +212,10 @@ func TestGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container1, err := runtime.Create(&Config{
+
+	builder := NewBuilder(runtime)
+
+	container1, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -222,7 +225,7 @@ func TestGet(t *testing.T) {
 	}
 	defer runtime.Destroy(container1)
 
-	container2, err := runtime.Create(&Config{
+	container2, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -232,7 +235,7 @@ func TestGet(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	container3, err := runtime.Create(&Config{
+	container3, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -262,7 +265,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, err := runtime.Create(&Config{
+	container, err := NewBuilder(runtime).Create(&Config{
 		Image:     GetTestImage(runtime).Id,
 		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p 5555"},
 		PortSpecs: []string{"5555"},
@@ -325,8 +328,10 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	builder := NewBuilder(runtime1)
+
 	// Create a container with one instance of docker
-	container1, err := runtime1.Create(&Config{
+	container1, err := builder.Create(&Config{
 		Image: GetTestImage(runtime1).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -337,7 +342,7 @@ func TestRestore(t *testing.T) {
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, err := runtime1.Create(&Config{
+	container2, err := builder.Create(&Config{
 		Image:     GetTestImage(runtime1).Id,
 		Cmd:       []string{"/bin/cat"},
 		OpenStdin: true,

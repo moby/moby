@@ -12,7 +12,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"time"
 )
 
 type Capabilities struct {
@@ -77,114 +76,6 @@ func (runtime *Runtime) Exists(id string) bool {
 
 func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
-}
-
-func (runtime *Runtime) mergeConfig(userConf, imageConf *Config) {
-	if userConf.Hostname == "" {
-		userConf.Hostname = imageConf.Hostname
-	}
-	if userConf.User == "" {
-		userConf.User = imageConf.User
-	}
-	if userConf.Memory == 0 {
-		userConf.Memory = imageConf.Memory
-	}
-	if userConf.MemorySwap == 0 {
-		userConf.MemorySwap = imageConf.MemorySwap
-	}
-	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
-		userConf.PortSpecs = imageConf.PortSpecs
-	}
-	if !userConf.Tty {
-		userConf.Tty = userConf.Tty
-	}
-	if !userConf.OpenStdin {
-		userConf.OpenStdin = imageConf.OpenStdin
-	}
-	if !userConf.StdinOnce {
-		userConf.StdinOnce = imageConf.StdinOnce
-	}
-	if userConf.Env == nil || len(userConf.Env) == 0 {
-		userConf.Env = imageConf.Env
-	}
-	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
-		userConf.Cmd = imageConf.Cmd
-	}
-	if userConf.Dns == nil || len(userConf.Dns) == 0 {
-		userConf.Dns = imageConf.Dns
-	}
-}
-
-func (runtime *Runtime) Create(config *Config) (*Container, error) {
-
-	// Lookup image
-	img, err := runtime.repositories.LookupImage(config.Image)
-	if err != nil {
-		return nil, err
-	}
-
-	if img.Config != nil {
-		runtime.mergeConfig(config, img.Config)
-	}
-
-	if config.Cmd == nil || len(config.Cmd) == 0 {
-		return nil, fmt.Errorf("No command specified")
-	}
-
-	// Generate id
-	id := GenerateId()
-	// Generate default hostname
-	// FIXME: the lxc template no longer needs to set a default hostname
-	if config.Hostname == "" {
-		config.Hostname = id[:12]
-	}
-
-	container := &Container{
-		// FIXME: we should generate the ID here instead of receiving it as an argument
-		Id:              id,
-		Created:         time.Now(),
-		Path:            config.Cmd[0],
-		Args:            config.Cmd[1:], //FIXME: de-duplicate from config
-		Config:          config,
-		Image:           img.Id, // Always use the resolved image id
-		NetworkSettings: &NetworkSettings{},
-		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
-	}
-
-	container.root = runtime.containerRoot(container.Id)
-	// Step 1: create the container directory.
-	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
-		return nil, err
-	}
-
-	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 {
-		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
-		f, err := os.Create(container.ResolvConfPath)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		for _, dns := range config.Dns {
-			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		container.ResolvConfPath = "/etc/resolv.conf"
-	}
-
-	// Step 2: save the container json
-	if err := container.ToDisk(); err != nil {
-		return nil, err
-	}
-	// Step 3: register the container
-	if err := runtime.Register(container); err != nil {
-		return nil, err
-	}
-	return container, nil
 }
 
 func (runtime *Runtime) Load(id string) (*Container, error) {
@@ -309,33 +200,6 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
 	}
 	return nil
-}
-
-// Commit creates a new filesystem image from the current state of a container.
-// The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(id, repository, tag, comment, author string, config *Config) (*Image, error) {
-	container := runtime.Get(id)
-	if container == nil {
-		return nil, fmt.Errorf("No such container: %s", id)
-	}
-	// FIXME: freeze the container before copying it to avoid data corruption?
-	// FIXME: this shouldn't be in commands.
-	rwTar, err := container.ExportRw()
-	if err != nil {
-		return nil, err
-	}
-	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
-	if err != nil {
-		return nil, err
-	}
-	// Register the image if needed
-	if repository != "" {
-		if err := runtime.repositories.Set(repository, tag, img.Id, true); err != nil {
-			return img, err
-		}
-	}
-	return img, nil
 }
 
 func (runtime *Runtime) restore() error {

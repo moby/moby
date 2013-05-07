@@ -155,6 +155,13 @@ func SelfPath() string {
 	return path
 }
 
+type nopWriter struct {
+}
+
+func (w *nopWriter) Write(buf []byte) (int, error) {
+	return len(buf), nil
+}
+
 type nopWriteCloser struct {
 	io.Writer
 }
