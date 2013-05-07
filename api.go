@@ -437,7 +437,8 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) error
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, file); err != nil {
-		fmt.Fprintln(file, "Error: "+err.Error())
+		fmt.Fprintf(file, "Error: %s\n", err)
+		return err
 	}
 	return nil
 }
@@ -467,7 +468,8 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImagePush(name, registry, file); err != nil {
-		fmt.Fprintln(file, "Error: "+err.Error())
+		fmt.Fprintln(file, "Error: $s\n", err)
+		return err
 	}
 	return nil
 }
@@ -488,7 +490,8 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageCreateFormFile(file); err != nil {
-		fmt.Fprintln(file, "Error: "+err.Error())
+		fmt.Fprintln(file, "Error: %s\n", err)
+		return err
 	}
 	return nil
 }

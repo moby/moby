@@ -342,7 +342,7 @@ func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
-			fmt.Fprintln(file, "Error: "+err.Error())
+			fmt.Fprintf(file, "Error: %s\n", err)
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
