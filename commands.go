@@ -1132,6 +1132,7 @@ func CmdRun(args ...string) error {
 	if err != nil {
 		return err
 	}
+	var status int
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
@@ -1145,11 +1146,16 @@ func CmdRun(args ...string) error {
 			if err != nil {
 				return err
 			}
-			os.Exit(out.StatusCode)
+			status = out.StatusCode
 		}
+	}
 
-	} else {
+	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.Id)
+	}
+
+	if status != 0 {
+		os.Exit(status)
 	}
 	return nil
 }
