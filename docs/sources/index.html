@@ -41,6 +41,10 @@
             height: 40px;
         }
 
+        .debug {
+            border: 1px red dotted;
+        }
+
     </style>
 
 </head>
@@ -68,7 +72,7 @@
     </div>
 </div>
 
-
+<!--
 <div class="container">
     <div class="row">
         <div class="text-center">
@@ -76,49 +80,43 @@
         </div>
     </div>
 </div>
+-->
 
-<div class="container">
+<div class="container" style="margin-top: 30px;">
     <div class="row">
 
         <div class="span12">
             <section class="contentblock header">
 
-                <div class="span6" style="margin:10px 0px 0px 30px; float: right; ">
+                <div class="span5" style="margin-bottom: 15px;">
+                    <div style="text-align: center;" > <!--  style="text-align: center; padding: 50px 30px 50px 30px;" -->
+                        <img src="_static/img/docker_letters_500px.png">
+
+                        <!-- <h1>Docker</h1> -->
+                        <h2>The Linux container engine</h2>
+                    </div>
+
+                    <div style="display: block; text-align: center; margin-top: 20px;">
+
+                        <h5>
+                            Docker is an open-source engine which automates the deployment of applications as highly portable, self-sufficient containers which are independent of hardware, language, framework, packaging system and hosting provider.
+                        </h5>
+
+                    </div>
+
+
+                    <div style="display: block; text-align: center; margin-top: 30px;">
+                        <a class="btn btn-custom btn-large" href="gettingstarted/">Let's get started</a>
+                    </div>
+
+                </div>
+
+                <div class="span6" > <!-- style="margin:10px 0px 0px 30px; float: right; " -->
                     <div class="js-video" >
-                        <iframe width="640" height="360" src="http://www.youtube.com/embed/wW9CAH9nSLs?feature=player_detailpage&rel=0&modestbranding=1&start=11" frameborder="0" allowfullscreen></iframe>
+                        <iframe width="600" height="360" src="http://www.youtube.com/embed/wW9CAH9nSLs?feature=player_detailpage&rel=0&modestbranding=1&start=11" frameborder="0" allowfullscreen></iframe>
                     </div>
                 </div>
 
-                <div style="text-align: center; padding: 50px 30px 50px 30px;">
-		    <h1>Docker</h1>
-		    <h2>The Linux container engine</h2>
-                </div>
-
-                <div style="display: block; text-align: center; padding: 10px 30px 50px 30px;">
-
-		<p>
-		Docker is an open-source engine which automates the deployment of applications as highly portable, self-sufficient containers.
-		</p>
-
-		<p>
-		Docker containers are both <strong>hardware-agnostic</strong> and <strong>platform-agnostic</strong>. This means that they can run anywhere, from your
-		laptop to the largest EC2 compute instance and everything in between - and they don't require that you use a particular
-		language, framework or packaging system. That makes them great building blocks for deploying and scaling web apps, databases
-		and backend services without depending on a particular stack or provider.
-		</p>
-
-		<p>
-		Docker is an open-source implementation of the deployment engine which powers <a href="http://dotcloud.com">dotCloud</a>, a popular Platform-as-a-Service.
-		It benefits directly from the experience accumulated over several years of large-scale operation and support of hundreds of thousands
-		of applications and databases.
-		</p>
-
-                </div>
-
-
-                <div style="display: block; text-align: center;">
-                    <a class="btn btn-custom btn-large" href="gettingstarted/">Let's get started</a>
-                </div>
 
 
 
@@ -138,9 +136,9 @@
                 <h4>Any server</h4>
                 <p>Docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.</p>
                 <h4>Isolation</h4>
-                <p>docker isolates processes from each other and from the underlying host, using lightweight containers.</p>
+                <p>Docker isolates processes from each other and from the underlying host, using lightweight containers.</p>
                 <h4>Repeatability</h4>
-                <p>Because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.</p>
+                <p>Because each container is isolated in its own filesystem, they behave the same regardless of where, when, and alongside what they run.</p>
             </section>
         </div>
         <div class="span6">
@@ -262,6 +260,14 @@
                     <li>The <a href="http://golang.org">Go</a> programming language;</li>
                     <li><a href="http://lxc.sourceforge.net/">lxc</a>, a set of convenience scripts to simplify the creation of linux containers.</li>
                 </ul>
+
+                <h2>Who started it</h2>
+                <p>
+                    Docker is an open-source implementation of the deployment engine which powers <a href="http://dotcloud.com">dotCloud</a>, a popular Platform-as-a-Service.</p>
+
+                <p>It benefits directly from the experience accumulated over several years of large-scale operation and support of hundreds of thousands
+                    of applications and databases.
+                </p>
 
             </section>
         </div>
