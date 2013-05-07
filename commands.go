@@ -56,6 +56,7 @@ func (srv *Server) Help() string {
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
 		{"run", "Run a command in a new container"},
+		{"search", "Search for an image in the docker index"}
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
@@ -999,6 +1000,34 @@ func (srv *Server) CmdAttach(stdin io.ReadCloser, stdout rcli.DockerConn, args .
 	// Flush the options to make sure the client sets the raw mode
 	stdout.Flush()
 	return <-container.Attach(stdin, nil, stdout, stdout)
+}
+
+func (srv *Server) CmdSearch(stdin io.ReadCloser, stdout rcli.DockerConn, args ...string) error {
+	cmd := rcli.Subcmd(stdout, "search", "NAME", "Search the docker index for images")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	term := cmd.Arg(0)
+	results, err := srv.runtime.graph.SearchRepositories(stdout, term)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Found %d results matching your query (\"%s\")\n", results.NumResults, results.Query)
+	w := tabwriter.NewWriter(stdout, 20, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
+	for _, repo := range results.Results {
+		description := repo["description"]
+		if len(description) > 45 {
+			description = Trunc(description, 42) + "..."
+		}
+		fmt.Fprintf(w, "%s\t%s\n", repo["name"], description)
+	}
+	w.Flush()
+	return nil
 }
 
 // Ports type - Used to parse multiple -p flags
