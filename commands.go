@@ -541,7 +541,6 @@ func CmdKill(args ...string) error {
 	return nil
 }
 
-/* /!\ W.I.P /!\ */
 func CmdImport(args ...string) error {
 	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 
@@ -614,7 +613,7 @@ func CmdPush(args ...string) error {
 			out.Username, name)
 	}
 
-	if err := hijack("POST", "/images"+name+"/pull", false); err != nil {
+	if err := hijack("POST", "/images"+name+"/push", false); err != nil {
 		return err
 	}
 	return nil
@@ -764,7 +763,7 @@ func CmdCommit(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("fromContainer", name)
+	v.Set("container", name)
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
@@ -777,7 +776,7 @@ func CmdCommit(args ...string) error {
 		}
 	}
 
-	body, _, err := call("POST", "/images?"+v.Encode(), config)
+	body, _, err := call("POST", "/commit?"+v.Encode(), config)
 	if err != nil {
 		return err
 	}
@@ -1072,6 +1071,7 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 		}
 		params = bytes.NewBuffer(buf)
 	}
+
 	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, params)
 	if err != nil {
 		return nil, -1, err

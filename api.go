@@ -52,6 +52,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -81,6 +82,7 @@ func ListenAndServe(addr string, srv *Server) error {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
+				w.Header().Set("Content-Type", "application/json")
 				w.Write(b)
 			}
 		} else {
@@ -95,6 +97,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -136,6 +139,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		all := r.Form.Get("all")
 		filter := r.Form.Get("filter")
@@ -144,11 +148,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		outs, err := srv.Images(all, filter, quiet)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(outs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -160,6 +166,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -171,11 +178,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		outs, err := srv.ImageHistory(name)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(outs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -187,11 +196,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		changesStr, err := srv.ContainerChanges(name)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(changesStr)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -200,17 +211,20 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		vars := mux.Vars(r)
 		name := vars["name"]
 		out, err := srv.ContainerPort(name, r.Form.Get("port"))
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(ApiPort{out})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 
@@ -220,6 +234,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		all := r.Form.Get("all")
 		notrunc := r.Form.Get("notrunc")
@@ -234,6 +249,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -242,6 +258,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
@@ -259,62 +276,68 @@ func ListenAndServe(addr string, srv *Server) error {
 		w.WriteHeader(http.StatusCreated)
 	})
 
+	r.Path("/commit").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var config Config
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		repo := r.Form.Get("repo")
+		tag := r.Form.Get("tag")
+		container := r.Form.Get("container")
+		author := r.Form.Get("author")
+		comment := r.Form.Get("comment")
+		id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		b, err := json.Marshal(ApiId{id})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(b)
+		}
+	})
+
 	r.Path("/images").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		src := r.Form.Get("fromSrc")
 		image := r.Form.Get("fromImage")
-		container := r.Form.Get("fromContainer")
 		repo := r.Form.Get("repo")
 		tag := r.Form.Get("tag")
 
-		if container != "" { //commit
-			var config Config
-			if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+		file, rwc, err := hijackServer(w)
+		if file != nil {
+			defer file.Close()
+		}
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if image != "" { //pull
+			if err := srv.ImagePull(image, file); err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
 			}
-			author := r.Form.Get("author")
-			comment := r.Form.Get("comment")
-
-			id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
-			if err != nil {
-				httpError(w, err)
+		} else { //import
+			if err := srv.ImageImport(src, repo, tag, file); err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
 			}
-			b, err := json.Marshal(ApiId{id})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				w.Write(b)
-			}
-		} else if image != "" || src != "" {
-			file, rwc, err := hijackServer(w)
-			if file != nil {
-				defer file.Close()
-			}
-			if rwc != nil {
-				defer rwc.Close()
-			}
-			if err != nil {
-				httpError(w, err)
-				return
-			}
-			fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
-
-			if image != "" { //pull
-				if err := srv.ImagePull(image, file); err != nil {
-					fmt.Fprintln(file, "Error: "+err.Error())
-				}
-			} else { //import
-				if err := srv.ImageImport(src, repo, tag, file); err != nil {
-					fmt.Fprintln(file, "Error: "+err.Error())
-				}
-			}
-		} else {
-			w.WriteHeader(http.StatusNotFound)
 		}
 	})
 
@@ -364,6 +387,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -372,6 +396,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		t, err := strconv.Atoi(r.Form.Get("t"))
 		if err != nil || t < 0 {
@@ -390,6 +415,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		vars := mux.Vars(r)
 		name := vars["name"]
@@ -430,6 +456,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		t, err := strconv.Atoi(r.Form.Get("t"))
 		if err != nil || t < 0 {
@@ -452,11 +479,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		status, err := srv.ContainerWait(name)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(ApiWait{status})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -465,6 +494,7 @@ func ListenAndServe(addr string, srv *Server) error {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		logs := r.Form.Get("logs")
 		stream := r.Form.Get("stream")
@@ -500,11 +530,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		container, err := srv.ContainerInspect(name)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(container)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
@@ -517,11 +549,13 @@ func ListenAndServe(addr string, srv *Server) error {
 		image, err := srv.ImageInspect(name)
 		if err != nil {
 			httpError(w, err)
+			return
 		}
 		b, err := json.Marshal(image)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(b)
 		}
 	})
