@@ -178,6 +178,10 @@ func (runtime *Runtime) LogToDisk(src *writeBroadcaster, dst string) error {
 }
 
 func (runtime *Runtime) Destroy(container *Container) error {
+	if container == nil {
+		return fmt.Errorf("The given container is <nil>")
+	}
+
 	element := runtime.getContainerElement(container.Id)
 	if element == nil {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
