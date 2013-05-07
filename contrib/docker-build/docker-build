@@ -89,7 +89,7 @@ def main():
 			# Skip comments and empty lines
 			if line == "" or line[0] == "#":
 				continue
-			op, param = line.split("	", 1)
+			op, param = line.split(None, 1)
 			print op.upper() + " " + param
 			if op == "from":
 				base = param
