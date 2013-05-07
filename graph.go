@@ -253,14 +253,14 @@ func (graph *Graph) WalkAll(handler func(*Image)) error {
 func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	byParent := make(map[string][]*Image)
 	err := graph.WalkAll(func(image *Image) {
-		image, err := graph.Get(image.Parent)
+		parent, err := graph.Get(image.Parent)
 		if err != nil {
 			return
 		}
-		if children, exists := byParent[image.Parent]; exists {
-			byParent[image.Parent] = []*Image{image}
+		if children, exists := byParent[parent.Id]; exists {
+			byParent[parent.Id] = []*Image{image}
 		} else {
-			byParent[image.Parent] = append(children, image)
+			byParent[parent.Id] = append(children, image)
 		}
 	})
 	return byParent, err
