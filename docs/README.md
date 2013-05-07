@@ -15,6 +15,7 @@ Installation
 
 * Work in your own fork of the code, we accept pull requests.
 * Install sphinx: ``pip install sphinx``
+* Install sphinx httpdomain contrib package ``sphinxcontrib-httpdomain``
 * If pip is not available you can probably install it using your favorite package manager as **python-pip**
 
 Usage

@@ -53,6 +53,7 @@ func ParseCommands(args ...string) error {
 
 	cmds := map[string]func(args ...string) error{
 		"attach":  CmdAttach,
+		"build": CmdBuild,
 		"commit":  CmdCommit,
 		"diff":    CmdDiff,
 		"export":  CmdExport,
@@ -74,6 +75,7 @@ func ParseCommands(args ...string) error {
 		"rmi":     CmdRmi,
 		"run":     CmdRun,
 		"tag":     CmdTag,
+		"search":	CmdSearch,
 		"start":   CmdStart,
 		"stop":    CmdStop,
 		"version": CmdVersion,
@@ -116,6 +118,7 @@ func cmdHelp(args ...string) error {
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
 		{"run", "Run a command in a new container"},
+		{"search", "Search for an image in the docker index"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
@@ -947,6 +950,41 @@ func CmdAttach(args ...string) error {
 	}
 	return nil
 }
+
+func CmdSearch(args ...string) error {
+	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	
+	v := url.Values{}
+        v.Set("term", cmd.Arg(0))
+	body, _, err := call("GET", "/images/search?"+v.Encode(), nil)
+        if err != nil {
+                return err
+        }
+
+        var outs []ApiSearch
+        err = json.Unmarshal(body, &outs)
+        if err != nil {
+                return err
+        }
+	fmt.Printf("Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
+	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
+	for _, out := range outs {
+		fmt.Fprintf(w, "%s\t%s\n", out.Name, out.Description)
+	}
+	w.Flush()
+	return nil
+}
+
+// Ports type - Used to parse multiple -p flags
+type ports []int
 
 // ListOpts type
 type ListOpts []string

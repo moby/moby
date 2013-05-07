@@ -43,6 +43,25 @@ func (srv *Server) ContainerExport(name string, file *os.File) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
+func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
+	results, err := srv.runtime.graph.SearchRepositories(nil, term)
+	if err != nil {
+                return nil, err
+        }
+	
+	var outs []ApiSearch
+	for _, repo := range results.Results {
+		var out ApiSearch
+		out.Description = repo["description"]
+                if len(out.Description) > 45 {
+                        out.Description = Trunc(out.Description, 42) + "..."
+                }
+		out.Name = repo["name"]
+		outs = append(outs, out)
+	}
+	return outs, nil
+}
+
 func (srv *Server) ImageInsert(name, url, path string, stdout *os.File) error {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {

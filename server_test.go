@@ -13,7 +13,7 @@ func TestCreateRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, err := ParseRun([]string{GetTestImage(runtime).Id, "echo test"})
+	config, _, err := ParseRun([]string{GetTestImage(runtime).Id, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, err := ParseRun([]string{GetTestImage(runtime).Id, "/bin/cat"})
+	config, _, err := ParseRun([]string{GetTestImage(runtime).Id, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

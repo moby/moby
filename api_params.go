@@ -31,6 +31,11 @@ type ApiContainers struct {
 	Ports   string `json:",omitempty"`
 }
 
+type ApiSearch struct {
+	Name string
+	Description string
+}
+
 type ApiId struct {
 	Id string
 }
