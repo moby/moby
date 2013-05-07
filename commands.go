@@ -1132,30 +1132,15 @@ func CmdRun(args ...string) error {
 	if err != nil {
 		return err
 	}
-	var status int
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
-		}
-		body, _, err := call("POST", "/containers/"+out.Id+"/wait", nil)
-		if err != nil {
-			fmt.Printf("%s", err)
-		} else {
-			var out ApiWait
-			err = json.Unmarshal(body, &out)
-			if err != nil {
-				return err
-			}
-			status = out.StatusCode
 		}
 	}
 
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.Id)
-	}
-
-	if status != 0 {
-		os.Exit(status)
 	}
 	return nil
 }
@@ -1227,7 +1212,9 @@ func hijack(method, path string, setRawTerminal bool) error {
 
 	sendStdin := Go(func() error {
 		_, err := io.Copy(rwc, os.Stdin)
-		rwc.Close()
+		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't send EOF: " + err.Error())
+		}
 		return err
 	})
 
