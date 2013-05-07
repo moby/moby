@@ -2,9 +2,9 @@
 :description: Sharing data between 2 couchdb databases
 :keywords: docker, example, package installation, networking, couchdb, data volumes
 
-.. _running_redis_service:
+.. _running_couchdb_service:
 
-Create a redis service
+Create a CouchDB service
 ======================
 
 .. include:: example_header.inc
