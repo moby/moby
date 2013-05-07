@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/rcli"
+	"github.com/shin-/cookiejar"
 	"io"
 	"log"
 	"net/http"
@@ -217,6 +218,7 @@ func (srv *Server) CmdLogin(stdin io.ReadCloser, stdout rcli.DockerConn, args ..
 	if err != nil {
 		fmt.Fprintf(stdout, "Error: %s\r\n", err)
 	} else {
+		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {

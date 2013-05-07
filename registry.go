@@ -69,7 +69,7 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 
 func (graph *Graph) getHttpClient() *http.Client {
 	if graph.httpClient == nil {
-		graph.httpClient = new(http.Client)
+		graph.httpClient = &http.Client{}
 		graph.httpClient.Jar = cookiejar.NewCookieJar()
 	}
 	return graph.httpClient
