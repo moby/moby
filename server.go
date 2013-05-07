@@ -316,7 +316,7 @@ func (srv *Server) ImagePush(name, registry string, file *os.File) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
-		// If it fails, try to get the repository                                                                                                                      
+		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
 			if err := srv.runtime.graph.PushRepository(file, name, localRepo, srv.runtime.authConfig); err != nil {
 				return err
@@ -350,8 +350,8 @@ func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 			u.Path = ""
 		}
 		fmt.Fprintln(file, "Downloading from", u)
-		// Download with curl (pretty progress bar)                                                                            
-		// If curl is not available, fallback to http.Get()                                                                    
+		// Download with curl (pretty progress bar)
+		// If curl is not available, fallback to http.Get()
 		resp, err = Download(u.String(), file)
 		if err != nil {
 			return err
@@ -362,7 +362,7 @@ func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 	if err != nil {
 		return err
 	}
-	// Optionally register the image at REPO/TAG                                                                                   
+	// Optionally register the image at REPO/TAG
 	if repo != "" {
 		if err := srv.runtime.repositories.Set(repo, tag, img.Id, true); err != nil {
 			return err

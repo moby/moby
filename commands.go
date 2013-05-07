@@ -35,8 +35,10 @@ func checkRemoteVersion() error {
 	}
 
 	var out ApiVersion
+
 	err = json.Unmarshal(body, &out)
 	if err != nil {
+		Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
 	if out.Version != VERSION {
@@ -323,6 +325,7 @@ func CmdVersion(args ...string) error {
 	var out ApiVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
+		Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
 	fmt.Println("Version:", out.Version)
@@ -1213,7 +1216,7 @@ func hijack(method, path string, setRawTerminal bool) error {
 	sendStdin := Go(func() error {
 		_, err := io.Copy(rwc, os.Stdin)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't send EOF: "+err.Error())
+			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)
 		}
 		return err
 	})
