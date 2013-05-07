@@ -73,6 +73,77 @@ func cmdWait(srv *Server, container *Container) error {
 	return closeWrap(stdout, stdoutPipe)
 }
 
+func cmdImages(srv *Server, args ...string) (string, error) {
+	stdout, stdoutPipe := io.Pipe()
+
+	go func() {
+		if err := srv.CmdImages(nil, stdoutPipe, args...); err != nil {
+			return
+		}
+
+		// force the pipe closed, so that the code below gets an EOF
+		stdoutPipe.Close()
+	}()
+
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return "", err
+	}
+
+	// Cleanup pipes
+	return string(output), closeWrap(stdout, stdoutPipe)
+}
+
+// TestImages checks that 'docker images' displays information correctly
+func TestImages(t *testing.T) {
+
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	output, err := cmdImages(srv)
+
+	if !strings.Contains(output, "REPOSITORY") {
+		t.Fatal("'images' should have a header")
+	}
+	if !strings.Contains(output, "docker-ut") {
+		t.Fatal("'images' should show the docker-ut image")
+	}
+	if !strings.Contains(output, "e9aa60c60128") {
+		t.Fatal("'images' should show the docker-ut image id")
+	}
+
+	output, err = cmdImages(srv, "-q")
+
+	if strings.Contains(output, "REPOSITORY") {
+		t.Fatal("'images -q' should not have a header")
+	}
+	if strings.Contains(output, "docker-ut") {
+		t.Fatal("'images' should not show the docker-ut image name")
+	}
+	if !strings.Contains(output, "e9aa60c60128") {
+		t.Fatal("'images' should show the docker-ut image id")
+	}
+
+	output, err = cmdImages(srv, "-viz")
+
+	if !strings.HasPrefix(output, "digraph docker {") {
+		t.Fatal("'images -v' should start with the dot header")
+	}
+	if !strings.HasSuffix(output, "}\n") {
+		t.Fatal("'images -v' should end with a '}'")
+	}
+	if !strings.Contains(output, "base -> \"e9aa60c60128\" [style=invis]") {
+		t.Fatal("'images -v' should have the docker-ut image id node")
+	}
+
+	// todo: add checks for -a
+}
+
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
 	runtime, err := newTestRuntime()
