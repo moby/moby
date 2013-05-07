@@ -34,14 +34,39 @@ The `FROM` instruction must be the first one in order for Builder to know from w
 
 `FROM` can also be used in order to build multiple images within a single Dockerfile
 
-2.2 RUN
+2.2 MAINTAINER
+--------------
+    ``MAINTAINER <name>``
+
+The `MAINTAINER` instruction allow you to set the Author field of the generated images.
+This instruction is never automatically reset.
+
+2.3 RUN
 -------
     ``RUN <command>``
 
 The `RUN` instruction is the main one, it allows you to execute any commands on the `FROM` image and to save the results.
 You can use as many `RUN` as you want within a Dockerfile, the commands will be executed on the result of the previous command.
 
-2.3 INSERT
+
+2.4 CMD
+-------
+    ``CMD <command>``
+
+The `CMD` instruction sets the command to be executed when running the image.
+It is equivalent to do `docker commit -run '{"Cmd": <command>}'` outside the builder.
+
+.. note::
+    Do not confuse `RUN` with `CMD`. `RUN` actually run a command and save the result, `CMD` does not execute anything.
+
+2.5 EXPOSE
+----------
+    ``EXPOSE <port> [<port>...]``
+
+The `EXPOSE` instruction sets ports to be publicly exposed when running the image.
+This is equivalent to do `docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the builder.
+
+2.6 INSERT
 ----------
 
     ``INSERT <file url> <path>``
@@ -50,6 +75,7 @@ The `INSERT` instruction will download the file at the given url and place it wi
 
 .. note::
     The path must include the file name.
+
 
 3. Dockerfile Examples
 ======================
@@ -61,8 +87,9 @@ The `INSERT` instruction will download the file at the given url and place it wi
     # VERSION               0.0.1
     # DOCKER-VERSION        0.2
     
-    from ubuntu
-
+    from      ubuntu
+    maintainer Guillaume J. Charmes "guillaume@dotcloud.com"
+    
     # make sure the package repository is up to date
     run echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     run apt-get update
@@ -89,3 +116,6 @@ The `INSERT` instruction will download the file at the given url and place it wi
     run x11vnc -storepasswd 1234 ~/.vnc/passwd
     # Autostart firefox (might not be the best way to do it, but it does the trick)
     run bash -c 'echo "firefox" >> /.bashrc'
+    
+    expose 5900
+    cmd    ["x11vnc", "-forever", "-usepw", "-create"]
