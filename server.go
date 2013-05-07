@@ -43,6 +43,80 @@ func (srv *Server) ContainerExport(name string, file *os.File) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
+func (srv *Server) ImageInsert(name, url, path string, stdout *os.File) error {
+	img, err := srv.runtime.repositories.LookupImage(name)
+	if err != nil {
+		return err
+	}
+
+	file, err := Download(url, stdout)
+	if err != nil {
+		return err
+	}
+	defer file.Body.Close()
+
+	config, _, err := ParseRun([]string{img.Id, "echo", "insert", url, path}, srv.runtime.capabilities)
+	if err != nil {
+		return err
+	}
+
+	b := NewBuilder(srv.runtime)
+	c, err := b.Create(config)
+	if err != nil {
+		return err
+	}
+
+	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), stdout, "Downloading %v/%v (%v)"), path); err != nil {
+		return err
+	}
+	// FIXME: Handle custom repo, tag comment, author
+	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n", img.Id)
+	return nil
+}
+
+func (srv *Server) ImagesViz(file *os.File) error {
+	images, _ := srv.runtime.graph.All()
+	if images == nil {
+		return nil
+	}
+
+	fmt.Fprintf(file, "digraph docker {\n")
+
+	var parentImage *Image
+	var err error
+	for _, image := range images {
+		parentImage, err = image.GetParent()
+		if err != nil {
+			return fmt.Errorf("Error while getting parent image: %v", err)
+		}
+		if parentImage != nil {
+			fmt.Fprintf(file, "  \"%s\" -> \"%s\"\n", parentImage.ShortId(), image.ShortId())
+		} else {
+			fmt.Fprintf(file, "  base -> \"%s\" [style=invis]\n", image.ShortId())
+		}
+	}
+
+	reporefs := make(map[string][]string)
+
+	for name, repository := range srv.runtime.repositories.Repositories {
+		for tag, id := range repository {
+			reporefs[TruncateId(id)] = append(reporefs[TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
+		}
+	}
+
+	for id, repos := range reporefs {
+		fmt.Fprintf(file, "  \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", id, id, strings.Join(repos, "\\n"))
+	}
+
+	fmt.Fprintf(file, "  base [style=invisible]\n")
+	fmt.Fprintf(file, "}\n")
+	return nil
+}
+
 func (srv *Server) Images(all, filter, quiet string) ([]ApiImages, error) {
 	var allImages map[string]*Image
 	var err error
@@ -188,7 +262,11 @@ func (srv *Server) Containers(all, notrunc, quiet string, n int) []ApiContainers
 }
 
 func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
-	img, err := srv.runtime.Commit(name, repo, tag, comment, author, config)
+	container := srv.runtime.Get(name)
+	if container == nil {
+		return "", fmt.Errorf("No such container: %s", name)
+	}
+	img, err := NewBuilder(srv.runtime).Commit(container, repo, tag, comment, author, config)
 	if err != nil {
 		return "", err
 	}
@@ -202,19 +280,20 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(name string, file *os.File) error {
-	if srv.runtime.graph.LookupRemoteImage(name, srv.runtime.authConfig) {
-		if err := srv.runtime.graph.PullImage(file, name, srv.runtime.authConfig); err != nil {
+func (srv *Server) ImagePull(name, tag, registry string, file *os.File) error {
+	if registry != "" {
+		if err := srv.runtime.graph.PullImage(file, name, registry, nil); err != nil {
 			return err
 		}
+		return nil
 	}
-	if err := srv.runtime.graph.PullRepository(file, name, "", srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	if err := srv.runtime.graph.PullRepository(file, name, tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (srv *Server) ImagePush(name string, file *os.File) error {
+func (srv *Server) ImagePush(name, registry string, file *os.File) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
@@ -228,7 +307,7 @@ func (srv *Server) ImagePush(name string, file *os.File) error {
 
 		return err
 	}
-	err = srv.runtime.graph.PushImage(file, img, srv.runtime.authConfig)
+	err = srv.runtime.graph.PushImage(file, img, registry, nil)
 	if err != nil {
 		return err
 	}
@@ -294,7 +373,8 @@ func (srv *Server) ContainerCreate(config Config) (string, bool, bool, error) {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		config.MemorySwap = -1
 	}
-	container, err := srv.runtime.Create(&config)
+	b := NewBuilder(srv.runtime)
+	container, err := b.Create(&config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
 			return "", false, false, fmt.Errorf("No such image: %s", config.Image)
@@ -302,6 +382,15 @@ func (srv *Server) ContainerCreate(config Config) (string, bool, bool, error) {
 		return "", false, false, err
 	}
 	return container.ShortId(), memoryW, swapW, nil
+}
+
+func (srv *Server) ImageCreateFormFile(file *os.File) error {
+	img, err := NewBuilder(srv.runtime).Build(file, file)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(file, "%s\n", img.ShortId())
+	return nil
 }
 
 func (srv *Server) ContainerRestart(name string, t int) error {

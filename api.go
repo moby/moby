@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/gorilla/mux"
+	"github.com/shin-/cookiejar"
 	"log"
 	"net"
 	"net/http"
@@ -75,6 +76,7 @@ func ListenAndServe(addr string, srv *Server) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
+			srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
 			srv.runtime.authConfig = newAuthConfig
 		}
 		if status != "" {
@@ -141,6 +143,27 @@ func ListenAndServe(addr string, srv *Server) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		viz := r.Form.Get("viz")
+		if viz == "1" {
+			file, rwc, err := hijackServer(w)
+			if file != nil {
+				defer file.Close()
+			}
+			if rwc != nil {
+				defer rwc.Close()
+			}
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+			fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+			if err := srv.ImagesViz(file); err != nil {
+				fmt.Fprintln(file, "Error: "+err.Error())
+			}
+			return
+		}
+
 		all := r.Form.Get("all")
 		filter := r.Form.Get("filter")
 		quiet := r.Form.Get("quiet")
@@ -331,7 +354,8 @@ func ListenAndServe(addr string, srv *Server) error {
 		}
 		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 		if image != "" { //pull
-			if err := srv.ImagePull(image, file); err != nil {
+			registry := r.Form.Get("registry")
+			if err := srv.ImagePull(image, tag, registry, file); err != nil {
 				fmt.Fprintln(file, "Error: "+err.Error())
 			}
 		} else { //import
@@ -341,8 +365,15 @@ func ListenAndServe(addr string, srv *Server) error {
 		}
 	})
 
-	r.Path("/images/{name:*.}/push").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Path("/images/{name:*.}/insert").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		url := r.Form.Get("url")
+		path := r.Form.Get("path")
 		vars := mux.Vars(r)
 		name := vars["name"]
 
@@ -358,7 +389,55 @@ func ListenAndServe(addr string, srv *Server) error {
 			return
 		}
 		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
-		if err := srv.ImagePush(name, file); err != nil {
+		if err := srv.ImageInsert(name, url, path, file); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
+		}
+	})
+	r.Path("/images/{name:*.}/push").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		registry := r.Form.Get("registry")
+
+		vars := mux.Vars(r)
+		name := vars["name"]
+
+		file, rwc, err := hijackServer(w)
+		if file != nil {
+			defer file.Close()
+		}
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if err := srv.ImagePush(name, registry, file); err != nil {
+			fmt.Fprintln(file, "Error: "+err.Error())
+		}
+	})
+
+	r.Path("/build").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.RequestURI)
+
+		file, rwc, err := hijackServer(w)
+		if file != nil {
+			defer file.Close()
+		}
+		if rwc != nil {
+			defer rwc.Close()
+		}
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		if err := srv.ImageCreateFormFile(file); err != nil {
 			fmt.Fprintln(file, "Error: "+err.Error())
 		}
 	})

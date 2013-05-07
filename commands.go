@@ -22,7 +22,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.2.2"
+const VERSION = "0.3.0"
 
 var (
 	GIT_COMMIT string
@@ -58,6 +58,7 @@ func ParseCommands(args ...string) error {
 		"export":  CmdExport,
 		"images":  CmdImages,
 		"info":    CmdInfo,
+		"insert":  CmdInsert,
 		"inspect": CmdInspect,
 		"import":  CmdImport,
 		"history": CmdHistory,
@@ -94,6 +95,7 @@ func cmdHelp(args ...string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
+		{"build", "Build a container from Dockerfile via stdin"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -101,7 +103,8 @@ func cmdHelp(args ...string) error {
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
-		{"inspect", "Return low-level information on a container/image"},
+		{"insert", "Insert a file in an image"},
+		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
@@ -122,6 +125,40 @@ func cmdHelp(args ...string) error {
 		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
 	}
 	fmt.Println(help)
+	return nil
+}
+
+func CmdInsert(args ...string) error {
+	cmd := Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("url", cmd.Arg(1))
+	v.Set("path", cmd.Arg(2))
+
+	err := hijack("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), false)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CmdBuild(args ...string) error {
+	cmd := Subcmd("build", "-", "Build an image from Dockerfile via stdin")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	err := hijack("POST", "/build", false)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -565,7 +602,8 @@ func CmdImport(args ...string) error {
 }
 
 func CmdPush(args ...string) error {
-	cmd := Subcmd("push", "NAME", "Push an image or a repository to the registry")
+	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
+	registry := cmd.String("registry", "", "Registry host to push the image to")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -587,8 +625,8 @@ func CmdPush(args ...string) error {
 		return err
 	}
 
-	// If the login failed, abort
-	if out.Username == "" {
+	// If the login failed AND we're using the index, abort
+	if *registry == "" && out.Username == "" {
 		if err := CmdLogin(args...); err != nil {
 			return err
 		}
@@ -608,12 +646,13 @@ func CmdPush(args ...string) error {
 	}
 
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf(
-			"Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)",
-			out.Username, name)
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", out.Username, name)
 	}
 
-	if err := hijack("POST", "/images"+name+"/push", false); err != nil {
+	v := url.Values{}
+	v.Set("registry", *registry)
+
+	if err := hijack("POST", "/images"+name+"/push?"+v.Encode(), false); err != nil {
 		return err
 	}
 	return nil
@@ -621,6 +660,8 @@ func CmdPush(args ...string) error {
 
 func CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
+	tag := cmd.String("t", "", "Download tagged image in repository")
+	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -629,8 +670,18 @@ func CmdPull(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+
+	remote := cmd.Arg(0)
+	if strings.Contains(remote, ":") {
+		remoteParts := strings.Split(remote, ":")
+		tag = &remoteParts[1]
+		remote = remoteParts[0]
+	}
+
 	v := url.Values{}
-	v.Set("fromImage", cmd.Arg(0))
+	v.Set("fromImage", remote)
+	v.Set("tag", *tag)
+	v.Set("registry", *registry)
 
 	if err := hijack("POST", "/images?"+v.Encode(), false); err != nil {
 		return err
@@ -643,6 +694,7 @@ func CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
+	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -651,42 +703,50 @@ func CmdImages(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	v := url.Values{}
-	if cmd.NArg() == 1 {
-		v.Set("filter", cmd.Arg(0))
-	}
-	if *quiet {
-		v.Set("quiet", "1")
-	}
-	if *all {
-		v.Set("all", "1")
-	}
 
-	body, _, err := call("GET", "/images?"+v.Encode(), nil)
-	if err != nil {
-		return err
-	}
-
-	var outs []ApiImages
-	err = json.Unmarshal(body, &outs)
-	if err != nil {
-		return err
-	}
-	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
-	}
-
-	for _, out := range outs {
-		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
-		} else {
-			fmt.Fprintln(w, out.Id)
+	if *flViz {
+		if err := hijack("GET", "/images?viz=1", false); err != nil {
+			return err
 		}
-	}
+	} else {
+		v := url.Values{}
+		if cmd.NArg() == 1 {
+			v.Set("filter", cmd.Arg(0))
+		}
+		if *quiet {
+			v.Set("quiet", "1")
+		}
+		if *all {
+			v.Set("all", "1")
+		}
 
-	if !*quiet {
-		w.Flush()
+		body, _, err := call("GET", "/images?"+v.Encode(), nil)
+		if err != nil {
+			return err
+		}
+
+		var outs []ApiImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
+		if !*quiet {
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+		}
+
+		for _, out := range outs {
+			if !*quiet {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+			} else {
+				fmt.Fprintln(w, out.Id)
+			}
+		}
+
+		if !*quiet {
+			w.Flush()
+		}
 	}
 	return nil
 }
@@ -775,7 +835,6 @@ func CmdCommit(args ...string) error {
 			return err
 		}
 	}
-
 	body, _, err := call("POST", "/commit?"+v.Encode(), config)
 	if err != nil {
 		return err
@@ -975,7 +1034,7 @@ func CmdTag(args ...string) error {
 }
 
 func CmdRun(args ...string) error {
-	config, cmd, err := ParseRun(args)
+	config, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
 	}
@@ -1004,7 +1063,6 @@ func CmdRun(args ...string) error {
 			return err
 		}
 		return nil
-
 	}
 	if err != nil {
 		return err
@@ -1102,6 +1160,7 @@ func hijack(method, path string, setRawTerminal bool) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "plain/text")
 	dial, err := net.Dial("tcp", "0.0.0.0:4243")
 	if err != nil {
 		return err

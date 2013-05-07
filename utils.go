@@ -2,6 +2,8 @@ package docker
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/term"
@@ -149,6 +151,13 @@ func SelfPath() string {
 		panic(err)
 	}
 	return path
+}
+
+type nopWriter struct {
+}
+
+func (w *nopWriter) Write(buf []byte) (int, error) {
+	return len(buf), nil
 }
 
 type nopWriteCloser struct {
@@ -412,6 +421,14 @@ func RestoreTerminal(state *term.State) {
 	term.Restore(int(os.Stdin.Fd()), state)
 }
 
+func HashData(src io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, src); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
 type KernelVersionInfo struct {
 	Kernel int
 	Major  int
@@ -474,36 +491,49 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }
 
-/*
-func ReadStringOnTerminal(prompt string) (string, error) {
-	fmt.Print(prompt)
-	in := bufio.NewReader(os.Stdin);
-	return in.ReadString('\n');
-}
+// Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
+// If OpenStdin is set, then it differs
+func CompareConfig(a, b *Config) bool {
+	if a == nil || b == nil ||
+		a.OpenStdin || b.OpenStdin {
+		return false
+	}
+	if a.AttachStdout != b.AttachStdout ||
+		a.AttachStderr != b.AttachStderr ||
+		a.User != b.User ||
+		a.Memory != b.Memory ||
+		a.MemorySwap != b.MemorySwap ||
+		a.OpenStdin != b.OpenStdin ||
+		a.Tty != b.Tty {
+		return false
+	}
+	if len(a.Cmd) != len(b.Cmd) ||
+		len(a.Dns) != len(b.Dns) ||
+		len(a.Env) != len(b.Env) ||
+		len(a.PortSpecs) != len(b.PortSpecs) {
+		return false
+	}
 
-func ReadPasswdOnTerminal(prompt string) (string, error) {
-	fmt.Print(prompt);
-	const stty_arg0  = "/bin/stty";
-	stty_argv_e_off := []string{"stty","-echo"};
-	stty_argv_e_on  := []string{"stty","echo"};
-	const exec_cwdir = "";
-	fd := []*os.File{os.Stdin,os.Stdout,os.Stderr};
-	pid, err := os.StartProcess(stty_arg0,stty_argv_e_off,nil,exec_cwdir,fd);
-	if err != nil {
-		return "", err
+	for i := 0; i < len(a.Cmd); i++ {
+		if a.Cmd[i] != b.Cmd[i] {
+			return false
+		}
 	}
-	rd := bufio.NewReader(os.Stdin);
-	os.Wait(pid,0);
-	line, err := rd.ReadString('\n');
-	if err != nil {
-		return "", err
+	for i := 0; i < len(a.Dns); i++ {
+		if a.Dns[i] != b.Dns[i] {
+			return false
+		}
 	}
-	passwd := strings.TrimSpace(line)
-	pid, e := os.StartProcess(stty_arg0,stty_argv_e_on,nil,exec_cwdir,fd);
-	if e =! nil {
-		return "", err
+	for i := 0; i < len(a.Env); i++ {
+		if a.Env[i] != b.Env[i] {
+			return false
+		}
 	}
-	os.Wait(pid,0)
-	return passwd, err
+	for i := 0; i < len(a.PortSpecs); i++ {
+		if a.PortSpecs[i] != b.PortSpecs[i] {
+			return false
+		}
+	}
+
+	return true
 }
-*/

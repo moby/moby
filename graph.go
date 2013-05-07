@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,8 +14,9 @@ import (
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root    string
-	idIndex *TruncIndex
+	Root       string
+	idIndex    *TruncIndex
+	httpClient *http.Client
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -97,15 +99,11 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Parent = container.Image
 		img.Container = container.Id
 		img.ContainerConfig = *container.Config
-		if config == nil {
-			if parentImage, err := graph.Get(container.Image); err == nil && parentImage != nil {
-				img.Config = parentImage.Config
-			}
-		}
 	}
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err
 	}
+	img.Checksum()
 	return img, nil
 }
 

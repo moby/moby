@@ -2,7 +2,7 @@ Source: lxc-docker
 Section: misc
 Priority: extra
 Maintainer: Daniel Mizyrycki <daniel@dotcloud.com>
-Build-Depends: debhelper,autotools-dev,devscripts,golang
+Build-Depends: debhelper,autotools-dev,devscripts,golang-stable
 Standards-Version: 3.9.3
 Homepage: http://github.com/dotcloud/docker
 

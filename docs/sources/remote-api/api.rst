@@ -533,6 +533,7 @@ Create an image
 	:query fromSrc: source to import, - means stdin
         :query repo: repository
 	:query tag: tag
+	:query registry: the registry to pull from
         :statuscode 200: no error
         :statuscode 500: server error
 
@@ -646,6 +647,7 @@ Push an image on the registry
 
 	   {{ STREAM }}
 
+	:query registry: the registry you wan to push, optional
 	:statuscode 200: no error
         :statuscode 404: no such image
         :statuscode 500: server error

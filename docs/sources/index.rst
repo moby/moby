@@ -16,6 +16,8 @@ This documentation has the following resources:
    contributing/index
    commandline/index
    registry/index
+   index/index
+   builder/index
    remote-api/index
    faq
 

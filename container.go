@@ -71,7 +71,7 @@ type Config struct {
 	VolumesFrom  string
 }
 
-func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -85,6 +85,11 @@ func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+
+	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		*flMemory = 0
+	}
 
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
@@ -143,6 +148,11 @@ func ParseRun(args []string) (*Config, *flag.FlagSet, error) {
 		VolumesFrom:  *flVolumesFrom,
 	}
 
+	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		config.MemorySwap = -1
+	}
+
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
@@ -166,6 +176,23 @@ func (settings *NetworkSettings) PortMappingHuman() string {
 	}
 	sort.Strings(mapping)
 	return strings.Join(mapping, ", ")
+}
+
+// Inject the io.Reader at the given path. Note: do not close the reader
+func (container *Container) Inject(file io.Reader, pth string) error {
+	// Make sure the directory exists
+	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
+		return err
+	}
+	// FIXME: Handle permissions/already existing dest
+	dest, err := os.Create(path.Join(container.rwPath(), pth))
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dest, file); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (container *Container) Cmd() *exec.Cmd {
@@ -724,6 +751,14 @@ func (container *Container) Wait() int {
 
 func (container *Container) ExportRw() (Archive, error) {
 	return Tar(container.rwPath(), Uncompressed)
+}
+
+func (container *Container) RwChecksum() (string, error) {
+	rwData, err := Tar(container.rwPath(), Xz)
+	if err != nil {
+		return "", err
+	}
+	return HashData(rwData)
 }
 
 func (container *Container) Export() (Archive, error) {

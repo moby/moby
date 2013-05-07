@@ -18,7 +18,7 @@ The linux-image-extra package is only needed on standard Ubuntu EC2 AMIs in orde
 
 .. code-block:: bash
 
-   sudo apt-get install linux-image-extra-`uname -r`
+   sudo apt-get install linux-image-extra-`uname -r` lxc bsdtar
 
 
 Installation
@@ -48,7 +48,7 @@ Now install it, you will see another warning that the package cannot be authenti
 
 .. code-block:: bash
 
-   sudo apt-get install lxc-docker
+    curl get.docker.io | sudo sh -x
 
 
 Verify it worked
