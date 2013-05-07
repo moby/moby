@@ -92,7 +92,7 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 		*flMemory = 0
 	}
 
-	flCpuShares := cmd.Int64("c", 1024, "CPU shares (relative weight)")
+	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
 
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")

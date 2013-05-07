@@ -9,7 +9,7 @@
     Run a command in a new container
 
       -a=map[]: Attach to stdin, stdout or stderr.
-      -c=1024: CPU shares (relative weight)
+      -c=0: CPU shares (relative weight)
       -d=false: Detached mode: leave the container running in the background
       -e=[]: Set environment variables
       -h="": Container host name
