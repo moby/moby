@@ -530,16 +530,6 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 				return fmt.Errorf("Impossible to attach to a ghost container")
 			}
 
-			if container.Config.Tty {
-				oldState, err := SetRawTerminal()
-				if err != nil {
-					if os.Getenv("DEBUG") != "" {
-						log.Printf("Can't set the terminal in raw mode: %s", err)
-					}
-				} else {
-					defer RestoreTerminal(oldState)
-				}
-			}
 			var (
 				cStdin           io.ReadCloser
 				cStdout, cStderr io.Writer
@@ -564,6 +554,12 @@ func (srv *Server) ContainerAttach(name, logs, stream, stdin, stdout, stderr str
 			}
 
 			<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
+
+			// If we are in stdinonce mode, wait for the process to end
+			// otherwise, simply return
+			if container.Config.StdinOnce && !container.Config.Tty {
+				container.Wait()
+			}
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
