@@ -4,7 +4,7 @@
 
 .. _running_redis_service:
 
-Create a redis service
+Create a CouchDB service
 ======================
 
 .. include:: example_header.inc
