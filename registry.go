@@ -212,6 +212,11 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 
 func (graph *Graph) getImageForTag(stdout io.Writer, tag, remote, registry string, token []string) (string, error) {
 	client := graph.getHttpClient()
+
+	if !strings.Contains(remote, "/") {
+		remote = "library/" + remote
+	}
+
 	registryEndpoint := "https://" + registry + "/v1"
 	repositoryTarget := registryEndpoint + "/repositories/" + remote + "/tags/" + tag
 
