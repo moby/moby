@@ -368,9 +368,9 @@ func ListenAndServe(addr string, srv *Server) error {
 	r.Path("/images/search").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.RequestURI)
 		if err := r.ParseForm(); err != nil {
-                        http.Error(w, err.Error(), http.StatusInternalServerError)
-                        return
-                }
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		term := r.Form.Get("term")
 		outs, err := srv.ImagesSearch(term)
@@ -379,12 +379,12 @@ func ListenAndServe(addr string, srv *Server) error {
 			return
 		}
 		b, err := json.Marshal(outs)
-                if err != nil {
-                        http.Error(w, err.Error(), http.StatusInternalServerError)
-                } else {
-                        w.Header().Set("Content-Type", "application/json")
-                        w.Write(b)
-                }
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(b)
+		}
 	})
 
 	r.Path("/images/{name:*.}/insert").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

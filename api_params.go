@@ -32,7 +32,7 @@ type ApiContainers struct {
 }
 
 type ApiSearch struct {
-	Name string
+	Name        string
 	Description string
 }
 
