@@ -47,6 +47,7 @@ Available Commands
    command/rm
    command/rmi
    command/run
+   command/search
    command/start
    command/stop
    command/tag
