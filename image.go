@@ -2,12 +2,15 @@ package docker
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -20,6 +23,9 @@ type Image struct {
 	Created         time.Time `json:"created"`
 	Container       string    `json:"container,omitempty"`
 	ContainerConfig Config    `json:"container_config,omitempty"`
+	DockerVersion   string    `json:"docker_version,omitempty"`
+	Author          string    `json:"author,omitempty"`
+	Config          *Config   `json:"config,omitempty"`
 	graph           *Graph
 }
 
@@ -46,6 +52,7 @@ func LoadImage(root string) (*Image, error) {
 	} else if !stat.IsDir() {
 		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.Id, layerPath(root))
 	}
+
 	return &img, nil
 }
 
@@ -88,10 +95,31 @@ func MountAUFS(ro []string, rw string, target string) error {
 	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro:", layer)
+		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-	return mount("none", target, "aufs", 0, branches)
+
+	//if error, try to load aufs kernel module
+	if err := mount("none", target, "aufs", 0, branches); err != nil {
+		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
+		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
+			return fmt.Errorf("Unable to load the AUFS module")
+		}
+		log.Printf("...module loaded.")
+		if err := mount("none", target, "aufs", 0, branches); err != nil {
+			return fmt.Errorf("Unable to mount using aufs")
+		}
+	}
+	return nil
+}
+
+// TarLayer returns a tar archive of the image's filesystem layer.
+func (image *Image) TarLayer(compression Compression) (Archive, error) {
+	layerPath, err := image.layer()
+	if err != nil {
+		return nil, err
+	}
+	return Tar(layerPath, compression)
 }
 
 func (image *Image) Mount(root, rw string) error {
@@ -111,33 +139,8 @@ func (image *Image) Mount(root, rw string) error {
 	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	// FIXME: @creack shouldn't we do this after going over changes?
 	if err := MountAUFS(layers, rw, root); err != nil {
 		return err
-	}
-	// FIXME: Create tests for deletion
-	// FIXME: move this part to change.go
-	// Retrieve the changeset from the parent and apply it to the container
-	//  - Retrieve the changes
-	changes, err := Changes(layers, layers[0])
-	if err != nil {
-		return err
-	}
-	// Iterate on changes
-	for _, c := range changes {
-		// If there is a delete
-		if c.Kind == ChangeDelete {
-			// Make sure the directory exists
-			file_path, file_name := path.Dir(c.Path), path.Base(c.Path)
-			if err := os.MkdirAll(path.Join(rw, file_path), 0755); err != nil {
-				return err
-			}
-			// And create the whiteout (we just need to create empty file, discard the return)
-			if _, err := os.Create(path.Join(path.Join(rw, file_path),
-				".wh."+path.Base(file_name))); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }
@@ -148,6 +151,10 @@ func (image *Image) Changes(rw string) ([]Change, error) {
 		return nil, err
 	}
 	return Changes(layers, rw)
+}
+
+func (image *Image) ShortId() string {
+	return TruncateId(image.Id)
 }
 
 func ValidateId(id string) error {
@@ -251,4 +258,63 @@ func (img *Image) layer() (string, error) {
 		return "", err
 	}
 	return layerPath(root), nil
+}
+
+func (img *Image) Checksum() (string, error) {
+	root, err := img.root()
+	if err != nil {
+		return "", err
+	}
+
+	checksumDictPth := path.Join(root, "..", "..", "checksums")
+	checksums := new(map[string]string)
+
+	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
+		if err := json.Unmarshal(checksumDict, checksums); err != nil {
+			return "", err
+		}
+		if checksum, ok := (*checksums)[img.Id]; ok {
+			return checksum, nil
+		}
+	}
+
+	layer, err := img.layer()
+	if err != nil {
+		return "", err
+	}
+	jsonData, err := ioutil.ReadFile(jsonPath(root))
+	if err != nil {
+		return "", err
+	}
+
+	layerData, err := Tar(layer, Xz)
+	if err != nil {
+		return "", err
+	}
+
+	h := sha256.New()
+	if _, err := h.Write(jsonData); err != nil {
+		return "", err
+	}
+	if _, err := h.Write([]byte("\n")); err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(h, layerData); err != nil {
+		return "", err
+	}
+
+	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
+	if *checksums == nil {
+		*checksums = map[string]string{}
+	}
+	(*checksums)[img.Id] = hash
+	checksumJson, err := json.Marshal(checksums)
+	if err != nil {
+		return hash, err
+	}
+
+	if err := ioutil.WriteFile(checksumDictPth, checksumJson, 0600); err != nil {
+		return hash, err
+	}
+	return hash, nil
 }

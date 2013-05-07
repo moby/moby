@@ -16,7 +16,7 @@ lxc.utsname = {{.Id}}
 # network configuration
 lxc.network.type = veth
 lxc.network.flags = up
-lxc.network.link = lxcbr0
+lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
 lxc.network.ipv4 = {{.NetworkSettings.IpAddress}}/{{.NetworkSettings.IpPrefixLen}}
@@ -78,8 +78,12 @@ lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,no
 lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
-lxc.mount.entry = /etc/resolv.conf {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
-
+lxc.mount.entry = {{.ResolvConfPath}} {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
+{{if .Volumes}}
+{{range $virtualPath, $realPath := .GetVolumes}}
+lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,rw 0 0
+{{end}}
+{{end}}
 
 # drop linux capabilities (apply mainly to the user root in the container)
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config

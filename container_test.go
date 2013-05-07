@@ -22,9 +22,8 @@ func TestIdFormat(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
 	)
 	if err != nil {
@@ -39,7 +38,186 @@ func TestIdFormat(t *testing.T) {
 	}
 }
 
-func TestCommitRun(t *testing.T) {
+func TestMultipleAttachRestart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd: []string{"/bin/sh", "-c",
+				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Simulate 3 client attaching to the container and stop/restart
+
+	stdout1, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	l1, err := bufio.NewReader(stdout1).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l1, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+	}
+	l2, err := bufio.NewReader(stdout2).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l2, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+	}
+	l3, err := bufio.NewReader(stdout3).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(l3, " \r\n") != "hello" {
+		t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+	}
+
+	if err := container.Stop(10); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout1, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout2, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout3, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	setTimeout(t, "Timeout reading from the process", 3*time.Second, func() {
+		l1, err = bufio.NewReader(stdout1).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l1, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l1)
+		}
+		l2, err = bufio.NewReader(stdout2).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l2, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l2)
+		}
+		l3, err = bufio.NewReader(stdout3).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Trim(l3, " \r\n") != "hello" {
+			t.Fatalf("Unexpected output. Expected [%s], received [%s]", "hello", l3)
+		}
+	})
+	container.Wait()
+}
+
+func TestDiff(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	// Create a container and remove a file
+	container1, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container1)
+
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	c, err := container1.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	success := false
+	for _, elem := range c {
+		if elem.Path == "/etc/passwd" && elem.Kind == 2 {
+			success = true
+		}
+	}
+	if !success {
+		t.Fatalf("/etc/passwd as been removed but is not present in the diff")
+	}
+
+	// Commit the container
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create a new container from the commited image
+	container2, err := runtime.Create(
+		&Config{
+			Image: img.Id,
+			Cmd:   []string{"cat", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	if err := container2.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	c, err = container2.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, elem := range c {
+		if elem.Path == "/etc/passwd" {
+			t.Fatalf("/etc/passwd should not be present in the diff after commit.")
+		}
+	}
+}
+
+func TestCommitAutoRun(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -47,9 +225,8 @@ func TestCommitRun(t *testing.T) {
 	defer nuke(runtime)
 	container1, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Cmd:    []string{"/bin/sh", "-c", "echo hello > /world"},
-			Memory: 33554432,
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
 		},
 	)
 	if err != nil {
@@ -71,7 +248,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image")
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", &Config{Cmd: []string{"cat", "/world"}})
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,29 +257,160 @@ func TestCommitRun(t *testing.T) {
 
 	container2, err := runtime.Create(
 		&Config{
-			Image:  img.Id,
-			Memory: 33554432,
-			Cmd:    []string{"cat", "/world"},
+			Image: img.Id,
 		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container2)
-
 	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stderr, err := container2.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
 	container2.Wait()
 	output, err := ioutil.ReadAll(stdout)
-	output2, err := ioutil.ReadAll(stderr)
-	stdout.Close()
-	stderr.Close()
-	if string(output) != "hello\n" {
-		t.Fatalf("\nout: %s\nerr: %s\n", string(output), string(output2))
+	if err != nil {
+		t.Fatal(err)
 	}
+	output2, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderr.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "hello\n" {
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
+	}
+}
+
+func TestCommitRun(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container1, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container1)
+
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+
+	container2, err := runtime.Create(
+		&Config{
+			Image: img.Id,
+			Cmd:   []string{"cat", "/world"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr, err := container2.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	container2.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output2, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderr.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "hello\n" {
+		t.Fatalf("Unexpected output. Expected %s, received: %s (err: %s)", "hello\n", output, output2)
+	}
+}
+
+func TestStart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Memory:    33554432,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+	if err := container.Start(); err == nil {
+		t.Fatalf("A running containter should be able to be started")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
+	container.WaitTimeout(2 * time.Second)
 }
 
 func TestRun(t *testing.T) {
@@ -113,9 +421,8 @@ func TestRun(t *testing.T) {
 	defer nuke(runtime)
 	container, err := runtime.Create(
 		&Config{
-			Image:  GetTestImage(runtime).Id,
-			Memory: 33554432,
-			Cmd:    []string{"ls", "-al"},
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"ls", "-al"},
 		},
 	)
 	if err != nil {
@@ -159,6 +466,54 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestKillDifferentUser(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := runtime.Create(&Config{
+		Image: GetTestImage(runtime).Id,
+		Cmd:   []string{"tail", "-f", "/etc/resolv.conf"},
+		User:  "daemon",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to lxc to spawn the process (setuid might take some time)
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	container.Wait()
+	if container.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	// Try stopping twice
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestKill(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -181,6 +536,10 @@ func TestKill(t *testing.T) {
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Give some time to lxc to spawn the process
+	container.WaitTimeout(500 * time.Millisecond)
+
 	if !container.State.Running {
 		t.Errorf("Container should be running")
 	}
@@ -208,11 +567,9 @@ func TestExitCode(t *testing.T) {
 	defer nuke(runtime)
 
 	trueContainer, err := runtime.Create(&Config{
-
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/true", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,12 +577,14 @@ func TestExitCode(t *testing.T) {
 	if err := trueContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
+	if trueContainer.State.ExitCode != 0 {
+		t.Errorf("Unexpected exit code %d (expected 0)", trueContainer.State.ExitCode)
+	}
 
 	falseContainer, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"/bin/false", ""},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,13 +592,8 @@ func TestExitCode(t *testing.T) {
 	if err := falseContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
-
-	if trueContainer.State.ExitCode != 0 {
-		t.Errorf("Unexpected exit code %v", trueContainer.State.ExitCode)
-	}
-
 	if falseContainer.State.ExitCode != 1 {
-		t.Errorf("Unexpected exit code %v", falseContainer.State.ExitCode)
+		t.Errorf("Unexpected exit code %d (expected 1)", falseContainer.State.ExitCode)
 	}
 }
 
@@ -295,32 +649,62 @@ func TestRestartStdin(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
-	stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 
 	// Restart and try again
 	stdin, err = container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err = container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world #2")
-	stdin.Close()
+	if _, err := io.WriteString(stdin, "hello world #2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err = ioutil.ReadAll(stdout)
-	stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world #2" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world #2", string(output))
 	}
 }
 
@@ -467,6 +851,10 @@ func TestMultipleContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Make sure they are running before trying to kill them
+	container1.WaitTimeout(250 * time.Millisecond)
+	container2.WaitTimeout(250 * time.Millisecond)
+
 	// If we are here, both containers should be running
 	if !container1.State.Running {
 		t.Fatal("Container not running")
@@ -504,18 +892,31 @@ func TestStdin(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -538,18 +939,31 @@ func TestTty(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	stdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stdout, err := container.StdoutPipe()
-	defer stdin.Close()
-	defer stdout.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
-	io.WriteString(stdin, "hello world")
-	stdin.Close()
+	defer stdin.Close()
+	defer stdout.Close()
+	if _, err := io.WriteString(stdin, "hello world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
 	container.Wait()
 	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(output) != "hello world" {
-		t.Fatal(string(output))
+		t.Fatalf("Unexpected output. Expected %s, received: %s", "hello world", string(output))
 	}
 }
 
@@ -568,6 +982,7 @@ func TestEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+
 	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -673,7 +1088,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		if string(output) != "foo" {
-			b.Fatalf("Unexecpted output: %v", string(output))
+			b.Fatalf("Unexpected output: %s", output)
 		}
 		if err := runtime.Destroy(container); err != nil {
 			b.Fatal(err)

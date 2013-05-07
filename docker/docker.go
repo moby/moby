@@ -2,12 +2,21 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/rcli"
 	"github.com/dotcloud/docker/term"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+)
+
+var (
+	GIT_COMMIT string
 )
 
 func main() {
@@ -17,16 +26,27 @@ func main() {
 		return
 	}
 	// FIXME: Switch d and D ? (to be more sshd like)
-	fl_daemon := flag.Bool("d", false, "Daemon mode")
-	fl_debug := flag.Bool("D", false, "Debug mode")
+	flDaemon := flag.Bool("d", false, "Daemon mode")
+	flDebug := flag.Bool("D", false, "Debug mode")
+	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
+	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
+	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
 	flag.Parse()
-	rcli.DEBUG_FLAG = *fl_debug
-	if *fl_daemon {
+	if *bridgeName != "" {
+		docker.NetworkBridgeIface = *bridgeName
+	} else {
+		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
+	}
+	if *flDebug {
+		os.Setenv("DEBUG", "1")
+	}
+	docker.GIT_COMMIT = GIT_COMMIT
+	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
 		}
-		if err := daemon(); err != nil {
+		if err := daemon(*pidfile, *flAutoRestart); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -36,8 +56,49 @@ func main() {
 	}
 }
 
-func daemon() error {
-	service, err := docker.NewServer()
+func createPidFile(pidfile string) error {
+	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
+		pid, err := strconv.Atoi(string(pidString))
+		if err == nil {
+			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
+				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
+			}
+		}
+	}
+
+	file, err := os.Create(pidfile)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	_, err = fmt.Fprintf(file, "%d", os.Getpid())
+	return err
+}
+
+func removePidFile(pidfile string) {
+	if err := os.Remove(pidfile); err != nil {
+		log.Printf("Error removing %s: %s", pidfile, err)
+	}
+}
+
+func daemon(pidfile string, autoRestart bool) error {
+	if err := createPidFile(pidfile); err != nil {
+		log.Fatal(err)
+	}
+	defer removePidFile(pidfile)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		removePidFile(pidfile)
+		os.Exit(0)
+	}()
+
+	service, err := docker.NewServer(autoRestart)
 	if err != nil {
 		return err
 	}
@@ -45,50 +106,42 @@ func daemon() error {
 }
 
 func runCommand(args []string) error {
-	var oldState *term.State
-	var err error
-	if term.IsTerminal(0) && os.Getenv("NORAW") == "" {
-		oldState, err = term.MakeRaw(0)
-		if err != nil {
-			return err
-		}
-		defer term.Restore(0, oldState)
-	}
 	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
 	// CloseWrite(), which we need to cleanly signal that stdin is closed without
 	// closing the connection.
 	// See http://code.google.com/p/go/issues/detail?id=3345
 	if conn, err := rcli.Call("tcp", "127.0.0.1:4242", args...); err == nil {
-		receive_stdout := docker.Go(func() error {
+		options := conn.GetOptions()
+		if options.RawTerminal &&
+			term.IsTerminal(int(os.Stdin.Fd())) &&
+			os.Getenv("NORAW") == "" {
+			if oldState, err := rcli.SetRawTerminal(); err != nil {
+				return err
+			} else {
+				defer rcli.RestoreTerminal(oldState)
+			}
+		}
+		receiveStdout := docker.Go(func() error {
 			_, err := io.Copy(os.Stdout, conn)
 			return err
 		})
-		send_stdin := docker.Go(func() error {
+		sendStdin := docker.Go(func() error {
 			_, err := io.Copy(conn, os.Stdin)
 			if err := conn.CloseWrite(); err != nil {
 				log.Printf("Couldn't send EOF: " + err.Error())
 			}
 			return err
 		})
-		if err := <-receive_stdout; err != nil {
+		if err := <-receiveStdout; err != nil {
 			return err
 		}
-		if !term.IsTerminal(0) {
-			if err := <-send_stdin; err != nil {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			if err := <-sendStdin; err != nil {
 				return err
 			}
 		}
 	} else {
-		service, err := docker.NewServer()
-		if err != nil {
-			return err
-		}
-		if err := rcli.LocalCall(service, os.Stdin, os.Stdout, args...); err != nil {
-			return err
-		}
-	}
-	if oldState != nil {
-		term.Restore(0, oldState)
+		return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 	}
 	return nil
 }

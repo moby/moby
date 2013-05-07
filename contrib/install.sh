@@ -36,16 +36,16 @@ else
 fi
 
 echo "Downloading docker binary and uncompressing into /usr/local/bin..."
-curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz |
+curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz |
 tar -C /usr/local/bin --strip-components=1 -zxf- \
-docker-master/docker
+docker-latest/docker
 
 if [ -f /etc/init/dockerd.conf ]
 then
   echo "Upstart script already exists."
 else
   echo "Creating /etc/init/dockerd.conf..."
-  echo "exec /usr/local/bin/docker -d" > /etc/init/dockerd.conf
+  echo "exec env LANG=\"en_US.UTF-8\" /usr/local/bin/docker -d" > /etc/init/dockerd.conf
 fi
 
 echo "Starting dockerd..."

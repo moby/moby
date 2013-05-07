@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+
+# docker-build is a script to build docker images from source.
+# It will be deprecated once the 'build' feature is incorporated into docker itself.
+# (See https://github.com/dotcloud/docker/issues/278)
+#
+# Author: Solomon Hykes <solomon@dotcloud.com>
+
+
+
+# First create a valid Changefile, which defines a sequence of changes to apply to a base image.
+# 
+#     $ cat Changefile
+#     # Start build from a know base image
+#     from	base:ubuntu-12.10
+#     # Update ubuntu sources
+#     run	echo 'deb http://archive.ubuntu.com/ubuntu quantal main universe multiverse' > /etc/apt/sources.list
+#     run	apt-get update
+#     # Install system packages
+#     run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q git
+#     run DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
+#     run DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang
+#     # Insert files from the host (./myscript must be present in the current directory)
+#     copy	myscript /usr/local/bin/myscript
+# 
+# 
+# Run docker-build, and pass the contents of your Changefile as standard input.
+# 
+#     $ IMG=$(./docker-build < Changefile)
+# 
+# This will take a while: for each line of the changefile, docker-build will:
+# 
+# 1. Create a new container to execute the given command or insert the given file
+# 2. Wait for the container to complete execution
+# 3. Commit the resulting changes as a new image
+# 4. Use the resulting image as the input of the next step
+
+
+import sys
+import subprocess
+import json
+import hashlib
+
+def docker(args, stdin=None):
+	print "# docker " + " ".join(args)
+	p = subprocess.Popen(["docker"] + list(args), stdin=stdin, stdout=subprocess.PIPE)
+	return p.stdout
+
+def image_exists(img):
+	return docker(["inspect", img]).read().strip() != ""
+
+def image_config(img):
+	return json.loads(docker(["inspect", img]).read()).get("config", {})
+
+def run_and_commit(img_in, cmd, stdin=None, author=None, run=None):
+	run_id = docker(["run"] + (["-i", "-a", "stdin"] if stdin else ["-d"]) + [img_in, "/bin/sh", "-c", cmd], stdin=stdin).read().rstrip()
+	print "---> Waiting for " + run_id
+	result=int(docker(["wait", run_id]).read().rstrip())
+	if result != 0:
+		print "!!! '{}' return non-zero exit code '{}'. Aborting.".format(cmd, result)
+		sys.exit(1)
+	return docker(["commit"] + (["-author", author] if author else []) + (["-run", json.dumps(run)] if run is not None else []) + [run_id]).read().rstrip()
+
+def insert(base, src, dst, author=None):
+	print "COPY {} to {} in {}".format(src, dst, base)
+	if dst == "":
+		raise Exception("Missing destination path")
+	stdin = file(src)
+	stdin.seek(0)
+	return run_and_commit(base, "cat > {0}; chmod +x {0}".format(dst), stdin=stdin, author=author)
+
+def add(base, src, dst, author=None):
+	print "PUSH to {} in {}".format(dst, base)
+	if src == ".":
+		tar = subprocess.Popen(["tar", "-c", "."], stdout=subprocess.PIPE).stdout
+	else:
+		tar = subprocess.Popen(["curl", src], stdout=subprocess.PIPE).stdout
+	if dst == "":
+		raise Exception("Missing argument to push")
+	return run_and_commit(base, "mkdir -p '{0}' && tar -C '{0}' -x".format(dst), stdin=tar, author=author)
+
+def main():
+	base=""
+	maintainer=""
+	steps = []
+	try:
+		for line in sys.stdin.readlines():
+			line = line.strip()
+			# Skip comments and empty lines
+			if line == "" or line[0] == "#":
+				continue
+			op, param = line.split("	", 1)
+			print op.upper() + " " + param
+			if op == "from":
+				base = param
+				steps.append(base)
+			elif op == "maintainer":
+				maintainer = param
+			elif op == "run":
+				result = run_and_commit(base, param, author=maintainer)
+				steps.append(result)
+				base = result
+				print "===> " + base
+			elif op == "copy":
+				src, dst = param.split("	", 1)
+				result = insert(base, src, dst, author=maintainer)
+				steps.append(result)
+				base = result
+				print "===> " + base
+			elif op == "add":
+				src, dst = param.split("	", 1)
+				result = add(base, src, dst, author=maintainer)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "expose":
+				config = image_config(base)
+				if config.get("PortSpecs") is None:
+					config["PortSpecs"] = []
+				portspec = param.strip()
+				config["PortSpecs"].append(portspec)
+				result = run_and_commit(base, "# (nop) expose port {}".format(portspec), author=maintainer, run=config)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			elif op == "cmd":
+				config  = image_config(base)
+				cmd = list(json.loads(param))
+				config["Cmd"] = cmd
+				result = run_and_commit(base, "# (nop) set default command to '{}'".format(" ".join(cmd)), author=maintainer, run=config)
+				steps.append(result)
+				base=result
+				print "===> " + base
+			else:
+				print "Skipping uknown op " + op
+	except:
+		docker(["rmi"] + steps[1:])
+		raise
+	print base
+
+if __name__ == "__main__":
+	main()

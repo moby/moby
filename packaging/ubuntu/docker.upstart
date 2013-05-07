@@ -1,0 +1,10 @@
+description     "Run docker"
+
+start on runlevel [2345]
+stop on starting rc RUNLEVEL=[016]
+respawn
+
+script
+    # FIXME: docker should not depend on the system having en_US.UTF-8
+    LC_ALL='en_US.UTF-8' /usr/bin/docker -d
+end script

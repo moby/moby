@@ -8,14 +8,98 @@ package rcli
 // are the usual suspects.
 
 import (
-	"errors"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/term"
 	"io"
 	"log"
+	"net"
+	"os"
 	"reflect"
 	"strings"
 )
+
+type DockerConnOptions struct {
+	RawTerminal bool
+}
+
+type DockerConn interface {
+	io.ReadWriteCloser
+	CloseWrite() error
+	CloseRead() error
+	GetOptions() *DockerConnOptions
+	SetOptionRawTerminal()
+	Flush() error
+}
+
+type DockerLocalConn struct {
+	writer     io.WriteCloser
+	savedState *term.State
+}
+
+func NewDockerLocalConn(w io.WriteCloser) *DockerLocalConn {
+	return &DockerLocalConn{
+		writer: w,
+	}
+}
+
+func (c *DockerLocalConn) Read(b []byte) (int, error) {
+	return 0, fmt.Errorf("DockerLocalConn does not implement Read()")
+}
+
+func (c *DockerLocalConn) Write(b []byte) (int, error) { return c.writer.Write(b) }
+
+func (c *DockerLocalConn) Close() error {
+	if c.savedState != nil {
+		RestoreTerminal(c.savedState)
+		c.savedState = nil
+	}
+	return c.writer.Close()
+}
+
+func (c *DockerLocalConn) Flush() error { return nil }
+
+func (c *DockerLocalConn) CloseWrite() error { return nil }
+
+func (c *DockerLocalConn) CloseRead() error { return nil }
+
+func (c *DockerLocalConn) GetOptions() *DockerConnOptions { return nil }
+
+func (c *DockerLocalConn) SetOptionRawTerminal() {
+	if state, err := SetRawTerminal(); err != nil {
+		if os.Getenv("DEBUG") != "" {
+			log.Printf("Can't set the terminal in raw mode: %s", err)
+		}
+	} else {
+		c.savedState = state
+	}
+}
+
+var UnknownDockerProto = fmt.Errorf("Only TCP is actually supported by Docker at the moment")
+
+func dialDocker(proto string, addr string) (DockerConn, error) {
+	conn, err := net.Dial(proto, addr)
+	if err != nil {
+		return nil, err
+	}
+	switch i := conn.(type) {
+	case *net.TCPConn:
+		return NewDockerTCPConn(i, true), nil
+	}
+	return nil, UnknownDockerProto
+}
+
+func newDockerFromConn(conn net.Conn, client bool) (DockerConn, error) {
+	switch i := conn.(type) {
+	case *net.TCPConn:
+		return NewDockerTCPConn(i, client), nil
+	}
+	return nil, UnknownDockerProto
+}
+
+func newDockerServerConn(conn net.Conn) (DockerConn, error) {
+	return newDockerFromConn(conn, false)
+}
 
 type Service interface {
 	Name() string
@@ -26,11 +110,11 @@ type Cmd func(io.ReadCloser, io.Writer, ...string) error
 type CmdMethod func(Service, io.ReadCloser, io.Writer, ...string) error
 
 // FIXME: For reverse compatibility
-func call(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func call(service Service, stdin io.ReadCloser, stdout DockerConn, args ...string) error {
 	return LocalCall(service, stdin, stdout, args...)
 }
 
-func LocalCall(service Service, stdin io.ReadCloser, stdout io.Writer, args ...string) error {
+func LocalCall(service Service, stdin io.ReadCloser, stdout DockerConn, args ...string) error {
 	if len(args) == 0 {
 		args = []string{"help"}
 	}
@@ -49,7 +133,7 @@ func LocalCall(service Service, stdin io.ReadCloser, stdout io.Writer, args ...s
 	if method != nil {
 		return method(stdin, stdout, flags.Args()[1:]...)
 	}
-	return errors.New("No such command: " + cmd)
+	return fmt.Errorf("No such command: %s", cmd)
 }
 
 func getMethod(service Service, name string) Cmd {
@@ -59,7 +143,7 @@ func getMethod(service Service, name string) Cmd {
 				stdout.Write([]byte(service.Help()))
 			} else {
 				if method := getMethod(service, args[0]); method == nil {
-					return errors.New("No such command: " + args[0])
+					return fmt.Errorf("No such command: %s", args[0])
 				} else {
 					method(stdin, stdout, "--help")
 				}

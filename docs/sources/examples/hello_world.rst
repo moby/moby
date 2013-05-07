@@ -6,10 +6,10 @@
 
 Hello World
 ===========
-This is the most basic example available for using docker
 
-This example assumes you have Docker installed.
+.. include:: example_header.inc
 
+This is the most basic example available for using Docker.
 
 Download the base container
 

@@ -1,39 +1,227 @@
-Docker: the Linux container runtime
-===================================
+Docker: the Linux container engine
+==================================
 
-Docker complements LXC with a high-level API which operates at the process level. It runs unix processes with strong guarantees of isolation and repeatability across servers.
+Docker is an open-source engine which automates the deployment of applications as highly portable, self-sufficient containers.
 
-Docker is a great building block for automating distributed systems: large-scale web deployments, database clusters, continuous deployment systems, private PaaS, service-oriented architectures, etc.
+Docker containers are both *hardware-agnostic* and *platform-agnostic*. This means that they can run anywhere, from your
+laptop to the largest EC2 compute instance and everything in between - and they don't require that you use a particular
+language, framework or packaging system. That makes them great building blocks for deploying and scaling web apps, databases
+and backend services without depending on a particular stack or provider.
 
-<img src="http://bricks.argz.com/bricksfiles/lego/07000/7823/012.jpg"/>
+Docker is an open-source implementation of the deployment engine which powers [dotCloud](http://dotcloud.com), a popular Platform-as-a-Service.
+It benefits directly from the experience accumulated over several years of large-scale operation and support of hundreds of thousands
+of applications and databases.
 
-* *Heterogeneous payloads*: any combination of binaries, libraries, configuration files, scripts, virtualenvs, jars, gems, tarballs, you name it. No more juggling between domain-specific tools. Docker can deploy and run them all.
+![Docker L](docs/sources/static_files/lego_docker.jpg "Docker")
 
-* *Any server*: docker can run on any x64 machine with a modern linux kernel - whether it's a laptop, a bare metal server or a VM. This makes it perfect for multi-cloud deployments.
+## Better than VMs
 
-* *Isolation*: docker isolates processes from each other and from the underlying host, using lightweight containers.
+A common method for distributing applications and sandbox their execution is to use virtual machines, or VMs. Typical VM formats
+are VMWare's vmdk, Oracle Virtualbox's vdi, and Amazon EC2's ami. In theory these formats should allow every developer to
+automatically package their application into a "machine" for easy distribution and deployment. In practice, that almost never
+happens, for a few reasons:
 
-* *Repeatability*: because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.
+	* *Size*: VMs are very large which makes them impractical to store and transfer.
+	* *Performance*: running VMs consumes significant CPU and memory, which makes them impractical in many scenarios, for example local development of multi-tier applications, and
+		large-scale deployment of cpu and memory-intensive applications on large numbers of machines.
+	* *Portability*: competing VM environments don't play well with each other. Although conversion tools do exist, they are limited and add even more overhead.
+	* *Hardware-centric*: VMs were designed with machine operators in mind, not software developers. As a result, they offer very limited tooling for what developers need most:
+		building, testing and running their software. For example, VMs offer no facilities for application versioning, monitoring, configuration, logging or service discovery.
+
+By contrast, Docker relies on a different sandboxing method known as *containerization*. Unlike traditional virtualization,
+containerization takes place at the kernel level. Most modern operating system kernels now support the primitives necessary
+for containerization, including Linux with [openvz](http://openvz.org), [vserver](http://linux-vserver.org) and more recently [lxc](http://lxc.sourceforge.net),
+	Solaris with [zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc) and FreeBSD with [Jails](http://www.freebsd.org/doc/handbook/jails.html).
+
+Docker builds on top of these low-level primitives to offer developers a portable format and runtime environment that solves
+all 4 problems. Docker containers are small (and their transfer can be optimized with layers), they have basically zero memory and cpu overhead,
+the are completely portable and are designed from the ground up with an application-centric design.
+
+The best part: because docker operates at the OS level, it can still be run inside a VM!
+
+## Plays well with others
+
+Docker does not require that you buy into a particular programming language, framework, packaging system or configuration language.
+
+Is your application a unix process? Does it use files, tcp connections, environment variables, standard unix streams and command-line
+arguments as inputs and outputs? Then docker can run it.
+
+Can your application's build be expressed a sequence of such commands? Then docker can build it.
 
 
-Notable features
------------------
+## Escape dependency hell
 
-* Filesystem isolation: each process container runs in a completely separate root filesystem.
+A common problem for developers is the difficulty of managing all their application's dependencies in a simple and automated way.
 
-* Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.
+This is usually difficult for several reasons:
 
-* Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.
+  * *Cross-platform dependencies*. Modern applications often depend on a combination of system libraries and binaries, language-specific packages, framework-specific modules,
+  	internal components developed for another project, etc. These dependencies live in different "worlds" and require different tools - these tools typically don't work
+	well with each other, requiring awkward custom integrations.
 
-* Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.
-
-* Logging: the standard streams (stdout/stderr/stdin) of each process container are collected and logged for real-time or batch retrieval.
-
-* Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.
-
-* Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.
+  * Conflicting dependencies. Different applications may depend on different versions of the same dependency. Packaging tools handle these situations with various degrees of ease -
+  	but they all handle them in different and incompatible ways, which again forces the developer to do extra work.
+  
+  * Custom dependencies. A developer may need to prepare a custom version of his application's dependency. Some packaging systems can handle custom versions of a dependency,
+  	others can't - and all of them handle it differently.
 
 
+Docker solves dependency hell by giving the developer a simple way to express *all* his application's dependencies in one place,
+and streamline the process of assembling them. If this makes you think of [XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
+*replace* your favorite packaging systems. It simply orchestrates their use in a simple and repeatable way. How does it do that? With layers.
+
+Docker defines a build as running a sequence unix commands, one after the other, in the same container. Build commands modify the contents of the container
+(usually by installing new files on the filesystem), the next command modifies it some more, etc. Since each build command inherits the result of the previous
+commands, the *order* in which the commands are executed expresses *dependencies*.
+
+Here's a typical docker build process:
+
+```bash
+from	ubuntu:12.10
+run	apt-get update
+run	apt-get install python
+run	apt-get install python-pip
+run	pip install django
+run	apt-get install curl
+run	curl http://github.com/shykes/helloflask/helloflask/master.tar.gz | tar -zxv
+run	cd master && pip install -r requirements.txt
+```
+
+Note that Docker doesn't care *how* dependencies are built - as long as they can be built by running a unix command in a container.
+
+
+Install instructions
+==================
+
+Quick install on Ubuntu 12.04 and 12.10
+---------------------------------------
+
+```bash
+curl get.docker.io | sh -x
+```
+
+Binary installs
+----------------
+
+Docker supports the following binary installation methods.
+Note that some methods are community contributions and not yet officially supported.
+
+* [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
+* [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
+* [MacOS X (with Vagrant)](http://docs.docker.io/en/latest/installation/macos/)
+* [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
+* [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
+
+Installing from source
+----------------------
+
+1. Make sure you have a [Go language](http://golang.org/doc/install) compiler and [git](http://git-scm.com) installed.
+
+2. Checkout the source code
+
+   ```bash
+   git clone http://github.com/dotcloud/docker
+   ```
+
+3. Build the docker binary
+
+   ```bash
+   cd docker
+   make VERBOSE=1
+   sudo cp ./bin/docker /usr/local/bin/docker
+   ```
+
+Usage examples
+==============
+
+First run the docker daemon
+---------------------------
+
+All the examples assume your machine is running the docker daemon. To run the docker daemon in the background, simply type:
+
+```bash
+# On a production system you want this running in an init script
+sudo docker -d &
+```
+
+Now you can run docker in client mode: all commands will be forwarded to the docker daemon, so the client can run from any account.
+
+```bash
+# Now you can run docker commands from any account.
+docker help
+```
+
+
+Throwaway shell in a base ubuntu image
+--------------------------------------
+
+```bash
+docker pull ubuntu:12.10
+
+# Run an interactive shell, allocate a tty, attach stdin and stdout
+# To detach the tty without exiting the shell, use the escape sequence Ctrl-p + Ctrl-q
+docker run -i -t ubuntu:12.10 /bin/bash
+```
+
+Starting a long-running worker process
+--------------------------------------
+
+```bash
+# Start a very useful long-running process
+JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+
+# Collect the output of the job so far
+docker logs $JOB
+
+# Kill the job
+docker kill $JOB
+```
+
+Running an irc bouncer
+----------------------
+
+```bash
+BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
+echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
+```
+
+Running Redis
+-------------
+
+```bash
+REDIS_ID=$(docker run -d -p 6379 shykes/redis redis-server)
+echo "Configure your redis client to connect to port $(docker port $REDIS_ID 6379) of this machine"
+```
+
+Share your own image!
+---------------------
+
+```bash
+CONTAINER=$(docker run -d ubuntu:12.10 apt-get install -y curl)
+docker commit -m "Installed curl" $CONTAINER $USER/betterbase
+docker push $USER/betterbase
+```
+
+A list of publicly available images is [available here](https://github.com/dotcloud/docker/wiki/Public-docker-images).
+
+Expose a service on a TCP port
+------------------------------
+
+```bash
+# Expose port 4444 of this container, and tell netcat to listen on it
+JOB=$(docker run -d -p 4444 base /bin/nc -l -p 4444)
+
+# Which public port is NATed to my container?
+PORT=$(docker port $JOB 4444)
+
+# Connect to the public port via the host's public address
+# Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
+IP=$(ifconfig eth0 | perl -n -e 'if (m/inet addr:([\d\.]+)/g) { print $1 }')
+echo hello world | nc $IP $PORT
+
+# Verify that the network connection worked
+echo "Daemon received: $(docker logs $JOB)"
+```
 
 Under the hood
 --------------
@@ -50,129 +238,14 @@ Under the hood, Docker is built on the following components:
 * [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to simplify the creation of linux containers.
 
 
-Install instructions
-==================
-
-Installing on Ubuntu 12.04 and 12.10
-------------------------------------
-
-1. Install dependencies:
-
-    ```bash
-    sudo apt-get install lxc wget bsdtar curl
-    sudo apt-get install linux-image-extra-`uname -r`
-    ```
-
-    The `linux-image-extra` package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
-
-2. Install the latest docker binary:
-
-    ```bash
-    wget http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-master.tgz
-    tar -xf docker-master.tgz
-    ```
-
-3. Run your first container!
-
-    ```bash
-    cd docker-master
-    sudo ./docker pull base
-    sudo ./docker run -i -t base /bin/bash
-    ```
-
-    Consider adding docker to your `PATH` for simplicity.
-
-Installing on other Linux distributions
----------------------------------------
-
-Right now, the officially supported distributions are:
-
-* Ubuntu 12.04 (precise LTS)
-* Ubuntu 12.10 (quantal)
-
-Docker probably works on other distributions featuring a recent kernel, the AUFS patch, and up-to-date lxc. However this has not been tested.
-
-Some streamlined (but possibly outdated) installation paths' are available from the website: http://docker.io/documentation/ 
-
-
-Usage examples
-==============
-
-Running an interactive shell
-----------------------------
-
-```bash
-# Download a base image
-docker pull base
-
-# Run an interactive shell in the base image,
-# allocate a tty, attach stdin and stdout
-docker run -i -t base /bin/bash
-```
-
-
-Starting a long-running worker process
---------------------------------------
-
-```bash
-# Run docker in daemon mode
-(docker -d || echo "Docker daemon already running") &
-
-# Start a very useful long-running process
-JOB=$(docker run -d base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
-
-# Collect the output of the job so far
-docker logs $JOB
-
-# Kill the job
-docker kill $JOB
-```
-
-
-Listing all running containers
-------------------------------
-
-```bash
-docker ps
-```
-
-
-Share your own image!
----------------------
-
-```bash
-docker pull base
-CONTAINER=$(docker run -d base apt-get install -y curl)
-docker commit -m "Installed curl" $CONTAINER $USER/betterbase
-docker push $USER/betterbase
-```
-
-
-Expose a service on a TCP port
-------------------------------
-
-```bash
-# Expose port 4444 of this container, and tell netcat to listen on it
-JOB=$(docker run -d -p 4444 base /bin/nc -l -p 4444)
-
-# Which public port is NATed to my container?
-PORT=$(docker port $JOB 4444)
-
-# Connect to the public port via the host's public address
-echo hello world | nc $(hostname) $PORT
-
-# Verify that the network connection worked
-echo "Daemon received: $(docker logs $JOB)"
-```
 
 Contributing to Docker
 ======================
 
-Want to hack on Docker? Awesome! There are instructions to get you started on the website: http://docker.io/documentation/contributing/contributing.html 
+Want to hack on Docker? Awesome! There are instructions to get you started on the website: http://docs.docker.io/en/latest/contributing/contributing/
 
 They are probably not perfect, please let us know if anything feels wrong or incomplete.
 
-### Pull requests are always welcome
 
 Note
 ----
@@ -181,26 +254,6 @@ We also keep the documentation in this repository. The website documentation is 
 Please find it under docs/sources/ and read more about it https://github.com/dotcloud/docker/master/docs/README.md
 
 Please feel free to fix / update the documentation and send us pull requests. More tutorials are also welcome.
-
-### Discuss your design on the mailing list
-
-We recommend discussing your plans [on the mailing list](https://groups.google.com/forum/?fromgroups#!forum/docker-club) before starting to code - especially for more ambitious contributions. This gives other contributors a chance to point
-you in the right direction, give feedback on your design, and maybe point out if someone else is working on the same thing.
-
-### Create issues...
-
-Any significant improvement should be documented as [a github issue](https://github.com/dotcloud/docker/issues) before anybody starts working on it.
-
-### ...but check for existing issues first!
-
-Please take a moment to check that an issue doesn't already exist documenting your bug report or improvement proposal.
-If it does, it never hurts to add a quick "+1" or "I have this problem too". This will help prioritize the most common problems and requests.
-
-
-### Write tests
-
-Golang has a great testing suite built in: use it! Take a look at existing tests for inspiration.
-
 
 
 Setting up a dev environment

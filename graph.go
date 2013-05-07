@@ -2,7 +2,9 @@ package docker
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -10,10 +12,15 @@ import (
 	"time"
 )
 
+// A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root string
+	Root       string
+	idIndex    *TruncIndex
+	httpClient *http.Client
 }
 
+// NewGraph instantiates a new graph at the given root path in the filesystem.
+// `root` will be created if it doesn't exist.
 func NewGraph(root string) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
@@ -23,9 +30,26 @@ func NewGraph(root string) (*Graph, error) {
 	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	return &Graph{
-		Root: abspath,
-	}, nil
+	graph := &Graph{
+		Root:    abspath,
+		idIndex: NewTruncIndex(),
+	}
+	if err := graph.restore(); err != nil {
+		return nil, err
+	}
+	return graph, nil
+}
+
+func (graph *Graph) restore() error {
+	dir, err := ioutil.ReadDir(graph.Root)
+	if err != nil {
+		return err
+	}
+	for _, v := range dir {
+		id := v.Name()
+		graph.idIndex.Add(id)
+	}
+	return nil
 }
 
 // FIXME: Implement error subclass instead of looking at the error text
@@ -34,6 +58,8 @@ func (graph *Graph) IsNotExist(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "does not exist")
 }
 
+// Exists returns true if an image is registered at the given id.
+// If the image doesn't exist or if an error is encountered, false is returned.
 func (graph *Graph) Exists(id string) bool {
 	if _, err := graph.Get(id); err != nil {
 		return false
@@ -41,7 +67,12 @@ func (graph *Graph) Exists(id string) bool {
 	return true
 }
 
-func (graph *Graph) Get(id string) (*Image, error) {
+// Get returns the image with the given id, or an error if the image doesn't exist.
+func (graph *Graph) Get(name string) (*Image, error) {
+	id, err := graph.idIndex.Get(name)
+	if err != nil {
+		return nil, err
+	}
 	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := LoadImage(graph.imageRoot(id))
 	if err != nil {
@@ -54,11 +85,15 @@ func (graph *Graph) Get(id string) (*Image, error) {
 	return img, nil
 }
 
-func (graph *Graph) Create(layerData Archive, container *Container, comment string) (*Image, error) {
+// Create creates a new image and registers it in the graph.
+func (graph *Graph) Create(layerData Archive, container *Container, comment, author string, config *Config) (*Image, error) {
 	img := &Image{
-		Id:      GenerateId(),
-		Comment: comment,
-		Created: time.Now(),
+		Id:            GenerateId(),
+		Comment:       comment,
+		Created:       time.Now(),
+		DockerVersion: VERSION,
+		Author:        author,
+		Config:        config,
 	}
 	if container != nil {
 		img.Parent = container.Image
@@ -68,9 +103,12 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment stri
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err
 	}
+	img.Checksum()
 	return img, nil
 }
 
+// Register imports a pre-existing image into the graph.
+// FIXME: pass img as first argument
 func (graph *Graph) Register(layerData Archive, img *Image) error {
 	if err := ValidateId(img.Id); err != nil {
 		return err
@@ -79,7 +117,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	if graph.Exists(img.Id) {
 		return fmt.Errorf("Image %s already exists", img.Id)
 	}
-	tmp, err := graph.Mktemp(img.Id)
+	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
@@ -92,11 +130,36 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 		return err
 	}
 	img.graph = graph
+	graph.idIndex.Add(img.Id)
 	return nil
 }
 
+// TempLayerArchive creates a temporary archive of the given image's filesystem layer.
+//   The archive is stored on disk and will be automatically deleted as soon as has been read.
+//   If output is not nil, a human-readable progress bar will be written to it.
+//   FIXME: does this belong in Graph? How about MktempFile, let the caller use it for archives?
+func (graph *Graph) TempLayerArchive(id string, compression Compression, output io.Writer) (*TempArchive, error) {
+	image, err := graph.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	tmp, err := graph.tmp()
+	if err != nil {
+		return nil, err
+	}
+	archive, err := image.TarLayer(compression)
+	if err != nil {
+		return nil, err
+	}
+	return NewTempArchive(ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
+}
+
+// Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	tmp, err := NewGraph(path.Join(graph.Root, ":tmp:"))
+	if id == "" {
+		id = GenerateId()
+	}
+	tmp, err := graph.tmp()
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create temp: %s", err)
 	}
@@ -106,34 +169,43 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return tmp.imageRoot(id), nil
 }
 
-func (graph *Graph) Garbage() (*Graph, error) {
-	return NewGraph(path.Join(graph.Root, ":garbage:"))
+func (graph *Graph) tmp() (*Graph, error) {
+	return NewGraph(path.Join(graph.Root, ":tmp:"))
 }
 
-func (graph *Graph) Delete(id string) error {
-	garbage, err := graph.Garbage()
+// Check if given error is "not empty".
+// Note: this is the way golang does it internally with os.IsNotExists.
+func isNotEmpty(err error) bool {
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *os.PathError:
+		err = pe.Err
+	case *os.LinkError:
+		err = pe.Err
+	}
+	return strings.Contains(err.Error(), " not empty")
+}
+
+// Delete atomically removes an image from the graph.
+func (graph *Graph) Delete(name string) error {
+	id, err := graph.idIndex.Get(name)
 	if err != nil {
 		return err
 	}
-	return os.Rename(graph.imageRoot(id), garbage.imageRoot(id))
-}
-
-func (graph *Graph) Undelete(id string) error {
-	garbage, err := graph.Garbage()
+	tmp, err := graph.Mktemp("")
 	if err != nil {
 		return err
 	}
-	return os.Rename(garbage.imageRoot(id), graph.imageRoot(id))
-}
-
-func (graph *Graph) GarbageCollect() error {
-	garbage, err := graph.Garbage()
+	graph.idIndex.Delete(id)
+	err = os.Rename(graph.imageRoot(id), tmp)
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(garbage.Root)
+	return os.RemoveAll(tmp)
 }
 
+// Map returns a list of all images in the graph, addressable by ID.
 func (graph *Graph) Map() (map[string]*Image, error) {
 	// FIXME: this should replace All()
 	all, err := graph.All()
@@ -147,6 +219,7 @@ func (graph *Graph) Map() (map[string]*Image, error) {
 	return images, nil
 }
 
+// All returns a list of all images in the graph.
 func (graph *Graph) All() ([]*Image, error) {
 	var images []*Image
 	err := graph.WalkAll(func(image *Image) {
@@ -155,6 +228,8 @@ func (graph *Graph) All() ([]*Image, error) {
 	return images, err
 }
 
+// WalkAll iterates over each image in the graph, and passes it to a handler.
+// The walking order is undetermined.
 func (graph *Graph) WalkAll(handler func(*Image)) error {
 	files, err := ioutil.ReadDir(graph.Root)
 	if err != nil {
@@ -171,6 +246,10 @@ func (graph *Graph) WalkAll(handler func(*Image)) error {
 	return nil
 }
 
+// ByParent returns a lookup table of images by their parent.
+// If an image of id ID has 3 children images, then the value for key ID
+// will be a list of 3 images.
+// If an image has no children, it will not have an entry in the table.
 func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	byParent := make(map[string][]*Image)
 	err := graph.WalkAll(func(image *Image) {
@@ -187,6 +266,8 @@ func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	return byParent, err
 }
 
+// Heads returns all heads in the graph, keyed by id.
+// A head is an image which is not the parent of another image in the graph.
 func (graph *Graph) Heads() (map[string]*Image, error) {
 	heads := make(map[string]*Image)
 	byParent, err := graph.ByParent()

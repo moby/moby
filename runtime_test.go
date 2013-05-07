@@ -1,22 +1,33 @@
 package docker
 
 import (
+	"fmt"
+	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
+	"sync"
 	"testing"
+	"time"
 )
 
-// FIXME: this is no longer needed
-const testLayerPath string = "/var/lib/docker/docker-ut.tar"
 const unitTestImageName string = "docker-ut"
 
-var unitTestStoreBase string
-var srv *Server
+const unitTestStoreBase string = "/var/lib/docker/unit-tests"
 
 func nuke(runtime *Runtime) error {
+	var wg sync.WaitGroup
+	for _, container := range runtime.List() {
+		wg.Add(1)
+		go func(c *Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
+	}
+	wg.Wait()
 	return os.RemoveAll(runtime.root)
 }
 
@@ -49,15 +60,10 @@ func init() {
 		panic("docker tests needs to be run as root")
 	}
 
-	// Create a temp directory
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		panic(err)
-	}
-	unitTestStoreBase = root
+	NetworkBridgeIface = "testdockbr0"
 
 	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +72,7 @@ func init() {
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.CmdPull(os.Stdin, os.Stdout, unitTestImageName); err != nil {
+	if err := srv.CmdPull(os.Stdin, rcli.NewDockerLocalConn(os.Stdout), unitTestImageName); err != nil {
 		panic(err)
 	}
 }
@@ -80,15 +86,14 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
-		panic(err)
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root)
+	runtime, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		return nil, err
 	}
-
+	runtime.UpdateCapabilities(true)
 	return runtime, nil
 }
 
@@ -251,6 +256,57 @@ func TestGet(t *testing.T) {
 
 }
 
+// Run a container with a TCP port allocated, and test that it can receive connections on localhost
+func TestAllocatePortLocalhost(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := runtime.Create(&Config{
+		Image:     GetTestImage(runtime).Id,
+		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p 5555"},
+		PortSpecs: []string{"5555"},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer container.Kill()
+
+	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
+		for {
+			if container.State.Running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	conn, err := net.Dial("tcp",
+		fmt.Sprintf(
+			"localhost:%s", container.NetworkSettings.PortMapping["5555"],
+		),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	output, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "well hello there\n" {
+		t.Fatalf("Received wrong output from network connection: should be '%s', not '%s'",
+			"well hello there\n",
+			string(output),
+		)
+	}
+	container.Wait()
+}
+
 func TestRestore(t *testing.T) {
 
 	root, err := ioutil.TempDir("", "docker-test")
@@ -264,7 +320,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runtime1, err := NewRuntimeFromDirectory(root)
+	runtime1, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,28 +335,74 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime1.Destroy(container1)
-	if len(runtime1.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime1.List()))
+
+	// Create a second container meant to be killed
+	container2, err := runtime1.Create(&Config{
+		Image:     GetTestImage(runtime1).Id,
+		Cmd:       []string{"/bin/cat"},
+		OpenStdin: true,
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime1.Destroy(container2)
+
+	// Start the container non blocking
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
+	}
+
+	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
+	cStdin, _ := container2.StdinPipe()
+	cStdin.Close()
+	if err := container2.WaitTimeout(2 * time.Second); err != nil {
+		t.Fatal(err)
+	}
+	container2.State.Running = true
+	container2.ToDisk()
+
+	if len(runtime1.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
 
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
+	}
+
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(root)
+	runtime2, err := NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer nuke(runtime2)
-	if len(runtime2.List()) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(runtime2.List()))
+	if len(runtime2.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
 	}
-	container2 := runtime2.Get(container1.Id)
-	if container2 == nil {
+	runningCount := 0
+	for _, c := range runtime2.List() {
+		if c.State.Running {
+			t.Errorf("Running container found: %v (%v)", c.Id, c.Path)
+			runningCount++
+		}
+	}
+	if runningCount != 0 {
+		t.Fatalf("Expected 0 container alive, %d found", runningCount)
+	}
+	container3 := runtime2.Get(container1.Id)
+	if container3 == nil {
 		t.Fatal("Unable to Get container")
 	}
-	if err := container2.Run(); err != nil {
+	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
+	container2.State.Running = false
 }

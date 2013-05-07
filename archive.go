@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 )
 
@@ -15,6 +16,7 @@ const (
 	Uncompressed Compression = iota
 	Bzip2
 	Gzip
+	Xz
 )
 
 func (compression *Compression) Flag() string {
@@ -23,6 +25,8 @@ func (compression *Compression) Flag() string {
 		return "j"
 	case Gzip:
 		return "z"
+	case Xz:
+		return "J"
 	}
 	return ""
 }
@@ -42,6 +46,9 @@ func Untar(archive io.Reader, path string) error {
 	return nil
 }
 
+// CmdStream executes a command, and returns its stdout as a stream.
+// If the command fails to run or doesn't complete successfully, an error
+// will be returned, including anything written on stderr.
 func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -52,24 +59,66 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		return nil, err
 	}
 	pipeR, pipeW := io.Pipe()
+	errChan := make(chan []byte)
+	// Collect stderr, we will use it in case of an error
+	go func() {
+		errText, e := ioutil.ReadAll(stderr)
+		if e != nil {
+			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
+		}
+		errChan <- errText
+	}()
+	// Copy stdout to the returned pipe
 	go func() {
 		_, err := io.Copy(pipeW, stdout)
 		if err != nil {
 			pipeW.CloseWithError(err)
 		}
-		errText, e := ioutil.ReadAll(stderr)
-		if e != nil {
-			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
-		}
+		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			// FIXME: can this block if stderr outputs more than the size of StderrPipe()'s buffer?
 			pipeW.CloseWithError(errors.New(err.Error() + ": " + string(errText)))
 		} else {
 			pipeW.Close()
 		}
 	}()
+	// Run the command and return the pipe
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 	return pipeR, nil
+}
+
+// NewTempArchive reads the content of src into a temporary file, and returns the contents
+// of that file as an archive. The archive can only be read once - as soon as reading completes,
+// the file will be deleted.
+func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
+	f, err := ioutil.TempFile(dir, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(f, src); err != nil {
+		return nil, err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	size := st.Size()
+	return &TempArchive{f, size}, nil
+}
+
+type TempArchive struct {
+	*os.File
+	Size int64 // Pre-computed from Stat().Size() as a convenience
+}
+
+func (archive *TempArchive) Read(data []byte) (int, error) {
+	n, err := archive.File.Read(data)
+	if err != nil {
+		os.Remove(archive.File.Name())
+	}
+	return n, err
 }

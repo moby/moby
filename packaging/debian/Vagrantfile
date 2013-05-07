@@ -1,0 +1,22 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$BUILDBOT_IP = '192.168.33.31'
+
+def v10(config)
+  config.vm.box = 'debian'
+  config.vm.share_folder 'v-data', '/data/docker', File.dirname(__FILE__) + '/../..'
+  config.vm.network :hostonly, $BUILDBOT_IP
+
+  # Install debian packaging dependencies and create debian packages
+  config.vm.provision :shell, :inline => 'apt-get -qq update; apt-get install -y debhelper autotools-dev golang'
+  config.vm.provision :shell, :inline => 'cd /data/docker/packaging/debian; make debian'
+end
+
+Vagrant::VERSION < '1.1.0' and Vagrant::Config.run do |config|
+  v10(config)
+end
+
+Vagrant::VERSION >= '1.1.0' and Vagrant.configure('1') do |config|
+  v10(config)
+end
