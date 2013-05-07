@@ -277,10 +277,6 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				fmt.Fprintf(stdout, "===> %s\n", image.ShortId())
 				break
 			}
-			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", tmp[1]}, nil, builder.runtime.capabilities)
-			if err != nil {
-				return err
-			}
 
 			// Create the container and start it
 			c, err := builder.Create(config)
@@ -289,9 +285,6 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 			if err := c.Start(); err != nil {
 				return nil, err
-			}
-			if err := c.Start(); err != nil {
-				return err
 			}
 			tmpContainers[c.Id] = struct{}{}
 
