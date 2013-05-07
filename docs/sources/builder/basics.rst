@@ -66,7 +66,16 @@ It is equivalent to do `docker commit -run '{"Cmd": <command>}'` outside the bui
 The `EXPOSE` instruction sets ports to be publicly exposed when running the image.
 This is equivalent to do `docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the builder.
 
-2.6 INSERT
+2.6 ENV
+-------
+    ``ENV <key> <value>``
+
+The `ENV` instruction set as environment variable `<key>` with the value `<value>`. This value will be passed to all future ``RUN`` instructions.
+
+.. note::
+    The environment variables are local to the Dockerfile, they will not be set as autorun.
+
+2.7 INSERT
 ----------
 
     ``INSERT <file url> <path>``
