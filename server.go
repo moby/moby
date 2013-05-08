@@ -497,66 +497,66 @@ func (srv *Server) ContainerWait(name string) (int, error) {
 }
 
 func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
-	if container := srv.runtime.Get(name); container != nil {
-		//logs
-		if logs {
-			if stdout {
-				cLog, err := container.ReadLog("stdout")
-				if err != nil {
-					Debugf(err.Error())
-				} else if _, err := io.Copy(out, cLog); err != nil {
-					Debugf(err.Error())
-				}
-			}
-			if stderr {
-				cLog, err := container.ReadLog("stderr")
-				if err != nil {
-					Debugf(err.Error())
-				} else if _, err := io.Copy(out, cLog); err != nil {
-					Debugf(err.Error())
-				}
-			}
-		}
-
-		//stream
-		if stream {
-			if container.State.Ghost {
-				return fmt.Errorf("Impossible to attach to a ghost container")
-			}
-
-			var (
-				cStdin           io.ReadCloser
-				cStdout, cStderr io.Writer
-				cStdinCloser     io.Closer
-			)
-
-			if stdin {
-				r, w := io.Pipe()
-				go func() {
-					defer w.Close()
-					defer Debugf("Closing buffered stdin pipe")
-					io.Copy(w, in)
-				}()
-				cStdin = r
-				cStdinCloser = in
-			}
-			if stdout {
-				cStdout = out
-			}
-			if stderr {
-				cStderr = out
-			}
-
-			<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
-
-			// If we are in stdinonce mode, wait for the process to end
-			// otherwise, simply return
-			if container.Config.StdinOnce && !container.Config.Tty {
-				container.Wait()
-			}
-		}
-	} else {
+	container := srv.runtime.Get(name)
+	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
+	}
+	//logs
+	if logs {
+		if stdout {
+			cLog, err := container.ReadLog("stdout")
+			if err != nil {
+				Debugf(err.Error())
+			} else if _, err := io.Copy(out, cLog); err != nil {
+				Debugf(err.Error())
+			}
+		}
+		if stderr {
+			cLog, err := container.ReadLog("stderr")
+			if err != nil {
+				Debugf(err.Error())
+			} else if _, err := io.Copy(out, cLog); err != nil {
+				Debugf(err.Error())
+			}
+		}
+	}
+
+	//stream
+	if stream {
+		if container.State.Ghost {
+			return fmt.Errorf("Impossible to attach to a ghost container")
+		}
+
+		var (
+			cStdin           io.ReadCloser
+			cStdout, cStderr io.Writer
+			cStdinCloser     io.Closer
+		)
+
+		if stdin {
+			r, w := io.Pipe()
+			go func() {
+				defer w.Close()
+				defer Debugf("Closing buffered stdin pipe")
+				io.Copy(w, in)
+			}()
+			cStdin = r
+			cStdinCloser = in
+		}
+		if stdout {
+			cStdout = out
+		}
+		if stderr {
+			cStderr = out
+		}
+
+		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
+
+		// If we are in stdinonce mode, wait for the process to end
+		// otherwise, simply return
+		if container.Config.StdinOnce && !container.Config.Tty {
+			container.Wait()
+		}
 	}
 	return nil
 }

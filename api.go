@@ -97,9 +97,9 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ContainerExport(name, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
@@ -117,9 +117,9 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 	if viz {
 		in, out, err := hijackServer(w)
 		if err != nil {
-			defer in.Close()
 			return nil, err
 		}
+		defer in.Close()
 		fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 		if err := srv.ImagesViz(out); err != nil {
 			fmt.Fprintf(out, "Error: %s\n", err)
@@ -269,9 +269,9 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
@@ -317,9 +317,9 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
@@ -340,9 +340,9 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImagePush(name, registry, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
@@ -354,9 +354,9 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageCreateFromFile(in, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
@@ -487,9 +487,9 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) (
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		defer in.Close()
 		return nil, err
 	}
+	defer in.Close()
 
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {

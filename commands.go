@@ -1140,7 +1140,6 @@ func CmdRun(args ...string) error {
 			return err
 		}
 	}
-
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.Id)
 	}
