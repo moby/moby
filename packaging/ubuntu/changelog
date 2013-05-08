@@ -1,3 +1,30 @@
+lxc-docker (0.3.1-1) precise; urgency=low
+ - Builder: Implement the autorun capability within docker builder
+ - Builder: Add caching to docker builder
+ - Builder: Add support for docker builder with native API as top level command
+ - Runtime: Add go version to debug infos
+ - Builder: Implement ENV within docker builder
+ - Registry: Add docker search top level command in order to search a repository
+ - Images: output graph of images to dot (graphviz)
+ - Documentation: new introduction and high-level overview
+ - Documentation: Add the documentation for docker builder
+ - Website: new high-level overview
+ - Makefile: Swap "go get" for "go get -d", especially to compile on go1.1rc
+ - Images: fix ByParent function
+ - Builder: Check the command existance prior create and add Unit tests for the case
+ - Registry: Fix pull for official images with specific tag
+ - Registry: Fix issue when login in with a different user and trying to push
+ - Documentation: CSS fix for docker documentation to make REST API docs look better.
+ - Documentation: Fixed CouchDB example page header mistake
+ - Documentation: fixed README formatting
+ - Registry: Improve checksum - async calculation
+ - Runtime: kernel version - don't show the dash if flavor is empty
+ - Documentation: updated www.docker.io website.
+ - Builder: use any whitespaces instead of tabs
+ - Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 8 May 2013 00:00:00 -0700
+
 lxc-docker (0.3.0-1) precise; urgency=low
   - Registry: Implement the new registry
   - Documentation: new example: sharing data between 2 couchdb databases
