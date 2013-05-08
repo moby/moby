@@ -330,3 +330,7 @@ section.header {
 @media (max-width: 480px) {
   
 }
+/* Misc fixes */
+table th {
+  text-align: left;
+}
