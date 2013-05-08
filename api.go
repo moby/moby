@@ -67,9 +67,8 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, erro
 			return nil, err
 			return b, nil
 		}
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -87,9 +86,8 @@ func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	name := vars["name"]
 	if err := srv.ContainerKill(name); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -403,9 +401,8 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 	name := vars["name"]
 	if err := srv.ContainerRestart(name, t); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -419,9 +416,8 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 
 	if err := srv.ContainerDestroy(name, v); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -430,9 +426,8 @@ func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, 
 	name := vars["name"]
 	if err := srv.ImageDelete(name); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -441,9 +436,8 @@ func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	name := vars["name"]
 	if err := srv.ContainerStart(name); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -460,9 +454,8 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 
 	if err := srv.ContainerStop(name, t); err != nil {
 		return nil, err
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	w.WriteHeader(http.StatusOK)
 	return nil, nil
 }
 
@@ -534,12 +527,6 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byt
 		return nil, err
 	}
 	return b, nil
-}
-
-func wrap(fct func(*Server, http.ResponseWriter, *http.Request) error, w http.ResponseWriter, r *http.Request, srv *Server, method, route string) {
-	if err := fct(srv, w, r); err != nil {
-		Debugf("Error: %s %s: %s", method, route, err)
-	}
 }
 
 func ListenAndServe(addr string, srv *Server) error {
