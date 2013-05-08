@@ -31,7 +31,7 @@ func NewGraph(root string) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	graph := &Graph{

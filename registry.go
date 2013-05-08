@@ -194,18 +194,16 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 			return nil, fmt.Errorf("Repository not found")
 		}
 
-		result := new(map[string]string)
+		result := make(map[string]string)
 
 		rawJson, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}
-		if err = json.Unmarshal(rawJson, result); err != nil {
+		if err = json.Unmarshal(rawJson, &result); err != nil {
 			return nil, err
 		}
-
-		return *result, nil
-
+		return result, nil
 	}
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
@@ -306,6 +304,50 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		endpoints = res.Header["X-Docker-Endpoints"]
 	} else {
 		return fmt.Errorf("Index response didn't contain any endpoints")
+	}
+
+	checksumsJson, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	// Reload the json file to make sure not to overwrite faster sums
+	err = func() error {
+		localChecksums := make(map[string]string)
+		remoteChecksums := []struct {
+			Id       string `json: "id"`
+			Checksum string `json: "checksum"`
+		}{}
+		checksumDictPth := path.Join(graph.Root, "..", "checksums")
+
+		if err := json.Unmarshal(checksumsJson, &remoteChecksums); err != nil {
+			return err
+		}
+
+		graph.lockSumFile.Lock()
+		defer graph.lockSumFile.Unlock()
+
+		if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
+			if err := json.Unmarshal(checksumDict, &localChecksums); err != nil {
+				return err
+			}
+		}
+
+		for _, elem := range remoteChecksums {
+			localChecksums[elem.Id] = elem.Checksum
+		}
+
+		checksumsJson, err = json.Marshal(localChecksums)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(checksumDictPth, checksumsJson, 0600); err != nil {
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	var tagsList map[string]string

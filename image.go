@@ -303,16 +303,12 @@ func (img *Image) Checksum() (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("precopy %s: %s\n", img.ShortId(), time.Now().String())
-
 	if _, err := io.Copy(h, layerData); err != nil {
 		return "", err
 	}
-	fmt.Printf("postcopy presum %s: %s\n", img.ShortId(), time.Now().String())
 
 	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
 	checksums[img.Id] = hash
-	fmt.Printf("postsum %s: %s\n", img.ShortId(), time.Now().String())
 
 	// Reload the json file to make sure not to overwrite faster sums
 	img.graph.lockSumFile.Lock()
