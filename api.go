@@ -111,7 +111,6 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerExport(name, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
-		return nil, err
 	}
 	return nil, nil
 }
@@ -270,12 +269,10 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 		registry := r.Form.Get("registry")
 		if err := srv.ImagePull(image, tag, registry, out); err != nil {
 			fmt.Fprintf(out, "Error: %s\n", err)
-			return nil, err
 		}
 	} else { //import
 		if err := srv.ImageImport(src, repo, tag, in, out); err != nil {
 			fmt.Fprintf(out, "Error: %s\n", err)
-			return nil, err
 		}
 	}
 	return nil, nil
@@ -316,7 +313,6 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
-		return nil, err
 	}
 	return nil, nil
 }
@@ -339,7 +335,6 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImagePush(name, registry, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
-		return nil, err
 	}
 	return nil, nil
 }
@@ -353,7 +348,6 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageCreateFromFile(in, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
-		return nil, err
 	}
 	return nil, nil
 }
@@ -487,7 +481,6 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) (
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
-		return nil, err
 	}
 	return nil, nil
 }
