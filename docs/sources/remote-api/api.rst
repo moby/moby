@@ -28,7 +28,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers?notrunc=1&all=1&quiet=0 HTTP/1.1
+	   GET /containers?trunc_cmd=0&all=1&only_ids=0 HTTP/1.1
 	   
 	**Example response**:
 
@@ -47,30 +47,30 @@ List containers
 		{
 			"Id": "9cd87474be90",
 			"Image": "base:latest",
-			"Command": "echo 2",
+			"Command": "echo 222222",
 			"Created": 1367854155,
 			"Status": "Exit 0"
 		},
 		{
 			"Id": "3176a2479c92",
 			"Image": "base:latest",
-			"Command": "echo 3",
+			"Command": "echo 3333333333333333",
 			"Created": 1367854154,
 			"Status": "Exit 0"
 		},
 		{
 			"Id": "4cb07b47f9fb",
 			"Image": "base:latest",
-			"Command": "echo 4",
+			"Command": "echo 444444444444444444444444444444444",
 			"Created": 1367854152,
 			"Status": "Exit 0"
 		}
 	   ]
  
-	:query quiet: 1 or 0, Only display numeric IDs. Not quiet by default
+	:query only_ids: 1 or 0, Only display numeric IDs. Default 0
 	:query all: 1 or 0, Show all containers. Only running containers are shown by default
-	:query notrunc: 1 or 0, Don't truncate output. Output is truncated by default  
-	:query n: limit number, Show n last created containers, include non-running ones.
+	:query trunc_cmd: 1 or 0, Truncate output. Output is truncated by default  
+	:query limit: Show ``limit`` last created containers, include non-running ones.
 	:statuscode 200: no error
 	:statuscode 500: server error
 
@@ -123,14 +123,14 @@ Create a container
 	
 	:jsonparam config: the container's configuration
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
 Inspect a container
 *******************
 
-.. http:get:: /containers/(id)
+.. http:get:: /containers/(id)/json
 
 	Return low-level information on the container ``id``
 
@@ -138,7 +138,7 @@ Inspect a container
 
 	.. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678 HTTP/1.1
+	   GET /containers/4fa6e0f0c678/json HTTP/1.1
 	   
 	**Example response**:
 
@@ -193,7 +193,7 @@ Inspect a container
 	   }
 
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -218,12 +218,22 @@ Inspect changes on a container's filesystem
 	   HTTP/1.1 200 OK
 	   
 	   [
-			"C /dev",
-			"A /dev/kmsg"
+		{
+			"Path":"/dev",
+			"Kind":0
+		},
+		{
+			"Path":"/dev/kmsg",
+			"Kind":1
+		},
+		{
+			"Path":"/test",
+			"Kind":1
+		}
 	   ]
 
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -251,7 +261,7 @@ Export a container
 	   {{ STREAM }}
 
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -279,7 +289,7 @@ Map container's private ports
 	
 	:query port: the container private port you want to get
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -303,7 +313,7 @@ Start a container
 	   HTTP/1.1 200 OK
 	   	
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -328,7 +338,7 @@ Stop a contaier
 	   	
 	:query t: number of seconds to wait before killing the container
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -353,7 +363,7 @@ Restart a container
 	   	
 	:query t: number of seconds to wait before killing the container
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -377,7 +387,7 @@ Kill a container
 	   HTTP/1.1 200 OK
 	   	
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -409,7 +419,7 @@ Attach to a container
 	:query stdout: 1 or 0, if logs=1, return stdout log, if stream=1, attach to stdout. Default 0
 	:query stderr: 1 or 0, if logs=1, return stderr log, if stream=1, attach to stderr. Default 0
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -435,7 +445,7 @@ Wait a container
 	   {"StatusCode":0}
 	   	
 	:statuscode 200: no error
-	:statuscode 400: no such container
+	:statuscode 404: no such container
 	:statuscode 500: server error
 
 
@@ -460,7 +470,7 @@ Remove a container
 
 	:query v: 1 or 0, Remove the volumes associated to the container. Default 0
         :statuscode 200: no error
-        :statuscode 400: no such container
+        :statuscode 404: no such container
         :statuscode 500: server error
 
 
@@ -478,7 +488,7 @@ List Images
 
 	.. sourcecode:: http
 
-	   GET /images?all=0&quiet=0 HTTP/1.1
+	   GET /images?all=0&only_ids=0 HTTP/1.1
 	   
 	**Example response**:
 
@@ -501,7 +511,7 @@ List Images
 		}
 	   ]
  
-	:query quiet: 1 or 0, Only display numeric IDs. Not quiet by default
+	:query only_ids: 1 or 0, Only display numeric IDs. Default 0
 	:query all: 1 or 0, Show all containers. Only running containers are shown by default
 	:statuscode 200: no error
 	:statuscode 500: server error
@@ -537,10 +547,36 @@ Create an image
         :statuscode 200: no error
         :statuscode 500: server error
 
+
+Insert a file in a image
+************************
+
+.. http:post:: /images/(name)/insert
+
+	Insert a file from ``url`` in the image ``name`` at ``path``
+
+	**Example request**:
+
+        .. sourcecode:: http
+
+           POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
+
+	**Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+
+	   {{ STREAM }}
+
+	:statuscode 200: no error
+        :statuscode 500: server error
+
+
 Inspect an image
 ****************
 
-.. http:get:: /images/(name)
+.. http:get:: /images/(name)/json
 
 	Return low-level information on the image ``name``
 
@@ -548,7 +584,7 @@ Inspect an image
 
 	.. sourcecode:: http
 
-	   GET /images/base HTTP/1.1
+	   GET /images/base/json HTTP/1.1
 
 	**Example response**:
 
@@ -703,8 +739,72 @@ Remove an image
         :statuscode 500: server error
 
 
+Search images
+*************
+
+.. http:get:: /images/search
+
+	Search for an image in the docker index
+	
+	**Example request**:
+
+        .. sourcecode:: http
+
+           GET /images/search?term=sshd HTTP/1.1
+
+	**Example response**:
+
+	.. sourcecode:: http
+	   
+	   [
+		{
+			"Name":"cespare/sshd",
+			"Description":""
+		},
+		{
+			"Name":"johnfuller/sshd",
+			"Description":""
+		},
+		{
+			"Name":"dhrp/mongodb-sshd",
+			"Description":""
+		}
+	   ]
+
+	   :query term: term to search
+	   :statuscode 200: no error
+	   :statuscode 500: server error
+
+
 2.3 Misc
 --------
+
+Build an image from Dockerfile via stdin
+****************************************
+
+.. http:post:: /build
+
+	Build an image from Dockerfile via stdin
+
+	**Example request**:
+
+        .. sourcecode:: http
+
+           POST /build HTTP/1.1
+	   
+	   {{ STREAM }}
+
+	**Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   
+	   {{ STREAM }}
+
+	:statuscode 200: no error
+        :statuscode 500: server error
+
 
 Get default username and email
 ******************************
@@ -792,6 +892,7 @@ Display system-wide information
         :statuscode 200: no error
         :statuscode 500: server error
 
+
 Show the docker version information
 ***********************************
 
@@ -870,7 +971,8 @@ Here are the steps of 'docker run' :
 * Start the container
 * If you are not in detached mode:
         * Attach to the container, using logs=1 (to have stdout and stderr from the container's start) and stream=1
-        * Call /wait to get the exit code and exit with it
+* If in detached mode or only stdin is attached:
+	* Display the container's id
 
 
 3.2 Hijacking

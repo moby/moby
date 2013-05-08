@@ -129,9 +129,9 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 
 	all := r.Form.Get("all") == "1"
 	filter := r.Form.Get("filter")
-	quiet := r.Form.Get("quiet") == "1"
+	only_ids := r.Form.Get("only_ids") == "1"
 
-	outs, err := srv.Images(all, quiet, filter)
+	outs, err := srv.Images(all, only_ids, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -201,14 +201,14 @@ func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte,
 		return nil, err
 	}
 	all := r.Form.Get("all") == "1"
-	notrunc := r.Form.Get("notrunc") == "1"
-	quiet := r.Form.Get("quiet") == "1"
-	n, err := strconv.Atoi(r.Form.Get("n"))
+	trunc_cmd := r.Form.Get("trunc_cmd") != "0"
+	only_ids := r.Form.Get("only_ids") == "1"
+	n, err := strconv.Atoi(r.Form.Get("limit"))
 	if err != nil {
 		n = -1
 	}
 
-	outs := srv.Containers(all, notrunc, quiet, n)
+	outs := srv.Containers(all, trunc_cmd, only_ids, n)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return nil, err
@@ -540,13 +540,13 @@ func ListenAndServe(addr string, srv *Server) error {
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/images":                       getImages,
 			"/info":                         getInfo,
+			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/port":    getContainersPort,
 			"/containers":                   getContainers,
-			"/images/search":                getImagesSearch,
-			"/containers/{name:.*}":         getContainersByName,
-			"/images/{name:.*}":             getImagesByName,
+			"/images/{name:.*}/json":        getImagesByName,
+			"/containers/{name:.*}/json":    getContainersByName,
 		},
 		"POST": {
 			"/auth": postAuth,

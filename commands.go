@@ -449,9 +449,9 @@ func CmdInspect(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	obj, _, err := call("GET", "/containers/"+cmd.Arg(0), nil)
+	obj, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
-		obj, _, err = call("GET", "/images/"+cmd.Arg(0), nil)
+		obj, _, err = call("GET", "/images/"+cmd.Arg(0)+"/json", nil)
 		if err != nil {
 			return err
 		}
@@ -720,7 +720,7 @@ func CmdImages(args ...string) error {
 			v.Set("filter", cmd.Arg(0))
 		}
 		if *quiet {
-			v.Set("quiet", "1")
+			v.Set("only_ids", "1")
 		}
 		if *all {
 			v.Set("all", "1")
@@ -773,16 +773,16 @@ func CmdPs(args ...string) error {
 		*last = 1
 	}
 	if *quiet {
-		v.Set("quiet", "1")
+		v.Set("only_ids", "1")
 	}
 	if *all {
 		v.Set("all", "1")
 	}
 	if *noTrunc {
-		v.Set("notrunc", "1")
+		v.Set("trunc_cmd", "0")
 	}
 	if *last != -1 {
-		v.Set("n", strconv.Itoa(*last))
+		v.Set("limit", strconv.Itoa(*last))
 	}
 
 	body, _, err := call("GET", "/containers?"+v.Encode(), nil)
@@ -888,13 +888,13 @@ func CmdDiff(args ...string) error {
 		return err
 	}
 
-	var changes []string
+	var changes []Change
 	err = json.Unmarshal(body, &changes)
 	if err != nil {
 		return err
 	}
 	for _, change := range changes {
-		fmt.Println(change)
+		fmt.Println(change.String())
 	}
 	return nil
 }

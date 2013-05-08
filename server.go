@@ -136,7 +136,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) Images(all, quiet bool, filter string) ([]ApiImages, error) {
+func (srv *Server) Images(all, only_ids bool, filter string) ([]ApiImages, error) {
 	var allImages map[string]*Image
 	var err error
 	if all {
@@ -160,7 +160,7 @@ func (srv *Server) Images(all, quiet bool, filter string) ([]ApiImages, error) {
 				continue
 			}
 			delete(allImages, id)
-			if !quiet {
+			if !only_ids {
 				out.Repository = name
 				out.Tag = tag
 				out.Id = TruncateId(id)
@@ -175,7 +175,7 @@ func (srv *Server) Images(all, quiet bool, filter string) ([]ApiImages, error) {
 	if filter == "" {
 		for id, image := range allImages {
 			var out ApiImages
-			if !quiet {
+			if !only_ids {
 				out.Repository = "<none>"
 				out.Tag = "<none>"
 				out.Id = TruncateId(id)
@@ -228,17 +228,9 @@ func (srv *Server) ImageHistory(name string) ([]ApiHistory, error) {
 
 }
 
-func (srv *Server) ContainerChanges(name string) ([]string, error) {
+func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		changes, err := container.Changes()
-		if err != nil {
-			return nil, err
-		}
-		var changesStr []string
-		for _, name := range changes {
-			changesStr = append(changesStr, name.String())
-		}
-		return changesStr, nil
+		return container.Changes()
 	}
 	return nil, fmt.Errorf("No such container: %s", name)
 }
@@ -253,7 +245,7 @@ func (srv *Server) ContainerPort(name, privatePort string) (string, error) {
 	return "", fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all, notrunc, quiet bool, n int) []ApiContainers {
+func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int) []ApiContainers {
 	var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
 	for i, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 {
@@ -264,9 +256,9 @@ func (srv *Server) Containers(all, notrunc, quiet bool, n int) []ApiContainers {
 		}
 		var out ApiContainers
 		out.Id = container.ShortId()
-		if !quiet {
+		if !only_ids {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-			if !notrunc {
+			if trunc_cmd {
 				command = Trunc(command, 20)
 			}
 			out.Image = srv.runtime.repositories.ImageName(container.Image)
@@ -461,7 +453,7 @@ func (srv *Server) ImageDelete(name string) error {
 		return fmt.Errorf("No such image: %s", name)
 	} else {
 		if err := srv.runtime.graph.Delete(img.Id); err != nil {
-			return fmt.Errorf("Error deleteing image %s: %s", name, err.Error())
+			return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
 		}
 	}
 	return nil
