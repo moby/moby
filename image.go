@@ -267,13 +267,13 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	checksumDictPth := path.Join(root, "..", "..", "checksums")
-	checksums := new(map[string]string)
+	checksums := make(map[string]string)
 
 	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
 		if err := json.Unmarshal(checksumDict, checksums); err != nil {
 			return "", err
 		}
-		if checksum, ok := (*checksums)[img.Id]; ok {
+		if checksum, ok := checksums[img.Id]; ok {
 			return checksum, nil
 		}
 	}
@@ -304,10 +304,8 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
-	if *checksums == nil {
-		*checksums = map[string]string{}
-	}
-	(*checksums)[img.Id] = hash
+	checksums[img.Id] = hash
+
 	checksumJson, err := json.Marshal(checksums)
 	if err != nil {
 		return hash, err
