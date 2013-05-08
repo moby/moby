@@ -1086,7 +1086,6 @@ func CmdRun(args ...string) error {
 
 	//create the container
 	body, statusCode, err := call("POST", "/containers", *config)
-
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
