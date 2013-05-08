@@ -40,28 +40,22 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func getAuth(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	var out auth.AuthConfig
 	out.Username = srv.runtime.authConfig.Username
 	out.Email = srv.runtime.authConfig.Email
 	b, err := json.Marshal(out)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	var config auth.AuthConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	if config.Username == srv.runtime.authConfig.Username {
@@ -71,8 +65,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	} else {
 		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
 		srv.runtime.authConfig = newAuthConfig
@@ -80,47 +73,36 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	if status != "" {
 		b, err := json.Marshal(ApiAuth{status})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return err
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(b)
+			return nil, err
+			return b, nil
 		}
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func getVersion(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getVersion(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	m := srv.DockerVersion()
 	b, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if err := srv.ContainerKill(name); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
@@ -132,22 +114,19 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) er
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ContainerExport(name, file); err != nil {
 		fmt.Fprintf(file, "Error: %s\n", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func getImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	viz := r.Form.Get("viz") == "1"
@@ -160,14 +139,13 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
 			defer rwc.Close()
 		}
 		if err != nil {
-			httpError(w, err)
-			return err
+			return nil, err
 		}
 		fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 		if err := srv.ImagesViz(file); err != nil {
 			fmt.Fprintf(file, "Error: %s\n", err)
 		}
-		return nil
+		return nil, nil
 	}
 
 	all := r.Form.Get("all") == "1"
@@ -176,103 +154,72 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
 
 	outs, err := srv.Images(all, quiet, filter)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	out := srv.DockerInfo()
 	b, err := json.Marshal(out)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	outs, err := srv.ImageHistory(name)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	changesStr, err := srv.ContainerChanges(name)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(changesStr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getContainersPort(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getContainersPort(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 	out, err := srv.ContainerPort(name, r.Form.Get("port"))
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(ApiPort{out})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	all := r.Form.Get("all") == "1"
 	notrunc := r.Form.Get("notrunc") == "1"
@@ -285,20 +232,14 @@ func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	outs := srv.Containers(all, notrunc, quiet, n)
 	b, err := json.Marshal(outs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -307,23 +248,19 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	force := r.Form.Get("force") == "1"
 
 	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	w.WriteHeader(http.StatusCreated)
-	return nil
+	return nil, nil
 }
 
-func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -332,25 +269,18 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	comment := r.Form.Get("comment")
 	id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(ApiId{id})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	src := r.Form.Get("fromSrc")
@@ -366,54 +296,44 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
 		if err := srv.ImagePull(image, tag, registry, file); err != nil {
 			fmt.Fprintf(file, "Error: %s\n", err)
-			return err
+			return nil, err
 		}
 	} else { //import
 		if err := srv.ImageImport(src, repo, tag, file); err != nil {
 			fmt.Fprintf(file, "Error: %s\n", err)
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	term := r.Form.Get("term")
 	outs, err := srv.ImagesSearch(term)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	url := r.Form.Get("url")
@@ -429,22 +349,19 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) error
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, file); err != nil {
 		fmt.Fprintf(file, "Error: %s\n", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 
 	registry := r.Form.Get("registry")
@@ -460,19 +377,17 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImagePush(name, registry, file); err != nil {
 		fmt.Fprintln(file, "Error: $s\n", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 
 	file, rwc, err := hijackServer(w)
 	if file != nil {
@@ -482,28 +397,24 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) error {
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ImageCreateFormFile(file); err != nil {
 		fmt.Fprintln(file, "Error: %s\n", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	id, memoryW, swapW, err := srv.ContainerCreate(config)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	var out ApiRun
 	out.Id = id
@@ -515,20 +426,14 @@ func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
 	}
 	b, err := json.Marshal(out)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
 	if err != nil || t < 0 {
@@ -537,64 +442,54 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if err := srv.ContainerRestart(name, t); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.Form.Get("v") == "1"
 
 	if err := srv.ContainerDestroy(name, v); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if err := srv.ImageDelete(name); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if err := srv.ContainerStart(name); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
 	if err != nil || t < 0 {
@@ -604,39 +499,30 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) err
 	name := vars["name"]
 
 	if err := srv.ContainerStop(name, t); err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	return nil
+	return nil, nil
 }
 
-func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	status, err := srv.ContainerWait(name)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(ApiWait{status})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
+		return nil, err
 	}
 	logs := r.Form.Get("logs") == "1"
 	stream := r.Form.Get("stream") == "1"
@@ -654,58 +540,45 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) e
 		defer rwc.Close()
 	}
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 
 	fmt.Fprintf(file, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, file); err != nil {
 		fmt.Fprintf(file, "Error: %s\n", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	container, err := srv.ContainerInspect(name)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(container)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
-func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request) error {
-	log.Println(r.Method, r.RequestURI)
+func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
 	image, err := srv.ImageInspect(name)
 	if err != nil {
-		httpError(w, err)
-		return err
+		return nil, err
 	}
 	b, err := json.Marshal(image)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		return nil, err
 	}
-	return nil
+	return b, nil
 }
 
 func wrap(fct func(*Server, http.ResponseWriter, *http.Request) error, w http.ResponseWriter, r *http.Request, srv *Server, method, route string) {
@@ -718,7 +591,7 @@ func ListenAndServe(addr string, srv *Server) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
-	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request) error{
+	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request) ([]byte, error){
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
@@ -764,7 +637,15 @@ func ListenAndServe(addr string, srv *Server) error {
 			localFct := fct
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				Debugf("Calling %s %s", localMethod, localRoute)
-				localFct(srv, w, r)
+				log.Println(r.Method, r.RequestURI)
+				json, err := localFct(srv, w, r)
+				if err != nil {
+					httpError(w, err)
+				}
+				if json != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.Write(json)
+				}
 			})
 		}
 	}
