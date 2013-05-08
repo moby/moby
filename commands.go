@@ -270,11 +270,12 @@ func CmdLogin(args ...string) error {
 	}
 
 	var out2 ApiAuth
-	err = json.Unmarshal(body, &out)
+	err = json.Unmarshal(body, &out2)
 	if err != nil {
 		return err
 	}
 	if out2.Status != "" {
+		RestoreTerminal(oldState)
 		fmt.Print(out2.Status)
 	}
 	return nil

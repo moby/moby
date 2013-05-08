@@ -53,7 +53,6 @@ func getAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error
 func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	var config auth.AuthConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return nil, err
 	}
 
@@ -73,8 +72,8 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, erro
 		b, err := json.Marshal(ApiAuth{status})
 		if err != nil {
 			return nil, err
-			return b, nil
 		}
+		return b, nil
 	}
 	w.WriteHeader(http.StatusOK)
 	return nil, nil
