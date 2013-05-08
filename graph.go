@@ -9,14 +9,18 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root       string
-	idIndex    *TruncIndex
-	httpClient *http.Client
+	Root         string
+	idIndex      *TruncIndex
+	httpClient   *http.Client
+	checksumLock map[string]*sync.Mutex
+	lockSumFile  *sync.Mutex
+	lockSumMap   *sync.Mutex
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -27,12 +31,15 @@ func NewGraph(root string) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	graph := &Graph{
-		Root:    abspath,
-		idIndex: NewTruncIndex(),
+		Root:         abspath,
+		idIndex:      NewTruncIndex(),
+		checksumLock: make(map[string]*sync.Mutex),
+		lockSumFile:  &sync.Mutex{},
+		lockSumMap:   &sync.Mutex{},
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -82,6 +89,11 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
 	}
 	img.graph = graph
+	graph.lockSumMap.Lock()
+	defer graph.lockSumMap.Unlock()
+	if _, exists := graph.checksumLock[img.Id]; !exists {
+		graph.checksumLock[img.Id] = &sync.Mutex{}
+	}
 	return img, nil
 }
 
@@ -103,7 +115,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 	if err := graph.Register(layerData, img); err != nil {
 		return nil, err
 	}
-	img.Checksum()
+	go img.Checksum()
 	return img, nil
 }
 
@@ -131,6 +143,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	}
 	img.graph = graph
 	graph.idIndex.Add(img.Id)
+	graph.checksumLock[img.Id] = &sync.Mutex{}
 	return nil
 }
 
