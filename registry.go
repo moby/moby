@@ -427,9 +427,15 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
 	}
-	res3.Body.Close()
+	defer res3.Body.Close()
+
 	if res3.StatusCode != 200 {
-		return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
+		errBody, err := ioutil.ReadAll(res3.Body)
+		if err != nil {
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when"+
+				" trying to parse response body: %v", res.StatusCode, err)
+		}
+		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
 	}
 	return nil
 }
@@ -612,8 +618,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 }
 
 func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]string, error) {
-	var result []map[string]string
-	checksums := map[string]string{}
+	checksums := make(map[string]string)
 	for _, id := range repo {
 		img, err := graph.Get(id)
 		if err != nil {
@@ -634,7 +639,7 @@ func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]s
 		}
 	}
 	i := 0
-	result = make([]map[string]string, len(checksums))
+	result := make([]map[string]string, len(checksums))
 	for id, sum := range checksums {
 		result[i] = map[string]string{
 			"id":       id,
