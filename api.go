@@ -232,7 +232,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 	}
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		return nil, err
+		Debugf("%s", err.Error())
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
