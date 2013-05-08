@@ -284,11 +284,12 @@ func (srv *Server) CmdInfo(stdin io.ReadCloser, stdout io.Writer, args ...string
 		len(srv.runtime.List()),
 		VERSION,
 		imgcount)
+	fmt.Fprintf(stdout, "Go version: %s\n", runtime.Version())
 
 	if os.Getenv("DEBUG") == "" {
 		return nil
 	}
-	fmt.Fprintf(stdout, "Go version: %s\n", runtime.Version())
+
 	fmt.Fprintln(stdout, "debug mode enabled")
 	fmt.Fprintf(stdout, "fds: %d\ngoroutines: %d\n", getTotalUsedFds(), runtime.NumGoroutine())
 	return nil
