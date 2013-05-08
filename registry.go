@@ -15,8 +15,7 @@ import (
 	"strings"
 )
 
-//FIXME: Set the endpoint in a conf file or via commandline
-const INDEX_ENDPOINT = auth.INDEX_SERVER + "/v1"
+var INDEX_ENDPOINT = auth.IndexServerAddress() + "/v1"
 
 // Build an Image object from raw json data
 func NewImgJson(src []byte) (*Image, error) {

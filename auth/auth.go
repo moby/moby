@@ -33,6 +33,13 @@ func NewAuthConfig(username, password, email, rootPath string) *AuthConfig {
 	}
 }
 
+func IndexServerAddress() string {
+	if os.Getenv("DOCKER_INDEX_URL") != "" {
+		return os.Getenv("DOCKER_INDEX_URL")
+	}
+	return INDEX_SERVER
+}
+
 // create a base64 encoded auth string to store in config
 func EncodeAuth(authConfig *AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
