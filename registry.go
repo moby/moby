@@ -194,18 +194,16 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 			return nil, fmt.Errorf("Repository not found")
 		}
 
-		result := new(map[string]string)
+		result := make(map[string]string)
 
 		rawJson, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}
-		if err = json.Unmarshal(rawJson, result); err != nil {
+		if err = json.Unmarshal(rawJson, &result); err != nil {
 			return nil, err
 		}
-
-		return *result, nil
-
+		return result, nil
 	}
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
@@ -306,6 +304,50 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 		endpoints = res.Header["X-Docker-Endpoints"]
 	} else {
 		return fmt.Errorf("Index response didn't contain any endpoints")
+	}
+
+	checksumsJson, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	// Reload the json file to make sure not to overwrite faster sums
+	err = func() error {
+		localChecksums := make(map[string]string)
+		remoteChecksums := []struct {
+			Id       string `json: "id"`
+			Checksum string `json: "checksum"`
+		}{}
+		checksumDictPth := path.Join(graph.Root, "..", "checksums")
+
+		if err := json.Unmarshal(checksumsJson, &remoteChecksums); err != nil {
+			return err
+		}
+
+		graph.lockSumFile.Lock()
+		defer graph.lockSumFile.Unlock()
+
+		if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
+			if err := json.Unmarshal(checksumDict, &localChecksums); err != nil {
+				return err
+			}
+		}
+
+		for _, elem := range remoteChecksums {
+			localChecksums[elem.Id] = elem.Checksum
+		}
+
+		checksumsJson, err = json.Marshal(localChecksums)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(checksumDictPth, checksumsJson, 0600); err != nil {
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	var tagsList map[string]string
@@ -427,9 +469,15 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
 	}
-	res3.Body.Close()
+	defer res3.Body.Close()
+
 	if res3.StatusCode != 200 {
-		return fmt.Errorf("Received HTTP code %d while uploading layer", res3.StatusCode)
+		errBody, err := ioutil.ReadAll(res3.Body)
+		if err != nil {
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when"+
+				" trying to parse response body: %v", res.StatusCode, err)
+		}
+		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
 	}
 	return nil
 }
@@ -612,8 +660,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 }
 
 func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]string, error) {
-	var result []map[string]string
-	checksums := map[string]string{}
+	checksums := make(map[string]string)
 	for _, id := range repo {
 		img, err := graph.Get(id)
 		if err != nil {
@@ -634,7 +681,7 @@ func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]s
 		}
 	}
 	i := 0
-	result = make([]map[string]string, len(checksums))
+	result := make([]map[string]string, len(checksums))
 	for id, sum := range checksums {
 		result[i] = map[string]string{
 			"id":       id,
