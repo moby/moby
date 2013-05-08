@@ -179,23 +179,6 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) (
 	return b, nil
 }
 
-func getContainersPort(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
-		return nil, err
-	}
-	vars := mux.Vars(r)
-	name := vars["name"]
-	out, err := srv.ContainerPort(name, r.Form.Get("port"))
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(ApiPort{out})
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
 func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, err
@@ -543,7 +526,6 @@ func ListenAndServe(addr string, srv *Server) error {
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
 			"/containers/{name:.*}/changes": getContainersChanges,
-			"/containers/{name:.*}/port":    getContainersPort,
 			"/containers":                   getContainers,
 			"/images/{name:.*}/json":        getImagesByName,
 			"/containers/{name:.*}/json":    getContainersByName,

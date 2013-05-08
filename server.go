@@ -235,16 +235,6 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerPort(name, privatePort string) (string, error) {
-	if container := srv.runtime.Get(name); container != nil {
-		if frontend, exists := container.NetworkSettings.PortMapping[privatePort]; exists {
-			return frontend, nil
-		}
-		return "", fmt.Errorf("No private port '%s' allocated on %s", privatePort, name)
-	}
-	return "", fmt.Errorf("No such container: %s", name)
-}
-
 func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int) []ApiContainers {
 	var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
 	for i, container := range srv.runtime.List() {

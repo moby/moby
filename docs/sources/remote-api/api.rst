@@ -265,34 +265,6 @@ Export a container
 	:statuscode 500: server error
 
 
-Map container's private ports
-*****************************
-
-.. http:get:: /containers/(id)/port
-
-	Map a private port of container ``id``
-
-	**Example request**:
-
-	.. sourcecode:: http
-
-	   GET /containers/4fa6e0f0c678/port?port=80 HTTP/1.1
-
-	   
-	**Example response**:
-
-	.. sourcecode:: http
-
-	   HTTP/1.1 200 OK
-	   
-	   {"Port":"80"}
-	
-	:query port: the container private port you want to get
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
-
-
 Start a container
 *****************
 

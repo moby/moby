@@ -469,19 +469,22 @@ func CmdPort(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	v := url.Values{}
-	v.Set("port", cmd.Arg(1))
-	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/port?"+v.Encode(), nil)
+
+	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
 		return err
 	}
-
-	var out ApiPort
+	var out Container
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return err
 	}
-	fmt.Println(out.Port)
+
+	if frontend, exists := out.NetworkSettings.PortMapping[cmd.Arg(1)]; exists {
+		fmt.Println(frontend)
+	} else {
+		return fmt.Errorf("error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
+	}
 	return nil
 }
 
