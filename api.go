@@ -100,7 +100,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 		return nil, err
 	}
 	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerExport(name, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
 		return nil, err
@@ -120,7 +120,7 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 			return nil, err
 		}
 		defer in.Close()
-		fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+		fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		if err := srv.ImagesViz(out); err != nil {
 			fmt.Fprintf(out, "Error: %s\n", err)
 		}
@@ -257,7 +257,7 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 		return nil, err
 	}
 	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
 		if err := srv.ImagePull(image, tag, registry, out); err != nil {
@@ -305,7 +305,7 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 		return nil, err
 	}
 	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
 		return nil, err
@@ -328,7 +328,7 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 		return nil, err
 	}
 	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImagePush(name, registry, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
 		return nil, err
@@ -342,7 +342,7 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 		return nil, err
 	}
 	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageCreateFromFile(in, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
 		return nil, err
@@ -476,7 +476,7 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) (
 	}
 	defer in.Close()
 
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: raw-stream-hijack\r\n\r\n")
+	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
 		return nil, err
