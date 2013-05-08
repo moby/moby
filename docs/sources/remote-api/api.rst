@@ -35,6 +35,7 @@ List containers
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
+	   Content-Type: application/json
 	   
 	   [
 		{
@@ -89,7 +90,8 @@ Create a container
 	.. sourcecode:: http
 
 	   POST /containers HTTP/1.1
-	   
+	   Content-Type: application/json
+
 	   {
 		"Hostname":"",
 		"User":"",
@@ -147,7 +149,8 @@ Inspect a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
-	   
+	   Content-Type: application/json
+
 	   {
 			"Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
 			"Created": "2013-05-07T14:51:42.041847+02:00",
@@ -218,6 +221,7 @@ Inspect changes on a container's filesystem
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
+	   Content-Type: application/json
 	   
 	   [
 		{
@@ -258,7 +262,7 @@ Export a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
-	   Content-Type: raw-stream-hijack
+	   Content-Type: application/vnd.docker.raw-stream
 	   
 	   {{ STREAM }}
 
@@ -383,7 +387,7 @@ Attach to a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
-	   Content-Type: raw-stream-hijack
+	   Content-Type: application/vnd.docker.raw-stream
 
 	   {{ STREAM }}
 	   	
@@ -415,6 +419,7 @@ Wait a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
+	   Content-Type: application/json
 
 	   {"StatusCode":0}
 	   	
@@ -469,6 +474,7 @@ List Images
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
+	   Content-Type: application/json
 	   
 	   [
 		{
@@ -509,7 +515,7 @@ Create an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: raw-stream-hijack
+	   Content-Type: application/vnd.docker.raw-stream
 
 	   {{ STREAM }}
 
@@ -565,6 +571,7 @@ Inspect an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 
 	   {
 		"id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
@@ -616,6 +623,7 @@ Get the history of an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 
 	   [
 		{
@@ -653,7 +661,7 @@ Push an image on the registry
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: raw-stream-hijack
+	   Content-Type: application/vnd.docker.raw-stream
 
 	   {{ STREAM }}
 
@@ -729,6 +737,9 @@ Search images
 	**Example response**:
 
 	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: application/json
 	   
 	   [
 		{
@@ -798,6 +809,7 @@ Get default username and email
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 
 	   {
 		"username":"hannibal",
@@ -820,6 +832,7 @@ Set auth configuration
         .. sourcecode:: http
 
            POST /auth HTTP/1.1
+	   Content-Type: application/json
 
 	   {
 		"username":"hannibal",
@@ -855,6 +868,7 @@ Display system-wide information
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 
 	   {
 		"Containers":11,
@@ -885,6 +899,7 @@ Show the docker version information
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 	   
 	   {
 		"Version":"0.2.2",
@@ -915,7 +930,7 @@ Create a new image from a container's changes
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: raw-stream-hijack
+	   Content-Type: application/vnd.docker.raw-stream
 
            {{ STREAM }}
 

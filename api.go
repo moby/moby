@@ -23,6 +23,14 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	return conn, conn, nil
 }
 
+//If we don't do this, POST method without Content-type (even with empty body) will fail
+func parseForm(r *http.Request) error {
+	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
+		return err
+	}
+	return nil
+}
+
 func httpError(w http.ResponseWriter, err error) {
 	if strings.HasPrefix(err.Error(), "No such") {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -109,7 +117,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 }
 
 func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +188,7 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) (
 }
 
 func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	all := r.Form.Get("all") == "1"
@@ -202,7 +210,7 @@ func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte,
 }
 
 func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	repo := r.Form.Get("repo")
@@ -219,7 +227,7 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte,
 }
 
 func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	var config Config
@@ -243,7 +251,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 }
 
 func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
@@ -274,7 +282,7 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 }
 
 func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
@@ -291,7 +299,7 @@ func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) ([]byt
 }
 
 func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
@@ -314,7 +322,7 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 }
 
 func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
@@ -375,7 +383,7 @@ func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 }
 
 func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
@@ -392,7 +400,7 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 }
 
 func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	vars := mux.Vars(r)
@@ -427,7 +435,7 @@ func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([
 }
 
 func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
@@ -459,7 +467,7 @@ func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 }
 
 func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	if err := r.ParseForm(); err != nil {
+	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	logs := r.Form.Get("logs") == "1"
