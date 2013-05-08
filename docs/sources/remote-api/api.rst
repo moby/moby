@@ -28,7 +28,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers?trunc_cmd=0&all=1&only_ids=0 HTTP/1.1
+	   GET /containers?trunc_cmd=0&all=1&only_ids=0&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
@@ -71,6 +71,8 @@ List containers
 	:query all: 1 or 0, Show all containers. Only running containers are shown by default
 	:query trunc_cmd: 1 or 0, Truncate output. Output is truncated by default  
 	:query limit: Show ``limit`` last created containers, include non-running ones.
+	:query since: Show only containers created since Id, include non-running ones.
+	:query before: Show only containers created before Id, include non-running ones.
 	:statuscode 200: no error
 	:statuscode 500: server error
 

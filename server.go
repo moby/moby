@@ -235,15 +235,30 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int) []ApiContainers {
+func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, before string) []ApiContainers {
 	var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
-	for i, container := range srv.runtime.List() {
-		if !container.State.Running && !all && n == -1 {
+	var foundBefore bool
+	var displayed int
+	for _, container := range srv.runtime.List() {
+		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
 			continue
 		}
-		if i == n {
+		if before != "" {
+			if container.ShortId() == before {
+				foundBefore = true
+				continue
+			}
+			if !foundBefore {
+				continue
+			}
+		}
+		if displayed == n {
 			break
 		}
+		if container.ShortId() == since {
+			break
+		}
+		displayed += 1
 		var out ApiContainers
 		out.Id = container.ShortId()
 		if !only_ids {

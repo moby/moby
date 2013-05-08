@@ -766,6 +766,8 @@ func CmdPs(args ...string) error {
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	nLatest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
+	since := cmd.String("sinceId", "", "Show only containers created since Id, include non-running ones.")
+	before := cmd.String("beforeId", "", "Show only container created before Id, include non-running ones.")
 	last := cmd.Int("n", -1, "Show n last created containers, include non-running ones.")
 
 	if err := cmd.Parse(args); err != nil {
@@ -786,6 +788,12 @@ func CmdPs(args ...string) error {
 	}
 	if *last != -1 {
 		v.Set("limit", strconv.Itoa(*last))
+	}
+	if *since != "" {
+		v.Set("since", *since)
+	}
+	if *before != "" {
+		v.Set("before", *before)
 	}
 
 	body, _, err := call("GET", "/containers?"+v.Encode(), nil)
