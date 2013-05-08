@@ -26,7 +26,7 @@ func (srv *Server) ContainerKill(name string) error {
 	return nil
 }
 
-func (srv *Server) ContainerExport(name string, file *os.File) error {
+func (srv *Server) ContainerExport(name string, out io.Writer) error {
 	if container := srv.runtime.Get(name); container != nil {
 
 		data, err := container.Export()
@@ -35,7 +35,7 @@ func (srv *Server) ContainerExport(name string, file *os.File) error {
 		}
 
 		// Stream the entire contents of the container (basically a volatile snapshot)
-		if _, err := io.Copy(file, data); err != nil {
+		if _, err := io.Copy(out, data); err != nil {
 			return err
 		}
 		return nil
@@ -62,13 +62,13 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 	return outs, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, stdout *os.File) error {
+func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return err
 	}
 
-	file, err := Download(url, stdout)
+	file, err := Download(url, out)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (srv *Server) ImageInsert(name, url, path string, stdout *os.File) error {
 		return err
 	}
 
-	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), stdout, "Downloading %v/%v (%v)"), path); err != nil {
+	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -93,29 +93,31 @@ func (srv *Server) ImageInsert(name, url, path string, stdout *os.File) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%s\n", img.Id)
+	fmt.Fprintf(out, "%s\n", img.Id)
 	return nil
 }
 
-func (srv *Server) ImagesViz(file *os.File) error {
+func (srv *Server) ImagesViz(out io.Writer) error {
 	images, _ := srv.runtime.graph.All()
 	if images == nil {
 		return nil
 	}
 
-	fmt.Fprintf(file, "digraph docker {\n")
+	fmt.Fprintf(out, "digraph docker {\n")
 
-	var parentImage *Image
-	var err error
+	var (
+		parentImage *Image
+		err         error
+	)
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
 			return fmt.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
-			fmt.Fprintf(file, "  \"%s\" -> \"%s\"\n", parentImage.ShortId(), image.ShortId())
+			fmt.Fprintf(out, "  \"%s\" -> \"%s\"\n", parentImage.ShortId(), image.ShortId())
 		} else {
-			fmt.Fprintf(file, "  base -> \"%s\" [style=invis]\n", image.ShortId())
+			fmt.Fprintf(out, "  base -> \"%s\" [style=invis]\n", image.ShortId())
 		}
 	}
 
@@ -128,11 +130,9 @@ func (srv *Server) ImagesViz(file *os.File) error {
 	}
 
 	for id, repos := range reporefs {
-		fmt.Fprintf(file, "  \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", id, id, strings.Join(repos, "\\n"))
+		fmt.Fprintf(out, "  \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", id, id, strings.Join(repos, "\\n"))
 	}
-
-	fmt.Fprintf(file, "  base [style=invisible]\n")
-	fmt.Fprintf(file, "}\n")
+	fmt.Fprintf(out, "  base [style=invisible]\n}\n")
 	return nil
 }
 
@@ -299,26 +299,26 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(name, tag, registry string, file *os.File) error {
+func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 	if registry != "" {
-		if err := srv.runtime.graph.PullImage(file, name, registry, nil); err != nil {
+		if err := srv.runtime.graph.PullImage(out, name, registry, nil); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := srv.runtime.graph.PullRepository(file, name, tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+	if err := srv.runtime.graph.PullRepository(out, name, tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (srv *Server) ImagePush(name, registry string, file *os.File) error {
+func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
 		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
-			if err := srv.runtime.graph.PushRepository(file, name, localRepo, srv.runtime.authConfig); err != nil {
+			if err := srv.runtime.graph.PushRepository(out, name, localRepo, srv.runtime.authConfig); err != nil {
 				return err
 			}
 			return nil
@@ -326,37 +326,37 @@ func (srv *Server) ImagePush(name, registry string, file *os.File) error {
 
 		return err
 	}
-	err = srv.runtime.graph.PushImage(file, img, registry, nil)
+	err = srv.runtime.graph.PushImage(out, img, registry, nil)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
+func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Writer) error {
 	var archive io.Reader
 	var resp *http.Response
 
 	if src == "-" {
-		archive = file
+		archive = in
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
-			fmt.Fprintf(file, "Error: %s\n", err)
+			fmt.Fprintf(out, "Error: %s\n", err)
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
 			u.Host = src
 			u.Path = ""
 		}
-		fmt.Fprintln(file, "Downloading from", u)
+		fmt.Fprintln(out, "Downloading from", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = Download(u.String(), file)
+		resp, err = Download(u.String(), out)
 		if err != nil {
 			return err
 		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), file, "Importing %v/%v (%v)")
+		archive = ProgressReader(resp.Body, int(resp.ContentLength), out, "Importing %v/%v (%v)")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -368,7 +368,7 @@ func (srv *Server) ImageImport(src, repo, tag string, file *os.File) error {
 			return err
 		}
 	}
-	fmt.Fprintln(file, img.ShortId())
+	fmt.Fprintln(out, img.ShortId())
 	return nil
 }
 
@@ -397,12 +397,12 @@ func (srv *Server) ContainerCreate(config Config) (string, bool, bool, error) {
 	return container.ShortId(), memoryW, swapW, nil
 }
 
-func (srv *Server) ImageCreateFormFile(file *os.File) error {
-	img, err := NewBuilder(srv.runtime).Build(file, file)
+func (srv *Server) ImageCreateFromFile(dockerfile io.Reader, out io.Writer) error {
+	img, err := NewBuilder(srv.runtime).Build(dockerfile, out)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(file, "%s\n", img.ShortId())
+	fmt.Fprintf(out, "%s\n", img.ShortId())
 	return nil
 }
 
@@ -496,7 +496,7 @@ func (srv *Server) ContainerWait(name string) (int, error) {
 	return 0, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, file *os.File) error {
+func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
 	if container := srv.runtime.Get(name); container != nil {
 		//logs
 		if logs {
@@ -504,7 +504,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
 					Debugf(err.Error())
-				} else if _, err := io.Copy(file, cLog); err != nil {
+				} else if _, err := io.Copy(out, cLog); err != nil {
 					Debugf(err.Error())
 				}
 			}
@@ -512,7 +512,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
 					Debugf(err.Error())
-				} else if _, err := io.Copy(file, cLog); err != nil {
+				} else if _, err := io.Copy(out, cLog); err != nil {
 					Debugf(err.Error())
 				}
 			}
@@ -535,16 +535,16 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				go func() {
 					defer w.Close()
 					defer Debugf("Closing buffered stdin pipe")
-					io.Copy(w, file)
+					io.Copy(w, in)
 				}()
 				cStdin = r
-				cStdinCloser = file
+				cStdinCloser = in
 			}
 			if stdout {
-				cStdout = file
+				cStdout = out
 			}
 			if stderr {
-				cStderr = file
+				cStderr = out
 			}
 
 			<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
