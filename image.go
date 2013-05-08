@@ -35,8 +35,9 @@ func LoadImage(root string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	var img Image
-	if err := json.Unmarshal(jsonData, &img); err != nil {
+	img := &Image{}
+
+	if err := json.Unmarshal(jsonData, img); err != nil {
 		return nil, err
 	}
 	if err := ValidateId(img.Id); err != nil {
@@ -52,8 +53,7 @@ func LoadImage(root string) (*Image, error) {
 	} else if !stat.IsDir() {
 		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.Id, layerPath(root))
 	}
-
-	return &img, nil
+	return img, nil
 }
 
 func StoreImage(img *Image, layerData Archive, root string) error {
@@ -261,6 +261,9 @@ func (img *Image) layer() (string, error) {
 }
 
 func (img *Image) Checksum() (string, error) {
+	img.graph.checksumLock[img.Id].Lock()
+	defer img.graph.checksumLock[img.Id].Unlock()
+
 	root, err := img.root()
 	if err != nil {
 		return "", err
@@ -270,7 +273,7 @@ func (img *Image) Checksum() (string, error) {
 	checksums := make(map[string]string)
 
 	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
-		if err := json.Unmarshal(checksumDict, checksums); err != nil {
+		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
 			return "", err
 		}
 		if checksum, ok := checksums[img.Id]; ok {
@@ -299,18 +302,30 @@ func (img *Image) Checksum() (string, error) {
 	if _, err := h.Write([]byte("\n")); err != nil {
 		return "", err
 	}
+
+	fmt.Printf("precopy %s: %s\n", img.ShortId(), time.Now().String())
+
 	if _, err := io.Copy(h, layerData); err != nil {
 		return "", err
 	}
+	fmt.Printf("postcopy presum %s: %s\n", img.ShortId(), time.Now().String())
 
 	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
 	checksums[img.Id] = hash
+	fmt.Printf("postsum %s: %s\n", img.ShortId(), time.Now().String())
 
+	// Reload the json file to make sure not to overwrite faster sums
+	img.graph.lockSumFile.Lock()
+	defer img.graph.lockSumFile.Unlock()
+	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
+		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
+			return "", err
+		}
+	}
 	checksumJson, err := json.Marshal(checksums)
 	if err != nil {
 		return hash, err
 	}
-
 	if err := ioutil.WriteFile(checksumDictPth, checksumJson, 0600); err != nil {
 		return hash, err
 	}
