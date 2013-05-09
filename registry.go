@@ -547,27 +547,6 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId, registry
 	return nil
 }
 
-// Push a repository to the registry.
-// Remote has the format '<user>/<repo>
-func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
-	client := graph.getHttpClient()
-
-	checksums, err := graph.Checksums(stdout, localRepo)
-	if err != nil {
-		return err
-	}
-
-	for tag, id := range originRepo {
-		if exists, err := graph.getRemoteImageJson(id); err != nil {
-			return nil, err
-		} else if !exists {
-			filteredRepo[tag] = id
-
-		}
-	}
-	return filteredRepo, nil
-}
-
 // Retrieve the checksum of an image
 // Priority:
 // - Check on the stored checksums
@@ -606,6 +585,7 @@ func (graph *Graph) getChecksum(imageId string) (string, error) {
 type ImgListJson struct {
 	Id       string `json:"id"`
 	Checksum string `json:"checksum,omitempty"`
+	tag      string
 }
 
 // Push a repository to the registry.
@@ -618,7 +598,8 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 
 	fmt.Fprintf(stdout, "Processing checksums\n")
 	imageSet := make(map[string]struct{})
-	for _, id := range localRepo {
+
+	for tag, id := range localRepo {
 		img, err := graph.Get(id)
 		if err != nil {
 			return err
@@ -632,10 +613,11 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 			if err != nil {
 				return err
 			}
-			imgList = append(imgList, &ImgListJson{
+			imgList = append([]*ImgListJson{{
 				Id:       img.Id,
 				Checksum: checksum,
-			})
+				tag:      tag,
+			}}, imgList...)
 			return nil
 		})
 	}
@@ -704,8 +686,8 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	for _, registry := range endpoints {
 		fmt.Fprintf(stdout, "Pushing repository %s to %s (%d tags)\r\n", remote, registry, len(localRepo))
 		// For each image within the repo, push them
-		for tag, imgId := range localRepo {
-			if err := graph.pushPrimitive(stdout, remote, tag, imgId, registry, token); err != nil {
+		for _, elem := range imgList {
+			if err := graph.pushPrimitive(stdout, remote, elem.tag, elem.Id, registry, token); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
