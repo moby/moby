@@ -28,30 +28,7 @@ var (
 	GIT_COMMIT string
 )
 
-func checkRemoteVersion() error {
-	body, _, err := call("GET", "/version", nil)
-	if err != nil {
-		return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
-	}
-
-	var out ApiVersion
-
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
-		return err
-	}
-	if out.Version != VERSION {
-		fmt.Fprintf(os.Stderr, "Warning: client and server don't have the same version (client: %s, server: %)", VERSION, out.Version)
-	}
-	return nil
-}
-
 func ParseCommands(args ...string) error {
-
-	if err := checkRemoteVersion(); err != nil {
-		return err
-	}
 
 	cmds := map[string]func(args ...string) error{
 		"attach":  CmdAttach,
@@ -1177,6 +1154,7 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 	if err != nil {
 		return nil, -1, err
 	}
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
@@ -1184,6 +1162,9 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return nil, -1, err
 	}
 	defer resp.Body.Close()

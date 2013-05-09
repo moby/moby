@@ -564,6 +564,13 @@ func ListenAndServe(addr string, srv *Server) error {
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				Debugf("Calling %s %s", localMethod, localRoute)
 				log.Println(r.Method, r.RequestURI)
+
+				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
+					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+					if len(userAgent) == 2 && userAgent[1] != VERSION {
+						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
+					}
+				}
 				json, err := localFct(srv, w, r)
 				if err != nil {
 					httpError(w, err)
