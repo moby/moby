@@ -39,7 +39,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func getAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	var out auth.AuthConfig
 	out.Username = srv.runtime.authConfig.Username
 	out.Email = srv.runtime.authConfig.Email
@@ -50,7 +50,7 @@ func getAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error
 	return b, nil
 }
 
-func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	var config auth.AuthConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, erro
 	return nil, nil
 }
 
-func getVersion(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	m := srv.DockerVersion()
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -88,8 +88,10 @@ func getVersion(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 	return b, nil
 }
 
-func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	if err := srv.ContainerKill(name); err != nil {
 		return nil, err
@@ -98,8 +100,10 @@ func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	return nil, nil
 }
 
-func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
@@ -109,7 +113,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	return nil, nil
 }
 
-func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -129,14 +133,14 @@ func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 	return b, nil
 }
 
-func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := srv.ImagesViz(w); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
-func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	out := srv.DockerInfo()
 	b, err := json.Marshal(out)
 	if err != nil {
@@ -145,9 +149,12 @@ func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error
 	return b, nil
 }
 
-func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
+	log.Printf("----------> %s\n", name)
 	outs, err := srv.ImageHistory(name)
 	if err != nil {
 		return nil, err
@@ -159,8 +166,10 @@ func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 	return b, nil
 }
 
-func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	changesStr, err := srv.ContainerChanges(name)
 	if err != nil {
@@ -173,7 +182,7 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request) (
 	return b, nil
 }
 
-func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -195,13 +204,15 @@ func getContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte,
 	return b, nil
 }
 
-func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	force := r.Form.Get("force") == "1"
 
@@ -212,7 +223,7 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte,
 	return nil, nil
 }
 
-func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -237,7 +248,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 	return b, nil
 }
 
-func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -266,7 +277,7 @@ func postImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 	return nil, nil
 }
 
-func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -283,14 +294,16 @@ func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request) ([]byt
 	return b, nil
 }
 
-func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
 	url := r.Form.Get("url")
 	path := r.Form.Get("path")
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
@@ -305,14 +318,16 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 	return nil, nil
 }
 
-func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
 	registry := r.Form.Get("registry")
 
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
@@ -327,7 +342,7 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 	return nil, nil
 }
 
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	in, out, err := hijackServer(w)
 	if err != nil {
 		return nil, err
@@ -340,7 +355,7 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, err
 	return nil, nil
 }
 
-func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		return nil, err
@@ -365,7 +380,7 @@ func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 	return b, nil
 }
 
-func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -373,7 +388,9 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 	if err != nil || t < 0 {
 		t = 10
 	}
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	if err := srv.ContainerRestart(name, t); err != nil {
 		return nil, err
@@ -382,11 +399,13 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 	return nil, nil
 }
 
-func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	v := r.Form.Get("v") == "1"
 
@@ -397,8 +416,10 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 	return nil, nil
 }
 
-func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	if err := srv.ImageDelete(name); err != nil {
 		return nil, err
@@ -407,8 +428,10 @@ func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, 
 	return nil, nil
 }
 
-func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	if err := srv.ContainerStart(name); err != nil {
 		return nil, err
@@ -417,7 +440,7 @@ func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	return nil, nil
 }
 
-func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -425,7 +448,9 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	if err != nil || t < 0 {
 		t = 10
 	}
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	if err := srv.ContainerStop(name, t); err != nil {
@@ -435,8 +460,10 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	return nil, nil
 }
 
-func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 	status, err := srv.ContainerWait(name)
 	if err != nil {
@@ -449,7 +476,7 @@ func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	return b, nil
 }
 
-func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -458,7 +485,9 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) (
 	stdin := r.Form.Get("stdin") == "1"
 	stdout := r.Form.Get("stdout") == "1"
 	stderr := r.Form.Get("stderr") == "1"
-	vars := mux.Vars(r)
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
@@ -474,8 +503,10 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request) (
 	return nil, nil
 }
 
-func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	container, err := srv.ContainerInspect(name)
@@ -489,8 +520,10 @@ func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	return b, nil
 }
 
-func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
+func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	if vars == nil {
+		return nil, fmt.Errorf("Missing parameter")
+	}
 	name := vars["name"]
 
 	image, err := srv.ImageInspect(name)
@@ -508,7 +541,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
-	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request) ([]byte, error){
+	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request, map[string]string) ([]byte, error){
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
@@ -564,7 +597,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
-				json, err := localFct(srv, w, r)
+				json, err := localFct(srv, w, r, mux.Vars(r))
 				if err != nil {
 					httpError(w, err)
 				}

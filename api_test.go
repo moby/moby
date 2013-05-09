@@ -50,7 +50,7 @@ func TestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, err := postAuth(srv, r, req)
+	body, err := postAuth(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, err = getAuth(srv, nil, req)
+	body, err = getAuth(srv, nil, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestVersion(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	body, err := getVersion(srv, nil, nil)
+	body, err := getVersion(srv, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, err := getImages(srv, nil, req)
+	body, err := getImages(srv, nil, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestInfo(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	body, err := getInfo(srv, nil, nil)
+	body, err := getInfo(srv, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +274,7 @@ func testCreateContainer(t *testing.T, srv *Server) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainers(srv, r, req)
+	body, err := postContainers(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func testListContainers(t *testing.T, srv *Server, expected int) []ApiContainers
 		t.Fatal(err)
 	}
 
-	body, err := getContainers(srv, r, req)
+	body, err := getContainers(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +322,7 @@ func testContainerStart(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainersStart(srv, r, req)
+	body, err := postContainersStart(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +345,7 @@ func testContainerRestart(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainersRestart(srv, r, req)
+	body, err := postContainersRestart(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func testContainerStop(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainersStop(srv, r, req)
+	body, err := postContainersStop(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +391,7 @@ func testContainerKill(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainersKill(srv, r, req)
+	body, err := postContainersKill(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func testContainerWait(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainersWait(srv, r, req)
+	body, err := postContainersWait(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +439,7 @@ func testDeleteContainer(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := deleteContainers(srv, r, req)
+	body, err := deleteContainers(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,7 +462,7 @@ func testContainerChanges(t *testing.T, srv *Server, id string) {
 		t.Fatal(err)
 	}
 
-	body, err := getContainersChanges(srv, r, req)
+	body, err := getContainersChanges(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
