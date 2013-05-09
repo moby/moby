@@ -102,8 +102,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	if images == nil {
 		return nil
 	}
-
-	fmt.Fprintf(out, "digraph docker {\n")
+	out.Write([]byte("digraph docker {\n"))
 
 	var (
 		parentImage *Image
@@ -115,9 +114,9 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 			return fmt.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
-			fmt.Fprintf(out, "  \"%s\" -> \"%s\"\n", parentImage.ShortId(), image.ShortId())
+			out.Write([]byte(" \"" + parentImage.ShortId() + "\" -> \"" + image.ShortId() + "\"\n"))
 		} else {
-			fmt.Fprintf(out, "  base -> \"%s\" [style=invis]\n", image.ShortId())
+			out.Write([]byte(" base -> \"" + image.ShortId() + "\" [style=invis]\n"))
 		}
 	}
 
@@ -130,9 +129,9 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	}
 
 	for id, repos := range reporefs {
-		fmt.Fprintf(out, "  \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", id, id, strings.Join(repos, "\\n"))
+		out.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
 	}
-	fmt.Fprintf(out, "  base [style=invisible]\n}\n")
+	out.Write([]byte(" base [style=invisible]\n}\n"))
 	return nil
 }
 

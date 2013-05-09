@@ -699,9 +699,11 @@ func CmdImages(args ...string) error {
 	}
 
 	if *flViz {
-		if err := hijack("GET", "/images?viz=1", false); err != nil {
+		body, _, err := call("GET", "/images/viz", false)
+		if err != nil {
 			return err
 		}
+		fmt.Printf("%s", body)
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {

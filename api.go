@@ -115,37 +115,34 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 }
 
 func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+	vars := mux.Vars(r)
+	format := vars["format"]
+
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
-	viz := r.Form.Get("viz") == "1"
-	if viz {
-		in, out, err := hijackServer(w)
+	if format == "viz" {
+		if err := srv.ImagesViz(w); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	} else if format == "" || format == "json" {
+		all := r.Form.Get("all") == "1"
+		filter := r.Form.Get("filter")
+		only_ids := r.Form.Get("only_ids") == "1"
+
+		outs, err := srv.Images(all, only_ids, filter)
 		if err != nil {
 			return nil, err
 		}
-		defer in.Close()
-		fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-		if err := srv.ImagesViz(out); err != nil {
-			fmt.Fprintf(out, "Error: %s\n", err)
+		b, err := json.Marshal(outs)
+		if err != nil {
+			return nil, err
 		}
-		return nil, nil
+		return b, nil
 	}
-
-	all := r.Form.Get("all") == "1"
-	filter := r.Form.Get("filter")
-	only_ids := r.Form.Get("only_ids") == "1"
-
-	outs, err := srv.Images(all, only_ids, filter)
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(outs)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+	return nil, fmt.Errorf("No such format: %s", format)
 }
 
 func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
@@ -526,6 +523,7 @@ func ListenAndServe(addr string, srv *Server) error {
 			"/version":                      getVersion,
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/images":                       getImages,
+			"/images/{format}":              getImages,
 			"/info":                         getInfo,
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,

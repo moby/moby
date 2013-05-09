@@ -460,15 +460,16 @@ List Images
 ***********
 
 .. http:get:: /images
+.. http:get:: /images/(format)
 
-	List images
+	List images ``format`` could be json or viz (json default)
 
 	**Example request**:
 
 	.. sourcecode:: http
 
-	   GET /images?all=0&only_ids=0 HTTP/1.1
-	   
+	   GET /images/json?all=0&only_ids=0 HTTP/1.1
+
 	**Example response**:
 
 	.. sourcecode:: http
@@ -490,6 +491,38 @@ List Images
 			"Created":1364102658
 		}
 	   ]
+
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+	   GET /images/viz HTTP/1.1
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: text/plain
+
+	   digraph docker {
+	   "d82cbacda43a" -> "074be284591f"
+	   "1496068ca813" -> "08306dc45919"
+	   "08306dc45919" -> "0e7893146ac2"
+	   "b750fe79269d" -> "1496068ca813"
+	   base -> "27cf78414709" [style=invis]
+	   "f71189fff3de" -> "9a33b36209ed"
+	   "27cf78414709" -> "b750fe79269d"
+	   "0e7893146ac2" -> "d6434d954665"
+	   "d6434d954665" -> "d82cbacda43a"
+	   base -> "e9aa60c60128" [style=invis]
+	   "074be284591f" -> "f71189fff3de"
+	   "b750fe79269d" [label="b750fe79269d\nbase",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "e9aa60c60128" [label="e9aa60c60128\nbase2",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "9a33b36209ed" [label="9a33b36209ed\ntest",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   base [style=invisible]
+	   }
  
 	:query only_ids: 1 or 0, Only display numeric IDs. Default 0
 	:query all: 1 or 0, Show all containers. Only running containers are shown by default
