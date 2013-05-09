@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 )
@@ -425,6 +426,7 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 		return fmt.Errorf("Error while retrieving checksum for %s: %v", img.Id, err)
 	}
 	req.Header.Set("X-Docker-Checksum", checksum)
+	Debugf("Setting checksum for %s: %s", img.ShortId(), checksum)
 	res, err := doWithCookies(client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
@@ -450,14 +452,36 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	}
 
 	fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
-
-	layerData, err := graph.TempLayerArchive(img.Id, Xz, stdout)
+	root, err := img.root()
 	if err != nil {
-		return fmt.Errorf("Failed to generate layer archive: %s", err)
+		return err
+	}
+
+	var layerData *TempArchive
+
+	// If the archive exists, use it
+	file, err := os.Open(layerArchivePath(root))
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If the archive does not exist, create one from the layer
+			layerData, err = graph.TempLayerArchive(img.Id, Xz, stdout)
+			if err != nil {
+				return fmt.Errorf("Failed to generate layer archive: %s", err)
+			}
+		} else {
+			return err
+		}
+	} else {
+		defer file.Close()
+		st, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		layerData = &TempArchive{file, st.Size()}
 	}
 
 	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
-		ProgressReader(layerData, -1, stdout, ""))
+		ProgressReader(layerData, int(layerData.Size), stdout, ""))
 	if err != nil {
 		return err
 	}
@@ -478,6 +502,11 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 				" trying to parse response body: %v", res.StatusCode, err)
 		}
 		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
+	}
+
+	// If we pushed an archive, then remove it, we don't need it anymore
+	if err := os.Remove(layerArchivePath(root)); err != nil {
+		return err
 	}
 	return nil
 }
