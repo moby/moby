@@ -949,7 +949,7 @@ func CmdAttach(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/containers/"+cmd.Arg(0), nil)
+	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
 		return err
 	}
@@ -961,7 +961,6 @@ func CmdAttach(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("logs", "1")
 	v.Set("stream", "1")
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
