@@ -56,7 +56,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, layerData Archive, root string) error {
+func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.Id)
@@ -68,6 +68,28 @@ func StoreImage(img *Image, layerData Archive, root string) error {
 	if err := os.MkdirAll(layer, 0700); err != nil {
 		return err
 	}
+
+	if store {
+		layerArchive := layerArchivePath(root)
+		file, err := os.OpenFile(layerArchive, os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return err
+		}
+		// FIXME: Retrieve the image layer size from here?
+		if _, err := io.Copy(file, layerData); err != nil {
+			return err
+		}
+		// FIXME: Don't close/open, read/write instead of Copy
+		file.Close()
+
+		file, err = os.Open(layerArchive)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		layerData = file
+	}
+
 	if err := Untar(layerData, layer); err != nil {
 		return err
 	}
@@ -84,6 +106,10 @@ func StoreImage(img *Image, layerData Archive, root string) error {
 
 func layerPath(root string) string {
 	return path.Join(root, "layer")
+}
+
+func layerArchivePath(root string) string {
+	return path.Join(root, "layer.tar.xz")
 }
 
 func jsonPath(root string) string {
@@ -290,9 +316,20 @@ func (img *Image) Checksum() (string, error) {
 		return "", err
 	}
 
-	layerData, err := Tar(layer, Xz)
-	if err != nil {
-		return "", err
+	var layerData io.Reader
+
+	if file, err := os.Open(layerArchivePath(root)); err != nil {
+		if os.IsNotExist(err) {
+			layerData, err = Tar(layer, Xz)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	} else {
+		defer file.Close()
+		layerData = file
 	}
 
 	h := sha256.New()

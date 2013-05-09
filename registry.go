@@ -259,7 +259,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 				// FIXME: Keep goging in case of error?
 				return err
 			}
-			if err = graph.Register(layer, img); err != nil {
+			if err = graph.Register(layer, false, img); err != nil {
 				return err
 			}
 		}
