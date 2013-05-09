@@ -118,7 +118,7 @@ Create a container
 
 	.. sourcecode:: http
 
-	   HTTP/1.1 200 OK
+	   HTTP/1.1 201 OK
 	   
 	   {
 		"Id":"e90e34656806"
@@ -126,7 +126,7 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
-	:statuscode 200: no error
+	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
@@ -312,10 +312,10 @@ Stop a contaier
 
 	.. sourcecode:: http
 
-	   HTTP/1.1 200 OK
+	   HTTP/1.1 204 OK
 	   	
 	:query t: number of seconds to wait before killing the container
-	:statuscode 200: no error
+	:statuscode 204: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
@@ -337,10 +337,10 @@ Restart a container
 
 	.. sourcecode:: http
 
-	   HTTP/1.1 200 OK
+	   HTTP/1.1 204 OK
 	   	
 	:query t: number of seconds to wait before killing the container
-	:statuscode 200: no error
+	:statuscode 204: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
@@ -362,9 +362,9 @@ Kill a container
 
 	.. sourcecode:: http
 
-	   HTTP/1.1 200 OK
+	   HTTP/1.1 204 OK
 	   	
-	:statuscode 200: no error
+	:statuscode 204: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
@@ -445,10 +445,10 @@ Remove a container
 
         .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
+	   HTTP/1.1 204 OK
 
 	:query v: 1 or 0, Remove the volumes associated to the container. Default 0
-        :statuscode 200: no error
+        :statuscode 204: no error
         :statuscode 404: no such container
         :statuscode 500: server error
 
@@ -714,9 +714,9 @@ Remove an image
 
         .. sourcecode:: http
 
-           HTTP/1.1 200 OK
+           HTTP/1.1 204 OK
 
-	:statuscode 200: no error
+	:statuscode 204: no error
         :statuscode 404: no such image
         :statuscode 500: server error
 
@@ -847,6 +847,7 @@ Set auth configuration
            HTTP/1.1 200 OK
 
         :statuscode 200: no error
+        :statuscode 204: no error
         :statuscode 500: server error
 
 
@@ -930,10 +931,10 @@ Create a new image from a container's changes
 
         .. sourcecode:: http
 
-           HTTP/1.1 200 OK
+           HTTP/1.1 201 OK
 	   Content-Type: application/vnd.docker.raw-stream
 
-           {{ STREAM }}
+           {"Id":"596069db4bf5"}
 
 	:query container: source container
 	:query repo: repository
@@ -941,7 +942,7 @@ Create a new image from a container's changes
 	:query m: commit message
 	:query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
 	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
-        :statuscode 200: no error
+        :statuscode 201: no error
 	:statuscode 404: no such container
         :statuscode 500: server error
 

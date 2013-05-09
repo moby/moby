@@ -75,7 +75,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, erro
 		}
 		return b, nil
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -94,7 +94,7 @@ func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	if err := srv.ContainerKill(name); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -245,6 +245,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
+	w.WriteHeader(http.StatusCreated)
 	return b, nil
 }
 
@@ -372,6 +373,7 @@ func postContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte
 	if err != nil {
 		return nil, err
 	}
+	w.WriteHeader(http.StatusCreated)
 	return b, nil
 }
 
@@ -388,7 +390,7 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request) 
 	if err := srv.ContainerRestart(name, t); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -403,7 +405,7 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request) ([]by
 	if err := srv.ContainerDestroy(name, v); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -413,7 +415,7 @@ func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, 
 	if err := srv.ImageDelete(name); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -423,7 +425,7 @@ func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	if err := srv.ContainerStart(name); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 
@@ -441,7 +443,7 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request) ([]
 	if err := srv.ContainerStop(name, t); err != nil {
 		return nil, err
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	return nil, nil
 }
 

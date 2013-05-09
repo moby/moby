@@ -1172,11 +1172,10 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 	if err != nil {
 		return nil, -1, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		return nil, resp.StatusCode, fmt.Errorf("error: %s", body)
 	}
 	return body, resp.StatusCode, nil
-
 }
 
 func hijack(method, path string, setRawTerminal bool) error {
