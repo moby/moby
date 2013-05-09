@@ -205,78 +205,231 @@ func TestVersion(t *testing.T) {
 // 	testListContainers(t, 0)
 // }
 
-// func testCreateContainer(t *testing.T) {
-// 	config, _, err := ParseRun([]string{unitTestImageName, "touch test"}, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	_, _, err = call("POST", "/containers", *config)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+func testCreateContainer(t *testing.T) {
 
-// func testListContainers(t *testing.T, expected int) []ApiContainers {
-// 	body, _, err := call("GET", "/containers?quiet=1&all=1", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var outs []ApiContainers
-// 	err = json.Unmarshal(body, &outs)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if expected >= 0 && len(outs) != expected {
-// 		t.Errorf("Excepted %d container, %d found", expected, len(outs))
-// 	}
-// 	return outs
-// }
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-// func testContainerStart(t *testing.T, id string) {
-// 	_, _, err := call("POST", "/containers/"+id+"/start", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	srv := &Server{runtime: runtime}
 
-// func testContainerRestart(t *testing.T, id string) {
-// 	_, _, err := call("POST", "/containers/"+id+"/restart?t=1", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	r := httptest.NewRecorder()
 
-// func testContainerStop(t *testing.T, id string) {
-// 	_, _, err := call("POST", "/containers/"+id+"/stop?t=1", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	config, _, err := ParseRun([]string{unitTestImageName, "touch test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func testContainerKill(t *testing.T, id string) {
-// 	_, _, err := call("POST", "/containers/"+id+"/kill", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	configJson, err := json.Marshal(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func testContainerWait(t *testing.T, id string) {
-// 	_, _, err := call("POST", "/containers/"+id+"/wait", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	req, err := http.NewRequest("POST", "/containers", bytes.NewReader(configJson))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func testDeleteContainer(t *testing.T, id string) {
-// 	_, _, err := call("DELETE", "/containers/"+id, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	body, err := postContainers(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func testContainerChanges(t *testing.T, id string) {
-// 	_, _, err := call("GET", "/containers/"+id+"/changes", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	if body == nil {
+		t.Fatalf("Body expected, received: nil\n")
+	}
+
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testListContainers(t *testing.T, srv *Server, expected int) []ApiContainers {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", "/containers?quiet=1&all=1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := getContainers(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var outs []ApiContainers
+	err = json.Unmarshal(body, &outs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected >= 0 && len(outs) != expected {
+		t.Errorf("Excepted %d container, %d found", expected, len(outs))
+	}
+	return outs
+}
+
+func testContainerStart(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/containers/"+id+"/start", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postContainersStart(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testContainerRestart(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/containers/"+id+"/restart?t=1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postContainersRestart(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testContainerStop(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/containers/"+id+"/stop?t=1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postContainersStop(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testContainerKill(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/containers/"+id+"/kill", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postContainersKill(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testContainerWait(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/containers/"+id+"/wait", nil)
+	req.Header.Set("Content-Type", "plain/text")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postContainersWait(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body == nil {
+		t.Fatalf("Body expected, received: nil\n")
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testDeleteContainer(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("DELETE", "/containers/"+id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := deleteContainers(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
+
+func testContainerChanges(t *testing.T, srv *Server, id string) {
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", "/containers/"+id+"/changes", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := getContainersChanges(srv, r, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body == nil {
+		t.Fatalf("Body expected, received: nil\n")
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+}
