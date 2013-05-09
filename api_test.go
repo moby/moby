@@ -230,23 +230,7 @@ func TestInfo(t *testing.T) {
 // 	}
 // }
 
-// func TestCreateListStartStopRestartKillWaitDelete(t *testing.T) {
-// 	containers := testListContainers(t, -1)
-// 	for _, container := range containers {
-// 		testDeleteContainer(t, container.Id)
-// 	}
-// 	testCreateContainer(t)
-// 	id := testListContainers(t, 1)[0].Id
-// 	testContainerStart(t, id)
-// 	testContainerStop(t, id)
-// 	testContainerRestart(t, id)
-// 	testContainerKill(t, id)
-// 	testContainerWait(t, id)
-// 	testDeleteContainer(t, id)
-// 	testListContainers(t, 0)
-// }
-
-func testCreateContainer(t *testing.T) {
+func TestCreateListStartStopRestartKillWaitDelete(t *testing.T) {
 
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -255,6 +239,23 @@ func testCreateContainer(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
+
+	containers := testListContainers(t, srv, -1)
+	for _, container := range containers {
+		testDeleteContainer(t, srv, container.Id)
+	}
+	testCreateContainer(t, srv)
+	id := testListContainers(t, srv, 1)[0].Id
+	testContainerStart(t, srv, id)
+	testContainerStop(t, srv, id)
+	testContainerRestart(t, srv, id)
+	testContainerKill(t, srv, id)
+	testContainerWait(t, srv, id)
+	testDeleteContainer(t, srv, id)
+	testListContainers(t, srv, 0)
+}
+
+func testCreateContainer(t *testing.T, srv *Server) {
 
 	r := httptest.NewRecorder()
 
