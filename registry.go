@@ -710,7 +710,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		if errBody, err := ioutil.ReadAll(res2.Body); err != nil {
 			return err
 		} else {
-			return fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody)
+			return fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res2.StatusCode, remote, errBody)
 		}
 	}
 
