@@ -833,10 +833,10 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		}
 		if !*quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-            containerId := container.Id
+			containerId := container.Id
 			if !*flFull {
 				command = Trunc(command, 20)
-                containerId = container.ShortId()
+				containerId = container.ShortId()
 			}
 			for idx, field := range []string{
 				/* ID */ containerId,
