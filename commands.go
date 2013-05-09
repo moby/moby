@@ -457,7 +457,14 @@ func CmdInspect(args ...string) error {
 			return err
 		}
 	}
-	fmt.Printf("%s\n", obj)
+
+	indented := new(bytes.Buffer)
+	if err = json.Indent(indented, obj, "", "    "); err != nil {
+		return err
+	}
+	if _, err := io.Copy(os.Stdout, indented); err != nil {
+		return err
+	}
 	return nil
 }
 
