@@ -102,14 +102,9 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return nil, err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ContainerExport(name, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
+	if err := srv.ContainerExport(name, w); err != nil {
+		Debugf("%s", err.Error())
+		//return nil, err
 	}
 	return nil, nil
 }

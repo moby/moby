@@ -262,7 +262,7 @@ Export a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 200 OK
-	   Content-Type: application/vnd.docker.raw-stream
+	   Content-Type: application/octet-stream
 	   
 	   {{ STREAM }}
 

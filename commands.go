@@ -865,7 +865,7 @@ func CmdExport(args ...string) error {
 		return nil
 	}
 
-	if err := hijack("GET", "/containers/"+cmd.Arg(0)+"/export", false); err != nil {
+	if err := stream("GET", "/containers/"+cmd.Arg(0)+"/export"); err != nil {
 		return err
 	}
 	return nil
@@ -1178,6 +1178,29 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 		return nil, resp.StatusCode, fmt.Errorf("error: %s", body)
 	}
 	return body, resp.StatusCode, nil
+}
+
+func stream(method, path string) error {
+	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if method == "POST" {
+		req.Header.Set("Content-Type", "plain/text")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
+		return err
+	}
+	defer resp.Body.Close()
+	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		return err
+	}
+	return nil
 }
 
 func hijack(method, path string, setRawTerminal bool) error {
