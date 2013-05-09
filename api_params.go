@@ -18,6 +18,7 @@ type ApiInfo struct {
 	Version     string
 	Images      int
 	Debug       bool
+	GoVersion   string
 	NFd         int `json:",omitempty"`
 	NGoroutines int `json:",omitempty"`
 }

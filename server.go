@@ -201,6 +201,7 @@ func (srv *Server) DockerInfo() ApiInfo {
 	out.Containers = len(srv.runtime.List())
 	out.Version = VERSION
 	out.Images = imgcount
+	out.GoVersion = runtime.Version()
 	if os.Getenv("DEBUG") != "" {
 		out.Debug = true
 		out.NFd = getTotalUsedFds()

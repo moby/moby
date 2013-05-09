@@ -22,7 +22,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.3.0"
+const VERSION = "0.3.1"
 
 var (
 	GIT_COMMIT string
@@ -362,7 +362,7 @@ func CmdInfo(args ...string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("containers: %d\nversion: %s\nimages: %d\n", out.Containers, out.Version, out.Images)
+	fmt.Printf("containers: %d\nversion: %s\nimages: %d\nGo version: %s\n", out.Containers, out.Version, out.Images, out.GoVersion)
 	if out.Debug {
 		fmt.Println("debug mode enabled")
 		fmt.Printf("fds: %d\ngoroutines: %d\n", out.NFd, out.NGoroutines)

@@ -874,6 +874,7 @@ Display system-wide information
 		"Containers":11,
 		"Version":"0.2.2",
 		"Images":16,
+		"GoVersion":"go1.0.3",
 		"Debug":false
 	   }
 
