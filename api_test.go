@@ -54,12 +54,11 @@ func TestAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body != nil {
-		t.Fatalf("No body expected, received: %s\n", body)
+	if body == nil {
+		t.Fatalf("No body received\n")
 	}
-
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
 	authConfig = &auth.AuthConfig{}
@@ -109,43 +108,85 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-// func TestImages(t *testing.T) {
-// 	body, _, err := call("GET", "/images?quiet=0&all=0", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var outs []ApiImages
-// 	err = json.Unmarshal(body, &outs)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestImages(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-// 	if len(outs) != 1 {
-// 		t.Errorf("Excepted 1 image, %d found", len(outs))
-// 	}
+	srv := &Server{runtime: runtime}
 
-// 	if outs[0].Repository != "docker-ut" {
-// 		t.Errorf("Excepted image docker-ut, %s found", outs[0].Repository)
-// 	}
-// }
+	// FIXME: Do more tests with filter
+	req, err := http.NewRequest("GET", "/images?quiet=0&all=0", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func TestInfo(t *testing.T) {
-// 	body, _, err := call("GET", "/info", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var out ApiInfo
-// 	err = json.Unmarshal(body, &out)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if out.Version != VERSION {
-// 		t.Errorf("Excepted version %s, %s found", VERSION, out.Version)
-// 	}
-// }
+	body, err := getImages(srv, nil, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images := []ApiImages{}
+	err = json.Unmarshal(body, &images)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 1 {
+		t.Errorf("Excepted 1 image, %d found", len(images))
+	}
+
+	if images[0].Repository != "docker-ut" {
+		t.Errorf("Excepted image docker-ut, %s found", images[0].Repository)
+	}
+}
+
+func TestInfo(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	body, err := getInfo(srv, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	infos := &ApiInfo{}
+	err = json.Unmarshal(body, infos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if infos.Version != VERSION {
+		t.Errorf("Excepted version %s, %s found", VERSION, infos.Version)
+	}
+}
 
 // func TestHistory(t *testing.T) {
-// 	body, _, err := call("GET", "/images/"+unitTestImageName+"/history", nil)
+// 	runtime, err := newTestRuntime()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer nuke(runtime)
+
+// 	srv := &Server{runtime: runtime}
+
+// 	req, err := http.NewRequest("GET", "/images/"+unitTestImageName+"/history", nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	router := mux.NewRouter()
+// 	router.Path("/images/{name:.*}/history")
+// 	vars := mux.Vars(req)
+// 	router.
+// 	vars["name"] = unitTestImageName
+
+// 	body, err := getImagesHistory(srv, nil, req)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
