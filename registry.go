@@ -393,14 +393,10 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	return nil
 }
 
-func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, token []string) error {
-	if parent, err := img.GetParent(); err != nil {
-		return err
-	} else if parent != nil {
-		if err := pushImageRec(graph, stdout, parent, registry, token); err != nil {
-			return err
-		}
-	}
+// Push a local image to the registry
+func (graph *Graph) PushImage(stdout io.Writer, img *Image, registry string, token []string) error {
+	registry = "https://" + registry + "/v1"
+
 	client := graph.getHttpClient()
 	jsonRaw, err := ioutil.ReadFile(path.Join(graph.Root, img.Id, "json"))
 	if err != nil {
@@ -500,12 +496,6 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
 	}
 	return nil
-}
-
-// Push a local image to the registry with its history if needed
-func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string, token []string) error {
-	registry = "https://" + registry + "/v1"
-	return pushImageRec(graph, stdout, imgOrig, registry, token)
 }
 
 // push a tag on the registry.
@@ -626,14 +616,27 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	client.Jar = cookiejar.NewCookieJar()
 	var imgList []*ImgListJson
 
+	fmt.Fprintf(stdout, "Processing checksums\n")
+	imageSet := make(map[string]struct{})
 	for _, id := range localRepo {
-		checksum, err := graph.getChecksum(id)
+		img, err := graph.Get(id)
 		if err != nil {
 			return err
 		}
-		imgList = append(imgList, &ImgListJson{
-			Id:       id,
-			Checksum: checksum,
+		img.WalkHistory(func(img *Image) error {
+			if _, exists := imageSet[img.Id]; exists {
+				return nil
+			}
+			imageSet[img.Id] = struct{}{}
+			checksum, err := graph.getChecksum(img.Id)
+			if err != nil {
+				return err
+			}
+			imgList = append(imgList, &ImgListJson{
+				Id:       img.Id,
+				Checksum: checksum,
+			})
+			return nil
 		})
 	}
 
@@ -644,6 +647,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 
 	Debugf("json sent: %s\n", imgListJson)
 
+	fmt.Fprintf(stdout, "Sending image list\n")
 	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
