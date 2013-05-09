@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -299,4 +300,27 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
+}
+
+func (graph *Graph) getStoredChecksums() (map[string]string, error) {
+	checksums := make(map[string]string)
+	// FIXME: Store the checksum in memory
+
+	if checksumDict, err := ioutil.ReadFile(path.Join(graph.Root, "checksums")); err == nil {
+		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
+			return nil, err
+		}
+	}
+	return checksums, nil
+}
+
+func (graph *Graph) storeChecksums(checksums map[string]string) error {
+	checksumJson, err := json.Marshal(checksums)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(path.Join(graph.Root, "checksums"), checksumJson, 0600); err != nil {
+		return err
+	}
+	return nil
 }

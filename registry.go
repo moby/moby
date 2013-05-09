@@ -578,6 +578,24 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	return filteredRepo, nil
 }
 
+// Retrieve the checksum of an image
+// Priority:
+// - Check on the stored checksums
+// - Check if the archive is exists, if it does not, ask the registry
+// - If the archive does exists, process the checksum from it
+// - If the archive does not exists and not found on registry, process checksum from layer
+func (graph *Graph) getChecksum(imageId string) (string, error) {
+	img, err := graph.Get(imageId)
+	if err != nil {
+		return "", err
+	}
+	checksum, err := img.Checksum()
+	if err != nil {
+		return "", err
+	}
+	return checksum, nil
+}
+
 type ImgListJson struct {
 	Id       string `json:"id"`
 	Checksum string `json:"checksum,omitempty"`
@@ -592,7 +610,14 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	var imgList []*ImgListJson
 
 	for _, id := range localRepo {
-		imgList = append(imgList, &ImgListJson{Id: id})
+		checksum, err := graph.getChecksum(id)
+		if err != nil {
+			return err
+		}
+		imgList = append(imgList, &ImgListJson{
+			Id:       id,
+			Checksum: checksum,
+		})
 	}
 
 	imgListJson, err := json.Marshal(imgList)
@@ -665,21 +690,6 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 			}
 		}
 	}
-
-	for _, elem := range imgList {
-		img, err := graph.Get(elem.Id)
-		if err != nil {
-			return err
-		}
-		if elem.Checksum, err = img.Checksum(); err != nil {
-			return err
-		}
-	}
-	imgListJson, err = json.Marshal(imgList)
-	if err != nil {
-		return err
-	}
-	Debugf("json sent: %s\n", imgListJson)
 
 	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(imgListJson))
 	if err != nil {

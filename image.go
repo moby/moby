@@ -295,16 +295,12 @@ func (img *Image) Checksum() (string, error) {
 		return "", err
 	}
 
-	checksumDictPth := path.Join(root, "..", "..", "checksums")
-	checksums := make(map[string]string)
-
-	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
-		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
-			return "", err
-		}
-		if checksum, ok := checksums[img.Id]; ok {
-			return checksum, nil
-		}
+	checksums, err := img.graph.getStoredChecksums()
+	if err != nil {
+		return "", err
+	}
+	if checksum, ok := checksums[img.Id]; ok {
+		return checksum, nil
 	}
 
 	layer, err := img.layer()
@@ -343,24 +339,23 @@ func (img *Image) Checksum() (string, error) {
 	if _, err := io.Copy(h, layerData); err != nil {
 		return "", err
 	}
-
 	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
-	checksums[img.Id] = hash
 
 	// Reload the json file to make sure not to overwrite faster sums
 	img.graph.lockSumFile.Lock()
 	defer img.graph.lockSumFile.Unlock()
-	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
-		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
-			return "", err
-		}
-	}
-	checksumJson, err := json.Marshal(checksums)
+
+	checksums, err = img.graph.getStoredChecksums()
 	if err != nil {
+		return "", err
+	}
+
+	checksums[img.Id] = hash
+
+	// Dump the checksums to disc
+	if err := img.graph.storeChecksums(checksums); err != nil {
 		return hash, err
 	}
-	if err := ioutil.WriteFile(checksumDictPth, checksumJson, 0600); err != nil {
-		return hash, err
-	}
+
 	return hash, nil
 }
