@@ -15,8 +15,6 @@ import (
 	"strings"
 )
 
-var INDEX_ENDPOINT = auth.IndexServerAddress() + "/v1"
-
 // Build an Image object from raw json data
 func NewImgJson(src []byte) (*Image, error) {
 	ret := &Image{}
@@ -90,7 +88,7 @@ func (graph *Graph) LookupRemoteImage(imgId, registry string, authConfig *auth.A
 }
 
 func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.AuthConfig) ([]map[string]string, error) {
-	u := INDEX_ENDPOINT + "/repositories/" + repository + "/images"
+	u := auth.IndexServerAddress() + "/repositories/" + repository + "/images"
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
@@ -270,8 +268,8 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
 	client := graph.getHttpClient()
 
-	fmt.Fprintf(stdout, "Pulling repository %s from %s\r\n", remote, INDEX_ENDPOINT)
-	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/images"
+	fmt.Fprintf(stdout, "Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
+	repositoryTarget := auth.IndexServerAddress() + "/repositories/" + remote + "/images"
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -629,7 +627,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	Debugf("json sent: %s\n", imgListJson)
 
 	fmt.Fprintf(stdout, "Sending image list\n")
-	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
+	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
 	}
@@ -693,7 +691,8 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		}
 	}
 
-	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(imgListJson))
+
+	req2, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/images", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
 	}
@@ -724,7 +723,7 @@ type SearchResults struct {
 
 func (graph *Graph) SearchRepositories(stdout io.Writer, term string) (*SearchResults, error) {
 	client := graph.getHttpClient()
-	u := INDEX_ENDPOINT + "/search?q=" + url.QueryEscape(term)
+	u := auth.IndexServerAddress() + "/search?q=" + url.QueryEscape(term)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
