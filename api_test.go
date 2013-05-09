@@ -17,7 +17,7 @@ func init() {
 	srv := &Server{
 		runtime: runtime,
 	}
-	go ListenAndServe("0.0.0.0:4243", srv)
+	go ListenAndServe("0.0.0.0:4243", srv, false)
 
 }
 

@@ -102,5 +102,5 @@ func daemon(pidfile string, autoRestart bool) error {
 		return err
 	}
 
-	return docker.ListenAndServe("0.0.0.0:4243", server)
+	return docker.ListenAndServe("0.0.0.0:4243", server, true)
 }

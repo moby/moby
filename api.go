@@ -110,34 +110,30 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request) ([
 }
 
 func getImages(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	vars := mux.Vars(r)
-	format := vars["format"]
-
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
 
-	if format == "viz" {
-		if err := srv.ImagesViz(w); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	} else if format == "" || format == "json" {
-		all := r.Form.Get("all") == "1"
-		filter := r.Form.Get("filter")
-		only_ids := r.Form.Get("only_ids") == "1"
+	all := r.Form.Get("all") == "1"
+	filter := r.Form.Get("filter")
+	only_ids := r.Form.Get("only_ids") == "1"
 
-		outs, err := srv.Images(all, only_ids, filter)
-		if err != nil {
-			return nil, err
-		}
-		b, err := json.Marshal(outs)
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
+	outs, err := srv.Images(all, only_ids, filter)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("No such format: %s", format)
+	b, err := json.Marshal(outs)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+	if err := srv.ImagesViz(w); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func getInfo(srv *Server, w http.ResponseWriter, r *http.Request) ([]byte, error) {
@@ -508,7 +504,7 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request) ([]byt
 	return b, nil
 }
 
-func ListenAndServe(addr string, srv *Server) error {
+func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
@@ -518,7 +514,8 @@ func ListenAndServe(addr string, srv *Server) error {
 			"/version":                      getVersion,
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/images":                       getImages,
-			"/images/{format}":              getImages,
+			"/images/json":                  getImages,
+			"/images/viz":                   getImagesViz,
 			"/info":                         getInfo,
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
@@ -558,8 +555,9 @@ func ListenAndServe(addr string, srv *Server) error {
 			localFct := fct
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				Debugf("Calling %s %s", localMethod, localRoute)
-				log.Println(r.Method, r.RequestURI)
-
+				if logging {
+					log.Println(r.Method, r.RequestURI)
+				}
 				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 					if len(userAgent) == 2 && userAgent[1] != VERSION {
