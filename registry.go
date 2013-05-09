@@ -581,14 +581,31 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 // Retrieve the checksum of an image
 // Priority:
 // - Check on the stored checksums
-// - Check if the archive is exists, if it does not, ask the registry
+// - Check if the archive exists, if it does not, ask the registry
 // - If the archive does exists, process the checksum from it
 // - If the archive does not exists and not found on registry, process checksum from layer
 func (graph *Graph) getChecksum(imageId string) (string, error) {
+	// FIXME: Use in-memory map instead of reading the file each time
+	if sums, err := graph.getStoredChecksums(); err != nil {
+		return "", err
+	} else if checksum, exists := sums[imageId]; exists {
+		return checksum, nil
+	}
+
 	img, err := graph.Get(imageId)
 	if err != nil {
 		return "", err
 	}
+
+	if _, err := os.Stat(layerArchivePath(graph.imageRoot(imageId))); err != nil {
+		if os.IsNotExist(err) {
+			// TODO: Ask the registry for the checksum
+			//       As the archive is not there, it is supposed to come from a pull.
+		} else {
+			return "", err
+		}
+	}
+
 	checksum, err := img.Checksum()
 	if err != nil {
 		return "", err
