@@ -46,23 +46,24 @@ clean:
 docs:
 	-rm -rf $(BUILDDIR)/*
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	cp sources/index.html $(BUILDDIR)/html/
-	cp -r sources/gettingstarted $(BUILDDIR)/html/
-	cp sources/dotcloud.yml $(BUILDDIR)/html/
-	cp sources/CNAME $(BUILDDIR)/html/
-	cp sources/.nojekyll $(BUILDDIR)/html/
-	cp sources/nginx.conf $(BUILDDIR)/html/
 	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+	@echo "Build finished. The documentation pages are now in $(BUILDDIR)/html."
+
+
+site:
+	cp -r website $(BUILDDIR)/
+	cp -r theme/docker/static/ $(BUILDDIR)/website/
+	@echo
+	@echo "The Website pages are in $(BUILDDIR)/site."
 
 connect:
-	@echo pushing changes to staging site
-	@cd _build/html/ ; \
-	@dotcloud list ; \
+	@echo connecting dotcloud to www.docker.io website, make sure to use user 1
+	@cd _build/website/ ; \
+	dotcloud list ; \
 	dotcloud connect dockerwebsite
 
 push:
-	@cd _build/html/ ; \
+	@cd _build/website/ ; \
 	dotcloud push
 
 github-deploy: docs
