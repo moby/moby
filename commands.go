@@ -833,11 +833,13 @@ func (srv *Server) CmdPs(stdin io.ReadCloser, stdout io.Writer, args ...string) 
 		}
 		if !*quiet {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+            containerId := container.Id
 			if !*flFull {
 				command = Trunc(command, 20)
+                containerId = container.ShortId()
 			}
 			for idx, field := range []string{
-				/* ID */ container.ShortId(),
+				/* ID */ containerId,
 				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
 				/* COMMAND */ command,
 				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
