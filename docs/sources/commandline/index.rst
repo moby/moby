@@ -9,7 +9,8 @@ Commands
 Contents:
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 3
 
   basics
   workingwithrepository
+  cli
