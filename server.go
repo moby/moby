@@ -413,7 +413,7 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerDestroy(name string, v bool) error {
+func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 
 	if container := srv.runtime.Get(name); container != nil {
 		volumes := make(map[string]struct{})
@@ -425,7 +425,7 @@ func (srv *Server) ContainerDestroy(name string, v bool) error {
 			return fmt.Errorf("Error destroying container %s: %s", name, err.Error())
 		}
 
-		if v {
+		if removeVolume {
 			// Retrieve all volumes from all remaining containers
 			usedVolumes := make(map[string]*Container)
 			for _, container := range srv.runtime.List() {
