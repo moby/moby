@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 )
@@ -169,8 +168,8 @@ func TestGetImagesJson(t *testing.T) {
 		t.Errorf("Excepted no image Repository, %s found", images2[0].Repository)
 	}
 
-	if images2[0].Id != GetTestImage(runtime).Id {
-		t.Errorf("Retrieved image Id differs, expected %s, received %d", GetTestImage(runtime).Id, images2[0].Id)
+	if images2[0].Id != GetTestImage(runtime).ShortId() {
+		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).ShortId(), images2[0].Id)
 	}
 
 	// filter=a
