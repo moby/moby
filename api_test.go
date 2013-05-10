@@ -6,7 +6,10 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
+	"time"
 )
 
 func TestAuth(t *testing.T) {
@@ -236,8 +239,7 @@ func TestGetImage(t *testing.T) {
 	}
 }
 
-func TestCreateListStartStopRestartKillWaitDelete(t *testing.T) {
-
+func TestPostContainersCreate(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -246,36 +248,18 @@ func TestCreateListStartStopRestartKillWaitDelete(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	containers := testListContainers(t, srv, -1)
-	for _, container := range containers {
-		testDeleteContainer(t, srv, container.Id)
-	}
-	testCreateContainer(t, srv)
-	id := testListContainers(t, srv, 1)[0].Id
-	testContainerStart(t, srv, id)
-	testContainerStop(t, srv, id)
-	testContainerRestart(t, srv, id)
-	testContainerKill(t, srv, id)
-	testContainerWait(t, srv, id)
-	testDeleteContainer(t, srv, id)
-	testListContainers(t, srv, 0)
-}
-
-func testCreateContainer(t *testing.T, srv *Server) {
-
 	r := httptest.NewRecorder()
 
-	config, _, err := ParseRun([]string{unitTestImageName, "touch test"}, nil)
+	configJson, err := json.Marshal(&Config{
+		Image:  GetTestImage(runtime).Id,
+		Memory: 33554432,
+		Cmd:    []string{"touch", "/test"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	configJson, err := json.Marshal(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest("POST", "/containers", bytes.NewReader(configJson))
+	req, err := http.NewRequest("POST", "/containers/create", bytes.NewReader(configJson))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,61 +268,120 @@ func testCreateContainer(t *testing.T, srv *Server) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if body == nil {
-		t.Fatalf("Body expected, received: nil\n")
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
 	}
 
-	if r.Code != http.StatusCreated {
-		t.Fatalf("%d Created expected, received %d\n", http.StatusNoContent, r.Code)
+	apiRun := &ApiRun{}
+	if err := json.Unmarshal(body, apiRun); err != nil {
+		t.Fatal(err)
+	}
+
+	container := srv.runtime.Get(apiRun.Id)
+	if container == nil {
+		t.Fatalf("Container not created")
+	}
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err != nil {
+		if os.IsNotExist(err) {
+			Debugf("Err: %s", err)
+			t.Fatalf("The test file has not been created")
+		}
+		t.Fatal(err)
 	}
 }
 
-func testListContainers(t *testing.T, srv *Server, expected int) []ApiContainers {
+func TestGetContainersPs(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	r := httptest.NewRecorder()
+	srv := &Server{runtime: runtime}
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).Id,
+		Cmd:   []string{"echo", "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
 
 	req, err := http.NewRequest("GET", "/containers?quiet=1&all=1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	body, err := getContainersPs(srv, r, req, nil)
+	body, err := getContainersPs(srv, nil, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	var outs []ApiContainers
-	err = json.Unmarshal(body, &outs)
+	containers := []ApiContainers{}
+	err = json.Unmarshal(body, &containers)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expected >= 0 && len(outs) != expected {
-		t.Errorf("Excepted %d container, %d found", expected, len(outs))
+	if len(containers) != 1 {
+		t.Fatalf("Excepted %d container, %d found", 1, len(containers))
 	}
-	return outs
+	if containers[0].Id != container.ShortId() {
+		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ShortId(), containers[0].Id)
+	}
 }
 
-func testContainerStart(t *testing.T, srv *Server, id string) {
+func TestPostContainersStart(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
 
 	r := httptest.NewRecorder()
 
-	req, err := http.NewRequest("POST", "/containers/"+id+"/start", nil)
+	body, err := postContainersStart(srv, r, nil, map[string]string{"name": container.Id})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	body, err := postContainersStart(srv, r, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if body != nil {
 		t.Fatalf("No body expected, received: %s\n", body)
 	}
-
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+
+	if _, err = postContainersStart(srv, r, nil, map[string]string{"name": container.Id}); err == nil {
+		t.Fatalf("A running containter should be able to be started")
+	}
+
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -365,26 +408,62 @@ func testContainerRestart(t *testing.T, srv *Server, id string) {
 	}
 }
 
-func testContainerStop(t *testing.T, srv *Server, id string) {
+// 	testContainerRestart(t, srv, id)
+// 	testContainerKill(t, srv, id)
+// 	testContainerWait(t, srv, id)
+// 	testDeleteContainer(t, srv, id)
+// 	testListContainers(t, srv, 0)
+func TestPostContainersStop(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
 
 	r := httptest.NewRecorder()
 
-	req, err := http.NewRequest("POST", "/containers/"+id+"/stop?t=1", nil)
+	// Note: as it is a POST request, it requires a body.
+	req, err := http.NewRequest("POST", "/containers/"+container.Id+"/stop?t=1", bytes.NewReader([]byte{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	body, err := postContainersStop(srv, r, req, nil)
+	body, err := postContainersStop(srv, r, req, map[string]string{"name": container.Id})
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if body != nil {
 		t.Fatalf("No body expected, received: %s\n", body)
 	}
-
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+	if container.State.Running {
+		t.Fatalf("The container hasn't been stopped")
 	}
 }
 
@@ -436,26 +515,55 @@ func testContainerWait(t *testing.T, srv *Server, id string) {
 	}
 }
 
-func testDeleteContainer(t *testing.T, srv *Server, id string) {
+// FIXME: Test deleting runnign container
+// FIXME: Test deleting container with volume
+// FIXME: Test deleting volume in use by other container
+func TestDeleteContainers(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).Id,
+		Cmd:   []string{"touch", "/test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
 
 	r := httptest.NewRecorder()
 
-	req, err := http.NewRequest("DELETE", "/containers/"+id, nil)
+	req, err := http.NewRequest("DELETE", "/containers/"+container.Id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	body, err := deleteContainers(srv, r, req, nil)
+	body, err := deleteContainers(srv, r, req, map[string]string{"name": container.Id})
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if body != nil {
 		t.Fatalf("No body expected, received: %s\n", body)
 	}
-
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+
+	if c := runtime.Get(container.Id); c != nil {
+		t.Fatalf("The container as not been deleted")
+	}
+
+	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
+		t.Fatalf("The test file has not been deleted")
 	}
 }
 

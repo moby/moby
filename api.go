@@ -452,6 +452,7 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, var
 	if err != nil || t < 0 {
 		t = 10
 	}
+
 	if vars == nil {
 		return nil, fmt.Errorf("Missing parameter")
 	}
