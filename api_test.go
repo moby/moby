@@ -142,7 +142,7 @@ func TestGetImagesJson(t *testing.T) {
 
 func TestGetImagesViz(t *testing.T) {
 	//FIXME: Implement this test (or remove this endpoint)
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestGetImagesSearch(t *testing.T) {
@@ -267,7 +267,7 @@ func TestGetContainersPs(t *testing.T) {
 
 func TestGetContainersExport(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestGetContainerChanges(t *testing.T) {
@@ -289,9 +289,9 @@ func TestGetContainerChanges(t *testing.T) {
 	// 	t.Fatalf("Body expected, received: nil\n")
 	// }
 
-	// if r.Code != http.StatusOK {
-	// 	t.Fatalf("%d OK expected, received %d\n", http.StatusNoContent, r.Code)
-	// }
+func TestGetContainersByName(t *testing.T) {
+	//FIXME: Implement this test
+	t.Log("Test not implemented")
 }
 
 func TestPostAuth(t *testing.T) {
@@ -327,32 +327,32 @@ func TestPostAuth(t *testing.T) {
 
 func TestPostCommit(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostBuild(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostImagesCreate(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostImagesInsert(t *testing.T) {
 	//FIXME: Implement this test (or remove this endpoint)
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostImagesPush(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostImagesTag(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
 }
 
 func TestPostContainersCreate(t *testing.T) {
@@ -651,7 +651,7 @@ func TestPostContainersWait(t *testing.T) {
 	}
 
 	setTimeout(t, "Wait timed out", 3*time.Second, func() {
-		body, err := postContainersWait(srv, nil, nil, nil)
+		body, err := postContainersWait(srv, nil, nil, map[string]string{"name": container.Id})
 		if err != nil {
 			t.Fatal(err)
 		}

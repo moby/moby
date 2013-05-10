@@ -844,13 +844,13 @@ func CmdCommit(args ...string) error {
 		return err
 	}
 
-	var out ApiId
-	err = json.Unmarshal(body, &out)
+	apiId := &ApiId{}
+	err = json.Unmarshal(body, apiId)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(out.Id)
+	fmt.Println(apiId.Id)
 	return nil
 }
 
@@ -886,7 +886,7 @@ func CmdDiff(args ...string) error {
 		return err
 	}
 
-	var changes []Change
+	changes := []Change{}
 	err = json.Unmarshal(body, &changes)
 	if err != nil {
 		return err
@@ -933,8 +933,8 @@ func CmdAttach(args ...string) error {
 		return err
 	}
 
-	var container Container
-	err = json.Unmarshal(body, &container)
+	container := &Container{}
+	err = json.Unmarshal(body, container)
 	if err != nil {
 		return err
 	}
@@ -968,7 +968,7 @@ func CmdSearch(args ...string) error {
 		return err
 	}
 
-	var outs []ApiSearch
+	outs := []ApiSearch{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -1100,8 +1100,8 @@ func CmdRun(args ...string) error {
 		return err
 	}
 
-	var out ApiRun
-	err = json.Unmarshal(body, &out)
+	out := &ApiRun{}
+	err = json.Unmarshal(body, out)
 	if err != nil {
 		return err
 	}
