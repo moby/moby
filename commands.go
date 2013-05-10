@@ -588,7 +588,7 @@ func CmdImport(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
 
-	err := hijack("POST", "/images?"+v.Encode(), false)
+	err := hijack("POST", "/images/create?"+v.Encode(), false)
 	if err != nil {
 		return err
 	}
@@ -645,8 +645,7 @@ func CmdPush(args ...string) error {
 
 	v := url.Values{}
 	v.Set("registry", *registry)
-
-	if err := hijack("POST", "/images"+name+"/push?"+v.Encode(), false); err != nil {
+	if err := hijack("POST", "/images/"+name+"/push?"+v.Encode(), false); err != nil {
 		return err
 	}
 	return nil
@@ -677,7 +676,7 @@ func CmdPull(args ...string) error {
 	v.Set("tag", *tag)
 	v.Set("registry", *registry)
 
-	if err := hijack("POST", "/images?"+v.Encode(), false); err != nil {
+	if err := hijack("POST", "/images/create?"+v.Encode(), false); err != nil {
 		return err
 	}
 
@@ -716,7 +715,7 @@ func CmdImages(args ...string) error {
 			v.Set("all", "1")
 		}
 
-		body, _, err := call("GET", "/images?"+v.Encode(), nil)
+		body, _, err := call("GET", "/images/json?"+v.Encode(), nil)
 		if err != nil {
 			return err
 		}
@@ -1244,12 +1243,12 @@ func hijack(method, path string, setRawTerminal bool) error {
 	if err := <-receiveStdout; err != nil {
 		return err
 	}
+
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		if err := <-sendStdin; err != nil {
 			return err
 		}
 	}
-
 	return nil
 
 }
