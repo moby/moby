@@ -156,69 +156,85 @@ func TestInfo(t *testing.T) {
 	}
 }
 
-// func TestHistory(t *testing.T) {
-// 	runtime, err := newTestRuntime()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer nuke(runtime)
+func TestHistory(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-// 	srv := &Server{runtime: runtime}
+	srv := &Server{runtime: runtime}
 
-// 	req, err := http.NewRequest("GET", "/images/"+unitTestImageName+"/history", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	body, err := getImagesHistory(srv, nil, nil, map[string]string{"name": unitTestImageName})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	router := mux.NewRouter()
-// 	router.Path("/images/{name:.*}/history")
-// 	vars := mux.Vars(req)
-// 	router.
-// 	vars["name"] = unitTestImageName
+	history := []ApiHistory{}
 
-// 	body, err := getImagesHistory(srv, nil, req)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var outs []ApiHistory
-// 	err = json.Unmarshal(body, &outs)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if len(outs) != 1 {
-// 		t.Errorf("Excepted 1 line, %d found", len(outs))
-// 	}
-// }
+	err = json.Unmarshal(body, &history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 {
+		t.Errorf("Excepted 1 line, %d found", len(history))
+	}
+}
 
-// func TestImagesSearch(t *testing.T) {
-// 	body, _, err := call("GET", "/images/search?term=redis", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var outs []ApiSearch
-// 	err = json.Unmarshal(body, &outs)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if len(outs) < 2 {
-// 		t.Errorf("Excepted at least 2 lines, %d found", len(outs))
-// 	}
-// }
+func TestImagesSearch(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-// func TestGetImage(t *testing.T) {
-// 	obj, _, err := call("GET", "/images/"+unitTestImageName+"/json", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	var out Image
-// 	err = json.Unmarshal(obj, &out)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if out.Comment != "Imported from http://get.docker.io/images/busybox" {
-// 		t.Errorf("Error inspecting image")
-// 	}
-// }
+	srv := &Server{runtime: runtime}
+
+	req, err := http.NewRequest("GET", "/images/search?term=redis", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := getImagesSearch(srv, nil, req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results := []ApiSearch{}
+
+	err = json.Unmarshal(body, &results)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) < 2 {
+		t.Errorf("Excepted at least 2 lines, %d found", len(results))
+	}
+}
+
+func TestGetImage(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	body, err := getImagesByName(srv, nil, nil, map[string]string{"name": unitTestImageName})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	img := &Image{}
+
+	err = json.Unmarshal(body, img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.Comment != "Imported from http://get.docker.io/images/busybox" {
+		t.Errorf("Error inspecting image")
+	}
+}
 
 func TestCreateListStartStopRestartKillWaitDelete(t *testing.T) {
 
