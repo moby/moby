@@ -20,7 +20,7 @@ Docker Remote API
 List containers
 ***************
 
-.. http:get:: /containers
+.. http:get:: /containers/ps
 
 	List containers
 
@@ -28,7 +28,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers?trunc_cmd=0&all=1&only_ids=0&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/ps?trunc_cmd=0&all=1&only_ids=0&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
@@ -81,7 +81,7 @@ List containers
 Create a container
 ******************
 
-.. http:post:: /containers
+.. http:post:: /containers/create
 
 	Create a container
 
@@ -89,7 +89,7 @@ Create a container
 
 	.. sourcecode:: http
 
-	   POST /containers HTTP/1.1
+	   POST /containers/create HTTP/1.1
 	   Content-Type: application/json
 
 	   {
@@ -431,7 +431,7 @@ Wait a container
 Remove a container
 *******************
 
-.. http:delete:: /container/(id)
+.. http:delete:: /containers/(id)
 
 	Remove the container ``id`` from the filesystem
 
@@ -459,7 +459,6 @@ Remove a container
 List Images
 ***********
 
-.. http:get:: /images
 .. http:get:: /images/(format)
 
 	List images ``format`` could be json or viz (json default)
@@ -533,7 +532,7 @@ List Images
 Create an image
 ***************
 
-.. http:post:: /images
+.. http:post:: /images/create
 
 	Create an image, either by pull it from the registry or by importing it
 
@@ -541,7 +540,7 @@ Create an image
 
         .. sourcecode:: http
 
-           POST /images?fromImage=base HTTP/1.1
+           POST /images/create?fromImage=base HTTP/1.1
 
         **Example response**:
 
@@ -641,7 +640,7 @@ Inspect an image
 Get the history of an image
 ***************************
 
-.. http:get:: /images/(name)
+.. http:get:: /images/(name)/history
 
         Return the history of the image ``name``
 
