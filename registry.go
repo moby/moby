@@ -691,7 +691,6 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		}
 	}
 
-
 	req2, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/images", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err

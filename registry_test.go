@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestPull(t* testing.T) {
+func TestPull(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestPull(t* testing.T) {
 	}
 }
 
-func TestPullTag(t* testing.T) {
+func TestPullTag(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func login(runtime *Runtime) error {
 	return err
 }
 
-func TestPush(t* testing.T) {
+func TestPush(t *testing.T) {
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	runtime, err := newTestRuntime()
@@ -116,13 +116,13 @@ func TestPush(t* testing.T) {
 		t.Fatalf("Expected status code 0, found %d instead", status)
 	}
 
-	img, err := b.Commit(container, "unittester/" + token, "", "", "", nil)
+	img, err := b.Commit(container, "unittester/"+token, "", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	repo := runtime.repositories.Repositories["unittester/"+token]
-	err = runtime.graph.PushRepository(os.Stdout, "unittester/" + token, repo, runtime.authConfig)
+	err = runtime.graph.PushRepository(os.Stdout, "unittester/"+token, repo, runtime.authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestPush(t* testing.T) {
 		t.Fatal(err)
 	}
 
-	err = runtime.graph.PullRepository(os.Stdout, "unittester/" + token, "", runtime.repositories, runtime.authConfig)
+	err = runtime.graph.PullRepository(os.Stdout, "unittester/"+token, "", runtime.repositories, runtime.authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
