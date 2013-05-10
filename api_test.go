@@ -9,20 +9,6 @@ import (
 	"testing"
 )
 
-// func init() {
-// 	// Make it our Store root
-// 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	// Create the "Server"
-// 	srv := &Server{
-// 		runtime: runtime,
-// 	}
-// 	go ListenAndServe("0.0.0.0:4243", srv, false)
-// }
-
 func TestAuth(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -108,7 +94,11 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-func TestImages(t *testing.T) {
+func TestContainersExport(t *testing.T) {
+	//FIXME: Implement this test
+}
+
+func TestGetImages(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -274,7 +264,7 @@ func testCreateContainer(t *testing.T, srv *Server) {
 		t.Fatal(err)
 	}
 
-	body, err := postContainers(srv, r, req, nil)
+	body, err := postContainersCreate(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +287,7 @@ func testListContainers(t *testing.T, srv *Server, expected int) []ApiContainers
 		t.Fatal(err)
 	}
 
-	body, err := getContainers(srv, r, req, nil)
+	body, err := getContainersPs(srv, r, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

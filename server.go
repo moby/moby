@@ -236,9 +236,10 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 }
 
 func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, before string) []ApiContainers {
-	var outs []ApiContainers = []ApiContainers{} //produce [] when empty instead of 'null'
 	var foundBefore bool
 	var displayed int
+	retContainers := []ApiContainers{}
+
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
 			continue
@@ -258,23 +259,26 @@ func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, befor
 		if container.ShortId() == since {
 			break
 		}
-		displayed += 1
-		var out ApiContainers
-		out.Id = container.ShortId()
+		displayed++
+
+		c := ApiContainers{
+			Id: container.ShortId(),
+		}
+
 		if !only_ids {
 			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 			if trunc_cmd {
 				command = Trunc(command, 20)
 			}
-			out.Image = srv.runtime.repositories.ImageName(container.Image)
-			out.Command = command
-			out.Created = container.Created.Unix()
-			out.Status = container.State.String()
-			out.Ports = container.NetworkSettings.PortMappingHuman()
+			c.Image = srv.runtime.repositories.ImageName(container.Image)
+			c.Command = command
+			c.Created = container.Created.Unix()
+			c.Status = container.State.String()
+			c.Ports = container.NetworkSettings.PortMappingHuman()
 		}
-		outs = append(outs, out)
+		retContainers = append(retContainers, c)
 	}
-	return outs
+	return retContainers
 }
 
 func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
@@ -369,29 +373,24 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(config Config) (string, bool, bool, error) {
-	var memoryW, swapW bool
+func (srv *Server) ContainerCreate(config *Config) (string, error) {
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
-		memoryW = true
-		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		config.Memory = 0
 	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
-		swapW = true
-		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		config.MemorySwap = -1
 	}
 	b := NewBuilder(srv.runtime)
-	container, err := b.Create(&config)
+	container, err := b.Create(config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
-			return "", false, false, fmt.Errorf("No such image: %s", config.Image)
+			return "", fmt.Errorf("No such image: %s", config.Image)
 		}
-		return "", false, false, err
+		return "", err
 	}
-	return container.ShortId(), memoryW, swapW, nil
+	return container.ShortId(), nil
 }
 
 func (srv *Server) ImageCreateFromFile(dockerfile io.Reader, out io.Writer) error {

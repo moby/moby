@@ -18,7 +18,7 @@ func TestCreateRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, _, err := srv.ContainerCreate(*config)
+	id, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, _, err := srv.ContainerCreate(*config)
+	id, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -154,7 +154,6 @@ func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 		return nil, fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	log.Printf("----------> %s\n", name)
 	outs, err := srv.ImageHistory(name)
 	if err != nil {
 		return nil, err
@@ -182,7 +181,7 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, v
 	return b, nil
 }
 
-func getContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -248,7 +247,8 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	return b, nil
 }
 
-func postImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+// Creates an image from Pull or from Import
+func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -355,21 +355,25 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[str
 	return nil, nil
 }
 
-func postContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
-	var config Config
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+	config := &Config{}
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return nil, err
 	}
-	id, memoryW, swapW, err := srv.ContainerCreate(config)
+	id, err := srv.ContainerCreate(config)
 	if err != nil {
 		return nil, err
 	}
-	var out ApiRun
-	out.Id = id
-	if memoryW {
+
+	out := &ApiRun{
+		Id: id,
+	}
+	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
+		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 	}
-	if swapW {
+	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
+		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 	b, err := json.Marshal(out)
@@ -545,28 +549,27 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
-			"/containers/{name:.*}/export":  getContainersExport,
-			"/images":                       getImages,
+			"/info":                         getInfo,
 			"/images/json":                  getImages,
 			"/images/viz":                   getImagesViz,
-			"/info":                         getInfo,
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
-			"/containers/{name:.*}/changes": getContainersChanges,
-			"/containers":                   getContainers,
 			"/images/{name:.*}/json":        getImagesByName,
+			"/containers/ps":                getContainersPs,
+			"/containers/{name:.*}/export":  getContainersExport,
+			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
 		},
 		"POST": {
-			"/auth": postAuth,
-			"/containers/{name:.*}/kill":    postContainersKill,
-			"/images/{name:.*}/tag":         postImagesTag,
+			"/auth":                         postAuth,
 			"/commit":                       postCommit,
-			"/images":                       postImages,
+			"/build":                        postBuild,
+			"/images/create":                postImagesCreate,
 			"/images/{name:*.}/insert":      postImagesInsert,
 			"/images/{name:*.}/push":        postImagesPush,
-			"/build":                        postBuild,
-			"/containers":                   postContainers,
+			"/images/{name:.*}/tag":         postImagesTag,
+			"/containers/create":            postContainersCreate,
+			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,
 			"/containers/{name:.*}/start":   postContainersStart,
 			"/containers/{name:.*}/stop":    postContainersStop,
