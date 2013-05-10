@@ -26,7 +26,7 @@ func TestPull(t* testing.T) {
 	}
 
 	// Try to run something on this image to make sure the layer's been downloaded properly.
-	config, err := ParseRun([]string{img.Id, "echo", "Hello World"}, os.Stdout, runtime.capabilities)
+	config, _, err := ParseRun([]string{img.Id, "echo", "Hello World"}, runtime.capabilities)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,8 +97,8 @@ func TestPush(t* testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token := hex.EncodeToString(tokenBuffer)
-	config, err := ParseRun([]string{"joffrey/busybox", "touch", "/" + token}, os.Stdout, runtime.capabilities)
+	token := hex.EncodeToString(tokenBuffer)[:29]
+	config, _, err := ParseRun([]string{"joffrey/busybox", "touch", "/" + token}, runtime.capabilities)
 	if err != nil {
 		t.Fatal(err)
 	}
