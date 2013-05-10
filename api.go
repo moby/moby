@@ -227,8 +227,8 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
-	var config Config
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+	config := &Config{}
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		Debugf("%s", err.Error())
 	}
 	repo := r.Form.Get("repo")
@@ -236,11 +236,11 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	container := r.Form.Get("container")
 	author := r.Form.Get("author")
 	comment := r.Form.Get("comment")
-	id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
+	id, err := srv.ContainerCommit(container, repo, tag, author, comment, config)
 	if err != nil {
 		return nil, err
 	}
-	b, err := json.Marshal(ApiId{id})
+	b, err := json.Marshal(&ApiId{id})
 	if err != nil {
 		return nil, err
 	}
