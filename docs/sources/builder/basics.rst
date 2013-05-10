@@ -4,83 +4,120 @@ Docker Builder
 
 .. contents:: Table of Contents
 
-1. Format
+Docker Builder specifes a simple DSL which allows you to automate the steps you
+would normally manually take to create an image. Docker Build will run your 
+steps and commit them along the way, giving you a final image.
+
+1. Usage
+========
+
+To use Docker Builder, assemble the steps into a text file (commonly referred to
+as a Dockerfile) and supply this to `docker build` on STDIN, like so:
+
+    ``docker build < Dockerfile``
+
+Docker will run your steps one-by-one, committing the result if necessary, 
+before finally outputting the ID of your new image.
+
+2. Format
 =========
 
-The Docker builder format is quite simple:
+The Dockerfile format is quite simple:
 
     ``instruction arguments``
 
-The first instruction must be `FROM`
+The Instruction is not case-sensitive, however convention is for them to be 
+UPPERCASE in order to distinguish them from arguments more easily.
 
-All instruction are to be placed in a file named `Dockerfile`
+Dockerfiles are evaluated in order, therefore the first instruction must be 
+`FROM` in order to specify the base image from which you are building.
 
-In order to place comments within a Dockerfile, simply prefix the line with "`#`"
+Docker will ignore lines in Dockerfiles prefixed with "`#`", so you may add 
+comment lines. A comment marker in the rest of the line will be treated as an
+argument.
 
 2. Instructions
 ===============
 
-Docker builder comes with a set of instructions:
-
-1. FROM: Set from what image to build
-2. RUN: Execute a command
-3. INSERT: Insert a remote file (http) into the image
+Docker builder comes with a set of instructions, described below.
 
 2.1 FROM
 --------
+
     ``FROM <image>``
 
-The `FROM` instruction must be the first one in order for Builder to know from where to run commands.
+The `FROM` instruction sets the base image for subsequent instructions. As such,
+a valid Dockerfile must have it as its first instruction.
 
-`FROM` can also be used in order to build multiple images within a single Dockerfile
+`FROM` can be included multiple times within a single Dockerfile in order to 
+create multiple images. Simply make a note of the last image id output by the 
+commit before each new `FROM` command.
 
 2.2 MAINTAINER
 --------------
+
     ``MAINTAINER <name>``
 
-The `MAINTAINER` instruction allow you to set the Author field of the generated images.
-This instruction is never automatically reset.
+The `MAINTAINER` instruction allows you to set the Author field of the generated 
+images.
 
 2.3 RUN
 -------
+
     ``RUN <command>``
 
-The `RUN` instruction is the main one, it allows you to execute any commands on the `FROM` image and to save the results.
-You can use as many `RUN` as you want within a Dockerfile, the commands will be executed on the result of the previous command.
+The `RUN` instruction will execute any commands on the current image and commit
+the results. The resulting committed image will be used for the next step in the
+Dockerfile.
 
+Layering `RUN` instructions and generating commits conforms to the
+core concepts of Docker where commits are cheap and containers can be created
+from any point in an image's history, much like source control.
 
 2.4 CMD
 -------
+
     ``CMD <command>``
 
 The `CMD` instruction sets the command to be executed when running the image.
-It is equivalent to do `docker commit -run '{"Cmd": <command>}'` outside the builder.
+This is functionally equivalent to running 
+`docker commit -run '{"Cmd": <command>}'` outside the builder.
 
 .. note::
-    Do not confuse `RUN` with `CMD`. `RUN` actually run a command and save the result, `CMD` does not execute anything.
+    Don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits 
+    the result; `CMD` does not execute anything at build time, but specifies the
+    intended command for the image.
 
 2.5 EXPOSE
 ----------
+
     ``EXPOSE <port> [<port>...]``
 
-The `EXPOSE` instruction sets ports to be publicly exposed when running the image.
-This is equivalent to do `docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the builder.
+The `EXPOSE` instruction sets ports to be publicly exposed when running the 
+image. This is functionally equivalent to running 
+`docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the builder.
 
 2.6 ENV
 -------
+
     ``ENV <key> <value>``
 
-The `ENV` instruction set as environment variable `<key>` with the value `<value>`. This value will be passed to all future ``RUN`` instructions.
+The `ENV` instruction sets the environment variable `<key>` to the value 
+`<value>`. This value will be passed to all future ``RUN`` instructions. This is
+functionally equivalent to prefixing the command with `<key>=<value>`
 
 .. note::
-    The environment variables are local to the Dockerfile, they will not be set as autorun.
+    The environment variables are local to the Dockerfile, they will not persist
+    when a container is run from the resulting image.
 
 2.7 INSERT
 ----------
 
     ``INSERT <file url> <path>``
 
-The `INSERT` instruction will download the file at the given url and place it within the image at the given path.
+The `INSERT` instruction will download the file from the given url to the given
+path within the image. It is similar to `RUN curl -o <path> <url>`, assuming 
+curl was installed within the image.
 
 .. note::
     The path must include the file name.
@@ -96,15 +133,15 @@ The `INSERT` instruction will download the file at the given url and place it wi
     # VERSION               0.0.1
     # DOCKER-VERSION        0.2
     
-    from      ubuntu
-    maintainer Guillaume J. Charmes "guillaume@dotcloud.com"
+    FROM      ubuntu
+    MAINTAINER Guillaume J. Charmes "guillaume@dotcloud.com"
     
     # make sure the package repository is up to date
-    run echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    run apt-get update
+    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+    RUN apt-get update
     
-    run apt-get install -y inotify-tools nginx apache2 openssh-server
-    insert https://raw.github.com/creack/docker-vps/master/nginx-wrapper.sh /usr/sbin/nginx-wrapper
+    RUN apt-get install -y inotify-tools nginx apache2 openssh-server
+    INSERT https://raw.github.com/creack/docker-vps/master/nginx-wrapper.sh /usr/sbin/nginx-wrapper
 
 ::
 
@@ -113,18 +150,18 @@ The `INSERT` instruction will download the file at the given url and place it wi
     # VERSION               0.3
     # DOCKER-VERSION        0.2
     
-    from ubuntu
+    FROM ubuntu
     # make sure the package repository is up to date
-    run echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    run apt-get update
+    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+    RUN apt-get update
     
     # Install vnc, xvfb in order to create a 'fake' display and firefox
-    run apt-get install -y x11vnc xvfb firefox
-    run mkdir /.vnc
+    RUN apt-get install -y x11vnc xvfb firefox
+    RUN mkdir /.vnc
     # Setup a password
-    run x11vnc -storepasswd 1234 ~/.vnc/passwd
+    RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
     # Autostart firefox (might not be the best way to do it, but it does the trick)
-    run bash -c 'echo "firefox" >> /.bashrc'
+    RUN bash -c 'echo "firefox" >> /.bashrc'
     
-    expose 5900
-    cmd    ["x11vnc", "-forever", "-usepw", "-create"]
+    EXPOSE 5900
+    CMD    ["x11vnc", "-forever", "-usepw", "-create"]
