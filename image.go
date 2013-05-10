@@ -35,8 +35,9 @@ func LoadImage(root string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	var img Image
-	if err := json.Unmarshal(jsonData, &img); err != nil {
+	img := &Image{}
+
+	if err := json.Unmarshal(jsonData, img); err != nil {
 		return nil, err
 	}
 	if err := ValidateId(img.Id); err != nil {
@@ -52,11 +53,10 @@ func LoadImage(root string) (*Image, error) {
 	} else if !stat.IsDir() {
 		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.Id, layerPath(root))
 	}
-
-	return &img, nil
+	return img, nil
 }
 
-func StoreImage(img *Image, layerData Archive, root string) error {
+func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.Id)
@@ -68,6 +68,28 @@ func StoreImage(img *Image, layerData Archive, root string) error {
 	if err := os.MkdirAll(layer, 0700); err != nil {
 		return err
 	}
+
+	if store {
+		layerArchive := layerArchivePath(root)
+		file, err := os.OpenFile(layerArchive, os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return err
+		}
+		// FIXME: Retrieve the image layer size from here?
+		if _, err := io.Copy(file, layerData); err != nil {
+			return err
+		}
+		// FIXME: Don't close/open, read/write instead of Copy
+		file.Close()
+
+		file, err = os.Open(layerArchive)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		layerData = file
+	}
+
 	if err := Untar(layerData, layer); err != nil {
 		return err
 	}
@@ -84,6 +106,10 @@ func StoreImage(img *Image, layerData Archive, root string) error {
 
 func layerPath(root string) string {
 	return path.Join(root, "layer")
+}
+
+func layerArchivePath(root string) string {
+	return path.Join(root, "layer.tar.xz")
 }
 
 func jsonPath(root string) string {
@@ -261,21 +287,20 @@ func (img *Image) layer() (string, error) {
 }
 
 func (img *Image) Checksum() (string, error) {
+	img.graph.checksumLock[img.Id].Lock()
+	defer img.graph.checksumLock[img.Id].Unlock()
+
 	root, err := img.root()
 	if err != nil {
 		return "", err
 	}
 
-	checksumDictPth := path.Join(root, "..", "..", "checksums")
-	checksums := new(map[string]string)
-
-	if checksumDict, err := ioutil.ReadFile(checksumDictPth); err == nil {
-		if err := json.Unmarshal(checksumDict, checksums); err != nil {
-			return "", err
-		}
-		if checksum, ok := (*checksums)[img.Id]; ok {
-			return checksum, nil
-		}
+	checksums, err := img.graph.getStoredChecksums()
+	if err != nil {
+		return "", err
+	}
+	if checksum, ok := checksums[img.Id]; ok {
+		return checksum, nil
 	}
 
 	layer, err := img.layer()
@@ -287,9 +312,20 @@ func (img *Image) Checksum() (string, error) {
 		return "", err
 	}
 
-	layerData, err := Tar(layer, Xz)
-	if err != nil {
-		return "", err
+	var layerData io.Reader
+
+	if file, err := os.Open(layerArchivePath(root)); err != nil {
+		if os.IsNotExist(err) {
+			layerData, err = Tar(layer, Xz)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	} else {
+		defer file.Close()
+		layerData = file
 	}
 
 	h := sha256.New()
@@ -299,22 +335,27 @@ func (img *Image) Checksum() (string, error) {
 	if _, err := h.Write([]byte("\n")); err != nil {
 		return "", err
 	}
+
 	if _, err := io.Copy(h, layerData); err != nil {
 		return "", err
 	}
-
 	hash := "sha256:" + hex.EncodeToString(h.Sum(nil))
-	if *checksums == nil {
-		*checksums = map[string]string{}
-	}
-	(*checksums)[img.Id] = hash
-	checksumJson, err := json.Marshal(checksums)
+
+	// Reload the json file to make sure not to overwrite faster sums
+	img.graph.lockSumFile.Lock()
+	defer img.graph.lockSumFile.Unlock()
+
+	checksums, err = img.graph.getStoredChecksums()
 	if err != nil {
+		return "", err
+	}
+
+	checksums[img.Id] = hash
+
+	// Dump the checksums to disc
+	if err := img.graph.storeChecksums(checksums); err != nil {
 		return hash, err
 	}
 
-	if err := ioutil.WriteFile(checksumDictPth, checksumJson, 0600); err != nil {
-		return hash, err
-	}
 	return hash, nil
 }

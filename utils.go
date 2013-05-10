@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
+	"github.com/dotcloud/docker/term"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -58,9 +59,6 @@ func Debugf(format string, a ...interface{}) {
 		}
 
 		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-		if rcli.CLIENT_SOCKET != nil {
-			fmt.Fprintf(rcli.CLIENT_SOCKET, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-		}
 	}
 }
 
@@ -404,6 +402,25 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 	return written, err
 }
 
+func SetRawTerminal() (*term.State, error) {
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		_ = <-c
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		os.Exit(0)
+	}()
+	return oldState, err
+}
+
+func RestoreTerminal(state *term.State) {
+	term.Restore(int(os.Stdin.Fd()), state)
+}
+
 func HashData(src io.Reader) (string, error) {
 	h := sha256.New()
 	if _, err := io.Copy(h, src); err != nil {
@@ -425,7 +442,11 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 }
 
 func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d-%s", k.Kernel, k.Major, k.Minor, k.Flavor)
+	flavor := ""
+	if len(k.Flavor) > 0 {
+		flavor = fmt.Sprintf("-%s", k.Flavor)
+	}
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
 }
 
 // Compare two KernelVersionInfo struct.

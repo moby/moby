@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
 	"io"
 	"io/ioutil"
 	"net"
@@ -67,12 +66,13 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
 	// Create the "Server"
 	srv := &Server{
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.CmdPull(os.Stdin, rcli.NewDockerLocalConn(os.Stdout), unitTestImageName); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {
 		panic(err)
 	}
 }
@@ -118,7 +118,10 @@ func TestRuntimeCreate(t *testing.T) {
 	if len(runtime.List()) != 0 {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
-	container, err := NewBuilder(runtime).Create(&Config{
+
+	builder := NewBuilder(runtime)
+
+	container, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -156,6 +159,26 @@ func TestRuntimeCreate(t *testing.T) {
 	// Make sure Exists returns it as existing
 	if !runtime.Exists(container.Id) {
 		t.Errorf("Exists() returned false for a newly created container")
+	}
+
+	// Make sure crete with bad parameters returns an error
+	_, err = builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when Cmd is missing")
+	}
+
+	_, err = builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{},
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
 }
 

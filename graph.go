@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,14 +10,18 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root       string
-	idIndex    *TruncIndex
-	httpClient *http.Client
+	Root         string
+	idIndex      *TruncIndex
+	httpClient   *http.Client
+	checksumLock map[string]*sync.Mutex
+	lockSumFile  *sync.Mutex
+	lockSumMap   *sync.Mutex
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -27,12 +32,15 @@ func NewGraph(root string) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.Mkdir(root, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	graph := &Graph{
-		Root:    abspath,
-		idIndex: NewTruncIndex(),
+		Root:         abspath,
+		idIndex:      NewTruncIndex(),
+		checksumLock: make(map[string]*sync.Mutex),
+		lockSumFile:  &sync.Mutex{},
+		lockSumMap:   &sync.Mutex{},
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -55,7 +63,7 @@ func (graph *Graph) restore() error {
 // FIXME: Implement error subclass instead of looking at the error text
 // Note: This is the way golang implements os.IsNotExists on Plan9
 func (graph *Graph) IsNotExist(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "does not exist")
+	return err != nil && (strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "No such"))
 }
 
 // Exists returns true if an image is registered at the given id.
@@ -82,6 +90,11 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
 	}
 	img.graph = graph
+	graph.lockSumMap.Lock()
+	defer graph.lockSumMap.Unlock()
+	if _, exists := graph.checksumLock[img.Id]; !exists {
+		graph.checksumLock[img.Id] = &sync.Mutex{}
+	}
 	return img, nil
 }
 
@@ -100,16 +113,16 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Container = container.Id
 		img.ContainerConfig = *container.Config
 	}
-	if err := graph.Register(layerData, img); err != nil {
+	if err := graph.Register(layerData, true, img); err != nil {
 		return nil, err
 	}
-	img.Checksum()
+	go img.Checksum()
 	return img, nil
 }
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(layerData Archive, img *Image) error {
+func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 	if err := ValidateId(img.Id); err != nil {
 		return err
 	}
@@ -122,7 +135,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
 	}
-	if err := StoreImage(img, layerData, tmp); err != nil {
+	if err := StoreImage(img, layerData, tmp, store); err != nil {
 		return err
 	}
 	// Commit
@@ -131,6 +144,7 @@ func (graph *Graph) Register(layerData Archive, img *Image) error {
 	}
 	img.graph = graph
 	graph.idIndex.Add(img.Id)
+	graph.checksumLock[img.Id] = &sync.Mutex{}
 	return nil
 }
 
@@ -253,14 +267,14 @@ func (graph *Graph) WalkAll(handler func(*Image)) error {
 func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	byParent := make(map[string][]*Image)
 	err := graph.WalkAll(func(image *Image) {
-		image, err := graph.Get(image.Parent)
+		parent, err := graph.Get(image.Parent)
 		if err != nil {
 			return
 		}
-		if children, exists := byParent[image.Parent]; exists {
-			byParent[image.Parent] = []*Image{image}
+		if children, exists := byParent[parent.Id]; exists {
+			byParent[parent.Id] = []*Image{image}
 		} else {
-			byParent[image.Parent] = append(children, image)
+			byParent[parent.Id] = append(children, image)
 		}
 	})
 	return byParent, err
@@ -286,4 +300,27 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
+}
+
+func (graph *Graph) getStoredChecksums() (map[string]string, error) {
+	checksums := make(map[string]string)
+	// FIXME: Store the checksum in memory
+
+	if checksumDict, err := ioutil.ReadFile(path.Join(graph.Root, "checksums")); err == nil {
+		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
+			return nil, err
+		}
+	}
+	return checksums, nil
+}
+
+func (graph *Graph) storeChecksums(checksums map[string]string) error {
+	checksumJson, err := json.Marshal(checksums)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(path.Join(graph.Root, "checksums"), checksumJson, 0600); err != nil {
+		return err
+	}
+	return nil
 }

@@ -2,8 +2,8 @@ package docker
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -72,8 +72,8 @@ type Config struct {
 	VolumesFrom  string
 }
 
-func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Config, error) {
-	cmd := rcli.Subcmd(stdout, "run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet, error) {
+	cmd := Subcmd("run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
 	}
@@ -87,8 +87,8 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 
-	if *flMemory > 0 && !capabilities.MemoryLimit {
-		fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		*flMemory = 0
 	}
 
@@ -109,10 +109,10 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 
 	if err := cmd.Parse(args); err != nil {
-		return nil, err
+		return nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -152,8 +152,8 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 		VolumesFrom:  *flVolumesFrom,
 	}
 
-	if *flMemory > 0 && !capabilities.SwapLimit {
-		fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
 
@@ -161,7 +161,7 @@ func ParseRun(args []string, stdout io.Writer, capabilities *Capabilities) (*Con
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, nil
+	return config, cmd, nil
 }
 
 type NetworkSettings struct {
