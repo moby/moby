@@ -497,6 +497,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
 	//logs
 	if logs {
 		if stdout {
