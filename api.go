@@ -39,22 +39,24 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &auth.AuthConfig{
 		Username: srv.runtime.authConfig.Username,
 		Email:    srv.runtime.authConfig.Email,
 	}
 	b, err := json.Marshal(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &auth.AuthConfig{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		return nil, err
+		return err
 	}
 
 	if config.Username == srv.runtime.authConfig.Username {
@@ -64,7 +66,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
-		return nil, err
+		return err
 	} else {
 		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
 		srv.runtime.authConfig = newAuthConfig
@@ -72,38 +74,42 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		return b, nil
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(b)
+		return nil
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	m := srv.DockerVersion()
 	b, err := json.Marshal(m)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	if err := srv.ContainerKill(name); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
@@ -111,12 +117,12 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 		Debugf("%s", err.Error())
 		//return nil, err
 	}
-	return nil, nil
+	return nil
 }
 
-func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 
 	all := r.Form.Get("all") == "1"
@@ -125,66 +131,74 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 
 	outs, err := srv.Images(all, only_ids, filter)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := srv.ImagesViz(w); err != nil {
-		return nil, err
+		return err
 	}
-	return nil, nil
+	return nil
 }
 
-func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	out := srv.DockerInfo()
 	b, err := json.Marshal(out)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	outs, err := srv.ImageHistory(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	changesStr, err := srv.ContainerChanges(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(changesStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	all := r.Form.Get("all") == "1"
 	trunc_cmd := r.Form.Get("trunc_cmd") != "0"
@@ -199,33 +213,35 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	outs := srv.Containers(all, trunc_cmd, only_ids, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	force := r.Form.Get("force") == "1"
 
 	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusCreated)
-	return nil, nil
+	return nil
 }
 
-func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
@@ -238,20 +254,22 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	comment := r.Form.Get("comment")
 	id, err := srv.ContainerCommit(container, repo, tag, author, comment, &config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(ApiId{id})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusCreated)
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
 // Creates an image from Pull or from Import
-func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 
 	src := r.Form.Get("fromSrc")
@@ -261,7 +279,7 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
@@ -275,95 +293,97 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 			fmt.Fprintf(out, "Error: %s\n", err)
 		}
 	}
-	return nil, nil
+	return nil
 }
 
-func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 
 	term := r.Form.Get("term")
 	outs, err := srv.ImagesSearch(term)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(outs)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 
 	url := r.Form.Get("url")
 	path := r.Form.Get("path")
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageInsert(name, url, path, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
 	}
-	return nil, nil
+	return nil
 }
 
-func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 
 	registry := r.Form.Get("registry")
 
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImagePush(name, registry, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
 	}
-	return nil, nil
+	return nil
 }
 
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	in, out, err := hijackServer(w)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageCreateFromFile(in, out); err != nil {
 		fmt.Fprintln(out, "Error: %s\n", err)
 	}
-	return nil, nil
+	return nil
 }
 
-func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		return nil, err
+		return err
 	}
 	id, err := srv.ContainerCreate(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	out := &ApiRun{
@@ -379,75 +399,77 @@ func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, v
 	}
 	b, err := json.Marshal(out)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusCreated)
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
 	if err != nil || t < 0 {
 		t = 10
 	}
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	if err := srv.ContainerRestart(name, t); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	removeVolume := r.Form.Get("v") == "1"
 
 	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	if err := srv.ImageDelete(name); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	if err := srv.ContainerStart(name); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	t, err := strconv.Atoi(r.Form.Get("t"))
 	if err != nil || t < 0 {
@@ -455,36 +477,38 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, var
 	}
 
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	if err := srv.ContainerStop(name, t); err != nil {
-		return nil, err
+		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-	return nil, nil
+	return nil
 }
 
-func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	status, err := srv.ContainerWait(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(&ApiWait{StatusCode: status})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil, err
+		return err
 	}
 	logs := r.Form.Get("logs") == "1"
 	stream := r.Form.Get("stream") == "1"
@@ -492,13 +516,13 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, v
 	stdout := r.Form.Get("stdout") == "1"
 	stderr := r.Form.Get("stderr") == "1"
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	in, out, err := hijackServer(w)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer in.Close()
 
@@ -506,48 +530,52 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, v
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
 		fmt.Fprintf(out, "Error: %s\n", err)
 	}
-	return nil, nil
+	return nil
 }
 
-func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	container, err := srv.ContainerInspect(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(container)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
-func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return nil, fmt.Errorf("Missing parameter")
+		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	image, err := srv.ImageInspect(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	b, err := json.Marshal(image)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+	return nil
 }
 
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
-	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request, map[string]string) ([]byte, error){
+	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
@@ -602,13 +630,8 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
-				json, err := localFct(srv, w, r, mux.Vars(r))
-				if err != nil {
+				if err := localFct(srv, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
-				}
-				if json != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.Write(json)
 				}
 			})
 		}
