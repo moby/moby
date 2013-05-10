@@ -266,7 +266,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			if image == nil {
 				return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 			}
-			config, err := ParseRun([]string{image.Id, "/bin/sh", "-c", arguments}, nil, builder.runtime.capabilities)
+			config, _, err := ParseRun([]string{image.Id, "/bin/sh", "-c", arguments}, builder.runtime.capabilities)
 			if err != nil {
 				return nil, err
 			}
@@ -413,7 +413,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			}
 			defer file.Body.Close()
 
-			config, err := ParseRun([]string{base.Id, "echo", "insert", sourceUrl, destPath}, nil, builder.runtime.capabilities)
+			config, _, err := ParseRun([]string{base.Id, "echo", "insert", sourceUrl, destPath}, builder.runtime.capabilities)
 			if err != nil {
 				return nil, err
 			}

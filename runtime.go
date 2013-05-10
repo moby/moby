@@ -187,7 +187,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
 	}
 
-	if err := container.Stop(10); err != nil {
+	if err := container.Stop(3); err != nil {
 		return err
 	}
 	if mounted, err := container.Mounted(); err != nil {

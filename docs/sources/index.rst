@@ -18,6 +18,7 @@ This documentation has the following resources:
    registry/index
    index/index
    builder/index
+   remote-api/index
    faq
 
 
