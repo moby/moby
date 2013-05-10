@@ -1086,7 +1086,7 @@ func CmdRun(args ...string) error {
 	if statusCode == 404 {
 		v := url.Values{}
 		v.Set("fromImage", config.Image)
-		err = hijack("POST", "/images?"+v.Encode(), false)
+		err = hijack("POST", "/images/create?"+v.Encode(), false)
 		if err != nil {
 			return err
 		}
