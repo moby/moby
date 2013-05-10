@@ -40,10 +40,11 @@ func httpError(w http.ResponseWriter, err error) {
 }
 
 func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
-	var out auth.AuthConfig
-	out.Username = srv.runtime.authConfig.Username
-	out.Email = srv.runtime.authConfig.Email
-	b, err := json.Marshal(out)
+	config := &auth.AuthConfig{
+		Username: srv.runtime.authConfig.Username,
+		Email:    srv.runtime.authConfig.Email,
+	}
+	b, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +52,8 @@ func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[strin
 }
 
 func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
-	var config auth.AuthConfig
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+	config := &auth.AuthConfig{}
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return nil, err
 	}
 
@@ -69,7 +70,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {
-		b, err := json.Marshal(ApiAuth{status})
+		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +114,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 	return nil, nil
 }
 
-func getImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
+func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) ([]byte, error) {
 	if err := parseForm(r); err != nil {
 		return nil, err
 	}
@@ -474,7 +475,7 @@ func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, var
 	if err != nil {
 		return nil, err
 	}
-	b, err := json.Marshal(ApiWait{status})
+	b, err := json.Marshal(&ApiWait{StatusCode: status})
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +552,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
 			"/info":                         getInfo,
-			"/images/json":                  getImages,
+			"/images/json":                  getImagesJson,
 			"/images/viz":                   getImagesViz,
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
