@@ -39,6 +39,11 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
+func writeJson(w http.ResponseWriter, b []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+}
+
 func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &auth.AuthConfig{
 		Username: srv.runtime.authConfig.Username,
@@ -48,8 +53,7 @@ func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[strin
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -76,8 +80,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 		if err != nil {
 			return err
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
+		writeJson(w, b)
 		return nil
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -90,8 +93,7 @@ func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -137,8 +139,7 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -155,8 +156,7 @@ func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[strin
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -173,8 +173,7 @@ func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -191,8 +190,7 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, v
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -215,8 +213,7 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -261,8 +258,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -310,8 +306,7 @@ func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -402,8 +397,7 @@ func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, v
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -501,8 +495,7 @@ func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, var
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -547,8 +540,7 @@ func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, va
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
@@ -566,8 +558,7 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
+	writeJson(w, b)
 	return nil
 }
 
