@@ -702,8 +702,94 @@ func TestPostContainersWait(t *testing.T) {
 }
 
 func TestPostContainersAttach(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:     GetTestImage(runtime).Id,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Start the process
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	// Attach to it
+	c1 := make(chan struct{})
+	go func() {
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdAttach returns.
+
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
+
+		req, err := http.NewRequest("POST", "/containers/"+container.Id+"/attach?stream=1&stdin=1&stdout=1&stderr=1", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		body, err := postContainersAttach(srv, r, req, map[string]string{"name": container.Id})
+		close(c1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body != nil {
+			t.Fatalf("No body expected, received: %s\n", body)
+		}
+	}()
+
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
+
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// We closed stdin, expect /bin/cat to still be running
+	// Wait a little bit to make sure container.monitor() did his thing
+	err = container.WaitTimeout(500 * time.Millisecond)
+	if err == nil || !container.State.Running {
+		t.Fatalf("/bin/cat is not running after closing stdin")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
+	container.Wait()
 }
 
 // FIXME: Test deleting runnign container
@@ -760,5 +846,32 @@ func TestDeleteContainers(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	//FIXME: Implement this test
-	t.Log("Test on implemented")
+	t.Log("Test not implemented")
+}
+
+// Mocked types for tests
+type NopConn struct {
+	io.ReadCloser
+	io.Writer
+}
+
+func (c *NopConn) LocalAddr() net.Addr                { return nil }
+func (c *NopConn) RemoteAddr() net.Addr               { return nil }
+func (c *NopConn) SetDeadline(t time.Time) error      { return nil }
+func (c *NopConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *NopConn) SetWriteDeadline(t time.Time) error { return nil }
+
+type hijackTester struct {
+	*httptest.ResponseRecorder
+	in  io.ReadCloser
+	out io.Writer
+}
+
+func (t *hijackTester) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	bufrw := bufio.NewReadWriter(bufio.NewReader(t.in), bufio.NewWriter(t.out))
+	conn := &NopConn{
+		ReadCloser: t.in,
+		Writer:     t.out,
+	}
+	return conn, bufrw, nil
 }
