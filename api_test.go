@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -49,8 +50,8 @@ func TestGetAuth(t *testing.T) {
 	if body == nil {
 		t.Fatalf("No body received\n")
 	}
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	if r.Code != http.StatusOK && r.Code != 0 {
+		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 
 	if runtime.authConfig.Username != authConfig.Username ||
@@ -117,8 +118,8 @@ func TestGetImagesJson(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	// FIXME: Do more tests with filter
-	req, err := http.NewRequest("GET", "/images/json?quiet=0&all=0", nil)
+	// only_ids=0&all=0
+	req, err := http.NewRequest("GET", "/images/json?only_ids=0&all=0", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,11 +142,86 @@ func TestGetImagesJson(t *testing.T) {
 	if images[0].Repository != "docker-ut" {
 		t.Errorf("Excepted image docker-ut, %s found", images[0].Repository)
 	}
+
+	// only_ids=1&all=1
+	req2, err := http.NewRequest("GET", "/images/json?only_ids=1&all=1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body2, err := getImagesJson(srv, nil, req2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images2 := []ApiImages{}
+	err = json.Unmarshal(body2, &images2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images2) != 1 {
+		t.Errorf("Excepted 1 image, %d found", len(images2))
+	}
+
+	if images2[0].Repository != "" {
+		t.Errorf("Excepted no image Repository, %s found", images2[0].Repository)
+	}
+
+	if images2[0].Id == "" {
+		t.Errorf("Excepted image Id, %s found", images2[0].Id)
+	}
+
+	// filter=a
+	req3, err := http.NewRequest("GET", "/images/json?filter=a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body3, err := getImagesJson(srv, nil, req3, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images3 := []ApiImages{}
+	err = json.Unmarshal(body3, &images3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images3) != 0 {
+		t.Errorf("Excepted 1 image, %d found", len(images3))
+	}
 }
 
 func TestGetImagesViz(t *testing.T) {
-	//FIXME: Implement this test (or remove this endpoint)
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	r := httptest.NewRecorder()
+
+	_, err = getImagesViz(srv, r, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	reader := bufio.NewReader(r.Body)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line != "digraph docker {\n" {
+		t.Errorf("Excepted digraph docker {\n, %s found", line)
+	}
 }
 
 func TestGetImagesSearch(t *testing.T) {
@@ -269,8 +345,46 @@ func TestGetContainersPs(t *testing.T) {
 }
 
 func TestGetContainersExport(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+
+	_, err = getContainersExport(srv, r, nil, map[string]string{"name": container.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	if r.Body == nil {
+		t.Fatalf("Body expected, found 0")
+	}
 }
 
 func TestGetContainersChanges(t *testing.T) {
@@ -322,8 +436,36 @@ func TestGetContainersChanges(t *testing.T) {
 }
 
 func TestGetContainersByName(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	body, err := getContainersByName(srv, nil, nil, map[string]string{"name": container.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outContainer := Container{}
+	if err := json.Unmarshal(body, &outContainer); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPostAuth(t *testing.T) {
@@ -358,18 +500,167 @@ func TestPostAuth(t *testing.T) {
 }
 
 func TestPostCommit(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	r := httptest.NewRecorder()
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/commit?repo=testrepo&testtag=tag&container="+container.Id, bytes.NewReader([]byte{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postCommit(srv, r, req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body == nil {
+		t.Fatalf("Body expected, received: 0\n")
+	}
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
+	}
 }
 
 func TestPostBuild(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	c1 := make(chan struct{})
+	go func() {
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
+
+		body, err := postBuild(srv, r, nil, nil)
+		close(c1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body != nil {
+			t.Fatalf("No body expected, received: %s\n", body)
+		}
+	}()
+
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
+
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("from docker-ut\n", "FROM docker-ut", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for build to finish, the client disconnected, therefore, Build finished his job
+	setTimeout(t, "Waiting for CmdBuild timed out", 2*time.Second, func() {
+		<-c1
+	})
+
 }
 
 func TestPostImagesCreate(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	c1 := make(chan struct{})
+	go func() {
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
+
+		req, err := http.NewRequest("POST", "/images/create?fromImage=docker-ut", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		body, err := postImagesCreate(srv, r, req, nil)
+		close(c1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body != nil {
+			t.Fatalf("No body expected, received: %s\n", body)
+		}
+	}()
+
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
+
+	setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
+		reader := bufio.NewReader(stdout)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(line, "Pulling repository docker-ut from") {
+			t.Fatalf("Expected Pulling repository docker-ut from..., found %s", line)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for imagesCreate to finish, the client disconnected, therefore, Create finished his job
+	setTimeout(t, "Waiting for imagesCreate timed out", 10*time.Second, func() {
+		<-c1
+	})
 }
 
 func TestPostImagesInsert(t *testing.T) {
@@ -378,13 +669,95 @@ func TestPostImagesInsert(t *testing.T) {
 }
 
 func TestPostImagesPush(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	c1 := make(chan struct{})
+	go func() {
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
+
+		req, err := http.NewRequest("POST", "/images/docker-ut/push", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		body, err := postImagesPush(srv, r, req, map[string]string{"name": "docker-ut"})
+		close(c1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body != nil {
+			t.Fatalf("No body expected, received: %s\n", body)
+		}
+	}()
+
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
+
+	setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
+		reader := bufio.NewReader(stdout)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(line, "Processing checksum") {
+			t.Fatalf("Processing checksum..., found %s", line)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for imagesPush to finish, the client disconnected, therefore, Push finished his job
+	setTimeout(t, "Waiting for imagesPush timed out", 10*time.Second, func() {
+		<-c1
+	})
 }
 
 func TestPostImagesTag(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/images/docker-ut/tag?repo=testrepo&tag=testtag", bytes.NewReader([]byte{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := postImagesTag(srv, r, req, map[string]string{"name": "docker-ut"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != nil {
+		t.Fatalf("No body expected, received: %s\n", body)
+	}
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
+	}
 }
 
 func TestPostContainersCreate(t *testing.T) {
