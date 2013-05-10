@@ -399,6 +399,11 @@ func TestStart(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
+	cStdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +419,6 @@ func TestStart(t *testing.T) {
 	}
 
 	// Try to avoid the timeoout in destroy. Best effort, don't check error
-	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
 	container.WaitTimeout(2 * time.Second)
 }
