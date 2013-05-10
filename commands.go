@@ -799,7 +799,32 @@ func CmdPs(args ...string) error {
 
 	for _, out := range outs {
 		if !*quiet {
+<<<<<<< HEAD
+			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+			containerId := container.Id
+			if !*flFull {
+				command = Trunc(command, 20)
+				containerId = container.ShortId()
+			}
+			for idx, field := range []string{
+				/* ID */ containerId,
+				/* IMAGE */ srv.runtime.repositories.ImageName(container.Image),
+				/* COMMAND */ command,
+				/* CREATED */ HumanDuration(time.Now().Sub(container.Created)) + " ago",
+				/* STATUS */ container.State.String(),
+				/* COMMENT */ "",
+				/* PORTS */ container.NetworkSettings.PortMappingHuman(),
+			} {
+				if idx == 0 {
+					w.Write([]byte(field))
+				} else {
+					w.Write([]byte("\t" + field))
+				}
+			}
+			w.Write([]byte{'\n'})
+=======
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+>>>>>>> upstream/master
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}
