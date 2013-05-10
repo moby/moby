@@ -1,3 +1,8 @@
+:title: Docker Index documentation
+:description: Documentation for docker Index
+:keywords: docker, index, api
+
+
 =======================
 Docker Index Search API
 =======================
@@ -32,7 +37,7 @@ Search
            {"name": "base2", "description": "A base ubuntu64  image..."},
          ]
        }
-   
+
    :query q: what you want to search for
    :statuscode 200: no error
    :statuscode 500: server error

@@ -1,3 +1,8 @@
+:title: docker Registry documentation
+:description: Documentation for docker Registry and Registry API
+:keywords: docker, registry, api, index
+
+
 ===================
 Docker Registry API
 ===================
@@ -44,7 +49,7 @@ We expect that there will be multiple registries out there. To help to grasp the
 
 .. note::
 
-    Mirror registries and private registries which do not use the Index don’t even need to run the registry code. They can be implemented by any kind of transport implementing HTTP GET and PUT. Read-only registries can be powered by a simple static HTTP server. 
+    Mirror registries and private registries which do not use the Index don’t even need to run the registry code. They can be implemented by any kind of transport implementing HTTP GET and PUT. Read-only registries can be powered by a simple static HTTP server.
 
 .. note::
 
@@ -107,7 +112,7 @@ API (pulling repository foo/bar):
         Jsonified checksums (see part 4.4.1)
 
 3. (Docker -> Registry) GET /v1/repositories/foo/bar/tags/latest
-    **Headers**: 
+    **Headers**:
         Authorization: Token signature=123abc,repository=”foo/bar”,access=write
 
 4. (Registry -> Index) GET /v1/repositories/foo/bar/images
@@ -121,10 +126,10 @@ API (pulling repository foo/bar):
     **Action**:
         ( Lookup token see if they have access to pull.)
 
-        If good: 
+        If good:
             HTTP 200 OK
             Index will invalidate the token
-        If bad: 
+        If bad:
             HTTP 401 Unauthorized
 
 5. (Docker -> Registry) GET /v1/images/928374982374/ancestry
@@ -186,9 +191,9 @@ API (pushing repos foo/bar):
     **Headers**:
         Authorization: Token signature=123abc,repository=”foo/bar”,access=write
     **Action**::
-        - Index: 
+        - Index:
             will invalidate the token.
-        - Registry: 
+        - Registry:
             grants a session (if token is approved) and fetches the images id
 
 5. (Docker -> Registry) PUT /v1/images/98765432_parent/json
@@ -223,7 +228,7 @@ API (pushing repos foo/bar):
     **Body**:
         (The image, id’s, tags and checksums)
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”, 
+        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
         “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
 
     **Return** HTTP 204
@@ -296,7 +301,7 @@ POST /v1/users
     {"email": "sam@dotcloud.com", "password": "toto42", "username": "foobar"'}
 
 **Validation**:
-    - **username** : min 4 character, max 30 characters, all lowercase no special characters. 
+    - **username** : min 4 character, max 30 characters, all lowercase no special characters.
     - **password**: min 5 characters
 
 **Valid**: return HTTP 200
@@ -387,7 +392,7 @@ PUT /v1/repositories/<namespace>/<repo_name>/images
 
 **Body**:
     [ {“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”, “checksum”: “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”} ]
-    
+
 **Return** 204
 
 5. Chaining Registries

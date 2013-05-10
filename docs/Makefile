@@ -44,7 +44,7 @@ clean:
 	-rm -rf $(BUILDDIR)/*
 
 docs:
-	-rm -rf $(BUILDDIR)/*
+	#-rm -rf $(BUILDDIR)/*
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The documentation pages are now in $(BUILDDIR)/html."
