@@ -412,7 +412,7 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 		return nil, fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	removeVolume := r.Form.Get("removeVolume") == "1"
+	removeVolume := r.Form.Get("v") == "1"
 
 	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
 		return nil, err

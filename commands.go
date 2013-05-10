@@ -783,7 +783,7 @@ func CmdPs(args ...string) error {
 		v.Set("before", *before)
 	}
 
-	body, _, err := call("GET", "/containers?"+v.Encode(), nil)
+	body, _, err := call("GET", "/containers/ps?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -1082,7 +1082,7 @@ func CmdRun(args ...string) error {
 	}
 
 	//create the container
-	body, statusCode, err := call("POST", "/containers", *config)
+	body, statusCode, err := call("POST", "/containers/create", config)
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
@@ -1091,7 +1091,7 @@ func CmdRun(args ...string) error {
 		if err != nil {
 			return err
 		}
-		body, _, err = call("POST", "/containers", *config)
+		body, _, err = call("POST", "/containers/create", config)
 		if err != nil {
 			return err
 		}
