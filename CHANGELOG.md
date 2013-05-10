@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 (2013-05-09)
+ * Runtime: Store the actual archive on commit
+ * Registry: Improve the checksum process
+ * Registry: Use the size to have a good progress bar while pushing
+ * Registry: Use the actual archive if it exists in order to speed up the push
+ - Registry: Fix error 400 on push
+
 ## 0.3.1 (2013-05-08)
  + Builder: Implement the autorun capability within docker builder
  + Builder: Add caching to docker builder

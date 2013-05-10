@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 )
@@ -259,7 +260,7 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 				// FIXME: Keep goging in case of error?
 				return err
 			}
-			if err = graph.Register(layer, img); err != nil {
+			if err = graph.Register(layer, false, img); err != nil {
 				return err
 			}
 		}
@@ -314,10 +315,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	// Reload the json file to make sure not to overwrite faster sums
 	err = func() error {
 		localChecksums := make(map[string]string)
-		remoteChecksums := []struct {
-			Id       string `json: "id"`
-			Checksum string `json: "checksum"`
-		}{}
+		remoteChecksums := []ImgListJson{}
 		checksumDictPth := path.Join(graph.Root, "..", "checksums")
 
 		if err := json.Unmarshal(checksumsJson, &remoteChecksums); err != nil {
@@ -395,14 +393,10 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	return nil
 }
 
-func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, token []string) error {
-	if parent, err := img.GetParent(); err != nil {
-		return err
-	} else if parent != nil {
-		if err := pushImageRec(graph, stdout, parent, registry, token); err != nil {
-			return err
-		}
-	}
+// Push a local image to the registry
+func (graph *Graph) PushImage(stdout io.Writer, img *Image, registry string, token []string) error {
+	registry = "https://" + registry + "/v1"
+
 	client := graph.getHttpClient()
 	jsonRaw, err := ioutil.ReadFile(path.Join(graph.Root, img.Id, "json"))
 	if err != nil {
@@ -425,6 +419,7 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 		return fmt.Errorf("Error while retrieving checksum for %s: %v", img.Id, err)
 	}
 	req.Header.Set("X-Docker-Checksum", checksum)
+	Debugf("Setting checksum for %s: %s", img.ShortId(), checksum)
 	res, err := doWithCookies(client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
@@ -450,14 +445,35 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 	}
 
 	fmt.Fprintf(stdout, "Pushing %s fs layer\r\n", img.Id)
-
-	layerData, err := graph.TempLayerArchive(img.Id, Xz, stdout)
+	root, err := img.root()
 	if err != nil {
-		return fmt.Errorf("Failed to generate layer archive: %s", err)
+		return err
+	}
+
+	var layerData *TempArchive
+	// If the archive exists, use it
+	file, err := os.Open(layerArchivePath(root))
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If the archive does not exist, create one from the layer
+			layerData, err = graph.TempLayerArchive(img.Id, Xz, stdout)
+			if err != nil {
+				return fmt.Errorf("Failed to generate layer archive: %s", err)
+			}
+		} else {
+			return err
+		}
+	} else {
+		defer file.Close()
+		st, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		layerData = &TempArchive{file, st.Size()}
 	}
 
 	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
-		ProgressReader(layerData, -1, stdout, ""))
+		ProgressReader(layerData, int(layerData.Size), stdout, ""))
 	if err != nil {
 		return err
 	}
@@ -480,12 +496,6 @@ func pushImageRec(graph *Graph, stdout io.Writer, img *Image, registry string, t
 		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
 	}
 	return nil
-}
-
-// Push a local image to the registry with its history if needed
-func (graph *Graph) PushImage(stdout io.Writer, imgOrig *Image, registry string, token []string) error {
-	registry = "https://" + registry + "/v1"
-	return pushImageRec(graph, stdout, imgOrig, registry, token)
 }
 
 // push a tag on the registry.
@@ -537,48 +547,89 @@ func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId, registry
 	return nil
 }
 
+// Retrieve the checksum of an image
+// Priority:
+// - Check on the stored checksums
+// - Check if the archive exists, if it does not, ask the registry
+// - If the archive does exists, process the checksum from it
+// - If the archive does not exists and not found on registry, process checksum from layer
+func (graph *Graph) getChecksum(imageId string) (string, error) {
+	// FIXME: Use in-memory map instead of reading the file each time
+	if sums, err := graph.getStoredChecksums(); err != nil {
+		return "", err
+	} else if checksum, exists := sums[imageId]; exists {
+		return checksum, nil
+	}
+
+	img, err := graph.Get(imageId)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(layerArchivePath(graph.imageRoot(imageId))); err != nil {
+		if os.IsNotExist(err) {
+			// TODO: Ask the registry for the checksum
+			//       As the archive is not there, it is supposed to come from a pull.
+		} else {
+			return "", err
+		}
+	}
+
+	checksum, err := img.Checksum()
+	if err != nil {
+		return "", err
+	}
+	return checksum, nil
+}
+
+type ImgListJson struct {
+	Id       string `json:"id"`
+	Checksum string `json:"checksum,omitempty"`
+	tag      string
+}
+
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
 	client := graph.getHttpClient()
+	// FIXME: Do not reset the cookie each time? (need to reset it in case updating latest of a repo and repushing)
+	client.Jar = cookiejar.NewCookieJar()
+	var imgList []*ImgListJson
 
-	checksums, err := graph.Checksums(stdout, localRepo)
-	if err != nil {
-		return err
-	}
+	fmt.Fprintf(stdout, "Processing checksums\n")
+	imageSet := make(map[string]struct{})
 
-	imgList := make([]map[string]string, len(checksums))
-	checksums2 := make([]map[string]string, len(checksums))
-
-	uploadedImages, err := graph.getImagesInRepository(remote, authConfig)
-	if err != nil {
-		return fmt.Errorf("Error occured while fetching the list: %s", err)
-	}
-
-	// Filter list to only send images/checksums not already uploaded
-	i := 0
-	for _, obj := range checksums {
-		found := false
-		for _, uploadedImg := range uploadedImages {
-			if obj["id"] == uploadedImg["id"] && uploadedImg["checksum"] != "" {
-				found = true
-				break
+	for tag, id := range localRepo {
+		img, err := graph.Get(id)
+		if err != nil {
+			return err
+		}
+		img.WalkHistory(func(img *Image) error {
+			if _, exists := imageSet[img.Id]; exists {
+				return nil
 			}
-		}
-		if !found {
-			imgList[i] = map[string]string{"id": obj["id"]}
-			checksums2[i] = obj
-			i += 1
-		}
+			imageSet[img.Id] = struct{}{}
+			checksum, err := graph.getChecksum(img.Id)
+			if err != nil {
+				return err
+			}
+			imgList = append([]*ImgListJson{{
+				Id:       img.Id,
+				Checksum: checksum,
+				tag:      tag,
+			}}, imgList...)
+			return nil
+		})
 	}
-	checksums = checksums2[:i]
-	imgList = imgList[:i]
 
 	imgListJson, err := json.Marshal(imgList)
 	if err != nil {
 		return err
 	}
 
+	Debugf("json sent: %s\n", imgListJson)
+
+	fmt.Fprintf(stdout, "Sending image list\n")
 	req, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
@@ -586,11 +637,13 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	req.ContentLength = int64(len(imgListJson))
 	req.Header.Set("X-Docker-Token", "true")
+
 	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
+
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		Debugf("Redirected to %s\n", res.Header.Get("Location"))
 		req, err = http.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJson))
@@ -600,6 +653,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		req.ContentLength = int64(len(imgListJson))
 		req.Header.Set("X-Docker-Token", "true")
+
 		res, err = client.Do(req)
 		if err != nil {
 			return err
@@ -608,7 +662,11 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	}
 
 	if res.StatusCode != 200 && res.StatusCode != 201 {
-		return fmt.Errorf("Error: Status %d trying to push repository %s", res.StatusCode, remote)
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody)
 	}
 
 	var token, endpoints []string
@@ -624,72 +682,39 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return fmt.Errorf("Index response didn't contain any endpoints")
 	}
 
+	// FIXME: Send only needed images
 	for _, registry := range endpoints {
-		fmt.Fprintf(stdout, "Pushing repository %s to %s (%d tags)\r\n", remote, registry,
-			len(localRepo))
+		fmt.Fprintf(stdout, "Pushing repository %s to %s (%d tags)\r\n", remote, registry, len(localRepo))
 		// For each image within the repo, push them
-		for tag, imgId := range localRepo {
-			if err := graph.pushPrimitive(stdout, remote, tag, imgId, registry, token); err != nil {
+		for _, elem := range imgList {
+			if err := graph.pushPrimitive(stdout, remote, elem.tag, elem.Id, registry, token); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
 		}
 	}
-	checksumsJson, err := json.Marshal(checksums)
-	if err != nil {
-		return err
-	}
 
-	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(checksumsJson))
+	req2, err := http.NewRequest("PUT", INDEX_ENDPOINT+"/repositories/"+remote+"/images", bytes.NewReader(imgListJson))
 	if err != nil {
 		return err
 	}
 	req2.SetBasicAuth(authConfig.Username, authConfig.Password)
 	req2.Header["X-Docker-Endpoints"] = endpoints
-	req2.ContentLength = int64(len(checksumsJson))
+	req2.ContentLength = int64(len(imgListJson))
 	res2, err := client.Do(req2)
 	if err != nil {
 		return err
 	}
-	res2.Body.Close()
+	defer res2.Body.Close()
 	if res2.StatusCode != 204 {
-		return fmt.Errorf("Error: Status %d trying to push checksums %s", res.StatusCode, remote)
+		if errBody, err := ioutil.ReadAll(res2.Body); err != nil {
+			return err
+		} else {
+			return fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res2.StatusCode, remote, errBody)
+		}
 	}
 
 	return nil
-}
-
-func (graph *Graph) Checksums(output io.Writer, repo Repository) ([]map[string]string, error) {
-	checksums := make(map[string]string)
-	for _, id := range repo {
-		img, err := graph.Get(id)
-		if err != nil {
-			return nil, err
-		}
-		err = img.WalkHistory(func(image *Image) error {
-			fmt.Fprintf(output, "Computing checksum for image %s\n", image.Id)
-			if _, exists := checksums[image.Id]; !exists {
-				checksums[image.Id], err = image.Checksum()
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	i := 0
-	result := make([]map[string]string, len(checksums))
-	for id, sum := range checksums {
-		result[i] = map[string]string{
-			"id":       id,
-			"checksum": sum,
-		}
-		i++
-	}
-	return result, nil
 }
 
 type SearchResults struct {

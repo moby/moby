@@ -1,3 +1,13 @@
+lxc-docker (0.3.2-1) precise; urgency=low
+ - Runtime: Store the actual archive on commit
+ - Registry: Improve the checksum process
+ - Registry: Use the size to have a good progress bar while pushing
+ - Registry: Use the actual archive if it exists in order to speed up the push
+ - Registry: Fix error 400 on push
+
+ -- dotCloud <ops@dotcloud.com>  Fri, 9 May 2013 00:00:00 -0700
+
+
 lxc-docker (0.3.1-1) precise; urgency=low
  - Builder: Implement the autorun capability within docker builder
  - Builder: Add caching to docker builder
@@ -24,6 +34,7 @@ lxc-docker (0.3.1-1) precise; urgency=low
  - Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
 
  -- dotCloud <ops@dotcloud.com>  Fri, 8 May 2013 00:00:00 -0700
+
 
 lxc-docker (0.3.0-1) precise; urgency=low
   - Registry: Implement the new registry

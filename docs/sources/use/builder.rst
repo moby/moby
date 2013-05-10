@@ -103,7 +103,7 @@ The `INSERT` instruction will download the file at the given url and place it wi
     run echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     run apt-get update
     
-    run apt-get install -y inotify-tools nginx apache openssh-server
+    run apt-get install -y inotify-tools nginx apache2 openssh-server
     insert https://raw.github.com/creack/docker-vps/master/nginx-wrapper.sh /usr/sbin/nginx-wrapper
 
 ::
