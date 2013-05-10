@@ -1,9 +1,12 @@
 package docker
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"github.com/dotcloud/docker/auth"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -270,24 +273,53 @@ func TestGetContainersExport(t *testing.T) {
 	t.Log("Test not implemented")
 }
 
-func TestGetContainerChanges(t *testing.T) {
-	// FIXME: Implement this test
-	t.Log("Test on implemented")
-	// r := httptest.NewRecorder()
+func TestGetContainersChanges(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	// req, err := http.NewRequest("GET", "/containers/"+id+"/changes", nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	srv := &Server{runtime: runtime}
 
-	// body, err := getContainersChanges(srv, r, req, nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	builder := NewBuilder(runtime)
 
-	// if body == nil {
-	// 	t.Fatalf("Body expected, received: nil\n")
-	// }
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"/bin/rm", "/etc/passwd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := getContainersChanges(srv, nil, nil, map[string]string{"name": container.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes := []Change{}
+	if err := json.Unmarshal(body, &changes); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	success := false
+	for _, elem := range changes {
+		if elem.Path == "/etc/passwd" && elem.Kind == 2 {
+			success = true
+		}
+	}
+	if !success {
+		t.Fatalf("/etc/passwd as been removed but is not present in the diff")
+	}
+}
 
 func TestGetContainersByName(t *testing.T) {
 	//FIXME: Implement this test
