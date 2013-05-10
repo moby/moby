@@ -76,6 +76,7 @@ func login(runtime *Runtime) error {
 
 func TestPush(t* testing.T) {
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
+	defer os.Setenv("DOCKER_INDEX_URL", "")
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
