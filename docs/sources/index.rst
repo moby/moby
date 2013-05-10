@@ -12,14 +12,11 @@ This documentation has the following resources:
 
    concepts/index
    installation/index
+   use/index
    examples/index
-   contributing/index
    commandline/index
-   registry/index
-   index/index
-   builder/index
-   remote-api/index
+   contributing/index
+   api/index
    faq
 
-
-.. image:: http://www.docker.io/_static/lego_docker.jpg
+.. image:: concepts/images/lego_docker.jpg
