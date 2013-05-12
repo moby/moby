@@ -37,17 +37,8 @@ Ubuntu 12.04
 
     .. code-block:: bash
         
-        # add the ppa to get the right kernel package
-        $ echo deb http://ppa.launchpad.net/ubuntu-x-swat/r-lts-backport/ubuntu precise main > /etc/apt/sources.list.d/xswat.list
-        
-        # add the key for the ppa
-        $ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B22AB97AF1CDFA9
-        
-        # update packages again
-        $ apt-get update
-        
         # install the new kernel
-        $ apt-get install linux-image-3.8.0-19-generic
+        $ apt-get install linux-generic-lts-raring
         
         # update grub so it will use the new kernel after we reboot
         $ update-grub
@@ -88,6 +79,31 @@ Ubuntu 12.04
         $ docker pull busybox
         $ docker run busybox /bin/echo hello world
         hello world
+
+Alternate install
+^^^^^^^^^^^^^^^^^
+If you don't want to run the get.docker.io script and want to use packages instead, you can use the docker PPA. Here is how you use it. Replace step 5 with the following 3 steps.
+
+1. Add the custom package sources to your apt sources list. Copy and paste the following lines at once.
+
+.. code-block:: bash
+
+   $ sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"
+
+
+2. Update your sources. You will see a warning that GPG signatures cannot be verified.
+
+.. code-block:: bash
+
+   $ sudo apt-get update
+
+
+3. Now install it, you will see another warning that the package cannot be authenticated. Confirm install.
+
+.. code-block:: bash
+
+    $ apt-get install lxc-docker
+
 
 Ubuntu 12.10
 ------------
