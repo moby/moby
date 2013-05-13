@@ -687,6 +687,7 @@ func CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 
 	if err := cmd.Parse(args); err != nil {
@@ -707,9 +708,6 @@ func CmdImages(args ...string) error {
 		v := url.Values{}
 		if cmd.NArg() == 1 {
 			v.Set("filter", cmd.Arg(0))
-		}
-		if *quiet {
-			v.Set("only_ids", "1")
 		}
 		if *all {
 			v.Set("all", "1")
@@ -732,10 +730,27 @@ func CmdImages(args ...string) error {
 		}
 
 		for _, out := range outs {
+			if out.Repository == "" {
+				out.Repository = "<none>"
+			}
+			if out.Tag == "" {
+				out.Tag = "<none>"
+			}
+
 			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s\t%s\t", out.Repository, out.Tag)
+				if *noTrunc {
+					fmt.Fprintf(w, "%s\t", out.Id)
+				} else {
+					fmt.Fprintf(w, "%s\t", TruncateId(out.Id))
+				}
+				fmt.Fprintf(w, "%s ago\n", HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 			} else {
-				fmt.Fprintln(w, out.Id)
+				if *noTrunc {
+					fmt.Fprintln(w, out.Id)
+				} else {
+					fmt.Fprintln(w, TruncateId(out.Id))
+				}
 			}
 		}
 
@@ -763,14 +778,8 @@ func CmdPs(args ...string) error {
 	if *last == -1 && *nLatest {
 		*last = 1
 	}
-	if *quiet {
-		v.Set("only_ids", "1")
-	}
 	if *all {
 		v.Set("all", "1")
-	}
-	if *noTrunc {
-		v.Set("trunc_cmd", "0")
 	}
 	if *last != -1 {
 		v.Set("limit", strconv.Itoa(*last))
@@ -799,9 +808,17 @@ func CmdPs(args ...string) error {
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+			} else {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", TruncateId(out.Id), out.Image, Trunc(out.Command, 20), out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+			}
 		} else {
-			fmt.Fprintln(w, out.Id)
+			if *noTrunc {
+				fmt.Fprintln(w, out.Id)
+			} else {
+				fmt.Fprintln(w, TruncateId(out.Id))
+			}
 		}
 	}
 
