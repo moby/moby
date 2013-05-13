@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	_ "strconv"
 	"strings"
 	"sync"
 	"time"
@@ -131,6 +132,28 @@ func HumanDuration(d time.Duration) string {
 		return fmt.Sprintf("%d months", hours/24/30)
 	}
 	return fmt.Sprintf("%d years", d.Hours()/24/365)
+}
+
+// HumanSize returns a human-readabla approximation of a size
+// (eg. "44K", "17M")
+func HumanSize(size int64) string {
+	i := 0
+	var sizef float64
+	sizef = float64(size)
+	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	for sizef > 1024.0 {
+		sizef = sizef / 1024.0
+		i++
+	}
+	return fmt.Sprintf("%.*f %s", i, sizef, units[i])
+	// sprintf(buf, "%.*f %s", i, size, units[i]);
+	// if size/1024/1024 > 1000 {
+	// 	return strconv.FormatFloat((float64)(size/1024/1024), 'f', 2, 32) + "G"
+	// }
+	// if size/1024 > 1024 {
+	// 	return strconv.FormatInt(size/1024/1024, 10) + "M"
+	// }
+	// return strconv.FormatInt(size/1024, 10) + "K"
 }
 
 func Trunc(s string, maxlen int) string {

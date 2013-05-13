@@ -89,6 +89,15 @@ func (graph *Graph) Get(name string) (*Image, error) {
 	if img.Id != id {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
 	}
+	if img.Size == 0 {
+		root, err := img.root()
+		if err != nil {
+			return nil, err
+		}
+		if err := StoreSize(img, root); err != nil {
+			return nil, err
+		}
+	}
 	img.graph = graph
 	graph.lockSumMap.Lock()
 	defer graph.lockSumMap.Unlock()

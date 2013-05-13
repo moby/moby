@@ -164,6 +164,8 @@ func (srv *Server) Images(all, only_ids bool, filter string) ([]ApiImages, error
 				out.Tag = tag
 				out.Id = TruncateId(id)
 				out.Created = image.Created.Unix()
+				out.Size = image.Size
+				out.ParentSize = image.getVirtualSize(0)
 			} else {
 				out.Id = image.ShortId()
 			}
@@ -179,6 +181,8 @@ func (srv *Server) Images(all, only_ids bool, filter string) ([]ApiImages, error
 				out.Tag = "<none>"
 				out.Id = TruncateId(id)
 				out.Created = image.Created.Unix()
+				out.Size = image.Size
+				out.ParentSize = image.getVirtualSize(0)
 			} else {
 				out.Id = image.ShortId()
 			}
@@ -280,6 +284,7 @@ func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, befor
 			c.Created = container.Created.Unix()
 			c.Status = container.State.String()
 			c.Ports = container.NetworkSettings.PortMappingHuman()
+			c.SizeRw, c.SizeRootFs = container.GetSize()
 		}
 		retContainers = append(retContainers, c)
 	}

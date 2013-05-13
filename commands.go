@@ -728,12 +728,12 @@ func CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
 		}
 
 		for _, out := range outs {
 			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s (virtual %s)\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), HumanSize(out.Size), HumanSize(out.ParentSize))
 			} else {
 				fmt.Fprintln(w, out.Id)
 			}
@@ -794,12 +794,17 @@ func CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tSIZE")
 	}
 
 	for _, out := range outs {
 		if !*quiet {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+			if out.SizeRootFs > 0 {
+				fmt.Fprintf(w, "%s (virtual %s)\n", HumanSize(out.SizeRw), HumanSize(out.SizeRootFs))
+			} else {
+				fmt.Fprintf(w, "%s\n", HumanSize(out.SizeRw))
+			}
 		} else {
 			fmt.Fprintln(w, out.Id)
 		}

@@ -11,6 +11,8 @@ type ApiImages struct {
 	Tag        string `json:",omitempty"`
 	Id         string
 	Created    int64 `json:",omitempty"`
+	Size       int64
+	ParentSize int64
 }
 
 type ApiInfo struct {
@@ -24,12 +26,14 @@ type ApiInfo struct {
 }
 
 type ApiContainers struct {
-	Id      string
-	Image   string `json:",omitempty"`
-	Command string `json:",omitempty"`
-	Created int64  `json:",omitempty"`
-	Status  string `json:",omitempty"`
-	Ports   string `json:",omitempty"`
+	Id         string
+	Image      string `json:",omitempty"`
+	Command    string `json:",omitempty"`
+	Created    int64  `json:",omitempty"`
+	Status     string `json:",omitempty"`
+	Ports      string `json:",omitempty"`
+	SizeRw     int64
+	SizeRootFs int64
 }
 
 type ApiSearch struct {

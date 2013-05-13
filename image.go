@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -27,6 +28,8 @@ type Image struct {
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
 	graph           *Graph
+	Size            int64
+	ParentSize      int64
 }
 
 func LoadImage(root string) (*Image, error) {
@@ -93,6 +96,18 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	if err := Untar(layerData, layer); err != nil {
 		return err
 	}
+
+	return StoreSize(img, root)
+}
+
+func StoreSize(img *Image, root string) error {
+	layer := layerPath(root)
+
+	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
+		img.Size += fileInfo.Size()
+		return nil
+	})
+
 	// Store the json ball
 	jsonData, err := json.Marshal(img)
 	if err != nil {
@@ -358,4 +373,13 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	return hash, nil
+}
+
+func (img *Image) getVirtualSize(size int64) int64 {
+	parentImage, err := img.GetParent()
+	if err != nil || parentImage == nil {
+		return size
+	}
+	size += parentImage.Size
+	return parentImage.getVirtualSize(size)
 }
