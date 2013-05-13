@@ -4,19 +4,21 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"github.com/dotcloud/docker/auth"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
 
 func TestPull(t *testing.T) {
+	os.Setenv("DOCKER_INDEX_URL", "")
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
 
-	err = runtime.graph.PullRepository(os.Stdout, "busybox", "", runtime.repositories, nil)
+	err = runtime.graph.PullRepository(ioutil.Discard, "busybox", "", runtime.repositories, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,13 +48,14 @@ func TestPull(t *testing.T) {
 }
 
 func TestPullTag(t *testing.T) {
+	os.Setenv("DOCKER_INDEX_URL", "")
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
 
-	err = runtime.graph.PullRepository(os.Stdout, "ubuntu", "12.04", runtime.repositories, nil)
+	err = runtime.graph.PullRepository(ioutil.Discard, "ubuntu", "12.04", runtime.repositories, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +91,7 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = runtime.graph.PullRepository(os.Stdout, "joffrey/busybox", "", runtime.repositories, nil)
+	err = runtime.graph.PullRepository(ioutil.Discard, "joffrey/busybox", "", runtime.repositories, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +125,7 @@ func TestPush(t *testing.T) {
 	}
 
 	repo := runtime.repositories.Repositories["unittester/"+token]
-	err = runtime.graph.PushRepository(os.Stdout, "unittester/"+token, repo, runtime.authConfig)
+	err = runtime.graph.PushRepository(ioutil.Discard, "unittester/"+token, repo, runtime.authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +135,7 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = runtime.graph.PullRepository(os.Stdout, "unittester/"+token, "", runtime.repositories, runtime.authConfig)
+	err = runtime.graph.PullRepository(ioutil.Discard, "unittester/"+token, "", runtime.repositories, runtime.authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
