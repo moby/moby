@@ -115,8 +115,8 @@ func TestGetImagesJson(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	// only_ids=0&all=0
-	req, err := http.NewRequest("GET", "/images/json?only_ids=0&all=0", nil)
+	// all=0
+	req, err := http.NewRequest("GET", "/images/json?all=0", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,8 +142,8 @@ func TestGetImagesJson(t *testing.T) {
 
 	r2 := httptest.NewRecorder()
 
-	// only_ids=1&all=1
-	req2, err := http.NewRequest("GET", "/images/json?only_ids=1&all=1", nil)
+	// all=1
+	req2, err := http.NewRequest("GET", "/images/json?all=1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,10 +159,6 @@ func TestGetImagesJson(t *testing.T) {
 
 	if len(images2) != 1 {
 		t.Errorf("Excepted 1 image, %d found", len(images2))
-	}
-
-	if images2[0].Repository != "" {
-		t.Errorf("Excepted no image Repository, %s found", images2[0].Repository)
 	}
 
 	if images2[0].Id != GetTestImage(runtime).ShortId() {
@@ -329,8 +325,8 @@ func TestGetContainersPs(t *testing.T) {
 	if len(containers) != 1 {
 		t.Fatalf("Excepted %d container, %d found", 1, len(containers))
 	}
-	if containers[0].Id != container.ShortId() {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ShortId(), containers[0].Id)
+	if containers[0].Id != container.Id {
+		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.Id, containers[0].Id)
 	}
 }
 
@@ -1194,7 +1190,7 @@ func TestDeleteContainers(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	//FIXME: Implement this test
-	t.Skip("Test not implemented")
+	t.Log("Test not implemented")
 }
 
 // Mocked types for tests

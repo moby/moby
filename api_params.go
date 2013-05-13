@@ -10,7 +10,7 @@ type ApiImages struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
 	Id         string
-	Created    int64 `json:",omitempty"`
+	Created    int64
 }
 
 type ApiInfo struct {
@@ -25,11 +25,11 @@ type ApiInfo struct {
 
 type ApiContainers struct {
 	Id      string
-	Image   string `json:",omitempty"`
-	Command string `json:",omitempty"`
-	Created int64  `json:",omitempty"`
-	Status  string `json:",omitempty"`
-	Ports   string `json:",omitempty"`
+	Image   string
+	Command string
+	Created int64
+	Status  string
+	Ports   string
 }
 
 type ApiSearch struct {

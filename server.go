@@ -135,7 +135,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) Images(all, only_ids bool, filter string) ([]ApiImages, error) {
+func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	var allImages map[string]*Image
 	var err error
 	if all {
@@ -159,29 +159,19 @@ func (srv *Server) Images(all, only_ids bool, filter string) ([]ApiImages, error
 				continue
 			}
 			delete(allImages, id)
-			if !only_ids {
-				out.Repository = name
-				out.Tag = tag
-				out.Id = TruncateId(id)
-				out.Created = image.Created.Unix()
-			} else {
-				out.Id = image.ShortId()
-			}
+			out.Repository = name
+			out.Tag = tag
+			out.Id = image.ShortId()
+			out.Created = image.Created.Unix()
 			outs = append(outs, out)
 		}
 	}
 	// Display images which aren't part of a
 	if filter == "" {
-		for id, image := range allImages {
+		for _, image := range allImages {
 			var out ApiImages
-			if !only_ids {
-				out.Repository = "<none>"
-				out.Tag = "<none>"
-				out.Id = TruncateId(id)
-				out.Created = image.Created.Unix()
-			} else {
-				out.Id = image.ShortId()
-			}
+			out.Id = image.ShortId()
+			out.Created = image.Created.Unix()
 			outs = append(outs, out)
 		}
 	}
@@ -235,7 +225,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, before string) []ApiContainers {
+func (srv *Server) Containers(all bool, n int, since, before string) []ApiContainers {
 	var foundBefore bool
 	var displayed int
 	retContainers := []ApiContainers{}
@@ -264,23 +254,11 @@ func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, befor
 		c := ApiContainers{
 			Id: container.Id,
 		}
-		if trunc_cmd {
-			c = ApiContainers{
-				Id: container.ShortId(),
-			}
-		}
-
-		if !only_ids {
-			command := fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-			if trunc_cmd {
-				command = Trunc(command, 20)
-			}
-			c.Image = srv.runtime.repositories.ImageName(container.Image)
-			c.Command = command
-			c.Created = container.Created.Unix()
-			c.Status = container.State.String()
-			c.Ports = container.NetworkSettings.PortMappingHuman()
-		}
+		c.Image = srv.runtime.repositories.ImageName(container.Image)
+		c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+		c.Created = container.Created.Unix()
+		c.Status = container.State.String()
+		c.Ports = container.NetworkSettings.PortMappingHuman()
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
