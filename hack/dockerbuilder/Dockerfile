@@ -6,7 +6,7 @@ run	apt-get update
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
 # Packages required to checkout and build docker
-run	curl -s -o /go.tar.gz https://go.googlecode.com/files/go1.0.3.linux-amd64.tar.gz
+run	curl -s -o /go.tar.gz https://go.googlecode.com/files/go1.1.linux-amd64.tar.gz
 run	tar -C /usr/local -xzf /go.tar.gz
 run	echo "export PATH=$PATH:/usr/local/go/bin" > /.bashrc
 run	echo "export PATH=$PATH:/usr/local/go/bin" > /.bash_profile
