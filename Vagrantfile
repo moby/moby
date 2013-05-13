@@ -3,6 +3,8 @@
 
 BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
 BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64.box"
+AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
+AWS_AMI    = ENV['AWS_AMI']    || "ami-d0f89fb9"
 
 Vagrant::Config.run do |config|
   # Setup virtual machine box. This VM configuration code is always executed.
@@ -49,8 +51,8 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
     override.ssh.private_key_path = ENV["AWS_SSH_PRIVKEY"]
     override.ssh.username = "ubuntu"
-    aws.region = "us-east-1"
-    aws.ami = "ami-d0f89fb9"
+    aws.region = AWS_REGION
+    aws.ami    = AWS_AMI
     aws.instance_type = "t1.micro"
   end
 
