@@ -117,7 +117,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 
 	if err := srv.ContainerExport(name, w); err != nil {
 		Debugf("%s", err.Error())
-		//return nil, err
+		return err
 	}
 	return nil
 }
