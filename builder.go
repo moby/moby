@@ -38,6 +38,9 @@ func (builder *Builder) mergeConfig(userConf, imageConf *Config) {
 	if userConf.MemorySwap == 0 {
 		userConf.MemorySwap = imageConf.MemorySwap
 	}
+	if userConf.CpuShares == 0 {
+		userConf.CpuShares = imageConf.CpuShares
+	}
 	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
 		userConf.PortSpecs = imageConf.PortSpecs
 	}
