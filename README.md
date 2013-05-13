@@ -77,14 +77,14 @@ commands, the *order* in which the commands are executed expresses *dependencies
 Here's a typical docker build process:
 
 ```bash
-from	ubuntu:12.10
-run	apt-get update
-run	apt-get install python
-run	apt-get install python-pip
-run	pip install django
-run	apt-get install curl
-run	curl http://github.com/shykes/helloflask/helloflask/master.tar.gz | tar -zxv
-run	cd master && pip install -r requirements.txt
+from ubuntu:12.10
+run apt-get update
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python-pip
+run pip install django
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y curl
+run curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
+run cd helloflask-master && pip install -r requirements.txt
 ```
 
 Note that Docker doesn't care *how* dependencies are built - as long as they can be built by running a unix command in a container.
