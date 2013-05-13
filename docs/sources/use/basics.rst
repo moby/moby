@@ -76,8 +76,8 @@ Expose a service on a TCP port
   echo "Daemon received: $(docker logs $JOB)"
 
 
-Committing (saving) an image
------------------------------
+Committing (saving) a container state
+-------------------------------------
 
 Save your containers state to a container image, so the state can be re-used.
 
