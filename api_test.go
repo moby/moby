@@ -1194,7 +1194,7 @@ func TestDeleteContainers(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	//FIXME: Implement this test
-	t.Skip("Test not implemented")
+	t.Log("Test not implemented")
 }
 
 // Mocked types for tests
