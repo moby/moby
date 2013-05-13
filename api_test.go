@@ -161,8 +161,8 @@ func TestGetImagesJson(t *testing.T) {
 		t.Errorf("Excepted 1 image, %d found", len(images2))
 	}
 
-	if images2[0].Id != GetTestImage(runtime).ShortId() {
-		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).ShortId(), images2[0].Id)
+	if images2[0].Id != GetTestImage(runtime).Id {
+		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).Id, images2[0].Id)
 	}
 
 	r3 := httptest.NewRecorder()

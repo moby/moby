@@ -161,7 +161,7 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 			delete(allImages, id)
 			out.Repository = name
 			out.Tag = tag
-			out.Id = image.ShortId()
+			out.Id = image.Id
 			out.Created = image.Created.Unix()
 			outs = append(outs, out)
 		}
@@ -170,7 +170,7 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	if filter == "" {
 		for _, image := range allImages {
 			var out ApiImages
-			out.Id = image.ShortId()
+			out.Id = image.Id
 			out.Created = image.Created.Unix()
 			outs = append(outs, out)
 		}

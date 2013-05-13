@@ -687,6 +687,7 @@ func CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 
 	if err := cmd.Parse(args); err != nil {
@@ -737,9 +738,19 @@ func CmdImages(args ...string) error {
 			}
 
 			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\n", out.Repository, out.Tag, out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s\t%s\t", out.Repository, out.Tag)
+				if *noTrunc {
+					fmt.Fprintf(w, "%s\t", out.Id)
+				} else {
+					fmt.Fprintf(w, "%s\t", TruncateId(out.Id))
+				}
+				fmt.Fprintf(w, "%s ago\n", HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 			} else {
-				fmt.Fprintln(w, out.Id)
+				if *noTrunc {
+					fmt.Fprintln(w, out.Id)
+				} else {
+					fmt.Fprintln(w, TruncateId(out.Id))
+				}
 			}
 		}
 
