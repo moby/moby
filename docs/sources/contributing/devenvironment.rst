@@ -16,7 +16,7 @@ Instructions that have been verified to work on Ubuntu 12.10,
 
     mkdir -p $GOPATH/src/github.com/dotcloud
     cd $GOPATH/src/github.com/dotcloud
-    git clone git@github.com:dotcloud/docker.git
+    git clone git://github.com/dotcloud/docker.git
     cd docker
 
     go get -v github.com/dotcloud/docker/...
