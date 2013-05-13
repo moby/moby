@@ -316,7 +316,7 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 	err = func() error {
 		localChecksums := make(map[string]string)
 		remoteChecksums := []ImgListJson{}
-		checksumDictPth := path.Join(graph.Root, "..", "checksums")
+		checksumDictPth := path.Join(graph.Root, "checksums")
 
 		if err := json.Unmarshal(checksumsJson, &remoteChecksums); err != nil {
 			return err

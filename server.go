@@ -262,7 +262,12 @@ func (srv *Server) Containers(all, trunc_cmd, only_ids bool, n int, since, befor
 		displayed++
 
 		c := ApiContainers{
-			Id: container.ShortId(),
+			Id: container.Id,
+		}
+		if trunc_cmd {
+			c = ApiContainers{
+				Id: container.ShortId(),
+			}
 		}
 
 		if !only_ids {
