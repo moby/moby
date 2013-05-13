@@ -12,5 +12,6 @@ This following :
 
   registry_api
   index_search_api
+  docker_remote_api
 
 
