@@ -30,7 +30,7 @@ var (
 )
 
 func ParseCommands(args ...string) error {
-	cli := NewClient(4243)
+	cli := NewClient("0.0.0.0", 4243)
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
@@ -1130,7 +1130,7 @@ func (cli *Client) call(method, path string, data interface{}) ([]byte, int, err
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://0.0.0.0:%d", cli.port)+path, params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d", cli.host, cli.port)+path, params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1159,7 +1159,7 @@ func (cli *Client) call(method, path string, data interface{}) ([]byte, int, err
 }
 
 func (cli *Client) stream(method, path string) error {
-	req, err := http.NewRequest(method, fmt.Sprintf("http://0.0.0.0:%d%s", cli.port, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, path), nil)
 	if err != nil {
 		return err
 	}
@@ -1187,7 +1187,7 @@ func (cli *Client) hijack(method, path string, setRawTerminal bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "plain/text")
-	dial, err := net.Dial("tcp", fmt.Sprintf("0.0.0.0:%d", cli.port))
+	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.host, cli.port))
 	if err != nil {
 		return err
 	}
@@ -1241,10 +1241,11 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewClient(port int) *Client {
-	return &Client{port}
+func NewClient(host string, port int) *Client {
+	return &Client{host, port}
 }
 
 type Client struct {
+	host string
 	port int
 }
