@@ -129,9 +129,8 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 
 	all := r.Form.Get("all") == "1"
 	filter := r.Form.Get("filter")
-	only_ids := r.Form.Get("only_ids") == "1"
 
-	outs, err := srv.Images(all, only_ids, filter)
+	outs, err := srv.Images(all, filter)
 	if err != nil {
 		return err
 	}
@@ -199,8 +198,6 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 		return err
 	}
 	all := r.Form.Get("all") == "1"
-	trunc_cmd := r.Form.Get("trunc_cmd") != "0"
-	only_ids := r.Form.Get("only_ids") == "1"
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -208,7 +205,7 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 		n = -1
 	}
 
-	outs := srv.Containers(all, trunc_cmd, only_ids, n, since, before)
+	outs := srv.Containers(all, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err
