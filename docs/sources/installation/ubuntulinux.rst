@@ -48,8 +48,7 @@ Now install it, you will see another warning that the package cannot be authenti
 
 .. code-block:: bash
 
-    curl get.docker.io | sudo sh -x
-
+    apt-get install lxc-docker
 
 Verify it worked
 

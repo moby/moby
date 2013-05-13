@@ -18,4 +18,5 @@ Contents:
    vagrant
    windows
    amazon
+   rackspace
    upgrading
