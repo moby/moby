@@ -507,6 +507,7 @@ func CompareConfig(a, b *Config) bool {
 		a.User != b.User ||
 		a.Memory != b.Memory ||
 		a.MemorySwap != b.MemorySwap ||
+		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
 		a.Tty != b.Tty {
 		return false
