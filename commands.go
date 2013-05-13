@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -29,50 +30,28 @@ var (
 )
 
 func ParseCommands(args ...string) error {
-
-	cmds := map[string]func(args ...string) error{
-		"attach":  CmdAttach,
-		"build":   CmdBuild,
-		"commit":  CmdCommit,
-		"diff":    CmdDiff,
-		"export":  CmdExport,
-		"images":  CmdImages,
-		"info":    CmdInfo,
-		"insert":  CmdInsert,
-		"inspect": CmdInspect,
-		"import":  CmdImport,
-		"history": CmdHistory,
-		"kill":    CmdKill,
-		"login":   CmdLogin,
-		"logs":    CmdLogs,
-		"port":    CmdPort,
-		"ps":      CmdPs,
-		"pull":    CmdPull,
-		"push":    CmdPush,
-		"restart": CmdRestart,
-		"rm":      CmdRm,
-		"rmi":     CmdRmi,
-		"run":     CmdRun,
-		"tag":     CmdTag,
-		"search":  CmdSearch,
-		"start":   CmdStart,
-		"stop":    CmdStop,
-		"version": CmdVersion,
-		"wait":    CmdWait,
-	}
+	cli := NewClient(4243)
 
 	if len(args) > 0 {
-		cmd, exists := cmds[args[0]]
+		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
+		method, exists := reflect.TypeOf(cli).MethodByName(methodName)
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cmdHelp(args...)
+			return cli.CmdHelp(args...)
 		}
-		return cmd(args[1:]...)
+		ret := method.Func.CallSlice([]reflect.Value{
+			reflect.ValueOf(cli),
+			reflect.ValueOf(args),
+		})[0].Interface()
+		if ret == nil {
+			return nil
+		}
+		return ret.(error)
 	}
-	return cmdHelp(args...)
+	return cli.CmdHelp(args...)
 }
 
-func cmdHelp(args ...string) error {
+func (cli *Client) CmdHelp(args ...string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
@@ -110,7 +89,7 @@ func cmdHelp(args ...string) error {
 	return nil
 }
 
-func CmdInsert(args ...string) error {
+func (cli *Client) CmdInsert(args ...string) error {
 	cmd := Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -124,20 +103,20 @@ func CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := hijack("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), false)
+	err := cli.hijack("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), false)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdBuild(args ...string) error {
+func (cli *Client) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "-", "Build an image from Dockerfile via stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	err := hijack("POST", "/build", false)
+	err := cli.hijack("POST", "/build", false)
 	if err != nil {
 		return err
 	}
@@ -145,7 +124,7 @@ func CmdBuild(args ...string) error {
 }
 
 // 'docker login': login / register a user to registry service.
-func CmdLogin(args ...string) error {
+func (cli *Client) CmdLogin(args ...string) error {
 	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
 		char := make([]byte, 1)
 		buffer := make([]byte, 64)
@@ -200,7 +179,7 @@ func CmdLogin(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/auth", nil)
+	body, _, err := cli.call("GET", "/auth", nil)
 	if err != nil {
 		return err
 	}
@@ -241,7 +220,7 @@ func CmdLogin(args ...string) error {
 	out.Password = password
 	out.Email = email
 
-	body, _, err = call("POST", "/auth", out)
+	body, _, err = cli.call("POST", "/auth", out)
 	if err != nil {
 		return err
 	}
@@ -259,7 +238,7 @@ func CmdLogin(args ...string) error {
 }
 
 // 'docker wait': block until a container stops
-func CmdWait(args ...string) error {
+func (cli *Client) CmdWait(args ...string) error {
 	cmd := Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -269,7 +248,7 @@ func CmdWait(args ...string) error {
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		body, _, err := call("POST", "/containers/"+name+"/wait", nil)
+		body, _, err := cli.call("POST", "/containers/"+name+"/wait", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -285,7 +264,7 @@ func CmdWait(args ...string) error {
 }
 
 // 'docker version': show version information
-func CmdVersion(args ...string) error {
+func (cli *Client) CmdVersion(args ...string) error {
 	cmd := Subcmd("version", "", "Show the docker version information.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -295,7 +274,7 @@ func CmdVersion(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/version", nil)
+	body, _, err := cli.call("GET", "/version", nil)
 	if err != nil {
 		return err
 	}
@@ -319,7 +298,7 @@ func CmdVersion(args ...string) error {
 }
 
 // 'docker info': display system-wide information.
-func CmdInfo(args ...string) error {
+func (cli *Client) CmdInfo(args ...string) error {
 	cmd := Subcmd("info", "", "Display system-wide information")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -329,7 +308,7 @@ func CmdInfo(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/info", nil)
+	body, _, err := cli.call("GET", "/info", nil)
 	if err != nil {
 		return err
 	}
@@ -347,7 +326,7 @@ func CmdInfo(args ...string) error {
 	return nil
 }
 
-func CmdStop(args ...string) error {
+func (cli *Client) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
 	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
@@ -362,7 +341,7 @@ func CmdStop(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		_, _, err := call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -372,7 +351,7 @@ func CmdStop(args ...string) error {
 	return nil
 }
 
-func CmdRestart(args ...string) error {
+func (cli *Client) CmdRestart(args ...string) error {
 	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
 	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
@@ -387,7 +366,7 @@ func CmdRestart(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		_, _, err := call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -397,7 +376,7 @@ func CmdRestart(args ...string) error {
 	return nil
 }
 
-func CmdStart(args ...string) error {
+func (cli *Client) CmdStart(args ...string) error {
 	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -408,7 +387,7 @@ func CmdStart(args ...string) error {
 	}
 
 	for _, name := range args {
-		_, _, err := call("POST", "/containers/"+name+"/start", nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -418,7 +397,7 @@ func CmdStart(args ...string) error {
 	return nil
 }
 
-func CmdInspect(args ...string) error {
+func (cli *Client) CmdInspect(args ...string) error {
 	cmd := Subcmd("inspect", "CONTAINER|IMAGE", "Return low-level information on a container/image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -427,9 +406,9 @@ func CmdInspect(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	obj, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	obj, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
-		obj, _, err = call("GET", "/images/"+cmd.Arg(0)+"/json", nil)
+		obj, _, err = cli.call("GET", "/images/"+cmd.Arg(0)+"/json", nil)
 		if err != nil {
 			return err
 		}
@@ -445,7 +424,7 @@ func CmdInspect(args ...string) error {
 	return nil
 }
 
-func CmdPort(args ...string) error {
+func (cli *Client) CmdPort(args ...string) error {
 	cmd := Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -455,7 +434,7 @@ func CmdPort(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
 		return err
 	}
@@ -474,7 +453,7 @@ func CmdPort(args ...string) error {
 }
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
-func CmdRmi(args ...string) error {
+func (cli *Client) CmdRmi(args ...string) error {
 	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -485,7 +464,7 @@ func CmdRmi(args ...string) error {
 	}
 
 	for _, name := range cmd.Args() {
-		_, _, err := call("DELETE", "/images/"+name, nil)
+		_, _, err := cli.call("DELETE", "/images/"+name, nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -495,7 +474,7 @@ func CmdRmi(args ...string) error {
 	return nil
 }
 
-func CmdHistory(args ...string) error {
+func (cli *Client) CmdHistory(args ...string) error {
 	cmd := Subcmd("history", "IMAGE", "Show the history of an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -505,7 +484,7 @@ func CmdHistory(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/images/"+cmd.Arg(0)+"/history", nil)
+	body, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil)
 	if err != nil {
 		return err
 	}
@@ -525,7 +504,7 @@ func CmdHistory(args ...string) error {
 	return nil
 }
 
-func CmdRm(args ...string) error {
+func (cli *Client) CmdRm(args ...string) error {
 	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	if err := cmd.Parse(args); err != nil {
@@ -540,7 +519,7 @@ func CmdRm(args ...string) error {
 		val.Set("v", "1")
 	}
 	for _, name := range cmd.Args() {
-		_, _, err := call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
+		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -551,7 +530,7 @@ func CmdRm(args ...string) error {
 }
 
 // 'docker kill NAME' kills a running container
-func CmdKill(args ...string) error {
+func (cli *Client) CmdKill(args ...string) error {
 	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -562,7 +541,7 @@ func CmdKill(args ...string) error {
 	}
 
 	for _, name := range args {
-		_, _, err := call("POST", "/containers/"+name+"/kill", nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
@@ -572,7 +551,7 @@ func CmdKill(args ...string) error {
 	return nil
 }
 
-func CmdImport(args ...string) error {
+func (cli *Client) CmdImport(args ...string) error {
 	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 
 	if err := cmd.Parse(args); err != nil {
@@ -588,14 +567,14 @@ func CmdImport(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
 
-	err := hijack("POST", "/images/create?"+v.Encode(), false)
+	err := cli.hijack("POST", "/images/create?"+v.Encode(), false)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdPush(args ...string) error {
+func (cli *Client) CmdPush(args ...string) error {
 	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
 	registry := cmd.String("registry", "", "Registry host to push the image to")
 	if err := cmd.Parse(args); err != nil {
@@ -608,7 +587,7 @@ func CmdPush(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/auth", nil)
+	body, _, err := cli.call("GET", "/auth", nil)
 	if err != nil {
 		return err
 	}
@@ -621,11 +600,11 @@ func CmdPush(args ...string) error {
 
 	// If the login failed AND we're using the index, abort
 	if *registry == "" && out.Username == "" {
-		if err := CmdLogin(args...); err != nil {
+		if err := cli.CmdLogin(args...); err != nil {
 			return err
 		}
 
-		body, _, err = call("GET", "/auth", nil)
+		body, _, err = cli.call("GET", "/auth", nil)
 		if err != nil {
 			return err
 		}
@@ -645,13 +624,13 @@ func CmdPush(args ...string) error {
 
 	v := url.Values{}
 	v.Set("registry", *registry)
-	if err := hijack("POST", "/images/"+name+"/push?"+v.Encode(), false); err != nil {
+	if err := cli.hijack("POST", "/images/"+name+"/push?"+v.Encode(), false); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdPull(args ...string) error {
+func (cli *Client) CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
 	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
@@ -676,14 +655,14 @@ func CmdPull(args ...string) error {
 	v.Set("tag", *tag)
 	v.Set("registry", *registry)
 
-	if err := hijack("POST", "/images/create?"+v.Encode(), false); err != nil {
+	if err := cli.hijack("POST", "/images/create?"+v.Encode(), false); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func CmdImages(args ...string) error {
+func (cli *Client) CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
@@ -698,7 +677,7 @@ func CmdImages(args ...string) error {
 	}
 
 	if *flViz {
-		body, _, err := call("GET", "/images/viz", false)
+		body, _, err := cli.call("GET", "/images/viz", false)
 		if err != nil {
 			return err
 		}
@@ -715,7 +694,7 @@ func CmdImages(args ...string) error {
 			v.Set("all", "1")
 		}
 
-		body, _, err := call("GET", "/images/json?"+v.Encode(), nil)
+		body, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil)
 		if err != nil {
 			return err
 		}
@@ -746,7 +725,7 @@ func CmdImages(args ...string) error {
 	return nil
 }
 
-func CmdPs(args ...string) error {
+func (cli *Client) CmdPs(args ...string) error {
 	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
@@ -782,7 +761,7 @@ func CmdPs(args ...string) error {
 		v.Set("before", *before)
 	}
 
-	body, _, err := call("GET", "/containers/ps?"+v.Encode(), nil)
+	body, _, err := cli.call("GET", "/containers/ps?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -811,7 +790,7 @@ func CmdPs(args ...string) error {
 	return nil
 }
 
-func CmdCommit(args ...string) error {
+func (cli *Client) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
@@ -838,7 +817,7 @@ func CmdCommit(args ...string) error {
 			return err
 		}
 	}
-	body, _, err := call("POST", "/commit?"+v.Encode(), config)
+	body, _, err := cli.call("POST", "/commit?"+v.Encode(), config)
 	if err != nil {
 		return err
 	}
@@ -853,7 +832,7 @@ func CmdCommit(args ...string) error {
 	return nil
 }
 
-func CmdExport(args ...string) error {
+func (cli *Client) CmdExport(args ...string) error {
 	cmd := Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -864,13 +843,13 @@ func CmdExport(args ...string) error {
 		return nil
 	}
 
-	if err := stream("GET", "/containers/"+cmd.Arg(0)+"/export"); err != nil {
+	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdDiff(args ...string) error {
+func (cli *Client) CmdDiff(args ...string) error {
 	cmd := Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -880,7 +859,7 @@ func CmdDiff(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil)
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil)
 	if err != nil {
 		return err
 	}
@@ -896,7 +875,7 @@ func CmdDiff(args ...string) error {
 	return nil
 }
 
-func CmdLogs(args ...string) error {
+func (cli *Client) CmdLogs(args ...string) error {
 	cmd := Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -911,13 +890,13 @@ func CmdLogs(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if err := hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdAttach(args ...string) error {
+func (cli *Client) CmdAttach(args ...string) error {
 	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -927,7 +906,7 @@ func CmdAttach(args ...string) error {
 		return nil
 	}
 
-	body, _, err := call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
 		return err
 	}
@@ -944,13 +923,13 @@ func CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 	v.Set("stdin", "1")
 
-	if err := hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdSearch(args ...string) error {
+func (cli *Client) CmdSearch(args ...string) error {
 	cmd := Subcmd("search", "NAME", "Search the docker index for images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -962,7 +941,7 @@ func CmdSearch(args ...string) error {
 
 	v := url.Values{}
 	v.Set("term", cmd.Arg(0))
-	body, _, err := call("GET", "/images/search?"+v.Encode(), nil)
+	body, _, err := cli.call("GET", "/images/search?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -1043,7 +1022,7 @@ func (opts PathOpts) Set(val string) error {
 	return nil
 }
 
-func CmdTag(args ...string) error {
+func (cli *Client) CmdTag(args ...string) error {
 	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
@@ -1064,13 +1043,13 @@ func CmdTag(args ...string) error {
 		v.Set("force", "1")
 	}
 
-	if _, _, err := call("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil); err != nil {
+	if _, _, err := cli.call("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CmdRun(args ...string) error {
+func (cli *Client) CmdRun(args ...string) error {
 	config, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
@@ -1081,16 +1060,16 @@ func CmdRun(args ...string) error {
 	}
 
 	//create the container
-	body, statusCode, err := call("POST", "/containers/create", config)
+	body, statusCode, err := cli.call("POST", "/containers/create", config)
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
 		v.Set("fromImage", config.Image)
-		err = hijack("POST", "/images/create?"+v.Encode(), false)
+		err = cli.hijack("POST", "/images/create?"+v.Encode(), false)
 		if err != nil {
 			return err
 		}
-		body, _, err = call("POST", "/containers/create", config)
+		body, _, err = cli.call("POST", "/containers/create", config)
 		if err != nil {
 			return err
 		}
@@ -1125,13 +1104,13 @@ func CmdRun(args ...string) error {
 	}
 
 	//start the container
-	_, _, err = call("POST", "/containers/"+out.Id+"/start", nil)
+	_, _, err = cli.call("POST", "/containers/"+out.Id+"/start", nil)
 	if err != nil {
 		return err
 	}
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
-		if err := hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
+		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
 		}
 	}
@@ -1141,7 +1120,7 @@ func CmdRun(args ...string) error {
 	return nil
 }
 
-func call(method, path string, data interface{}) ([]byte, int, error) {
+func (cli *Client) call(method, path string, data interface{}) ([]byte, int, error) {
 	var params io.Reader
 	if data != nil {
 		buf, err := json.Marshal(data)
@@ -1151,7 +1130,7 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://0.0.0.0:%d", cli.port)+path, params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1179,8 +1158,8 @@ func call(method, path string, data interface{}) ([]byte, int, error) {
 	return body, resp.StatusCode, nil
 }
 
-func stream(method, path string) error {
-	req, err := http.NewRequest(method, "http://0.0.0.0:4243"+path, nil)
+func (cli *Client) stream(method, path string) error {
+	req, err := http.NewRequest(method, fmt.Sprintf("http://0.0.0.0:%d%s", cli.port, path), nil)
 	if err != nil {
 		return err
 	}
@@ -1202,13 +1181,13 @@ func stream(method, path string) error {
 	return nil
 }
 
-func hijack(method, path string, setRawTerminal bool) error {
+func (cli *Client) hijack(method, path string, setRawTerminal bool) error {
 	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "plain/text")
-	dial, err := net.Dial("tcp", "0.0.0.0:4243")
+	dial, err := net.Dial("tcp", fmt.Sprintf("0.0.0.0:%d", cli.port))
 	if err != nil {
 		return err
 	}
@@ -1260,4 +1239,12 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 		flags.PrintDefaults()
 	}
 	return flags
+}
+
+func NewClient(port int) *Client {
+	return &Client{port}
+}
+
+type Client struct {
+	port int
 }
