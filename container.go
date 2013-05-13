@@ -52,6 +52,8 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
+
+	Binds []BindMap
 }
 
 type Config struct {
@@ -75,7 +77,17 @@ type Config struct {
 	VolumesFrom  string
 }
 
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet, error) {
+type HostConfig struct {
+	Binds []string
+}
+
+type BindMap struct {
+	SrcPath string
+	DstPath string
+	Mode    string
+}
+
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -111,11 +123,14 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 
+	var flBinds ListOpts
+	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
+
 	if err := cmd.Parse(args); err != nil {
-		return nil, cmd, err
+		return nil, nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -127,6 +142,15 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 			}
 		}
 	}
+
+	// add any bind targets to the list of container volumes
+	type empty struct{}
+	for _, bind := range flBinds {
+		arr := strings.Split(bind, ":")
+		dstDir := arr[1]
+		flVolumes[dstDir] = empty{}
+	}
+
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -154,6 +178,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 		Volumes:      flVolumes,
 		VolumesFrom:  *flVolumesFrom,
 	}
+	hostConfig := &HostConfig{
+		Binds: flBinds,
+	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
@@ -164,7 +191,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, cmd, nil
+	return config, hostConfig, cmd, nil
 }
 
 type NetworkSettings struct {
@@ -430,7 +457,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func (container *Container) Start() error {
+func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.lock()
 	defer container.State.unlock()
 
@@ -482,6 +509,42 @@ func (container *Container) Start() error {
 			container.Volumes[volPath] = id
 		}
 	}
+
+	// Create the requested bind mounts
+	binds := []BindMap{}
+	// Define illegal container destinations
+	illegal_dsts := []string{"/", "."}
+
+	for _, bind := range hostConfig.Binds {
+		var src, dst, mode string
+		arr := strings.Split(bind, ":")
+		if len(arr) == 2 {
+			src = arr[0]
+			dst = arr[1]
+			mode = "rw"
+		} else if len(arr) == 3 {
+			src = arr[0]
+			dst = arr[1]
+			mode = arr[2]
+		} else {
+			return fmt.Errorf("Invalid bind specification: %s", bind)
+		}
+
+		// Bail if trying to mount to an illegal destination
+		for _, illegal := range illegal_dsts {
+			if dst == illegal {
+				return fmt.Errorf("Illegal bind destination: %s", dst)
+			}
+		}
+
+		bindMap := BindMap{
+			SrcPath: src,
+			DstPath: dst,
+			Mode:    mode,
+		}
+		binds = append(binds, bindMap)
+	}
+	container.Binds = binds
 
 	if err := container.generateLXCConfig(); err != nil {
 		return err
@@ -552,7 +615,8 @@ func (container *Container) Start() error {
 }
 
 func (container *Container) Run() error {
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return err
 	}
 	container.Wait()
@@ -565,7 +629,8 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	defer pipe.Close()
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
@@ -768,7 +833,8 @@ func (container *Container) Restart(seconds int) error {
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return err
 	}
 	return nil

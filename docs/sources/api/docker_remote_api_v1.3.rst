@@ -294,23 +294,30 @@ Start a container
 
 .. http:post:: /containers/(id)/start
 
-	Start the container ``id``
+        Start the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/start HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/(id)/start HTTP/1.1
+           Content-Type: application/json
 
-	.. sourcecode:: http
+           {
+                "Binds":["/tmp:/tmp"]
+           }
 
-	   HTTP/1.1 200 OK
-	   	
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 204 No Content
+           Content-Type: text/plain
+
+        :jsonparam hostConfig: the container's host configuration (optional)
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Stop a contaier
