@@ -1196,6 +1196,14 @@ func stream(method, path string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("error: %s", body)
+	}
+
 	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
 		return err
 	}
