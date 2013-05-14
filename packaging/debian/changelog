@@ -1,14 +1,16 @@
-lxc-docker (0.1.4-1) unstable; urgency=low
+lxc-docker (0.3.2-1) UNRELEASED; urgency=low
+  - Runtime: Store the actual archive on commit
+  - Registry: Improve the checksum process
+  - Registry: Use the size to have a good progress bar while pushing
+  - Registry: Use the actual archive if it exists in order to speed up the push
+  - Registry: Fix error 400 on push
 
-  Improvements [+], Updates [*], Bug fixes [-]:
-  * Changed default bridge interface do 'docker0'
-  - Fix a race condition when running the port allocator
-
- -- Daniel Mizyrycki <daniel@dotcloud.com>  Wed, 10 Apr 2013 18:06:21 -0700
+ -- Daniel Mizyrycki <daniel@dotcloud.com>  Sun, 12 May 2013 00:00:00 -0700
 
 
-lxc-docker (0.1.0-1) unstable; urgency=low
+lxc-docker (0.2.0-1) UNRELEASED; urgency=low
+ 
+  - Pre-release (Closes: #706060)
 
-  * Initial release
+ -- Daniel Mizyrycki <daniel@dotcloud.com>  Fri, 26 Apr 2013 23:41:29 -0700
 
- -- Daniel Mizyrycki <daniel@dotcloud.com>  Mon, 29 Mar 2013 18:09:55 -0700
