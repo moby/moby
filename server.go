@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
 	"net/http"
@@ -54,7 +55,7 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 		var out ApiSearch
 		out.Description = repo["description"]
 		if len(out.Description) > 45 {
-			out.Description = Trunc(out.Description, 42) + "..."
+			out.Description = utils.Trunc(out.Description, 42) + "..."
 		}
 		out.Name = repo["name"]
 		outs = append(outs, out)
@@ -68,7 +69,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
 		return err
 	}
 
-	file, err := Download(url, out)
+	file, err := utils.Download(url, out)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
 		return err
 	}
 
-	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -124,7 +125,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 
 	for name, repository := range srv.runtime.repositories.Repositories {
 		for tag, id := range repository {
-			reporefs[TruncateId(id)] = append(reporefs[TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
+			reporefs[utils.TruncateId(id)] = append(reporefs[utils.TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
 		}
 	}
 
@@ -193,7 +194,7 @@ func (srv *Server) DockerInfo() ApiInfo {
 	out.GoVersion = runtime.Version()
 	if os.Getenv("DEBUG") != "" {
 		out.Debug = true
-		out.NFd = getTotalUsedFds()
+		out.NFd = utils.GetTotalUsedFds()
 		out.NGoroutines = runtime.NumGoroutine()
 	}
 	return out
@@ -299,7 +300,7 @@ func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
-		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		utils.Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
 			if err := srv.runtime.graph.PushRepository(out, name, localRepo, srv.runtime.authConfig); err != nil {
@@ -336,11 +337,11 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		fmt.Fprintln(out, "Downloading from", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = Download(u.String(), out)
+		resp, err = utils.Download(u.String(), out)
 		if err != nil {
 			return err
 		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), out, "Importing %v/%v (%v)")
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, "Importing %v/%v (%v)")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -486,17 +487,17 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			}
 		}
 	}
@@ -517,7 +518,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			r, w := io.Pipe()
 			go func() {
 				defer w.Close()
-				defer Debugf("Closing buffered stdin pipe")
+				defer utils.Debugf("Closing buffered stdin pipe")
 				io.Copy(w, in)
 			}()
 			cStdin = r

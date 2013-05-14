@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"github.com/shin-/cookiejar"
 	"io"
 	"io/ioutil"
@@ -19,7 +20,7 @@ import (
 func NewImgJson(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	Debugf("Json string: {%s}\n", src)
+	utils.Debugf("Json string: {%s}\n", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
@@ -58,7 +59,7 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 		return nil, fmt.Errorf("Error while reading the http response: %s\n", err)
 	}
 
-	Debugf("Ancestry: %s", jsonString)
+	utils.Debugf("Ancestry: %s", jsonString)
 	history := new([]string)
 	if err := json.Unmarshal(jsonString, history); err != nil {
 		return nil, err
@@ -116,7 +117,7 @@ func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.Au
 
 	err = json.Unmarshal(jsonData, &imageList)
 	if err != nil {
-		Debugf("Body: %s (%s)\n", res.Body, u)
+		utils.Debugf("Body: %s (%s)\n", res.Body, u)
 		return nil, err
 	}
 
@@ -166,7 +167,7 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 	if err != nil {
 		return nil, nil, err
 	}
-	return img, ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
+	return img, utils.ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
 }
 
 func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
@@ -185,7 +186,7 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		res, err := client.Do(req)
 		defer res.Body.Close()
-		Debugf("Got status code %d from %s", res.StatusCode, endpoint)
+		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
 			continue
 		} else if res.StatusCode == 404 {
@@ -416,7 +417,7 @@ func (graph *Graph) PushImage(stdout io.Writer, img *Image, registry string, tok
 		return fmt.Errorf("Error while retrieving checksum for %s: %v", img.Id, err)
 	}
 	req.Header.Set("X-Docker-Checksum", checksum)
-	Debugf("Setting checksum for %s: %s", img.ShortId(), checksum)
+	utils.Debugf("Setting checksum for %s: %s", img.ShortId(), checksum)
 	res, err := doWithCookies(client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
@@ -469,8 +470,7 @@ func (graph *Graph) PushImage(stdout io.Writer, img *Image, registry string, tok
 		layerData = &TempArchive{file, st.Size()}
 	}
 
-	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer",
-		ProgressReader(layerData, int(layerData.Size), stdout, ""))
+	req3, err := http.NewRequest("PUT", registry+"/images/"+img.Id+"/layer", utils.ProgressReader(layerData, int(layerData.Size), stdout, ""))
 	if err != nil {
 		return err
 	}
@@ -502,7 +502,7 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, token []stri
 	revision = "\"" + revision + "\""
 	registry = "https://" + registry + "/v1"
 
-	Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
+	utils.Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
 
 	client := graph.getHttpClient()
 	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
@@ -624,7 +624,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 		return err
 	}
 
-	Debugf("json sent: %s\n", imgListJson)
+	utils.Debugf("json sent: %s\n", imgListJson)
 
 	fmt.Fprintf(stdout, "Sending image list\n")
 	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
@@ -642,7 +642,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	defer res.Body.Close()
 
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		Debugf("Redirected to %s\n", res.Header.Get("Location"))
+		utils.Debugf("Redirected to %s\n", res.Header.Get("Location"))
 		req, err = http.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJson))
 		if err != nil {
 			return err
@@ -669,7 +669,7 @@ func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Re
 	var token, endpoints []string
 	if res.Header.Get("X-Docker-Token") != "" {
 		token = res.Header["X-Docker-Token"]
-		Debugf("Auth token: %v", token)
+		utils.Debugf("Auth token: %v", token)
 	} else {
 		return fmt.Errorf("Index response didn't contain an access token")
 	}

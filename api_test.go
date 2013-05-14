@@ -811,7 +811,7 @@ func TestPostContainersCreate(t *testing.T) {
 
 	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err != nil {
 		if os.IsNotExist(err) {
-			Debugf("Err: %s", err)
+			utils.Debugf("Err: %s", err)
 			t.Fatalf("The test file has not been created")
 		}
 		t.Fatal(err)

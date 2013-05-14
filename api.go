@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"github.com/shin-/cookiejar"
 	"io"
@@ -116,7 +117,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		Debugf("%s", err.Error())
+		utils.Debugf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -239,7 +240,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		Debugf("%s", err.Error())
+		utils.Debugf("%s", err.Error())
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -602,20 +603,20 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			Debugf("Registering %s, %s", method, route)
+			utils.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localMethod := method
 			localFct := fct
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				Debugf("Calling %s %s", localMethod, localRoute)
+				utils.Debugf("Calling %s %s", localMethod, localRoute)
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
 				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 					if len(userAgent) == 2 && userAgent[1] != VERSION {
-						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
+						utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
 				if err := localFct(srv, w, r, mux.Vars(r)); err != nil {

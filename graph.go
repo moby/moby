@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
 	Root         string
-	idIndex      *TruncIndex
+	idIndex      *utils.TruncIndex
 	httpClient   *http.Client
 	checksumLock map[string]*sync.Mutex
 	lockSumFile  *sync.Mutex
@@ -37,7 +38,7 @@ func NewGraph(root string) (*Graph, error) {
 	}
 	graph := &Graph{
 		Root:         abspath,
-		idIndex:      NewTruncIndex(),
+		idIndex:      utils.NewTruncIndex(),
 		checksumLock: make(map[string]*sync.Mutex),
 		lockSumFile:  &sync.Mutex{},
 		lockSumMap:   &sync.Mutex{},
@@ -165,7 +166,7 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.

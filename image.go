@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -180,7 +181,7 @@ func (image *Image) Changes(rw string) ([]Change, error) {
 }
 
 func (image *Image) ShortId() string {
-	return TruncateId(image.Id)
+	return utils.TruncateId(image.Id)
 }
 
 func ValidateId(id string) error {

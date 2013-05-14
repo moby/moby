@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -27,9 +28,9 @@ type Runtime struct {
 	graph          *Graph
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
-	idIndex        *TruncIndex
+	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
-	kernelVersion  *KernelVersionInfo
+	kernelVersion  *utils.KernelVersionInfo
 	autoRestart    bool
 	volumes        *Graph
 }
@@ -37,7 +38,7 @@ type Runtime struct {
 var sysInitPath string
 
 func init() {
-	sysInitPath = SelfPath()
+	sysInitPath = utils.SelfPath()
 }
 
 func (runtime *Runtime) List() []*Container {
@@ -113,13 +114,13 @@ func (runtime *Runtime) Register(container *Container) error {
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
-	container.stderr = newWriteBroadcaster()
-	container.stdout = newWriteBroadcaster()
+	container.stderr = utils.NewWriteBroadcaster()
+	container.stdout = utils.NewWriteBroadcaster()
 	// Attach to stdin
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
-		container.stdinPipe = NopWriteCloser(ioutil.Discard) // Silently drop stdin
+		container.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
 	runtime.containers.PushBack(container)
@@ -137,9 +138,9 @@ func (runtime *Runtime) Register(container *Container) error {
 			return err
 		} else {
 			if !strings.Contains(string(output), "RUNNING") {
-				Debugf("Container %s was supposed to be running be is not.", container.Id)
+				utils.Debugf("Container %s was supposed to be running be is not.", container.Id)
 				if runtime.autoRestart {
-					Debugf("Restarting")
+					utils.Debugf("Restarting")
 					container.State.Ghost = false
 					container.State.setStopped(0)
 					if err := container.Start(); err != nil {
@@ -147,7 +148,7 @@ func (runtime *Runtime) Register(container *Container) error {
 					}
 					nomonitor = true
 				} else {
-					Debugf("Marking as stopped")
+					utils.Debugf("Marking as stopped")
 					container.State.setStopped(-127)
 					if err := container.ToDisk(); err != nil {
 						return err
@@ -168,7 +169,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	return nil
 }
 
-func (runtime *Runtime) LogToDisk(src *writeBroadcaster, dst string) error {
+func (runtime *Runtime) LogToDisk(src *utils.WriteBroadcaster, dst string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return err
@@ -215,16 +216,16 @@ func (runtime *Runtime) restore() error {
 		id := v.Name()
 		container, err := runtime.Load(id)
 		if err != nil {
-			Debugf("Failed to load container %v: %v", id, err)
+			utils.Debugf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		Debugf("Loaded container %v", container.Id)
+		utils.Debugf("Loaded container %v", container.Id)
 	}
 	return nil
 }
 
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
-	if cgroupMemoryMountpoint, err := FindCgroupMountpoint("memory"); err != nil {
+	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
 			log.Printf("WARNING: %s\n", err)
 		}
@@ -255,7 +256,7 @@ func NewRuntime(autoRestart bool) (*Runtime, error) {
 		log.Printf("WARNING: %s\n", err)
 	} else {
 		runtime.kernelVersion = k
-		if CompareKernelVersion(k, &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 		}
 	}
@@ -302,7 +303,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		graph:          g,
 		repositories:   repositories,
 		authConfig:     authConfig,
-		idIndex:        NewTruncIndex(),
+		idIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
 		volumes:        volumes,

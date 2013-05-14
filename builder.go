@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"os"
 	"path"
@@ -161,11 +162,11 @@ func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
 	for c := range containers {
 		tmp := builder.runtime.Get(c)
 		builder.runtime.Destroy(tmp)
-		Debugf("Removing container %s", c)
+		utils.Debugf("Removing container %s", c)
 	}
 	for i := range images {
 		builder.runtime.graph.Delete(i)
-		Debugf("Removing image %s", i)
+		utils.Debugf("Removing image %s", i)
 	}
 }
 
@@ -286,7 +287,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				break
 			}
 
-			Debugf("Env -----> %v ------ %v\n", config.Env, env)
+			utils.Debugf("Env -----> %v ------ %v\n", config.Env, env)
 
 			// Create the container and start it
 			c, err := builder.Create(config)
@@ -410,7 +411,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			destPath := strings.Trim(tmp[1], " ")
 			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
 
-			file, err := Download(sourceUrl, stdout)
+			file, err := utils.Download(sourceUrl, stdout)
 			if err != nil {
 				return nil, err
 			}
