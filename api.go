@@ -559,7 +559,7 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
+func ListenAndServe(addr string, srv *Server, logging bool, auth string) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
@@ -611,6 +611,12 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 				Debugf("Calling %s %s", localMethod, localRoute)
 				if logging {
 					log.Println(r.Method, r.RequestURI)
+				}
+				if auth != "" {
+					if r.Header.Get("Authorization") != auth {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
 				}
 				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
