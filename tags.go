@@ -109,6 +109,29 @@ func (store *TagStore) ImageName(id string) string {
 	return TruncateId(id)
 }
 
+func (store *TagStore) Delete(repoName, tag, imageName string) error {
+	if err := store.Reload(); err != nil {
+		return err
+	}
+	if r, exists := store.Repositories[repoName]; exists {
+		if tag != "" {
+			if _, exists2 := r[tag]; exists2 {
+				delete(r, tag)
+				if len(r) == 0 {
+					delete(store.Repositories, repoName)
+				}
+			} else {
+				return fmt.Errorf("No such tag: %s:%s", repoName, tag)
+			}
+		} else {
+			delete(store.Repositories, repoName)
+		}
+	} else {
+		fmt.Errorf("No such repository: %s", repoName)
+	}
+	return store.Save()
+}
+
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	img, err := store.LookupImage(imageName)
 	if err != nil {
