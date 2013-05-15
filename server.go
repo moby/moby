@@ -48,7 +48,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
-	results, err := srv.registry.SearchRepositories(nil, term)
+	results, err := srv.registry.SearchRepositories(term)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
-func (srv *Server) pullImage(stdout io.Writer, imgId, registry string, token []string) error {
+func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []string) error {
 	history, err := srv.registry.GetRemoteHistory(imgId, registry, token)
 	if err != nil {
 		return err
@@ -297,7 +297,8 @@ func (srv *Server) pullImage(stdout io.Writer, imgId, registry string, token []s
 	// FIXME: Launch the getRemoteImage() in goroutines
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
-			imgJson, err := srv.registry.GetRemoteImageJson(stdout, id, registry, token)
+			fmt.Fprintf(out, "Pulling %s metadata\r\n", id)
+			imgJson, err := srv.registry.GetRemoteImageJson(id, registry, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
 				return err
@@ -308,13 +309,12 @@ func (srv *Server) pullImage(stdout io.Writer, imgId, registry string, token []s
 			}
 
 			// Get the layer
-			fmt.Fprintf(stdout, "Pulling %s fs layer\r\n", img.Id)
-			layer, err := srv.registry.GetRemoteImageLayer(stdout, img.Id, registry, token)
+			fmt.Fprintf(out, "Pulling %s fs layer\r\n", img.Id)
+			layer, contentLength, err := srv.registry.GetRemoteImageLayer(img.Id, registry, token)
 			if err != nil {
 				return err
 			}
-
-			if err := srv.runtime.graph.Register(layer, false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, "Downloading %v/%v (%v)"), false, img); err != nil {
 				return err
 			}
 		}
@@ -336,7 +336,7 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 	}
 
 	utils.Debugf("Retrieving the tag list")
-	tagsList, err := srv.registry.GetRemoteTags(stdout, repoData.Endpoints, remote, repoData.Tokens)
+	tagsList, err := srv.registry.GetRemoteTags(repoData.Endpoints, remote, repoData.Tokens)
 	if err != nil {
 		return err
 	}

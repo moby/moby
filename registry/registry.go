@@ -112,10 +112,9 @@ func (r *Registry) getImagesInRepository(repository string, authConfig *auth.Aut
 
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
-func (r *Registry) GetRemoteImageJson(stdout io.Writer, imgId, registry string, token []string) ([]byte, error) {
+func (r *Registry) GetRemoteImageJson(imgId, registry string, token []string) ([]byte, error) {
 	client := r.getHttpClient()
 
-	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId)
 	// Get the Json
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/json", nil)
 	if err != nil {
@@ -137,22 +136,22 @@ func (r *Registry) GetRemoteImageJson(stdout io.Writer, imgId, registry string, 
 	return jsonString, nil
 }
 
-func (r *Registry) GetRemoteImageLayer(stdout io.Writer, imgId, registry string, token []string) (io.Reader, error) {
+func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (io.ReadCloser, int, error) {
 	client := r.getHttpClient()
 
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/layer", nil)
 	if err != nil {
-		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+		return nil, -1, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
-	return utils.ProgressReader(res.Body, int(res.ContentLength), stdout, "Downloading %v/%v (%v)"), nil
+	return res.Body, int(res.ContentLength), nil
 }
 
-func (r *Registry) GetRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
+func (r *Registry) GetRemoteTags(registries []string, repository string, token []string) (map[string]string, error) {
 	client := r.getHttpClient()
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the Registry supports auto-resolution on
@@ -189,7 +188,7 @@ func (r *Registry) GetRemoteTags(stdout io.Writer, registries []string, reposito
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
 
-func (r *Registry) getImageForTag(stdout io.Writer, tag, remote, registry string, token []string) (string, error) {
+func (r *Registry) getImageForTag(tag, remote, registry string, token []string) (string, error) {
 	client := r.getHttpClient()
 
 	if !strings.Contains(remote, "/") {
@@ -466,7 +465,7 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	}, nil
 }
 
-func (r *Registry) SearchRepositories(stdout io.Writer, term string) (*SearchResults, error) {
+func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	client := r.getHttpClient()
 	u := auth.IndexServerAddress() + "/search?q=" + url.QueryEscape(term)
 	req, err := http.NewRequest("GET", u, nil)
