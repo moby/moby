@@ -72,9 +72,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	if err != nil {
 		return err
 	} else {
-		// TODO: uncomment this
-		//		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
-		srv.runtime.authConfig = newAuthConfig
+		srv.registry.ResetClient(newAuthConfig)
 	}
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})

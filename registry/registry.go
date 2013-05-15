@@ -459,6 +459,11 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	return result, err
 }
 
+func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
+	r.authConfig = authConfig
+	r.client.Jar = cookiejar.NewCookieJar()
+}
+
 type SearchResults struct {
 	Query      string              `json:"query"`
 	NumResults int                 `json:"num_results"`
