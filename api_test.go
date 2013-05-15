@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
 	"net/http"
@@ -222,7 +224,10 @@ func TestGetImagesSearch(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.authConfig),
+	}
 
 	r := httptest.NewRecorder()
 
