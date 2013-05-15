@@ -290,9 +290,8 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 }
 
 // Push a local image to the registry
-func (r *Registry) PushImage(imgData *ImgData, jsonRaw []byte, layer io.Reader, registry string, token []string) error {
+func (r *Registry) PushImageJsonRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
 	registry = "https://" + registry + "/v1"
-
 	client := r.getHttpClient()
 
 	// FIXME: try json with UTF8
@@ -302,8 +301,8 @@ func (r *Registry) PushImage(imgData *ImgData, jsonRaw []byte, layer io.Reader, 
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
+
 	utils.Debugf("Setting checksum for %s: %s", imgData.Id, imgData.Checksum)
 	res, err := doWithCookies(client, req)
 	if err != nil {
@@ -328,35 +327,39 @@ func (r *Registry) PushImage(imgData *ImgData, jsonRaw []byte, layer io.Reader, 
 		}
 		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
 	}
+	return nil
+}
 
-	req3, err := http.NewRequest("PUT", registry+"/images/"+imgData.Id+"/layer", layer)
+func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registry string, token []string) error {
+	registry = "https://" + registry + "/v1"
+	client := r.getHttpClient()
+
+	req, err := http.NewRequest("PUT", registry+"/images/"+imgId+"/layer", layer)
 	if err != nil {
 		return err
 	}
-
-	req3.ContentLength = -1
-	req3.TransferEncoding = []string{"chunked"}
-	req3.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	res3, err := doWithCookies(client, req3)
+	req.ContentLength = -1
+	req.TransferEncoding = []string{"chunked"}
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
+	res, err := doWithCookies(client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
 	}
-	defer res3.Body.Close()
+	defer res.Body.Close()
 
-	if res3.StatusCode != 200 {
-		errBody, err := ioutil.ReadAll(res3.Body)
+	if res.StatusCode != 200 {
+		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return fmt.Errorf("HTTP code %d while uploading metadata and error when"+
-				" trying to parse response body: %v", res.StatusCode, err)
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
 		}
-		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res3.StatusCode, errBody)
+		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody)
 	}
 	return nil
 }
 
 // push a tag on the registry.
 // Remote has the format '<user>/<repo>
-func (r *Registry) pushTag(remote, revision, tag, registry string, token []string) error {
+func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token []string) error {
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
 	registry = "https://" + registry + "/v1"
@@ -382,28 +385,7 @@ func (r *Registry) pushTag(remote, revision, tag, registry string, token []strin
 	return nil
 }
 
-// FIXME: this should really be PushTag
-func (r *Registry) PushLayer(remote, tag, imgId, registry string, token []string) error {
-	// Check if the local impage exists
-	img, err := graph.Get(imgId)
-	if err != nil {
-		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\r\n", remote, tag, imgId)
-		return nil
-	}
-	fmt.Fprintf(stdout, "Pushing image %s:%s\r\n", remote, tag)
-	// Push the image
-	if err = graph.PushImage(stdout, img, registry, token); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Registering tag %s:%s\r\n", remote, tag)
-	// And then the tag
-	if err = graph.pushTag(remote, imgId, tag, registry, token); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *Registry) PushJsonIndex(remote string, imgList []*ImgData, validate bool) (*RepositoryData, error) {
+func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validate bool) (*RepositoryData, error) {
 	client := r.getHttpClient()
 
 	imgListJson, err := json.Marshal(imgList)
