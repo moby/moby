@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
@@ -13,6 +14,8 @@ import (
 	"net/url"
 	"strings"
 )
+
+var ErrAlreadyExists error = errors.New("Image already exists")
 
 func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	for _, cookie := range c.Jar.Cookies(req.URL) {
@@ -291,15 +294,13 @@ func (r *Registry) PushImageJsonRegistry(imgData *ImgData, jsonRaw []byte, regis
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return fmt.Errorf("HTTP code %d while uploading metadata and error when"+
-				" trying to parse response body: %v", res.StatusCode, err)
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
 		}
 		var jsonBody map[string]string
 		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
 			errBody = []byte(err.Error())
 		} else if jsonBody["error"] == "Image already exists" {
-			utils.Debugf("Image %s already uploaded ; skipping\n", imgData.Id)
-			return nil
+			return ErrAlreadyExists
 		}
 		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
 	}
@@ -337,8 +338,6 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
 	registry = "https://" + registry + "/v1"
-
-	utils.Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
 
 	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {

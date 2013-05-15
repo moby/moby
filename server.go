@@ -478,10 +478,15 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 		fmt.Fprintf(out, "Pushing repository %s to %s (%d tags)\r\n", name, ep, len(localRepo))
 		// For each image within the repo, push them
 		for _, elem := range imgList {
+			if _, exists := repoData.ImgList[elem.Id]; exists {
+				fmt.Fprintf(out, "Image %s already on registry, skipping\n", name)
+				continue
+			}
 			if err := srv.pushImage(out, name, elem.Id, ep, repoData.Tokens); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
+			fmt.Fprintf(out, "Pushing tags for rev [%s] on {%s}\n", elem.Id, ep+"/users/"+name+"/"+elem.Tag)
 			if err := srv.registry.PushRegistryTag(name, elem.Id, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
@@ -511,6 +516,15 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 		Checksum: checksum,
 	}
 
+	// Send the json
+	if err := srv.registry.PushImageJsonRegistry(imgData, jsonRaw, ep, token); err != nil {
+		if err == registry.ErrAlreadyExists {
+			fmt.Fprintf(out, "Image %s already uploaded ; skipping\n", imgData.Id)
+			return nil
+		}
+		return err
+	}
+
 	// Retrieve the tarball to be sent
 	var layerData *TempArchive
 	// If the archive exists, use it
@@ -537,10 +551,6 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 		}
 	}
 
-	// Send the json
-	if err := srv.registry.PushImageJsonRegistry(imgData, jsonRaw, ep, token); err != nil {
-		return err
-	}
 	// Send the layer
 	if err := srv.registry.PushImageLayerRegistry(imgData.Id, utils.ProgressReader(layerData, int(layerData.Size), out, ""), ep, token); err != nil {
 		return err
