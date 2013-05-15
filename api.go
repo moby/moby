@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/gorilla/mux"
-	"github.com/shin-/cookiejar"
 	"io"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
 	"strings"
 )
@@ -72,7 +72,14 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	if err != nil {
 		return err
 	} else {
-		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
+		client, err := srv.runtime.graph.getHttpClient()
+		if err != nil {
+			return err
+		}
+		client.Jar, err = cookiejar.New(nil)
+		if err != nil {
+			return err
+		}
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {

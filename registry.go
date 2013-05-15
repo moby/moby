@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
-	"github.com/shin-/cookiejar"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path"
@@ -40,8 +40,10 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
 func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]string, error) {
-	client := graph.getHttpClient()
-
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/ancestry", nil)
 	if err != nil {
 		return nil, err
@@ -69,12 +71,15 @@ func (graph *Graph) getRemoteHistory(imgId, registry string, token []string) ([]
 	return *history, nil
 }
 
-func (graph *Graph) getHttpClient() *http.Client {
+func (graph *Graph) getHttpClient() (*http.Client, error) {
 	if graph.httpClient == nil {
 		graph.httpClient = &http.Client{}
-		graph.httpClient.Jar = cookiejar.NewCookieJar()
+		var err error
+		if graph.httpClient.Jar, err = cookiejar.New(nil); err != nil {
+			return nil, err
+		}
 	}
-	return graph.httpClient
+	return graph.httpClient, nil
 }
 
 // Check if an image exists in the Registry
@@ -99,7 +104,11 @@ func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.Au
 	if authConfig != nil && len(authConfig.Username) > 0 {
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	}
-	res, err := graph.getHttpClient().Do(req)
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +138,10 @@ func (graph *Graph) getImagesInRepository(repository string, authConfig *auth.Au
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
 func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, token []string) (*Image, Archive, error) {
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	fmt.Fprintf(stdout, "Pulling %s metadata\r\n", imgId)
 	// Get the Json
@@ -173,7 +185,10 @@ func (graph *Graph) getRemoteImage(stdout io.Writer, imgId, registry string, tok
 }
 
 func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, repository string, token []string) (map[string]string, error) {
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil, err
+	}
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the Registry supports auto-resolution on
 		// the "library" namespace
@@ -210,7 +225,10 @@ func (graph *Graph) getRemoteTags(stdout io.Writer, registries []string, reposit
 }
 
 func (graph *Graph) getImageForTag(stdout io.Writer, tag, remote, registry string, token []string) (string, error) {
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return "", err
+	}
 
 	if !strings.Contains(remote, "/") {
 		remote = "library/" + remote
@@ -269,8 +287,10 @@ func (graph *Graph) PullImage(stdout io.Writer, imgId, registry string, token []
 }
 
 func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, repositories *TagStore, authConfig *auth.AuthConfig) error {
-	client := graph.getHttpClient()
-
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return err
+	}
 	fmt.Fprintf(stdout, "Pulling repository %s from %s\r\n", remote, INDEX_ENDPOINT)
 	repositoryTarget := INDEX_ENDPOINT + "/repositories/" + remote + "/images"
 
@@ -397,7 +417,10 @@ func (graph *Graph) PullRepository(stdout io.Writer, remote, askedTag string, re
 func (graph *Graph) PushImage(stdout io.Writer, img *Image, registry string, token []string) error {
 	registry = "https://" + registry + "/v1"
 
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return err
+	}
 	jsonRaw, err := ioutil.ReadFile(path.Join(graph.Root, img.Id, "json"))
 	if err != nil {
 		return fmt.Errorf("Error while retreiving the path for {%s}: %s", img.Id, err)
@@ -507,7 +530,10 @@ func (graph *Graph) pushTag(remote, revision, tag, registry string, token []stri
 
 	Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
 
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil
+	}
 	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {
 		return err
@@ -591,9 +617,15 @@ type ImgListJson struct {
 // Push a repository to the registry.
 // Remote has the format '<user>/<repo>
 func (graph *Graph) PushRepository(stdout io.Writer, remote string, localRepo Repository, authConfig *auth.AuthConfig) error {
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return err
+	}
 	// FIXME: Do not reset the cookie each time? (need to reset it in case updating latest of a repo and repushing)
-	client.Jar = cookiejar.NewCookieJar()
+	client.Jar, err = cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
 	var imgList []*ImgListJson
 
 	fmt.Fprintf(stdout, "Processing checksums\n")
@@ -724,7 +756,10 @@ type SearchResults struct {
 }
 
 func (graph *Graph) SearchRepositories(stdout io.Writer, term string) (*SearchResults, error) {
-	client := graph.getHttpClient()
+	client, err := graph.getHttpClient()
+	if err != nil {
+		return nil, err
+	}
 	u := INDEX_ENDPOINT + "/search?q=" + url.QueryEscape(term)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
