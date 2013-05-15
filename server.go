@@ -395,24 +395,165 @@ func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
-	// img, err := srv.runtime.graph.Get(name)
-	// if err != nil {
-	// 	utils.Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
-	// 	// If it fails, try to get the repository
-	// 	if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
-	// 		if err := srv.runtime.graph.PushRepository(out, name, localRepo, srv.runtime.authConfig); err != nil {
-	// 			return err
-	// 		}
-	// 		return nil
-	// 	}
+// Retrieve the checksum of an image
+// Priority:
+// - Check on the stored checksums
+// - Check if the archive exists, if it does not, ask the registry
+// - If the archive does exists, process the checksum from it
+// - If the archive does not exists and not found on registry, process checksum from layer
+func (srv *Server) getChecksum(imageId string) (string, error) {
+	// FIXME: Use in-memory map instead of reading the file each time
+	if sums, err := srv.runtime.graph.getStoredChecksums(); err != nil {
+		return "", err
+	} else if checksum, exists := sums[imageId]; exists {
+		return checksum, nil
+	}
 
-	// 	return err
-	// }
-	// err = srv.runtime.graph.PushImage(out, img, registry, nil)
-	// if err != nil {
-	// 	return err
-	// }
+	img, err := srv.runtime.graph.Get(imageId)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(layerArchivePath(graph.imageRoot(imageId))); err != nil {
+		if os.IsNotExist(err) {
+			// TODO: Ask the registry for the checksum
+			//       As the archive is not there, it is supposed to come from a pull.
+		} else {
+			return "", err
+		}
+	}
+
+	checksum, err := img.Checksum()
+	if err != nil {
+		return "", err
+	}
+	return checksum, nil
+}
+
+// Retrieve the all the images to be uploaded in the correct order
+// Note: we can't use a map as it is not ordered
+func (srv *Server) getImageList() ([]*registry.ImgData, error) {
+	var imgList []*ImgData
+
+	imageSet := make(map[string]struct{})
+	for tag, id := range localRepo {
+		img, err := graph.Get(id)
+		if err != nil {
+			return err
+		}
+		img.WalkHistory(func(img *Image) error {
+			if _, exists := imageSet[img.Id]; exists {
+				return nil
+			}
+			imageSet[img.Id] = struct{}{}
+			checksum, err := graph.getChecksum(img.Id)
+			if err != nil {
+				return err
+			}
+			imgList = append([]*ImgData{{
+				Id:       img.Id,
+				Checksum: checksum,
+				Tag:      tag,
+			}}, imgList...)
+			return nil
+		})
+	}
+	return imgList
+}
+
+func (srv *Server) pushRepository(out io.Writer, name string, localRepo Repository) error {
+	fmt.Fprintf(out, "Processing checksums\n")
+	imgList, err := getImageList()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Sending image list\n")
+
+	repoData, err := srv.registry.PushJsonIndex(name, imgList, false)
+	if err != nil {
+		return err
+	}
+	repoData.ImgList = imgList
+
+	// FIXME: Send only needed images
+	for _, ep := range repoData.Endpoints {
+		fmt.Fprintf(stdout, "Pushing repository %s to %s (%d tags)\r\n", remote, ep, len(localRepo))
+		// For each image within the repo, push them
+		for _, elem := range imgList {
+			if err := srv.pushImage(out, remote, elem.tag, elem.Id, ep, repoData.Tokens); err != nil {
+				// FIXME: Continue on error?
+				return err
+			}
+		}
+	}
+
+	if _, err := srv.registry.PushJsonIndex(name, imgList, true); err != nil {
+		return err
+	}
+}
+
+func (srv *Server) pushImage(out io.Writer, remote, tag, imgId, registry string, token []string) error {
+	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
+	if err != nil {
+		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
+	}
+	fmt.Fprintf(out, "Pushing %s\r\n", imgId)
+
+	checksum, err := srv.getChecksum(imgId)
+	if err != nil {
+		return err
+	}
+	imgData := &registry.ImgData{
+		Id:       imgId,
+		Checksum: checksum,
+	}
+
+	// Retrieve the tarball to be sent
+	var layerData *TempArchive
+	// If the archive exists, use it
+	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgId)))
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If the archive does not exist, create one from the layer
+			layerData, err = srv.runtime.graph.TempLayerArchive(imgId, Xz, out)
+			if err != nil {
+				return fmt.Errorf("Failed to generate layer archive: %s", err)
+			}
+		} else {
+			return err
+		}
+	} else {
+		defer file.Close()
+		st, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		layerData = &TempArchive{
+			File: file,
+			Size: st.Size(),
+		}
+	}
+	return srv.registry.PushImage(imgData, jsonRaw, ProgressReader(layerData, int(layerData.Size), out, ""), registry, token)
+}
+
+func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
+	img, err := srv.runtime.graph.Get(name)
+	if err != nil {
+		utils.Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		// If it fails, try to get the repository
+		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
+			if err := srv.pushRepository(out, name, localRepo); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		return err
+	}
+
+	if err := srv.pushImage(out, name, imgData.Tag, registry, nil); err != nil {
+		return err
+	}
 	return nil
 }
 
