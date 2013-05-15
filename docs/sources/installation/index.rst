@@ -19,4 +19,5 @@ Contents:
    windows
    amazon
    rackspace
+   puppet
    upgrading
