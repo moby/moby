@@ -30,7 +30,7 @@ var (
 )
 
 func ParseCommands(args ...string) error {
-	cli := NewClient("0.0.0.0", 4243)
+	cli := NewDockerCli("0.0.0.0", 4243)
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
@@ -41,7 +41,7 @@ func ParseCommands(args ...string) error {
 		}
 		ret := method.Func.CallSlice([]reflect.Value{
 			reflect.ValueOf(cli),
-			reflect.ValueOf(args),
+			reflect.ValueOf(args[1:]),
 		})[0].Interface()
 		if ret == nil {
 			return nil
@@ -51,7 +51,7 @@ func ParseCommands(args ...string) error {
 	return cli.CmdHelp(args...)
 }
 
-func (cli *Client) CmdHelp(args ...string) error {
+func (cli *DockerCli) CmdHelp(args ...string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
@@ -89,7 +89,7 @@ func (cli *Client) CmdHelp(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdInsert(args ...string) error {
+func (cli *DockerCli) CmdInsert(args ...string) error {
 	cmd := Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -110,7 +110,7 @@ func (cli *Client) CmdInsert(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdBuild(args ...string) error {
+func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "-", "Build an image from Dockerfile via stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -124,7 +124,7 @@ func (cli *Client) CmdBuild(args ...string) error {
 }
 
 // 'docker login': login / register a user to registry service.
-func (cli *Client) CmdLogin(args ...string) error {
+func (cli *DockerCli) CmdLogin(args ...string) error {
 	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
 		char := make([]byte, 1)
 		buffer := make([]byte, 64)
@@ -238,7 +238,7 @@ func (cli *Client) CmdLogin(args ...string) error {
 }
 
 // 'docker wait': block until a container stops
-func (cli *Client) CmdWait(args ...string) error {
+func (cli *DockerCli) CmdWait(args ...string) error {
 	cmd := Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -264,11 +264,14 @@ func (cli *Client) CmdWait(args ...string) error {
 }
 
 // 'docker version': show version information
-func (cli *Client) CmdVersion(args ...string) error {
+func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := Subcmd("version", "", "Show the docker version information.")
+	fmt.Println(len(args))
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
+	fmt.Println(cmd.NArg())
 	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
@@ -298,7 +301,7 @@ func (cli *Client) CmdVersion(args ...string) error {
 }
 
 // 'docker info': display system-wide information.
-func (cli *Client) CmdInfo(args ...string) error {
+func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd := Subcmd("info", "", "Display system-wide information")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -326,7 +329,7 @@ func (cli *Client) CmdInfo(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdStop(args ...string) error {
+func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
 	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
@@ -351,7 +354,7 @@ func (cli *Client) CmdStop(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdRestart(args ...string) error {
+func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
 	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
 	if err := cmd.Parse(args); err != nil {
@@ -376,7 +379,7 @@ func (cli *Client) CmdRestart(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdStart(args ...string) error {
+func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -397,7 +400,7 @@ func (cli *Client) CmdStart(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdInspect(args ...string) error {
+func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := Subcmd("inspect", "CONTAINER|IMAGE", "Return low-level information on a container/image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -424,7 +427,7 @@ func (cli *Client) CmdInspect(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdPort(args ...string) error {
+func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd := Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -453,7 +456,7 @@ func (cli *Client) CmdPort(args ...string) error {
 }
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
-func (cli *Client) CmdRmi(args ...string) error {
+func (cli *DockerCli) CmdRmi(args ...string) error {
 	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -474,7 +477,7 @@ func (cli *Client) CmdRmi(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdHistory(args ...string) error {
+func (cli *DockerCli) CmdHistory(args ...string) error {
 	cmd := Subcmd("history", "IMAGE", "Show the history of an image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -504,7 +507,7 @@ func (cli *Client) CmdHistory(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdRm(args ...string) error {
+func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	if err := cmd.Parse(args); err != nil {
@@ -530,7 +533,7 @@ func (cli *Client) CmdRm(args ...string) error {
 }
 
 // 'docker kill NAME' kills a running container
-func (cli *Client) CmdKill(args ...string) error {
+func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -551,7 +554,7 @@ func (cli *Client) CmdKill(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdImport(args ...string) error {
+func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball")
 
 	if err := cmd.Parse(args); err != nil {
@@ -574,7 +577,7 @@ func (cli *Client) CmdImport(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdPush(args ...string) error {
+func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
 	registry := cmd.String("registry", "", "Registry host to push the image to")
 	if err := cmd.Parse(args); err != nil {
@@ -630,7 +633,7 @@ func (cli *Client) CmdPush(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdPull(args ...string) error {
+func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
 	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
@@ -662,7 +665,7 @@ func (cli *Client) CmdPull(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdImages(args ...string) error {
+func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images")
@@ -725,7 +728,7 @@ func (cli *Client) CmdImages(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdPs(args ...string) error {
+func (cli *DockerCli) CmdPs(args ...string) error {
 	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
@@ -790,7 +793,7 @@ func (cli *Client) CmdPs(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdCommit(args ...string) error {
+func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
@@ -832,7 +835,7 @@ func (cli *Client) CmdCommit(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdExport(args ...string) error {
+func (cli *DockerCli) CmdExport(args ...string) error {
 	cmd := Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -849,7 +852,7 @@ func (cli *Client) CmdExport(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdDiff(args ...string) error {
+func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd := Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -875,7 +878,7 @@ func (cli *Client) CmdDiff(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdLogs(args ...string) error {
+func (cli *DockerCli) CmdLogs(args ...string) error {
 	cmd := Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -896,7 +899,7 @@ func (cli *Client) CmdLogs(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdAttach(args ...string) error {
+func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -929,7 +932,7 @@ func (cli *Client) CmdAttach(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdSearch(args ...string) error {
+func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Subcmd("search", "NAME", "Search the docker index for images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1022,7 +1025,7 @@ func (opts PathOpts) Set(val string) error {
 	return nil
 }
 
-func (cli *Client) CmdTag(args ...string) error {
+func (cli *DockerCli) CmdTag(args ...string) error {
 	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
@@ -1049,7 +1052,7 @@ func (cli *Client) CmdTag(args ...string) error {
 	return nil
 }
 
-func (cli *Client) CmdRun(args ...string) error {
+func (cli *DockerCli) CmdRun(args ...string) error {
 	config, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
@@ -1120,7 +1123,7 @@ func (cli *Client) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *Client) call(method, path string, data interface{}) ([]byte, int, error) {
+func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, error) {
 	var params io.Reader
 	if data != nil {
 		buf, err := json.Marshal(data)
@@ -1158,7 +1161,7 @@ func (cli *Client) call(method, path string, data interface{}) ([]byte, int, err
 	return body, resp.StatusCode, nil
 }
 
-func (cli *Client) stream(method, path string) error {
+func (cli *DockerCli) stream(method, path string) error {
 	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, path), nil)
 	if err != nil {
 		return err
@@ -1181,7 +1184,7 @@ func (cli *Client) stream(method, path string) error {
 	return nil
 }
 
-func (cli *Client) hijack(method, path string, setRawTerminal bool) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
 		return err
@@ -1241,11 +1244,11 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewClient(host string, port int) *Client {
-	return &Client{host, port}
+func NewDockerCli(host string, port int) *DockerCli {
+	return &DockerCli{host, port}
 }
 
-type Client struct {
+type DockerCli struct {
 	host string
 	port int
 }
