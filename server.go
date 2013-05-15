@@ -551,7 +551,7 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
-		utils.Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
 			if err := srv.pushRepository(out, name, localRepo); err != nil {
@@ -562,7 +562,7 @@ func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 
 		return err
 	}
-
+	fmt.Fprintf(out, "The push refers to an image: [%s]\n", name)
 	if err := srv.pushImage(out, name, img.Id, registry, nil); err != nil {
 		return err
 	}
@@ -649,7 +649,6 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 }
 
 func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
-
 	if container := srv.runtime.Get(name); container != nil {
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes

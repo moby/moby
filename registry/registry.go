@@ -24,14 +24,12 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
 func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]string, error) {
-	client := r.getHttpClient()
-
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/ancestry", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
 			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgId)
@@ -42,7 +40,7 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error while reading the http response: %s\n", err)
+		return nil, fmt.Errorf("Error while reading the http response: %s", err)
 	}
 
 	utils.Debugf("Ancestry: %s", jsonString)
@@ -51,14 +49,6 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 		return nil, err
 	}
 	return *history, nil
-}
-
-func (r *Registry) getHttpClient() *http.Client {
-	if r.httpClient == nil {
-		r.httpClient = &http.Client{}
-		r.httpClient.Jar = cookiejar.NewCookieJar()
-	}
-	return r.httpClient
 }
 
 // Check if an image exists in the Registry
@@ -83,7 +73,7 @@ func (r *Registry) getImagesInRepository(repository string, authConfig *auth.Aut
 	if authConfig != nil && len(authConfig.Username) > 0 {
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	}
-	res, err := r.getHttpClient().Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +90,7 @@ func (r *Registry) getImagesInRepository(repository string, authConfig *auth.Aut
 	}
 
 	imageList := []map[string]string{}
-
-	err = json.Unmarshal(jsonData, &imageList)
-	if err != nil {
+	if err := json.Unmarshal(jsonData, &imageList); err != nil {
 		utils.Debugf("Body: %s (%s)\n", res.Body, u)
 		return nil, err
 	}
@@ -113,15 +101,13 @@ func (r *Registry) getImagesInRepository(repository string, authConfig *auth.Aut
 // Retrieve an image from the Registry.
 // Returns the Image object as well as the layer as an Archive (io.Reader)
 func (r *Registry) GetRemoteImageJson(imgId, registry string, token []string) ([]byte, error) {
-	client := r.getHttpClient()
-
 	// Get the Json
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/json", nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to download json: %s", err)
 	}
@@ -137,14 +123,12 @@ func (r *Registry) GetRemoteImageJson(imgId, registry string, token []string) ([
 }
 
 func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (io.ReadCloser, int, error) {
-	client := r.getHttpClient()
-
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/layer", nil)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -152,7 +136,6 @@ func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (
 }
 
 func (r *Registry) GetRemoteTags(registries []string, repository string, token []string) (map[string]string, error) {
-	client := r.getHttpClient()
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the Registry supports auto-resolution on
 		// the "library" namespace
@@ -165,7 +148,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 			return nil, err
 		}
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-		res, err := client.Do(req)
+		res, err := r.client.Do(req)
 		defer res.Body.Close()
 		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
@@ -189,8 +172,6 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 }
 
 func (r *Registry) getImageForTag(tag, remote, registry string, token []string) (string, error) {
-	client := r.getHttpClient()
-
 	if !strings.Contains(remote, "/") {
 		remote = "library/" + remote
 	}
@@ -203,9 +184,9 @@ func (r *Registry) getImageForTag(tag, remote, registry string, token []string) 
 		return "", err
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Error while retrieving repository info: %v", err)
+		return "", fmt.Errorf("Error while retrieving repository info: %s", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 403 {
@@ -219,15 +200,13 @@ func (r *Registry) getImageForTag(tag, remote, registry string, token []string) 
 	if err != nil {
 		return "", err
 	}
-	if err = json.Unmarshal(rawJson, &imgId); err != nil {
+	if err := json.Unmarshal(rawJson, &imgId); err != nil {
 		return "", err
 	}
 	return imgId, nil
 }
 
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
-	client := r.getHttpClient()
-
 	utils.Debugf("Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repositoryTarget := auth.IndexServerAddress() + "/repositories/" + remote + "/images"
 
@@ -240,7 +219,7 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	req.Header.Set("X-Docker-Token", "true")
 
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -291,8 +270,6 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 // Push a local image to the registry
 func (r *Registry) PushImageJsonRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
 	registry = "https://" + registry + "/v1"
-	client := r.getHttpClient()
-
 	// FIXME: try json with UTF8
 	req, err := http.NewRequest("PUT", registry+"/images/"+imgData.Id+"/json", strings.NewReader(string(jsonRaw)))
 	if err != nil {
@@ -303,13 +280,13 @@ func (r *Registry) PushImageJsonRegistry(imgData *ImgData, jsonRaw []byte, regis
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
 
 	utils.Debugf("Setting checksum for %s: %s", imgData.Id, imgData.Checksum)
-	res, err := doWithCookies(client, req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
 	defer res.Body.Close()
 	if len(res.Cookies()) > 0 {
-		client.Jar.SetCookies(req.URL, res.Cookies())
+		r.client.Jar.SetCookies(req.URL, res.Cookies())
 	}
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
@@ -331,8 +308,6 @@ func (r *Registry) PushImageJsonRegistry(imgData *ImgData, jsonRaw []byte, regis
 
 func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registry string, token []string) error {
 	registry = "https://" + registry + "/v1"
-	client := r.getHttpClient()
-
 	req, err := http.NewRequest("PUT", registry+"/images/"+imgId+"/layer", layer)
 	if err != nil {
 		return err
@@ -340,7 +315,7 @@ func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registr
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	res, err := doWithCookies(client, req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload layer: %s", err)
 	}
@@ -365,7 +340,6 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 
 	utils.Debugf("Pushing tags for rev [%s] on {%s}\n", revision, registry+"/users/"+remote+"/"+tag)
 
-	client := r.getHttpClient()
 	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {
 		return err
@@ -373,7 +347,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	req.ContentLength = int64(len(revision))
-	res, err := doWithCookies(client, req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return err
 	}
@@ -385,8 +359,6 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 }
 
 func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validate bool) (*RepositoryData, error) {
-	client := r.getHttpClient()
-
 	imgListJson, err := json.Marshal(imgList)
 	if err != nil {
 		return nil, err
@@ -402,7 +374,7 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	req.ContentLength = int64(len(imgListJson))
 	req.Header.Set("X-Docker-Token", "true")
 
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +391,7 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 		req.ContentLength = int64(len(imgListJson))
 		req.Header.Set("X-Docker-Token", "true")
 
-		res, err = client.Do(req)
+		res, err = r.client.Do(req)
 		if err != nil {
 			return nil, err
 		}
@@ -466,13 +438,12 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 }
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
-	client := r.getHttpClient()
 	u := auth.IndexServerAddress() + "/search?q=" + url.QueryEscape(term)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
 	}
-	res, err := client.Do(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -508,12 +479,15 @@ type ImgData struct {
 }
 
 type Registry struct {
-	httpClient *http.Client
+	client     *http.Client
 	authConfig *auth.AuthConfig
 }
 
 func NewRegistry(authConfig *auth.AuthConfig) *Registry {
-	return &Registry{
+	r := &Registry{
 		authConfig: authConfig,
+		client:     &http.Client{},
 	}
+	r.client.Jar = cookiejar.NewCookieJar()
+	return r
 }
