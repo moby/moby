@@ -363,7 +363,7 @@ func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[str
 	defer in.Close()
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ImageCreateFromFile(in, out); err != nil {
-		fmt.Fprintln(out, "Error: %s\n", err)
+		fmt.Fprintf(out, "Error: %s\n", err)
 	}
 	return nil
 }
