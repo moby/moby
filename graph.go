@@ -3,10 +3,10 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,7 +19,6 @@ import (
 type Graph struct {
 	Root         string
 	idIndex      *utils.TruncIndex
-	httpClient   *http.Client
 	checksumLock map[string]*sync.Mutex
 	lockSumFile  *sync.Mutex
 	lockSumMap   *sync.Mutex
@@ -324,4 +323,18 @@ func (graph *Graph) storeChecksums(checksums map[string]string) error {
 		return err
 	}
 	return nil
+}
+
+func (graph *Graph) UpdateChecksuns(newChecksums map[string]*registry.ImgData) error {
+	graph.lockSumFile.Lock()
+	defer graph.lockSumFile.Unlock()
+
+	localChecksums, err := graph.getStoredChecksums()
+	if err != nil {
+		return err
+	}
+	for id, elem := range newChecksums {
+		localChecksums[id] = elem.Checksum
+	}
+	return graph.storeChecksums(localChecksums)
 }

@@ -235,28 +235,29 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			fmt.Fprintf(stdout, "FROM %s\n", arguments)
 			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
-				if builder.runtime.graph.IsNotExist(err) {
+				// if builder.runtime.graph.IsNotExist(err) {
 
-					var tag, remote string
-					if strings.Contains(arguments, ":") {
-						remoteParts := strings.Split(arguments, ":")
-						tag = remoteParts[1]
-						remote = remoteParts[0]
-					} else {
-						remote = arguments
-					}
+				// 	var tag, remote string
+				// 	if strings.Contains(arguments, ":") {
+				// 		remoteParts := strings.Split(arguments, ":")
+				// 		tag = remoteParts[1]
+				// 		remote = remoteParts[0]
+				// 	} else {
+				// 		remote = arguments
+				// 	}
 
-					if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
-						return nil, err
-					}
+				// 	panic("TODO: reimplement this")
+				// 	// if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
+				// 	// 	return nil, err
+				// 	// }
 
-					image, err = builder.runtime.repositories.LookupImage(arguments)
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					return nil, err
-				}
+				// 	image, err = builder.runtime.repositories.LookupImage(arguments)
+				// 	if err != nil {
+				// 		return nil, err
+				// 	}
+				// } else {
+				return nil, err
+				// }
 			}
 			config = &Config{}
 

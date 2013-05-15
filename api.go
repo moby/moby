@@ -6,7 +6,6 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
-	"github.com/shin-/cookiejar"
 	"io"
 	"log"
 	"net/http"
@@ -73,7 +72,8 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	if err != nil {
 		return err
 	} else {
-		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
+		// TODO: uncomment this
+		//		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
 		srv.runtime.authConfig = newAuthConfig
 	}
 	if status != "" {
@@ -333,26 +333,26 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 }
 
 func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
-		return err
-	}
+	// if err := parseForm(r); err != nil {
+	// 	return err
+	// }
 
-	registry := r.Form.Get("registry")
+	// registry := r.Form.Get("registry")
 
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	name := vars["name"]
+	// if vars == nil {
+	// 	return fmt.Errorf("Missing parameter")
+	// }
+	// name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImagePush(name, registry, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
-	}
+	// in, out, err := hijackServer(w)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer in.Close()
+	// fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+	// if err := srv.ImagePush(name, registry, out); err != nil {
+	// 	fmt.Fprintf(out, "Error: %s\n", err)
+	// }
 	return nil
 }
 

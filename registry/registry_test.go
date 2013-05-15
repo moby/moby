@@ -1,4 +1,4 @@
-package docker
+package registry
 
 import (
 	"crypto/rand"
