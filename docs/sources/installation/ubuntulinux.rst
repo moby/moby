@@ -34,7 +34,7 @@ Add the custom package sources to your apt sources list. Copy and paste the foll
 
 .. code-block:: bash
 
-   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"
+   sudo add-apt-repository ppa:dotcloud/lxc-docker
 
 
 Update your sources. You will see a warning that GPG signatures cannot be verified.
