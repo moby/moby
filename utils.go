@@ -1,9 +1,5 @@
 package docker
 
-import (
-	"github.com/dotcloud/docker/utils"
-)
-
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs
 func CompareConfig(a, b *Config) bool {
@@ -50,8 +46,4 @@ func CompareConfig(a, b *Config) bool {
 	}
 
 	return true
-}
-
-func GetKernelVersion() (*utils.KernelVersionInfo, error) {
-	return getKernelVersion()
 }

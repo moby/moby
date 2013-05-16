@@ -251,7 +251,7 @@ func NewRuntime(autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 
-	if k, err := GetKernelVersion(); err != nil {
+	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
 	} else {
 		runtime.kernelVersion = k
