@@ -1,0 +1,56 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+BOX_NAME = "docker-ci"
+BOX_URI = "http://files.vagrantup.com/precise64.box"
+AWS_AMI = "ami-d0f89fb9"
+DOCKER_PATH = "/data/docker"
+CFG_PATH = "#{DOCKER_PATH}/testing/buildbot"
+BUILDBOT_IP = "192.168.33.41"
+on_vbox = File.file?("#{File.dirname(__FILE__)}/.vagrant/machines/default/virtualbox/id") | \
+  Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty? & \
+  (on_vbox=true; ARGV.each do |arg| on_vbox &&= !arg.downcase.start_with?("--provider") end; on_vbox)
+USER = on_vbox ? "vagrant": "ubuntu"
+
+Vagrant::Config.run do |config|
+  # Setup virtual machine box. This VM configuration code is always executed.
+  config.vm.box = BOX_NAME
+  config.vm.box_url = BOX_URI
+  config.vm.share_folder "v-data", DOCKER_PATH, "#{File.dirname(__FILE__)}/.."
+  config.vm.network :hostonly, BUILDBOT_IP
+
+  # Deploy buildbot and its dependencies if it was not done
+  if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
+    pkg_cmd = "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "
+    # Deploy buildbot CI
+    pkg_cmd << "apt-get install -q -y python-dev python-pip supervisor; " \
+      "pip install -r #{CFG_PATH}/requirements.txt; " \
+      "chown #{USER}.#{USER} /data; cd /data; " \
+      "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH}; "
+    # Install docker dependencies
+    pkg_cmd << "apt-get install -q -y python-software-properties; " \
+      "add-apt-repository -y ppa:gophers/go/ubuntu; apt-get update -qq; " \
+      "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc bsdtar git golang-stable make; "
+    # Activate new kernel
+    pkg_cmd << "shutdown -r +1; "
+    config.vm.provision :shell, :inline => pkg_cmd
+  end
+end
+
+# Providers were added on Vagrant >= 1.1.0
+Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
+  config.vm.provider :aws do |aws, override|
+    aws.access_key_id = ENV["AWS_ACCESS_KEY_ID"]
+    aws.secret_access_key = ENV["AWS_SECRET_ACCESS_KEY"]
+    aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]
+    override.ssh.private_key_path = ENV["AWS_SSH_PRIVKEY"]
+    override.ssh.username = USER
+    aws.ami = AWS_AMI
+    aws.region = "us-east-1"
+    aws.instance_type = "m1.small"
+    aws.security_groups = "gateway"
+  end
+
+  config.vm.provider :virtualbox do |vb|
+  end
+end
