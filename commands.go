@@ -117,7 +117,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return nil
 	}
 
-	err := cli.stream("POST", "/build", nil, os.Stdout)
+	err := cli.stream("POST", "/build", os.Stdin, os.Stdout)
 	if err != nil {
 		return err
 	}

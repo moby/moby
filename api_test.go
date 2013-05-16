@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -587,45 +588,29 @@ func TestPostBuild(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
+	imgs, err := runtime.graph.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	beginCount := len(imgs)
 
-	c1 := make(chan struct{})
-	go func() {
-		defer close(c1)
-		r := &hijackTester{
-			ResponseRecorder: httptest.NewRecorder(),
-			in:               stdin,
-			out:              stdoutPipe,
-		}
-
-		if err := postBuild(srv, r, nil, nil); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	// Acknowledge hijack
-	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-		stdout.Read([]byte{})
-		stdout.Read(make([]byte, 4096))
-	})
-
-	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("from docker-ut\n", "FROM docker-ut", stdout, stdinPipe, 15); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Close pipes (client disconnects)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+	req, err := http.NewRequest("POST", "/build", strings.NewReader(Dockerfile))
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for build to finish, the client disconnected, therefore, Build finished his job
-	setTimeout(t, "Waiting for CmdBuild timed out", 2*time.Second, func() {
-		<-c1
-	})
+	r := httptest.NewRecorder()
+	if err := postBuild(srv, r, req, nil); err != nil {
+		t.Fatal(err)
+	}
 
+	imgs, err = runtime.graph.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imgs) != beginCount+3 {
+		t.Fatalf("Expected %d images, %d found", beginCount+3, len(imgs))
+	}
 }
 
 func TestPostImagesCreate(t *testing.T) {
