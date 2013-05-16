@@ -72,7 +72,7 @@ func init() {
 	// Create the "Server"
 	srv := &Server{
 		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.authConfig),
+		registry: registry.NewRegistry(runtime.root),
 	}
 	// Retrieve the Image
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {

@@ -67,9 +67,9 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		return err
-	} else {
-		srv.registry.ResetClient(newAuthConfig)
 	}
+	srv.registry.ResetClient(newAuthConfig)
+
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {

@@ -432,7 +432,7 @@ func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
 func (r *Registry) GetAuthConfig() *auth.AuthConfig {
 	return &auth.AuthConfig{
 		Username: r.authConfig.Username,
-		Email:    r.authConfig.Password,
+		Email:    r.authConfig.Email,
 	}
 }
 

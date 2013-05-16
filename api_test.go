@@ -51,6 +51,7 @@ func TestGetAuth(t *testing.T) {
 	if err := postAuth(srv, r, req, nil); err != nil {
 		t.Fatal(err)
 	}
+
 	if r.Code != http.StatusOK && r.Code != 0 {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
@@ -229,7 +230,7 @@ func TestGetImagesSearch(t *testing.T) {
 
 	srv := &Server{
 		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.authConfig),
+		registry: registry.NewRegistry(runtime.root),
 	}
 
 	r := httptest.NewRecorder()
@@ -484,13 +485,16 @@ func TestPostAuth(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
 	authConfigOrig := &auth.AuthConfig{
 		Username: "utest",
 		Email:    "utest@yopmail.com",
 	}
-	runtime.authConfig = authConfigOrig
+	srv.registry.ResetClient(authConfigOrig)
 
 	r := httptest.NewRecorder()
 	if err := getAuth(srv, r, nil, nil); err != nil {
