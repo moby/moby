@@ -104,7 +104,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := cli.hijack("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), false)
+	err := cli.stream("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), nil, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return nil
 	}
 
-	err := cli.hijack("POST", "/build", false)
+	err := cli.stream("POST", "/build", nil, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -571,7 +571,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
 
-	err := cli.hijack("POST", "/images/create?"+v.Encode(), false)
+	err := cli.stream("POST", "/images/create?"+v.Encode(), os.Stdin, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -628,7 +628,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	v := url.Values{}
 	v.Set("registry", *registry)
-	if err := cli.hijack("POST", "/images/"+name+"/push?"+v.Encode(), false); err != nil {
+	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -659,7 +659,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	v.Set("tag", *tag)
 	v.Set("registry", *registry)
 
-	if err := cli.hijack("POST", "/images/create?"+v.Encode(), false); err != nil {
+	if err := cli.stream("POST", "/images/create?"+v.Encode(), nil, os.Stdout); err != nil {
 		return err
 	}
 
@@ -864,7 +864,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export"); err != nil {
+	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -1086,7 +1086,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if statusCode == 404 {
 		v := url.Values{}
 		v.Set("fromImage", config.Image)
-		err = cli.hijack("POST", "/images/create?"+v.Encode(), false)
+		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, os.Stderr)
 		if err != nil {
 			return err
 		}
@@ -1179,8 +1179,11 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	return body, resp.StatusCode, nil
 }
 
-func (cli *DockerCli) stream(method, path string) error {
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, path), nil)
+func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) error {
+	if (method == "POST" || method == "PUT") && in == nil {
+		in = bytes.NewReader([]byte{})
+	}
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, path), in)
 	if err != nil {
 		return err
 	}
@@ -1204,7 +1207,7 @@ func (cli *DockerCli) stream(method, path string) error {
 		return fmt.Errorf("error: %s", body)
 	}
 
-	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+	if _, err := io.Copy(out, resp.Body); err != nil {
 		return err
 	}
 	return nil

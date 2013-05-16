@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -322,8 +323,8 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 	return nil
 }
 
-func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) error {
-	utils.Debugf("Retrieving repository data")
+func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error {
+	fmt.Fprintf(out, "Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repoData, err := srv.registry.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -349,11 +350,11 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 		if askedTag != "" && askedTag != img.Tag {
 			continue
 		}
-		fmt.Fprintf(stdout, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
+		fmt.Fprintf(out, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
 		success := false
 		for _, ep := range repoData.Endpoints {
-			if err := srv.pullImage(stdout, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
-				fmt.Fprintf(stdout, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
+			if err := srv.pullImage(out, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
+				fmt.Fprintf(out, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
 				continue
 			}
 			if err := srv.runtime.repositories.Set(remote, img.Tag, img.Id, true); err != nil {

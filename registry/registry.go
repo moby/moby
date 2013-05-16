@@ -175,7 +175,6 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 }
 
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
-	utils.Debugf("Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repositoryTarget := auth.IndexServerAddress() + "/repositories/" + remote + "/images"
 
 	req, err := http.NewRequest("GET", repositoryTarget, nil)
