@@ -1205,6 +1205,9 @@ func (cli *DockerCli) stream(method, path string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 403 {
+		return nil, resp.StatusCode, fmt.Errorf("error: Wrong auth")
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
