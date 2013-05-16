@@ -53,7 +53,7 @@ func ParseCommands(auth string, args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
-	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
+	help := "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\n  -auth=\"\": Authorization header to use (optional).\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from Dockerfile via stdin"},
@@ -1206,7 +1206,7 @@ func (cli *DockerCli) stream(method, path string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 403 {
-		return nil, resp.StatusCode, fmt.Errorf("error: Wrong auth")
+		return fmt.Errorf("error: Wrong auth")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)

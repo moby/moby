@@ -18,6 +18,8 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     A self-sufficient runtime for linux containers.
 
+      -auth="": Authorization header to use (optional).
+
     ...
 
 Available Commands
