@@ -1,4 +1,4 @@
-package docker
+package utils
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 
 func TestBufReader(t *testing.T) {
 	reader, writer := io.Pipe()
-	bufreader := newBufReader(reader)
+	bufreader := NewBufReader(reader)
 
 	// Write everything down to a Pipe
 	// Usually, a pipe should block but because of the buffered reader,
@@ -55,7 +55,7 @@ func (dw *dummyWriter) Close() error {
 }
 
 func TestWriteBroadcaster(t *testing.T) {
-	writer := newWriteBroadcaster()
+	writer := NewWriteBroadcaster()
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
 	bufferA := &dummyWriter{}
@@ -137,7 +137,7 @@ func (d devNullCloser) Write(buf []byte) (int, error) {
 
 // This test checks for races. It is only useful when run with the race detector.
 func TestRaceWriteBroadcaster(t *testing.T) {
-	writer := newWriteBroadcaster()
+	writer := NewWriteBroadcaster()
 	c := make(chan bool)
 	go func() {
 		writer.AddWriter(devNullCloser(0))
