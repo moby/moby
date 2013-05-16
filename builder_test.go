@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestBuild(t *testing.T) {
 
 	builder := NewBuilder(runtime)
 
-	img, err := builder.Build(strings.NewReader(Dockerfile), &nopWriter{})
+	img, err := builder.Build(strings.NewReader(Dockerfile), &utils.NopWriter{})
 	if err != nil {
 		t.Fatal(err)
 	}

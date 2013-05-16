@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"os"
 	"path"
@@ -45,7 +46,7 @@ func (builder *Builder) mergeConfig(userConf, imageConf *Config) {
 		userConf.PortSpecs = imageConf.PortSpecs
 	}
 	if !userConf.Tty {
-		userConf.Tty = userConf.Tty
+		userConf.Tty = imageConf.Tty
 	}
 	if !userConf.OpenStdin {
 		userConf.OpenStdin = imageConf.OpenStdin
@@ -161,11 +162,11 @@ func (builder *Builder) clearTmp(containers, images map[string]struct{}) {
 	for c := range containers {
 		tmp := builder.runtime.Get(c)
 		builder.runtime.Destroy(tmp)
-		Debugf("Removing container %s", c)
+		utils.Debugf("Removing container %s", c)
 	}
 	for i := range images {
 		builder.runtime.graph.Delete(i)
-		Debugf("Removing image %s", i)
+		utils.Debugf("Removing image %s", i)
 	}
 }
 
@@ -234,28 +235,29 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			fmt.Fprintf(stdout, "FROM %s\n", arguments)
 			image, err = builder.runtime.repositories.LookupImage(arguments)
 			if err != nil {
-				if builder.runtime.graph.IsNotExist(err) {
+				// if builder.runtime.graph.IsNotExist(err) {
 
-					var tag, remote string
-					if strings.Contains(arguments, ":") {
-						remoteParts := strings.Split(arguments, ":")
-						tag = remoteParts[1]
-						remote = remoteParts[0]
-					} else {
-						remote = arguments
-					}
+				// 	var tag, remote string
+				// 	if strings.Contains(arguments, ":") {
+				// 		remoteParts := strings.Split(arguments, ":")
+				// 		tag = remoteParts[1]
+				// 		remote = remoteParts[0]
+				// 	} else {
+				// 		remote = arguments
+				// 	}
 
-					if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
-						return nil, err
-					}
+				// 	panic("TODO: reimplement this")
+				// 	// if err := builder.runtime.graph.PullRepository(stdout, remote, tag, builder.runtime.repositories, builder.runtime.authConfig); err != nil {
+				// 	// 	return nil, err
+				// 	// }
 
-					image, err = builder.runtime.repositories.LookupImage(arguments)
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					return nil, err
-				}
+				// 	image, err = builder.runtime.repositories.LookupImage(arguments)
+				// 	if err != nil {
+				// 		return nil, err
+				// 	}
+				// } else {
+				return nil, err
+				// }
 			}
 			config = &Config{}
 
@@ -286,7 +288,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 				break
 			}
 
-			Debugf("Env -----> %v ------ %v\n", config.Env, env)
+			utils.Debugf("Env -----> %v ------ %v\n", config.Env, env)
 
 			// Create the container and start it
 			c, err := builder.Create(config)
@@ -410,7 +412,7 @@ func (builder *Builder) Build(dockerfile io.Reader, stdout io.Writer) (*Image, e
 			destPath := strings.Trim(tmp[1], " ")
 			fmt.Fprintf(stdout, "COPY %s to %s in %s\n", sourceUrl, destPath, base.ShortId())
 
-			file, err := Download(sourceUrl, stdout)
+			file, err := utils.Download(sourceUrl, stdout)
 			if err != nil {
 				return nil, err
 			}

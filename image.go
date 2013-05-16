@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -180,7 +181,7 @@ func (image *Image) Changes(rw string) ([]Change, error) {
 }
 
 func (image *Image) ShortId() string {
-	return TruncateId(image.Id)
+	return utils.TruncateId(image.Id)
 }
 
 func ValidateId(id string) error {
@@ -358,4 +359,16 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	return hash, nil
+}
+
+// Build an Image object from raw json data
+func NewImgJson(src []byte) (*Image, error) {
+	ret := &Image{}
+
+	utils.Debugf("Json string: {%s}\n", src)
+	// FIXME: Is there a cleaner way to "purify" the input json?
+	if err := json.Unmarshal(src, ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
