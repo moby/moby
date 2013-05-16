@@ -608,6 +608,7 @@ func ListenAndServe(addr string, srv *Server, logging bool, auth string) error {
 				}
 				if auth != "" {
 					if r.Header.Get("Authorization") != auth {
+						utils.Debugf("Wrong auth")
 						w.WriteHeader(http.StatusForbidden)
 						return
 					}

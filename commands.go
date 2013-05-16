@@ -1191,6 +1191,9 @@ func (cli *DockerCli) stream(method, path string) error {
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
@@ -1227,6 +1230,10 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	clientconn.Do(req)
 	defer clientconn.Close()
 
