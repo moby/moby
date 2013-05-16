@@ -7,7 +7,7 @@ Binaries
 
 **This instruction set is meant for hackers who want to try out Docker on a variety of environments.**
 
-Right now, the officially supported distribution are:
+Right now, the officially supported distributions are:
 
 - :ref:`ubuntu_precise`
 - :ref:`ubuntu_raring`
