@@ -174,41 +174,6 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
 
-func (r *Registry) getImageForTag(tag, remote, registry string, token []string) (string, error) {
-	if !strings.Contains(remote, "/") {
-		remote = "library/" + remote
-	}
-
-	registryEndpoint := "https://" + registry + "/v1"
-	repositoryTarget := registryEndpoint + "/repositories/" + remote + "/tags/" + tag
-
-	req, err := http.NewRequest("GET", repositoryTarget, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	res, err := r.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("Error while retrieving repository info: %s", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode == 403 {
-		return "", fmt.Errorf("You aren't authorized to access this resource")
-	} else if res.StatusCode != 200 {
-		return "", fmt.Errorf("HTTP code: %d", res.StatusCode)
-	}
-
-	var imgId string
-	rawJson, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	if err := json.Unmarshal(rawJson, &imgId); err != nil {
-		return "", err
-	}
-	return imgId, nil
-}
-
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	utils.Debugf("Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repositoryTarget := auth.IndexServerAddress() + "/repositories/" + remote + "/images"
@@ -464,6 +429,13 @@ func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
 	r.client.Jar = cookiejar.NewCookieJar()
 }
 
+func (r *Registry) GetAuthConfig() *auth.AuthConfig {
+	return &auth.AuthConfig{
+		Username: r.authConfig.Username,
+		Email:    r.authConfig.Password,
+	}
+}
+
 type SearchResults struct {
 	Query      string              `json:"query"`
 	NumResults int                 `json:"num_results"`
@@ -487,7 +459,10 @@ type Registry struct {
 	authConfig *auth.AuthConfig
 }
 
-func NewRegistry(authConfig *auth.AuthConfig) *Registry {
+func NewRegistry(root string) *Registry {
+	// If the auth file does not exist, keep going
+	authConfig, _ := auth.LoadConfig(root)
+
 	r := &Registry{
 		authConfig: authConfig,
 		client:     &http.Client{},

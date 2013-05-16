@@ -331,7 +331,7 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 
 	utils.Debugf("Updating checksums")
 	// Reload the json file to make sure not to overwrite faster sums
-	if err := srv.runtime.graph.UpdateChecksuns(repoData.ImgList); err != nil {
+	if err := srv.runtime.graph.UpdateChecksums(repoData.ImgList); err != nil {
 		return err
 	}
 
@@ -826,8 +826,9 @@ func NewServer(autoRestart bool) (*Server, error) {
 	}
 	srv := &Server{
 		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.authConfig),
+		registry: registry.NewRegistry(runtime.root),
 	}
+	runtime.srv = srv
 	return srv, nil
 }
 

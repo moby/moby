@@ -325,7 +325,7 @@ func (graph *Graph) storeChecksums(checksums map[string]string) error {
 	return nil
 }
 
-func (graph *Graph) UpdateChecksuns(newChecksums map[string]*registry.ImgData) error {
+func (graph *Graph) UpdateChecksums(newChecksums map[string]*registry.ImgData) error {
 	graph.lockSumFile.Lock()
 	defer graph.lockSumFile.Unlock()
 

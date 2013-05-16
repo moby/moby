@@ -45,11 +45,7 @@ func writeJson(w http.ResponseWriter, b []byte) {
 }
 
 func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	config := &auth.AuthConfig{
-		Username: srv.runtime.authConfig.Username,
-		Email:    srv.runtime.authConfig.Email,
-	}
-	b, err := json.Marshal(config)
+	b, err := json.Marshal(srv.registry.GetAuthConfig())
 	if err != nil {
 		return err
 	}
@@ -63,8 +59,8 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 		return err
 	}
 
-	if config.Username == srv.runtime.authConfig.Username {
-		config.Password = srv.runtime.authConfig.Password
+	if config.Username == srv.registry.GetAuthConfig().Username {
+		config.Password = srv.registry.GetAuthConfig().Password
 	}
 
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)

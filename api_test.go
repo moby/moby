@@ -25,7 +25,10 @@ func TestGetAuth(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
 	r := httptest.NewRecorder()
 
@@ -52,9 +55,9 @@ func TestGetAuth(t *testing.T) {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	if runtime.authConfig.Username != authConfig.Username ||
-		runtime.authConfig.Password != authConfig.Password ||
-		runtime.authConfig.Email != authConfig.Email {
+	newAuthConfig := srv.registry.GetAuthConfig()
+	if newAuthConfig.Username != authConfig.Username ||
+		newAuthConfig.Email != authConfig.Email {
 		t.Fatalf("The auth configuration hasn't been set correctly")
 	}
 }

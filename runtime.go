@@ -3,7 +3,6 @@ package docker
 import (
 	"container/list"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -27,12 +26,12 @@ type Runtime struct {
 	networkManager *NetworkManager
 	graph          *Graph
 	repositories   *TagStore
-	authConfig     *auth.AuthConfig
 	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
 	kernelVersion  *utils.KernelVersionInfo
 	autoRestart    bool
 	volumes        *Graph
+	srv            *Server
 }
 
 var sysInitPath string
@@ -290,11 +289,6 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	authConfig, err := auth.LoadConfig(root)
-	if err != nil && authConfig == nil {
-		// If the auth file does not exist, keep going
-		return nil, err
-	}
 	runtime := &Runtime{
 		root:           root,
 		repository:     runtimeRepo,
@@ -302,7 +296,6 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		networkManager: netManager,
 		graph:          g,
 		repositories:   repositories,
-		authConfig:     authConfig,
 		idIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
