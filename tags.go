@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -106,7 +107,7 @@ func (store *TagStore) ImageName(id string) string {
 	if names, exists := store.ById()[id]; exists && len(names) > 0 {
 		return names[0]
 	}
-	return TruncateId(id)
+	return utils.TruncateId(id)
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
