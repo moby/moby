@@ -30,8 +30,8 @@ var (
 	GIT_COMMIT string
 )
 
-func ParseCommands(args ...string) error {
-	cli := NewDockerCli("0.0.0.0", 4243)
+func ParseCommands(auth string, args ...string) error {
+	cli := NewDockerCli("0.0.0.0", 4243, auth)
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
@@ -1156,6 +1156,9 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		return nil, -1, err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
@@ -1273,11 +1276,12 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewDockerCli(host string, port int) *DockerCli {
-	return &DockerCli{host, port}
+func NewDockerCli(host string, port int, auth string) *DockerCli {
+	return &DockerCli{host, port, auth}
 }
 
 type DockerCli struct {
 	host string
 	port int
+	auth string
 }

@@ -50,7 +50,7 @@ func main() {
 			os.Exit(-1)
 		}
 	} else {
-		if err := docker.ParseCommands(flag.Args()...); err != nil {
+		if err := docker.ParseCommands(*auth, flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
