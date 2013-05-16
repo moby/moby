@@ -831,14 +831,33 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
+func (srv *Server) Registry() *registry.Registry {
+	return srv.registry
+}
+
+func (srv *Server) Runtime() *Runtime {
+	return srv.runtime
+}
+
 func NewServer(autoRestart bool) (*Server, error) {
+	return NewServerFromDirectory("", autoRestart)
+}
+
+func NewServerFromDirectory(root string, autoRestart bool) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime(autoRestart)
+	var runtime *Runtime
+	var err error
+	if root != "" {
+		runtime, err = NewRuntimeFromDirectory(root, autoRestart)
+	} else {
+		runtime, err = NewRuntime(autoRestart)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	srv := &Server{
 		runtime:  runtime,
 		registry: registry.NewRegistry(runtime.root),

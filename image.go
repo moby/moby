@@ -142,7 +142,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (image *Image) TarLayer(compression Compression) (Archive, error) {
-	layerPath, err := image.layer()
+	layerPath, err := image.Layer()
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func (img *Image) layers() ([]string, error) {
 	var e error
 	if err := img.WalkHistory(
 		func(img *Image) (err error) {
-			if layer, err := img.layer(); err != nil {
+			if layer, err := img.Layer(); err != nil {
 				e = err
 			} else if layer != "" {
 				list = append(list, layer)
@@ -279,7 +279,7 @@ func (img *Image) root() (string, error) {
 }
 
 // Return the path of an image's layer
-func (img *Image) layer() (string, error) {
+func (img *Image) Layer() (string, error) {
 	root, err := img.root()
 	if err != nil {
 		return "", err
@@ -304,7 +304,7 @@ func (img *Image) Checksum() (string, error) {
 		return checksum, nil
 	}
 
-	layer, err := img.layer()
+	layer, err := img.Layer()
 	if err != nil {
 		return "", err
 	}
