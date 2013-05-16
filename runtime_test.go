@@ -2,6 +2,8 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -48,7 +50,7 @@ func layerArchive(tarfile string) (io.Reader, error) {
 
 func init() {
 	// Hack to run sys init during unit testing
-	if SelfPath() == "/sbin/init" {
+	if utils.SelfPath() == "/sbin/init" {
 		SysInit()
 		return
 	}
@@ -69,7 +71,8 @@ func init() {
 
 	// Create the "Server"
 	srv := &Server{
-		runtime: runtime,
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
 	}
 	// Retrieve the Image
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {

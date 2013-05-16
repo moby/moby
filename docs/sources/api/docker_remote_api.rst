@@ -68,11 +68,12 @@ List containers
 		}
 	   ]
  
-	:query all: 1 or 0, Show all containers. Only running containers are shown by default
+	:query all: 1/True/true or 0/False/false, Show all containers. Only running containers are shown by default
 	:query limit: Show ``limit`` last created containers, include non-running ones.
 	:query since: Show only containers created since Id, include non-running ones.
 	:query before: Show only containers created before Id, include non-running ones.
 	:statuscode 200: no error
+	:statuscode 400: bad parameter
 	:statuscode 500: server error
 
 
@@ -389,12 +390,13 @@ Attach to a container
 
 	   {{ STREAM }}
 	   	
-	:query logs: 1 or 0, return logs. Default 0
-	:query stream: 1 or 0, return stream. Default 0
-	:query stdin: 1 or 0, if stream=1, attach to stdin. Default 0
-	:query stdout: 1 or 0, if logs=1, return stdout log, if stream=1, attach to stdout. Default 0
-	:query stderr: 1 or 0, if logs=1, return stderr log, if stream=1, attach to stderr. Default 0
+	:query logs: 1/True/true or 0/False/false, return logs. Default false
+	:query stream: 1/True/true or 0/False/false, return stream. Default false
+	:query stdin: 1/True/true or 0/False/false, if stream=true, attach to stdin. Default false
+	:query stdout: 1/True/true or 0/False/false, if logs=true, return stdout log, if stream=true, attach to stdout. Default false
+	:query stderr: 1/True/true or 0/False/false, if logs=true, return stderr log, if stream=true, attach to stderr. Default false
 	:statuscode 200: no error
+	:statuscode 400: bad parameter
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
@@ -445,8 +447,9 @@ Remove a container
 
 	   HTTP/1.1 204 OK
 
-	:query v: 1 or 0, Remove the volumes associated to the container. Default 0
+	:query v: 1/True/true or 0/False/false, Remove the volumes associated to the container. Default false
         :statuscode 204: no error
+	:statuscode 400: bad parameter
         :statuscode 404: no such container
         :statuscode 500: server error
 
@@ -521,8 +524,9 @@ List Images
 	   base [style=invisible]
 	   }
  
-	:query all: 1 or 0, Show all containers. Only running containers are shown by default
+	:query all: 1/True/true or 0/False/false, Show all containers. Only running containers are shown by default
 	:statuscode 200: no error
+	:statuscode 400: bad parameter
 	:statuscode 500: server error
 
 
@@ -720,8 +724,9 @@ Tag an image into a repository
            HTTP/1.1 200 OK
 
 	:query repo: The repository to tag in
-	:query force: 1 or 0, default 0
+	:query force: 1/True/true or 0/False/false, default false
 	:statuscode 200: no error
+	:statuscode 400: bad parameter
 	:statuscode 404: no such image
         :statuscode 500: server error
 

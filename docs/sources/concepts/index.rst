@@ -12,6 +12,6 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
-   introduction
+   ../index
    buildingblocks
 

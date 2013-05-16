@@ -14,9 +14,9 @@ Contents:
 
    ubuntulinux
    binaries
-   archlinux
    vagrant
    windows
    amazon
    rackspace
+   archlinux
    upgrading

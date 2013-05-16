@@ -2,11 +2,15 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 )
@@ -44,7 +48,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
-	results, err := srv.runtime.graph.SearchRepositories(nil, term)
+	results, err := srv.registry.SearchRepositories(term)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,7 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 		var out ApiSearch
 		out.Description = repo["description"]
 		if len(out.Description) > 45 {
-			out.Description = Trunc(out.Description, 42) + "..."
+			out.Description = utils.Trunc(out.Description, 42) + "..."
 		}
 		out.Name = repo["name"]
 		outs = append(outs, out)
@@ -68,7 +72,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
 		return err
 	}
 
-	file, err := Download(url, out)
+	file, err := utils.Download(url, out)
 	if err != nil {
 		return err
 	}
@@ -85,7 +89,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
 		return err
 	}
 
-	if err := c.Inject(ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -124,7 +128,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 
 	for name, repository := range srv.runtime.repositories.Repositories {
 		for tag, id := range repository {
-			reporefs[TruncateId(id)] = append(reporefs[TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
+			reporefs[utils.TruncateId(id)] = append(reporefs[utils.TruncateId(id)], fmt.Sprintf("%s:%s", name, tag))
 		}
 	}
 
@@ -193,7 +197,7 @@ func (srv *Server) DockerInfo() ApiInfo {
 	out.GoVersion = runtime.Version()
 	if os.Getenv("DEBUG") != "" {
 		out.Debug = true
-		out.NFd = getTotalUsedFds()
+		out.NFd = utils.GetTotalUsedFds()
 		out.NGoroutines = runtime.NumGoroutine()
 	}
 	return out
@@ -283,14 +287,272 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
+func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []string) error {
+	history, err := srv.registry.GetRemoteHistory(imgId, registry, token)
+	if err != nil {
+		return err
+	}
+
+	// FIXME: Try to stream the images?
+	// FIXME: Launch the getRemoteImage() in goroutines
+	for _, id := range history {
+		if !srv.runtime.graph.Exists(id) {
+			fmt.Fprintf(out, "Pulling %s metadata\r\n", id)
+			imgJson, err := srv.registry.GetRemoteImageJson(id, registry, token)
+			if err != nil {
+				// FIXME: Keep goging in case of error?
+				return err
+			}
+			img, err := NewImgJson(imgJson)
+			if err != nil {
+				return fmt.Errorf("Failed to parse json: %s", err)
+			}
+
+			// Get the layer
+			fmt.Fprintf(out, "Pulling %s fs layer\r\n", img.Id)
+			layer, contentLength, err := srv.registry.GetRemoteImageLayer(img.Id, registry, token)
+			if err != nil {
+				return err
+			}
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, "Downloading %v/%v (%v)"), false, img); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) error {
+	utils.Debugf("Retrieving repository data")
+	repoData, err := srv.registry.GetRepositoryData(remote)
+	if err != nil {
+		return err
+	}
+
+	utils.Debugf("Updating checksums")
+	// Reload the json file to make sure not to overwrite faster sums
+	if err := srv.runtime.graph.UpdateChecksums(repoData.ImgList); err != nil {
+		return err
+	}
+
+	utils.Debugf("Retrieving the tag list")
+	tagsList, err := srv.registry.GetRemoteTags(repoData.Endpoints, remote, repoData.Tokens)
+	if err != nil {
+		return err
+	}
+	for tag, id := range tagsList {
+		repoData.ImgList[id].Tag = tag
+	}
+
+	for _, img := range repoData.ImgList {
+		// If we asked for a specific tag, skip all tags expect the wanted one
+		if askedTag != "" && askedTag != img.Tag {
+			continue
+		}
+		fmt.Fprintf(stdout, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
+		success := false
+		for _, ep := range repoData.Endpoints {
+			if err := srv.pullImage(stdout, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
+				fmt.Fprintf(stdout, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
+				continue
+			}
+			if err := srv.runtime.repositories.Set(remote, img.Tag, img.Id, true); err != nil {
+				return err
+			}
+			success = true
+			delete(tagsList, img.Tag)
+			break
+		}
+		if !success {
+			return fmt.Errorf("Could not find repository on any of the indexed registries.")
+		}
+	}
+	for tag, id := range tagsList {
+		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
+			return err
+		}
+	}
+	if err := srv.runtime.repositories.Save(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 	if registry != "" {
-		if err := srv.runtime.graph.PullImage(out, name, registry, nil); err != nil {
+		if err := srv.pullImage(out, name, registry, nil); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := srv.runtime.graph.PullRepository(out, name, tag, srv.runtime.repositories, srv.runtime.authConfig); err != nil {
+
+	if err := srv.pullRepository(out, name, tag); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Retrieve the checksum of an image
+// Priority:
+// - Check on the stored checksums
+// - Check if the archive exists, if it does not, ask the registry
+// - If the archive does exists, process the checksum from it
+// - If the archive does not exists and not found on registry, process checksum from layer
+func (srv *Server) getChecksum(imageId string) (string, error) {
+	// FIXME: Use in-memory map instead of reading the file each time
+	if sums, err := srv.runtime.graph.getStoredChecksums(); err != nil {
+		return "", err
+	} else if checksum, exists := sums[imageId]; exists {
+		return checksum, nil
+	}
+
+	img, err := srv.runtime.graph.Get(imageId)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(layerArchivePath(srv.runtime.graph.imageRoot(imageId))); err != nil {
+		if os.IsNotExist(err) {
+			// TODO: Ask the registry for the checksum
+			//       As the archive is not there, it is supposed to come from a pull.
+		} else {
+			return "", err
+		}
+	}
+
+	checksum, err := img.Checksum()
+	if err != nil {
+		return "", err
+	}
+	return checksum, nil
+}
+
+// Retrieve the all the images to be uploaded in the correct order
+// Note: we can't use a map as it is not ordered
+func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgData, error) {
+	var imgList []*registry.ImgData
+
+	imageSet := make(map[string]struct{})
+	for tag, id := range localRepo {
+		img, err := srv.runtime.graph.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		img.WalkHistory(func(img *Image) error {
+			if _, exists := imageSet[img.Id]; exists {
+				return nil
+			}
+			imageSet[img.Id] = struct{}{}
+			checksum, err := srv.getChecksum(img.Id)
+			if err != nil {
+				return err
+			}
+			imgList = append([]*registry.ImgData{{
+				Id:       img.Id,
+				Checksum: checksum,
+				Tag:      tag,
+			}}, imgList...)
+			return nil
+		})
+	}
+	return imgList, nil
+}
+
+func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string) error {
+	fmt.Fprintf(out, "Processing checksums\n")
+	imgList, err := srv.getImageList(localRepo)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Sending image list\n")
+
+	repoData, err := srv.registry.PushImageJsonIndex(name, imgList, false)
+	if err != nil {
+		return err
+	}
+
+	// FIXME: Send only needed images
+	for _, ep := range repoData.Endpoints {
+		fmt.Fprintf(out, "Pushing repository %s to %s (%d tags)\r\n", name, ep, len(localRepo))
+		// For each image within the repo, push them
+		for _, elem := range imgList {
+			if _, exists := repoData.ImgList[elem.Id]; exists {
+				fmt.Fprintf(out, "Image %s already on registry, skipping\n", name)
+				continue
+			}
+			if err := srv.pushImage(out, name, elem.Id, ep, repoData.Tokens); err != nil {
+				// FIXME: Continue on error?
+				return err
+			}
+			fmt.Fprintf(out, "Pushing tags for rev [%s] on {%s}\n", elem.Id, ep+"/users/"+name+"/"+elem.Tag)
+			if err := srv.registry.PushRegistryTag(name, elem.Id, elem.Tag, ep, repoData.Tokens); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := srv.registry.PushImageJsonIndex(name, imgList, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []string) error {
+	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
+	if err != nil {
+		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
+	}
+	fmt.Fprintf(out, "Pushing %s\r\n", imgId)
+
+	// Make sure we have the image's checksum
+	checksum, err := srv.getChecksum(imgId)
+	if err != nil {
+		return err
+	}
+	imgData := &registry.ImgData{
+		Id:       imgId,
+		Checksum: checksum,
+	}
+
+	// Send the json
+	if err := srv.registry.PushImageJsonRegistry(imgData, jsonRaw, ep, token); err != nil {
+		if err == registry.ErrAlreadyExists {
+			fmt.Fprintf(out, "Image %s already uploaded ; skipping\n", imgData.Id)
+			return nil
+		}
+		return err
+	}
+
+	// Retrieve the tarball to be sent
+	var layerData *TempArchive
+	// If the archive exists, use it
+	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgId)))
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If the archive does not exist, create one from the layer
+			layerData, err = srv.runtime.graph.TempLayerArchive(imgId, Xz, out)
+			if err != nil {
+				return fmt.Errorf("Failed to generate layer archive: %s", err)
+			}
+		} else {
+			return err
+		}
+	} else {
+		defer file.Close()
+		st, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		layerData = &TempArchive{
+			File: file,
+			Size: st.Size(),
+		}
+	}
+
+	// Send the layer
+	if err := srv.registry.PushImageLayerRegistry(imgData.Id, utils.ProgressReader(layerData, int(layerData.Size), out, ""), ep, token); err != nil {
 		return err
 	}
 	return nil
@@ -299,10 +561,10 @@ func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
-		Debugf("The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
-			if err := srv.runtime.graph.PushRepository(out, name, localRepo, srv.runtime.authConfig); err != nil {
+			if err := srv.pushRepository(out, name, localRepo); err != nil {
 				return err
 			}
 			return nil
@@ -310,8 +572,8 @@ func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 
 		return err
 	}
-	err = srv.runtime.graph.PushImage(out, img, registry, nil)
-	if err != nil {
+	fmt.Fprintf(out, "The push refers to an image: [%s]\n", name)
+	if err := srv.pushImage(out, name, img.Id, registry, nil); err != nil {
 		return err
 	}
 	return nil
@@ -336,11 +598,11 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		fmt.Fprintln(out, "Downloading from", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = Download(u.String(), out)
+		resp, err = utils.Download(u.String(), out)
 		if err != nil {
 			return err
 		}
-		archive = ProgressReader(resp.Body, int(resp.ContentLength), out, "Importing %v/%v (%v)")
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, "Importing %v/%v (%v)")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -397,7 +659,6 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 }
 
 func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
-
 	if container := srv.runtime.Get(name); container != nil {
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
@@ -522,17 +783,17 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				Debugf(err.Error())
+				utils.Debugf(err.Error())
 			}
 		}
 	}
@@ -553,7 +814,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			r, w := io.Pipe()
 			go func() {
 				defer w.Close()
-				defer Debugf("Closing buffered stdin pipe")
+				defer utils.Debugf("Closing buffered stdin pipe")
 				io.Copy(w, in)
 			}()
 			cStdin = r
@@ -600,11 +861,14 @@ func NewServer(autoRestart bool) (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		runtime: runtime,
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
 	}
+	runtime.srv = srv
 	return srv, nil
 }
 
 type Server struct {
-	runtime *Runtime
+	runtime  *Runtime
+	registry *registry.Registry
 }
