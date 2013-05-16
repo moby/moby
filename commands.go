@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/term"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -188,11 +189,11 @@ func CmdLogin(args ...string) error {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	oldState, err := SetRawTerminal()
+	oldState, err := term.SetRawTerminal()
 	if err != nil {
 		return err
 	} else {
-		defer RestoreTerminal(oldState)
+		defer term.RestoreTerminal(oldState)
 	}
 
 	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
@@ -252,7 +253,7 @@ func CmdLogin(args ...string) error {
 		return err
 	}
 	if out2.Status != "" {
-		RestoreTerminal(oldState)
+		term.RestoreTerminal(oldState)
 		fmt.Print(out2.Status)
 	}
 	return nil
@@ -303,7 +304,7 @@ func CmdVersion(args ...string) error {
 	var out ApiVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
-		Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
+		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
 	fmt.Println("Version:", out.Version)
@@ -519,7 +520,7 @@ func CmdHistory(args ...string) error {
 	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 
 	for _, out := range outs {
-		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.Id, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
+		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.Id, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil
@@ -742,14 +743,14 @@ func CmdImages(args ...string) error {
 				if *noTrunc {
 					fmt.Fprintf(w, "%s\t", out.Id)
 				} else {
-					fmt.Fprintf(w, "%s\t", TruncateId(out.Id))
+					fmt.Fprintf(w, "%s\t", utils.TruncateId(out.Id))
 				}
-				fmt.Fprintf(w, "%s ago\n", HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s ago\n", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 			} else {
 				if *noTrunc {
 					fmt.Fprintln(w, out.Id)
 				} else {
-					fmt.Fprintln(w, TruncateId(out.Id))
+					fmt.Fprintln(w, utils.TruncateId(out.Id))
 				}
 			}
 		}
@@ -809,15 +810,15 @@ func CmdPs(args ...string) error {
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", TruncateId(out.Id), out.Image, Trunc(out.Command, 20), out.Status, HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
 			}
 		} else {
 			if *noTrunc {
 				fmt.Fprintln(w, out.Id)
 			} else {
-				fmt.Fprintln(w, TruncateId(out.Id))
+				fmt.Fprintln(w, utils.TruncateId(out.Id))
 			}
 		}
 	}
@@ -1244,20 +1245,20 @@ func hijack(method, path string, setRawTerminal bool) error {
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
 
-	receiveStdout := Go(func() error {
+	receiveStdout := utils.Go(func() error {
 		_, err := io.Copy(os.Stdout, br)
 		return err
 	})
 
 	if setRawTerminal && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
-		if oldState, err := SetRawTerminal(); err != nil {
+		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
-			defer RestoreTerminal(oldState)
+			defer term.RestoreTerminal(oldState)
 		}
 	}
 
-	sendStdin := Go(func() error {
+	sendStdin := utils.Go(func() error {
 		_, err := io.Copy(rwc, os.Stdin)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)

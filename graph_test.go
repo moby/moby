@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -155,7 +156,7 @@ func TestDeletePrefix(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
 	img := createTestImage(graph, t)
-	if err := graph.Delete(TruncateId(img.Id)); err != nil {
+	if err := graph.Delete(utils.TruncateId(img.Id)); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
