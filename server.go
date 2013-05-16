@@ -699,46 +699,40 @@ func (srv *Server) ImageDelete(name string) error {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return fmt.Errorf("No such image: %s", name)
-	} else {
-		tag := ""
-		if strings.Contains(name, ":") {
-			nameParts := strings.Split(name, ":")
-			name = nameParts[0]
-			tag = nameParts[1]
+	}
+	var tag string
+	if strings.Contains(name, ":") {
+		nameParts := strings.Split(name, ":")
+		name = nameParts[0]
+		tag = nameParts[1]
+	}
+
+	// if the images is referenced several times
+	utils.Debugf("Image %s referenced %d times", img.Id, len(srv.runtime.repositories.ById()[img.Id]))
+	if len(srv.runtime.repositories.ById()[img.Id]) > 1 {
+		// if it's repo:tag, try to delete the tag (docker rmi base:latest)
+		if tag != "" {
+			if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
+				return err
+			}
+			return nil
 		}
-		// if the images is referenced several times
-		Debugf("Image %s referenced %d times", img.Id, len(srv.runtime.repositories.ById()[img.Id]))
-		if len(srv.runtime.repositories.ById()[img.Id]) > 1 {
-			// if it's repo:tag, try to delete the tag (docker rmi base:latest)
-			if tag != "" {
-				if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
+		// check if the image is referenced in another repo (base and user/base are the same, docker rmi user/base)
+		for _, repoTag := range srv.runtime.repositories.ById()[img.Id] {
+			if !strings.Contains(repoTag, name+":") {
+				// if found in another repo, delete the repo, otherwie delete the whole image (docker rmi base)
+				if err := srv.runtime.repositories.Delete(name, "", img.Id); err != nil {
 					return err
 				}
 				return nil
-			} else {
-				// check if the image is referenced in another repo (base and user/base are the same, docker rmi user/base)
-				var other bool
-				for _, repoTag := range srv.runtime.repositories.ById()[img.Id] {
-					if !strings.Contains(repoTag, name+":") {
-						other = true
-						break
-					}
-				}
-				// if found in another repo, delete the repo, other delete the whole image (docker rmi base)
-				if other {
-					if err := srv.runtime.repositories.Delete(name, "", img.Id); err != nil {
-						return err
-					}
-					return nil
-				}
 			}
 		}
-		if err := srv.runtime.graph.Delete(img.Id); err != nil {
-			return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
-		}
-		if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-			return err
-		}
+	}
+	if err := srv.runtime.graph.Delete(img.Id); err != nil {
+		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+	}
+	if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
+		return err
 	}
 	return nil
 }
