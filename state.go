@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"sync"
 	"time"
 )
@@ -21,7 +22,7 @@ func (s *State) String() string {
 		if s.Ghost {
 			return fmt.Sprintf("Ghost")
 		}
-		return fmt.Sprintf("Up %s", HumanDuration(time.Now().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", utils.HumanDuration(time.Now().Sub(s.StartedAt)))
 	}
 	return fmt.Sprintf("Exit %d", s.ExitCode)
 }

@@ -15,7 +15,7 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const INDEX_SERVER = "https://index.docker.io"
+const INDEX_SERVER = "https://index.docker.io/v1"
 
 type AuthConfig struct {
 	Username string `json:"username"`
@@ -31,6 +31,13 @@ func NewAuthConfig(username, password, email, rootPath string) *AuthConfig {
 		Email:    email,
 		rootPath: rootPath,
 	}
+}
+
+func IndexServerAddress() string {
+	if os.Getenv("DOCKER_INDEX_URL") != "" {
+		return os.Getenv("DOCKER_INDEX_URL") + "/v1"
+	}
+	return INDEX_SERVER
 }
 
 // create a base64 encoded auth string to store in config
@@ -119,7 +126,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(INDEX_SERVER+"/v1/users/", "application/json; charset=utf-8", b)
+	req1, err := http.Post(IndexServerAddress()+"/users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
@@ -139,7 +146,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 			"Please check your e-mail for a confirmation link.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := http.NewRequest("GET", INDEX_SERVER+"/v1/users/", nil)
+			req, err := http.NewRequest("GET", IndexServerAddress()+"/users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {

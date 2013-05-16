@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
-	"github.com/shin-/cookiejar"
 	"io"
 	"log"
 	"net/http"
@@ -45,11 +45,7 @@ func writeJson(w http.ResponseWriter, b []byte) {
 }
 
 func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	config := &auth.AuthConfig{
-		Username: srv.runtime.authConfig.Username,
-		Email:    srv.runtime.authConfig.Email,
-	}
-	b, err := json.Marshal(config)
+	b, err := json.Marshal(srv.registry.GetAuthConfig())
 	if err != nil {
 		return err
 	}
@@ -63,18 +59,17 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 		return err
 	}
 
-	if config.Username == srv.runtime.authConfig.Username {
-		config.Password = srv.runtime.authConfig.Password
+	if config.Username == srv.registry.GetAuthConfig().Username {
+		config.Password = srv.registry.GetAuthConfig().Password
 	}
 
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		return err
-	} else {
-		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
-		srv.runtime.authConfig = newAuthConfig
 	}
+	srv.registry.ResetClient(newAuthConfig)
+
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {
@@ -116,7 +111,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		Debugf("%s", err.Error())
+		utils.Debugf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -239,7 +234,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		Debugf("%s", err.Error())
+		utils.Debugf("%s", err.Error())
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -335,7 +330,6 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	if err := parseForm(r); err != nil {
 		return err
 	}
-
 	registry := r.Form.Get("registry")
 
 	if vars == nil {
@@ -602,20 +596,20 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			Debugf("Registering %s, %s", method, route)
+			utils.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localMethod := method
 			localFct := fct
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				Debugf("Calling %s %s", localMethod, localRoute)
+				utils.Debugf("Calling %s %s", localMethod, localRoute)
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
 				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 					if len(userAgent) == 2 && userAgent[1] != VERSION {
-						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
+						utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
 				if err := localFct(srv, w, r, mux.Vars(r)); err != nil {

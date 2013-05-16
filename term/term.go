@@ -1,6 +1,8 @@
 package term
 
 import (
+	"os"
+	"os/signal"
 	"syscall"
 	"unsafe"
 )
@@ -119,4 +121,23 @@ func IsTerminal(fd int) bool {
 func Restore(fd int, state *State) error {
 	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
 	return err
+}
+
+func SetRawTerminal() (*State, error) {
+	oldState, err := MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		_ = <-c
+		Restore(int(os.Stdin.Fd()), oldState)
+		os.Exit(0)
+	}()
+	return oldState, err
+}
+
+func RestoreTerminal(state *State) {
+	Restore(int(os.Stdin.Fd()), state)
 }

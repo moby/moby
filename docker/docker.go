@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -17,7 +18,7 @@ var (
 )
 
 func main() {
-	if docker.SelfPath() == "/sbin/init" {
+	if utils.SelfPath() == "/sbin/init" {
 		// Running in init mode
 		docker.SysInit()
 		return
