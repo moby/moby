@@ -326,10 +326,11 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	if err != nil {
 		return nil, err
 	}
-
-	utils.Debugf("json sent: %s\n", imgListJson)
-
-	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/", bytes.NewReader(imgListJson))
+	var suffix string
+	if validate {
+		suffix = "images"
+	}
+	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/"+suffix, bytes.NewReader(imgListJson))
 	if err != nil {
 		return nil, err
 	}
@@ -361,29 +362,28 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 		defer res.Body.Close()
 	}
 
-	if res.StatusCode != 200 && res.StatusCode != 201 {
-		errBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return nil, err
+	var tokens, endpoints []string
+	if !validate {
+		if res.StatusCode != 200 && res.StatusCode != 201 {
+			errBody, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody)
 		}
-		return nil, fmt.Errorf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody)
-	}
+		if res.Header.Get("X-Docker-Token") != "" {
+			tokens = res.Header["X-Docker-Token"]
+			utils.Debugf("Auth token: %v", tokens)
+		} else {
+			return nil, fmt.Errorf("Index response didn't contain an access token")
+		}
 
-	var tokens []string
-	if res.Header.Get("X-Docker-Token") != "" {
-		tokens = res.Header["X-Docker-Token"]
-		utils.Debugf("Auth token: %v", tokens)
-	} else {
-		return nil, fmt.Errorf("Index response didn't contain an access token")
+		if res.Header.Get("X-Docker-Endpoints") != "" {
+			endpoints = res.Header["X-Docker-Endpoints"]
+		} else {
+			return nil, fmt.Errorf("Index response didn't contain any endpoints")
+		}
 	}
-
-	var endpoints []string
-	if res.Header.Get("X-Docker-Endpoints") != "" {
-		endpoints = res.Header["X-Docker-Endpoints"]
-	} else {
-		return nil, fmt.Errorf("Index response didn't contain any endpoints")
-	}
-
 	if validate {
 		if res.StatusCode != 204 {
 			if errBody, err := ioutil.ReadAll(res.Body); err != nil {
