@@ -10,6 +10,7 @@ Docker Remote API
 - The Remote API is replacing rcli
 - Default port in the docker deamon is 4243 
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection in hijacked to transport stdout stdin and stderr
+- The API supports Basic Auth, you can start the deamon with a -auth to set an auth token. If the header "Authorization" doesn't match the token, the API will return an error 401
 
 2. Endpoints
 ============

@@ -19,3 +19,4 @@ Contents:
    running_redis_service
    running_ssh_service
    couchdb_data_volumes
+   basic_auth
