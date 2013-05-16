@@ -46,7 +46,7 @@ func (builder *Builder) mergeConfig(userConf, imageConf *Config) {
 		userConf.PortSpecs = imageConf.PortSpecs
 	}
 	if !userConf.Tty {
-		userConf.Tty = userConf.Tty
+		userConf.Tty = imageConf.Tty
 	}
 	if !userConf.OpenStdin {
 		userConf.OpenStdin = imageConf.OpenStdin
