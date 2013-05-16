@@ -14,9 +14,11 @@ To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
 
   $ docker
-    Usage: docker COMMAND [arg...]
+    Usage: docker [OPTIONS] COMMAND [arg...]
 
     A self-sufficient runtime for linux containers.
+
+      -auth="": Authorization header to use (optional).
 
     ...
 

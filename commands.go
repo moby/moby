@@ -30,8 +30,8 @@ var (
 	GIT_COMMIT string
 )
 
-func ParseCommands(args ...string) error {
-	cli := NewDockerCli("0.0.0.0", 4243)
+func ParseCommands(auth string, args ...string) error {
+	cli := NewDockerCli("0.0.0.0", 4243, auth)
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
@@ -53,7 +53,7 @@ func ParseCommands(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
-	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
+	help := "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\n  -auth=\"\": Authorization header to use (optional).\n\nCommands:\n"
 	for _, cmd := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from Dockerfile via stdin"},
@@ -1156,6 +1156,9 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		return nil, -1, err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
@@ -1173,6 +1176,9 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	if err != nil {
 		return nil, -1, err
 	}
+	if resp.StatusCode == 403 {
+		return nil, resp.StatusCode, fmt.Errorf("error: Wrong auth")
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		return nil, resp.StatusCode, fmt.Errorf("error: %s", body)
 	}
@@ -1185,6 +1191,9 @@ func (cli *DockerCli) stream(method, path string) error {
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
@@ -1196,6 +1205,9 @@ func (cli *DockerCli) stream(method, path string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 403 {
+		return fmt.Errorf("error: Wrong auth")
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -1221,6 +1233,10 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	if cli.auth != "" {
+		req.Header.Set("Authorization", cli.auth)
+	}
 	clientconn.Do(req)
 	defer clientconn.Close()
 
@@ -1270,11 +1286,12 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewDockerCli(host string, port int) *DockerCli {
-	return &DockerCli{host, port}
+func NewDockerCli(host string, port int, auth string) *DockerCli {
+	return &DockerCli{host, port, auth}
 }
 
 type DockerCli struct {
 	host string
 	port int
+	auth string
 }
