@@ -34,6 +34,8 @@ func parseForm(r *http.Request) error {
 func httpError(w http.ResponseWriter, err error) {
 	if strings.HasPrefix(err.Error(), "No such") {
 		http.Error(w, err.Error(), http.StatusNotFound)
+	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -42,6 +44,16 @@ func httpError(w http.ResponseWriter, err error) {
 func writeJson(w http.ResponseWriter, b []byte) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(b)
+}
+
+func getBoolParam(value string) (bool, error) {
+	if value == "1" || strings.ToLower(value) == "true" {
+		return true, nil
+	}
+	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+		return false, nil
+	}
+	return false, fmt.Errorf("Bad parameter")
 }
 
 func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -122,7 +134,10 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 		return err
 	}
 
-	all := r.Form.Get("all") == "1"
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
 	filter := r.Form.Get("filter")
 
 	outs, err := srv.Images(all, filter)
@@ -192,7 +207,10 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	all := r.Form.Get("all") == "1"
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -219,7 +237,10 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	force := r.Form.Get("force") == "1"
+	force, err := getBoolParam(r.Form.Get("force"))
+	if err != nil {
+		return err
+	}
 
 	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
 		return err
@@ -419,7 +440,10 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	removeVolume := r.Form.Get("v") == "1"
+	removeVolume, err := getBoolParam(r.Form.Get("v"))
+	if err != nil {
+		return err
+	}
 
 	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
 		return err
@@ -494,11 +518,27 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, v
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	logs := r.Form.Get("logs") == "1"
-	stream := r.Form.Get("stream") == "1"
-	stdin := r.Form.Get("stdin") == "1"
-	stdout := r.Form.Get("stdout") == "1"
-	stderr := r.Form.Get("stderr") == "1"
+	logs, err := getBoolParam(r.Form.Get("logs"))
+	if err != nil {
+		return err
+	}
+	stream, err := getBoolParam(r.Form.Get("stream"))
+	if err != nil {
+		return err
+	}
+	stdin, err := getBoolParam(r.Form.Get("stdin"))
+	if err != nil {
+		return err
+	}
+	stdout, err := getBoolParam(r.Form.Get("stdout"))
+	if err != nil {
+		return err
+	}
+	stderr, err := getBoolParam(r.Form.Get("stderr"))
+	if err != nil {
+		return err
+	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}

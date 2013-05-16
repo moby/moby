@@ -149,7 +149,7 @@ func TestGetImagesJson(t *testing.T) {
 	r2 := httptest.NewRecorder()
 
 	// all=1
-	req2, err := http.NewRequest("GET", "/images/json?all=1", nil)
+	req2, err := http.NewRequest("GET", "/images/json?all=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +190,24 @@ func TestGetImagesJson(t *testing.T) {
 
 	if len(images3) != 0 {
 		t.Errorf("Excepted 1 image, %d found", len(images3))
+	}
+
+	r4 := httptest.NewRecorder()
+
+	// all=foobar
+	req4, err := http.NewRequest("GET", "/images/json?all=foobar", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = getImagesJson(srv, r4, req4, nil)
+	if err == nil {
+		t.Fatalf("Error expected, received none")
+	}
+
+	httpError(r4, err)
+	if r4.Code != http.StatusBadRequest {
+		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
 	}
 }
 
