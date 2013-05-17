@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -629,69 +630,78 @@ func TestPostBuild(t *testing.T) {
 }
 
 func TestPostImagesCreate(t *testing.T) {
-	// FIXME: Use the staging in order to perform tests
+	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
+	defer os.Setenv("DOCKER_INDEX_URL", "")
 
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
-	// stdin, stdinPipe := io.Pipe()
-	// stdout, stdoutPipe := io.Pipe()
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
 
-	// c1 := make(chan struct{})
-	// go func() {
-	// 	defer close(c1)
+	c1 := make(chan struct{})
+	go func() {
+		defer close(c1)
 
-	// 	r := &hijackTester{
-	// 		ResponseRecorder: httptest.NewRecorder(),
-	// 		in:               stdin,
-	// 		out:              stdoutPipe,
-	// 	}
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
 
-	// 	req, err := http.NewRequest("POST", "/images/create?fromImage="+unitTestImageName, bytes.NewReader([]byte{}))
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
+		req, err := http.NewRequest("POST", "/images/create?fromImage=joffrey/busybox", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// 	body, err := postImagesCreate(srv, r, req, nil)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if body != nil {
-	// 		t.Fatalf("No body expected, received: %s\n", body)
-	// 	}
-	// }()
+		err = postImagesCreate(srv, r, req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	// // Acknowledge hijack
-	// setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-	// 	stdout.Read([]byte{})
-	// 	stdout.Read(make([]byte, 4096))
-	// })
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
 
-	// setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
-	// 	reader := bufio.NewReader(stdout)
-	// 	line, err := reader.ReadString('\n')
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if !strings.HasPrefix(line, "Pulling repository d from") {
-	// 		t.Fatalf("Expected Pulling repository docker-ut from..., found %s", line)
-	// 	}
-	// })
+	setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
+		reader := bufio.NewReader(stdout)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(line, "Pulling image") {
+			t.Fatalf("Expected Pulling image..., found %s", line)
+		}
+	})
 
-	// // Close pipes (client disconnects)
-	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-	// 	t.Fatal(err)
-	// }
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 
-	// // Wait for imagesCreate to finish, the client disconnected, therefore, Create finished his job
-	// setTimeout(t, "Waiting for imagesCreate timed out", 10*time.Second, func() {
-	// 	<-c1
-	// })
+	// Wait for imagesCreate to finish, the client disconnected, therefore, Create finished his job
+	setTimeout(t, "Waiting for imagesCreate timed out", 10*time.Second, func() {
+		<-c1
+	})
+
+	img, err := srv.runtime.repositories.LookupImage("joffrey/busybox")
+	if err != nil {
+		t.Fatalf("New images joffrey/busybox expected but not found")
+	}
+	if err := srv.runtime.graph.Delete(img.Id); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // func TestPostImagesInsert(t *testing.T) {
@@ -700,98 +710,110 @@ func TestPostImagesCreate(t *testing.T) {
 // }
 
 func TestPostImagesPush(t *testing.T) {
-	//FIXME: Use staging in order to perform tests
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
+	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
+	defer os.Setenv("DOCKER_INDEX_URL", "")
 
-	// srv := &Server{runtime: runtime}
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	// stdin, stdinPipe := io.Pipe()
-	// stdout, stdoutPipe := io.Pipe()
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
-	// c1 := make(chan struct{})
-	// go func() {
-	// 	r := &hijackTester{
-	// 		ResponseRecorder: httptest.NewRecorder(),
-	// 		in:               stdin,
-	// 		out:              stdoutPipe,
-	// 	}
+	if err := srv.runtime.repositories.Set("utest/test", "testtag", unitTestImageName, true); err != nil {
+		t.Fatal(err)
+	}
 
-	// 	req, err := http.NewRequest("POST", "/images/docker-ut/push", bytes.NewReader([]byte{}))
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
 
-	// 	body, err := postImagesPush(srv, r, req, map[string]string{"name": "docker-ut"})
-	// 	close(c1)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if body != nil {
-	// 		t.Fatalf("No body expected, received: %s\n", body)
-	// 	}
-	// }()
+	c1 := make(chan struct{})
+	go func() {
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
 
-	// // Acknowledge hijack
-	// setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-	// 	stdout.Read([]byte{})
-	// 	stdout.Read(make([]byte, 4096))
-	// })
+		req, err := http.NewRequest("POST", "/images/utest/test/push", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
-	// 	reader := bufio.NewReader(stdout)
-	// 	line, err := reader.ReadString('\n')
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if !strings.HasPrefix(line, "Processing checksum") {
-	// 		t.Fatalf("Processing checksum..., found %s", line)
-	// 	}
-	// })
+		err = postImagesPush(srv, r, req, map[string]string{"name": "utest/test"})
+		close(c1)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	// // Close pipes (client disconnects)
-	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-	// 	t.Fatal(err)
-	// }
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
 
-	// // Wait for imagesPush to finish, the client disconnected, therefore, Push finished his job
-	// setTimeout(t, "Waiting for imagesPush timed out", 10*time.Second, func() {
-	// 	<-c1
-	// })
+	setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
+		reader := bufio.NewReader(stdout)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(line, "The push refers to a repository") {
+			t.Fatalf("Expected The push refers to a repository..., found %s", line)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for imagesPush to finish, the client disconnected, therefore, Push finished his job
+	setTimeout(t, "Waiting for imagesPush timed out", 10*time.Second, func() {
+		<-c1
+	})
 }
 
 func TestPostImagesTag(t *testing.T) {
-	// FIXME: Use staging in order to perform tests
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
 
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
+	srv := &Server{runtime: runtime}
 
-	// srv := &Server{runtime: runtime}
+	r := httptest.NewRecorder()
 
-	// r := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "/images/docker-ut/tag?repo=testrepo&tag=testtag", bytes.NewReader([]byte{}))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// req, err := http.NewRequest("POST", "/images/docker-ut/tag?repo=testrepo&tag=testtag", bytes.NewReader([]byte{}))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	err = postImagesTag(srv, r, req, map[string]string{"name": unitTestImageName})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// body, err := postImagesTag(srv, r, req, map[string]string{"name": "docker-ut"})
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
+	}
 
-	// if body != nil {
-	// 	t.Fatalf("No body expected, received: %s\n", body)
-	// }
-	// if r.Code != http.StatusCreated {
-	// 	t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
-	// }
+	if r, exists := srv.runtime.repositories.Repositories["testrepo"]; exists {
+		if _, exists2 := r["testtag"]; exists2 {
+			delete(r, "testtag")
+		} else {
+			t.Fatalf("testtag expected but not found")
+		}
+		delete(srv.runtime.repositories.Repositories, "testrepo")
+	} else {
+		t.Fatalf("testrepo expected but not found")
+	}
 }
 
 func TestPostContainersCreate(t *testing.T) {
@@ -1172,7 +1194,6 @@ func TestPostContainersAttach(t *testing.T) {
 	container.Wait()
 }
 
-// FIXME: Test deleting running container
 // FIXME: Test deleting container with volume
 // FIXME: Test deleting volume in use by other container
 func TestDeleteContainers(t *testing.T) {
@@ -1216,11 +1237,67 @@ func TestDeleteContainers(t *testing.T) {
 	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
 		t.Fatalf("The test file has not been deleted")
 	}
+
+	container2, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).Id,
+		Cmd:   []string{"cat"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	if err := container2.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	req2, err := http.NewRequest("DELETE", "/containers/"+container2.Id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2 := httptest.NewRecorder()
+	if err := deleteContainers(srv, r2, req2, map[string]string{"name": container2.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if r2.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r2.Code)
+	}
+
+	if c := runtime.Get(container2.Id); c != nil {
+		t.Fatalf("The container as not been deleted")
+	}
 }
 
 func TestDeleteImages(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	img, err := srv.runtime.graph.Create(nil, nil, "test image", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("DELETE", "/images/"+img.Id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRecorder()
+	if err := deleteImages(srv, r, req, map[string]string{"name": img.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	}
+
+	_, err = srv.runtime.repositories.LookupImage(img.Id)
+	if err == nil {
+		t.Fatalf("The image as not been deleted")
+	}
 }
 
 // Mocked types for tests
