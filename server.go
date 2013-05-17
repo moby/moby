@@ -717,10 +717,11 @@ func (srv *Server) ImageDelete(name string) error {
 			}
 			return nil
 		}
-		// check if the image is referenced in another repo (base and user/base are the same, docker rmi user/base)
+		// Let's say you have the same image referenced by base and base2
+		// check if the image is referenced in another repo (docker rmi base)
 		for _, repoTag := range srv.runtime.repositories.ById()[img.Id] {
-			if !strings.Contains(repoTag, name+":") {
-				// if found in another repo, delete the repo, otherwie delete the whole image (docker rmi base)
+			if !strings.HasPrefix(repoTag, name+":") {
+				// if found in another repo (base2) delete the repo base, otherwise delete the whole image
 				if err := srv.runtime.repositories.Delete(name, "", img.Id); err != nil {
 					return err
 				}
