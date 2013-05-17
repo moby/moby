@@ -54,6 +54,29 @@ want to check those articles on dotCloud's blog:
 and `about cgroups <http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c>`_.
 
 
+Important Note About Pre-3.8 Kernels
+------------------------------------
+
+As mentioned above, kernels before 3.8 are not stable when used with docker.
+In some circumstances, you will experience kernel "oopses", or even crashes.
+The symptoms include:
+
+- a container being killed in the middle of an operation (e.g. an ``apt-get``
+  command doesn't complete);
+- kernel messages including mentioning calls to ``mntput`` or
+  ``d_hash_and_lookup``;
+- kernel crash causing the machine to freeze for a few minutes, or even
+  completely.
+
+While it is still possible to use older kernels for development, it is
+really not advised to do so.
+
+Docker checks the kernel version when it starts, and emits a warning if it
+detects something older than 3.8.
+
+See issue `#407 <https://github.com/dotcloud/docker/issues/407>`_ for details.
+
+
 Extra Cgroup Controllers
 ------------------------
 
