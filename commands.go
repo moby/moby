@@ -591,39 +591,13 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	body, _, err := cli.call("GET", "/auth", nil)
+	username, err := cli.checkIfLogged(*registry == "", "push", args...)
 	if err != nil {
 		return err
-	}
-
-	var out auth.AuthConfig
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return err
-	}
-
-	// If the login failed AND we're using the index, abort
-	if *registry == "" && out.Username == "" {
-		if err := cli.CmdLogin(args...); err != nil {
-			return err
-		}
-
-		body, _, err = cli.call("GET", "/auth", nil)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(body, &out)
-		if err != nil {
-			return err
-		}
-
-		if out.Username == "" {
-			return fmt.Errorf("Please login prior to push. ('docker login')")
-		}
 	}
 
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", out.Username, name)
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	v := url.Values{}
@@ -652,6 +626,13 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		remoteParts := strings.Split(remote, ":")
 		tag = &remoteParts[1]
 		remote = remoteParts[0]
+	}
+
+	if strings.Contains(remote, "/") {
+		fmt.Println("Login is required before pull an user's repository")
+		if _, err := cli.checkIfLogged(true, "pull", args...); err != nil {
+			return err
+		}
 	}
 
 	v := url.Values{}
@@ -1139,6 +1120,40 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Println(out.Id)
 	}
 	return nil
+}
+
+func (cli *DockerCli) checkIfLogged(condition bool, action string, args ...string) (string, error) {
+	body, _, err := cli.call("GET", "/auth", nil)
+	if err != nil {
+		return "", err
+	}
+
+	var out auth.AuthConfig
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return "", err
+	}
+
+	// If the login failed
+	if condition && out.Username == "" {
+		if err := cli.CmdLogin(args...); err != nil {
+			return "", err
+		}
+
+		body, _, err = cli.call("GET", "/auth", nil)
+		if err != nil {
+			return "", err
+		}
+		err = json.Unmarshal(body, &out)
+		if err != nil {
+			return "", err
+		}
+
+		if out.Username == "" {
+			return "", fmt.Errorf("Please login prior to %s. ('docker login')", action)
+		}
+	}
+	return out.Username, nil
 }
 
 func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, error) {
