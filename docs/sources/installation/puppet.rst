@@ -4,8 +4,10 @@
 Using Puppet
 =============
 
-  Please note this is a community contributed installation path. The only 'official' installation is using the
-  :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
+.. note::
+
+   Please note this is a community contributed installation path. The only 'official' installation is using the
+   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
 
 Requirements
 ------------
