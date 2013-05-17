@@ -104,7 +104,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := cli.hijack("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), false)
+	err := cli.hijack("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), false)
 	if err != nil {
 		return err
 	}
