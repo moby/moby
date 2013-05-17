@@ -38,7 +38,7 @@ for managing images and containers.
 Installation
 ~~~~~~~~~~~~
 
-   .. code-block:: puppet
+   .. code-block:: ruby
 
       include 'docker'
 
@@ -48,7 +48,7 @@ Images
 The next step is probably to install a docker image, for this we have a
 defined type which can be used like so:
 
-   .. code-block:: puppet
+   .. code-block:: ruby
 
       docker::image { 'base': }
 
@@ -63,7 +63,7 @@ This is downloading a large binary so on first run can take a while.
 For that reason this define turns off the default 5 minute timeout
 for exec. Note that you can also remove images you no longer need with:
 
-   .. code-block:: puppet
+   .. code-block:: ruby
 
       docker::image { 'base':
         ensure => 'absent',
@@ -75,7 +75,7 @@ Containers
 Now you have an image you can run commands within a container managed by
 docker.
 
-   .. code-block:: puppet
+   .. code-block:: ruby
 
       docker::run { 'helloworld':
         image   => 'base',
@@ -90,7 +90,7 @@ This is equivalent to running the following command, but under upstart:
 
 Run also contains a number of optional parameters:
 
-   .. code-block:: puppet
+   .. code-block:: ruby
 
       docker::run { 'helloworld':
         image        => 'base',
