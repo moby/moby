@@ -340,13 +340,24 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 	if err != nil {
 		return err
 	}
-	for tag, id := range tagsList {
-		repoData.ImgList[id].Tag = tag
+	utils.Debugf("Registering tags")
+	// If not specific tag have been asked, take all
+	if askedTag == "" {
+		for tag, id := range tagsList {
+			repoData.ImgList[id].Tag = tag
+		}
+	} else {
+		// Otherwise, check that the tag exists and use only that one
+		if id, exists := tagsList[askedTag]; !exists {
+			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, remote)
+		} else {
+			repoData.ImgList[id].Tag = askedTag
+		}
 	}
 
 	for _, img := range repoData.ImgList {
-		// If we asked for a specific tag, skip all tags expect the wanted one
-		if askedTag != "" && askedTag != img.Tag {
+		if askedTag != "" && img.Tag != askedTag {
+			utils.Debugf("%s does not match %s, skipping", img.Tag, askedTag)
 			continue
 		}
 		fmt.Fprintf(stdout, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
@@ -366,6 +377,10 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 		if !success {
 			return fmt.Errorf("Could not find repository on any of the indexed registries.")
 		}
+	}
+	// If we asked for a specific tag, do not register the others
+	if askedTag != "" {
+		return nil
 	}
 	for tag, id := range tagsList {
 		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
