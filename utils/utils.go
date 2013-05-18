@@ -84,15 +84,15 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			FprintfFlush(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
-			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, "?", "n/a")
+			FprintfFlush(r.output, r.template+"\r", r.readProgress, "?", "n/a")
 		}
 		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
 	if err != nil {
-		fmt.Fprintf(r.output, "\n")
+		FprintfFlush(r.output, "\n")
 	}
 
 	return read, err
@@ -529,4 +529,13 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 		Minor:  minor,
 		Flavor: flavor,
 	}, nil
+}
+
+
+func FprintfFlush(w io.Writer, format string, a ...interface{}) (n int, err error) {
+	n, err = fmt.Fprintf(w, format, a...)
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	return n, err
 }
