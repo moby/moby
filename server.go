@@ -729,6 +729,15 @@ func (srv *Server) ImageDelete(name string) error {
 			}
 		}
 	}
+	// check is the image to delete isn't parent of another image
+	images, _ := srv.runtime.graph.All()
+	for _, image := range images {
+		if imgParent, err := image.GetParent(); err == nil && imgParent != nil {
+			if imgParent.Id == img.Id {
+				return fmt.Errorf("Can't delete %s, otherwise %s will be broken", name, image.ShortId())
+			}
+		}
+	}
 	if err := srv.runtime.graph.Delete(img.Id); err != nil {
 		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
 	}
