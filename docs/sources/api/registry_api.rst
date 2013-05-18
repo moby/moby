@@ -85,7 +85,7 @@ On top of being a runtime for LXC, Docker is the Registry client. It supports:
 5. Index returns true/false lettings registry know if it should proceed or error out
 6. Get the payload for all layers
 
-It’s possible to run docker pull https://<registry>/repositories/samalba/busybox. In this case, docker bypasses the Index. However the security is not guaranteed (in case Registry A is corrupted) because there won’t be any checksum checks.
+It’s possible to run docker pull \https://<registry>/repositories/samalba/busybox. In this case, docker bypasses the Index. However the security is not guaranteed (in case Registry A is corrupted) because there won’t be any checksum checks.
 
 Currently registry redirects to s3 urls for downloads, going forward all downloads need to be streamed through the registry. The Registry will then abstract the calls to S3 by a top-level class which implements sub-classes for S3 and local storage.
 
@@ -245,8 +245,8 @@ API (pushing repos foo/bar):
 The Index has two main purposes (along with its fancy social features):
 
 - Resolve short names (to avoid passing absolute URLs all the time)
-   - username/projectname -> https://registry.docker.io/users/<username>/repositories/<projectname>/
-   - team/projectname -> https://registry.docker.io/team/<team>/repositories/<projectname>/
+   - username/projectname -> \https://registry.docker.io/users/<username>/repositories/<projectname>/
+   - team/projectname -> \https://registry.docker.io/team/<team>/repositories/<projectname>/
 - Authenticate a user as a repos owner (for a central referenced repository)
 
 3.1 Without an Index

@@ -58,7 +58,7 @@ Use the new image we just created and create a new container with network port 5
 .. code-block:: bash
 
     docker logs $WEB_WORKER
-     * Running on http://0.0.0.0:5000/
+     * Running on \http://0.0.0.0:5000/
 
 view the logs for the new container using the WEB_WORKER variable, and if everything worked as planned you should see the line "Running on http://0.0.0.0:5000/" in the log output.
 
@@ -70,7 +70,7 @@ lookup the public-facing port which is NAT-ed store the private port used by the
 
 .. code-block:: bash
 
-    curl http://`hostname`:$WEB_PORT
+    curl \http://`hostname`:$WEB_PORT
       Hello world!
 
 access the web app using curl. If everything worked as planned you should see the line "Hello world!" inside of your console.
