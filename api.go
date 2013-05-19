@@ -370,19 +370,6 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	return nil
 }
 
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImageCreateFromFile(in, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
-	}
-	return nil
-}
-
 func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
@@ -593,6 +580,25 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
+func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	apiConfig := &ApiImageConfig{}
+	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
+		return err
+	}
+
+	image, err := srv.ImageGetCached(apiConfig.Id, apiConfig.Config)
+	if err != nil {
+		return err
+	}
+	apiId := &ApiId{Id: image.Id}
+	b, err := json.Marshal(apiId)
+	if err != nil {
+		return err
+	}
+	writeJson(w, b)
+	return nil
+}
+
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
@@ -615,11 +621,11 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 		"POST": {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
-			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
+			"/images/getCache":              postImagesGetCache,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,
