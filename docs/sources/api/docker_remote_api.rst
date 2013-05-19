@@ -28,7 +28,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/ps?trunc_cmd=0&all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/ps?all=1&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
