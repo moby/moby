@@ -679,10 +679,82 @@ func TestPostImagesCreate(t *testing.T) {
 	// })
 }
 
-// func TestPostImagesInsert(t *testing.T) {
-// 	//FIXME: Implement this test (or remove this endpoint)
-// 	t.Log("Test not implemented")
-// }
+func TestPostImagesInsert(t *testing.T) {
+	// runtime, err := newTestRuntime()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// defer nuke(runtime)
+
+	// srv := &Server{runtime: runtime}
+
+	// stdin, stdinPipe := io.Pipe()
+	// stdout, stdoutPipe := io.Pipe()
+
+	// // Attach to it
+	// c1 := make(chan struct{})
+	// go func() {
+	// 	defer close(c1)
+	// 	r := &hijackTester{
+	// 		ResponseRecorder: httptest.NewRecorder(),
+	// 		in:               stdin,
+	// 		out:              stdoutPipe,
+	// 	}
+
+	// 	req, err := http.NewRequest("POST", "/images/"+unitTestImageName+"/insert?path=%2Ftest&url=https%3A%2F%2Fraw.github.com%2Fdotcloud%2Fdocker%2Fmaster%2FREADME.md", bytes.NewReader([]byte{}))
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	if err := postContainersCreate(srv, r, req, nil); err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// }()
+
+	// // Acknowledge hijack
+	// setTimeout(t, "hijack acknowledge timed out", 5*time.Second, func() {
+	// 	stdout.Read([]byte{})
+	// 	stdout.Read(make([]byte, 4096))
+	// })
+
+	// id := ""
+	// setTimeout(t, "Waiting for imagesInsert output", 10*time.Second, func() {
+	// 	for {
+	// 		reader := bufio.NewReader(stdout)
+	// 		id, err = reader.ReadString('\n')
+	// 		if err != nil {
+	// 			t.Fatal(err)
+	// 		}
+	// 	}
+	// })
+
+	// // Close pipes (client disconnects)
+	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// // Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	// setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+	// 	<-c1
+	// })
+
+	// img, err := srv.runtime.repositories.LookupImage(id)
+	// if err != nil {
+	// 	t.Fatalf("New image %s expected but not found", id)
+	// }
+
+	// layer, err := img.layer()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// if _, err := os.Stat(path.Join(layer, "test")); err != nil {
+	// 	t.Fatalf("The test file has not been found")
+	// }
+
+	// if err := srv.runtime.graph.Delete(img.Id); err != nil {
+	// 	t.Fatal(err)
+	// }
+}
 
 func TestPostImagesPush(t *testing.T) {
 	//FIXME: Use staging in order to perform tests

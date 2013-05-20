@@ -104,7 +104,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := cli.stream("POST", "/images/"+cmd.Arg(0)+"?"+v.Encode(), nil, os.Stdout)
+	err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, os.Stdout)
 	if err != nil {
 		return err
 	}
