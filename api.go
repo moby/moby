@@ -590,6 +590,10 @@ func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, var
 	if err != nil {
 		return err
 	}
+	if image == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
 	apiId := &ApiId{Id: image.Id}
 	b, err := json.Marshal(apiId)
 	if err != nil {

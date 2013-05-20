@@ -134,7 +134,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 	}
-	NewBuilderClient(file)
+	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file); err != nil {
+		return err
+	}
 	return nil
 }
 
