@@ -283,23 +283,17 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 
 	src := r.Form.Get("fromSrc")
 	image := r.Form.Get("fromImage")
-	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
+	repo := r.Form.Get("repo")
 
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if err := srv.ImagePull(image, tag, registry, out); err != nil {
-			fmt.Fprintf(out, "Error: %s\n", err)
+		if err := srv.ImagePull(image, tag, registry, w); err != nil {
+			return err
 		}
 	} else { //import
-		if err := srv.ImageImport(src, repo, tag, in, out); err != nil {
-			fmt.Fprintf(out, "Error: %s\n", err)
+		if err := srv.ImageImport(src, repo, tag, r.Body, w); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -335,14 +329,8 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	}
 	name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
+	if err := srv.ImageInsert(name, url, path, w); err != nil {
 		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImageInsert(name, url, path, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -358,27 +346,15 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	}
 	name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
+	if err := srv.ImagePush(name, registry, w); err != nil {
 		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImagePush(name, registry, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
 	}
 	return nil
 }
 
 func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	in, out, err := hijackServer(w)
-	if err != nil {
+	if err := srv.ImageCreateFromFile(r.Body, w); err != nil {
 		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImageCreateFromFile(in, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
 	}
 	return nil
 }

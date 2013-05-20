@@ -104,7 +104,7 @@ func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string
 	if template == "" {
 		template = "%v/%v (%v)"
 	}
-	return &progressReader{r, output, size, 0, 0, template}
+	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -529,4 +529,29 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 		Minor:  minor,
 		Flavor: flavor,
 	}, nil
+}
+
+type NopFlusher struct{}
+
+func (f *NopFlusher) Flush() {}
+
+type WriteFlusher struct {
+	w       io.Writer
+	flusher http.Flusher
+}
+
+func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	n, err = wf.w.Write(b)
+	wf.flusher.Flush()
+	return n, err
+}
+
+func NewWriteFlusher(w io.Writer) *WriteFlusher {
+	var flusher http.Flusher
+	if f, ok := w.(http.Flusher); ok {
+		flusher = f
+	} else {
+		flusher = &NopFlusher{}
+	}
+	return &WriteFlusher{w: w, flusher: flusher}
 }
