@@ -134,6 +134,10 @@ func (b *BuilderClient) CmdInsert(args string) error {
 }
 
 func (b *BuilderClient) commit() error {
+	if b.config.Cmd == nil || len(b.config.Cmd) < 1 {
+		b.config.Cmd = []string{"echo"}
+	}
+
 	body, _, err := b.cli.call("POST", "/containers/create", b.config)
 	if err != nil {
 		return err
