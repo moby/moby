@@ -68,7 +68,7 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 }
 
 func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return err
@@ -290,7 +290,7 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 }
 
 func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []string) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	history, err := srv.registry.GetRemoteHistory(imgId, registry, token)
 	if err != nil {
 		return err
@@ -326,7 +326,7 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 }
 
 func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	fmt.Fprintf(out, "Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repoData, err := srv.registry.GetRepositoryData(remote)
 	if err != nil {
@@ -465,7 +465,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 }
 
 func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	fmt.Fprintf(out, "Processing checksums\n")
 	imgList, err := srv.getImageList(localRepo)
 	if err != nil {
@@ -505,7 +505,7 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 }
 
 func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []string) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
 	if err != nil {
 		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
@@ -565,7 +565,7 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 }
 
 func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
-	out = &utils.WriteFlusher{W: out}
+	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
 		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
