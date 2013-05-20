@@ -97,7 +97,7 @@ Quick install on Ubuntu 12.04 and 12.10
 ---------------------------------------
 
 ```bash
-curl get.docker.io | sudo sh -x
+curl https://s3.amazonaws.com/get.docker.io/index | sudo sh -x
 ```
 
 Binary installs
