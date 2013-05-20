@@ -84,15 +84,15 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			FprintfFlush(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
-			FprintfFlush(r.output, r.template+"\r", r.readProgress, "?", "n/a")
+			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, "?", "n/a")
 		}
 		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
 	if err != nil {
-		FprintfFlush(r.output, "\n")
+		fmt.Fprintf(r.output, "\n")
 	}
 
 	return read, err
@@ -104,7 +104,7 @@ func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string
 	if template == "" {
 		template = "%v/%v (%v)"
 	}
-	return &progressReader{r, output, size, 0, 0, template}
+	return &progressReader{r, &WriteFlusher{W: output}, size, 0, 0, template}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -531,10 +531,13 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}, nil
 }
 
+type WriteFlusher struct {
+	W io.Writer
+}
 
-func FprintfFlush(w io.Writer, format string, a ...interface{}) (n int, err error) {
-	n, err = fmt.Fprintf(w, format, a...)
-	if f, ok := w.(http.Flusher); ok {
+func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	n, err = wf.W.Write(b)
+	if f, ok := wf.W.(http.Flusher); ok {
 		f.Flush()
 	}
 	return n, err
