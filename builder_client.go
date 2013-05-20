@@ -12,7 +12,13 @@ import (
 	"strings"
 )
 
-type BuilderClient struct {
+type BuilderClient interface {
+	Build(io.Reader) (string, error)
+	CmdFrom(string) error
+	CmdRun(string) error
+}
+
+type builderClient struct {
 	cli *DockerCli
 
 	image      string
@@ -25,7 +31,7 @@ type BuilderClient struct {
 	needCommit bool
 }
 
-func (b *BuilderClient) clearTmp(containers, images map[string]struct{}) {
+func (b builderClient) clearTmp(containers, images map[string]struct{}) {
 	for c := range containers {
 		if _, _, err := b.cli.call("DELETE", "/containers/"+c, nil); err != nil {
 			utils.Debugf("%s", err)
@@ -40,7 +46,7 @@ func (b *BuilderClient) clearTmp(containers, images map[string]struct{}) {
 	}
 }
 
-func (b *BuilderClient) CmdFrom(name string) error {
+func (b builderClient) CmdFrom(name string) error {
 	obj, statusCode, err := b.cli.call("GET", "/images/"+name+"/json", nil)
 	if statusCode == 404 {
 		if err := b.cli.hijack("POST", "/images/create?fromImage="+name, false); err != nil {
@@ -63,13 +69,13 @@ func (b *BuilderClient) CmdFrom(name string) error {
 	return nil
 }
 
-func (b *BuilderClient) CmdMaintainer(name string) error {
+func (b builderClient) CmdMaintainer(name string) error {
 	b.needCommit = true
 	b.maintainer = name
 	return nil
 }
 
-func (b *BuilderClient) CmdRun(args string) error {
+func (b builderClient) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -105,7 +111,7 @@ func (b *BuilderClient) CmdRun(args string) error {
 	return b.commit(cid)
 }
 
-func (b *BuilderClient) CmdEnv(args string) error {
+func (b builderClient) CmdEnv(args string) error {
 	b.needCommit = true
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
@@ -124,25 +130,25 @@ func (b *BuilderClient) CmdEnv(args string) error {
 	return nil
 }
 
-func (b *BuilderClient) CmdCmd(args string) error {
+func (b builderClient) CmdCmd(args string) error {
 	b.needCommit = true
 	b.config.Cmd = []string{"/bin/sh", "-c", args}
 	return nil
 }
 
-func (b *BuilderClient) CmdExpose(args string) error {
+func (b builderClient) CmdExpose(args string) error {
 	ports := strings.Split(args, " ")
 	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
 	return nil
 }
 
-func (b *BuilderClient) CmdInsert(args string) error {
+func (b builderClient) CmdInsert(args string) error {
 	// FIXME: Reimplement this once the remove_hijack branch gets merged.
 	// We need to retrieve the resulting Id
 	return fmt.Errorf("INSERT not implemented")
 }
 
-func (b *BuilderClient) run() (string, error) {
+func (b builderClient) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -183,7 +189,7 @@ func (b *BuilderClient) run() (string, error) {
 	return apiRun.Id, nil
 }
 
-func (b *BuilderClient) commit(id string) error {
+func (b builderClient) commit(id string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -219,7 +225,7 @@ func (b *BuilderClient) commit(id string) error {
 	return nil
 }
 
-func (b *BuilderClient) Build(dockerfile io.Reader) (string, error) {
+func (b builderClient) Build(dockerfile io.Reader) (string, error) {
 	//	defer b.clearTmp(tmpContainers, tmpImages)
 	file := bufio.NewReader(dockerfile)
 	for {
@@ -274,8 +280,8 @@ func (b *BuilderClient) Build(dockerfile io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuilderClient(addr string, port int) *BuilderClient {
-	return &BuilderClient{
+func NewBuilderClient(addr string, port int) BuilderClient {
+	return &builderClient{
 		cli:           NewDockerCli(addr, port),
 		config:        &Config{},
 		tmpContainers: make(map[string]struct{}),
