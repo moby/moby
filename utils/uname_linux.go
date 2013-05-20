@@ -6,7 +6,7 @@ import (
 
 type Utsname syscall.Utsname
 
-func uname() (*Utsname, error) {
+func uname() (*syscall.Utsname, error) {
 	uts := &syscall.Utsname{}
 
 	if err := syscall.Uname(uts); err != nil {
