@@ -132,7 +132,12 @@ func (b builderClient) CmdEnv(args string) error {
 
 func (b builderClient) CmdCmd(args string) error {
 	b.needCommit = true
-	b.config.Cmd = []string{"/bin/sh", "-c", args}
+	var cmd []string
+	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
+		b.config.Cmd = []string{"/bin/sh", "-c", args}
+	} else {
+		b.config.Cmd = cmd
+	}
 	return nil
 }
 
