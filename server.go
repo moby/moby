@@ -371,11 +371,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 				fmt.Fprintf(out, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
 				continue
 			}
-			if err := srv.runtime.repositories.Set(remote, img.Tag, img.Id, true); err != nil {
-				return err
-			}
 			success = true
-			delete(tagsList, img.Tag)
 			break
 		}
 		if !success {
