@@ -15,4 +15,5 @@ Contents:
    basics
    workingwithrepository
    builder
+   puppet
 

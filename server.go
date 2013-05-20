@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -67,6 +68,7 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 }
 
 func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
+	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return err
@@ -290,6 +292,7 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 }
 
 func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []string) error {
+	out = utils.NewWriteFlusher(out)
 	history, err := srv.registry.GetRemoteHistory(imgId, registry, token)
 	if err != nil {
 		return err
@@ -324,8 +327,9 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 	return nil
 }
 
-func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) error {
-	utils.Debugf("Retrieving repository data")
+func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error {
+	out = utils.NewWriteFlusher(out)
+	fmt.Fprintf(out, "Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
 	repoData, err := srv.registry.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -362,18 +366,14 @@ func (srv *Server) pullRepository(stdout io.Writer, remote, askedTag string) err
 			utils.Debugf("%s does not match %s, skipping", img.Tag, askedTag)
 			continue
 		}
-		fmt.Fprintf(stdout, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
+		fmt.Fprintf(out, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
 		success := false
 		for _, ep := range repoData.Endpoints {
-			if err := srv.pullImage(stdout, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
-				fmt.Fprintf(stdout, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
+			if err := srv.pullImage(out, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
+				fmt.Fprintf(out, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
 				continue
 			}
-			if err := srv.runtime.repositories.Set(remote, img.Tag, img.Id, true); err != nil {
-				return err
-			}
 			success = true
-			delete(tagsList, img.Tag)
 			break
 		}
 		if !success {
@@ -478,6 +478,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 }
 
 func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string) error {
+	out = utils.NewWriteFlusher(out)
 	fmt.Fprintf(out, "Processing checksums\n")
 	imgList, err := srv.getImageList(localRepo)
 	if err != nil {
@@ -517,6 +518,7 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 }
 
 func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []string) error {
+	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
 	if err != nil {
 		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
@@ -576,6 +578,7 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 }
 
 func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
+	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
 		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
@@ -612,7 +615,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 			u.Host = src
 			u.Path = ""
 		}
-		fmt.Fprintln(out, "Downloading from", u)
+		fmt.Fprintf(out, "Downloading from %s\n", u)
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
 		resp, err = utils.Download(u.String(), out)
@@ -631,7 +634,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 			return err
 		}
 	}
-	fmt.Fprintln(out, img.ShortId())
+	fmt.Fprintf(out, "%s\n", img.ShortId())
 	return nil
 }
 

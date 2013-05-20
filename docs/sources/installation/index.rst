@@ -20,3 +20,4 @@ Contents:
    rackspace
    archlinux
    upgrading
+   kernel
