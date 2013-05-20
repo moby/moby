@@ -77,7 +77,11 @@ func (b *BuilderClient) CmdRun(args string) error {
 	if err != nil {
 		return err
 	}
+
+	cmd, env := b.config.Cmd, b.config.Env
+	b.config.Cmd = nil
 	MergeConfig(b.config, config)
+
 	body, statusCode, err := b.cli.call("POST", "/images/getCache", &ApiImageConfig{Id: b.image, Config: b.config})
 	if err != nil {
 		if statusCode != 404 {
@@ -89,11 +93,16 @@ func (b *BuilderClient) CmdRun(args string) error {
 		if err := json.Unmarshal(body, apiId); err != nil {
 			return err
 		}
+		utils.Debugf("Use cached version")
 		b.image = apiId.Id
 		return nil
 	}
-	b.commit()
-	return nil
+	cid, err := b.run()
+	if err != nil {
+		return err
+	}
+	b.config.Cmd, b.config.Env = cmd, env
+	return b.commit(cid)
 }
 
 func (b *BuilderClient) CmdEnv(args string) error {
@@ -133,54 +142,80 @@ func (b *BuilderClient) CmdInsert(args string) error {
 	return fmt.Errorf("INSERT not implemented")
 }
 
-func (b *BuilderClient) commit() error {
-	if b.config.Cmd == nil || len(b.config.Cmd) < 1 {
-		b.config.Cmd = []string{"echo"}
+func (b *BuilderClient) run() (string, error) {
+	if b.image == "" {
+		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-
+	b.config.Image = b.image
 	body, _, err := b.cli.call("POST", "/containers/create", b.config)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	out := &ApiRun{}
-	err = json.Unmarshal(body, out)
-	if err != nil {
-		return err
+	apiRun := &ApiRun{}
+	if err := json.Unmarshal(body, apiRun); err != nil {
+		return "", err
 	}
-
-	for _, warning := range out.Warnings {
+	for _, warning := range apiRun.Warnings {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
 	//start the container
-	_, _, err = b.cli.call("POST", "/containers/"+out.Id+"/start", nil)
+	_, _, err = b.cli.call("POST", "/containers/"+apiRun.Id+"/start", nil)
 	if err != nil {
-		return err
+		return "", err
 	}
-	b.tmpContainers[out.Id] = struct{}{}
+	b.tmpContainers[apiRun.Id] = struct{}{}
 
 	// Wait for it to finish
-	_, _, err = b.cli.call("POST", "/containers/"+out.Id+"/wait", nil)
+	body, _, err = b.cli.call("POST", "/containers/"+apiRun.Id+"/wait", nil)
 	if err != nil {
-		return err
+		return "", err
+	}
+	apiWait := &ApiWait{}
+	if err := json.Unmarshal(body, apiWait); err != nil {
+		return "", err
+	}
+	if apiWait.StatusCode != 0 {
+		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, apiWait.StatusCode)
+	}
+
+	return apiRun.Id, nil
+}
+
+func (b *BuilderClient) commit(id string) error {
+	if b.image == "" {
+		return fmt.Errorf("Please provide a source image with `from` prior to run")
+	}
+	b.config.Image = b.image
+
+	if id == "" {
+		cmd := b.config.Cmd
+		b.config.Cmd = []string{"true"}
+		if cid, err := b.run(); err != nil {
+			return err
+		} else {
+			id = cid
+		}
+		b.config.Cmd = cmd
 	}
 
 	// Commit the container
 	v := url.Values{}
-	v.Set("container", out.Id)
+	v.Set("container", id)
 	v.Set("author", b.maintainer)
-	body, _, err = b.cli.call("POST", "/commit?"+v.Encode(), b.config)
+
+	body, _, err := b.cli.call("POST", "/commit?"+v.Encode(), b.config)
 	if err != nil {
 		return err
 	}
 	apiId := &ApiId{}
-	err = json.Unmarshal(body, apiId)
-	if err != nil {
+	if err := json.Unmarshal(body, apiId); err != nil {
 		return err
 	}
 	b.tmpImages[apiId.Id] = struct{}{}
 	b.image = apiId.Id
+	b.needCommit = false
 	return nil
 }
 
@@ -221,7 +256,9 @@ func (b *BuilderClient) Build(dockerfile io.Reader) (string, error) {
 		fmt.Printf("===> %v\n", b.image)
 	}
 	if b.needCommit {
-		b.commit()
+		if err := b.commit(""); err != nil {
+			return "", err
+		}
 	}
 	if b.image != "" {
 		// The build is successful, keep the temporary containers and images
