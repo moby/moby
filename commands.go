@@ -459,6 +459,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
 	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove an image")
+	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -467,8 +468,13 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		return nil
 	}
 
+	v := url.Values{}
+	if *force {
+		v.Set("force", "1")
+	}
+
 	for _, name := range cmd.Args() {
-		_, _, err := cli.call("DELETE", "/images/"+name, nil)
+		_, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {

@@ -36,6 +36,8 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	} else if strings.HasPrefix(err.Error(), "Conflict") {
+		http.Error(w, err.Error(), http.StatusConflict)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -453,11 +455,18 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 }
 
 func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	if err := srv.ImageDelete(name); err != nil {
+	force, err := getBoolParam(r.Form.Get("force"))
+	if err != nil {
+		return err
+	}
+	if err := srv.ImageDelete(name, force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -728,6 +728,7 @@ Tag an image into a repository
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -750,8 +751,10 @@ Remove an image
 
            HTTP/1.1 204 OK
 
+	:query force: 1/True/true or 0/False/false, default false
 	:statuscode 204: no error
         :statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 

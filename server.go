@@ -710,7 +710,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	return nil
 }
 
-func (srv *Server) ImageDelete(name string) error {
+func (srv *Server) ImageDelete(name string, force bool) error {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return fmt.Errorf("No such image: %s", name)
@@ -745,11 +745,13 @@ func (srv *Server) ImageDelete(name string) error {
 		}
 	}
 	// check is the image to delete isn't parent of another image
-	images, _ := srv.runtime.graph.All()
-	for _, image := range images {
-		if imgParent, err := image.GetParent(); err == nil && imgParent != nil {
-			if imgParent.Id == img.Id {
-				return fmt.Errorf("Can't delete %s, otherwise %s will be broken", name, image.ShortId())
+	if !force {
+		images, _ := srv.runtime.graph.All()
+		for _, image := range images {
+			if imgParent, err := image.GetParent(); err == nil && imgParent != nil {
+				if imgParent.Id == img.Id {
+					return fmt.Errorf("Conflict: Can't delete %s otherwise %s will be broken", name, image.ShortId())
+				}
 			}
 		}
 	}

@@ -1312,8 +1312,13 @@ func TestDeleteImages(t *testing.T) {
 		t.Errorf("Excepted 2 images, %d found", len(images))
 	}
 
+	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := httptest.NewRecorder()
-	if err := deleteImages(srv, r, nil, map[string]string{"name": "test:test"}); err != nil {
+	if err := deleteImages(srv, r, req, map[string]string{"name": "test:test"}); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNoContent {
