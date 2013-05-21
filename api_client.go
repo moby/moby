@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -30,32 +31,12 @@ type ListContainersOptions struct {
 	Before string
 }
 
-func (opts *ListContainersOptions) queryString() string {
-	if opts == nil {
-		return ""
-	}
-	items := url.Values(map[string][]string{})
-	if opts.All {
-		items.Add("all", "1")
-	}
-	if opts.Limit > 0 {
-		items.Add("limit", strconv.Itoa(opts.Limit))
-	}
-	if opts.Since != "" {
-		items.Add("since", opts.Since)
-	}
-	if opts.Before != "" {
-		items.Add("before", opts.Before)
-	}
-	return items.Encode()
-}
-
 func (c *APIClient) getURL(path string) string {
 	return strings.TrimRight(c.endpoint, "/") + path
 }
 
 func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainer, error) {
-	url := c.getURL("/containers/ps") + "?" + opts.queryString()
+	url := c.getURL("/containers/ps") + "?" + queryString(opts)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -74,6 +55,55 @@ func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainer,
 		return nil, err
 	}
 	return containers, nil
+}
+
+func queryString(opts interface{}) string {
+	if opts == nil {
+		return ""
+	}
+	value := reflect.ValueOf(opts)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+	if value.Kind() != reflect.Struct {
+		return ""
+	}
+	items := url.Values(map[string][]string{})
+	typeOf := value.Type()
+	for i := 0; i < value.NumField(); i++ {
+		field := typeOf.Field(i)
+		key := strings.ToLower(field.Name)
+		v := value.Field(i)
+		switch v.Kind() {
+		case reflect.Bool:
+			if v.Bool() {
+				items.Add(key, "1")
+			}
+		case reflect.Int:
+			fallthrough
+		case reflect.Int8:
+			fallthrough
+		case reflect.Int16:
+			fallthrough
+		case reflect.Int32:
+			fallthrough
+		case reflect.Int64:
+			if v.Int() > 0 {
+				items.Add(key, strconv.FormatInt(v.Int(), 10))
+			}
+		case reflect.Float32:
+			fallthrough
+		case reflect.Float64:
+			if v.Float() > 0 {
+				items.Add(key, strconv.FormatFloat(v.Float(), 'f', -1, 64))
+			}
+		case reflect.String:
+			if v.String() != "" {
+				items.Add(key, v.String())
+			}
+		}
+	}
+	return items.Encode()
 }
 
 type apiClientError struct {

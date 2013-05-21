@@ -9,6 +9,11 @@ import (
 	"testing"
 )
 
+type dumb struct {
+	x int
+	y float64
+}
+
 func TestNewAPIClient(t *testing.T) {
 	endpoint := "http://localhost:4243"
 	client, err := NewAPIClient(endpoint)
@@ -171,6 +176,28 @@ func TestAPIClientError(t *testing.T) {
 	message := "API error (400): bad parameter"
 	if err.Error() != message {
 		t.Errorf("Wrong error message. Want %q. Got %q.", message, err.Error())
+	}
+}
+
+func TestAPIClientQueryString(t *testing.T) {
+	var tests = []struct {
+		input interface{}
+		want  string
+	}{
+		{&ListContainersOptions{All: true}, "all=1"},
+		{ListContainersOptions{All: true}, "all=1"},
+		{ListContainersOptions{Before: "something"}, "before=something"},
+		{ListContainersOptions{Before: "something", Since: "other"}, "before=something&since=other"},
+		{dumb{x: 10, y: 10.35000}, "x=10&y=10.35"},
+		{nil, ""},
+		{10, ""},
+		{"not_a_struct", ""},
+	}
+	for _, tt := range tests {
+		got := queryString(tt.input)
+		if got != tt.want {
+			t.Errorf("queryString(%v). Want %q. Got %q.", tt.input, tt.want, got)
+		}
 	}
 }
 
