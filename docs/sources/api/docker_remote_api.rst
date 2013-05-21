@@ -1,3 +1,7 @@
+:title: Docker Remote API
+:description: API Documentation for Docker
+:keywords: API, Docker, rcli, REST
+
 =================
 Docker Remote API
 =================
@@ -6,6 +10,10 @@ Docker Remote API
 
 1. Brief introduction
 =====================
+
+The Docker remote API exposes information about the running Docker Daemon, running and stopped containers 
+as well as manamgement commands to other applications running on the same or different hosts (though a proxy).
+
 
 - The Remote API is replacing rcli
 - Default port in the docker deamon is 4243 
