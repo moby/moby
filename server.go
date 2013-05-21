@@ -479,7 +479,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 	return imgList, nil
 }
 
-func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string) error {
+func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string, fallback_ep string) error {
 	out = utils.NewWriteFlusher(out)
 	fmt.Fprintf(out, "Processing checksums\n")
 	imgList, err := srv.getImageList(localRepo)
@@ -488,9 +488,17 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 	}
 	fmt.Fprintf(out, "Sending image list\n")
 
+	var fallback bool
 	repoData, err := srv.registry.PushImageJsonIndex(name, imgList, false)
 	if err != nil {
-		return err
+		fmt.Fprintf(out, "Error pushing repository to the index: %s\n", err);
+		if fallback_ep == "" {
+			return err
+		}
+
+		fmt.Fprintf(out, "Falling back to no tokens, endpoint %s\n", fallback_ep);
+		fallback = true
+		repoData = srv.registry.DirectRepositoryData(fallback_ep)
 	}
 
 	// FIXME: Send only needed images
@@ -513,8 +521,10 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 		}
 	}
 
-	if _, err := srv.registry.PushImageJsonIndex(name, imgList, true); err != nil {
-		return err
+	if !fallback {
+		if _, err := srv.registry.PushImageJsonIndex(name, imgList, true); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -583,10 +593,10 @@ func (srv *Server) ImagePush(name, registry string, out io.Writer) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
-		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))
+		fmt.Fprintf(out, "%s, The push refers to a repository [%s] (len: %d)\n", err, name, len(srv.runtime.repositories.Repositories[name]))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
-			if err := srv.pushRepository(out, name, localRepo); err != nil {
+			if err := srv.pushRepository(out, name, localRepo, registry); err != nil {
 				return err
 			}
 			return nil
