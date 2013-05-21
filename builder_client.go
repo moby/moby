@@ -49,7 +49,21 @@ func (b *builderClient) clearTmp(containers, images map[string]struct{}) {
 func (b *builderClient) CmdFrom(name string) error {
 	obj, statusCode, err := b.cli.call("GET", "/images/"+name+"/json", nil)
 	if statusCode == 404 {
-		if err := b.cli.hijack("POST", "/images/create?fromImage="+name, false); err != nil {
+
+		remote := name
+		var tag string
+		if strings.Contains(remote, ":") {
+			remoteParts := strings.Split(remote, ":")
+			tag = remoteParts[1]
+			remote = remoteParts[0]
+		}
+		var out io.Writer
+		if os.Getenv("DEBUG") != "" {
+			out = os.Stdout
+		} else {
+			out = &utils.NopWriter{}
+		}
+		if err := b.cli.stream("POST", "/images/create?fromImage="+remote+"&tag="+tag, nil, out); err != nil {
 			return err
 		}
 		obj, _, err = b.cli.call("GET", "/images/"+name+"/json", nil)
@@ -233,7 +247,7 @@ func (b *builderClient) commit(id string) error {
 }
 
 func (b *builderClient) Build(dockerfile io.Reader) (string, error) {
-	//	defer b.clearTmp(tmpContainers, tmpImages)
+	defer b.clearTmp(b.tmpContainers, b.tmpImages)
 	file := bufio.NewReader(dockerfile)
 	for {
 		line, err := file.ReadString('\n')

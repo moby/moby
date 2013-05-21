@@ -363,7 +363,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 
 	for _, img := range repoData.ImgList {
 		if askedTag != "" && img.Tag != askedTag {
-			utils.Debugf("%s does not match %s, skipping", img.Tag, askedTag)
+			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.Id)
 			continue
 		}
 		fmt.Fprintf(out, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
@@ -380,11 +380,10 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 			return fmt.Errorf("Could not find repository on any of the indexed registries.")
 		}
 	}
-	// If we asked for a specific tag, do not register the others
-	if askedTag != "" {
-		return nil
-	}
 	for tag, id := range tagsList {
+		if askedTag != "" && tag != askedTag {
+			continue
+		}
 		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
 			return err
 		}
