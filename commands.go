@@ -30,8 +30,8 @@ var (
 	GIT_COMMIT string
 )
 
-func ParseCommands(args ...string) error {
-	cli := NewDockerCli("0.0.0.0", 4243)
+func ParseCommands(host string, port int, args ...string) error {
+	cli := NewDockerCli(host, port)
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])

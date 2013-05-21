@@ -29,6 +29,8 @@ func main() {
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
+	port := flag.Int("port", 4243, "Port to listen/connect to")
+	host := flag.String("host", "0.0.0.0", "Host bind/connect to")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
@@ -44,12 +46,12 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flAutoRestart); err != nil {
+		if err := daemon(*pidfile, *host, *port, *flAutoRestart); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
 	} else {
-		if err := docker.ParseCommands(flag.Args()...); err != nil {
+		if err := docker.ParseCommands(*host, *port, flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -83,7 +85,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, autoRestart bool) error {
+func daemon(pidfile, host string, port int, autoRestart bool) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -103,5 +105,5 @@ func daemon(pidfile string, autoRestart bool) error {
 		return err
 	}
 
-	return docker.ListenAndServe("0.0.0.0:4243", server, true)
+	return docker.ListenAndServe(fmt.Sprintf("%s:%d", host, port), server, true)
 }
