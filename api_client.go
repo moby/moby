@@ -69,9 +69,8 @@ func queryString(opts interface{}) string {
 		return ""
 	}
 	items := url.Values(map[string][]string{})
-	typeOf := value.Type()
 	for i := 0; i < value.NumField(); i++ {
-		field := typeOf.Field(i)
+		field := value.Type().Field(i)
 		key := strings.ToLower(field.Name)
 		v := value.Field(i)
 		switch v.Kind() {
