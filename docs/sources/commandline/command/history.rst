@@ -1,6 +1,6 @@
-:title: docker history [OPTIONS] IMAGE
+:title: History Command
 :description: Show the history of an image
-:keywords: history, docker, container
+:keywords: history, docker, container, documentation
 
 ===========================================
 ``history`` -- Show the history of an image
