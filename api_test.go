@@ -14,7 +14,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 )
@@ -576,40 +575,6 @@ func TestPostCommit(t *testing.T) {
 	}
 	if _, err := runtime.graph.Get(apiId.Id); err != nil {
 		t.Fatalf("The image has not been commited")
-	}
-}
-
-func TestPostBuild(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
-
-	imgs, err := runtime.graph.All()
-	if err != nil {
-		t.Fatal(err)
-	}
-	beginCount := len(imgs)
-
-	req, err := http.NewRequest("POST", "/build", strings.NewReader(Dockerfile))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	if err := postBuild(srv, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	imgs, err = runtime.graph.All()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(imgs) != beginCount+3 {
-		t.Fatalf("Expected %d images, %d found", beginCount+3, len(imgs))
 	}
 }
 
