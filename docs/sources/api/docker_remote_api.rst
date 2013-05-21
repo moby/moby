@@ -1,5 +1,5 @@
 :title: Docker Remote API
-:description: The Remote API is replacing rcli
+:description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST
 
 =================
