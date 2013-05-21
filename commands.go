@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -640,6 +641,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	if len(strings.SplitN(name, "/", 2)) == 1 {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", out.Username, name)
+	}
+	validRepo := regexp.MustCompile(`^([a-z0-9]{4,30})/([a-z0-9-.]+)$`)
+	if !validRepo.MatchString(name) {
+		return fmt.Errorf("Invalid repository name, only alphanum, - and . are allowed")
 	}
 
 	v := url.Values{}
