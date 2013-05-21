@@ -1,6 +1,6 @@
-:title: docker images [OPTIONS] [NAME]
+:title: Images Command
 :description: List images
-:keywords: images, docker, container
+:keywords: images, docker, container, documentation
 
 =========================
 ``images`` -- List images
