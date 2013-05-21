@@ -1,3 +1,7 @@
+:title: Stop Command
+:description: Stop a running container
+:keywords: stop, container, docker, documentation
+
 ====================================
 ``stop`` -- Stop a running container
 ====================================

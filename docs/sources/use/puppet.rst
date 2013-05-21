@@ -1,3 +1,6 @@
+:title: Puppet Usage
+:description: Installating and using Puppet
+:keywords: puppet, installation, usage, docker, documentation
 
 .. _install_using_puppet:
 

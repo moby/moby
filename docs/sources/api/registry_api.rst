@@ -1,4 +1,4 @@
-:title: docker Registry documentation
+:title: Registry Documentation
 :description: Documentation for docker Registry and Registry API
 :keywords: docker, registry, api, index
 
