@@ -54,7 +54,7 @@ func (c *APIClient) getURL(path string) string {
 	return strings.TrimRight(c.endpoint, "/") + path
 }
 
-func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainers, error) {
+func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainer, error) {
 	url := c.getURL("/containers/ps") + "?" + opts.queryString()
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -68,7 +68,7 @@ func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainers
 	if resp.StatusCode != http.StatusOK {
 		return nil, newApiClientError(resp)
 	}
-	var containers []ApiContainers
+	var containers []ApiContainer
 	err = json.NewDecoder(resp.Body).Decode(&containers)
 	if err != nil {
 		return nil, err

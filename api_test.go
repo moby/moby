@@ -132,7 +132,7 @@ func TestGetImagesJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images := []ApiImages{}
+	images := []ApiImage{}
 	if err := json.Unmarshal(r.Body.Bytes(), &images); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestGetImagesJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images2 := []ApiImages{}
+	images2 := []ApiImage{}
 	if err := json.Unmarshal(r2.Body.Bytes(), &images2); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestGetImagesJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images3 := []ApiImages{}
+	images3 := []ApiImage{}
 	if err := json.Unmarshal(r3.Body.Bytes(), &images3); err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +343,7 @@ func TestGetContainersJson(t *testing.T) {
 	if err := getContainersJson(srv, API_VERSION, r, req, nil); err != nil {
 		t.Fatal(err)
 	}
-	containers := []ApiContainers{}
+	containers := []ApiContainer{}
 	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
 		t.Fatal(err)
 	}

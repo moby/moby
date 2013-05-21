@@ -786,7 +786,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			return err
 		}
 
-		var outs []ApiImages
+		var outs []ApiImage
 		err = json.Unmarshal(body, &outs)
 		if err != nil {
 			return err
@@ -864,7 +864,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 
-	var outs []ApiContainers
+	var outs []ApiContainer
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err

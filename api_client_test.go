@@ -79,7 +79,7 @@ func TestAPIClientListContainers(t *testing.T) {
              "Status": "Exit 0"
      }
 ]`
-	var expected []ApiContainers
+	var expected []ApiContainer
 	err := json.Unmarshal([]byte(jsonContainers), &expected)
 	if err != nil {
 		t.Fatal(err)
