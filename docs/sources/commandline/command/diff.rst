@@ -1,6 +1,6 @@
-:title: docker diff CONTAINER [OPTIONS]
+:title: Diff Command
 :description: Inspect changes on a container's filesystem
-:keywords: diff, docker, container
+:keywords: diff, docker, container, documentation
 
 =======================================================
 ``diff`` -- Inspect changes on a container's filesystem
