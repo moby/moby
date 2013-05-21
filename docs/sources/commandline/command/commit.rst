@@ -1,6 +1,6 @@
-:title: docker commit [OPTIONS] CONTAINER [REPOSITORY [TAG]]
+:title: Commit Command
 :description: Create a new image from a container's changes
-:keywords: commit, docker, container
+:keywords: commit, docker, container, documentation
 
 ===========================================================
 ``commit`` -- Create a new image from a container's changes
