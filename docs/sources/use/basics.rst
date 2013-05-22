@@ -1,6 +1,6 @@
-:title: Base commands
+:title: Basic Commands
 :description: Common usage and commands
-:keywords: Examples, Usage
+:keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 
 The basics

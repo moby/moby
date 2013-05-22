@@ -1,3 +1,7 @@
+:title: Kernel Requirements
+:description: Kernel supports
+:keywords: kernel requirements, kernel support, docker, installation, cgroups, namespaces
+
 .. _kernel:
 
 Kernel Requirements
