@@ -54,37 +54,37 @@ func ParseCommands(args ...string) error {
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
-	for _, cmd := range [][]string{
-		{"attach", "Attach to a running container"},
-		{"build", "Build a container from Dockerfile via stdin"},
-		{"commit", "Create a new image from a container's changes"},
-		{"diff", "Inspect changes on a container's filesystem"},
-		{"export", "Stream the contents of a container as a tar archive"},
-		{"history", "Show the history of an image"},
-		{"images", "List images"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
-		{"info", "Display system-wide information"},
-		{"insert", "Insert a file in an image"},
-		{"inspect", "Return low-level information on a container"},
-		{"kill", "Kill a running container"},
-		{"login", "Register or Login to the docker registry server"},
-		{"logs", "Fetch the logs of a container"},
-		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
-		{"ps", "List containers"},
-		{"pull", "Pull an image or a repository from the docker registry server"},
-		{"push", "Push an image or a repository to the docker registry server"},
-		{"restart", "Restart a running container"},
-		{"rm", "Remove a container"},
-		{"rmi", "Remove an image"},
-		{"run", "Run a command in a new container"},
-		{"search", "Search for an image in the docker index"},
-		{"start", "Start a stopped container"},
-		{"stop", "Stop a running container"},
-		{"tag", "Tag an image into a repository"},
-		{"version", "Show the docker version information"},
-		{"wait", "Block until a container stops, then print its exit code"},
+	for cmd, description := range map[string]string{
+		"attach":  "Attach to a running container",
+		"build":   "Build a container from Dockerfile or via stdin",
+		"commit":  "Create a new image from a container's changes",
+		"diff":    "Inspect changes on a container's filesystem",
+		"export":  "Stream the contents of a container as a tar archive",
+		"history": "Show the history of an image",
+		"images":  "List images",
+		"import":  "Create a new filesystem image from the contents of a tarball",
+		"info":    "Display system-wide information",
+		"insert":  "Insert a file in an image",
+		"inspect": "Return low-level information on a container",
+		"kill":    "Kill a running container",
+		"login":   "Register or Login to the docker registry server",
+		"logs":    "Fetch the logs of a container",
+		"port":    "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT",
+		"ps":      "List containers",
+		"pull":    "Pull an image or a repository from the docker registry server",
+		"push":    "Push an image or a repository to the docker registry server",
+		"restart": "Restart a running container",
+		"rm":      "Remove a container",
+		"rmi":     "Remove an image",
+		"run":     "Run a command in a new container",
+		"search":  "Search for an image in the docker index",
+		"start":   "Start a stopped container",
+		"stop":    "Stop a running container",
+		"tag":     "Tag an image into a repository",
+		"version": "Show the docker version information",
+		"wait":    "Block until a container stops, then print its exit code",
 	} {
-		help += fmt.Sprintf("    %-10.10s%s\n", cmd[0], cmd[1])
+		help += fmt.Sprintf("    %-10.10s%s\n", cmd, description)
 	}
 	fmt.Println(help)
 	return nil
@@ -112,13 +112,29 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "-", "Build an image from Dockerfile via stdin")
+	cmd := Subcmd("build", "-|Dockerfile", "Build an image from Dockerfile or via stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	var (
+		file io.ReadCloser
+		err  error
+	)
 
-	err := cli.stream("POST", "/build", os.Stdin, os.Stdout)
-	if err != nil {
+	if cmd.NArg() == 0 {
+		file, err = os.Open("Dockerfile")
+		if err != nil {
+			return err
+		}
+	} else if cmd.Arg(0) == "-" {
+		file = os.Stdin
+	} else {
+		file, err = os.Open(cmd.Arg(0))
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file); err != nil {
 		return err
 	}
 	return nil
