@@ -1,6 +1,7 @@
 :title: Using Vagrant (Mac, Linux)
 :description: This guide will setup a new virtualbox virtual machine with docker installed on your computer.
 :keywords: Docker, Docker documentation, virtualbox, vagrant, git, ssh, putty, cygwin
+
 .. _install_using_vagrant:
 
 Using Vagrant (Mac, Linux)
