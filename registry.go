@@ -372,7 +372,7 @@ func (graph *Graph) LookupRemoteRepository(remote string, authConfig *auth.AuthC
 
 // FIXME: this should really be PushTag
 func (graph *Graph) pushPrimitive(stdout io.Writer, remote, tag, imgId string, authConfig *auth.AuthConfig) error {
-	// Check if the local impage exists
+	// Check if the local image exists
 	img, err := graph.Get(imgId)
 	if err != nil {
 		fmt.Fprintf(stdout, "Skipping tag %s:%s: %s does not exist\n", remote, tag, imgId)
