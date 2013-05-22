@@ -33,6 +33,19 @@ Running an interactive shell
   # allocate a tty, attach stdin and stdout
   docker run -i -t base /bin/bash
 
+Bind Docker to another host/port
+--------------------------------
+
+If you want Docker to listen to another port and bind to another ip
+use -host and -port on both deamon and client
+
+.. code-block:: bash
+
+   # Run docker in daemon mode
+   sudo <path to>/docker -host 127.0.0.1 -port 5555 &
+   # Download a base image
+   docker -port 5555 pull base
+
 
 Starting a long-running worker process
 --------------------------------------
