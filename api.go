@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
-	"github.com/shin-/cookiejar"
 	"io"
 	"log"
 	"net/http"
@@ -34,6 +34,8 @@ func parseForm(r *http.Request) error {
 func httpError(w http.ResponseWriter, err error) {
 	if strings.HasPrefix(err.Error(), "No such") {
 		http.Error(w, err.Error(), http.StatusNotFound)
+	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -44,12 +46,18 @@ func writeJson(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
-func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	config := &auth.AuthConfig{
-		Username: srv.runtime.authConfig.Username,
-		Email:    srv.runtime.authConfig.Email,
+func getBoolParam(value string) (bool, error) {
+	if value == "1" || strings.ToLower(value) == "true" {
+		return true, nil
 	}
-	b, err := json.Marshal(config)
+	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+		return false, nil
+	}
+	return false, fmt.Errorf("Bad parameter")
+}
+
+func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	b, err := json.Marshal(srv.registry.GetAuthConfig())
 	if err != nil {
 		return err
 	}
@@ -63,18 +71,17 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 		return err
 	}
 
-	if config.Username == srv.runtime.authConfig.Username {
-		config.Password = srv.runtime.authConfig.Password
+	if config.Username == srv.registry.GetAuthConfig().Username {
+		config.Password = srv.registry.GetAuthConfig().Password
 	}
 
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
 	status, err := auth.Login(newAuthConfig)
 	if err != nil {
 		return err
-	} else {
-		srv.runtime.graph.getHttpClient().Jar = cookiejar.NewCookieJar()
-		srv.runtime.authConfig = newAuthConfig
 	}
+	srv.registry.ResetClient(newAuthConfig)
+
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {
@@ -116,8 +123,8 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		Debugf("%s", err.Error())
-		//return nil, err
+		utils.Debugf("%s", err.Error())
+		return err
 	}
 	return nil
 }
@@ -127,11 +134,13 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 		return err
 	}
 
-	all := r.Form.Get("all") == "1"
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
 	filter := r.Form.Get("filter")
-	only_ids := r.Form.Get("only_ids") == "1"
 
-	outs, err := srv.Images(all, only_ids, filter)
+	outs, err := srv.Images(all, filter)
 	if err != nil {
 		return err
 	}
@@ -198,9 +207,10 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	all := r.Form.Get("all") == "1"
-	trunc_cmd := r.Form.Get("trunc_cmd") != "0"
-	only_ids := r.Form.Get("only_ids") == "1"
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -208,7 +218,7 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 		n = -1
 	}
 
-	outs := srv.Containers(all, trunc_cmd, only_ids, n, since, before)
+	outs := srv.Containers(all, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err
@@ -227,7 +237,10 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	force := r.Form.Get("force") == "1"
+	force, err := getBoolParam(r.Form.Get("force"))
+	if err != nil {
+		return err
+	}
 
 	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
 		return err
@@ -242,7 +255,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		Debugf("%s", err.Error())
+		utils.Debugf("%s", err.Error())
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -270,23 +283,17 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 
 	src := r.Form.Get("fromSrc")
 	image := r.Form.Get("fromImage")
-	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
+	repo := r.Form.Get("repo")
 
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if err := srv.ImagePull(image, tag, registry, out); err != nil {
-			fmt.Fprintf(out, "Error: %s\n", err)
+		if err := srv.ImagePull(image, tag, registry, w); err != nil {
+			return err
 		}
 	} else { //import
-		if err := srv.ImageImport(src, repo, tag, in, out); err != nil {
-			fmt.Fprintf(out, "Error: %s\n", err)
+		if err := srv.ImageImport(src, repo, tag, r.Body, w); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -322,14 +329,8 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	}
 	name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
+	if err := srv.ImageInsert(name, url, path, w); err != nil {
 		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImageInsert(name, url, path, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -338,7 +339,6 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	if err := parseForm(r); err != nil {
 		return err
 	}
-
 	registry := r.Form.Get("registry")
 
 	if vars == nil {
@@ -346,27 +346,8 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	}
 	name := vars["name"]
 
-	in, out, err := hijackServer(w)
-	if err != nil {
+	if err := srv.ImagePush(name, registry, w); err != nil {
 		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImagePush(name, registry, out); err != nil {
-		fmt.Fprintln(out, "Error: %s\n", err)
-	}
-	return nil
-}
-
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	in, out, err := hijackServer(w)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ImageCreateFromFile(in, out); err != nil {
-		fmt.Fprintln(out, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -428,7 +409,10 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	removeVolume := r.Form.Get("v") == "1"
+	removeVolume, err := getBoolParam(r.Form.Get("v"))
+	if err != nil {
+		return err
+	}
 
 	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
 		return err
@@ -503,11 +487,27 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, v
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	logs := r.Form.Get("logs") == "1"
-	stream := r.Form.Get("stream") == "1"
-	stdin := r.Form.Get("stdin") == "1"
-	stdout := r.Form.Get("stdout") == "1"
-	stderr := r.Form.Get("stderr") == "1"
+	logs, err := getBoolParam(r.Form.Get("logs"))
+	if err != nil {
+		return err
+	}
+	stream, err := getBoolParam(r.Form.Get("stream"))
+	if err != nil {
+		return err
+	}
+	stdin, err := getBoolParam(r.Form.Get("stdin"))
+	if err != nil {
+		return err
+	}
+	stdout, err := getBoolParam(r.Form.Get("stdout"))
+	if err != nil {
+		return err
+	}
+	stderr, err := getBoolParam(r.Form.Get("stderr"))
+	if err != nil {
+		return err
+	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -562,6 +562,29 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
+func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	apiConfig := &ApiImageConfig{}
+	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
+		return err
+	}
+
+	image, err := srv.ImageGetCached(apiConfig.Id, apiConfig.Config)
+	if err != nil {
+		return err
+	}
+	if image == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+	apiId := &ApiId{Id: image.Id}
+	b, err := json.Marshal(apiId)
+	if err != nil {
+		return err
+	}
+	writeJson(w, b)
+	return nil
+}
+
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
@@ -584,11 +607,11 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 		"POST": {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
-			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
+			"/images/getCache":              postImagesGetCache,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,
@@ -605,20 +628,20 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			Debugf("Registering %s, %s", method, route)
+			utils.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localMethod := method
 			localFct := fct
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				Debugf("Calling %s %s", localMethod, localRoute)
+				utils.Debugf("Calling %s %s", localMethod, localRoute)
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
 				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 					if len(userAgent) == 2 && userAgent[1] != VERSION {
-						Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
+						utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
 				if err := localFct(srv, w, r, mux.Vars(r)); err != nil {

@@ -68,3 +68,8 @@ type ApiWait struct {
 type ApiAuth struct {
 	Status string
 }
+
+type ApiImageConfig struct {
+	Id string
+	*Config
+}

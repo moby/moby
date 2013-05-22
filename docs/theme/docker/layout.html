@@ -66,7 +66,7 @@
                 <ul class="nav">
                     <li><a href="http://www.docker.io/">Introduction</a></li>
                     <li><a href="http://www.docker.io/gettingstarted/">Getting started</a></li>
-                    <li class="active"><a href="{{ pathto('concepts/containers/', 1) }}">Documentation</a></li>
+                    <li class="active"><a href="http://docs.docker.io/en/latest/">Documentation</a></li>
                 </ul>
                 <div class="social links" style="float: right; margin-top: 14px; margin-left: 12px">
                     <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
@@ -155,69 +155,87 @@
 
 
   <!-- script which should be loaded after everything else -->
-  <script type="text/javascript">
+<script type="text/javascript">
 
 
-      var shiftWindow = function() {
-          scrollBy(0, -70);
-          console.log("window shifted")
-      };
-      window.addEventListener("hashchange", shiftWindow);
+    var shiftWindow = function() {
+        scrollBy(0, -70);
+        console.log("window shifted")
+    };
+    window.addEventListener("hashchange", shiftWindow);
 
-      function loadShift() {
-          if (window.location.hash) {
-              console.log("window has hash");
+    function loadShift() {
+        if (window.location.hash) {
+            console.log("window has hash");
             shiftWindow();
-          }
-      }
+        }
+    }
 
-      $(window).load(function() {
-          loadShift();
-          console.log("late loadshift");
-      });
+    $(window).load(function() {
+        loadShift();
+        console.log("late loadshift");
+    });
 
-      $(function(){
+    $(function(){
 
-          // sidebar accordian-ing
-          // don't apply on last object (it should be the FAQ)
+        // sidebar accordian-ing
+        // don't apply on last object (it should be the FAQ)
 
-          var elements = $('.toctree-l2');
-          for (var i = 0; i < elements.length; i += 1) { var current = $(elements[i]); console.log(current); current.children('ul').hide();}
+        // define an array to which all opened items should be added
+        var openmenus = [];
+
+        var elements = $('.toctree-l2');
+        for (var i = 0; i < elements.length; i += 1) { var current = $(elements[i]); current.children('ul').hide();}
 
 
-          // set initial collapsed state
-          var elements = $('.toctree-l1');
-          for (var i = 0; i < elements.length; i += 1) {
-              var current = $(elements[i]);
-              if (current.hasClass('current')) {
-                  // do nothing
-              } else {
-                  // collapse children
-                  current.children('ul').hide();
-              }
-          }
+        // set initial collapsed state
+        var elements = $('.toctree-l1');
+        for (var i = 0; i < elements.length; i += 1) {
+            var current = $(elements[i]);
+            if (current.hasClass('current')) {
 
-          // attached handler on click
-          $('.sidebar > ul > li > a').not(':last').click(function(){
-              if ($(this).parent().hasClass('current')) {
-                  $(this).parent().children('ul').slideUp(200, function() {
-                      $(this).parent().removeClass('current'); // toggle after effect
-                  });
-              } else {
-                  //$('.sidebar > ul > li > ul').slideUp(100);
-                  var current = $(this);
-                  setTimeout(function() {
-                      $('.sidebar > ul > li').removeClass('current');
-                      current.parent().addClass('current'); // toggle before effect
-                      current.parent().children('ul').hide();
-                      current.parent().children('ul').slideDown(200);
-                  }, 100);
-              }
-              return false;
-          });
+                currentlink = current.children('a')[0].href;
+                openmenus.push(currentlink);
 
-      });
-  </script>
+                // do nothing
+            } else {
+                // collapse children
+                current.children('ul').hide();
+            }
+        }
+
+        // attached handler on click
+        $('.sidebar > ul > li > a').not(':last').click(function(){
+
+            var index = $.inArray(this.href, openmenus)
+
+            if (index > -1) {
+                console.log(index);
+                openmenus.splice(index, 1);
+
+
+                $(this).parent().children('ul').slideUp(200, function() {
+                    // $(this).parent().removeClass('current'); // toggle after effect
+                });
+            }
+            else {
+                openmenus.push(this.href);
+                console.log(this);
+
+                var current = $(this);
+
+                setTimeout(function() {
+                    $('.sidebar > ul > li').removeClass('current');
+                    current.parent().addClass('current'); // toggle before effect
+                    current.parent().children('ul').hide();
+                    current.parent().children('ul').slideDown(200);
+                }, 100);
+            }
+            return false;
+        });
+
+    });
+</script>
 
     <!-- Google analytics -->
     <script type="text/javascript">

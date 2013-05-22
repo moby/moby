@@ -16,6 +16,7 @@ Full -run example::
 
     {"Hostname": "",
      "User": "",
+     "CpuShares": 0,
      "Memory": 0,
      "MemorySwap": 0,
      "PortSpecs": ["22", "80", "443"],

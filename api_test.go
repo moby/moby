@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
 	"net/http"
@@ -23,7 +25,10 @@ func TestGetAuth(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
 	r := httptest.NewRecorder()
 
@@ -46,13 +51,14 @@ func TestGetAuth(t *testing.T) {
 	if err := postAuth(srv, r, req, nil); err != nil {
 		t.Fatal(err)
 	}
+
 	if r.Code != http.StatusOK && r.Code != 0 {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	if runtime.authConfig.Username != authConfig.Username ||
-		runtime.authConfig.Password != authConfig.Password ||
-		runtime.authConfig.Email != authConfig.Email {
+	newAuthConfig := srv.registry.GetAuthConfig()
+	if newAuthConfig.Username != authConfig.Username ||
+		newAuthConfig.Email != authConfig.Email {
 		t.Fatalf("The auth configuration hasn't been set correctly")
 	}
 }
@@ -115,8 +121,8 @@ func TestGetImagesJson(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	// only_ids=0&all=0
-	req, err := http.NewRequest("GET", "/images/json?only_ids=0&all=0", nil)
+	// all=0
+	req, err := http.NewRequest("GET", "/images/json?all=0", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,8 +148,8 @@ func TestGetImagesJson(t *testing.T) {
 
 	r2 := httptest.NewRecorder()
 
-	// only_ids=1&all=1
-	req2, err := http.NewRequest("GET", "/images/json?only_ids=1&all=1", nil)
+	// all=1
+	req2, err := http.NewRequest("GET", "/images/json?all=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,12 +167,8 @@ func TestGetImagesJson(t *testing.T) {
 		t.Errorf("Excepted 1 image, %d found", len(images2))
 	}
 
-	if images2[0].Repository != "" {
-		t.Errorf("Excepted no image Repository, %s found", images2[0].Repository)
-	}
-
-	if images2[0].Id != GetTestImage(runtime).ShortId() {
-		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).ShortId(), images2[0].Id)
+	if images2[0].Id != GetTestImage(runtime).Id {
+		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).Id, images2[0].Id)
 	}
 
 	r3 := httptest.NewRecorder()
@@ -188,6 +190,24 @@ func TestGetImagesJson(t *testing.T) {
 
 	if len(images3) != 0 {
 		t.Errorf("Excepted 1 image, %d found", len(images3))
+	}
+
+	r4 := httptest.NewRecorder()
+
+	// all=foobar
+	req4, err := http.NewRequest("GET", "/images/json?all=foobar", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = getImagesJson(srv, r4, req4, nil)
+	if err == nil {
+		t.Fatalf("Error expected, received none")
+	}
+
+	httpError(r4, err)
+	if r4.Code != http.StatusBadRequest {
+		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
 	}
 }
 
@@ -226,7 +246,10 @@ func TestGetImagesSearch(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
 	r := httptest.NewRecorder()
 
@@ -329,8 +352,8 @@ func TestGetContainersPs(t *testing.T) {
 	if len(containers) != 1 {
 		t.Fatalf("Excepted %d container, %d found", 1, len(containers))
 	}
-	if containers[0].Id != container.ShortId() {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ShortId(), containers[0].Id)
+	if containers[0].Id != container.Id {
+		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.Id, containers[0].Id)
 	}
 }
 
@@ -480,13 +503,16 @@ func TestPostAuth(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &Server{
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
+	}
 
 	authConfigOrig := &auth.AuthConfig{
 		Username: "utest",
 		Email:    "utest@yopmail.com",
 	}
-	runtime.authConfig = authConfigOrig
+	srv.registry.ResetClient(authConfigOrig)
 
 	r := httptest.NewRecorder()
 	if err := getAuth(srv, r, nil, nil); err != nil {
@@ -550,56 +576,6 @@ func TestPostCommit(t *testing.T) {
 	if _, err := runtime.graph.Get(apiId.Id); err != nil {
 		t.Fatalf("The image has not been commited")
 	}
-}
-
-func TestPostBuild(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
-
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-
-	c1 := make(chan struct{})
-	go func() {
-		defer close(c1)
-		r := &hijackTester{
-			ResponseRecorder: httptest.NewRecorder(),
-			in:               stdin,
-			out:              stdoutPipe,
-		}
-
-		if err := postBuild(srv, r, nil, nil); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	// Acknowledge hijack
-	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-		stdout.Read([]byte{})
-		stdout.Read(make([]byte, 4096))
-	})
-
-	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("from docker-ut\n", "FROM docker-ut", stdout, stdinPipe, 15); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Close pipes (client disconnects)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-
-	// Wait for build to finish, the client disconnected, therefore, Build finished his job
-	setTimeout(t, "Waiting for CmdBuild timed out", 2*time.Second, func() {
-		<-c1
-	})
-
 }
 
 func TestPostImagesCreate(t *testing.T) {
@@ -668,10 +644,82 @@ func TestPostImagesCreate(t *testing.T) {
 	// })
 }
 
-// func TestPostImagesInsert(t *testing.T) {
-// 	//FIXME: Implement this test (or remove this endpoint)
-// 	t.Log("Test not implemented")
-// }
+func TestPostImagesInsert(t *testing.T) {
+	// runtime, err := newTestRuntime()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// defer nuke(runtime)
+
+	// srv := &Server{runtime: runtime}
+
+	// stdin, stdinPipe := io.Pipe()
+	// stdout, stdoutPipe := io.Pipe()
+
+	// // Attach to it
+	// c1 := make(chan struct{})
+	// go func() {
+	// 	defer close(c1)
+	// 	r := &hijackTester{
+	// 		ResponseRecorder: httptest.NewRecorder(),
+	// 		in:               stdin,
+	// 		out:              stdoutPipe,
+	// 	}
+
+	// 	req, err := http.NewRequest("POST", "/images/"+unitTestImageName+"/insert?path=%2Ftest&url=https%3A%2F%2Fraw.github.com%2Fdotcloud%2Fdocker%2Fmaster%2FREADME.md", bytes.NewReader([]byte{}))
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	if err := postContainersCreate(srv, r, req, nil); err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// }()
+
+	// // Acknowledge hijack
+	// setTimeout(t, "hijack acknowledge timed out", 5*time.Second, func() {
+	// 	stdout.Read([]byte{})
+	// 	stdout.Read(make([]byte, 4096))
+	// })
+
+	// id := ""
+	// setTimeout(t, "Waiting for imagesInsert output", 10*time.Second, func() {
+	// 	for {
+	// 		reader := bufio.NewReader(stdout)
+	// 		id, err = reader.ReadString('\n')
+	// 		if err != nil {
+	// 			t.Fatal(err)
+	// 		}
+	// 	}
+	// })
+
+	// // Close pipes (client disconnects)
+	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// // Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	// setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+	// 	<-c1
+	// })
+
+	// img, err := srv.runtime.repositories.LookupImage(id)
+	// if err != nil {
+	// 	t.Fatalf("New image %s expected but not found", id)
+	// }
+
+	// layer, err := img.layer()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// if _, err := os.Stat(path.Join(layer, "test")); err != nil {
+	// 	t.Fatalf("The test file has not been found")
+	// }
+
+	// if err := srv.runtime.graph.Delete(img.Id); err != nil {
+	// 	t.Fatal(err)
+	// }
+}
 
 func TestPostImagesPush(t *testing.T) {
 	//FIXME: Use staging in order to perform tests
@@ -815,7 +863,7 @@ func TestPostContainersCreate(t *testing.T) {
 
 	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err != nil {
 		if os.IsNotExist(err) {
-			Debugf("Err: %s", err)
+			utils.Debugf("Err: %s", err)
 			t.Fatalf("The test file has not been created")
 		}
 		t.Fatal(err)

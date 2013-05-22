@@ -2,12 +2,14 @@ package docker
 
 import (
 	"bytes"
+	"github.com/dotcloud/docker/utils"
 	"strconv"
 	"strings"
 	"syscall"
 )
 
-func getKernelVersion() (*KernelVersionInfo, error) {
+// FIXME: Move this to utils package
+func getKernelVersion() (*utils.KernelVersionInfo, error) {
 	var (
 		uts                  syscall.Utsname
 		flavor               string
@@ -60,7 +62,7 @@ func getKernelVersion() (*KernelVersionInfo, error) {
 		flavor = ""
 	}
 
-	return &KernelVersionInfo{
+	return &utils.KernelVersionInfo{
 		Kernel: kernel,
 		Major:  major,
 		Minor:  minor,

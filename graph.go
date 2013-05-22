@@ -3,9 +3,10 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,8 +18,7 @@ import (
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
 	Root         string
-	idIndex      *TruncIndex
-	httpClient   *http.Client
+	idIndex      *utils.TruncIndex
 	checksumLock map[string]*sync.Mutex
 	lockSumFile  *sync.Mutex
 	lockSumMap   *sync.Mutex
@@ -37,7 +37,7 @@ func NewGraph(root string) (*Graph, error) {
 	}
 	graph := &Graph{
 		Root:         abspath,
-		idIndex:      NewTruncIndex(),
+		idIndex:      utils.NewTruncIndex(),
 		checksumLock: make(map[string]*sync.Mutex),
 		lockSumFile:  &sync.Mutex{},
 		lockSumMap:   &sync.Mutex{},
@@ -122,7 +122,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Container = container.Id
 		img.ContainerConfig = *container.Config
 	}
-	if err := graph.Register(layerData, true, img); err != nil {
+	if err := graph.Register(layerData, layerData != nil, img); err != nil {
 		return nil, err
 	}
 	go img.Checksum()
@@ -174,7 +174,7 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)"), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
@@ -332,4 +332,18 @@ func (graph *Graph) storeChecksums(checksums map[string]string) error {
 		return err
 	}
 	return nil
+}
+
+func (graph *Graph) UpdateChecksums(newChecksums map[string]*registry.ImgData) error {
+	graph.lockSumFile.Lock()
+	defer graph.lockSumFile.Unlock()
+
+	localChecksums, err := graph.getStoredChecksums()
+	if err != nil {
+		return err
+	}
+	for id, elem := range newChecksums {
+		localChecksums[id] = elem.Checksum
+	}
+	return graph.storeChecksums(localChecksums)
 }
