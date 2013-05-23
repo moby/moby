@@ -292,17 +292,15 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 }
 
 func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []string) error {
-	out = utils.NewWriteFlusher(out)
 	history, err := srv.registry.GetRemoteHistory(imgId, registry, token)
 	if err != nil {
 		return err
 	}
-
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
-			fmt.Fprintf(out, "Pulling %s metadata\r\n", id)
+			fmt.Fprintf(out, "{\"status\" :\"Pulling %s metadata\"}", id)
 			imgJson, err := srv.registry.GetRemoteImageJson(id, registry, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
@@ -314,12 +312,12 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 			}
 
 			// Get the layer
-			fmt.Fprintf(out, "Pulling %s fs layer\r\n", img.Id)
+			fmt.Fprintf(out, "{\"status\" :\"Pulling %s fs layer\"}", img.Id)
 			layer, contentLength, err := srv.registry.GetRemoteImageLayer(img.Id, registry, token)
 			if err != nil {
 				return err
 			}
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, "Downloading %v/%v (%v)"), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, ""), false, img); err != nil {
 				return err
 			}
 		}
@@ -328,8 +326,7 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 }
 
 func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error {
-	out = utils.NewWriteFlusher(out)
-	fmt.Fprintf(out, "Pulling repository %s from %s\r\n", remote, auth.IndexServerAddress())
+	fmt.Fprintf(out, "{\"status\":\"Pulling repository %s from %s\"}", remote, auth.IndexServerAddress())
 	repoData, err := srv.registry.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -366,7 +363,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.Id)
 			continue
 		}
-		fmt.Fprintf(out, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
+		fmt.Fprintf(out, "{\"status\":\"Pulling image %s (%s) from %s\"}", img.Id, img.Tag, remote)
 		success := false
 		for _, ep := range repoData.Endpoints {
 			if err := srv.pullImage(out, img.Id, "https://"+ep+"/v1", repoData.Tokens); err != nil {
@@ -396,6 +393,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 }
 
 func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
+	out = utils.NewWriteFlusher(out)
 	if registry != "" {
 		if err := srv.pullImage(out, name, registry, nil); err != nil {
 			return err
@@ -406,7 +404,6 @@ func (srv *Server) ImagePull(name, tag, registry string, out io.Writer) error {
 	if err := srv.pullRepository(out, name, tag); err != nil {
 		return err
 	}
-
 	return nil
 }
 

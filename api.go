@@ -288,6 +288,7 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
+		w.Header().Set("Content-Type", "application/json")
 		if err := srv.ImagePull(image, tag, registry, w); err != nil {
 			return err
 		}
