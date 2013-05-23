@@ -49,10 +49,10 @@ func CompareConfig(a, b *Config) bool {
 }
 
 func MergeConfig(userConf, imageConf *Config) {
-	if userConf.Hostname != "" {
+	if userConf.Hostname == "" {
 		userConf.Hostname = imageConf.Hostname
 	}
-	if userConf.User != "" {
+	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
 	if userConf.Memory == 0 {
