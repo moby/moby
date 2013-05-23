@@ -133,19 +133,18 @@ func HumanDuration(d time.Duration) string {
 }
 
 // HumanSize returns a human-readable approximation of a size
-// (eg. "44kB", "17MB")
+// using SI standard (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
 	i := 0
 	var sizef float64
 	sizef = float64(size)
 	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
-	for sizef > 1024.0 {
-		sizef = sizef / 1024.0
+	for sizef >= 1000.0 {
+		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%.*f %s", i, sizef, units[i])
+	return fmt.Sprintf("%.4g %s", sizef, units[i])
 }
-
 
 func Trunc(s string, maxlen int) string {
 	if len(s) <= maxlen {
