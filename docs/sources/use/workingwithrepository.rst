@@ -1,3 +1,7 @@
+:title: Working With Repositories
+:description: Generally, there are two types of repositories: Top-level repositories which are controlled by the people behind Docker, and user repositories.
+:keywords: repo, repositiores, usage, pull image, push image, image, documentation
+
 .. _working_with_the_repository:
 
 Working with the repository

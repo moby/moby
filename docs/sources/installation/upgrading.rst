@@ -1,3 +1,7 @@
+:title: Upgrading
+:description: These instructions are for upgrading Docker
+:keywords: Docker, Docker documentation, upgrading docker, upgrade
+
 .. _upgrading:
 
 Upgrading

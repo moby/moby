@@ -1,3 +1,7 @@
+:title: FAQ
+:description: Most frequently asked questions.
+:keywords: faq, questions, documentation, docker
+
 FAQ
 ===
 

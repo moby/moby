@@ -1,3 +1,7 @@
+:title: Remote API
+:description: API Documentation for Docker
+:keywords: API, Docker, rcli, REST, documentation
+
 =================
 Docker Remote API
 =================

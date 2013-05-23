@@ -1,3 +1,7 @@
+:title: Rmi Command
+:description: Remove an image
+:keywords: rmi, remove, image, docker, documentation
+
 ==========================
 ``rmi`` -- Remove an image
 ==========================
