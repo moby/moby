@@ -2,7 +2,8 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/rcli"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -49,7 +50,7 @@ func layerArchive(tarfile string) (io.Reader, error) {
 
 func init() {
 	// Hack to run sys init during unit testing
-	if SelfPath() == "/sbin/init" {
+	if utils.SelfPath() == "/sbin/init" {
 		SysInit()
 		return
 	}
@@ -67,12 +68,14 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
 	// Create the "Server"
 	srv := &Server{
-		runtime: runtime,
+		runtime:  runtime,
+		registry: registry.NewRegistry(runtime.root),
 	}
 	// Retrieve the Image
-	if err := srv.CmdPull(os.Stdin, rcli.NewDockerLocalConn(os.Stdout), unitTestImageName); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {
 		panic(err)
 	}
 }
@@ -118,7 +121,10 @@ func TestRuntimeCreate(t *testing.T) {
 	if len(runtime.List()) != 0 {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
-	container, err := runtime.Create(&Config{
+
+	builder := NewBuilder(runtime)
+
+	container, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -157,6 +163,26 @@ func TestRuntimeCreate(t *testing.T) {
 	if !runtime.Exists(container.Id) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
+
+	// Make sure crete with bad parameters returns an error
+	_, err = builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when Cmd is missing")
+	}
+
+	_, err = builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{},
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when Cmd is empty")
+	}
 }
 
 func TestDestroy(t *testing.T) {
@@ -165,7 +191,7 @@ func TestDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -212,7 +238,10 @@ func TestGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer nuke(runtime)
-	container1, err := runtime.Create(&Config{
+
+	builder := NewBuilder(runtime)
+
+	container1, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -222,7 +251,7 @@ func TestGet(t *testing.T) {
 	}
 	defer runtime.Destroy(container1)
 
-	container2, err := runtime.Create(&Config{
+	container2, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -232,7 +261,7 @@ func TestGet(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	container3, err := runtime.Create(&Config{
+	container3, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -262,7 +291,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, err := runtime.Create(&Config{
+	container, err := NewBuilder(runtime).Create(&Config{
 		Image:     GetTestImage(runtime).Id,
 		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p 5555"},
 		PortSpecs: []string{"5555"},
@@ -325,8 +354,10 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	builder := NewBuilder(runtime1)
+
 	// Create a container with one instance of docker
-	container1, err := runtime1.Create(&Config{
+	container1, err := builder.Create(&Config{
 		Image: GetTestImage(runtime1).Id,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -337,7 +368,7 @@ func TestRestore(t *testing.T) {
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, err := runtime1.Create(&Config{
+	container2, err := builder.Create(&Config{
 		Image:     GetTestImage(runtime1).Id,
 		Cmd:       []string{"/bin/cat"},
 		OpenStdin: true,

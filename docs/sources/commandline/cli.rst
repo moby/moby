@@ -4,7 +4,7 @@
 
 .. _cli:
 
-Command Line Interface
+Overview
 ======================
 
 Docker Usage
@@ -24,9 +24,10 @@ Available Commands
 ~~~~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    command/attach
+   command/build
    command/commit
    command/diff
    command/export
@@ -46,6 +47,7 @@ Available Commands
    command/rm
    command/rmi
    command/run
+   command/search
    command/start
    command/stop
    command/tag

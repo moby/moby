@@ -1,3 +1,7 @@
+:title: Installation from Binaries
+:description: This instruction set is meant for hackers who want to try out Docker on a variety of environments.
+:keywords: binaries, installation, docker, documentation, linux
+
 .. _binaries:
 
 Binaries
@@ -5,48 +9,58 @@ Binaries
 
   **Please note this project is currently under heavy development. It should not be used in production.**
 
+**This instruction set is meant for hackers who want to try out Docker on a variety of environments.**
 
 Right now, the officially supported distributions are:
 
-- Ubuntu 12.04 (precise LTS) (64-bit)
-- Ubuntu 12.10 (quantal) (64-bit)
+- :ref:`ubuntu_precise`
+- :ref:`ubuntu_raring`
 
 
-Install dependencies:
----------------------
+But we know people have had success running it under
 
-::
+- Debian
+- Suse
+- :ref:`arch_linux`
 
-    sudo apt-get install lxc bsdtar
-    sudo apt-get install linux-image-extra-`uname -r`
 
-The linux-image-extra package is needed on standard Ubuntu EC2 AMIs in order to install the aufs kernel module.
+Dependencies:
+-------------
 
-Install the docker binary:
+* 3.8 Kernel
+* AUFS filesystem support
+* lxc
+* bsdtar
 
-::
+
+Get the docker binary:
+----------------------
+
+.. code-block:: bash
 
     wget http://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
     tar -xf docker-latest.tgz
-    sudo cp ./docker-latest/docker /usr/local/bin
-
-Note: docker currently only supports 64-bit Linux hosts.
 
 
 Run the docker daemon
 ---------------------
 
-::
+.. code-block:: bash
 
-    sudo docker -d &
+    # start the docker in daemon mode from the directory you unpacked
+    sudo ./docker -d &
 
 
 Run your first container!
 -------------------------
 
-::
+.. code-block:: bash
 
-    docker run -i -t ubuntu /bin/bash
+    # check your docker version
+    ./docker version
+
+    # run a container and open an interactive shell in the container
+    ./docker run -i -t ubuntu /bin/bash
 
 
 

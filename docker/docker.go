@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/rcli"
-	"github.com/dotcloud/docker/term"
-	"io"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,7 +18,7 @@ var (
 )
 
 func main() {
-	if docker.SelfPath() == "/sbin/init" {
+	if utils.SelfPath() == "/sbin/init" {
 		// Running in init mode
 		docker.SysInit()
 		return
@@ -48,10 +46,12 @@ func main() {
 		}
 		if err := daemon(*pidfile, *flAutoRestart); err != nil {
 			log.Fatal(err)
+			os.Exit(-1)
 		}
 	} else {
-		if err := runCommand(flag.Args()); err != nil {
+		if err := docker.ParseCommands(flag.Args()...); err != nil {
 			log.Fatal(err)
+			os.Exit(-1)
 		}
 	}
 }
@@ -98,50 +98,10 @@ func daemon(pidfile string, autoRestart bool) error {
 		os.Exit(0)
 	}()
 
-	service, err := docker.NewServer(autoRestart)
+	server, err := docker.NewServer(autoRestart)
 	if err != nil {
 		return err
 	}
-	return rcli.ListenAndServe("tcp", "127.0.0.1:4242", service)
-}
 
-func runCommand(args []string) error {
-	// FIXME: we want to use unix sockets here, but net.UnixConn doesn't expose
-	// CloseWrite(), which we need to cleanly signal that stdin is closed without
-	// closing the connection.
-	// See http://code.google.com/p/go/issues/detail?id=3345
-	if conn, err := rcli.Call("tcp", "127.0.0.1:4242", args...); err == nil {
-		options := conn.GetOptions()
-		if options.RawTerminal &&
-			term.IsTerminal(int(os.Stdin.Fd())) &&
-			os.Getenv("NORAW") == "" {
-			if oldState, err := rcli.SetRawTerminal(); err != nil {
-				return err
-			} else {
-				defer rcli.RestoreTerminal(oldState)
-			}
-		}
-		receiveStdout := docker.Go(func() error {
-			_, err := io.Copy(os.Stdout, conn)
-			return err
-		})
-		sendStdin := docker.Go(func() error {
-			_, err := io.Copy(conn, os.Stdin)
-			if err := conn.CloseWrite(); err != nil {
-				log.Printf("Couldn't send EOF: " + err.Error())
-			}
-			return err
-		})
-		if err := <-receiveStdout; err != nil {
-			return err
-		}
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			if err := <-sendStdin; err != nil {
-				return err
-			}
-		}
-	} else {
-		return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
-	}
-	return nil
+	return docker.ListenAndServe("0.0.0.0:4243", server, true)
 }

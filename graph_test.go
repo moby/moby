@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -37,7 +38,7 @@ func TestInterruptedRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	go graph.Register(badArchive, image)
+	go graph.Register(badArchive, false, image)
 	time.Sleep(200 * time.Millisecond)
 	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
 	if _, err := graph.Get(image.Id); err == nil {
@@ -48,7 +49,7 @@ func TestInterruptedRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := graph.Register(goodArchive, image); err != nil {
+	if err := graph.Register(goodArchive, false, image); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -94,7 +95,7 @@ func TestRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	err = graph.Register(archive, image)
+	err = graph.Register(archive, false, image)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +156,7 @@ func TestDeletePrefix(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
 	img := createTestImage(graph, t)
-	if err := graph.Delete(TruncateId(img.Id)); err != nil {
+	if err := graph.Delete(utils.TruncateId(img.Id)); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
@@ -212,7 +213,7 @@ func TestDelete(t *testing.T) {
 	assertNImages(graph, t, 1)
 
 	// Test delete twice (pull -> rm -> pull -> rm)
-	if err := graph.Register(archive, img1); err != nil {
+	if err := graph.Register(archive, false, img1); err != nil {
 		t.Fatal(err)
 	}
 	if err := graph.Delete(img1.Id); err != nil {

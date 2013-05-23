@@ -1,3 +1,7 @@
+:title: Installation on Amazon EC2 
+:description: Docker installation on Amazon EC2 with a single vagrant command. Vagrant 1.1 or higher is required.
+:keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
+
 Amazon EC2
 ==========
 
@@ -68,7 +72,7 @@ Docker can now be installed on Amazon EC2 with a single vagrant command. Vagrant
    If it stalls indefinitely on ``[default] Waiting for SSH to become available...``, Double check your default security
    zone on AWS includes rights to SSH (port 22) to your container.
 
-   If you have an advanced AWS setup, you might want to have a look at the https://github.com/mitchellh/vagrant-aws
+   If you have an advanced AWS setup, you might want to have a look at https://github.com/mitchellh/vagrant-aws
 
 7. Connect to your machine
 

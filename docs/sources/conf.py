@@ -41,7 +41,7 @@ html_add_permalinks = None
 
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = 'toctree'
 
 # General information about the project.
 project = u'Docker'

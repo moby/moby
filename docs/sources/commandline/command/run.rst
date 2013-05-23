@@ -1,3 +1,7 @@
+:title: Run Command
+:description: Run a command in a new container
+:keywords: run, container, docker, documentation 
+
 ===========================================
 ``run`` -- Run a command in a new container
 ===========================================
@@ -9,6 +13,7 @@
     Run a command in a new container
 
       -a=map[]: Attach to stdin, stdout or stderr.
+      -c=0: CPU shares (relative weight)
       -d=false: Detached mode: leave the container running in the background
       -e=[]: Set environment variables
       -h="": Container host name

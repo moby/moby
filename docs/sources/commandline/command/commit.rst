@@ -1,3 +1,7 @@
+:title: Commit Command
+:description: Create a new image from a container's changes
+:keywords: commit, docker, container, documentation
+
 ===========================================================
 ``commit`` -- Create a new image from a container's changes
 ===========================================================
@@ -16,6 +20,7 @@ Full -run example::
 
     {"Hostname": "",
      "User": "",
+     "CpuShares": 0,
      "Memory": 0,
      "MemorySwap": 0,
      "PortSpecs": ["22", "80", "443"],

@@ -96,6 +96,9 @@ lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Memory}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
+{{if .Config.CpuShares}}
+lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
+{{end}}
 `
 
 var LxcTemplateCompiled *template.Template

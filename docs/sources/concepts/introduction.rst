@@ -2,8 +2,6 @@
 :description: An introduction to docker and standard containers?
 :keywords: containers, lxc, concepts, explanation
 
-
-
 Introduction
 ============
 
@@ -20,7 +18,7 @@ Docker is a great building block for automating distributed systems: large-scale
 - **Isolation** docker isolates processes from each other and from the underlying host, using lightweight containers.
 - **Repeatability** Because containers are isolated in their own filesystem, they behave the same regardless of where, when, and alongside what they run.
 
-.. image:: http://www.docker.io/_static/lego_docker.jpg
+.. image:: images/lego_docker.jpg
 
 
 What is a Standard Container?

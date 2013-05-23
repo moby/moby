@@ -12,7 +12,7 @@ Docker is an open-source implementation of the deployment engine which powers [d
 It benefits directly from the experience accumulated over several years of large-scale operation and support of hundreds of thousands
 of applications and databases.
 
-![Docker L](docs/sources/static_files/lego_docker.jpg "Docker")
+![Docker L](docs/sources/concepts/images/lego_docker.jpg "Docker")
 
 ## Better than VMs
 
@@ -21,12 +21,12 @@ are VMWare's vmdk, Oracle Virtualbox's vdi, and Amazon EC2's ami. In theory thes
 automatically package their application into a "machine" for easy distribution and deployment. In practice, that almost never
 happens, for a few reasons:
 
-	* *Size*: VMs are very large which makes them impractical to store and transfer.
-	* *Performance*: running VMs consumes significant CPU and memory, which makes them impractical in many scenarios, for example local development of multi-tier applications, and
-		large-scale deployment of cpu and memory-intensive applications on large numbers of machines.
-	* *Portability*: competing VM environments don't play well with each other. Although conversion tools do exist, they are limited and add even more overhead.
-	* *Hardware-centric*: VMs were designed with machine operators in mind, not software developers. As a result, they offer very limited tooling for what developers need most:
-		building, testing and running their software. For example, VMs offer no facilities for application versioning, monitoring, configuration, logging or service discovery.
+  * *Size*: VMs are very large which makes them impractical to store and transfer.
+  * *Performance*: running VMs consumes significant CPU and memory, which makes them impractical in many scenarios, for example local development of multi-tier applications, and
+  	large-scale deployment of cpu and memory-intensive applications on large numbers of machines.
+  * *Portability*: competing VM environments don't play well with each other. Although conversion tools do exist, they are limited and add even more overhead.
+  * *Hardware-centric*: VMs were designed with machine operators in mind, not software developers. As a result, they offer very limited tooling for what developers need most:
+  	building, testing and running their software. For example, VMs offer no facilities for application versioning, monitoring, configuration, logging or service discovery.
 
 By contrast, Docker relies on a different sandboxing method known as *containerization*. Unlike traditional virtualization,
 containerization takes place at the kernel level. Most modern operating system kernels now support the primitives necessary
@@ -35,7 +35,7 @@ for containerization, including Linux with [openvz](http://openvz.org), [vserver
 
 Docker builds on top of these low-level primitives to offer developers a portable format and runtime environment that solves
 all 4 problems. Docker containers are small (and their transfer can be optimized with layers), they have basically zero memory and cpu overhead,
-the are completely portable and are designed from the ground up with an application-centric design.
+they are completely portable and are designed from the ground up with an application-centric design.
 
 The best part: because docker operates at the OS level, it can still be run inside a VM!
 
@@ -46,7 +46,7 @@ Docker does not require that you buy into a particular programming language, fra
 Is your application a unix process? Does it use files, tcp connections, environment variables, standard unix streams and command-line
 arguments as inputs and outputs? Then docker can run it.
 
-Can your application's build be expressed a sequence of such commands? Then docker can build it.
+Can your application's build be expressed as a sequence of such commands? Then docker can build it.
 
 
 ## Escape dependency hell
@@ -70,21 +70,21 @@ Docker solves dependency hell by giving the developer a simple way to express *a
 and streamline the process of assembling them. If this makes you think of [XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates their use in a simple and repeatable way. How does it do that? With layers.
 
-Docker defines a build as running a sequence unix commands, one after the other, in the same container. Build commands modify the contents of the container
+Docker defines a build as running a sequence of unix commands, one after the other, in the same container. Build commands modify the contents of the container
 (usually by installing new files on the filesystem), the next command modifies it some more, etc. Since each build command inherits the result of the previous
 commands, the *order* in which the commands are executed expresses *dependencies*.
 
 Here's a typical docker build process:
 
 ```bash
-from	ubuntu:12.10
-run	apt-get update
-run	apt-get install python
-run	apt-get install python-pip
-run	pip install django
-run	apt-get install curl
-run	curl http://github.com/shykes/helloflask/helloflask/master.tar.gz | tar -zxv
-run	cd master && pip install -r requirements.txt
+from ubuntu:12.10
+run apt-get update
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python-pip
+run pip install django
+run DEBIAN_FRONTEND=noninteractive apt-get install -q -y curl
+run curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
+run cd helloflask-master && pip install -r requirements.txt
 ```
 
 Note that Docker doesn't care *how* dependencies are built - as long as they can be built by running a unix command in a container.
@@ -293,7 +293,7 @@ a format that is self-describing and portable, so that any compliant runtime can
 
 The spec for Standard Containers is currently a work in progress, but it is very straightforward. It mostly defines 1) an image format, 2) a set of standard operations, and 3) an execution environment.
 
-A great analogy for this is the shipping container. Just like Standard Containers are a fundamental unit of software delivery, shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.
+A great analogy for this is the shipping container. Just like how Standard Containers are a fundamental unit of software delivery, shipping containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental unit of physical delivery.
 
 ### 1. STANDARD OPERATIONS
 
@@ -321,7 +321,7 @@ Similarly, before Standard Containers, by the time a software component ran in p
 
 ### 5. INDUSTRIAL-GRADE DELIVERY
 
-There are 17 million shipping containers in existence, packed with every physical good imaginable. Every single one of them can be loaded on the same boats, by the same cranes, in the same facilities, and sent anywhere in the World with incredible efficiency. It is embarrassing to think that a 30 ton shipment of coffee can safely travel half-way across the World in *less time* than it takes a software team to deliver its code from one datacenter to another sitting 10 miles away.
+There are 17 million shipping containers in existence, packed with every physical good imaginable. Every single one of them can be loaded onto the same boats, by the same cranes, in the same facilities, and sent anywhere in the World with incredible efficiency. It is embarrassing to think that a 30 ton shipment of coffee can safely travel half-way across the World in *less time* than it takes a software team to deliver its code from one datacenter to another sitting 10 miles away.
 
 With Standard Containers we can put an end to that embarrassment, by making INDUSTRIAL-GRADE DELIVERY of software a reality.
 

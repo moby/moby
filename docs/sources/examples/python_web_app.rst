@@ -40,7 +40,7 @@ We attach to the new container to see what is going on. Ctrl-C to disconnect
 
 .. code-block:: bash
 
-    BUILD_IMG=$(docker commit $BUILD_JOB _/builds/github.com/hykes/helloflask/master)
+    BUILD_IMG=$(docker commit $BUILD_JOB _/builds/github.com/shykes/helloflask/master)
 
 Save the changed we just made in the container to a new image called "_/builds/github.com/hykes/helloflask/master" and save the image id in the BUILD_IMG variable name.
 

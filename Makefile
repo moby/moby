@@ -39,7 +39,7 @@ $(DOCKER_BIN): $(DOCKER_DIR)
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
 	@if [ -h $@ ]; then rm -f $@; fi; ln -sf $(CURDIR)/ $@
-	@(cd $(DOCKER_MAIN); go get $(GO_OPTIONS))
+	@(cd $(DOCKER_MAIN); go get -d $(GO_OPTIONS))
 
 whichrelease:
 	echo $(RELEASE_VERSION)
