@@ -32,12 +32,6 @@ type builderClient struct {
 }
 
 func (b *builderClient) clearTmp(containers, images map[string]struct{}) {
-	for c := range containers {
-		if _, _, err := b.cli.call("DELETE", "/containers/"+c, nil); err != nil {
-			utils.Debugf("%s", err)
-		}
-		utils.Debugf("Removing container %s", c)
-	}
 	for i := range images {
 		if _, _, err := b.cli.call("DELETE", "/images/"+i, nil); err != nil {
 			utils.Debugf("%s", err)
