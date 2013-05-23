@@ -47,3 +47,42 @@ func CompareConfig(a, b *Config) bool {
 
 	return true
 }
+
+func MergeConfig(userConf, imageConf *Config) {
+	if userConf.Hostname != "" {
+		userConf.Hostname = imageConf.Hostname
+	}
+	if userConf.User != "" {
+		userConf.User = imageConf.User
+	}
+	if userConf.Memory == 0 {
+		userConf.Memory = imageConf.Memory
+	}
+	if userConf.MemorySwap == 0 {
+		userConf.MemorySwap = imageConf.MemorySwap
+	}
+	if userConf.CpuShares == 0 {
+		userConf.CpuShares = imageConf.CpuShares
+	}
+	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
+		userConf.PortSpecs = imageConf.PortSpecs
+	}
+	if !userConf.Tty {
+		userConf.Tty = imageConf.Tty
+	}
+	if !userConf.OpenStdin {
+		userConf.OpenStdin = imageConf.OpenStdin
+	}
+	if !userConf.StdinOnce {
+		userConf.StdinOnce = imageConf.StdinOnce
+	}
+	if userConf.Env == nil || len(userConf.Env) == 0 {
+		userConf.Env = imageConf.Env
+	}
+	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
+		userConf.Cmd = imageConf.Cmd
+	}
+	if userConf.Dns == nil || len(userConf.Dns) == 0 {
+		userConf.Dns = imageConf.Dns
+	}
+}

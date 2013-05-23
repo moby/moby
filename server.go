@@ -142,8 +142,10 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 }
 
 func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
-	var allImages map[string]*Image
-	var err error
+	var (
+		allImages map[string]*Image
+		err       error
+	)
 	if all {
 		allImages, err = srv.runtime.graph.Map()
 	} else {
@@ -152,7 +154,7 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	if err != nil {
 		return nil, err
 	}
-	var outs []ApiImages = []ApiImages{} //produce [] when empty instead of 'null'
+	outs := []ApiImages{} //produce [] when empty instead of 'null'
 	for name, repository := range srv.runtime.repositories.Repositories {
 		if filter != "" && name != filter {
 			continue
@@ -361,7 +363,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 
 	for _, img := range repoData.ImgList {
 		if askedTag != "" && img.Tag != askedTag {
-			utils.Debugf("%s does not match %s, skipping", img.Tag, askedTag)
+			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.Id)
 			continue
 		}
 		fmt.Fprintf(out, "Pulling image %s (%s) from %s\n", img.Id, img.Tag, remote)
@@ -371,22 +373,17 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string) error 
 				fmt.Fprintf(out, "Error while retrieving image for tag: %s (%s); checking next endpoint\n", askedTag, err)
 				continue
 			}
-			if err := srv.runtime.repositories.Set(remote, img.Tag, img.Id, true); err != nil {
-				return err
-			}
 			success = true
-			delete(tagsList, img.Tag)
 			break
 		}
 		if !success {
 			return fmt.Errorf("Could not find repository on any of the indexed registries.")
 		}
 	}
-	// If we asked for a specific tag, do not register the others
-	if askedTag != "" {
-		return nil
-	}
 	for tag, id := range tagsList {
+		if askedTag != "" && tag != askedTag {
+			continue
+		}
 		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
 			return err
 		}
@@ -660,15 +657,6 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 	return container.ShortId(), nil
 }
 
-func (srv *Server) ImageCreateFromFile(dockerfile io.Reader, out io.Writer) error {
-	img, err := NewBuilder(srv.runtime).Build(dockerfile, out)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "%s\n", img.ShortId())
-	return nil
-}
-
 func (srv *Server) ContainerRestart(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(t); err != nil {
@@ -727,6 +715,36 @@ func (srv *Server) ImageDelete(name string) error {
 		}
 	}
 	return nil
+}
+
+func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
+
+	// Retrieve all images
+	images, err := srv.runtime.graph.All()
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the tree in a map of map (map[parentId][childId])
+	imageMap := make(map[string]map[string]struct{})
+	for _, img := range images {
+		if _, exists := imageMap[img.Parent]; !exists {
+			imageMap[img.Parent] = make(map[string]struct{})
+		}
+		imageMap[img.Parent][img.Id] = struct{}{}
+	}
+
+	// Loop on the children of the given image and check the config
+	for elem := range imageMap[imgId] {
+		img, err := srv.runtime.graph.Get(elem)
+		if err != nil {
+			return nil, err
+		}
+		if CompareConfig(&img.ContainerConfig, config) {
+			return img, nil
+		}
+	}
+	return nil, nil
 }
 
 func (srv *Server) ContainerStart(name string) error {

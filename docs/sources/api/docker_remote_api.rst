@@ -122,7 +122,8 @@ Create a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 201 OK
-	   
+	   Content-Type: application/json
+
 	   {
 		"Id":"e90e34656806"
 		"Warnings":[]
