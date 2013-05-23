@@ -15,8 +15,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -host="0.0.0.0": Host to bind/connect to
-      -port=4243: Port to listen/connect to
+      -h="127.0.0.1:4243": Host:port to bind/connect to
 
     A self-sufficient runtime for linux containers.
 
