@@ -7,19 +7,24 @@
 Kernel Requirements
 ===================
 
+In short, Docker has the following kernel requirements:
+
+- Linux version 3.8 or above.
+
+- Compiled with `AUFS support <http://aufs.sourceforge.net/>`_.
+
+- Cgroups and namespaces must be enabled.
+
+
   The officially supported kernel is the one recommended by the
   :ref:`ubuntu_linux` installation path. It is the one that most developers
   will use, and the one that receives the most attention from the core
   contributors. If you decide to go with a different kernel and hit a bug,
   please try to reproduce it with the official kernels first.
 
-If for some reason you cannot or do not want to use the "official" kernels,
+If you cannot or do not want to use the "official" kernels,
 here is some technical background about the features (both optional and
 mandatory) that docker needs to run successfully.
-
-In short, you need kernel version 3.8 (or above), compiled to include
-`AUFS support <http://aufs.sourceforge.net/>`_. Of course, you need to
-enable cgroups and namespaces.
 
 
 Namespaces and Cgroups
@@ -38,30 +43,11 @@ Kernels 2.6.38, and every version since 3.2, have been deployed successfully
 to run containerized production workloads. Feature-wise, there is no huge
 improvement between 2.6.38 and up to 3.6 (as far as docker is concerned!).
 
-Starting with version 3.7, the kernel has basic support for
-`Checkpoint/Restore In Userspace <http://criu.org/>`_, which is not used by
-docker at this point, but allows to suspend the state of a container to
-disk and resume it later.
-
-Version 3.8 provides improvements in stability, which are deemed necessary
-for the operation of docker. Versions 3.2 to 3.5 have been shown to
-exhibit a reproducible bug (for more details, see issue
-`#407 <https://github.com/dotcloud/docker/issues/407>`_).
-
-Version 3.8 also brings better support for the
-`setns() syscall <http://lwn.net/Articles/531381/>`_ -- but this should not
-be a concern since docker does not leverage on this feature for now.
-
-If you want a technical overview about those concepts, you might
-want to check those articles on dotCloud's blog:
-`about namespaces <http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part>`_
-and `about cgroups <http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c>`_.
-
 
 Important Note About Pre-3.8 Kernels
 ------------------------------------
 
-As mentioned above, kernels before 3.8 are not stable when used with docker.
+Kernel versions 3.2 to 3.5 are not stable when used with docker.
 In some circumstances, you will experience kernel "oopses", or even crashes.
 The symptoms include:
 
@@ -126,28 +112,3 @@ distributions, is not part of the standard kernel. This means that if
 you decide to roll your own kernel, you will have to patch your
 kernel tree to add AUFS. The process is documented on
 `AUFS webpage <http://aufs.sourceforge.net/>`_.
-
-Note: the AUFS patch is fairly intrusive, but for the record, people have
-successfully applied GRSEC and AUFS together, to obtain hardened production
-kernels.
-
-If you want more information about that topic, there is an
-`article about AUFS on dotCloud's blog 
-<http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-34-a>`_.
-
-
-BTRFS, ZFS, OverlayFS...
-------------------------
-
-There is ongoing development on docker, to implement support for
-`BTRFS <http://en.wikipedia.org/wiki/Btrfs>`_
-(see github issue `#443 <https://github.com/dotcloud/docker/issues/443>`_).
-
-People have also showed interest for `ZFS <http://en.wikipedia.org/wiki/ZFS>`_
-(using e.g. `ZFS-on-Linux <http://zfsonlinux.org/>`_) and OverlayFS.
-The latter is functionally close to AUFS, and it might end up being included
-in the stock kernel; so it's a strong candidate!
-
-Would you like to `contribute
-<https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md>`_
-support for your favorite filesystem?
