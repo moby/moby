@@ -132,7 +132,7 @@ func HumanDuration(d time.Duration) string {
 	return fmt.Sprintf("%d years", d.Hours()/24/365)
 }
 
-// HumanSize returns a human-readabla approximation of a size
+// HumanSize returns a human-readable approximation of a size
 // (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
 	i := 0
