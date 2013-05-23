@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -26,6 +28,13 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 //If we don't do this, POST method without Content-type (even with empty body) will fail
 func parseForm(r *http.Request) error {
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
+		return err
+	}
+	return nil
+}
+
+func parseMultipartForm(r *http.Request) error {
+	if err := r.ParseMultipartForm(4096); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
 	}
 	return nil
@@ -329,9 +338,15 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	}
 	name := vars["name"]
 
-	if err := srv.ImageInsert(name, url, path, w); err != nil {
+	imgId, err := srv.ImageInsert(name, url, path, w)
+	if err != nil {
 		return err
 	}
+	b, err := json.Marshal(&ApiId{Id: imgId})
+	if err != nil {
+		return err
+	}
+	writeJson(w, b)
 	return nil
 }
 
@@ -585,6 +600,68 @@ func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, var
 	return nil
 }
 
+func Upload(w http.ResponseWriter, req *http.Request) {
+
+	mr, err := req.MultipartReader()
+	if err != nil {
+		return
+	}
+	length := req.ContentLength
+	for {
+
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		}
+		var read int64
+		var p float32
+		for {
+			buffer := make([]byte, 100000)
+			cBytes, err := part.Read(buffer)
+			if err == io.EOF {
+				break
+			}
+			read = read + int64(cBytes)
+			//fmt.Printf("read: %v \n",read )
+			p = float32(read) / float32(length) * 100
+			fmt.Printf("progress: %v \n", p)
+			os.Stdout.Write(buffer)
+		}
+	}
+}
+
+func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+	Upload(w, r)
+
+	//	io.Copy(os.Stderr, r.Body)
+
+	if err := r.ParseMultipartForm(409699); err != nil {
+		utils.Debugf("----- %s\n", err)
+		return err
+	}
+
+	mpr, err := r.MultipartReader()
+	if err != nil {
+		return err
+	}
+
+	p, err := mpr.NextPart()
+	if err != nil {
+		return err
+	}
+
+	dockerfile := make([]byte, 4096)
+	p.Read(dockerfile)
+
+	utils.Debugf("Dockerfile >>>%s<<<\n", dockerfile)
+	b := NewBuildFile(srv, w)
+	if _, err := b.Build(bytes.NewReader(dockerfile)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
@@ -607,6 +684,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 		"POST": {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
+			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,

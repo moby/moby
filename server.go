@@ -67,40 +67,40 @@ func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 	return outs, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, out io.Writer) error {
+func (srv *Server) ImageInsert(name, url, path string, out io.Writer) (string, error) {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	file, err := utils.Download(url, out)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Body.Close()
 
 	config, _, err := ParseRun([]string{img.Id, "echo", "insert", url, path}, srv.runtime.capabilities)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	b := NewBuilder(srv.runtime)
 	c, err := b.Create(config)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)"), path); err != nil {
-		return err
+		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
 	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	fmt.Fprintf(out, "%s\n", img.Id)
-	return nil
+	return img.ShortId(), nil
 }
 
 func (srv *Server) ImagesViz(out io.Writer) error {

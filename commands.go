@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -104,14 +105,59 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, os.Stdout)
-	if err != nil {
+	if err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
+
+	buff := bytes.NewBuffer([]byte{})
+
+	w := multipart.NewWriter(buff)
+
+	dockerfile, err := w.CreateFormFile("Dockerfile", "Dockerfile")
+	if err != nil {
+		return err
+	}
+	file, err := os.Open("Dockerfile")
+	if err != nil {
+		return err
+	}
+	dockerfile.Write([]byte(w.Boundary() + "\r\n"))
+	if _, err := io.Copy(dockerfile, file); err != nil {
+		return err
+	}
+	dockerfile.Write([]byte("\r\n" + w.Boundary()))
+
+	// req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), buff)
+	// if err != nil {
+	// 	return err
+	// }
+	// req.Header.Set("Content-Type", w.FormDataContentType())
+	resp, err := http.Post(fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), w.FormDataContentType(), buff)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("error: %s", body)
+	}
+
+	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) CmdBuildClient(args ...string) error {
 	cmd := Subcmd("build", "-|Dockerfile", "Build an image from Dockerfile or via stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
