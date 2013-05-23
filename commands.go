@@ -30,15 +30,19 @@ var (
 	GIT_COMMIT string
 )
 
+func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
+	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+	return reflect.TypeOf(cli).MethodByName(methodName)
+}
+
 func ParseCommands(args ...string) error {
 	cli := NewDockerCli("0.0.0.0", 4243)
 
 	if len(args) > 0 {
-		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
-		method, exists := reflect.TypeOf(cli).MethodByName(methodName)
+		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args...)
+			return cli.CmdHelp(args[1:]...)
 		}
 		ret := method.Func.CallSlice([]reflect.Value{
 			reflect.ValueOf(cli),
@@ -53,6 +57,18 @@ func ParseCommands(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
+	if len(args) > 0 {
+		method, exists := cli.getMethod(args[0])
+		if !exists {
+			fmt.Println("Error: Command not found:", args[0])
+		} else {
+			method.Func.CallSlice([]reflect.Value{
+				reflect.ValueOf(cli),
+				reflect.ValueOf([]string{"--help"}),
+			})[0].Interface()
+			return nil
+		}
+	}
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for cmd, description := range map[string]string{
 		"attach":  "Attach to a running container",
