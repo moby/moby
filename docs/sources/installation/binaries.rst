@@ -1,3 +1,7 @@
+:title: Installation from Binaries
+:description: This instruction set is meant for hackers who want to try out Docker on a variety of environments.
+:keywords: binaries, installation, docker, documentation, linux
+
 .. _binaries:
 
 Binaries

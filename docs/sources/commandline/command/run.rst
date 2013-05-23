@@ -1,3 +1,7 @@
+:title: Run Command
+:description: Run a command in a new container
+:keywords: run, container, docker, documentation 
+
 ===========================================
 ``run`` -- Run a command in a new container
 ===========================================

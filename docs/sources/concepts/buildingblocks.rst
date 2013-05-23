@@ -1,4 +1,4 @@
-:title: Building blocks
+:title: Building Blocks
 :description: An introduction to docker and standard containers?
 :keywords: containers, lxc, concepts, explanation
 

@@ -1,3 +1,7 @@
+:title: Rackspace Cloud Installation
+:description: Installing Docker on Ubuntu proviced by Rackspace
+:keywords: Rackspace Cloud, installation, docker, linux, ubuntu
+
 ===============
 Rackspace Cloud
 ===============
