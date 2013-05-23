@@ -11,7 +11,7 @@ In short, Docker has the following kernel requirements:
 
 - Linux version 3.8 or above.
 
-- Compiled with `AUFS support <http://aufs.sourceforge.net/>`_.
+- `AUFS support <http://aufs.sourceforge.net/>`_.
 
 - Cgroups and namespaces must be enabled.
 
@@ -26,26 +26,8 @@ If you cannot or do not want to use the "official" kernels,
 here is some technical background about the features (both optional and
 mandatory) that docker needs to run successfully.
 
-
-Namespaces and Cgroups
-----------------------
-
-You need to enable namespaces and cgroups, to the extend of what is needed
-to run LXC containers. Technically, while namespaces have been introduced
-in the early 2.6 kernels, we do not advise to try any kernel before 2.6.32
-to run LXC containers. Note that 2.6.32 has some documented issues regarding
-network namespace setup and teardown; those issues are not a risk if you
-run containers in a private environment, but can lead to denial-of-service
-attacks if you want to run untrusted code in your containers. For more details,
-see `[LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
-
-Kernels 2.6.38, and every version since 3.2, have been deployed successfully
-to run containerized production workloads. Feature-wise, there is no huge
-improvement between 2.6.38 and up to 3.6 (as far as docker is concerned!).
-
-
-Important Note About Pre-3.8 Kernels
-------------------------------------
+Linux version 3.8 or above
+--------------------------
 
 Kernel versions 3.2 to 3.5 are not stable when used with docker.
 In some circumstances, you will experience kernel "oopses", or even crashes.
@@ -65,6 +47,36 @@ Docker checks the kernel version when it starts, and emits a warning if it
 detects something older than 3.8.
 
 See issue `#407 <https://github.com/dotcloud/docker/issues/407>`_ for details.
+
+
+AUFS support
+------------
+
+Docker currently relies on AUFS, an unioning filesystem.
+While AUFS is included in the kernels built by the Debian and Ubuntu
+distributions, is not part of the standard kernel. This means that if
+you decide to roll your own kernel, you will have to patch your
+kernel tree to add AUFS. The process is documented on
+`AUFS webpage <http://aufs.sourceforge.net/>`_.
+
+
+Cgroups and namespaces
+----------------------
+
+You need to enable namespaces and cgroups, to the extend of what is needed
+to run LXC containers. Technically, while namespaces have been introduced
+in the early 2.6 kernels, we do not advise to try any kernel before 2.6.32
+to run LXC containers. Note that 2.6.32 has some documented issues regarding
+network namespace setup and teardown; those issues are not a risk if you
+run containers in a private environment, but can lead to denial-of-service
+attacks if you want to run untrusted code in your containers. For more details,
+see `[LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
+
+Kernels 2.6.38, and every version since 3.2, have been deployed successfully
+to run containerized production workloads. Feature-wise, there is no huge
+improvement between 2.6.38 and up to 3.6 (as far as docker is concerned!).
+
+
 
 
 Extra Cgroup Controllers
@@ -101,14 +113,3 @@ And replace it by the following one::
     GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount"
 
 Then run ``update-grub``, and reboot.
-
-
-AUFS
-----
-
-Docker currently relies on AUFS, an unioning filesystem.
-While AUFS is included in the kernels built by the Debian and Ubuntu
-distributions, is not part of the standard kernel. This means that if
-you decide to roll your own kernel, you will have to patch your
-kernel tree to add AUFS. The process is documented on
-`AUFS webpage <http://aufs.sourceforge.net/>`_.
