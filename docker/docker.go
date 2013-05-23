@@ -101,6 +101,9 @@ func removePidFile(pidfile string) {
 }
 
 func daemon(pidfile, addr string, port int, autoRestart bool) error {
+	if addr != "127.0.0.1" {
+		log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+	}
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
