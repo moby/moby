@@ -40,15 +40,19 @@ func main() {
 		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
 
-	if strings.Contains(*flHost, ":") && len(strings.Split(*flHost, ":")) == 2 {
+	if strings.Contains(*flHost, ":") {
 		hostParts := strings.Split(*flHost, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
 		}
 		if p, err := strconv.Atoi(hostParts[1]); err == nil {
 			port = p
 		}
-	} else if !strings.Contains(*flHost, ":") {
+	} else {
 		host = *flHost
 	}
 
