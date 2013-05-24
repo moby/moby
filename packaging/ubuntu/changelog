@@ -1,37 +1,44 @@
+lxc-docker (0.3.3-1) precise; urgency=low
+  - Registry: Fix push regression
+  - Various bugfixes
+
+ -- dotCloud <ops@dotcloud.com>  Thu, 23 May 2013 00:00:00 -0700
+
+
 lxc-docker (0.3.2-1) precise; urgency=low
- - Runtime: Store the actual archive on commit
- - Registry: Improve the checksum process
- - Registry: Use the size to have a good progress bar while pushing
- - Registry: Use the actual archive if it exists in order to speed up the push
- - Registry: Fix error 400 on push
+  - Runtime: Store the actual archive on commit
+  - Registry: Improve the checksum process
+  - Registry: Use the size to have a good progress bar while pushing
+  - Registry: Use the actual archive if it exists in order to speed up the push
+  - Registry: Fix error 400 on push
 
  -- dotCloud <ops@dotcloud.com>  Fri, 9 May 2013 00:00:00 -0700
 
 
 lxc-docker (0.3.1-1) precise; urgency=low
- - Builder: Implement the autorun capability within docker builder
- - Builder: Add caching to docker builder
- - Builder: Add support for docker builder with native API as top level command
- - Runtime: Add go version to debug infos
- - Builder: Implement ENV within docker builder
- - Registry: Add docker search top level command in order to search a repository
- - Images: output graph of images to dot (graphviz)
- - Documentation: new introduction and high-level overview
- - Documentation: Add the documentation for docker builder
- - Website: new high-level overview
- - Makefile: Swap "go get" for "go get -d", especially to compile on go1.1rc
- - Images: fix ByParent function
- - Builder: Check the command existance prior create and add Unit tests for the case
- - Registry: Fix pull for official images with specific tag
- - Registry: Fix issue when login in with a different user and trying to push
- - Documentation: CSS fix for docker documentation to make REST API docs look better.
- - Documentation: Fixed CouchDB example page header mistake
- - Documentation: fixed README formatting
- - Registry: Improve checksum - async calculation
- - Runtime: kernel version - don't show the dash if flavor is empty
- - Documentation: updated www.docker.io website.
- - Builder: use any whitespaces instead of tabs
- - Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
+  - Builder: Implement the autorun capability within docker builder
+  - Builder: Add caching to docker builder
+  - Builder: Add support for docker builder with native API as top level command
+  - Runtime: Add go version to debug infos
+  - Builder: Implement ENV within docker builder
+  - Registry: Add docker search top level command in order to search a repository
+  - Images: output graph of images to dot (graphviz)
+  - Documentation: new introduction and high-level overview
+  - Documentation: Add the documentation for docker builder
+  - Website: new high-level overview
+  - Makefile: Swap "go get" for "go get -d", especially to compile on go1.1rc
+  - Images: fix ByParent function
+  - Builder: Check the command existance prior create and add Unit tests for the case
+  - Registry: Fix pull for official images with specific tag
+  - Registry: Fix issue when login in with a different user and trying to push
+  - Documentation: CSS fix for docker documentation to make REST API docs look better.
+  - Documentation: Fixed CouchDB example page header mistake
+  - Documentation: fixed README formatting
+  - Registry: Improve checksum - async calculation
+  - Runtime: kernel version - don't show the dash if flavor is empty
+  - Documentation: updated www.docker.io website.
+  - Builder: use any whitespaces instead of tabs
+  - Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
 
  -- dotCloud <ops@dotcloud.com>  Fri, 8 May 2013 00:00:00 -0700
 
