@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,49 +11,20 @@ import (
 	"strings"
 )
 
-type APIClient struct {
+type Client struct {
 	endpoint string
 	client   *http.Client
 }
 
-func NewAPIClient(endpoint string) (*APIClient, error) {
+func NewClient(endpoint string) (*Client, error) {
 	if endpoint == "" {
 		return nil, errors.New("Server endpoint cannot be empty")
 	}
-	return &APIClient{endpoint: endpoint, client: http.DefaultClient}, nil
+	return &Client{endpoint: endpoint, client: http.DefaultClient}, nil
 }
 
-type ListContainersOptions struct {
-	All    bool
-	Limit  int
-	Since  string
-	Before string
-}
-
-func (c *APIClient) getURL(path string) string {
+func (c *Client) getURL(path string) string {
 	return strings.TrimRight(c.endpoint, "/") + path
-}
-
-func (c *APIClient) ListContainers(opts *ListContainersOptions) ([]ApiContainer, error) {
-	url := c.getURL("/containers/ps") + "?" + queryString(opts)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, newApiClientError(resp)
-	}
-	var containers []ApiContainer
-	err = json.NewDecoder(resp.Body).Decode(&containers)
-	if err != nil {
-		return nil, err
-	}
-	return containers, nil
 }
 
 func queryString(opts interface{}) string {
