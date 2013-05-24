@@ -36,7 +36,7 @@ func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
 }
 
 func ParseCommands(addr string, port int, args ...string) error {
-	cli := NewDockerCli("0.0.0.0", 4243)
+	cli := NewDockerCli(addr, port)
 
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])

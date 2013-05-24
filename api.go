@@ -662,6 +662,5 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
 		}
 	}
-
 	return http.ListenAndServe(addr, r)
 }
