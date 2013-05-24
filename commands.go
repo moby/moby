@@ -15,10 +15,12 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 	"unicode"
@@ -32,6 +34,19 @@ var (
 
 func ParseCommands(args ...string) error {
 	cli := NewDockerCli("0.0.0.0", 4243)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGWINCH)
+	go func() {
+		for sig := range c {
+			if sig == syscall.SIGWINCH {
+				_, _, err := cli.call("GET", "/auth", nil)
+				if err != nil {
+					utils.Debugf("Error resize: %s", err)
+				}
+			}
+		}
+	}()
 
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
@@ -1294,6 +1309,6 @@ func NewDockerCli(host string, port int) *DockerCli {
 }
 
 type DockerCli struct {
-	host       string
-	port       int
+	host string
+	port int
 }
