@@ -56,20 +56,19 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 }
 
 // Check if an image exists in the Registry
-func (r *Registry) LookupRemoteImage(imgId, registry string, authConfig *auth.AuthConfig) bool {
+func (r *Registry) LookupRemoteImage(imgId, registry string, token []string) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/json", nil)
 	if err != nil {
 		return false
 	}
-	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := rt.RoundTrip(req)
 	if err != nil {
 		return false
 	}
 	res.Body.Close()
-	return res.StatusCode == 307
+	return res.StatusCode == 200
 }
 
 func (r *Registry) getImagesInRepository(repository string, authConfig *auth.AuthConfig) ([]map[string]string, error) {
