@@ -35,19 +35,6 @@ var (
 func ParseCommands(args ...string) error {
 	cli := NewDockerCli("0.0.0.0", 4243)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGWINCH)
-	go func() {
-		for sig := range c {
-			if sig == syscall.SIGWINCH {
-				_, _, err := cli.call("GET", "/auth", nil)
-				if err != nil {
-					utils.Debugf("Error resize: %s", err)
-				}
-			}
-		}
-	}()
-
 	if len(args) > 0 {
 		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
 		method, exists := reflect.TypeOf(cli).MethodByName(methodName)
@@ -975,6 +962,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 	v.Set("stdin", "1")
 
+	cli.monitorTtySize(cmd.Arg(0))
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
 		return err
 	}
@@ -1162,6 +1150,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+		cli.monitorTtySize(out.Id)
 		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
 		}
@@ -1293,6 +1282,33 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 	}
 	return nil
 
+}
+
+func (cli *DockerCli) resizeTty(id string) {
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		utils.Debugf("Error getting size: %s", err)
+	}
+	v := url.Values{}
+	v.Set("h", strconv.Itoa(int(ws.Height)))
+	v.Set("w", strconv.Itoa(int(ws.Width)))
+	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
+		utils.Debugf("Error resize: %s", err)
+	}
+}
+
+func (cli *DockerCli) monitorTtySize(id string) {
+	cli.resizeTty(id)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGWINCH)
+	go func() {
+		for sig := range c {
+			if sig == syscall.SIGWINCH {
+				cli.resizeTty(id)
+			}
+		}
+	}()
 }
 
 func Subcmd(name, signature, description string) *flag.FlagSet {
