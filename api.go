@@ -599,36 +599,6 @@ func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, var
 	return nil
 }
 
-func Upload(w http.ResponseWriter, req *http.Request) {
-
-	mr, err := req.MultipartReader()
-	if err != nil {
-		return
-	}
-	length := req.ContentLength
-	for {
-
-		part, err := mr.NextPart()
-		if err == io.EOF {
-			break
-		}
-		var read int64
-		var p float32
-		for {
-			buffer := make([]byte, 100000)
-			cBytes, err := part.Read(buffer)
-			if err == io.EOF {
-				break
-			}
-			read = read + int64(cBytes)
-			//fmt.Printf("read: %v \n",read )
-			p = float32(read) / float32(length) * 100
-			fmt.Printf("progress: %v \n", p)
-			os.Stdout.Write(buffer)
-		}
-	}
-}
-
 func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
