@@ -60,7 +60,7 @@ func getBoolParam(value string) (bool, error) {
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	b, err := json.Marshal(srv.registry.GetAuthConfig())
+	b, err := json.Marshal(srv.registry.GetAuthConfig(false))
 	if err != nil {
 		return err
 	}
@@ -73,9 +73,9 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
-
-	if config.Username == srv.registry.GetAuthConfig().Username {
-		config.Password = srv.registry.GetAuthConfig().Password
+	authConfig := srv.registry.GetAuthConfig(true)
+	if config.Username == authConfig.Username {
+		config.Password = authConfig.Password
 	}
 
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
@@ -686,6 +686,5 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
 		}
 	}
-
 	return http.ListenAndServe(addr, r)
 }

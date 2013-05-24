@@ -38,7 +38,7 @@ Due to a bug in LXC docker works best on the 3.8 kernel. Precise comes with a 3.
 .. code-block:: bash
 
    # install the backported kernel
-   sudo apt-get update && sudo apt-get install linux-image-3.8.0-19-generic
+   sudo apt-get update && sudo apt-get install linux-image-generic-lts-raring
 
    # reboot
    sudo reboot
