@@ -3,7 +3,6 @@ package docker
 import (
 	"encoding/json"
 	"github.com/dotcloud/docker"
-	"net/http"
 )
 
 type ListContainersOptions struct {
@@ -14,21 +13,13 @@ type ListContainersOptions struct {
 }
 
 func (c *Client) ListContainers(opts *ListContainersOptions) ([]docker.ApiContainer, error) {
-	url := c.getURL("/containers/ps") + "?" + queryString(opts)
-	req, err := http.NewRequest("GET", url, nil)
+	path := "/containers/ps?" + queryString(opts)
+	body, _, err := c.do("GET", path, nil)
 	if err != nil {
 		return nil, err
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, newApiClientError(resp)
 	}
 	var containers []docker.ApiContainer
-	err = json.NewDecoder(resp.Body).Decode(&containers)
+	err = json.Unmarshal(body, &containers)
 	if err != nil {
 		return nil, err
 	}

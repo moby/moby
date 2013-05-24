@@ -1,8 +1,12 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -21,6 +25,43 @@ func NewClient(endpoint string) (*Client, error) {
 		return nil, errors.New("Server endpoint cannot be empty")
 	}
 	return &Client{endpoint: endpoint, client: http.DefaultClient}, nil
+}
+
+func (c *Client) do(method, path string, data interface{}) ([]byte, int, error) {
+	var params io.Reader
+	if data != nil {
+		buf, err := json.Marshal(data)
+		if err != nil {
+			return nil, -1, err
+		}
+		params = bytes.NewBuffer(buf)
+	}
+	req, err := http.NewRequest(method, c.getURL(path), params)
+	if err != nil {
+		return nil, -1, err
+	}
+	req.Header.Set("User-Agent", "Docker-Client/"+docker.VERSION)
+	if data != nil {
+		req.Header.Set("Content-Type", "application/json")
+	} else if method == "POST" {
+		req.Header.Set("Content-Type", "plain/text")
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
+		return nil, -1, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, -1, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return nil, resp.StatusCode, newApiClientError(resp.StatusCode, body)
+	}
+	return body, resp.StatusCode, nil
 }
 
 func (c *Client) getURL(path string) string {
@@ -80,9 +121,8 @@ type apiClientError struct {
 	message string
 }
 
-func newApiClientError(resp *http.Response) *apiClientError {
-	body, _ := ioutil.ReadAll(resp.Body)
-	return &apiClientError{status: resp.StatusCode, message: string(body)}
+func newApiClientError(status int, body []byte) *apiClientError {
+	return &apiClientError{status: status, message: string(body)}
 }
 
 func (e *apiClientError) Error() string {

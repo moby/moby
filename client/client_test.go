@@ -53,8 +53,7 @@ func TestAPIClientGetURL(t *testing.T) {
 }
 
 func TestAPIClientError(t *testing.T) {
-	resp := http.Response{StatusCode: 400, Body: ioutil.NopCloser(strings.NewReader("bad parameter"))}
-	err := newApiClientError(&resp)
+	err := newApiClientError(400, []byte("bad parameter"))
 	expected := apiClientError{status: 400, message: "bad parameter"}
 	if !reflect.DeepEqual(expected, *err) {
 		t.Errorf("Wrong error type. Want %#v. Got %#v.", expected, *err)
