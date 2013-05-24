@@ -24,8 +24,8 @@ func main() {
 		docker.SysInit()
 		return
 	}
-	host:= "127.0.0.1"
-	port:= 4243
+	host := "127.0.0.1"
+	port := 4243
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
