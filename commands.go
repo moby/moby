@@ -15,10 +15,12 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 	"unicode"
@@ -69,7 +71,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.addr, cli.port)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.host, cli.port)
 	for cmd, description := range map[string]string{
 		"attach":  "Attach to a running container",
 		"build":   "Build a container from Dockerfile or via stdin",
@@ -956,6 +958,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 	v.Set("stdin", "1")
 
+	cli.monitorTtySize(cmd.Arg(0))
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
 		return err
 	}
@@ -1143,6 +1146,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+		cli.monitorTtySize(out.Id)
 		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
 			return err
 		}
@@ -1197,7 +1201,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.addr, cli.port, API_VERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1229,7 +1233,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.addr, cli.port, API_VERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -1265,7 +1269,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "plain/text")
-	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.addr, cli.port))
+	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.host, cli.port))
 	if err != nil {
 		return err
 	}
@@ -1310,6 +1314,33 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 
 }
 
+func (cli *DockerCli) resizeTty(id string) {
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		utils.Debugf("Error getting size: %s", err)
+	}
+	v := url.Values{}
+	v.Set("h", strconv.Itoa(int(ws.Height)))
+	v.Set("w", strconv.Itoa(int(ws.Width)))
+	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
+		utils.Debugf("Error resize: %s", err)
+	}
+}
+
+func (cli *DockerCli) monitorTtySize(id string) {
+	cli.resizeTty(id)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGWINCH)
+	go func() {
+		for sig := range c {
+			if sig == syscall.SIGWINCH {
+				cli.resizeTty(id)
+			}
+		}
+	}()
+}
+
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {
@@ -1324,6 +1355,6 @@ func NewDockerCli(addr string, port int) *DockerCli {
 }
 
 type DockerCli struct {
-	addr string
+	host string
 	port int
 }

@@ -109,17 +109,35 @@ type State struct {
 	termios Termios
 }
 
+type Winsize struct {
+	Width  uint16
+	Height uint16
+	x      uint16
+	y      uint16
+}
+
+func GetWinsize(fd uintptr) (*Winsize, error) {
+	ws := &Winsize{}
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
+	return ws, err
+}
+
+func SetWinsize(fd uintptr, ws *Winsize) error {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
+	return err
+}
+
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd int) bool {
 	var termios Termios
-	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&termios)))
 	return err == 0
 }
 
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
 func Restore(fd int, state *State) error {
-	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)))
 	return err
 }
 
