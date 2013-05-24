@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const API_VERSION = 1.1
+
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
@@ -56,8 +58,8 @@ func getBoolParam(value string) (bool, error) {
 	return false, fmt.Errorf("Bad parameter")
 }
 
-func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	b, err := json.Marshal(srv.registry.GetAuthConfig())
+func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	b, err := json.Marshal(srv.registry.GetAuthConfig(false))
 	if err != nil {
 		return err
 	}
@@ -65,14 +67,14 @@ func getAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[strin
 	return nil
 }
 
-func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &auth.AuthConfig{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
-
-	if config.Username == srv.registry.GetAuthConfig().Username {
-		config.Password = srv.registry.GetAuthConfig().Password
+	authConfig := srv.registry.GetAuthConfig(true)
+	if config.Username == authConfig.Username {
+		config.Password = authConfig.Password
 	}
 
 	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
@@ -94,7 +96,7 @@ func postAuth(srv *Server, w http.ResponseWriter, r *http.Request, vars map[stri
 	return nil
 }
 
-func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	m := srv.DockerVersion()
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -104,7 +106,7 @@ func getVersion(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 	return nil
 }
 
-func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -116,7 +118,7 @@ func postContainersKill(srv *Server, w http.ResponseWriter, r *http.Request, var
 	return nil
 }
 
-func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -129,7 +131,7 @@ func getContainersExport(srv *Server, w http.ResponseWriter, r *http.Request, va
 	return nil
 }
 
-func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesJson(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -152,14 +154,14 @@ func getImagesJson(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 	return nil
 }
 
-func getImagesViz(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := srv.ImagesViz(w); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	out := srv.DockerInfo()
 	b, err := json.Marshal(out)
 	if err != nil {
@@ -169,7 +171,7 @@ func getInfo(srv *Server, w http.ResponseWriter, r *http.Request, vars map[strin
 	return nil
 }
 
-func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -186,7 +188,7 @@ func getImagesHistory(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	return nil
 }
 
-func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -203,7 +205,7 @@ func getContainersChanges(srv *Server, w http.ResponseWriter, r *http.Request, v
 	return nil
 }
 
-func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersPs(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -227,7 +229,7 @@ func getContainersPs(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
-func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -249,7 +251,7 @@ func postImagesTag(srv *Server, w http.ResponseWriter, r *http.Request, vars map
 	return nil
 }
 
-func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -276,7 +278,7 @@ func postCommit(srv *Server, w http.ResponseWriter, r *http.Request, vars map[st
 }
 
 // Creates an image from Pull or from Import
-func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -288,8 +290,10 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		w.Header().Set("Content-Type", "application/json")
-		if err := srv.ImagePull(image, tag, registry, w); err != nil {
+		if version > 1.0 {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
 			return err
 		}
 	} else { //import
@@ -300,7 +304,7 @@ func postImagesCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	return nil
 }
 
-func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -318,7 +322,7 @@ func getImagesSearch(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
-func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -336,7 +340,7 @@ func postImagesInsert(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	return nil
 }
 
-func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -353,7 +357,7 @@ func postImagesPush(srv *Server, w http.ResponseWriter, r *http.Request, vars ma
 	return nil
 }
 
-func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
@@ -383,7 +387,7 @@ func postContainersCreate(srv *Server, w http.ResponseWriter, r *http.Request, v
 	return nil
 }
 
-func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -402,7 +406,7 @@ func postContainersRestart(srv *Server, w http.ResponseWriter, r *http.Request, 
 	return nil
 }
 
-func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -422,7 +426,7 @@ func deleteContainers(srv *Server, w http.ResponseWriter, r *http.Request, vars 
 	return nil
 }
 
-func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -434,7 +438,7 @@ func deleteImages(srv *Server, w http.ResponseWriter, r *http.Request, vars map[
 	return nil
 }
 
-func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -446,7 +450,7 @@ func postContainersStart(srv *Server, w http.ResponseWriter, r *http.Request, va
 	return nil
 }
 
-func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -467,7 +471,7 @@ func postContainersStop(srv *Server, w http.ResponseWriter, r *http.Request, var
 	return nil
 }
 
-func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -484,7 +488,7 @@ func postContainersWait(srv *Server, w http.ResponseWriter, r *http.Request, var
 	return nil
 }
 
-func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -527,7 +531,7 @@ func postContainersAttach(srv *Server, w http.ResponseWriter, r *http.Request, v
 	return nil
 }
 
-func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -545,7 +549,7 @@ func getContainersByName(srv *Server, w http.ResponseWriter, r *http.Request, va
 	return nil
 }
 
-func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -563,7 +567,7 @@ func getImagesByName(srv *Server, w http.ResponseWriter, r *http.Request, vars m
 	return nil
 }
 
-func postImagesGetCache(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	apiConfig := &ApiImageConfig{}
 	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
 		return err
@@ -590,7 +594,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
 
-	m := map[string]map[string]func(*Server, http.ResponseWriter, *http.Request, map[string]string) error{
+	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
@@ -634,7 +638,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			localRoute := route
 			localMethod := method
 			localFct := fct
-			r.Path(localRoute).Methods(localMethod).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			f := func(w http.ResponseWriter, r *http.Request) {
 				utils.Debugf("Calling %s %s", localMethod, localRoute)
 				if logging {
 					log.Println(r.Method, r.RequestURI)
@@ -645,10 +649,20 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 						utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 					}
 				}
-				if err := localFct(srv, w, r, mux.Vars(r)); err != nil {
+				version, err := strconv.ParseFloat(mux.Vars(r)["version"], 64)
+				if err != nil {
+					version = API_VERSION
+				}
+				if version == 0 || version > API_VERSION {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
-			})
+			}
+			r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
+			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
 		}
 	}
 

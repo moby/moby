@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3 (2013-05-23)
+ - Registry: Fix push regression
+ - Various bugfixes
+
 ## 0.3.2 (2013-05-09)
  * Runtime: Store the actual archive on commit
  * Registry: Improve the checksum process
