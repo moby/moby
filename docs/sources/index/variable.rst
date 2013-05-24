@@ -1,3 +1,7 @@
+:title: Index Environment Variable
+:description: Setting this environment variable on the docker server will change the URL docker index.
+:keywords: docker, index environment variable, documentation 
+
 =================================
 Docker Index Environment Variable
 =================================

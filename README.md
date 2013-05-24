@@ -12,7 +12,7 @@ Docker is an open-source implementation of the deployment engine which powers [d
 It benefits directly from the experience accumulated over several years of large-scale operation and support of hundreds of thousands
 of applications and databases.
 
-![Docker L](docs/sources/static_files/lego_docker.jpg "Docker")
+![Docker L](docs/sources/concepts/images/lego_docker.jpg "Docker")
 
 ## Better than VMs
 
