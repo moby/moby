@@ -56,7 +56,7 @@ func TestGetAuth(t *testing.T) {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	newAuthConfig := srv.registry.GetAuthConfig()
+	newAuthConfig := srv.registry.GetAuthConfig(false)
 	if newAuthConfig.Username != authConfig.Username ||
 		newAuthConfig.Email != authConfig.Email {
 		t.Fatalf("The auth configuration hasn't been set correctly")

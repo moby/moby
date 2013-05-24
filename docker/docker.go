@@ -24,8 +24,8 @@ func main() {
 		docker.SysInit()
 		return
 	}
-	host:= "127.0.0.1"
-	port:= 4243
+	host := "127.0.0.1"
+	port := 4243
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
@@ -40,15 +40,19 @@ func main() {
 		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
 
-	if strings.Contains(*flHost, ":") && len(strings.Split(*flHost, ":")) == 2 {
+	if strings.Contains(*flHost, ":") {
 		hostParts := strings.Split(*flHost, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
 		}
 		if p, err := strconv.Atoi(hostParts[1]); err == nil {
 			port = p
 		}
-	} else if !strings.Contains(*flHost, ":") {
+	} else {
 		host = *flHost
 	}
 
