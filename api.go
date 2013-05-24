@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -631,32 +630,24 @@ func Upload(w http.ResponseWriter, req *http.Request) {
 }
 
 func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
-	Upload(w, r)
-
-	//	io.Copy(os.Stderr, r.Body)
-
-	if err := r.ParseMultipartForm(409699); err != nil {
-		utils.Debugf("----- %s\n", err)
+	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
 	}
 
-	mpr, err := r.MultipartReader()
+	file, _, err := r.FormFile("Dockerfile")
 	if err != nil {
 		return err
 	}
 
-	p, err := mpr.NextPart()
+	context, _, err := r.FormFile("Context")
 	if err != nil {
-		return err
+		if err != http.ErrMissingFile {
+			return err
+		}
 	}
 
-	dockerfile := make([]byte, 4096)
-	p.Read(dockerfile)
-
-	utils.Debugf("Dockerfile >>>%s<<<\n", dockerfile)
 	b := NewBuildFile(srv, w)
-	if _, err := b.Build(bytes.NewReader(dockerfile)); err != nil {
+	if _, err := b.Build(file, context); err != nil {
 		return err
 	}
 	return nil

@@ -255,7 +255,7 @@ func (b *builderClient) commit(id string) error {
 	return nil
 }
 
-func (b *builderClient) Build(dockerfile io.Reader) (string, error) {
+func (b *builderClient) Build(dockerfile, context io.Reader) (string, error) {
 	defer b.clearTmp(b.tmpContainers, b.tmpImages)
 	file := bufio.NewReader(dockerfile)
 	for {

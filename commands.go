@@ -57,7 +57,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
 	for cmd, description := range map[string]string{
 		"attach":  "Attach to a running container",
-		"build":   "Build a container from Dockerfile or via stdin",
+		"build":   "Build a container from a Dockerfile",
 		"commit":  "Create a new image from a container's changes",
 		"diff":    "Inspect changes on a container's filesystem",
 		"export":  "Stream the contents of a container as a tar archive",
@@ -112,36 +112,67 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
+	cmd := Subcmd("build", "[OPTIONS]", "Build an image from a Dockerfile")
+	fileName := cmd.String("f", "Dockerfile", "Use file as Dockerfile. Can be '-' for stdin")
+	contextPath := cmd.String("c", "", "Use the specified directory as context for the build")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
 
+	var (
+		file          io.ReadCloser
+		multipartBody io.Reader
+		err           error
+	)
+
+	// Init the needed component for the Multipart
 	buff := bytes.NewBuffer([]byte{})
-
+	multipartBody = buff
 	w := multipart.NewWriter(buff)
+	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
 
-	dockerfile, err := w.CreateFormFile("Dockerfile", "Dockerfile")
+	// Create a FormFile multipart for the Dockerfile
+	if *fileName == "-" {
+		file = os.Stdin
+	} else {
+		file, err = os.Open(*fileName)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+	}
+	if _, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
+		return err
+	}
+	multipartBody = io.MultiReader(multipartBody, file)
+
+	// Create a FormFile multipart for the context if needed
+	if *contextPath != "" {
+		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
+		context, err := Tar(*contextPath, Bzip2)
+		if err != nil {
+			return err
+		}
+		if _, err := w.CreateFormFile("Context", *contextPath+".tar.bz2"); err != nil {
+			return err
+		}
+		multipartBody = io.MultiReader(multipartBody, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Uploading Context %v/%v (%v)"))
+	}
+
+	// Send the multipart request with correct content-type
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), io.MultiReader(multipartBody, boundary))
 	if err != nil {
 		return err
 	}
-	file, err := os.Open("Dockerfile")
-	if err != nil {
-		return err
-	}
-	dockerfile.Write([]byte(w.Boundary() + "\r\n"))
-	if _, err := io.Copy(dockerfile, file); err != nil {
-		return err
-	}
-	dockerfile.Write([]byte("\r\n" + w.Boundary()))
+	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	// req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), buff)
-	// if err != nil {
-	// 	return err
-	// }
-	// req.Header.Set("Content-Type", w.FormDataContentType())
-	resp, err := http.Post(fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), w.FormDataContentType(), buff)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
+	// Check for errors
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -150,6 +181,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return fmt.Errorf("error: %s", body)
 	}
 
+	// Output the result
 	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
 		return err
 	}
@@ -180,7 +212,7 @@ func (cli *DockerCli) CmdBuildClient(args ...string) error {
 			return err
 		}
 	}
-	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file); err != nil {
+	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file, nil); err != nil {
 		return err
 	}
 	return nil
