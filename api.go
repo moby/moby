@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const API_VERSION = 1.0
+const API_VERSION = 1.1
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -291,7 +291,10 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if err := srv.ImagePull(image, tag, registry, w); err != nil {
+		if version > 1.0 {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
 			return err
 		}
 	} else { //import
