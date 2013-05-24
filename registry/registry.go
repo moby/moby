@@ -428,9 +428,14 @@ func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
 	r.client.Jar = cookiejar.NewCookieJar()
 }
 
-func (r *Registry) GetAuthConfig() *auth.AuthConfig {
+func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
+	password := ""
+	if withPasswd {
+		password = r.authConfig.Password
+	}
 	return &auth.AuthConfig{
 		Username: r.authConfig.Username,
+		Password: password,
 		Email:    r.authConfig.Email,
 	}
 }

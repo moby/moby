@@ -1294,6 +1294,6 @@ func NewDockerCli(host string, port int) *DockerCli {
 }
 
 type DockerCli struct {
-	host       string
-	port       int
+	host string
+	port int
 }
