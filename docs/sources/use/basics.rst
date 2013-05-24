@@ -42,9 +42,9 @@ use -host and -port on both deamon and client
 .. code-block:: bash
 
    # Run docker in daemon mode
-   sudo <path to>/docker -h 0.0.0.0:5555 &
+   sudo <path to>/docker -H 0.0.0.0:5555 &
    # Download a base image
-   docker -h :5555 pull base
+   docker -H :5555 pull base
 
 
 Starting a long-running worker process

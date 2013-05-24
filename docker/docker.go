@@ -32,7 +32,7 @@ func main() {
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flHost := flag.String("h", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
+	flHost := flag.String("H", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName

@@ -53,7 +53,7 @@ func ParseCommands(addr string, port int, args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -h=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.addr, cli.port)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.addr, cli.port)
 	for cmd, description := range map[string]string{
 		"attach":  "Attach to a running container",
 		"build":   "Build a container from Dockerfile or via stdin",
