@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dotcloud/docker"
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 )
@@ -79,14 +80,15 @@ func TestAPIClientListContainersParams(t *testing.T) {
 			Transport: &fakeRT,
 		},
 	}
+	u, _ := url.Parse(client.getURL("/containers/ps"))
 	for _, tt := range tests {
 		client.ListContainers(tt.input)
 		got := map[string][]string(fakeRT.requests[0].URL.Query())
 		if !reflect.DeepEqual(got, tt.params) {
 			t.Errorf("Expected %#v, got %#v.", tt.params, got)
 		}
-		if path := fakeRT.requests[0].URL.Path; path != "/containers/ps" {
-			t.Errorf("Wrong path on request. Want %q. Got %q.", "/containers/ps", path)
+		if path := fakeRT.requests[0].URL.Path; path != u.Path {
+			t.Errorf("Wrong path on request. Want %q. Got %q.", u.Path, path)
 		}
 		if meth := fakeRT.requests[0].Method; meth != "GET" {
 			t.Errorf("Wrong HTTP method. Want GET. Got %s.", meth)

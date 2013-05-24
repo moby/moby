@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"fmt"
+	"github.com/dotcloud/docker"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -37,10 +39,10 @@ func TestAPIClientGetURL(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"http://localhost:4243/", "/", "http://localhost:4243/"},
-		{"http://localhost:4243", "/", "http://localhost:4243/"},
-		{"http://localhost:4243", "/containers/ps", "http://localhost:4243/containers/ps"},
-		{"http://localhost:4243/////", "/", "http://localhost:4243/"},
+		{"http://localhost:4243/", "/", fmt.Sprintf("http://localhost:4243/v%f/", docker.API_VERSION)},
+		{"http://localhost:4243", "/", fmt.Sprintf("http://localhost:4243/v%f/", docker.API_VERSION)},
+		{"http://localhost:4243", "/containers/ps", fmt.Sprintf("http://localhost:4243/v%f/containers/ps", docker.API_VERSION)},
+		{"http://localhost:4243/////", "/", fmt.Sprintf("http://localhost:4243/v%f/", docker.API_VERSION)},
 	}
 	var client Client
 	for _, tt := range tests {
