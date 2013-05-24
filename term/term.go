@@ -1,7 +1,6 @@
 package term
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"os/signal"
 	"syscall"

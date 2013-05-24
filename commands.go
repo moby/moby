@@ -71,7 +71,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.addr, cli.port)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.host, cli.port)
 	for cmd, description := range map[string]string{
 		"attach":  "Attach to a running container",
 		"build":   "Build a container from Dockerfile or via stdin",
@@ -1201,7 +1201,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.addr, cli.port, API_VERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1233,7 +1233,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.addr, cli.port, API_VERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -1269,7 +1269,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "plain/text")
-	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.addr, cli.port))
+	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.host, cli.port))
 	if err != nil {
 		return err
 	}
