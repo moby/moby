@@ -27,6 +27,7 @@ type Image struct {
 	DockerVersion   string    `json:"docker_version,omitempty"`
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
+	Architecture    string    `json:"architecture,omitempty"`
 	graph           *Graph
 }
 
