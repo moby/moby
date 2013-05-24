@@ -776,6 +776,13 @@ func (srv *Server) ContainerWait(name string) (int, error) {
 	return 0, fmt.Errorf("No such container: %s", name)
 }
 
+func (srv *Server) ContainerResize(name string, h, w int) error {
+	if container := srv.runtime.Get(name); container != nil {
+		return container.Resize(h, w)
+	}
+	return fmt.Errorf("No such container: %s", name)
+}
+
 func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
 	container := srv.runtime.Get(name)
 	if container == nil {

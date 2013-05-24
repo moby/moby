@@ -754,6 +754,10 @@ func (container *Container) Wait() int {
 	return container.State.ExitCode
 }
 
+func (container *Container) Resize(h, w int) error {
+	return fmt.Errorf("Resize not yet implemented")
+}
+
 func (container *Container) ExportRw() (Archive, error) {
 	return Tar(container.rwPath(), Uncompressed)
 }
