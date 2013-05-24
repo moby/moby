@@ -591,7 +591,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	username, err := cli.checkIfLogged(*registry == "", "push", args...)
+	username, err := cli.checkIfLogged(*registry == "", "push")
 	if err != nil {
 		return err
 	}
@@ -629,8 +629,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	if strings.Contains(remote, "/") {
-		fmt.Println("Login is required before pull an user's repository")
-		if _, err := cli.checkIfLogged(true, "pull", args...); err != nil {
+		if _, err := cli.checkIfLogged(true, "pull"); err != nil {
 			return err
 		}
 	}
@@ -1122,7 +1121,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) checkIfLogged(condition bool, action string, args ...string) (string, error) {
+func (cli *DockerCli) checkIfLogged(condition bool, action string) (string, error) {
 	body, _, err := cli.call("GET", "/auth", nil)
 	if err != nil {
 		return "", err
@@ -1134,9 +1133,9 @@ func (cli *DockerCli) checkIfLogged(condition bool, action string, args ...strin
 		return "", err
 	}
 
-	// If the login failed
+	// If condition AND the login failed
 	if condition && out.Username == "" {
-		if err := cli.CmdLogin(args...); err != nil {
+		if err := cli.CmdLogin(""); err != nil {
 			return "", err
 		}
 
