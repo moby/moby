@@ -8,6 +8,6 @@
 
 ::
 
-    Usage: docker import [OPTIONS] URL|- [REPOSITORY [TAG]]
-
-    Create a new filesystem image from the contents of a tarball
+    Usage: docker import - IMAGE
+    Example: tar zxvf image.tgz | docker import - new_image
+    Import then contents of a tar archive as a new image
