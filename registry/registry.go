@@ -400,6 +400,17 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	}, nil
 }
 
+func (r *Registry) DirectRepositoryData(endpoint string) *RepositoryData {
+	var (
+		tokens = []string{}
+		endpoints = []string{endpoint}
+	)
+	return &RepositoryData{
+		Tokens:    tokens,
+		Endpoints: endpoints,
+	}
+}
+
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	u := auth.IndexServerAddress() + "/search?q=" + url.QueryEscape(term)
 	req, err := http.NewRequest("GET", u, nil)
