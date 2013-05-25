@@ -75,10 +75,12 @@ func init() {
 		registry: registry.NewRegistry(runtime.root),
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, false); err != nil {
 		panic(err)
 	}
 }
+
+// FIXME: test that ImagePull(json=true) send correct json output
 
 func newTestRuntime() (*Runtime, error) {
 	root, err := ioutil.TempDir("", "docker-test")
