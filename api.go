@@ -289,17 +289,25 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
 
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if version > 1.0 {
-			w.Header().Set("Content-Type", "application/json")
-		}
-		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
-			fmt.Fprintf(w, utils.FormatError(err.Error(), version > 1.0))
-			return nil
+		if err := srv.ImagePull(image, tag, registry, w, sf); err != nil {
+			if sf.Used() {
+				fmt.Fprintf(w, sf.FormatError(err))
+				return nil
+			}
+			return err
 		}
 	} else { //import
-		if err := srv.ImageImport(src, repo, tag, r.Body, w); err != nil {
+		if err := srv.ImageImport(src, repo, tag, r.Body, w, sf); err != nil {
+			if sf.Used() {
+				fmt.Fprintf(w, sf.FormatError(err))
+				return nil
+			}
 			return err
 		}
 	}
@@ -335,8 +343,15 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-
-	if err := srv.ImageInsert(name, url, path, w); err != nil {
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
+	if err := srv.ImageInsert(name, url, path, w, sf); err != nil {
+		if sf.Used() {
+			fmt.Fprintf(w, sf.FormatError(err))
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -352,8 +367,15 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-
-	if err := srv.ImagePush(name, registry, w); err != nil {
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
+	if err := srv.ImagePush(name, registry, w, sf); err != nil {
+		if sf.Used() {
+			fmt.Fprintf(w, sf.FormatError(err))
+			return nil
+		}
 		return err
 	}
 	return nil

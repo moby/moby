@@ -69,7 +69,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
-	json bool
+	sf *StreamFormatter
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -93,7 +93,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	// Send newline when complete
 	if err != nil {
-		fmt.Fprintf(r.output, FormatStatus("", r.json))
+		fmt.Fprintf(r.output, r.sf.FormatStatus(""))
 	}
 
 	return read, err
@@ -101,11 +101,11 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, json bool) *progressReader {
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, sf *StreamFormatter) *progressReader {
       	if template == "" {
-		template = "%v/%v (%v)\r"
+		template = "%v/%v (%v)"
 	}
-	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, json}
+	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, sf}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -557,25 +557,41 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-func FormatStatus(str string, json bool) string {
-	if json {
+type StreamFormatter struct {
+	json bool
+	used bool
+}
+
+func NewStreamFormatter(json bool) *StreamFormatter {
+	return &StreamFormatter{json, false}
+}
+
+func (sf *StreamFormatter) FormatStatus(str string) string {
+	sf.used = true
+	if sf.json {
 		return "{\"status\" : \"" + str + "\"}"
 	}
 	return str + "\r\n"
 }
 
-func FormatError(str string, json bool) string {
-	if json {
-		return "{\"error\" : \"" + str + "\"}"
+func (sf *StreamFormatter) FormatError(err error) string {
+	sf.used = true
+	if sf.json {
+		return "{\"error\" : \"" + err.Error() + "\"}"
 	}
-	return "Error: " + str + "\r\n"
+	return "Error: " + err.Error() + "\r\n"
 }
 
-func FormatProgress(str string, json bool) string {
-	if json {
+func (sf *StreamFormatter) FormatProgress(action, str string) string {
+	sf.used = true
+	if sf.json {
 		return "{\"progress\" : \"" + str + "\"}"
 	}
-	return "Downloading " + str + "\r"
+	return action + " " + str + "\r"
+}
+
+func (sf *StreamFormatter) Used() bool {
+	return sf.used
 }
 
 
