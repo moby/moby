@@ -9,5 +9,5 @@
 ::
 
     Usage: docker import - IMAGE
-    Example: tar zxvf image.tgz | docker import - new_image
+    Example: zcat image.tgz | docker import - new_image
     Import then contents of a tar archive as a new image
