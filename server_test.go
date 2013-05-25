@@ -85,6 +85,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
 	if err = srv.ContainerDestroy(id, true); err != nil {
 		t.Fatal(err)
 	}
