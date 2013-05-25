@@ -1261,6 +1261,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		type Message struct {
 			Status   string `json:"status,omitempty"`
 			Progress string `json:"progress,omitempty"`
+			Error    string `json:"error,omitempty"`
 		}
 		dec := json.NewDecoder(resp.Body)
 		for {
@@ -1272,6 +1273,8 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 			}
 			if m.Progress != "" {
 				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+			} else if m.Error != "" {
+				return fmt.Errorf(m.Error)
 			} else {
 				fmt.Fprintf(out, "%s\n", m.Status)
 			}

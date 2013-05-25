@@ -295,7 +295,8 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 			w.Header().Set("Content-Type", "application/json")
 		}
 		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
-			return err
+			fmt.Fprintf(w, utils.FormatError(err.Error(), version > 1.0))
+			return nil
 		}
 	} else { //import
 		if err := srv.ImageImport(src, repo, tag, r.Body, w); err != nil {

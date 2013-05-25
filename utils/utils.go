@@ -564,6 +564,13 @@ func FormatStatus(str string, json bool) string {
 	return str + "\r\n"
 }
 
+func FormatError(str string, json bool) string {
+	if json {
+		return "{\"error\" : \"" + str + "\"}"
+	}
+	return "Error: " + str + "\r\n"
+}
+
 func FormatProgress(str string, json bool) string {
 	if json {
 		return "{\"progress\" : \"" + str + "\"}"
