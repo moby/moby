@@ -368,7 +368,7 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string, sf *ut
 		success := false
 		for _, ep := range repoData.Endpoints {
 			if err := srv.pullImage(out, img.Id, "https://"+ep+"/v1", repoData.Tokens, sf); err != nil {
-				fmt.Fprintf(out, sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint\n"), askedTag, err)
+				fmt.Fprintf(out, sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint"), askedTag, err)
 				continue
 			}
 			success = true

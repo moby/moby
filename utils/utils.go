@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"index/suffixarray"
@@ -557,6 +558,12 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
+type JsonMessage struct {
+	Status   string `json:"status,omitempty"`
+	Progress string `json:"progress,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
 type StreamFormatter struct {
 	json bool
 	used bool
@@ -569,7 +576,11 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 func (sf *StreamFormatter) FormatStatus(str string) string {
 	sf.used = true
 	if sf.json {
-		return "{\"status\" : \"" + str + "\"}"
+		b, err := json.Marshal(&JsonMessage{Status:str});
+		if err != nil {
+			return sf.FormatError(err)
+		}
+		return string(b)
 	}
 	return str + "\r\n"
 }
@@ -577,7 +588,10 @@ func (sf *StreamFormatter) FormatStatus(str string) string {
 func (sf *StreamFormatter) FormatError(err error) string {
 	sf.used = true
 	if sf.json {
-		return "{\"error\" : \"" + err.Error() + "\"}"
+		if b, err := json.Marshal(&JsonMessage{Error:err.Error()}); err == nil {
+			return string(b)
+		}
+		return "{\"error\":\"format error\"}"
 	}
 	return "Error: " + err.Error() + "\r\n"
 }
@@ -585,7 +599,11 @@ func (sf *StreamFormatter) FormatError(err error) string {
 func (sf *StreamFormatter) FormatProgress(action, str string) string {
 	sf.used = true
 	if sf.json {
-		return "{\"progress\" : \"" + str + "\"}"
+		b, err := json.Marshal(&JsonMessage{Progress:str})
+		if err != nil {
+                        return sf.FormatError(err)
+                }
+		return string(b)
 	}
 	return action + " " + str + "\r"
 }

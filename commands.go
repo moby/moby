@@ -1258,14 +1258,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
-		type Message struct {
-			Status   string `json:"status,omitempty"`
-			Progress string `json:"progress,omitempty"`
-			Error    string `json:"error,omitempty"`
-		}
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var m Message
+			var m utils.JsonMessage
 			if err := dec.Decode(&m); err == io.EOF {
 				break
 			} else if err != nil {
