@@ -1257,8 +1257,29 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		return fmt.Errorf("error: %s", body)
 	}
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return err
+	if resp.Header.Get("Content-Type") == "application/json" {
+		type Message struct {
+			Status   string `json:"status,omitempty"`
+			Progress string `json:"progress,omitempty"`
+		}
+		dec := json.NewDecoder(resp.Body)
+		for {
+			var m Message
+			if err := dec.Decode(&m); err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+			if m.Progress != "" {
+				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+			} else {
+				fmt.Fprintf(out, "%s\n", m.Status)
+			}
+		}
+	} else {
+		if _, err := io.Copy(out, resp.Body); err != nil {
+			return err
+		}
 	}
 	return nil
 }
