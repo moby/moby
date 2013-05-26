@@ -297,7 +297,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 		registry := r.Form.Get("registry")
 		if err := srv.ImagePull(image, tag, registry, w, sf); err != nil {
 			if sf.Used() {
-				fmt.Fprintf(w, sf.FormatError(err))
+				w.Write(sf.FormatError(err))
 				return nil
 			}
 			return err
@@ -305,7 +305,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	} else { //import
 		if err := srv.ImageImport(src, repo, tag, r.Body, w, sf); err != nil {
 			if sf.Used() {
-				fmt.Fprintf(w, sf.FormatError(err))
+				w.Write(sf.FormatError(err))
 				return nil
 			}
 			return err
@@ -349,7 +349,7 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if err := srv.ImageInsert(name, url, path, w, sf); err != nil {
 		if sf.Used() {
-			fmt.Fprintf(w, sf.FormatError(err))
+			w.Write(sf.FormatError(err))
 			return nil
 		}
 		return err
@@ -373,7 +373,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if err := srv.ImagePush(name, registry, w, sf); err != nil {
 		if sf.Used() {
-			fmt.Fprintf(w, sf.FormatError(err))
+			w.Write(sf.FormatError(err))
 			return nil
 		}
 		return err

@@ -165,7 +165,8 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)", utils.NewStreamFormatter(false)), tmp.Root)
+	sf := utils.NewStreamFormatter(false)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.

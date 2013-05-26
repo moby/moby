@@ -94,7 +94,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	// Send newline when complete
 	if err != nil {
-		fmt.Fprintf(r.output, r.sf.FormatStatus(""))
+		r.output.Write(r.sf.FormatStatus(""))
 	}
 
 	return read, err
@@ -102,11 +102,12 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, sf *StreamFormatter) *progressReader {
-      	if template == "" {
-		template = "%v/%v (%v)"
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
+      	tpl := string(template)
+	if tpl == "" {
+		tpl = "%v/%v (%v)"
 	}
-	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, sf}
+	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -573,39 +574,40 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 	return &StreamFormatter{json, false}
 }
 
-func (sf *StreamFormatter) FormatStatus(str string) string {
+func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte {
 	sf.used = true
+	str := fmt.Sprintf(format, a...)
 	if sf.json {
 		b, err := json.Marshal(&JsonMessage{Status:str});
 		if err != nil {
 			return sf.FormatError(err)
 		}
-		return string(b)
+		return b
 	}
-	return str + "\r\n"
+	return []byte(str + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatError(err error) string {
+func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
 		if b, err := json.Marshal(&JsonMessage{Error:err.Error()}); err == nil {
-			return string(b)
+			return b
 		}
-		return "{\"error\":\"format error\"}"
+		return []byte("{\"error\":\"format error\"}")
 	}
-	return "Error: " + err.Error() + "\r\n"
+	return []byte("Error: " + err.Error() + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatProgress(action, str string) string {
+func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
 		b, err := json.Marshal(&JsonMessage{Progress:str})
 		if err != nil {
-                        return sf.FormatError(err)
+                        return nil
                 }
-		return string(b)
+		return b
 	}
-	return action + " " + str + "\r"
+	return []byte(action + " " + str + "\r")
 }
 
 func (sf *StreamFormatter) Used() bool {

@@ -99,7 +99,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, sf.FormatStatus("%s"), img.Id)
+	out.Write(sf.FormatStatus(img.Id))
 	return nil
 }
 
@@ -301,7 +301,7 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 	// FIXME: Launch the getRemoteImage() in goroutines
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
-			fmt.Fprintf(out, sf.FormatStatus("Pulling %s metadata"), id)
+			out.Write(sf.FormatStatus("Pulling %s metadata", id))
 			imgJson, err := srv.registry.GetRemoteImageJson(id, registry, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
@@ -313,7 +313,7 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 			}
 
 			// Get the layer
-			fmt.Fprintf(out, sf.FormatStatus("Pulling %s fs layer"), id)
+			out.Write(sf.FormatStatus("Pulling %s fs layer", id))
 			layer, contentLength, err := srv.registry.GetRemoteImageLayer(img.Id, registry, token)
 			if err != nil {
 				return err
@@ -327,7 +327,7 @@ func (srv *Server) pullImage(out io.Writer, imgId, registry string, token []stri
 }
 
 func (srv *Server) pullRepository(out io.Writer, remote, askedTag string, sf *utils.StreamFormatter) error {
-	fmt.Fprintf(out, sf.FormatStatus("Pulling repository %s from %s"), remote, auth.IndexServerAddress())
+	out.Write(sf.FormatStatus("Pulling repository %s from %s", remote, auth.IndexServerAddress()))
 	repoData, err := srv.registry.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -364,11 +364,11 @@ func (srv *Server) pullRepository(out io.Writer, remote, askedTag string, sf *ut
 			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.Id)
 			continue
 		}
-		fmt.Fprintf(out, sf.FormatStatus("Pulling image %s (%s) from %s"), img.Id, img.Tag, remote)
+		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.Id, img.Tag, remote))
 		success := false
 		for _, ep := range repoData.Endpoints {
 			if err := srv.pullImage(out, img.Id, "https://"+ep+"/v1", repoData.Tokens, sf); err != nil {
-				fmt.Fprintf(out, sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint"), askedTag, err)
+				out.Write(sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint", askedTag, err))
 				continue
 			}
 			success = true
@@ -477,12 +477,12 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 
 func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
-	fmt.Fprintf(out, sf.FormatStatus("Processing checksums"))
+	out.Write(sf.FormatStatus("Processing checksums"))
 	imgList, err := srv.getImageList(localRepo)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, sf.FormatStatus("Sending image list"))
+	out.Write(sf.FormatStatus("Sending image list"))
 
 	repoData, err := srv.registry.PushImageJsonIndex(name, imgList, false)
 	if err != nil {
@@ -491,18 +491,18 @@ func (srv *Server) pushRepository(out io.Writer, name string, localRepo map[stri
 
 	// FIXME: Send only needed images
 	for _, ep := range repoData.Endpoints {
-		fmt.Fprintf(out, sf.FormatStatus("Pushing repository %s to %s (%d tags)"), name, ep, len(localRepo))
+		out.Write(sf.FormatStatus("Pushing repository %s to %s (%d tags)", name, ep, len(localRepo)))
 		// For each image within the repo, push them
 		for _, elem := range imgList {
 			if _, exists := repoData.ImgList[elem.Id]; exists {
-				fmt.Fprintf(out, sf.FormatStatus("Image %s already on registry, skipping"), name)
+				out.Write(sf.FormatStatus("Image %s already on registry, skipping", name))
 				continue
 			}
 			if err := srv.pushImage(out, name, elem.Id, ep, repoData.Tokens, sf); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
-			fmt.Fprintf(out, sf.FormatStatus("Pushing tags for rev [%s] on {%s}"), elem.Id, ep+"/users/"+name+"/"+elem.Tag)
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.Id, ep+"/users/"+name+"/"+elem.Tag))
 			if err := srv.registry.PushRegistryTag(name, elem.Id, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
@@ -521,7 +521,7 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 	if err != nil {
 		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
 	}
-	fmt.Fprintf(out, sf.FormatStatus("Pushing %s"), imgId)
+	out.Write(sf.FormatStatus("Pushing %s", imgId))
 
 	// Make sure we have the image's checksum
 	checksum, err := srv.getChecksum(imgId)
@@ -536,7 +536,7 @@ func (srv *Server) pushImage(out io.Writer, remote, imgId, ep string, token []st
 	// Send the json
 	if err := srv.registry.PushImageJsonRegistry(imgData, jsonRaw, ep, token); err != nil {
 		if err == registry.ErrAlreadyExists {
-			fmt.Fprintf(out, sf.FormatStatus("Image %s already uploaded ; skipping"), imgData.Id)
+			out.Write(sf.FormatStatus("Image %s already uploaded ; skipping", imgData.Id))
 			return nil
 		}
 		return err
@@ -579,7 +579,7 @@ func (srv *Server) ImagePush(name, registry string, out io.Writer, sf *utils.Str
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	if err != nil {
-		fmt.Fprintf(out, sf.FormatStatus("The push refers to a repository [%s] (len: %d)"), name, len(srv.runtime.repositories.Repositories[name]))
+		out.Write(sf.FormatStatus("The push refers to a repository [%s] (len: %d)", name, len(srv.runtime.repositories.Repositories[name])))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
 			if err := srv.pushRepository(out, name, localRepo, sf); err != nil {
@@ -590,7 +590,7 @@ func (srv *Server) ImagePush(name, registry string, out io.Writer, sf *utils.Str
 
 		return err
 	}
-	fmt.Fprintf(out, sf.FormatStatus("The push refers to an image: [%s]"), name)
+	out.Write(sf.FormatStatus("The push refers to an image: [%s]", name))
 	if err := srv.pushImage(out, name, img.Id, registry, nil, sf); err != nil {
 		return err
 	}
@@ -613,7 +613,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 			u.Host = src
 			u.Path = ""
 		}
-		fmt.Fprintf(out, sf.FormatStatus("Downloading from %s"), u)
+		out.Write(sf.FormatStatus("Downloading from %s", u))
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
 		resp, err = utils.Download(u.String(), out)
@@ -632,7 +632,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 			return err
 		}
 	}
-	fmt.Fprintf(out, sf.FormatStatus(img.ShortId()))
+	out.Write(sf.FormatStatus(img.ShortId()))
 	return nil
 }
 
