@@ -12,9 +12,9 @@
 
     List images
 
-      -a=false: show all images
-      -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+      -a false: show all images
+      -q false: only show numeric IDs
+      -viz false: output in graphviz format
 
 Displaying images visually
 --------------------------

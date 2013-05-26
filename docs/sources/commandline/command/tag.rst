@@ -12,4 +12,4 @@
 
     Tag an image into a repository
 
-      -f=false: Force
+      -f false: Force

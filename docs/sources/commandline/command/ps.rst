@@ -12,6 +12,6 @@
 
     List containers
 
-      -a=false: Show all containers. Only running containers are shown by default.
-      -notrunc=false: Don't truncate output
-      -q=false: Only display numeric IDs
+      -a : Show all containers. Only running containers are shown by default.
+      -notrunc : Don't truncate output
+      -q : Only display numeric IDs
