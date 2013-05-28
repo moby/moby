@@ -541,6 +541,10 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	}
 	name := vars["name"]
 
+	if _, err := srv.ContainerInspect(name); err != nil {
+		return err
+	}
+
 	in, out, err := hijackServer(w)
 	if err != nil {
 		return err
