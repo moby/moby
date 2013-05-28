@@ -1,9 +1,6 @@
 # Contributing to Docker
 
-Want to hack on Docker? Awesome! There are instructions to get you
-started on the website: http://docker.io/gettingstarted.html
-
-They are probably not perfect, please let us know if anything feels
+Want to hack on Docker? Awesome! Here are instructions to get you started. They are probably not perfect, please let us know if anything feels
 wrong or incomplete.
 
 ## Contribution guidelines
