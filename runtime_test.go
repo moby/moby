@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"os/user"
 	"sync"
 	"testing"
