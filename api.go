@@ -206,7 +206,7 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
-func getContainersPs(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersJson(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -631,7 +631,8 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			"/images/search":                getImagesSearch,
 			"/images/{name:.*}/history":     getImagesHistory,
 			"/images/{name:.*}/json":        getImagesByName,
-			"/containers/ps":                getContainersPs,
+			"/containers/ps":                getContainersJson,
+			"/containers/json":              getContainersJson,
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
