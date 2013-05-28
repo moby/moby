@@ -213,8 +213,27 @@ func (b *buildFile) CmdAdd(args string) error {
 		return err
 	}
 
-	if err := utils.CopyDirectory(path.Join(b.context, orig), path.Join(container.rwPath(), dest)); err != nil {
+	origPath := path.Join(b.context, orig)
+	destPath := path.Join(container.rwPath(), dest)
+
+	fi, err := os.Stat(origPath)
+	if err != nil {
 		return err
+	}
+	if fi.IsDir() {
+		files, err := ioutil.ReadDir(path.Join(b.context, orig))
+		if err != nil {
+			return err
+		}
+		for _, fi := range files {
+			if err := utils.CopyDirectory(path.Join(origPath, fi.Name()), path.Join(destPath, fi.Name())); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := utils.CopyDirectory(origPath, destPath); err != nil {
+			return err
+		}
 	}
 
 	return b.commit(cid)

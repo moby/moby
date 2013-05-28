@@ -69,7 +69,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
-	json bool
+	json         bool
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -102,7 +102,7 @@ func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, json bool) *progressReader {
-      	if template == "" {
+	if template == "" {
 		template = "%v/%v (%v)\r"
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, json}
@@ -533,8 +533,8 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 }
 
 func CopyDirectory(source, dest string) error {
-	if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
-		return err
+	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error copy: %s (%s)", err, output)
 	}
 	return nil
 }
@@ -577,5 +577,3 @@ func FormatProgress(str string, json bool) string {
 	}
 	return "Downloading " + str + "\r"
 }
-
-
