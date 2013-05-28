@@ -626,7 +626,7 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
-func postBuild(srv *Server, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
 	}

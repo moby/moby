@@ -92,7 +92,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer) (string, e
 	}
 
 	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, "Downloading %v/%v (%v)\r", false), path); err != nil {
-		return err
+		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
 	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)

@@ -175,7 +175,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := w.CreateFormFile("Context", cmd.Arg(0)+"."+compression.Extension()); err != nil {
 			return err
 		}
-		multipartBody = io.MultiReader(multipartBody, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Uploading Context %v/%v (%v)"))
+		multipartBody = io.MultiReader(multipartBody, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Uploading Context %v/%v (%v)", false))
 	}
 
 	// Send the multipart request with correct content-type
