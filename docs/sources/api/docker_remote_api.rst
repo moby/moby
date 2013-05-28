@@ -378,7 +378,7 @@ Attach to a container
 
 .. http:post:: /containers/(id)/attach
 
-	Stop the container ``id``
+	Attach to the container ``id``
 
 	**Example request**:
 
