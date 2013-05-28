@@ -188,6 +188,9 @@ func (b *buildFile) CmdInsert(args string) error {
 }
 
 func (b *buildFile) CmdAdd(args string) error {
+	if b.context == "" {
+		return fmt.Errorf("No context given. Impossible to use ADD")
+	}
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid INSERT format")
