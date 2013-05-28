@@ -531,6 +531,13 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}, nil
 }
 
+func CopyDirectory(source, dest string) error {
+	if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
+		return err
+	}
+	return nil
+}
+
 type NopFlusher struct{}
 
 func (f *NopFlusher) Flush() {}

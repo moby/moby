@@ -27,6 +27,7 @@ type buildFile struct {
 	image      string
 	maintainer string
 	config     *Config
+	context    string
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -168,6 +169,7 @@ func (b *buildFile) CmdInsert(args string) error {
 	}
 	defer file.Body.Close()
 
+	b.config.Cmd = []string{"echo", "INSERT", sourceUrl, "in", destPath}
 	cid, err := b.run()
 	if err != nil {
 		return err
@@ -179,6 +181,36 @@ func (b *buildFile) CmdInsert(args string) error {
 	}
 
 	if err := container.Inject(file.Body, destPath); err != nil {
+		return err
+	}
+
+	return b.commit(cid)
+}
+
+func (b *buildFile) CmdAdd(args string) error {
+	tmp := strings.SplitN(args, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid INSERT format")
+	}
+	orig := strings.Trim(tmp[0], " ")
+	dest := strings.Trim(tmp[1], " ")
+
+	b.config.Cmd = []string{"echo", "PUSH", orig, "in", dest}
+	cid, err := b.run()
+	if err != nil {
+		return err
+	}
+
+	container := b.runtime.Get(cid)
+	if container == nil {
+		return fmt.Errorf("Error while creating the container (CmdAdd)")
+	}
+
+	if err := os.MkdirAll(path.Join(container.rwPath(), dest), 0700); err != nil {
+		return err
+	}
+
+	if err := utils.CopyDirectory(path.Join(b.context, orig), path.Join(container.rwPath(), dest)); err != nil {
 		return err
 	}
 
@@ -216,7 +248,6 @@ func (b *buildFile) commit(id string) error {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.config.Image = b.image
-
 	if id == "" {
 		cmd := b.config.Cmd
 		b.config.Cmd = []string{"true"}
@@ -245,9 +276,19 @@ func (b *buildFile) commit(id string) error {
 }
 
 func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
-	b.out = os.Stdout
-
 	defer b.clearTmp(b.tmpContainers, b.tmpImages)
+
+	if context != nil {
+		name, err := ioutil.TempDir("/tmp", "docker-build")
+		if err != nil {
+			return "", err
+		}
+		if err := Untar(context, name); err != nil {
+			return "", err
+		}
+		defer os.RemoveAll(name)
+		b.context = name
+	}
 	file := bufio.NewReader(dockerfile)
 	for {
 		line, err := file.ReadString('\n')
@@ -307,6 +348,7 @@ func NewBuildFile(srv *Server, out io.Writer) BuildFile {
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},
+		out:           out,
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
 	}

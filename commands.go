@@ -189,35 +189,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) CmdBuildClient(args ...string) error {
-	cmd := Subcmd("build", "-|Dockerfile", "Build an image from Dockerfile or via stdin")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	var (
-		file io.ReadCloser
-		err  error
-	)
-
-	if cmd.NArg() == 0 {
-		file, err = os.Open("Dockerfile")
-		if err != nil {
-			return err
-		}
-	} else if cmd.Arg(0) == "-" {
-		file = os.Stdin
-	} else {
-		file, err = os.Open(cmd.Arg(0))
-		if err != nil {
-			return err
-		}
-	}
-	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file, nil); err != nil {
-		return err
-	}
-	return nil
-}
-
 // 'docker login': login / register a user to registry service.
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	var readStringOnRawTerminal = func(stdin io.Reader, stdout io.Writer, echo bool) string {
