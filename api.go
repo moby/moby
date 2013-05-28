@@ -643,7 +643,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	b := NewBuildFile(srv, w)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
 	if _, err := b.Build(file, context); err != nil {
 		return err
 	}
