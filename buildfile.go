@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 )
