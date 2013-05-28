@@ -27,7 +27,7 @@ But we know people have had success running it under
 Dependencies:
 -------------
 
-* 3.8 Kernel
+* 3.8 Kernel (read more about :ref:`kernel`)
 * AUFS filesystem support
 * lxc
 * bsdtar
