@@ -631,7 +631,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	file, _, err := r.FormFile("Dockerfile")
+	dockerfile, _, err := r.FormFile("Dockerfile")
 	if err != nil {
 		return err
 	}
@@ -644,8 +644,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if _, err := b.Build(file, context); err != nil {
-		return err
+	if _, err := b.Build(dockerfile, context); err != nil {
+		fmt.Fprintf(w, "Error build: %s\n", err)
 	}
 	return nil
 }
