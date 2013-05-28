@@ -16,7 +16,7 @@ Right now, the officially supported distribution are:
 
 Docker has the following dependencies
 
-* Linux kernel 3.8
+* Linux kernel 3.8 (read more about :ref:`kernel`)
 * AUFS file system support (we are working on BTRFS support as an alternative)
 
 .. _ubuntu_precise:
