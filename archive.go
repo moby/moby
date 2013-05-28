@@ -2,6 +2,7 @@ package docker
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -31,6 +32,20 @@ func (compression *Compression) Flag() string {
 	return ""
 }
 
+func (compression *Compression) Extension() string {
+	switch *compression {
+	case Uncompressed:
+		return "tar"
+	case Bzip2:
+		return "tar.bz2"
+	case Gzip:
+		return "tar.gz"
+	case Xz:
+		return "tar.xz"
+	}
+	return ""
+}
+
 func Tar(path string, compression Compression) (io.Reader, error) {
 	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-c"+compression.Flag(), ".")
 	return CmdStream(cmd)
@@ -41,7 +56,7 @@ func Untar(archive io.Reader, path string) error {
 	cmd.Stdin = archive
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.New(err.Error() + ": " + string(output))
+		return fmt.Errorf("%s: %s", err, output)
 	}
 	return nil
 }

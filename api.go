@@ -33,6 +33,13 @@ func parseForm(r *http.Request) error {
 	return nil
 }
 
+func parseMultipartForm(r *http.Request) error {
+	if err := r.ParseMultipartForm(4096); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
+		return err
+	}
+	return nil
+}
+
 func httpError(w http.ResponseWriter, err error) {
 	if strings.HasPrefix(err.Error(), "No such") {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -335,9 +342,15 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 	name := vars["name"]
 
-	if err := srv.ImageInsert(name, url, path, w); err != nil {
+	imgId, err := srv.ImageInsert(name, url, path, w)
+	if err != nil {
 		return err
 	}
+	b, err := json.Marshal(&ApiId{Id: imgId})
+	if err != nil {
+		return err
+	}
+	writeJson(w, b)
 	return nil
 }
 
@@ -617,6 +630,30 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
+func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := r.ParseMultipartForm(4096); err != nil {
+		return err
+	}
+
+	dockerfile, _, err := r.FormFile("Dockerfile")
+	if err != nil {
+		return err
+	}
+
+	context, _, err := r.FormFile("Context")
+	if err != nil {
+		if err != http.ErrMissingFile {
+			return err
+		}
+	}
+
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
+	if _, err := b.Build(dockerfile, context); err != nil {
+		fmt.Fprintf(w, "Error build: %s\n", err)
+	}
+	return nil
+}
+
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
@@ -640,6 +677,7 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 		"POST": {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
+			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
