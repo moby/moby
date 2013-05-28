@@ -788,7 +788,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("before", *before)
 	}
 
-	body, _, err := cli.call("GET", "/containers/ps?"+v.Encode(), nil)
+	body, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}

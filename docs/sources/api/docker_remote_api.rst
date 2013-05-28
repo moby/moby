@@ -24,7 +24,7 @@ Docker Remote API
 List containers
 ***************
 
-.. http:get:: /containers/ps
+.. http:get:: /containers/json
 
 	List containers
 
@@ -32,7 +32,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/ps?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
