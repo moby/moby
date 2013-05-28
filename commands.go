@@ -806,9 +806,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", out.Id, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			}
 		} else {
 			if *noTrunc {
