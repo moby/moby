@@ -355,7 +355,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		for i := range b.tmpImages {
 			delete(b.tmpImages, i)
 		}
-		fmt.Fprintf(b.out, "Build finished. image id: %s\n", b.image)
+		fmt.Fprintf(b.out, "Build success.\n Image id:\n%s\n", b.image)
 		return b.image, nil
 	}
 	for i := range b.tmpContainers {
