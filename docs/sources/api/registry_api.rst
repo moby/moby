@@ -1,4 +1,4 @@
-:title: docker Registry documentation
+:title: Registry Documentation
 :description: Documentation for docker Registry and Registry API
 :keywords: docker, registry, api, index
 
@@ -301,7 +301,7 @@ POST /v1/users
     {"email": "sam@dotcloud.com", "password": "toto42", "username": "foobar"'}
 
 **Validation**:
-    - **username** : min 4 character, max 30 characters, all lowercase no special characters.
+    - **username** : min 4 character, max 30 characters, must match the regular expression [a-z0-9_].
     - **password**: min 5 characters
 
 **Valid**: return HTTP 200
@@ -344,6 +344,11 @@ GET /v1/users
 -------------------
 
 The Registry does not know anything about users. Even though repositories are under usernames, it’s just a namespace for the registry. Allowing us to implement organizations or different namespaces per user later, without modifying the Registry’s API.
+
+The following naming restrictions apply:
+
+- Namespaces must match the same regular expression as usernames (See 4.2.1.)
+- Repository names must match the regular expression [a-zA-Z0-9-_.]
 
 4.3.1 Get all tags
 ^^^^^^^^^^^^^^^^^^

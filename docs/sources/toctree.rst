@@ -1,6 +1,6 @@
-:title: docker documentation
-:description: docker documentation
-:keywords:
+:title: Documentation
+:description: -- todo: change me
+:keywords: todo, docker, documentation, installation, usage, examples, contributing, faq, command line, concepts
 
 Documentation
 =============

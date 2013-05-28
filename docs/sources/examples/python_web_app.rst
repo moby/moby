@@ -40,7 +40,7 @@ We attach to the new container to see what is going on. Ctrl-C to disconnect
 
 .. code-block:: bash
 
-    BUILD_IMG=$(docker commit $BUILD_JOB _/builds/github.com/hykes/helloflask/master)
+    BUILD_IMG=$(docker commit $BUILD_JOB _/builds/github.com/shykes/helloflask/master)
 
 Save the changed we just made in the container to a new image called "_/builds/github.com/hykes/helloflask/master" and save the image id in the BUILD_IMG variable name.
 
@@ -58,7 +58,7 @@ Use the new image we just created and create a new container with network port 5
 .. code-block:: bash
 
     docker logs $WEB_WORKER
-     * Running on \http://0.0.0.0:5000/
+     * Running on http://0.0.0.0:5000/
 
 view the logs for the new container using the WEB_WORKER variable, and if everything worked as planned you should see the line "Running on http://0.0.0.0:5000/" in the log output.
 
@@ -70,7 +70,8 @@ lookup the public-facing port which is NAT-ed store the private port used by the
 
 .. code-block:: bash
 
-    curl \http://`hostname`:$WEB_PORT
+    # install curl if necessary, then ...
+    curl http://127.0.0.1:$WEB_PORT
       Hello world!
 
 access the web app using curl. If everything worked as planned you should see the line "Hello world!" inside of your console.

@@ -1,3 +1,7 @@
+:title: Rm Command
+:description: Remove a container
+:keywords: remove, container, docker, documentation, rm
+
 ============================
 ``rm`` -- Remove a container
 ============================

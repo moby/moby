@@ -1,3 +1,7 @@
+:title: Tag Command
+:description: Tag an image into a repository
+:keywords: tag, docker, image, repository, documentation, repo
+
 =========================================
 ``tag`` -- Tag an image into a repository
 =========================================
