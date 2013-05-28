@@ -158,10 +158,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 		defer file.Close()
 	}
-	if _, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
+	if wField, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
 		return err
+	} else {
+		io.Copy(wField, file)
 	}
-	multipartBody = io.MultiReader(multipartBody, file)
+	multipartBody = io.MultiReader(multipartBody, boundary)
 
 	compression := Bzip2
 
@@ -172,20 +174,30 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := w.CreateFormFile("Context", cmd.Arg(0)+"."+compression.Extension()); err != nil {
+		// NOTE: Do this in case '.' or '..' is input
+		absPath, err := filepath.Abs(cmd.Arg(0))
+		if err != nil {
 			return err
 		}
-		multipartBody = io.MultiReader(multipartBody, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Uploading Context %v/%v (%v)\r", false))
+		if wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension()); err != nil {
+			return err
+		} else {
+			// FIXME: Find a way to have a progressbar for the upload too
+			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Caching Context %v/%v (%v)\r", false))
+		}
+
+		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
 
 	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), io.MultiReader(multipartBody, boundary))
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), multipartBody)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	if cmd.Arg(0) != "" {
 		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
+		fmt.Println("Uploading Context...")
 	}
 
 	resp, err := http.DefaultClient.Do(req)
