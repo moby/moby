@@ -112,9 +112,8 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS]", "Build an image from a Dockerfile")
-	fileName := cmd.String("f", "Dockerfile", "Use file as Dockerfile. Can be '-' for stdin")
-	contextPath := cmd.String("c", "", "Use the specified directory as context for the build")
+	cmd := Subcmd("build", "[OPTIONS] [CONTEXT]", "Build an image from a Dockerfile")
+	fileName := cmd.String("f", "Dockerfile", "Use `file` as Dockerfile. Can be '-' for stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -146,14 +145,16 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	multipartBody = io.MultiReader(multipartBody, file)
 
+	compression := Bzip2
+
 	// Create a FormFile multipart for the context if needed
-	if *contextPath != "" {
+	if cmd.Arg(0) != "" {
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
-		context, err := Tar(*contextPath, Bzip2)
+		context, err := Tar(cmd.Arg(0), compression)
 		if err != nil {
 			return err
 		}
-		if _, err := w.CreateFormFile("Context", *contextPath+".tar.bz2"); err != nil {
+		if _, err := w.CreateFormFile("Context", cmd.Arg(0)+"."+compression.Extension()); err != nil {
 			return err
 		}
 		multipartBody = io.MultiReader(multipartBody, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Uploading Context %v/%v (%v)"))
@@ -165,6 +166,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	if cmd.Arg(0) != "" {
+		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
