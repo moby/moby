@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -164,6 +165,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		if err != nil {
 			return nil, err
 		}
+
 		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
