@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -130,17 +131,12 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS] [CONTEXT]", "Build an image from a Dockerfile")
-	fileName := cmd.String("f", "Dockerfile", "Use `file` as Dockerfile. Can be '-' for stdin")
+	cmd := Subcmd("build", "[CONTEXT]", "Build an image from a Dockerfile")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	var (
-		file          io.ReadCloser
-		multipartBody io.Reader
-		err           error
-	)
+	var multipartBody io.Reader
 
 	// Init the needed component for the Multipart
 	buff := bytes.NewBuffer([]byte{})
@@ -148,17 +144,19 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	w := multipart.NewWriter(buff)
 	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
 
-	// Create a FormFile multipart for the Dockerfile
-	if *fileName == "-" {
-		file = os.Stdin
-	} else {
-		file, err = os.Open(*fileName)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
+	dockerfile := "Dockerfile"
+
+	if cmd.Arg(0) != "" {
+		dockerfile = path.Join(cmd.Arg(0), dockerfile)
 	}
-	if wField, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
+
+	// Create a FormFile multipart for the Dockerfile
+	file, err := os.Open(dockerfile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
 		return err
 	} else {
 		io.Copy(wField, file)
