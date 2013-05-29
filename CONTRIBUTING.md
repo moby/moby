@@ -150,10 +150,10 @@ You don't have to be a maintainer to make a difference on the project!
 
 It is every maintainer's responsibility to:
 
-# Be aware of which pull requests they must review, and do so quickly
-# Communicate clearly and transparently with other maintainers
-# Be available to anyone with questions, bug reports, criticism etc. on their component. This includes irc, github requests and the mailing list.
-# Make sure they respect the philosophy and design of the project
+* 1) Expose a clear roadmap for improving their component.
+* 2) Deliver prompt feedback and decisions on pull requests.
+* 3) Be available to anyone with questions, bug reports, criticism etc. on their component. This includes irc, github requests and the mailing list.
+* 4) Make sure their component respects the philosophy, design and roadmap of the project.
 
 ### How is this process changed?
 
