@@ -366,12 +366,10 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := Subcmd("version", "", "Show the docker version information.")
-	fmt.Println(len(args))
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	fmt.Println(cmd.NArg())
 	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
