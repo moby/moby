@@ -739,19 +739,15 @@ func (srv *Server) ImageDelete(name string) error {
 		}
 	}
 	// check is the image to delete isn't parent of another image
-	images, _ := srv.runtime.graph.All()
-	for _, image := range images {
-		if imgParent, err := image.GetParent(); err == nil && imgParent != nil {
-			if imgParent.Id == img.Id {
-				if strings.Contains(img.Id, name) {
-					return fmt.Errorf("Conflict with %s, %s was not removed", image.ShortId(), name)
-				}
-				if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-					return err
-				}
-				return nil
-			}
+	byParent, _ := srv.runtime.graph.ByParent()
+	if childs, exists := byParent[img.Id]; exists {
+		if strings.Contains(img.Id, name) {
+			return fmt.Errorf("Conflict with %s, %s was not removed", childs[0].ShortId(), name)
 		}
+		if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
+			return err
+		}
+		return nil
 	}
 	if err := srv.runtime.graph.Delete(img.Id); err != nil {
 		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
