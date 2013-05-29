@@ -98,12 +98,14 @@ func (b *buildFile) CmdRun(args string) error {
 
 	utils.Debugf("Commang to be executed: %v", b.config.Cmd)
 
-	if cache, err := b.srv.ImageGetCached(b.image, config); err != nil {
+	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
 	} else if cache != nil {
-		utils.Debugf("Use cached version")
+		utils.Debugf("[BUILDER] Use cached version")
 		b.image = cache.Id
 		return nil
+	} else {
+		utils.Debugf("[BUILDER] Cache miss")
 	}
 
 	cid, err := b.run()
@@ -182,7 +184,11 @@ func (b *buildFile) CmdInsert(args string) error {
 	if err := container.Inject(file.Body, destPath); err != nil {
 		return err
 	}
-	return b.commit(cid, cmd, fmt.Sprintf("INSERT %s in %s", sourceUrl, destPath))
+	if err := b.commit(cid, cmd, fmt.Sprintf("INSERT %s in %s", sourceUrl, destPath)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) CmdAdd(args string) error {
@@ -271,6 +277,17 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	b.config.Image = b.image
 	if id == "" {
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
+
+		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+			return err
+		} else if cache != nil {
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.Id
+			return nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
+
 		if cid, err := b.run(); err != nil {
 			return err
 		} else {
