@@ -318,7 +318,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 }
 
-func TestGetContainersPs(t *testing.T) {
+func TestGetContainersJson(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -336,13 +336,13 @@ func TestGetContainersPs(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	req, err := http.NewRequest("GET", "/containers?quiet=1&all=1", nil)
+	req, err := http.NewRequest("GET", "/containers/json?all=1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersPs(srv, API_VERSION, r, req, nil); err != nil {
+	if err := getContainersJson(srv, API_VERSION, r, req, nil); err != nil {
 		t.Fatal(err)
 	}
 	containers := []ApiContainers{}
