@@ -16,7 +16,7 @@ Right now, the officially supported distribution are:
 
 Docker has the following dependencies
 
-* Linux kernel 3.8
+* Linux kernel 3.8 (read more about :ref:`kernel`)
 * AUFS file system support (we are working on BTRFS support as an alternative)
 
 .. _ubuntu_precise:
@@ -54,9 +54,9 @@ which makes installing Docker on Ubuntu very easy.
 .. code-block:: bash
 
    # Add the PPA sources to your apt sources list.
-   sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' > /etc/apt/sources.list.d/lxc-docker.list"
+   sudo apt-get install python-software-properties && sudo add-apt-repository ppa:dotcloud/lxc-docker
 
-   # Update your sources, you will see a warning.
+   # Update your sources
    sudo apt-get update
 
    # Install, you will see another warning that the package cannot be authenticated. Confirm install.

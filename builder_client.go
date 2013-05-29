@@ -12,12 +12,6 @@ import (
 	"strings"
 )
 
-type BuilderClient interface {
-	Build(io.Reader) (string, error)
-	CmdFrom(string) error
-	CmdRun(string) error
-}
-
 type builderClient struct {
 	cli *DockerCli
 
@@ -158,8 +152,23 @@ func (b *builderClient) CmdExpose(args string) error {
 }
 
 func (b *builderClient) CmdInsert(args string) error {
-	// FIXME: Reimplement this once the remove_hijack branch gets merged.
-	// We need to retrieve the resulting Id
+	// tmp := strings.SplitN(args, "\t ", 2)
+	// sourceUrl, destPath := tmp[0], tmp[1]
+
+	// v := url.Values{}
+	// v.Set("url", sourceUrl)
+	// v.Set("path", destPath)
+	// body, _, err := b.cli.call("POST", "/images/insert?"+v.Encode(), nil)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// apiId := &ApiId{}
+	// if err := json.Unmarshal(body, apiId); err != nil {
+	// 	return err
+	// }
+
+	// FIXME: Reimplement this, we need to retrieve the resulting Id
 	return fmt.Errorf("INSERT not implemented")
 }
 
@@ -240,7 +249,7 @@ func (b *builderClient) commit(id string) error {
 	return nil
 }
 
-func (b *builderClient) Build(dockerfile io.Reader) (string, error) {
+func (b *builderClient) Build(dockerfile, context io.Reader) (string, error) {
 	defer b.clearTmp(b.tmpContainers, b.tmpImages)
 	file := bufio.NewReader(dockerfile)
 	for {
@@ -263,18 +272,18 @@ func (b *builderClient) Build(dockerfile io.Reader) (string, error) {
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
 
-		fmt.Printf("%s %s (%s)\n", strings.ToUpper(instruction), arguments, b.image)
+		fmt.Fprintf(os.Stderr, "%s %s (%s)\n", strings.ToUpper(instruction), arguments, b.image)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
-			fmt.Printf("Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			fmt.Fprintf(os.Stderr, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 		}
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
 			return "", ret.(error)
 		}
 
-		fmt.Printf("===> %v\n", b.image)
+		fmt.Fprintf(os.Stderr, "===> %v\n", b.image)
 	}
 	if b.needCommit {
 		if err := b.commit(""); err != nil {
@@ -289,13 +298,13 @@ func (b *builderClient) Build(dockerfile io.Reader) (string, error) {
 		for i := range b.tmpContainers {
 			delete(b.tmpContainers, i)
 		}
-		fmt.Printf("Build finished. image id: %s\n", b.image)
+		fmt.Fprintf(os.Stderr, "Build finished. image id: %s\n", b.image)
 		return b.image, nil
 	}
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuilderClient(addr string, port int) BuilderClient {
+func NewBuilderClient(addr string, port int) BuildFile {
 	return &builderClient{
 		cli:           NewDockerCli(addr, port),
 		config:        &Config{},
