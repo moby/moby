@@ -139,9 +139,9 @@ Solomon.
 
 ### How can I become a maintainer?
 
-Step 1: learn the component inside out
-Step 2: make yourself useful by contributing code, bugfixes, support etc.
-Step 3: volunteer on the irc channel (#docker@freenode)
+* Step 1: learn the component inside out
+* Step 2: make yourself useful by contributing code, bugfixes, support etc.
+* Step 3: volunteer on the irc channel (#docker@freenode)
 
 Don't forget: being a maintainer is a time investment. Make sure you will have time to make yourself available.
 You don't have to be a maintainer to make a difference on the project!
@@ -149,10 +149,11 @@ You don't have to be a maintainer to make a difference on the project!
 ### What are a maintainer's responsibility?
 
 It is every maintainer's responsibility to:
-	a) be aware of which pull requests they must review, and do so quickly
-	b) communicate clearly and transparently with other maintainers
-	c) be available to anyone with questions, bug reports, criticism etc. on their component. This includes irc, github requests and the mailing list.
-	d) make sure they respect the philosophy and design of the project
+
+* 1) Expose a clear roadmap for improving their component.
+* 2) Deliver prompt feedback and decisions on pull requests.
+* 3) Be available to anyone with questions, bug reports, criticism etc. on their component. This includes irc, github requests and the mailing list.
+* 4) Make sure their component respects the philosophy, design and roadmap of the project.
 
 ### How is this process changed?
 

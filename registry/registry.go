@@ -330,6 +330,9 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	if validate {
 		suffix = "images"
 	}
+
+	utils.Debugf("Image list pushed to index:\n%s\n", imgListJson)
+
 	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/"+suffix, bytes.NewReader(imgListJson))
 	if err != nil {
 		return nil, err
