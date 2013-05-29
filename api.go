@@ -450,11 +450,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	force, err := getBoolParam(r.Form.Get("force"))
-	if err != nil {
-		return err
-	}
-	if err := srv.ImageDelete(name, force); err != nil {
+	if err := srv.ImageDelete(name); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

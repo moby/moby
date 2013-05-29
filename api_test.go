@@ -1268,7 +1268,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := deleteImages(srv, r, req, map[string]string{"name": "test:test"}); err != nil {
+	if err := deleteImages(srv, API_VERSION, r, req, map[string]string{"name": "test:test"}); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNoContent {
