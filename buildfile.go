@@ -95,9 +95,11 @@ func (b *buildFile) CmdRun(args string) error {
 		return err
 	}
 
-	cmd, env := b.config.Cmd, b.config.Env
+	cmd := b.config.Cmd
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
+
+	utils.Debugf("Commang to be executed: %v", b.config.Cmd)
 
 	if cache, err := b.srv.ImageGetCached(b.image, config); err != nil {
 		return err
@@ -111,8 +113,11 @@ func (b *buildFile) CmdRun(args string) error {
 	if err != nil {
 		return err
 	}
-	b.config.Cmd, b.config.Env = cmd, env
-	return b.commit(cid)
+	if err := b.commit(cid, cmd); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) CmdEnv(args string) error {
@@ -153,6 +158,7 @@ func (b *buildFile) CmdExpose(args string) error {
 }
 
 func (b *buildFile) CmdInsert(args string) error {
+
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to insert")
 	}
@@ -169,6 +175,7 @@ func (b *buildFile) CmdInsert(args string) error {
 	}
 	defer file.Body.Close()
 
+	cmd := b.config.Cmd
 	b.config.Cmd = []string{"echo", "INSERT", sourceUrl, "in", destPath}
 	cid, err := b.run()
 	if err != nil {
@@ -184,7 +191,7 @@ func (b *buildFile) CmdInsert(args string) error {
 		return err
 	}
 
-	return b.commit(cid)
+	return b.commit(cid, cmd)
 }
 
 func (b *buildFile) CmdAdd(args string) error {
@@ -198,6 +205,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	orig := strings.Trim(tmp[0], " ")
 	dest := strings.Trim(tmp[1], " ")
 
+	cmd := b.config.Cmd
 	b.config.Cmd = []string{"echo", "PUSH", orig, "in", dest}
 	cid, err := b.run()
 	if err != nil {
@@ -236,7 +244,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	return b.commit(cid)
+	return b.commit(cid, cmd)
 }
 
 func (b *buildFile) run() (string, error) {
@@ -265,7 +273,8 @@ func (b *buildFile) run() (string, error) {
 	return c.Id, nil
 }
 
-func (b *buildFile) commit(id string) error {
+// Commit the container <id> with the autorun command <autoCmd>
+func (b *buildFile) commit(id string, autoCmd []string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
@@ -286,8 +295,11 @@ func (b *buildFile) commit(id string) error {
 		return fmt.Errorf("An error occured while creating the container")
 	}
 
+	// Note: Actually copy the struct
+	autoConfig := *b.config
+	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.builder.Commit(container, "", "", "", b.maintainer, nil)
+	image, err := b.builder.Commit(container, "", "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}
@@ -347,7 +359,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		fmt.Fprintf(b.out, "===> %v\n", b.image)
 	}
 	if b.needCommit {
-		if err := b.commit(""); err != nil {
+		if err := b.commit("", nil); err != nil {
 			return "", err
 		}
 	}
