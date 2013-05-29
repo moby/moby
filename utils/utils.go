@@ -69,6 +69,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
+	json         bool
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -84,15 +85,15 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
-			fmt.Fprintf(r.output, r.template+"\r", r.readProgress, "?", "n/a")
+			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
 		r.lastUpdate = r.readProgress
 	}
 	// Send newline when complete
 	if err != nil {
-		fmt.Fprintf(r.output, "\n")
+		fmt.Fprintf(r.output, FormatStatus("", r.json))
 	}
 
 	return read, err
@@ -100,11 +101,11 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string) *progressReader {
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, json bool) *progressReader {
 	if template == "" {
-		template = "%v/%v (%v)"
+		template = "%v/%v (%v)\r"
 	}
-	return &progressReader{r, output, size, 0, 0, template}
+	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, json}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -529,4 +530,50 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 		Minor:  minor,
 		Flavor: flavor,
 	}, nil
+}
+
+func CopyDirectory(source, dest string) error {
+	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error copy: %s (%s)", err, output)
+	}
+	return nil
+}
+
+type NopFlusher struct{}
+
+func (f *NopFlusher) Flush() {}
+
+type WriteFlusher struct {
+	w       io.Writer
+	flusher http.Flusher
+}
+
+func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	n, err = wf.w.Write(b)
+	wf.flusher.Flush()
+	return n, err
+}
+
+func NewWriteFlusher(w io.Writer) *WriteFlusher {
+	var flusher http.Flusher
+	if f, ok := w.(http.Flusher); ok {
+		flusher = f
+	} else {
+		flusher = &NopFlusher{}
+	}
+	return &WriteFlusher{w: w, flusher: flusher}
+}
+
+func FormatStatus(str string, json bool) string {
+	if json {
+		return "{\"status\" : \"" + str + "\"}"
+	}
+	return str + "\r\n"
+}
+
+func FormatProgress(str string, json bool) string {
+	if json {
+		return "{\"progress\" : \"" + str + "\"}"
+	}
+	return "Downloading " + str + "\r"
 }

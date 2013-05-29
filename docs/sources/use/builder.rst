@@ -1,3 +1,7 @@
+:title: Docker Builder
+:description: Docker Builder specifes a simple DSL which allows you to automate the steps you would normally manually take to create an image.
+:keywords: builder, docker, Docker Builder, automation, image creation
+
 ==============
 Docker Builder
 ==============
@@ -107,8 +111,7 @@ The `ENV` instruction sets the environment variable `<key>` to the value
 functionally equivalent to prefixing the command with `<key>=<value>`
 
 .. note::
-    The environment variables are local to the Dockerfile, they will not persist
-    when a container is run from the resulting image.
+    The environment variables will persist when a container is run from the resulting image.
 
 2.7 INSERT
 ----------
@@ -122,6 +125,8 @@ curl was installed within the image.
 .. note::
     The path must include the file name.
 
+.. note::
+    This instruction has temporarily disabled
 
 3. Dockerfile Examples
 ======================

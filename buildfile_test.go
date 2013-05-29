@@ -13,7 +13,6 @@ const Dockerfile = `
 from   ` + unitTestImageName + `
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
-insert https://raw.github.com/dotcloud/docker/master/CHANGELOG.md /tmp/CHANGELOG.md
 `
 
 func TestBuild(t *testing.T) {
@@ -23,16 +22,19 @@ func TestBuild(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	builder := NewBuilder(runtime)
+	srv := &Server{runtime: runtime}
 
-	img, err := builder.Build(strings.NewReader(Dockerfile), &utils.NopWriter{})
+	buildfile := NewBuildFile(srv, &utils.NopWriter{})
+
+	imgId, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	builder := NewBuilder(runtime)
 	container, err := builder.Create(
 		&Config{
-			Image: img.Id,
+			Image: imgId,
 			Cmd:   []string{"cat", "/tmp/passwd"},
 		},
 	)
@@ -51,7 +53,7 @@ func TestBuild(t *testing.T) {
 
 	container2, err := builder.Create(
 		&Config{
-			Image: img.Id,
+			Image: imgId,
 			Cmd:   []string{"ls", "-d", "/var/run/sshd"},
 		},
 	)
@@ -66,24 +68,5 @@ func TestBuild(t *testing.T) {
 	}
 	if string(output) != "/var/run/sshd\n" {
 		t.Fatal("/var/run/sshd has not been created")
-	}
-
-	container3, err := builder.Create(
-		&Config{
-			Image: img.Id,
-			Cmd:   []string{"cat", "/tmp/CHANGELOG.md"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container3)
-
-	output, err = container3.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(output) == 0 {
-		t.Fatal("/tmp/CHANGELOG.md has not been copied")
 	}
 }

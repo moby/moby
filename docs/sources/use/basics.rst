@@ -1,6 +1,6 @@
-:title: Base commands
+:title: Basic Commands
 :description: Common usage and commands
-:keywords: Examples, Usage
+:keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 
 The basics
@@ -32,6 +32,19 @@ Running an interactive shell
   # Run an interactive shell in the base image,
   # allocate a tty, attach stdin and stdout
   docker run -i -t base /bin/bash
+
+Bind Docker to another host/port
+--------------------------------
+
+If you want Docker to listen to another port and bind to another ip
+use -host and -port on both deamon and client
+
+.. code-block:: bash
+
+   # Run docker in daemon mode
+   sudo <path to>/docker -H 0.0.0.0:5555 &
+   # Download a base image
+   docker -H :5555 pull base
 
 
 Starting a long-running worker process

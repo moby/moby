@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -23,18 +24,38 @@ func main() {
 		docker.SysInit()
 		return
 	}
+	host := "127.0.0.1"
+	port := 4243
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
+	flHost := flag.String("H", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
 	} else {
 		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
+
+	if strings.Contains(*flHost, ":") {
+		hostParts := strings.Split(*flHost, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
+		if hostParts[0] != "" {
+			host = hostParts[0]
+		}
+		if p, err := strconv.Atoi(hostParts[1]); err == nil {
+			port = p
+		}
+	} else {
+		host = *flHost
+	}
+
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
@@ -44,12 +65,12 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flAutoRestart); err != nil {
+		if err := daemon(*pidfile, host, port, *flAutoRestart); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
 	} else {
-		if err := docker.ParseCommands(flag.Args()...); err != nil {
+		if err := docker.ParseCommands(host, port, flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -83,7 +104,10 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, autoRestart bool) error {
+func daemon(pidfile, addr string, port int, autoRestart bool) error {
+	if addr != "127.0.0.1" {
+		log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+	}
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -103,5 +127,5 @@ func daemon(pidfile string, autoRestart bool) error {
 		return err
 	}
 
-	return docker.ListenAndServe("0.0.0.0:4243", server, true)
+	return docker.ListenAndServe(fmt.Sprintf("%s:%d", addr, port), server, true)
 }

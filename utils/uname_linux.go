@@ -4,7 +4,8 @@ import (
 	"syscall"
 )
 
-// FIXME: Move this to utils package
+type Utsname syscall.Utsname
+
 func uname() (*syscall.Utsname, error) {
 	uts := &syscall.Utsname{}
 

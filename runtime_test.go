@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"os/user"
 	"sync"
 	"testing"
@@ -30,13 +29,6 @@ func nuke(runtime *Runtime) error {
 	}
 	wg.Wait()
 	return os.RemoveAll(runtime.root)
-}
-
-func CopyDirectory(source, dest string) error {
-	if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func layerArchive(tarfile string) (io.Reader, error) {
@@ -75,10 +67,12 @@ func init() {
 		registry: registry.NewRegistry(runtime.root),
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, false); err != nil {
 		panic(err)
 	}
 }
+
+// FIXME: test that ImagePull(json=true) send correct json output
 
 func newTestRuntime() (*Runtime, error) {
 	root, err := ioutil.TempDir("", "docker-test")
@@ -88,7 +82,7 @@ func newTestRuntime() (*Runtime, error) {
 	if err := os.Remove(root); err != nil {
 		return nil, err
 	}
-	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
+	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
 		return nil, err
 	}
 
@@ -345,7 +339,7 @@ func TestRestore(t *testing.T) {
 	if err := os.Remove(root); err != nil {
 		t.Fatal(err)
 	}
-	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
+	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
 		t.Fatal(err)
 	}
 

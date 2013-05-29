@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
 	"io"
@@ -752,6 +753,14 @@ func (container *Container) Restart(seconds int) error {
 func (container *Container) Wait() int {
 	<-container.waitLock
 	return container.State.ExitCode
+}
+
+func (container *Container) Resize(h, w int) error {
+	pty, ok := container.ptyMaster.(*os.File)
+	if !ok {
+		return fmt.Errorf("ptyMaster does not have Fd() method")
+	}
+	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
 func (container *Container) ExportRw() (Archive, error) {
