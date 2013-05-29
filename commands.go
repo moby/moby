@@ -567,9 +567,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	}
 
 	for _, name := range cmd.Args() {
-		_, _, err := cli.call("DELETE", "/images/"+name, nil)
-		if err != nil {
-			fmt.Printf("%s", err)
+		if _, _, err := cli.call("DELETE", "/images/"+name, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
 		} else {
 			fmt.Println(name)
 		}
