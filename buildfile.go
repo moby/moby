@@ -337,6 +337,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
 			fmt.Fprintf(b.out, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			continue
 		}
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
