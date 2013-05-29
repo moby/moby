@@ -32,8 +32,6 @@ type buildFile struct {
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
-	needCommit bool
-
 	out io.Writer
 }
 
@@ -81,9 +79,8 @@ func (b *buildFile) CmdFrom(name string) error {
 }
 
 func (b *buildFile) CmdMaintainer(name string) error {
-	b.needCommit = true
 	b.maintainer = name
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
 
 func (b *buildFile) CmdRun(args string) error {
@@ -113,7 +110,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if err != nil {
 		return err
 	}
-	if err := b.commit(cid, cmd); err != nil {
+	if err := b.commit(cid, cmd, "run"); err != nil {
 		return err
 	}
 	b.config.Cmd = cmd
@@ -121,7 +118,6 @@ func (b *buildFile) CmdRun(args string) error {
 }
 
 func (b *buildFile) CmdEnv(args string) error {
-	b.needCommit = true
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
@@ -136,29 +132,25 @@ func (b *buildFile) CmdEnv(args string) error {
 		}
 	}
 	b.config.Env = append(b.config.Env, key+"="+value)
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
 }
 
 func (b *buildFile) CmdCmd(args string) error {
-	b.needCommit = true
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
 		utils.Debugf("Error unmarshalling: %s, using /bin/sh -c", err)
-		b.config.Cmd = []string{"/bin/sh", "-c", args}
-	} else {
-		b.config.Cmd = cmd
+		cmd = []string{"/bin/sh", "-c", args}
 	}
-	return nil
+	return b.commit("", cmd, fmt.Sprintf("CMD %v", cmd))
 }
 
 func (b *buildFile) CmdExpose(args string) error {
 	ports := strings.Split(args, " ")
 	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
 func (b *buildFile) CmdInsert(args string) error {
-
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to insert")
 	}
@@ -176,7 +168,7 @@ func (b *buildFile) CmdInsert(args string) error {
 	defer file.Body.Close()
 
 	cmd := b.config.Cmd
-	b.config.Cmd = []string{"echo", "INSERT", sourceUrl, "in", destPath}
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) INSERT %s in %s", sourceUrl, destPath)}
 	cid, err := b.run()
 	if err != nil {
 		return err
@@ -190,8 +182,7 @@ func (b *buildFile) CmdInsert(args string) error {
 	if err := container.Inject(file.Body, destPath); err != nil {
 		return err
 	}
-
-	return b.commit(cid, cmd)
+	return b.commit(cid, cmd, fmt.Sprintf("INSERT %s in %s", sourceUrl, destPath))
 }
 
 func (b *buildFile) CmdAdd(args string) error {
@@ -206,7 +197,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	dest := strings.Trim(tmp[1], " ")
 
 	cmd := b.config.Cmd
-	b.config.Cmd = []string{"echo", "PUSH", orig, "in", dest}
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 	cid, err := b.run()
 	if err != nil {
 		return err
@@ -243,8 +234,7 @@ func (b *buildFile) CmdAdd(args string) error {
 			return err
 		}
 	}
-
-	return b.commit(cid, cmd)
+	return b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest))
 }
 
 func (b *buildFile) run() (string, error) {
@@ -274,20 +264,18 @@ func (b *buildFile) run() (string, error) {
 }
 
 // Commit the container <id> with the autorun command <autoCmd>
-func (b *buildFile) commit(id string, autoCmd []string) error {
+func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.config.Image = b.image
 	if id == "" {
-		cmd := b.config.Cmd
-		b.config.Cmd = []string{"true"}
+		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
 		if cid, err := b.run(); err != nil {
 			return err
 		} else {
 			id = cid
 		}
-		b.config.Cmd = cmd
 	}
 
 	container := b.runtime.Get(id)
@@ -305,7 +293,6 @@ func (b *buildFile) commit(id string, autoCmd []string) error {
 	}
 	b.tmpImages[image.Id] = struct{}{}
 	b.image = image.Id
-	b.needCommit = false
 	return nil
 }
 
@@ -357,11 +344,6 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		}
 
 		fmt.Fprintf(b.out, "===> %v\n", b.image)
-	}
-	if b.needCommit {
-		if err := b.commit("", nil); err != nil {
-			return "", err
-		}
 	}
 	if b.image != "" {
 		// The build is successful, keep the temporary containers and images
