@@ -60,7 +60,12 @@ func getBoolParam(value string) (bool, error) {
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	b, err := json.Marshal(srv.registry.GetAuthConfig(false))
+	// FIXME: Handle multiple login at once
+	authConfig, err := auth.LoadConfig(srv.runtime.root)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(&auth.AuthConfig{Username: authConfig.Username, Email: authConfig.Email})
 	if err != nil {
 		return err
 	}
@@ -69,11 +74,16 @@ func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	// FIXME: Handle multiple login at once
 	config := &auth.AuthConfig{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
-	authConfig := srv.registry.GetAuthConfig(true)
+
+	authConfig, err := auth.LoadConfig(srv.runtime.root)
+	if err != nil {
+		return err
+	}
 	if config.Username == authConfig.Username {
 		config.Password = authConfig.Password
 	}
@@ -83,7 +93,6 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	srv.registry.ResetClient(newAuthConfig)
 
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
