@@ -534,6 +534,13 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}, nil
 }
 
+func CopyDirectory(source, dest string) error {
+	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error copy: %s (%s)", err, output)
+	}
+	return nil
+}
+
 type NopFlusher struct{}
 
 func (f *NopFlusher) Flush() {}
@@ -613,5 +620,3 @@ func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
-
-

@@ -31,7 +31,7 @@ You can still call an old version of the api using /v1.0/images/<name>/insert
 List containers
 ***************
 
-.. http:get:: /containers/ps
+.. http:get:: /containers/json
 
 	List containers
 
@@ -39,7 +39,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/ps?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
@@ -385,7 +385,7 @@ Attach to a container
 
 .. http:post:: /containers/(id)/attach
 
-	Stop the container ``id``
+	Attach to the container ``id``
 
 	**Example request**:
 

@@ -89,9 +89,10 @@
                     <li>
                         <p><strong>Install Docker</strong></p>
                         <p>Add the Ubuntu PPA (Personal Package Archive) sources to your apt sources list, update and install.</p>
-                        <p>You may see some warnings that the GPG keys cannot be verified.</p>
+                        <p>This may import a new GPG key (key 63561DC6: public key "Launchpad PPA for dotcloud team" imported).</p>
                         <div class="highlight">
-                            <pre>sudo sh -c "echo 'deb http://ppa.launchpad.net/dotcloud/lxc-docker/ubuntu precise main' >> /etc/apt/sources.list"</pre>
+                            <pre>sudo apt-get install software-properties-common</pre>
+                            <pre>sudo add-apt-repository ppa:dotcloud/lxc-docker</pre>
                             <pre>sudo apt-get update</pre>
                             <pre>sudo apt-get install lxc-docker</pre>
                         </div>
