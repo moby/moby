@@ -925,7 +925,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false, nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -951,16 +951,33 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	if err != nil {
 		return err
 	}
-
+	connections := 1
+	if !container.Config.Tty {
+		connections += 1
+	}
+	c := make(chan error, 2)
+	cli.monitorTtySize(cmd.Arg(0))
+	if !container.Config.Tty {
+		go func() {
+			c <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
+		}()
+	}
 	v := url.Values{}
 	v.Set("stream", "1")
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
 	v.Set("stdin", "1")
-
-	cli.monitorTtySize(cmd.Arg(0))
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
-		return err
+	v.Set("stdout", "1")
+	if container.Config.Tty {
+		v.Set("stderr", "1")
+	}
+	go func() {
+		c <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
+	}()
+	for connections > 0 {
+		err := <-c
+		if err != nil {
+			return err
+		}
+		connections -= 1
 	}
 	return nil
 }
@@ -1124,19 +1141,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
-	v := url.Values{}
-	v.Set("logs", "1")
-	v.Set("stream", "1")
-
-	if config.AttachStdin {
-		v.Set("stdin", "1")
+	connections := 0
+	if config.AttachStdin || config.AttachStdout {
+		connections += 1
 	}
-	if config.AttachStdout {
-		v.Set("stdout", "1")
-	}
-	if config.AttachStderr {
-		v.Set("stderr", "1")
-
+	if !config.Tty && config.AttachStderr {
+		connections += 1
 	}
 
 	//start the container
@@ -1145,10 +1155,38 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+	if connections > 0 {
+		c := make(chan error, connections)
 		cli.monitorTtySize(out.Id)
-		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
-			return err
+
+		if !config.Tty && config.AttachStderr {
+			go func() {
+				c <- cli.hijack("POST", "/containers/"+out.Id+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
+			}()
+		}
+
+		v := url.Values{}
+		v.Set("logs", "1")
+		v.Set("stream", "1")
+
+		if config.AttachStdin {
+			v.Set("stdin", "1")
+		}
+		if config.AttachStdout {
+			v.Set("stdout", "1")
+		}
+		if config.Tty && config.AttachStderr {
+			v.Set("stderr", "1")
+		}
+		go func() {
+			c <- cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
+		}()
+		for connections > 0 {
+			err := <-c
+			if err != nil {
+				return err
+			}
+			connections -= 1
 		}
 	}
 	if !config.AttachStdout && !config.AttachStderr {
@@ -1284,7 +1322,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", API_VERSION, path), nil)
 	if err != nil {
 		return err
@@ -1302,20 +1340,19 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 	defer rwc.Close()
 
 	receiveStdout := utils.Go(func() error {
-		_, err := io.Copy(os.Stdout, br)
+		_, err := io.Copy(out, br)
 		return err
 	})
 
-	if setRawTerminal && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
+	if in != nil && setRawTerminal && term.IsTerminal(int(in.Fd())) && os.Getenv("NORAW") == "" {
 		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
 			defer term.RestoreTerminal(oldState)
 		}
 	}
-
 	sendStdin := utils.Go(func() error {
-		_, err := io.Copy(rwc, os.Stdin)
+		_, err := io.Copy(rwc, in)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)
 		}
