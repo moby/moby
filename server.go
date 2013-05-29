@@ -749,11 +749,23 @@ func (srv *Server) ImageDelete(name string) error {
 		}
 		return nil
 	}
-	if err := srv.runtime.graph.Delete(img.Id); err != nil {
-		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
-	}
-	if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-		return err
+	parents, _ := img.History()
+	for _, parent := range parents {
+		byParent, _ = srv.runtime.graph.ByParent()
+		//stop if image has children
+		if _, exists := byParent[parent.Id]; exists {
+			break
+		}
+		//stop if image is tagged and it is not the first image we delete
+		if _, hasTags := srv.runtime.repositories.ById()[parent.Id]; hasTags && img.Id != parent.Id {
+			break
+		}
+		if err := srv.runtime.graph.Delete(parent.Id); err != nil {
+			return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+		}
+		if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
