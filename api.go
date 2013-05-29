@@ -61,9 +61,13 @@ func getBoolParam(value string) (bool, error) {
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// FIXME: Handle multiple login at once
+	// FIXME: return specific error code if config file missing?
 	authConfig, err := auth.LoadConfig(srv.runtime.root)
 	if err != nil {
-		return err
+		if err != auth.ErrConfigFileMissing {
+			return err
+		}
+		authConfig = &auth.AuthConfig{}
 	}
 	b, err := json.Marshal(&auth.AuthConfig{Username: authConfig.Username, Email: authConfig.Email})
 	if err != nil {
@@ -82,7 +86,10 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 
 	authConfig, err := auth.LoadConfig(srv.runtime.root)
 	if err != nil {
-		return err
+		if err != auth.ErrConfigFileMissing {
+			return err
+		}
+		authConfig = &auth.AuthConfig{}
 	}
 	if config.Username == authConfig.Username {
 		config.Password = authConfig.Password
