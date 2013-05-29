@@ -26,8 +26,7 @@ func TestGetAuth(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{
-		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.root),
+		runtime: runtime,
 	}
 
 	r := httptest.NewRecorder()
@@ -56,7 +55,7 @@ func TestGetAuth(t *testing.T) {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	newAuthConfig := srv.registry.GetAuthConfig(false)
+	newAuthConfig := registry.NewRegistry(runtime.root).GetAuthConfig(false)
 	if newAuthConfig.Username != authConfig.Username ||
 		newAuthConfig.Email != authConfig.Email {
 		t.Fatalf("The auth configuration hasn't been set correctly")
@@ -247,8 +246,7 @@ func TestGetImagesSearch(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{
-		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.root),
+		runtime: runtime,
 	}
 
 	r := httptest.NewRecorder()
@@ -504,15 +502,16 @@ func TestPostAuth(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{
-		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.root),
+		runtime: runtime,
 	}
 
-	authConfigOrig := &auth.AuthConfig{
+	config := &auth.AuthConfig{
 		Username: "utest",
 		Email:    "utest@yopmail.com",
 	}
-	srv.registry.ResetClient(authConfigOrig)
+
+	authStr := auth.EncodeAuth(config)
+	auth.SaveConfig(runtime.root, authStr, config.Email)
 
 	r := httptest.NewRecorder()
 	if err := getAuth(srv, API_VERSION, r, nil, nil); err != nil {
@@ -524,7 +523,7 @@ func TestPostAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if authConfig.Username != authConfigOrig.Username || authConfig.Email != authConfigOrig.Email {
+	if authConfig.Username != config.Username || authConfig.Email != config.Email {
 		t.Errorf("The retrieve auth mismatch with the one set.")
 	}
 }
