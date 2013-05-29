@@ -88,3 +88,72 @@ Add your name to the AUTHORS file, but make sure the list is sorted and your
 name and email address match your git configuration. The AUTHORS file is
 regenerated occasionally from the git commit history, so a mismatch may result
 in your changes being overwritten.
+
+
+## Decision process
+
+### How are decisions made?
+
+Short answer: with pull requests to the docker repository.
+
+Docker is an open-source project with an open design philosophy. This means that the repository is the source of truth for EVERY aspect of the project,
+including its philosophy, design, roadmap and APIs. *If it's part of the project, it's in the repo. It's in the repo, it's part of the project.*
+
+As a result, all decisions can be expressed as changes to the repository. An implementation change is a change to the source code. An API change is a change to
+the API specification. A philosophy change is a change to the philosophy manifesto. And so on.
+
+All decisions affecting docker, big and small, follow the same 3 steps:
+
+* Step 1: Open a pull request. Anyone can do this.
+
+* Step 2: Discuss the pull request. Anyone can do this.
+
+* Step 3: Accept or refuse a pull request. The relevant maintainer does this (see below "Who decides what?")
+
+
+### Who decides what?
+
+So all decisions are pull requests, and the relevant maintainer makes the decision by accepting or refusing the pull request.
+But how do we identify the relevant maintainer for a given pull request?
+
+Docker follows the timeless, highly efficient and totally unfair system known as [Benevolent dictator for life](http://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life),
+with yours truly, Solomon Hykes, in the role of BDFL.
+This means that all decisions are made by default by me. Since making every decision myself would be highly unscalable, in practice decisions are spread across multiple maintainers.
+
+The relevant maintainer for a pull request is assigned in 3 steps:
+
+* Step 1: Determine the subdirectory affected by the pull request. This might be src/registry, docs/source/api, or any other part of the repo.
+
+* Step 2: Find the MAINTAINERS file which affects this directory. If the directory itself does not have a MAINTAINERS file, work your way up the the repo hierarchy until you find one.
+
+* Step 3: The first maintainer listed is the primary maintainer. The pull request is assigned to him. He may assign it to other listed maintainers, at his discretion.
+
+
+### I'm a maintainer, should I make pull requests too?
+
+Primary maintainers are not required to create pull requests when changing their own subdirectory, but secondary maintainers are.
+
+### Who assigns maintainers?
+
+Solomon.
+
+### How can I become a maintainer?
+
+Step 1: learn the component inside out
+Step 2: make yourself useful by contributing code, bugfixes, support etc.
+Step 3: volunteer on the irc channel (#docker@freenode)
+
+Don't forget: being a maintainer is a time investment. Make sure you will have time to make yourself available.
+You don't have to be a maintainer to make a difference on the project!
+
+### What are a maintainer's responsibility?
+
+It is every maintainer's responsibility to:
+	a) be aware of which pull requests they must review, and do so quickly
+	b) communicate clearly and transparently with other maintainers
+	c) be available to anyone with questions, bug reports, criticism etc. on their component. This includes irc, github requests and the mailing list.
+	d) make sure they respect the philosophy and design of the project
+
+### How is this process changed?
+
+Just like everything else: by making a pull request :)
