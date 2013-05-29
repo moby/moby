@@ -131,12 +131,16 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[CONTEXT]", "Build an image from a Dockerfile")
+	cmd := Subcmd("build", "[CONTEXT|-]", "Build an image from a Dockerfile")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	var multipartBody io.Reader
+	var (
+		multipartBody io.Reader
+		file          io.ReadCloser
+		contextPath   string
+	)
 
 	// Init the needed component for the Multipart
 	buff := bytes.NewBuffer([]byte{})
@@ -146,16 +150,23 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	dockerfile := "Dockerfile"
 
-	if cmd.Arg(0) != "" {
+	if cmd.Arg(0) != "" && cmd.Arg(0) != "-" {
+		contextPath = cmd.Arg(0)
 		dockerfile = path.Join(cmd.Arg(0), dockerfile)
+	}
+	if cmd.Arg(0) != "-" {
+		f, err := os.Open(dockerfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		file = f
+	} else {
+		contextPath = cmd.Arg(1)
+		file = os.Stdin
 	}
 
 	// Create a FormFile multipart for the Dockerfile
-	file, err := os.Open(dockerfile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
 	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
 		return err
 	} else {
@@ -166,14 +177,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	compression := Bzip2
 
 	// Create a FormFile multipart for the context if needed
-	if cmd.Arg(0) != "" {
+	if contextPath != "" {
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
-		context, err := Tar(cmd.Arg(0), compression)
+		context, err := Tar(contextPath, compression)
 		if err != nil {
 			return err
 		}
 		// NOTE: Do this in case '.' or '..' is input
-		absPath, err := filepath.Abs(cmd.Arg(0))
+		absPath, err := filepath.Abs(contextPath)
 		if err != nil {
 			return err
 		}
@@ -193,7 +204,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	if cmd.Arg(0) != "" {
+	if contextPath != "" {
 		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
 		fmt.Println("Uploading Context...")
 	}
