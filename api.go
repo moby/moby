@@ -66,48 +66,15 @@ func getBoolParam(value string) (bool, error) {
 	return false, fmt.Errorf("Bad parameter")
 }
 
-func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	// FIXME: Handle multiple login at once
-	// FIXME: return specific error code if config file missing?
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
-	if err != nil {
-		if err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = &auth.AuthConfig{}
-	}
-	b, err := json.Marshal(&auth.AuthConfig{Username: authConfig.Username, Email: authConfig.Email})
-	if err != nil {
-		return err
-	}
-	writeJson(w, b)
-	return nil
-}
-
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	// FIXME: Handle multiple login at once
-	config := &auth.AuthConfig{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	authConfig := &auth.AuthConfig{}
+	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
 		return err
 	}
-
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
-	if err != nil {
-		if err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = &auth.AuthConfig{}
-	}
-	if config.Username == authConfig.Username {
-		config.Password = authConfig.Password
-	}
-
-	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
-	status, err := auth.Login(newAuthConfig)
+	status, err := auth.Login(authConfig)
 	if err != nil {
 		return err
 	}
-
 	if status != "" {
 		b, err := json.Marshal(&ApiAuth{Status: status})
 		if err != nil {
@@ -317,7 +284,9 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 		if version > 1.0 {
 			w.Header().Set("Content-Type", "application/json")
 		}
-		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
+		authConfig := &auth.AuthConfig{}
+		json.NewDecoder(r.Body).Decode(authConfig)
+		if err := srv.ImagePull(image, tag, registry, w, version > 1.0, authConfig); err != nil {
 			return err
 		}
 	} else { //import
@@ -371,6 +340,10 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	authConfig := &auth.AuthConfig{}
+	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+		return err
+	}
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -381,7 +354,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	}
 	name := vars["name"]
 
-	if err := srv.ImagePush(name, registry, w); err != nil {
+	if err := srv.ImagePush(name, registry, w, authConfig); err != nil {
 		return err
 	}
 	return nil
@@ -676,7 +649,6 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
-			"/auth":                         getAuth,
 			"/version":                      getVersion,
 			"/info":                         getInfo,
 			"/images/json":                  getImagesJson,

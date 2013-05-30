@@ -50,7 +50,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 
 func (srv *Server) ImagesSearch(term string) ([]ApiSearch, error) {
 
-	results, err := registry.NewRegistry(srv.runtime.root).SearchRepositories(term)
+	results, err := registry.NewRegistry(srv.runtime.root, nil).SearchRepositories(term)
 	if err != nil {
 		return nil, err
 	}
@@ -394,8 +394,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 	return nil
 }
 
-func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, json bool) error {
-	r := registry.NewRegistry(srv.runtime.root)
+func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, json bool, authConfig *auth.AuthConfig) error {
+	r := registry.NewRegistry(srv.runtime.root, authConfig)
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
 		if err := srv.pullImage(r, out, name, endpoint, nil, json); err != nil {
@@ -576,10 +576,10 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	return nil
 }
 
-func (srv *Server) ImagePush(name, endpoint string, out io.Writer) error {
+func (srv *Server) ImagePush(name, endpoint string, out io.Writer, authConfig *auth.AuthConfig) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
-	r := registry.NewRegistry(srv.runtime.root)
+	r := registry.NewRegistry(srv.runtime.root, authConfig)
 
 	if err != nil {
 		fmt.Fprintf(out, "The push refers to a repository [%s] (len: %d)\n", name, len(srv.runtime.repositories.Repositories[name]))

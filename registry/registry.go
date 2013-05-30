@@ -466,10 +466,7 @@ type Registry struct {
 	authConfig *auth.AuthConfig
 }
 
-func NewRegistry(root string) *Registry {
-	// If the auth file does not exist, keep going
-	authConfig, _ := auth.LoadConfig(root)
-
+func NewRegistry(root string, authConfig *auth.AuthConfig) *Registry {
 	r := &Registry{
 		authConfig: authConfig,
 		client:     &http.Client{},
