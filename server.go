@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
@@ -704,11 +705,86 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	return nil
 }
 
-func (srv *Server) ImageDelete(name string) error {
-	img, err := srv.runtime.repositories.LookupImage(name)
-	if err != nil {
-		return fmt.Errorf("No such image: %s", name)
+func (srv *Server) pruneImage(img *Image, repo, tag string) error {
+	return nil
+}
+
+var ErrImageReferenced = errors.New("Image referenced by a repository")
+
+func (srv *Server) deleteImageChildren(id string, byId map[string][]string, byParents map[string][]*Image) error {
+	// If the image is referenced by a repo, do not delete
+	if len(byId[id]) != 0 {
+		return ErrImageReferenced
 	}
+	// If the image is not referenced and has no children, remove it
+	if len(byParents[id]) == 0 {
+		return srv.runtime.graph.Delete(id)
+	}
+
+	// If the image is not referenced but has children, go recursive
+	referenced := false
+	for _, img := range byParents[id] {
+		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+			if err != ErrImageReferenced {
+				return err
+			} else {
+				referenced = true
+			}
+		}
+	}
+	if referenced {
+		return ErrImageReferenced
+	}
+	return nil
+}
+
+func (srv *Server) deleteImageParents(img *Image, byId map[string][]string, byParents map[string][]*Image) error {
+	if img.Parent != "" {
+		parent, err := srv.runtime.graph.Get(img.Parent)
+		if err != nil {
+			return err
+		}
+		// Remove all children images
+		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+			return err
+		}
+		// If no error (no referenced children), then remove the parent
+		if err := srv.runtime.graph.Delete(img.Parent); err != nil {
+			return err
+		}
+		return srv.deleteImageParents(parent, byId, byParents)
+	}
+	return nil
+}
+
+func (srv *Server) deleteImage(repoName, tag string) error {
+	img, err := srv.runtime.repositories.LookupImage(repoName + ":" + tag)
+	if err != nil {
+		return fmt.Errorf("No such image: %s:%s", repoName, tag)
+	}
+	utils.Debugf("Image %s referenced %d times", img.Id, len(srv.runtime.repositories.ById()[img.Id]))
+	if err := srv.runtime.repositories.Delete(repoName, tag, img.Id); err != nil {
+		return err
+	}
+	byId := srv.runtime.repositories.ById()
+	if len(byId[img.Id]) == 0 {
+		byParents, err := srv.runtime.graph.ByParent()
+		if err != nil {
+			return err
+		}
+		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+			if err != ErrImageReferenced {
+				return err
+			}
+		} else {
+			srv.deleteImageParents(img)
+		}
+
+	}
+	return nil
+}
+
+func (srv *Server) ImageDelete(name string) error {
 	var tag string
 	if strings.Contains(name, ":") {
 		nameParts := strings.Split(name, ":")
@@ -716,28 +792,10 @@ func (srv *Server) ImageDelete(name string) error {
 		tag = nameParts[1]
 	}
 
+	srv.deleteImage(name, tag)
+
 	// if the images is referenced several times
-	utils.Debugf("Image %s referenced %d times", img.Id, len(srv.runtime.repositories.ById()[img.Id]))
-	if len(srv.runtime.repositories.ById()[img.Id]) > 1 {
-		// if it's repo:tag, try to delete the tag (docker rmi base:latest)
-		if tag != "" {
-			if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-				return err
-			}
-			return nil
-		}
-		// Let's say you have the same image referenced by base and base2
-		// check if the image is referenced in another repo (docker rmi base)
-		for _, repoTag := range srv.runtime.repositories.ById()[img.Id] {
-			if !strings.HasPrefix(repoTag, name+":") {
-				// if found in another repo (base2) delete the repo base, otherwise delete the whole image
-				if err := srv.runtime.repositories.Delete(name, "", img.Id); err != nil {
-					return err
-				}
-				return nil
-			}
-		}
-	}
+
 	// check is the image to delete isn't parent of another image
 	byParent, _ := srv.runtime.graph.ByParent()
 	if childs, exists := byParent[img.Id]; exists {
