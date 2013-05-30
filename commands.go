@@ -10,35 +10,42 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 	"unicode"
 )
 
-const VERSION = "0.3.2"
+const VERSION = "0.3.3"
 
 var (
 	GIT_COMMIT string
 )
 
-func ParseCommands(args ...string) error {
-	cli := NewDockerCli("0.0.0.0", 4243)
+func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
+	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+	return reflect.TypeOf(cli).MethodByName(methodName)
+}
+
+func ParseCommands(addr string, port int, args ...string) error {
+	cli := NewDockerCli(addr, port)
 
 	if len(args) > 0 {
-		methodName := "Cmd" + strings.ToUpper(args[0][:1]) + strings.ToLower(args[0][1:])
-		method, exists := reflect.TypeOf(cli).MethodByName(methodName)
+		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args...)
+			return cli.CmdHelp(args[1:]...)
 		}
 		ret := method.Func.CallSlice([]reflect.Value{
 			reflect.ValueOf(cli),
@@ -53,38 +60,50 @@ func ParseCommands(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
-	help := "Usage: docker COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n"
-	for cmd, description := range map[string]string{
-		"attach":  "Attach to a running container",
-		"build":   "Build a container from Dockerfile or via stdin",
-		"commit":  "Create a new image from a container's changes",
-		"diff":    "Inspect changes on a container's filesystem",
-		"export":  "Stream the contents of a container as a tar archive",
-		"history": "Show the history of an image",
-		"images":  "List images",
-		"import":  "Create a new filesystem image from the contents of a tarball",
-		"info":    "Display system-wide information",
-		"insert":  "Insert a file in an image",
-		"inspect": "Return low-level information on a container",
-		"kill":    "Kill a running container",
-		"login":   "Register or Login to the docker registry server",
-		"logs":    "Fetch the logs of a container",
-		"port":    "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT",
-		"ps":      "List containers",
-		"pull":    "Pull an image or a repository from the docker registry server",
-		"push":    "Push an image or a repository to the docker registry server",
-		"restart": "Restart a running container",
-		"rm":      "Remove a container",
-		"rmi":     "Remove an image",
-		"run":     "Run a command in a new container",
-		"search":  "Search for an image in the docker index",
-		"start":   "Start a stopped container",
-		"stop":    "Stop a running container",
-		"tag":     "Tag an image into a repository",
-		"version": "Show the docker version information",
-		"wait":    "Block until a container stops, then print its exit code",
+	if len(args) > 0 {
+		method, exists := cli.getMethod(args[0])
+		if !exists {
+			fmt.Println("Error: Command not found:", args[0])
+		} else {
+			method.Func.CallSlice([]reflect.Value{
+				reflect.ValueOf(cli),
+				reflect.ValueOf([]string{"--help"}),
+			})[0].Interface()
+			return nil
+		}
+	}
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.host, cli.port)
+	for _, command := range [][2]string{
+		{"attach", "Attach to a running container"},
+		{"build", "Build a container from a Dockerfile"},
+		{"commit", "Create a new image from a container's changes"},
+		{"diff", "Inspect changes on a container's filesystem"},
+		{"export", "Stream the contents of a container as a tar archive"},
+		{"history", "Show the history of an image"},
+		{"images", "List images"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
+		{"info", "Display system-wide information"},
+		{"insert", "Insert a file in an image"},
+		{"inspect", "Return low-level information on a container"},
+		{"kill", "Kill a running container"},
+		{"login", "Register or Login to the docker registry server"},
+		{"logs", "Fetch the logs of a container"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"ps", "List containers"},
+		{"pull", "Pull an image or a repository from the docker registry server"},
+		{"push", "Push an image or a repository to the docker registry server"},
+		{"restart", "Restart a running container"},
+		{"rm", "Remove a container"},
+		{"rmi", "Remove an image"},
+		{"run", "Run a command in a new container"},
+		{"search", "Search for an image in the docker index"},
+		{"start", "Start a stopped container"},
+		{"stop", "Stop a running container"},
+		{"tag", "Tag an image into a repository"},
+		{"version", "Show the docker version information"},
+		{"wait", "Block until a container stops}, then print its exit code"},
 	} {
-		help += fmt.Sprintf("    %-10.10s%s\n", cmd, description)
+		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
 	fmt.Println(help)
 	return nil
@@ -104,39 +123,103 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, os.Stdout)
-	if err != nil {
+	if err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "-|Dockerfile", "Build an image from Dockerfile or via stdin")
+	cmd := Subcmd("build", "[OPTIONS] [CONTEXT]", "Build an image from a Dockerfile")
+	fileName := cmd.String("f", "Dockerfile", "Use `file` as Dockerfile. Can be '-' for stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	var (
-		file io.ReadCloser
-		err  error
+		file          io.ReadCloser
+		multipartBody io.Reader
+		err           error
 	)
 
-	if cmd.NArg() == 0 {
-		file, err = os.Open("Dockerfile")
-		if err != nil {
-			return err
-		}
-	} else if cmd.Arg(0) == "-" {
+	// Init the needed component for the Multipart
+	buff := bytes.NewBuffer([]byte{})
+	multipartBody = buff
+	w := multipart.NewWriter(buff)
+	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
+
+	// Create a FormFile multipart for the Dockerfile
+	if *fileName == "-" {
 		file = os.Stdin
 	} else {
-		file, err = os.Open(cmd.Arg(0))
+		file, err = os.Open(*fileName)
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 	}
-	if _, err := NewBuilderClient("0.0.0.0", 4243).Build(file); err != nil {
+	if wField, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
+		return err
+	} else {
+		io.Copy(wField, file)
+	}
+	multipartBody = io.MultiReader(multipartBody, boundary)
+
+	compression := Bzip2
+
+	// Create a FormFile multipart for the context if needed
+	if cmd.Arg(0) != "" {
+		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
+		context, err := Tar(cmd.Arg(0), compression)
+		if err != nil {
+			return err
+		}
+		// NOTE: Do this in case '.' or '..' is input
+		absPath, err := filepath.Abs(cmd.Arg(0))
+		if err != nil {
+			return err
+		}
+		if wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension()); err != nil {
+			return err
+		} else {
+			// FIXME: Find a way to have a progressbar for the upload too
+			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Caching Context %v/%v (%v)\r", false))
+		}
+
+		multipartBody = io.MultiReader(multipartBody, boundary)
+	}
+
+	// Send the multipart request with correct content-type
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), multipartBody)
+	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	if cmd.Arg(0) != "" {
+		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
+		fmt.Println("Uploading Context...")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Check for errors
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("error: %s", body)
+	}
+
+	// Output the result
+	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -283,12 +366,10 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := Subcmd("version", "", "Show the docker version information.")
-	fmt.Println(len(args))
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 
-	fmt.Println(cmd.NArg())
 	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
@@ -607,39 +688,13 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	body, _, err := cli.call("GET", "/auth", nil)
+	username, err := cli.checkIfLogged(*registry == "", "push")
 	if err != nil {
 		return err
-	}
-
-	var out auth.AuthConfig
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return err
-	}
-
-	// If the login failed AND we're using the index, abort
-	if *registry == "" && out.Username == "" {
-		if err := cli.CmdLogin(args...); err != nil {
-			return err
-		}
-
-		body, _, err = cli.call("GET", "/auth", nil)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(body, &out)
-		if err != nil {
-			return err
-		}
-
-		if out.Username == "" {
-			return fmt.Errorf("Please login prior to push. ('docker login')")
-		}
 	}
 
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", out.Username, name)
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	v := url.Values{}
@@ -668,6 +723,12 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		remoteParts := strings.Split(remote, ":")
 		tag = &remoteParts[1]
 		remote = remoteParts[0]
+	}
+
+	if strings.Contains(remote, "/") {
+		if _, err := cli.checkIfLogged(true, "pull"); err != nil {
+			return err
+		}
 	}
 
 	v := url.Values{}
@@ -795,7 +856,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("before", *before)
 	}
 
-	body, _, err := cli.call("GET", "/containers/ps?"+v.Encode(), nil)
+	body, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}
@@ -813,9 +874,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t", out.Id, out.Image, out.Command, out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", out.Id, out.Image, out.Command, out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), out.Status, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Ports)
 			}
 			if out.SizeRootFs > 0 {
 				fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
@@ -937,7 +998,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false, nil, os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -964,14 +1025,35 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
+	splitStderr := container.Config.Tty
+
+	connections := 1
+	if splitStderr {
+		connections += 1
+	}
+	chErrors := make(chan error, connections)
+	cli.monitorTtySize(cmd.Arg(0))
+	if splitStderr {
+		go func() {
+			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
+		}()
+	}
 	v := url.Values{}
 	v.Set("stream", "1")
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
 	v.Set("stdin", "1")
-
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
-		return err
+	v.Set("stdout", "1")
+	if !splitStderr {
+		v.Set("stderr", "1")
+	}
+	go func() {
+		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
+	}()
+	for connections > 0 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+		connections -= 1
 	}
 	return nil
 }
@@ -1135,19 +1217,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
-	v := url.Values{}
-	v.Set("logs", "1")
-	v.Set("stream", "1")
+	splitStderr := !config.Tty
 
-	if config.AttachStdin {
-		v.Set("stdin", "1")
+	connections := 0
+	if config.AttachStdin || config.AttachStdout || (!splitStderr && config.AttachStderr) {
+		connections += 1
 	}
-	if config.AttachStdout {
-		v.Set("stdout", "1")
-	}
-	if config.AttachStderr {
-		v.Set("stderr", "1")
-
+	if splitStderr && config.AttachStderr {
+		connections += 1
 	}
 
 	//start the container
@@ -1156,15 +1233,78 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
-		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
-			return err
+	if connections > 0 {
+		chErrors := make(chan error, connections)
+		cli.monitorTtySize(out.Id)
+
+		if splitStderr && config.AttachStderr {
+			go func() {
+				chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
+			}()
+		}
+
+		v := url.Values{}
+		v.Set("logs", "1")
+		v.Set("stream", "1")
+
+		if config.AttachStdin {
+			v.Set("stdin", "1")
+		}
+		if config.AttachStdout {
+			v.Set("stdout", "1")
+		}
+		if !splitStderr && config.AttachStderr {
+			v.Set("stderr", "1")
+		}
+		go func() {
+			chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
+		}()
+		for connections > 0 {
+			err := <-chErrors
+			if err != nil {
+				return err
+			}
+			connections -= 1
 		}
 	}
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.Id)
 	}
 	return nil
+}
+
+func (cli *DockerCli) checkIfLogged(condition bool, action string) (string, error) {
+	body, _, err := cli.call("GET", "/auth", nil)
+	if err != nil {
+		return "", err
+	}
+
+	var out auth.AuthConfig
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return "", err
+	}
+
+	// If condition AND the login failed
+	if condition && out.Username == "" {
+		if err := cli.CmdLogin(""); err != nil {
+			return "", err
+		}
+
+		body, _, err = cli.call("GET", "/auth", nil)
+		if err != nil {
+			return "", err
+		}
+		err = json.Unmarshal(body, &out)
+		if err != nil {
+			return "", err
+		}
+
+		if out.Username == "" {
+			return "", fmt.Errorf("Please login prior to %s. ('docker login')", action)
+		}
+	}
+	return out.Username, nil
 }
 
 func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, error) {
@@ -1177,7 +1317,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d", cli.host, cli.port)+path, params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1209,7 +1349,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -1233,14 +1373,35 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		return fmt.Errorf("error: %s", body)
 	}
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return err
+	if resp.Header.Get("Content-Type") == "application/json" {
+		type Message struct {
+			Status   string `json:"status,omitempty"`
+			Progress string `json:"progress,omitempty"`
+		}
+		dec := json.NewDecoder(resp.Body)
+		for {
+			var m Message
+			if err := dec.Decode(&m); err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+			if m.Progress != "" {
+				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+			} else {
+				fmt.Fprintf(out, "%s\n", m.Status)
+			}
+		}
+	} else {
+		if _, err := io.Copy(out, resp.Body); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
-	req, err := http.NewRequest(method, path, nil)
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", API_VERSION, path), nil)
 	if err != nil {
 		return err
 	}
@@ -1257,20 +1418,19 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 	defer rwc.Close()
 
 	receiveStdout := utils.Go(func() error {
-		_, err := io.Copy(os.Stdout, br)
+		_, err := io.Copy(out, br)
 		return err
 	})
 
-	if setRawTerminal && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
+	if in != nil && setRawTerminal && term.IsTerminal(int(in.Fd())) && os.Getenv("NORAW") == "" {
 		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
 			defer term.RestoreTerminal(oldState)
 		}
 	}
-
 	sendStdin := utils.Go(func() error {
-		_, err := io.Copy(rwc, os.Stdin)
+		_, err := io.Copy(rwc, in)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)
 		}
@@ -1290,6 +1450,33 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 
 }
 
+func (cli *DockerCli) resizeTty(id string) {
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		utils.Debugf("Error getting size: %s", err)
+	}
+	v := url.Values{}
+	v.Set("h", strconv.Itoa(int(ws.Height)))
+	v.Set("w", strconv.Itoa(int(ws.Width)))
+	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
+		utils.Debugf("Error resize: %s", err)
+	}
+}
+
+func (cli *DockerCli) monitorTtySize(id string) {
+	cli.resizeTty(id)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGWINCH)
+	go func() {
+		for sig := range c {
+			if sig == syscall.SIGWINCH {
+				cli.resizeTty(id)
+			}
+		}
+	}()
+}
+
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {
@@ -1299,8 +1486,8 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewDockerCli(host string, port int) *DockerCli {
-	return &DockerCli{host, port}
+func NewDockerCli(addr string, port int) *DockerCli {
+	return &DockerCli{addr, port}
 }
 
 type DockerCli struct {

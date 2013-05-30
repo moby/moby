@@ -330,6 +330,9 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	if validate {
 		suffix = "images"
 	}
+
+	utils.Debugf("Image list pushed to index:\n%s\n", imgListJson)
+
 	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/"+suffix, bytes.NewReader(imgListJson))
 	if err != nil {
 		return nil, err
@@ -428,9 +431,14 @@ func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
 	r.client.Jar = cookiejar.NewCookieJar()
 }
 
-func (r *Registry) GetAuthConfig() *auth.AuthConfig {
+func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
+	password := ""
+	if withPasswd {
+		password = r.authConfig.Password
+	}
 	return &auth.AuthConfig{
 		Username: r.authConfig.Username,
+		Password: password,
 		Email:    r.authConfig.Email,
 	}
 }

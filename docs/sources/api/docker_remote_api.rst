@@ -1,3 +1,7 @@
+:title: Remote API
+:description: API Documentation for Docker
+:keywords: API, Docker, rcli, REST, documentation
+
 =================
 Docker Remote API
 =================
@@ -20,7 +24,7 @@ Docker Remote API
 List containers
 ***************
 
-.. http:get:: /containers/ps
+.. http:get:: /containers/json
 
 	List containers
 
@@ -28,7 +32,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/ps?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
 	   
 	**Example response**:
 
@@ -118,7 +122,8 @@ Create a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 201 OK
-	   
+	   Content-Type: application/json
+
 	   {
 		"Id":"e90e34656806"
 		"Warnings":[]
@@ -373,7 +378,7 @@ Attach to a container
 
 .. http:post:: /containers/(id)/attach
 
-	Stop the container ``id``
+	Attach to the container ``id``
 
 	**Example request**:
 
