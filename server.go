@@ -720,13 +720,28 @@ func (srv *Server) ImageDelete(name string) error {
 }
 
 func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
-	byParent, err := srv.runtime.graph.ByParent()
+
+	// Retrieve all images
+	images, err := srv.runtime.graph.All()
 	if err != nil {
 		return nil, err
 	}
 
+	// Store the tree in a map of map (map[parentId][childId])
+	imageMap := make(map[string]map[string]struct{})
+	for _, img := range images {
+		if _, exists := imageMap[img.Parent]; !exists {
+			imageMap[img.Parent] = make(map[string]struct{})
+		}
+		imageMap[img.Parent][img.Id] = struct{}{}
+	}
+
 	// Loop on the children of the given image and check the config
-	for _, img := range byParent[imgId] {
+	for elem := range imageMap[imgId] {
+		img, err := srv.runtime.graph.Get(elem)
+		if err != nil {
+			return nil, err
+		}
 		if CompareConfig(&img.ContainerConfig, config) {
 			return img, nil
 		}
