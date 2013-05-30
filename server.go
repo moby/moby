@@ -705,26 +705,22 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	return nil
 }
 
-func (srv *Server) pruneImage(img *Image, repo, tag string) error {
-	return nil
-}
-
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
-func (srv *Server) deleteImageChildren(id string, byId map[string][]string, byParents map[string][]*Image) error {
+func (srv *Server) deleteImageAndChildren(id string) error {
 	// If the image is referenced by a repo, do not delete
-	if len(byId[id]) != 0 {
+	if len(srv.runtime.repositories.ById()[id]) != 0 {
 		return ErrImageReferenced
-	}
-	// If the image is not referenced and has no children, remove it
-	if len(byParents[id]) == 0 {
-		return srv.runtime.graph.Delete(id)
 	}
 
 	// If the image is not referenced but has children, go recursive
 	referenced := false
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
 	for _, img := range byParents[id] {
-		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+		if err := srv.deleteImageAndChildren(img.Id); err != nil {
 			if err != ErrImageReferenced {
 				return err
 			} else {
@@ -735,56 +731,61 @@ func (srv *Server) deleteImageChildren(id string, byId map[string][]string, byPa
 	if referenced {
 		return ErrImageReferenced
 	}
+
+	// If the image is not referenced and has no children, remove it
+	byParents, err = srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
+	if len(byParents[id]) == 0 {
+		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
+			return err
+		}
+		return srv.runtime.graph.Delete(id)
+	}
 	return nil
 }
 
-func (srv *Server) deleteImageParents(img *Image, byId map[string][]string, byParents map[string][]*Image) error {
+func (srv *Server) deleteImageParents(img *Image) error {
 	if img.Parent != "" {
 		parent, err := srv.runtime.graph.Get(img.Parent)
 		if err != nil {
 			return err
 		}
 		// Remove all children images
-		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+		if err := srv.deleteImageAndChildren(img.Parent); err != nil {
 			return err
 		}
-		// If no error (no referenced children), then remove the parent
-		if err := srv.runtime.graph.Delete(img.Parent); err != nil {
-			return err
-		}
-		return srv.deleteImageParents(parent, byId, byParents)
+		return srv.deleteImageParents(parent)
 	}
 	return nil
 }
 
-func (srv *Server) deleteImage(repoName, tag string) error {
-	img, err := srv.runtime.repositories.LookupImage(repoName + ":" + tag)
-	if err != nil {
-		return fmt.Errorf("No such image: %s:%s", repoName, tag)
-	}
-	utils.Debugf("Image %s referenced %d times", img.Id, len(srv.runtime.repositories.ById()[img.Id]))
-	if err := srv.runtime.repositories.Delete(repoName, tag, img.Id); err != nil {
+func (srv *Server) deleteImage(img *Image, repoName, tag string) error {
+	//Untag the current image
+	if err := srv.runtime.repositories.Delete(repoName, tag); err != nil {
 		return err
 	}
-	byId := srv.runtime.repositories.ById()
-	if len(byId[img.Id]) == 0 {
-		byParents, err := srv.runtime.graph.ByParent()
-		if err != nil {
-			return err
-		}
-		if err := srv.deleteImageChildren(img.Id, byId, byParents); err != nil {
+	if len(srv.runtime.repositories.ById()[img.Id]) == 0 {
+		if err := srv.deleteImageAndChildren(img.Id); err != nil {
 			if err != ErrImageReferenced {
 				return err
 			}
-		} else {
-			srv.deleteImageParents(img)
+		} else if err := srv.deleteImageParents(img); err != nil {
+			if err != ErrImageReferenced {
+				return err
+			}
 		}
-
 	}
 	return nil
 }
 
 func (srv *Server) ImageDelete(name string) error {
+	img, err := srv.runtime.repositories.LookupImage(name)
+	if err != nil {
+		return fmt.Errorf("No such image: %s", name)
+	}
+
 	var tag string
 	if strings.Contains(name, ":") {
 		nameParts := strings.Split(name, ":")
@@ -792,40 +793,7 @@ func (srv *Server) ImageDelete(name string) error {
 		tag = nameParts[1]
 	}
 
-	srv.deleteImage(name, tag)
-
-	// if the images is referenced several times
-
-	// check is the image to delete isn't parent of another image
-	byParent, _ := srv.runtime.graph.ByParent()
-	if childs, exists := byParent[img.Id]; exists {
-		if strings.Contains(img.Id, name) {
-			return fmt.Errorf("Conflict with %s, %s was not removed", childs[0].ShortId(), name)
-		}
-		if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-			return err
-		}
-		return nil
-	}
-	parents, _ := img.History()
-	for _, parent := range parents {
-		byParent, _ = srv.runtime.graph.ByParent()
-		//stop if image has children
-		if _, exists := byParent[parent.Id]; exists {
-			break
-		}
-		//stop if image is tagged and it is not the first image we delete
-		if _, hasTags := srv.runtime.repositories.ById()[parent.Id]; hasTags && img.Id != parent.Id {
-			break
-		}
-		if err := srv.runtime.graph.Delete(parent.Id); err != nil {
-			return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
-		}
-		if err := srv.runtime.repositories.Delete(name, tag, img.Id); err != nil {
-			return err
-		}
-	}
-	return nil
+	return srv.deleteImage(img, name, tag)
 }
 
 func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {

@@ -110,7 +110,27 @@ func (store *TagStore) ImageName(id string) string {
 	return utils.TruncateId(id)
 }
 
-func (store *TagStore) Delete(repoName, tag, imageName string) error {
+func (store *TagStore) DeleteAll(id string) error {
+	names, exists := store.ById()[id]
+	if !exists || len(names) == 0 {
+		return nil
+	}
+	for _, name := range names {
+		if strings.Contains(name, ":") {
+			nameParts := strings.Split(name, ":")
+			if err := store.Delete(nameParts[0], nameParts[1]); err != nil {
+				return err
+			}
+		} else {
+			if err := store.Delete(name, ""); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (store *TagStore) Delete(repoName, tag string) error {
 	if err := store.Reload(); err != nil {
 		return err
 	}
