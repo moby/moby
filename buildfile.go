@@ -213,13 +213,17 @@ func (b *buildFile) CmdAdd(args string) error {
 	if container == nil {
 		return fmt.Errorf("Error while creating the container (CmdAdd)")
 	}
-
-	if err := os.MkdirAll(path.Join(container.rwPath(), dest), 0700); err != nil {
+	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
+	defer container.Unmount()
 
 	origPath := path.Join(b.context, orig)
-	destPath := path.Join(container.rwPath(), dest)
+	destPath := path.Join(container.RootfsPath(), dest)
+
+	if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+		return err
+	}
 
 	fi, err := os.Stat(origPath)
 	if err != nil {
