@@ -2,12 +2,27 @@
 :description: Build a new image from the Dockerfile passed via stdin
 :keywords: build, docker, container, documentation
 
-========================================================
-``build`` -- Build a container from Dockerfile via stdin
-========================================================
+================================================
+``build`` -- Build a container from a Dockerfile
+================================================
 
 ::
 
-    Usage: docker build -
-    Example: cat Dockerfile | docker build -
-    Build a new image from the Dockerfile passed via stdin
+    Usage: docker build [OPTIONS] PATH | -
+    Build a new container image from the source code at PATH
+      -t="": Tag to be applied to the resulting image in case of success.
+
+Examples
+--------
+
+.. code-block:: bash
+
+    docker build .
+
+This will take the local Dockerfile
+
+.. code-block:: bash
+
+    docker build -
+
+This will read a Dockerfile form Stdin without context
