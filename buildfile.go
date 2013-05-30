@@ -347,10 +347,6 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		fmt.Fprintf(b.out, "===> %v\n", b.image)
 	}
 	if b.image != "" {
-		// The build is successful, keep the temporary containers and images
-		for i := range b.tmpImages {
-			delete(b.tmpImages, i)
-		}
 		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
 		return b.image, nil
 	}
