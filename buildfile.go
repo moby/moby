@@ -152,6 +152,14 @@ func (b *buildFile) CmdExpose(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
+func (b *buildFile) CmdInsert(args string) error {
+	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
+}
+
+func (b *buildFile) CmdCopy(args string) error {
+	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
+}
+
 func (b *buildFile) CmdAdd(args string) error {
 	if b.context == "" {
 		return fmt.Errorf("No context given. Impossible to use ADD")
