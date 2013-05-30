@@ -143,7 +143,11 @@ func (b *buildFile) CmdCmd(args string) error {
 		utils.Debugf("Error unmarshalling: %s, using /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
-	return b.commit("", cmd, fmt.Sprintf("CMD %v", cmd))
+	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) CmdExpose(args string) error {
@@ -216,7 +220,11 @@ func (b *buildFile) CmdAdd(args string) error {
 			return err
 		}
 	}
-	return b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest))
+	if err := b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) run() (string, error) {
