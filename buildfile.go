@@ -287,7 +287,7 @@ func (b *buildFile) commit(id string) error {
 	}
 
 	// Commit the container
-	image, err := b.builder.Commit(container, "", "", "", b.maintainer, nil)
+	image, err := b.builder.Commit(container, "", "", "", b.maintainer, b.config)
 	if err != nil {
 		return err
 	}
