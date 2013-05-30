@@ -3,55 +3,55 @@ package registry
 import (
 	"crypto/rand"
 	"encoding/hex"
-    "github.com/dotcloud/docker"
+	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/auth"
-    "io/ioutil"
+	"io/ioutil"
 	"os"
 	"os/exec"
-    "path"
-    "sync"
+	"path"
+	"sync"
 	"testing"
 )
 
 const unitTestStoreBase string = "/var/lib/docker/unit-tests"
 
 func CopyDirectory(source, dest string) error {
-    if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
-        return err
-    }
-    return nil
+	if _, err := exec.Command("cp", "-ra", source, dest).Output(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func nuke(srv *docker.Server) error {
-    var wg sync.WaitGroup
-    for _, container := range srv.Runtime().List() {
-        wg.Add(1)
-        go func(c *docker.Container) {
-            c.Kill()
-            wg.Done()
-        }(container)
-    }
-    wg.Wait()
-    return os.RemoveAll(srv.Runtime().Root())
+	var wg sync.WaitGroup
+	for _, container := range srv.Runtime().List() {
+		wg.Add(1)
+		go func(c *docker.Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
+	}
+	wg.Wait()
+	return os.RemoveAll(srv.Runtime().Root())
 }
 
 func newTestServer() (*docker.Server, error) {
-    root, err := ioutil.TempDir("", "docker-test")
-    if err != nil {
-        return nil, err
-    }
-    if err := os.Remove(root); err != nil {
-        return nil, err
-    }
-    if err := CopyDirectory(unitTestStoreBase, root); err != nil {
-        return nil, err
-    }
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Remove(root); err != nil {
+		return nil, err
+	}
+	if err := CopyDirectory(unitTestStoreBase, root); err != nil {
+		return nil, err
+	}
 
-    srv, err := docker.NewServerFromDirectory(root, false)
-    if err != nil {
-        return nil, err
-    }
-    return srv, nil
+	srv, err := docker.NewServerFromDirectory(root, false)
+	if err != nil {
+		return nil, err
+	}
+	return srv, nil
 }
 
 func TestPull(t *testing.T) {
