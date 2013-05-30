@@ -132,6 +132,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "PATH | -", "Build a new container image from the source code at PATH")
+	tag := cmd.String("t", "", "Tag to be applied to the resulting image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -191,8 +192,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	multipartBody = io.MultiReader(multipartBody, boundary)
 
+	v := &url.Values{}
+	v.Set("t", *tag)
 	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), multipartBody)
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s?%s", cli.host, cli.port, "/build", v.Encode()), multipartBody)
 	if err != nil {
 		return err
 	}
