@@ -298,8 +298,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
-	defer b.clearTmp(b.tmpContainers, b.tmpImages)
-
 	if context != nil {
 		name, err := ioutil.TempDir("/tmp", "docker-build")
 		if err != nil {
@@ -349,9 +347,6 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 	if b.image != "" {
 		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
 		return b.image, nil
-	}
-	for i := range b.tmpContainers {
-		delete(b.tmpContainers, i)
 	}
 	return "", fmt.Errorf("An error occured during the build\n")
 }
