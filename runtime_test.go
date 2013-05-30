@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -63,8 +62,7 @@ func init() {
 
 	// Create the "Server"
 	srv := &Server{
-		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.root),
+		runtime: runtime,
 	}
 	// Retrieve the Image
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
