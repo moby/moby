@@ -152,45 +152,6 @@ func (b *buildFile) CmdExpose(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
-func (b *buildFile) CmdInsert(args string) error {
-	if b.image == "" {
-		return fmt.Errorf("Please provide a source image with `from` prior to insert")
-	}
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid INSERT format")
-	}
-	sourceUrl := strings.Trim(tmp[0], " ")
-	destPath := strings.Trim(tmp[1], " ")
-
-	file, err := utils.Download(sourceUrl, b.out)
-	if err != nil {
-		return err
-	}
-	defer file.Body.Close()
-
-	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) INSERT %s in %s", sourceUrl, destPath)}
-	cid, err := b.run()
-	if err != nil {
-		return err
-	}
-
-	container := b.runtime.Get(cid)
-	if container == nil {
-		return fmt.Errorf("An error occured while creating the container")
-	}
-
-	if err := container.Inject(file.Body, destPath); err != nil {
-		return err
-	}
-	if err := b.commit(cid, cmd, fmt.Sprintf("INSERT %s in %s", sourceUrl, destPath)); err != nil {
-		return err
-	}
-	b.config.Cmd = cmd
-	return nil
-}
-
 func (b *buildFile) CmdAdd(args string) error {
 	if b.context == "" {
 		return fmt.Errorf("No context given. Impossible to use ADD")
