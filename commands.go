@@ -135,6 +135,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
 
 	var (
 		multipartBody io.Reader
@@ -148,43 +152,26 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	w := multipart.NewWriter(buff)
 	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
 
-	dockerfile := "Dockerfile"
-
-	if cmd.Arg(0) != "" && cmd.Arg(0) != "-" {
-		contextPath = cmd.Arg(0)
-		dockerfile = path.Join(cmd.Arg(0), dockerfile)
-	}
-	if cmd.Arg(0) != "-" {
-		f, err := os.Open(dockerfile)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		file = f
-	} else {
-		contextPath = cmd.Arg(1)
-		file = os.Stdin
-	}
-
-	// Create a FormFile multipart for the Dockerfile
-	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
-		return err
-	} else {
-		io.Copy(wField, file)
-	}
-	multipartBody = io.MultiReader(multipartBody, boundary)
-
 	compression := Bzip2
 
-	// Create a FormFile multipart for the context if needed
-	if contextPath != "" {
+	if cmd.Arg(0) == "-" {
+		file = os.Stdin
+	} else {
+		// Send Dockerfile from arg/Dockerfile (deprecate later)
+		if f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile")); err != nil {
+			return err
+		} else {
+			file = f
+		}
+		// Send context from arg
+		// Create a FormFile multipart for the context if needed
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
-		context, err := Tar(contextPath, compression)
+		context, err := Tar(cmd.Arg(0), compression)
 		if err != nil {
 			return err
 		}
 		// NOTE: Do this in case '.' or '..' is input
-		absPath, err := filepath.Abs(contextPath)
+		absPath, err := filepath.Abs(cmd.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -194,9 +181,15 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			// FIXME: Find a way to have a progressbar for the upload too
 			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Caching Context %v/%v (%v)\r", false))
 		}
-
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
+	// Create a FormFile multipart for the Dockerfile
+	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
+		return err
+	} else {
+		io.Copy(wField, file)
+	}
+	multipartBody = io.MultiReader(multipartBody, boundary)
 
 	// Send the multipart request with correct content-type
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), multipartBody)
