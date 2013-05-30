@@ -8,6 +8,7 @@
 
 ::
 
-    Usage: docker import [OPTIONS] URL|- [REPOSITORY [TAG]]
+    Usage: docker import - IMAGE
+    Example: zcat image.tgz | docker import - new_image
 
-    Create a new filesystem image from the contents of a tarball
+    Import the contents of a tar archive as a new image
