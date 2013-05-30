@@ -131,7 +131,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[CONTEXT|-]", "Build an image from a Dockerfile")
+	cmd := Subcmd("build", "PATH | -", "Build a new container image from the source code at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

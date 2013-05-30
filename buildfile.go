@@ -96,7 +96,7 @@ func (b *buildFile) CmdRun(args string) error {
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
-	utils.Debugf("Commang to be executed: %v", b.config.Cmd)
+	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
 	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
@@ -197,7 +197,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid INSERT format")
+		return fmt.Errorf("Invalid ADD format")
 	}
 	orig := strings.Trim(tmp[0], " ")
 	dest := strings.Trim(tmp[1], " ")
@@ -371,7 +371,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		for i := range b.tmpImages {
 			delete(b.tmpImages, i)
 		}
-		fmt.Fprintf(b.out, "Build success.\n Image id:\n%s\n", b.image)
+		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
 		return b.image, nil
 	}
 	for i := range b.tmpContainers {
