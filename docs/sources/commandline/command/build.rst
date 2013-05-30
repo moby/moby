@@ -8,32 +8,21 @@
 
 ::
 
-    Usage: docker build [CONTEXT|-]
-    Build a new image from a Dockerfile
+    Usage: docker build [OPTIONS] PATH | -
+    Build a new container image from the source code at PATH
+      -t="": Tag to be applied to the resulting image in case of success.
 
 Examples
 --------
 
 .. code-block:: bash
 
-    docker build
+    docker build .
 
-This will take the local Dockerfile without context
+This will take the local Dockerfile
 
 .. code-block:: bash
 
     docker build -
 
 This will read a Dockerfile form Stdin without context
-
-.. code-block:: bash
-
-    docker build .
-
-This will take the local Dockerfile and set the current directory as context
-
-.. code-block:: bash
-
-    docker build - .
-
-This will read a Dockerfile from Stdin and set the current directory as context
