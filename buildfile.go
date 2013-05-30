@@ -221,15 +221,15 @@ func (b *buildFile) CmdAdd(args string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
 
-	if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
-		return err
-	}
-
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		return err
 	}
 	if fi.IsDir() {
+		if err := os.MkdirAll(destPath, 0700); err != nil {
+			return err
+		}
+
 		files, err := ioutil.ReadDir(path.Join(b.context, orig))
 		if err != nil {
 			return err
@@ -240,6 +240,9 @@ func (b *buildFile) CmdAdd(args string) error {
 			}
 		}
 	} else {
+		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+			return err
+		}
 		if err := utils.CopyDirectory(origPath, destPath); err != nil {
 			return err
 		}
