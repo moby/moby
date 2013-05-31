@@ -826,6 +826,7 @@ Build an image from Dockerfile via stdin
 	   
 	   {{ STREAM }}
 
+	:query t: tag to be applied to the resulting image in case of success
 	:statuscode 200: no error
         :statuscode 500: server error
 
