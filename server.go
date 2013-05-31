@@ -790,7 +790,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
 	//logs
 	if logs {
 		if stdout {
@@ -815,6 +814,9 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	if stream {
 		if container.State.Ghost {
 			return fmt.Errorf("Impossible to attach to a ghost container")
+		}
+		if !container.State.Running {
+			return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 		}
 
 		var (
