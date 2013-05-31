@@ -34,7 +34,7 @@ Snapshot the installation
 
 .. code-block:: bash
 
-    docker ps -a  # grab the container id (this will be the last one in the list)
+    docker ps -a  # grab the container id (this will be the first one in the list)
     docker commit <container_id> <your username>/redis
 
 Run the service
