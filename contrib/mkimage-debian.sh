@@ -2,18 +2,15 @@
 set -e
 
 # these should match the names found at http://www.debian.org/releases/
-stableSuite='squeeze'
-testingSuite='wheezy'
+stableSuite='wheezy'
+testingSuite='jessie'
 unstableSuite='sid'
-
-# if suite is equal to this, it gets the "latest" tag
-latestSuite="$testingSuite"
 
 variant='minbase'
 include='iproute,iputils-ping'
 
 repo="$1"
-suite="${2:-$latestSuite}"
+suite="${2:-$stableSuite}"
 mirror="${3:-}" # stick to the default debootstrap mirror if one is not provided
 
 if [ ! "$repo" ]; then
@@ -41,17 +38,14 @@ img=$(sudo tar -c . | docker import -)
 # tag suite
 docker tag $img $repo $suite
 
-if [ "$suite" = "$latestSuite" ]; then
-	# tag latest
-	docker tag $img $repo latest
-fi
-
 # test the image
 docker run -i -t $repo:$suite echo success
 
-# unstable's version numbers match testing (since it's mostly just a sandbox for testing), so it doesn't get a version number tag
-if [ "$suite" != "$unstableSuite" -a "$suite" != 'unstable' ]; then
-	# tag the specific version
+if [ "$suite" = "$stableSuite" -o "$suite" = 'stable' ]; then
+	# tag latest
+	docker tag $img $repo latest
+	
+	# tag the specific debian release version
 	ver=$(docker run $repo:$suite cat /etc/debian_version)
 	docker tag $img $repo $ver
 fi
