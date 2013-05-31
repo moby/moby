@@ -988,12 +988,10 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	v.Set("logs", "1")
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
-
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false, nil, os.Stdout); err != nil {
+	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", nil, os.Stdout); err != nil {
+		return err
+	}
+	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", nil, os.Stderr); err != nil {
 		return err
 	}
 	return nil
