@@ -61,7 +61,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				remote = name
 			}
 
-			if err := b.srv.ImagePull(remote, tag, "", b.out, false); err != nil {
+			if err := b.srv.ImagePull(remote, tag, "", b.out, utils.NewStreamFormatter(false)); err != nil {
 				return err
 			}
 

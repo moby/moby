@@ -180,7 +180,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		} else {
 			// FIXME: Find a way to have a progressbar for the upload too
-			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Caching Context %v/%v (%v)\r", false))
+			sf := utils.NewStreamFormatter(false)
+			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		}
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
@@ -1367,13 +1368,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
-		type Message struct {
-			Status   string `json:"status,omitempty"`
-			Progress string `json:"progress,omitempty"`
-		}
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var m Message
+			var m utils.JsonMessage
 			if err := dec.Decode(&m); err == io.EOF {
 				break
 			} else if err != nil {
@@ -1381,6 +1378,8 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 			}
 			if m.Progress != "" {
 				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+			} else if m.Error != "" {
+				return fmt.Errorf(m.Error)
 			} else {
 				fmt.Fprintf(out, "%s\n", m.Status)
 			}
