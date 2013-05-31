@@ -3,7 +3,7 @@ package docker
 type ApiHistory struct {
 	Id        string
 	Created   int64
-	CreatedBy string
+	CreatedBy string `json:",omitempty"`
 }
 
 type ApiImages struct {
@@ -14,13 +14,13 @@ type ApiImages struct {
 }
 
 type ApiInfo struct {
-	Containers  int
-	Version     string
-	Images      int
 	Debug       bool
-	GoVersion   string
-	NFd         int `json:",omitempty"`
-	NGoroutines int `json:",omitempty"`
+	Containers  int
+	Images      int
+	NFd         int  `json:",omitempty"`
+	NGoroutines int  `json:",omitempty"`
+	MemoryLimit bool `json:",omitempty"`
+	SwapLimit   bool `json:",omitempty"`
 }
 
 type ApiContainers struct {
@@ -43,7 +43,7 @@ type ApiId struct {
 
 type ApiRun struct {
 	Id       string
-	Warnings []string
+	Warnings []string `json:",omitempty"`
 }
 
 type ApiPort struct {
@@ -51,10 +51,9 @@ type ApiPort struct {
 }
 
 type ApiVersion struct {
-	Version     string
-	GitCommit   string
-	MemoryLimit bool
-	SwapLimit   bool
+	Version   string
+	GitCommit string `json:",omitempty"`
+	GoVersion string `json:",omitempty"`
 }
 
 type ApiWait struct {
