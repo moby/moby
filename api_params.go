@@ -23,6 +23,11 @@ type ApiInfo struct {
 	NGoroutines int `json:",omitempty"`
 }
 
+type ApiRmi struct {
+	Deleted  string `json:",omitempty"`
+	Untagged string `json:",omitempty"`
+}
+
 type ApiContainers struct {
 	Id      string
 	Image   string

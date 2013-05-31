@@ -450,10 +450,23 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	if err := srv.ImageDelete(name); err != nil {
+	imgs, err := srv.ImageDelete(name, version > 1.0)
+	if err != nil {
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if imgs != nil {
+		if len(*imgs) != 0 {
+			b, err := json.Marshal(imgs)
+			if err != nil {
+				return err
+			}
+			writeJson(w, b)
+		} else {
+			return fmt.Errorf("Conflict, %s wasn't deleted", name)
+		}
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 	return nil
 }
 

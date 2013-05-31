@@ -1271,10 +1271,17 @@ func TestDeleteImages(t *testing.T) {
 	if err := deleteImages(srv, API_VERSION, r, req, map[string]string{"name": "test:test"}); err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
+	var outs []ApiRmi
+	if err := json.Unmarshal(r.Body.Bytes(), &outs); err != nil {
+		t.Fatal(err)
+	}
+	if len(outs) != 1 {
+		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs))
+	}
 	images, err = srv.Images(false, "")
 	if err != nil {
 		t.Fatal(err)

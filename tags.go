@@ -118,11 +118,11 @@ func (store *TagStore) DeleteAll(id string) error {
 	for _, name := range names {
 		if strings.Contains(name, ":") {
 			nameParts := strings.Split(name, ":")
-			if err := store.Delete(nameParts[0], nameParts[1]); err != nil {
+			if _, err := store.Delete(nameParts[0], nameParts[1]); err != nil {
 				return err
 			}
 		} else {
-			if err := store.Delete(name, ""); err != nil {
+			if _, err := store.Delete(name, ""); err != nil {
 				return err
 			}
 		}
@@ -130,9 +130,10 @@ func (store *TagStore) DeleteAll(id string) error {
 	return nil
 }
 
-func (store *TagStore) Delete(repoName, tag string) error {
+func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+	deleted := false
 	if err := store.Reload(); err != nil {
-		return err
+		return false, err
 	}
 	if r, exists := store.Repositories[repoName]; exists {
 		if tag != "" {
@@ -141,16 +142,18 @@ func (store *TagStore) Delete(repoName, tag string) error {
 				if len(r) == 0 {
 					delete(store.Repositories, repoName)
 				}
+				deleted = true
 			} else {
-				return fmt.Errorf("No such tag: %s:%s", repoName, tag)
+				return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
 			}
 		} else {
 			delete(store.Repositories, repoName)
+			deleted = true
 		}
 	} else {
 		fmt.Errorf("No such repository: %s", repoName)
 	}
-	return store.Save()
+	return deleted, store.Save()
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {

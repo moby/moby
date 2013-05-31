@@ -567,10 +567,22 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	}
 
 	for _, name := range cmd.Args() {
-		if _, _, err := cli.call("DELETE", "/images/"+name, nil); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+		body, _, err := cli.call("DELETE", "/images/"+name, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
 		} else {
-			fmt.Println(name)
+			var outs []ApiRmi
+			err = json.Unmarshal(body, &outs)
+			if err != nil {
+				return err
+			}
+			for _, out := range outs {
+				if out.Deleted != "" {
+					fmt.Println("Deleted:", out.Deleted)
+				} else {
+					fmt.Println("Untagged:", out.Untagged)
+				}
+			}
 		}
 	}
 	return nil

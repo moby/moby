@@ -29,7 +29,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Errorf("Excepted 3 images, %d found", len(images))
 	}
 
-	if err := srv.ImageDelete("utest/docker:tag2"); err != nil {
+	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,7 +42,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Errorf("Excepted 2 images, %d found", len(images))
 	}
 
-	if err := srv.ImageDelete("utest:tag1"); err != nil {
+	if _, err := srv.ImageDelete("utest:tag1", true); err != nil {
 		t.Fatal(err)
 	}
 
