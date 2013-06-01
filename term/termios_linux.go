@@ -13,9 +13,9 @@ const (
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
-func MakeRaw(fd int) (*State, error) {
+func MakeRaw(fd uintptr) (*State, error) {
 	var oldState State
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
 		return nil, err
 	}
 
@@ -27,7 +27,7 @@ func MakeRaw(fd int) (*State, error) {
 	newState.Cflag &^= (syscall.CSIZE | syscall.PARENB)
 	newState.Cflag |= syscall.CS8
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return nil, err
 	}
 	return &oldState, nil
