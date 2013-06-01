@@ -8,13 +8,13 @@ import (
 )
 
 type Termios struct {
-	Iflag  uintptr
-	Oflag  uintptr
-	Cflag  uintptr
-	Lflag  uintptr
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
 	Cc     [20]byte
-	Ispeed uintptr
-	Ospeed uintptr
+	Ispeed uint32
+	Ospeed uint32
 }
 
 const (
