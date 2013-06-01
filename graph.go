@@ -107,6 +107,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
+		Architecture:  "x86_64",
 	}
 	if container != nil {
 		img.Parent = container.Image
