@@ -10,6 +10,16 @@ const (
 	setTermios = syscall.TCSETS
 )
 
+type Termios struct {
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
+	Cc     [20]byte
+	Ispeed uint32
+	Ospeed uint32
+}
+
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
