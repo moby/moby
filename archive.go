@@ -54,6 +54,9 @@ func Tar(path string, compression Compression) (io.Reader, error) {
 func Untar(archive io.Reader, path string) error {
 	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-x")
 	cmd.Stdin = archive
+	// Hardcode locale environment for predictable outcome regardless of host configuration.
+	//   (see https://github.com/dotcloud/docker/issues/355)
+	cmd.Env = []string{"LANG=en_US.utf-8", "LC_ALL=en_US.utf-8"}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, output)
