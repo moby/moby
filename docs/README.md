@@ -14,8 +14,10 @@ Installation
 ------------
 
 * Work in your own fork of the code, we accept pull requests.
-* Install sphinx: ``pip install sphinx``
-* Install sphinx httpdomain contrib package ``sphinxcontrib-httpdomain``
+* Install sphinx: `pip install sphinx`
+    * Mac OS X: `[sudo] pip-2.7 install sphinx`)
+* Install sphinx httpdomain contrib package: `pip install sphinxcontrib-httpdomain`
+    * Mac OS X: `[sudo] pip-2.7 install sphinxcontrib-httpdomain`
 * If pip is not available you can probably install it using your favorite package manager as **python-pip**
 
 Usage
