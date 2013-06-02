@@ -4,8 +4,8 @@
 
 .. _python_web_app:
 
-Building a python web app
-=========================
+Python Web App
+==============
 
 .. include:: example_header.inc
 

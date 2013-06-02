@@ -1,6 +1,6 @@
 :title: Docker Examples
 :description: Examples on how to use Docker
-:keywords: docker, hello world, examples
+:keywords: docker, hello world, python, couch, couchdb, redis, ssh, sshd, examples
 
 
 
