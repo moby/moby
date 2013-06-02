@@ -23,7 +23,7 @@ Usage
 * change the .rst files with your favorite editor to your liking
 * run *make docs* to clean up old files and generate new ones
 * your static website can now be found in the _build dir
-* to preview what you have generated, cd into _build/html and then run 'python -m SimpleHTTPServer 8000'
+* to preview what you have generated run `make server` and open <http://localhost:8000/> in your favorite browser.
 
 Working using github's file editor
 ----------------------------------
