@@ -4,8 +4,8 @@
 
 .. _working_with_the_repository:
 
-Working with the repository
-============================
+Working with the Repository
+===========================
 
 
 Top-level repositories and user repositories

@@ -1,8 +1,8 @@
-:title: Setting up a dev environment
+:title: Setting Up a Dev Environment
 :description: Guides on how to contribute to docker
 :keywords: Docker, documentation, developers, contributing, dev environment
 
-Setting up a dev environment
+Setting Up a Dev Environment
 ============================
 
 Instructions that have been verified to work on Ubuntu 12.10,
