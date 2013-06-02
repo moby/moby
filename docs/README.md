@@ -22,14 +22,14 @@ Installation
 
 Usage
 -----
-* change the .rst files with your favorite editor to your liking
-* run *make docs* to clean up old files and generate new ones
-* your static website can now be found in the _build dir
-* to preview what you have generated run `make server` and open <http://localhost:8000/> in your favorite browser.
+* Change the `.rst` files with your favorite editor to your liking.
+* Run `make docs` to clean up old files and generate new ones.
+* Your static website can now be found in the `_build` directory.
+* To preview what you have generated run `make server` and open <http://localhost:8000/> in your favorite browser.
 
-Working using github's file editor
+Working using GitHub's file editor
 ----------------------------------
-Alternatively, for small changes and typo's you might want to use github's built in file editor. It allows
+Alternatively, for small changes and typo's you might want to use GitHub's built in file editor. It allows
 you to preview your changes right online. Just be carefull not to create many commits.
 
 Images
