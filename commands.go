@@ -102,7 +102,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
 		{"version", "Show the docker version information"},
-		{"wait", "Block until a container stops}, then print its exit code"},
+		{"wait", "Block until a container stops, then print its exit code"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
