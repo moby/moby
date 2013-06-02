@@ -4,8 +4,8 @@
 
 .. _running_redis_service:
 
-Create a redis service
-======================
+Redis Service
+=============
 
 .. include:: example_header.inc
 
