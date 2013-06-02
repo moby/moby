@@ -11,7 +11,8 @@ Node.js Web App
 
 The goal of this example is to show you how you can build your own docker images
 from a parent image using a ``Dockerfile`` . We will do that by making a simple
-Node.js hello world web application running on CentOS.
+Node.js hello world web application running on CentOS. You can get the full
+source code at https://github.com/gasi/docker-node-hello.
 
 Create Node.js app
 ++++++++++++++++++
