@@ -5,6 +5,9 @@ import (
 	"github.com/dotcloud/docker"
 )
 
+// ListContainersOptions specify parameters to the ListContainers function.
+//
+// See http://goo.gl/8IMr2 for more details.
 type ListContainersOptions struct {
 	All    bool
 	Limit  int
@@ -12,6 +15,9 @@ type ListContainersOptions struct {
 	Before string
 }
 
+// ListContainers returns a slice of containers matching the given criteria.
+//
+// See http://goo.gl/8IMr2 for more details.
 func (c *Client) ListContainers(opts *ListContainersOptions) ([]docker.ApiContainer, error) {
 	path := "/containers/ps?" + queryString(opts)
 	body, _, err := c.do("GET", path, nil)
@@ -26,6 +32,9 @@ func (c *Client) ListContainers(opts *ListContainersOptions) ([]docker.ApiContai
 	return containers, nil
 }
 
+// InspectContainer returns information about a container by its ID.
+//
+// See http://goo.gl/g5tpG for more details.
 func (c *Client) InspectContainer(id string) (*docker.Container, error) {
 	path := "/containers/" + id + "/json"
 	body, _, err := c.do("GET", path, nil)

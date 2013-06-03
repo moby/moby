@@ -1,3 +1,6 @@
+// Package docker provides a client for the Docker remote API.
+//
+// See http://goo.gl/mxyql for more details on the remote API.
 package docker
 
 import (
@@ -15,11 +18,15 @@ import (
 	"strings"
 )
 
+// Client is the basic type of this package. It provides methods for
+// interaction with the API.
 type Client struct {
 	endpoint string
 	client   *http.Client
 }
 
+// NewClient returns a Client instance ready for communication with the
+// given server endpoint.
 func NewClient(endpoint string) (*Client, error) {
 	if endpoint == "" {
 		return nil, errors.New("Server endpoint cannot be empty")
