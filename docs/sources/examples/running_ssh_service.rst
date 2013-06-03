@@ -4,8 +4,8 @@
 
 .. _running_ssh_service:
 
-Create an ssh daemon service
-============================
+SSH Daemon Service
+==================
 
 .. include:: example_header.inc
 
