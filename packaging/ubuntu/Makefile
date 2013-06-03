@@ -15,7 +15,7 @@ VERSION=$(shell sed -En '0,/^\#\# /{s/^\#\# ([^ ]+).+/\1/p}' ../../CHANGELOG.md)
 
 all:
 	# Compile docker. Used by dpkg-buildpackage.
-	cd src/${GITHUB_PATH}/docker; GOPATH=${CURDIR} go build
+	cd src/${GITHUB_PATH}/docker; GOPATH=${CURDIR} CGO_ENABLED=0 go build -ldflags '-d -w'
 
 install:
 	# Used by dpkg-buildpackage
