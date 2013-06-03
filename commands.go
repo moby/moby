@@ -383,15 +383,14 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Println("Version:", out.Version)
-	fmt.Println("Git Commit:", out.GitCommit)
-	if !out.MemoryLimit {
-		fmt.Println("WARNING: No memory limit support")
+	fmt.Println("Client version:", VERSION)
+	fmt.Println("Server version:", out.Version)
+	if out.GitCommit != "" {
+		fmt.Println("Git commit:", out.GitCommit)
 	}
-	if !out.SwapLimit {
-		fmt.Println("WARNING: No swap limit support")
+	if out.GoVersion != "" {
+		fmt.Println("Go version:", out.GoVersion)
 	}
-
 	return nil
 }
 
@@ -412,14 +411,23 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	var out ApiInfo
-	err = json.Unmarshal(body, &out)
-	if err != nil {
+	if err := json.Unmarshal(body, &out); err != nil {
 		return err
 	}
-	fmt.Printf("containers: %d\nversion: %s\nimages: %d\nGo version: %s\n", out.Containers, out.Version, out.Images, out.GoVersion)
-	if out.Debug {
-		fmt.Println("debug mode enabled")
-		fmt.Printf("fds: %d\ngoroutines: %d\n", out.NFd, out.NGoroutines)
+
+	fmt.Printf("Containers: %d\n", out.Containers)
+	fmt.Printf("Images: %d\n", out.Images)
+	if out.Debug || os.Getenv("DEBUG") != "" {
+		fmt.Printf("Debug mode (server): %v\n", out.Debug)
+		fmt.Printf("Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
+		fmt.Printf("Fds: %d\n", out.NFd)
+		fmt.Printf("Goroutines: %d\n", out.NGoroutines)
+	}
+	if !out.MemoryLimit {
+		fmt.Println("WARNING: No memory limit support")
+	}
+	if !out.SwapLimit {
+		fmt.Println("WARNING: No swap limit support")
 	}
 	return nil
 }
@@ -693,9 +701,14 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
 	}
 
+	buf, err := json.Marshal(cli.authConfig)
+	if err != nil {
+		return err
+	}
+
 	v := url.Values{}
 	v.Set("registry", *registry)
-	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, os.Stdout); err != nil {
+	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -719,12 +732,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		remoteParts := strings.Split(remote, ":")
 		tag = &remoteParts[1]
 		remote = remoteParts[0]
-	}
-
-	if strings.Contains(remote, "/") {
-		if err := cli.checkIfLogged(true, "pull"); err != nil {
-			return err
-		}
 	}
 
 	v := url.Values{}
@@ -1383,7 +1390,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	})
 
-	if in != nil && setRawTerminal && term.IsTerminal(int(in.Fd())) && os.Getenv("NORAW") == "" {
+	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
 		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
@@ -1402,7 +1409,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	}
 
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
+	if !term.IsTerminal(os.Stdin.Fd()) {
 		if err := <-sendStdin; err != nil {
 			return err
 		}

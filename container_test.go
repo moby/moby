@@ -217,6 +217,37 @@ func TestDiff(t *testing.T) {
 			t.Fatalf("/etc/passwd should not be present in the diff after commit.")
 		}
 	}
+
+	// Create a new containere
+	container3, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).Id,
+			Cmd:   []string{"rm", "/bin/httpd"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container3)
+
+	if err := container3.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the changelog
+	c, err = container3.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	success = false
+	for _, elem := range c {
+		if elem.Path == "/bin/httpd" && elem.Kind == 2 {
+			success = true
+		}
+	}
+	if !success {
+		t.Fatalf("/bin/httpd should be present in the diff after commit.")
+	}
 }
 
 func TestCommitAutoRun(t *testing.T) {

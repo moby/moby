@@ -99,8 +99,8 @@ func TestGetInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Version != VERSION {
-		t.Errorf("Excepted version %s, %s found", VERSION, infos.Version)
+	if infos.Images != 1 {
+		t.Errorf("Excepted images: %d, %d found", 1, infos.Images)
 	}
 }
 

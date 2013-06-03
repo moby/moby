@@ -327,17 +327,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		authConfig := &auth.AuthConfig{}
-		if version > 1.1 {
-			json.NewDecoder(r.Body).Decode(authConfig)
-		} else {
-			localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
-			if err != nil && err != auth.ErrConfigFileMissing {
-				return err
-			}
-			authConfig = localAuthConfig
-		}
-		if err := srv.ImagePull(image, tag, registry, w, sf, authConfig); err != nil {
+		if err := srv.ImagePull(image, tag, registry, w, sf, &auth.AuthConfig{}); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil

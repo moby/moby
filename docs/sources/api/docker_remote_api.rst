@@ -14,7 +14,7 @@ Docker Remote API
 - The Remote API is replacing rcli
 - Default port in the docker deamon is 4243 
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
-- Since API version 1.2, the auth configuration is now handled client side, so the client has to send the authConfig as POST in /images/create and /images/<name>/pull
+- Since API version 1.2, the auth configuration is now handled client side, so the client has to send the authConfig as POST in /images/create
 
 2. Version
 ==========
@@ -551,18 +551,11 @@ Create an image
 
 	Create an image, either by pull it from the registry or by importing it
 
-	**Example request v1.0**:
+	**Example request**:
 
         .. sourcecode:: http
 
            POST /images/create?fromImage=base HTTP/1.1
-
-	**Example request v1.2**:
-
-        .. sourcecode:: http
-
-           POST /images/create?fromImage=base HTTP/1.1
-	   {{ authConfig }}
 
         **Example response v1.1**:
 
@@ -972,10 +965,12 @@ Display system-wide information
 
 	   {
 		"Containers":11,
-		"Version":"0.2.2",
 		"Images":16,
-		"GoVersion":"go1.0.3",
-		"Debug":false
+		"Debug":false,
+		"NFd": 11,
+		"NGoroutines":21,
+		"MemoryLimit":true,
+		"SwapLimit":false
 	   }
 
         :statuscode 200: no error
@@ -1001,12 +996,11 @@ Show the docker version information
 
            HTTP/1.1 200 OK
 	   Content-Type: application/json
-	   
+
 	   {
 		"Version":"0.2.2",
 		"GitCommit":"5a2a5cc+CHANGES",
-		"MemoryLimit":true,
-		"SwapLimit":false
+		"GoVersion":"go1.0.3"
 	   }
 
         :statuscode 200: no error
