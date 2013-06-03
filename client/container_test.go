@@ -122,3 +122,99 @@ func TestAPIClientListContainersFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestAPIClientInspectContainer(t *testing.T) {
+	jsonContainer := `{
+             "Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
+             "Created": "2013-05-07T14:51:42.087658+02:00",
+             "Path": "date",
+             "Args": [],
+             "Config": {
+                     "Hostname": "4fa6e0f0c678",
+                     "User": "",
+                     "Memory": 0,
+                     "MemorySwap": 0,
+                     "AttachStdin": false,
+                     "AttachStdout": true,
+                     "AttachStderr": true,
+                     "PortSpecs": null,
+                     "Tty": false,
+                     "OpenStdin": false,
+                     "StdinOnce": false,
+                     "Env": null,
+                     "Cmd": [
+                             "date"
+                     ],
+                     "Dns": null,
+                     "Image": "base",
+                     "Volumes": {},
+                     "VolumesFrom": ""
+             },
+             "State": {
+                     "Running": false,
+                     "Pid": 0,
+                     "ExitCode": 0,
+                     "StartedAt": "2013-05-07T14:51:42.087658+02:00",
+                     "Ghost": false
+             },
+             "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+             "NetworkSettings": {
+                     "IpAddress": "",
+                     "IpPrefixLen": 0,
+                     "Gateway": "",
+                     "Bridge": "",
+                     "PortMapping": null
+             },
+             "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+             "ResolvConfPath": "/etc/resolv.conf",
+             "Volumes": {}
+}`
+	var expected docker.Container
+	err := json.Unmarshal([]byte(jsonContainer), &expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeRT := FakeRoundTripper{message: jsonContainer, status: http.StatusOK}
+	client := Client{
+		endpoint: "http://localhost:4343",
+		client:   &http.Client{Transport: &fakeRT},
+	}
+	id := "4fa6e0f0c678"
+	container, err := client.InspectContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(*container, expected) {
+		t.Errorf("InspectContainer(%q): Expected %#v. Got %#v.", id, expected, container)
+	}
+	expectedURL, _ := url.Parse(client.getURL("/containers/4fa6e0f0c678/json"))
+	if gotPath := fakeRT.requests[0].URL.Path; gotPath != expectedURL.Path {
+		t.Errorf("InspectContainer(%q): Wrong path in request. Want %q. Got %q.", id, expectedURL.Path, gotPath)
+	}
+}
+
+func TestInspectContainerFailure(t *testing.T) {
+	var tests = []struct {
+		status  int
+		message string
+	}{
+		{404, "no such container"},
+		{500, "internal server error"},
+	}
+	for _, tt := range tests {
+		client := Client{
+			endpoint: "http://localhost:4243",
+			client: &http.Client{
+				Transport: &FakeRoundTripper{message: tt.message, status: tt.status},
+			},
+		}
+		expected := apiClientError{status: tt.status, message: tt.message}
+		container, err := client.InspectContainer("abe033")
+		if container != nil {
+			t.Errorf("InspectContainer: Expected <nil> container, got %#v", container)
+		}
+		if !reflect.DeepEqual(expected, *err.(*apiClientError)) {
+			t.Errorf("InspectContainer: Wrong error information. Want %#v. Got %#v.", expected, err)
+		}
+	}
+}
