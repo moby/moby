@@ -19,7 +19,8 @@ Most frequently asked questions.
 
 3. **Does Docker run on Mac OS X or Windows?**
 
-   Not at this time, Docker currently only runs on Linux, but you can use VirtualBox to run Docker in a virtual machine on your box, and get the best of both worlds. Check out the MacOSX_ and Windows_ installation guides.
+   Not at this time, Docker currently only runs on Linux, but you can use VirtualBox to run Docker in a
+   virtual machine on your box, and get the best of both worlds. Check out the :ref:`install_using_vagrant` and :ref:`windows` installation guides.
 
 4. **How do containers compare to virtual machines?**
 
@@ -39,10 +40,8 @@ Most frequently asked questions.
     * `Ask questions on Stackoverflow`_
     * `Join the conversation on Twitter`_
 
-    .. _Windows: ../installation/windows/
-    .. _MacOSX: ../installation/vagrant/
     .. _the repo: http://www.github.com/dotcloud/docker
-    .. _IRC\: docker on freenode: irc://chat.freenode.net#docker
+    .. _IRC: docker on freenode: docker on freenode: irc://chat.freenode.net#docker
     .. _Github: http://www.github.com/dotcloud/docker
     .. _Ask questions on Stackoverflow: http://stackoverflow.com/search?q=docker
     .. _Join the conversation on Twitter: http://twitter.com/getdocker
