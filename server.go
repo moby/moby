@@ -321,6 +321,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 			if err != nil {
 				return err
 			}
+			defer layer.Close()
 			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
 				return err
 			}
