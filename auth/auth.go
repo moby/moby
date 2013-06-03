@@ -120,7 +120,8 @@ func SaveConfig(authConfig *AuthConfig) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig *AuthConfig) (string, error) {
+func Login(authConfig *AuthConfig, store bool) (string, error) {
+	storeConfig := false
 	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
@@ -146,6 +147,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 	if reqStatusCode == 201 {
 		status = "Account created. Please use the confirmation link we sent" +
 			" to your e-mail to activate it.\n"
+		storeConfig = true
 	} else if reqStatusCode == 403 {
 		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
 			"Please check your e-mail for a confirmation link.")
@@ -164,7 +166,13 @@ func Login(authConfig *AuthConfig) (string, error) {
 			}
 			if resp.StatusCode == 200 {
 				status = "Login Succeeded\n"
+				storeConfig = true
 			} else if resp.StatusCode == 401 {
+				if store {
+					if err := SaveConfig(authConfig); err != nil {
+						return "", err
+					}
+				}
 				return "", fmt.Errorf("Wrong login/password, please try again")
 			} else {
 				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
@@ -175,6 +183,11 @@ func Login(authConfig *AuthConfig) (string, error) {
 		}
 	} else {
 		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
+	}
+	if storeConfig && store {
+		if err := SaveConfig(authConfig); err != nil {
+			return "", err
+		}
 	}
 	return status, nil
 }

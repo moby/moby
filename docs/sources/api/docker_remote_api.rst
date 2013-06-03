@@ -14,12 +14,13 @@ Docker Remote API
 - The Remote API is replacing rcli
 - Default port in the docker deamon is 4243 
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
+- Since API version 1.2, the auth configuration is now handled client side, so the client has to send the authConfig as POST in /images/create and /images/<name>/pull
 
 2. Version
 ==========
 
-The current verson of the API is 1.1
-Calling /images/<name>/insert is the same as calling /v1.1/images/<name>/insert
+The current verson of the API is 1.2
+Calling /images/<name>/insert is the same as calling /v1.2/images/<name>/insert
 You can still call an old version of the api using /v1.0/images/<name>/insert
 
 3. Endpoints
@@ -550,11 +551,18 @@ Create an image
 
 	Create an image, either by pull it from the registry or by importing it
 
-	**Example request**:
+	**Example request v1.0**:
 
         .. sourcecode:: http
 
            POST /images/create?fromImage=base HTTP/1.1
+
+	**Example request v1.2**:
+
+        .. sourcecode:: http
+
+           POST /images/create?fromImage=base HTTP/1.1
+	   {{ authConfig }}
 
         **Example response v1.1**:
 
@@ -720,11 +728,18 @@ Push an image on the registry
 
 	Push the image ``name`` on the registry
 
-	 **Example request**:
+	 **Example request v1.0**:
 
 	 .. sourcecode:: http
 
 	    POST /images/test/push HTTP/1.1
+
+	 **Example request v1.2**:
+
+	 .. sourcecode:: http
+
+	    POST /images/test/push HTTP/1.1
+	    {{ authConfig }}
 
 	 **Example response v1.1**:
 
@@ -875,7 +890,7 @@ Build an image from Dockerfile via stdin
         :statuscode 500: server error
 
 
-Get default username and email
+Get default username and email <deprecated with 1.2>
 ******************************
 
 .. http:get:: /auth
@@ -904,8 +919,8 @@ Get default username and email
         :statuscode 500: server error
 
 
-Set auth configuration
-**********************
+Check auth configuration (and store if if api < 1.2)
+****************************************************
 
 .. http:post:: /auth
 
