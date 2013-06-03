@@ -146,7 +146,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
+func (srv *Server) Images(all bool, filter string) ([]ApiImage, error) {
 	var (
 		allImages map[string]*Image
 		err       error
@@ -159,13 +159,13 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	if err != nil {
 		return nil, err
 	}
-	outs := []ApiImages{} //produce [] when empty instead of 'null'
+	outs := []ApiImage{} //produce [] when empty instead of 'null'
 	for name, repository := range srv.runtime.repositories.Repositories {
 		if filter != "" && name != filter {
 			continue
 		}
 		for tag, id := range repository {
-			var out ApiImages
+			var out ApiImage
 			image, err := srv.runtime.graph.Get(id)
 			if err != nil {
 				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
@@ -182,7 +182,7 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	// Display images which aren't part of a
 	if filter == "" {
 		for _, image := range allImages {
-			var out ApiImages
+			var out ApiImage
 			out.Id = image.Id
 			out.Created = image.Created.Unix()
 			outs = append(outs, out)
@@ -236,10 +236,10 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all bool, n int, since, before string) []ApiContainers {
+func (srv *Server) Containers(all bool, n int, since, before string) []ApiContainer {
 	var foundBefore bool
 	var displayed int
-	retContainers := []ApiContainers{}
+	retContainers := []ApiContainer{}
 
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
@@ -262,7 +262,7 @@ func (srv *Server) Containers(all bool, n int, since, before string) []ApiContai
 		}
 		displayed++
 
-		c := ApiContainers{
+		c := ApiContainer{
 			Id: container.Id,
 		}
 		c.Image = srv.runtime.repositories.ImageName(container.Image)

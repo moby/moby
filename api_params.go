@@ -6,7 +6,7 @@ type ApiHistory struct {
 	CreatedBy string `json:",omitempty"`
 }
 
-type ApiImages struct {
+type ApiImage struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
 	Id         string
@@ -23,7 +23,7 @@ type ApiInfo struct {
 	SwapLimit   bool `json:",omitempty"`
 }
 
-type ApiContainers struct {
+type ApiContainer struct {
 	Id      string
 	Image   string
 	Command string
