@@ -477,9 +477,15 @@ func NewRegistry(root string) *Registry {
 	// If the auth file does not exist, keep going
 	authConfig, _ := auth.LoadConfig(root)
 
+	httpTransport := &http.Transport{
+		DisableKeepAlives: true,
+	}
+
 	r := &Registry{
 		authConfig: authConfig,
-		client:     &http.Client{},
+		client: &http.Client{
+			Transport: httpTransport,
+		},
 	}
 	r.client.Jar = cookiejar.NewCookieJar()
 	return r
