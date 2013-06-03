@@ -102,6 +102,13 @@ command:
     # Bundle app source
     ADD . /src
 
+Install your app dependencies using npm:
+
+.. code-block:: bash
+
+    # Install app dependencies
+    RUN cd /src; npm install
+
 Your app binds to port ``8080`` so you’ll use the ``EXPOSE`` command to have it
 mapped by the docker daemon:
 
@@ -132,6 +139,9 @@ Your ``Dockerfile`` should now look like this:
 
     # Bundle app source
     ADD . /src
+    # Install app dependencies
+    RUN cd /src; npm install
+
     EXPOSE  8080
     CMD ["node", "/src/index.js"]
 
