@@ -4,8 +4,8 @@
 
 .. _running_couchdb_service:
 
-Create a CouchDB service
-========================
+CouchDB Service
+===============
 
 .. include:: example_header.inc
 
