@@ -392,15 +392,14 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Println("Version:", out.Version)
-	fmt.Println("Git Commit:", out.GitCommit)
-	if !out.MemoryLimit {
-		fmt.Println("WARNING: No memory limit support")
+	fmt.Println("Client version:", VERSION)
+	fmt.Println("Server version:", out.Version)
+	if out.GitCommit != "" {
+		fmt.Println("Git commit:", out.GitCommit)
 	}
-	if !out.SwapLimit {
-		fmt.Println("WARNING: No swap limit support")
+	if out.GoVersion != "" {
+		fmt.Println("Go version:", out.GoVersion)
 	}
-
 	return nil
 }
 
@@ -421,14 +420,23 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	var out ApiInfo
-	err = json.Unmarshal(body, &out)
-	if err != nil {
+	if err := json.Unmarshal(body, &out); err != nil {
 		return err
 	}
-	fmt.Printf("containers: %d\nversion: %s\nimages: %d\nGo version: %s\n", out.Containers, out.Version, out.Images, out.GoVersion)
-	if out.Debug {
-		fmt.Println("debug mode enabled")
-		fmt.Printf("fds: %d\ngoroutines: %d\n", out.NFd, out.NGoroutines)
+
+	fmt.Printf("Containers: %d\n", out.Containers)
+	fmt.Printf("Images: %d\n", out.Images)
+	if out.Debug || os.Getenv("DEBUG") != "" {
+		fmt.Printf("Debug mode (server): %v\n", out.Debug)
+		fmt.Printf("Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
+		fmt.Printf("Fds: %d\n", out.NFd)
+		fmt.Printf("Goroutines: %d\n", out.NGoroutines)
+	}
+	if !out.MemoryLimit {
+		fmt.Println("WARNING: No memory limit support")
+	}
+	if !out.SwapLimit {
+		fmt.Println("WARNING: No swap limit support")
 	}
 	return nil
 }

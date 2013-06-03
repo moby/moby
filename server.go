@@ -17,7 +17,11 @@ import (
 )
 
 func (srv *Server) DockerVersion() ApiVersion {
-	return ApiVersion{VERSION, GIT_COMMIT, srv.runtime.capabilities.MemoryLimit, srv.runtime.capabilities.SwapLimit}
+	return ApiVersion{
+		Version:   VERSION,
+		GitCommit: GIT_COMMIT,
+		GoVersion: runtime.Version(),
+	}
 }
 
 func (srv *Server) ContainerKill(name string) error {
@@ -187,7 +191,7 @@ func (srv *Server) Images(all bool, filter string) ([]ApiImages, error) {
 	return outs, nil
 }
 
-func (srv *Server) DockerInfo() ApiInfo {
+func (srv *Server) DockerInfo() *ApiInfo {
 	images, _ := srv.runtime.graph.All()
 	var imgcount int
 	if images == nil {
@@ -195,17 +199,15 @@ func (srv *Server) DockerInfo() ApiInfo {
 	} else {
 		imgcount = len(images)
 	}
-	var out ApiInfo
-	out.Containers = len(srv.runtime.List())
-	out.Version = VERSION
-	out.Images = imgcount
-	out.GoVersion = runtime.Version()
-	if os.Getenv("DEBUG") != "" {
-		out.Debug = true
-		out.NFd = utils.GetTotalUsedFds()
-		out.NGoroutines = runtime.NumGoroutine()
+	return &ApiInfo{
+		Containers:  len(srv.runtime.List()),
+		Images:      imgcount,
+		MemoryLimit: srv.runtime.capabilities.MemoryLimit,
+		SwapLimit:   srv.runtime.capabilities.SwapLimit,
+		Debug:       os.Getenv("DEBUG") != "",
+		NFd:         utils.GetTotalUsedFds(),
+		NGoroutines: runtime.NumGoroutine(),
 	}
-	return out
 }
 
 func (srv *Server) ImageHistory(name string) ([]ApiHistory, error) {
