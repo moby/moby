@@ -395,6 +395,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 }
 
 func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	utils.Debugf("ImagePull from <%s>", authConfig.Username)
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
@@ -577,6 +578,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 }
 
 func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	utils.Debugf("ImagePush from <%s>", authConfig.Username)
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
