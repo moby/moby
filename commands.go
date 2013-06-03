@@ -739,12 +739,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		remote = remoteParts[0]
 	}
 
-	if strings.Contains(remote, "/") {
-		if _, err := cli.checkIfLogged(true, "pull"); err != nil {
-			return err
-		}
-	}
-
 	v := url.Values{}
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
