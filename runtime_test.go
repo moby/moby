@@ -2,13 +2,15 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/user"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -63,11 +65,10 @@ func init() {
 
 	// Create the "Server"
 	srv := &Server{
-		runtime:  runtime,
-		registry: registry.NewRegistry(runtime.root),
+		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, false); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
 		panic(err)
 	}
 }
@@ -279,24 +280,50 @@ func TestGet(t *testing.T) {
 
 }
 
+func findAvailalblePort(runtime *Runtime, port int) (*Container, error) {
+	strPort := strconv.Itoa(port)
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:     GetTestImage(runtime).Id,
+		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p " + strPort},
+		PortSpecs: []string{strPort},
+	},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := container.Start(); err != nil {
+		if strings.Contains(err.Error(), "address already in use") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return container, nil
+}
+
 // Run a container with a TCP port allocated, and test that it can receive connections on localhost
 func TestAllocatePortLocalhost(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, err := NewBuilder(runtime).Create(&Config{
-		Image:     GetTestImage(runtime).Id,
-		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p 5555"},
-		PortSpecs: []string{"5555"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
+	port := 5554
+
+	var container *Container
+	for {
+		port += 1
+		log.Println("Trying port", port)
+		t.Log("Trying port", port)
+		container, err = findAvailalblePort(runtime, port)
+		if container != nil {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		log.Println("Port", port, "already in use")
+		t.Log("Port", port, "already in use")
 	}
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
+
 	defer container.Kill()
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
@@ -310,7 +337,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 
 	conn, err := net.Dial("tcp",
 		fmt.Sprintf(
-			"localhost:%s", container.NetworkSettings.PortMapping["5555"],
+			"localhost:%s", container.NetworkSettings.PortMapping[strconv.Itoa(port)],
 		),
 	)
 	if err != nil {

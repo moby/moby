@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.4 (2013-05-30)
+ + Builder: 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
+ + Builder: 'docker build -t FOO' applies the tag FOO to the newly built container.
+ + Runtime: interactive TTYs correctly handle window resize
+ * Runtime: fix how configuration is merged between layers
+ + Remote API: split stdout and stderr on 'docker run'
+ + Remote API: optionally listen on a different IP and port (use at your own risk)
+ * Documentation: improved install instructions.
+
 ## 0.3.3 (2013-05-23)
  - Registry: Fix push regression
  - Various bugfixes

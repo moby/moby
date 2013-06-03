@@ -32,8 +32,6 @@ type buildFile struct {
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
-	needCommit bool
-
 	out io.Writer
 }
 
@@ -63,7 +61,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				remote = name
 			}
 
-			if err := b.srv.ImagePull(remote, tag, "", b.out, false); err != nil {
+			if err := b.srv.ImagePull(remote, tag, "", b.out, utils.NewStreamFormatter(false)); err != nil {
 				return err
 			}
 
@@ -81,9 +79,8 @@ func (b *buildFile) CmdFrom(name string) error {
 }
 
 func (b *buildFile) CmdMaintainer(name string) error {
-	b.needCommit = true
 	b.maintainer = name
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
 
 func (b *buildFile) CmdRun(args string) error {
@@ -95,28 +92,34 @@ func (b *buildFile) CmdRun(args string) error {
 		return err
 	}
 
-	cmd, env := b.config.Cmd, b.config.Env
+	cmd := b.config.Cmd
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
-	if cache, err := b.srv.ImageGetCached(b.image, config); err != nil {
+	utils.Debugf("Command to be executed: %v", b.config.Cmd)
+
+	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
 	} else if cache != nil {
-		utils.Debugf("Use cached version")
+		utils.Debugf("[BUILDER] Use cached version")
 		b.image = cache.Id
 		return nil
+	} else {
+		utils.Debugf("[BUILDER] Cache miss")
 	}
 
 	cid, err := b.run()
 	if err != nil {
 		return err
 	}
-	b.config.Cmd, b.config.Env = cmd, env
-	return b.commit(cid)
+	if err := b.commit(cid, cmd, "run"); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) CmdEnv(args string) error {
-	b.needCommit = true
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
@@ -131,60 +134,34 @@ func (b *buildFile) CmdEnv(args string) error {
 		}
 	}
 	b.config.Env = append(b.config.Env, key+"="+value)
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
 }
 
 func (b *buildFile) CmdCmd(args string) error {
-	b.needCommit = true
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
 		utils.Debugf("Error unmarshalling: %s, using /bin/sh -c", err)
-		b.config.Cmd = []string{"/bin/sh", "-c", args}
-	} else {
-		b.config.Cmd = cmd
+		cmd = []string{"/bin/sh", "-c", args}
 	}
+	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
 	return nil
 }
 
 func (b *buildFile) CmdExpose(args string) error {
 	ports := strings.Split(args, " ")
 	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
 func (b *buildFile) CmdInsert(args string) error {
-	if b.image == "" {
-		return fmt.Errorf("Please provide a source image with `from` prior to insert")
-	}
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid INSERT format")
-	}
-	sourceUrl := strings.Trim(tmp[0], " ")
-	destPath := strings.Trim(tmp[1], " ")
+	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
+}
 
-	file, err := utils.Download(sourceUrl, b.out)
-	if err != nil {
-		return err
-	}
-	defer file.Body.Close()
-
-	b.config.Cmd = []string{"echo", "INSERT", sourceUrl, "in", destPath}
-	cid, err := b.run()
-	if err != nil {
-		return err
-	}
-
-	container := b.runtime.Get(cid)
-	if container == nil {
-		return fmt.Errorf("An error occured while creating the container")
-	}
-
-	if err := container.Inject(file.Body, destPath); err != nil {
-		return err
-	}
-
-	return b.commit(cid)
+func (b *buildFile) CmdCopy(args string) error {
+	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
 }
 
 func (b *buildFile) CmdAdd(args string) error {
@@ -193,12 +170,13 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid INSERT format")
+		return fmt.Errorf("Invalid ADD format")
 	}
 	orig := strings.Trim(tmp[0], " ")
 	dest := strings.Trim(tmp[1], " ")
 
-	b.config.Cmd = []string{"echo", "PUSH", orig, "in", dest}
+	cmd := b.config.Cmd
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 	cid, err := b.run()
 	if err != nil {
 		return err
@@ -208,19 +186,23 @@ func (b *buildFile) CmdAdd(args string) error {
 	if container == nil {
 		return fmt.Errorf("Error while creating the container (CmdAdd)")
 	}
-
-	if err := os.MkdirAll(path.Join(container.rwPath(), dest), 0700); err != nil {
+	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
+	defer container.Unmount()
 
 	origPath := path.Join(b.context, orig)
-	destPath := path.Join(container.rwPath(), dest)
+	destPath := path.Join(container.RootfsPath(), dest)
 
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		return err
 	}
 	if fi.IsDir() {
+		if err := os.MkdirAll(destPath, 0700); err != nil {
+			return err
+		}
+
 		files, err := ioutil.ReadDir(path.Join(b.context, orig))
 		if err != nil {
 			return err
@@ -231,12 +213,18 @@ func (b *buildFile) CmdAdd(args string) error {
 			}
 		}
 	} else {
+		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+			return err
+		}
 		if err := utils.CopyDirectory(origPath, destPath); err != nil {
 			return err
 		}
 	}
-
-	return b.commit(cid)
+	if err := b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
 }
 
 func (b *buildFile) run() (string, error) {
@@ -265,20 +253,30 @@ func (b *buildFile) run() (string, error) {
 	return c.Id, nil
 }
 
-func (b *buildFile) commit(id string) error {
+// Commit the container <id> with the autorun command <autoCmd>
+func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.config.Image = b.image
 	if id == "" {
-		cmd := b.config.Cmd
-		b.config.Cmd = []string{"true"}
+		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
+
+		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+			return err
+		} else if cache != nil {
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.Id
+			return nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
+
 		if cid, err := b.run(); err != nil {
 			return err
 		} else {
 			id = cid
 		}
-		b.config.Cmd = cmd
 	}
 
 	container := b.runtime.Get(id)
@@ -286,20 +284,20 @@ func (b *buildFile) commit(id string) error {
 		return fmt.Errorf("An error occured while creating the container")
 	}
 
+	// Note: Actually copy the struct
+	autoConfig := *b.config
+	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.builder.Commit(container, "", "", "", b.maintainer, nil)
+	image, err := b.builder.Commit(container, "", "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}
 	b.tmpImages[image.Id] = struct{}{}
 	b.image = image.Id
-	b.needCommit = false
 	return nil
 }
 
 func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
-	defer b.clearTmp(b.tmpContainers, b.tmpImages)
-
 	if context != nil {
 		name, err := ioutil.TempDir("/tmp", "docker-build")
 		if err != nil {
@@ -337,6 +335,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
 			fmt.Fprintf(b.out, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			continue
 		}
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
@@ -345,21 +344,9 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 
 		fmt.Fprintf(b.out, "===> %v\n", b.image)
 	}
-	if b.needCommit {
-		if err := b.commit(""); err != nil {
-			return "", err
-		}
-	}
 	if b.image != "" {
-		// The build is successful, keep the temporary containers and images
-		for i := range b.tmpImages {
-			delete(b.tmpImages, i)
-		}
-		fmt.Fprintf(b.out, "Build success.\n Image id:\n%s\n", b.image)
+		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
 		return b.image, nil
-	}
-	for i := range b.tmpContainers {
-		delete(b.tmpContainers, i)
 	}
 	return "", fmt.Errorf("An error occured during the build\n")
 }

@@ -246,7 +246,6 @@ The Index has two main purposes (along with its fancy social features):
 
 - Resolve short names (to avoid passing absolute URLs all the time)
    - username/projectname -> \https://registry.docker.io/users/<username>/repositories/<projectname>/
-   - team/projectname -> \https://registry.docker.io/team/<team>/repositories/<projectname>/
 - Authenticate a user as a repos owner (for a central referenced repository)
 
 3.1 Without an Index

@@ -1,3 +1,15 @@
+lxc-docker (0.3.4-1) precise; urgency=low
+  - Builder: 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
+  - Builder: 'docker build -t FOO' applies the tag FOO to the newly built container.
+  - Runtime: interactive TTYs correctly handle window resize
+  - Runtime: fix how configuration is merged between layers
+  - Remote API: split stdout and stderr on 'docker run'
+  - Remote API: optionally listen on a different IP and port (use at your own risk)
+  - Documentation: improved install instructions.
+
+ -- dotCloud <ops@dotcloud.com>  Thu, 30 May 2013 00:00:00 -0700
+
+
 lxc-docker (0.3.3-1) precise; urgency=low
   - Registry: Fix push regression
   - Various bugfixes

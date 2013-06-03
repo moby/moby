@@ -107,6 +107,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
+		Architecture:  "x86_64",
 	}
 	if container != nil {
 		img.Parent = container.Image
@@ -165,7 +166,8 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)", false), tmp.Root)
+	sf := utils.NewStreamFormatter(false)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
