@@ -270,7 +270,7 @@
                     <li>Filesystem isolation: each process container runs in a completely separate root filesystem.</li>
                     <li>Resource isolation: system resources like cpu and memory can be allocated differently to each process container, using cgroups.</li>
                     <li>Network isolation: each process container runs in its own network namespace, with a virtual interface and IP address of its own.</li>
-                    <li>Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremeley fast, memory-cheap and disk-cheap.</li>
+                    <li>Copy-on-write: root filesystems are created using copy-on-write, which makes deployment extremely fast, memory-cheap and disk-cheap.</li>
                     <li>Logging: the standard streams (stdout/stderr/stdin) of each process container is collected and logged for real-time or batch retrieval.</li>
                     <li>Change management: changes to a container's filesystem can be committed into a new image and re-used to create more containers. No templating or manual configuration required.</li>
                     <li>Interactive shell: docker can allocate a pseudo-tty and attach to the standard input of any container, for example to run a throwaway interactive shell.</li>

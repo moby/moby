@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -27,7 +28,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.3.3"
+const VERSION = "0.3.4"
 
 var (
 	GIT_COMMIT string
@@ -73,37 +74,37 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		}
 	}
 	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.host, cli.port)
-	for cmd, description := range map[string]string{
-		"attach":  "Attach to a running container",
-		"build":   "Build a container from a Dockerfile",
-		"commit":  "Create a new image from a container's changes",
-		"diff":    "Inspect changes on a container's filesystem",
-		"export":  "Stream the contents of a container as a tar archive",
-		"history": "Show the history of an image",
-		"images":  "List images",
-		"import":  "Create a new filesystem image from the contents of a tarball",
-		"info":    "Display system-wide information",
-		"insert":  "Insert a file in an image",
-		"inspect": "Return low-level information on a container",
-		"kill":    "Kill a running container",
-		"login":   "Register or Login to the docker registry server",
-		"logs":    "Fetch the logs of a container",
-		"port":    "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT",
-		"ps":      "List containers",
-		"pull":    "Pull an image or a repository from the docker registry server",
-		"push":    "Push an image or a repository to the docker registry server",
-		"restart": "Restart a running container",
-		"rm":      "Remove a container",
-		"rmi":     "Remove an image",
-		"run":     "Run a command in a new container",
-		"search":  "Search for an image in the docker index",
-		"start":   "Start a stopped container",
-		"stop":    "Stop a running container",
-		"tag":     "Tag an image into a repository",
-		"version": "Show the docker version information",
-		"wait":    "Block until a container stops, then print its exit code",
+	for _, command := range [][2]string{
+		{"attach", "Attach to a running container"},
+		{"build", "Build a container from a Dockerfile"},
+		{"commit", "Create a new image from a container's changes"},
+		{"diff", "Inspect changes on a container's filesystem"},
+		{"export", "Stream the contents of a container as a tar archive"},
+		{"history", "Show the history of an image"},
+		{"images", "List images"},
+		{"import", "Create a new filesystem image from the contents of a tarball"},
+		{"info", "Display system-wide information"},
+		{"insert", "Insert a file in an image"},
+		{"inspect", "Return low-level information on a container"},
+		{"kill", "Kill a running container"},
+		{"login", "Register or Login to the docker registry server"},
+		{"logs", "Fetch the logs of a container"},
+		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"ps", "List containers"},
+		{"pull", "Pull an image or a repository from the docker registry server"},
+		{"push", "Push an image or a repository to the docker registry server"},
+		{"restart", "Restart a running container"},
+		{"rm", "Remove a container"},
+		{"rmi", "Remove an image"},
+		{"run", "Run a command in a new container"},
+		{"search", "Search for an image in the docker index"},
+		{"start", "Start a stopped container"},
+		{"stop", "Stop a running container"},
+		{"tag", "Tag an image into a repository"},
+		{"version", "Show the docker version information"},
+		{"wait", "Block until a container stops, then print its exit code"},
 	} {
-		help += fmt.Sprintf("    %-10.10s%s\n", cmd, description)
+		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
 	fmt.Println(help)
 	return nil
@@ -130,16 +131,20 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS] [CONTEXT]", "Build an image from a Dockerfile")
-	fileName := cmd.String("f", "Dockerfile", "Use `file` as Dockerfile. Can be '-' for stdin")
+	cmd := Subcmd("build", "[OPTIONS] PATH | -", "Build a new container image from the source code at PATH")
+	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
 		return nil
 	}
 
 	var (
-		file          io.ReadCloser
 		multipartBody io.Reader
-		err           error
+		file          io.ReadCloser
+		contextPath   string
 	)
 
 	// Init the needed component for the Multipart
@@ -148,27 +153,19 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	w := multipart.NewWriter(buff)
 	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
 
-	// Create a FormFile multipart for the Dockerfile
-	if *fileName == "-" {
-		file = os.Stdin
-	} else {
-		file, err = os.Open(*fileName)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-	}
-	if wField, err := w.CreateFormFile("Dockerfile", *fileName); err != nil {
-		return err
-	} else {
-		io.Copy(wField, file)
-	}
-	multipartBody = io.MultiReader(multipartBody, boundary)
-
 	compression := Bzip2
 
-	// Create a FormFile multipart for the context if needed
-	if cmd.Arg(0) != "" {
+	if cmd.Arg(0) == "-" {
+		file = os.Stdin
+	} else {
+		// Send Dockerfile from arg/Dockerfile (deprecate later)
+		if f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile")); err != nil {
+			return err
+		} else {
+			file = f
+		}
+		// Send context from arg
+		// Create a FormFile multipart for the context if needed
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
 		context, err := Tar(cmd.Arg(0), compression)
 		if err != nil {
@@ -183,19 +180,28 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		} else {
 			// FIXME: Find a way to have a progressbar for the upload too
-			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, "Caching Context %v/%v (%v)\r", false))
+			sf := utils.NewStreamFormatter(false)
+			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		}
-
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
+	// Create a FormFile multipart for the Dockerfile
+	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
+		return err
+	} else {
+		io.Copy(wField, file)
+	}
+	multipartBody = io.MultiReader(multipartBody, boundary)
 
+	v := &url.Values{}
+	v.Set("t", *tag)
 	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s", cli.host, cli.port, "/build"), multipartBody)
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s?%s", cli.host, cli.port, "/build", v.Encode()), multipartBody)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	if cmd.Arg(0) != "" {
+	if contextPath != "" {
 		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
 		fmt.Println("Uploading Context...")
 	}
@@ -973,12 +979,10 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	v.Set("logs", "1")
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
-
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), false); err != nil {
+	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", nil, os.Stdout); err != nil {
+		return err
+	}
+	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", nil, os.Stderr); err != nil {
 		return err
 	}
 	return nil
@@ -1005,15 +1009,35 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
+	splitStderr := container.Config.Tty
+
+	connections := 1
+	if splitStderr {
+		connections += 1
+	}
+	chErrors := make(chan error, connections)
+	cli.monitorTtySize(cmd.Arg(0))
+	if splitStderr {
+		go func() {
+			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
+		}()
+	}
 	v := url.Values{}
 	v.Set("stream", "1")
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
 	v.Set("stdin", "1")
-
-	cli.monitorTtySize(cmd.Arg(0))
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty); err != nil {
-		return err
+	v.Set("stdout", "1")
+	if !splitStderr {
+		v.Set("stderr", "1")
+	}
+	go func() {
+		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
+	}()
+	for connections > 0 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+		connections -= 1
 	}
 	return nil
 }
@@ -1177,19 +1201,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
-	v := url.Values{}
-	v.Set("logs", "1")
-	v.Set("stream", "1")
+	splitStderr := !config.Tty
 
-	if config.AttachStdin {
-		v.Set("stdin", "1")
+	connections := 0
+	if config.AttachStdin || config.AttachStdout || (!splitStderr && config.AttachStderr) {
+		connections += 1
 	}
-	if config.AttachStdout {
-		v.Set("stdout", "1")
-	}
-	if config.AttachStderr {
-		v.Set("stderr", "1")
-
+	if splitStderr && config.AttachStderr {
+		connections += 1
 	}
 
 	//start the container
@@ -1198,10 +1217,38 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+	if connections > 0 {
+		chErrors := make(chan error, connections)
 		cli.monitorTtySize(out.Id)
-		if err := cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty); err != nil {
-			return err
+
+		if splitStderr && config.AttachStderr {
+			go func() {
+				chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
+			}()
+		}
+
+		v := url.Values{}
+		v.Set("logs", "1")
+		v.Set("stream", "1")
+
+		if config.AttachStdin {
+			v.Set("stdin", "1")
+		}
+		if config.AttachStdout {
+			v.Set("stdout", "1")
+		}
+		if !splitStderr && config.AttachStderr {
+			v.Set("stderr", "1")
+		}
+		go func() {
+			chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
+		}()
+		for connections > 0 {
+			err := <-chErrors
+			if err != nil {
+				return err
+			}
+			connections -= 1
 		}
 	}
 	if !config.AttachStdout && !config.AttachStderr {
@@ -1290,13 +1337,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
-		type Message struct {
-			Status   string `json:"status,omitempty"`
-			Progress string `json:"progress,omitempty"`
-		}
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var m Message
+			var m utils.JsonMessage
 			if err := dec.Decode(&m); err == io.EOF {
 				break
 			} else if err != nil {
@@ -1304,6 +1347,8 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 			}
 			if m.Progress != "" {
 				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+			} else if m.Error != "" {
+				return fmt.Errorf(m.Error)
 			} else {
 				fmt.Fprintf(out, "%s\n", m.Status)
 			}
@@ -1316,7 +1361,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", API_VERSION, path), nil)
 	if err != nil {
 		return err
@@ -1334,20 +1379,19 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool) error {
 	defer rwc.Close()
 
 	receiveStdout := utils.Go(func() error {
-		_, err := io.Copy(os.Stdout, br)
+		_, err := io.Copy(out, br)
 		return err
 	})
 
-	if setRawTerminal && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("NORAW") == "" {
+	if in != nil && setRawTerminal && term.IsTerminal(int(in.Fd())) && os.Getenv("NORAW") == "" {
 		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
 			defer term.RestoreTerminal(oldState)
 		}
 	}
-
 	sendStdin := utils.Go(func() error {
-		_, err := io.Copy(rwc, os.Stdin)
+		_, err := io.Copy(rwc, in)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)
 		}

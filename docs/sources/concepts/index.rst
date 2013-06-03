@@ -13,5 +13,4 @@ Contents:
    :maxdepth: 1
 
    ../index
-   buildingblocks
 
