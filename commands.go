@@ -1422,7 +1422,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	})
 
-	if in != nil && setRawTerminal && term.IsTerminal(int(in.Fd())) && os.Getenv("NORAW") == "" {
+	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
 		if oldState, err := term.SetRawTerminal(); err != nil {
 			return err
 		} else {
@@ -1441,7 +1441,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	}
 
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
+	if !term.IsTerminal(os.Stdin.Fd()) {
 		if err := <-sendStdin; err != nil {
 			return err
 		}
