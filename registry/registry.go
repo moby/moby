@@ -64,6 +64,9 @@ func (r *Registry) LookupRemoteImage(imgId, registry string, authConfig *auth.Au
 	}
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 	res, err := rt.RoundTrip(req)
+	if err == nil {
+		defer res.Body.Close()
+	}
 	return err == nil && res.StatusCode == 307
 }
 
@@ -152,7 +155,9 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		}
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		res, err := r.client.Do(req)
-		defer res.Body.Close()
+		if err == nil {
+			defer res.Body.Close()
+		}
 		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		if err != nil || (res.StatusCode != 200 && res.StatusCode != 404) {
 			continue
