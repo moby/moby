@@ -642,9 +642,14 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	if len(strings.SplitN(name, "/", 2)) == 1 {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", out.Username, name)
 	}
-	validRepo := regexp.MustCompile(`^([a-z0-9]{4,30})/([a-z0-9-.]+)$`)
-	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name, only alphanum, - and . are allowed")
+	nameParts := strings.SplitN(name, "/", 2)
+	validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
+	if !validNamespace.MatchString(nameParts[0]) {
+		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", nameParts[0])
+	}
+	validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
+	if !validRepo.MatchString(nameParts[1]) {
+		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", nameParts[1])
 	}
 
 	v := url.Values{}
