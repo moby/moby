@@ -479,6 +479,7 @@ func NewRegistry(root string) *Registry {
 
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
+		Proxy: http.ProxyFromEnvironment,
 	}
 
 	r := &Registry{
