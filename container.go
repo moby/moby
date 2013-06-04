@@ -357,14 +357,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		}
 	} else {
 		go func() {
-			defer stdinCloser.Close()
-
-			cStdout, err := container.StdoutPipe()
-			if err != nil {
-				utils.Debugf("Error stdout pipe")
-				return
+			if stdinCloser != nil {
+				defer stdinCloser.Close()
 			}
-			io.Copy(&utils.NopWriter{}, cStdout)
+
+			if cStdout, err := container.StdoutPipe(); err != nil {
+				utils.Debugf("Error stdout pipe")
+			} else {
+				io.Copy(&utils.NopWriter{}, cStdout)
+			}
 		}()
 	}
 	if stderr != nil {
@@ -394,14 +395,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		}
 	} else {
 		go func() {
-			defer stdinCloser.Close()
-
-			cStderr, err := container.StdoutPipe()
-			if err != nil {
-				utils.Debugf("Error stdout pipe")
-				return
+			if stdinCloser != nil {
+				defer stdinCloser.Close()
 			}
-			io.Copy(&utils.NopWriter{}, cStderr)
+
+			if cStderr, err := container.StdoutPipe(); err != nil {
+				utils.Debugf("Error stdout pipe")
+			} else {
+				io.Copy(&utils.NopWriter{}, cStderr)
+			}
 		}()
 	}
 
