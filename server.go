@@ -330,8 +330,8 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, askedTag string, sf *utils.StreamFormatter) error {
-	out.Write(sf.FormatStatus("Pulling repository %s from %s", remote, auth.IndexServerAddress()))
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, remote, askedTag string, sf *utils.StreamFormatter) error {
+	out.Write(sf.FormatStatus("Pulling repository %s from %s", local, auth.IndexServerAddress()))
 	repoData, err := r.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -358,7 +358,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, remote)
+			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, local)
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -386,7 +386,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 		if askedTag != "" && tag != askedTag {
 			continue
 		}
-		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
+		if err := srv.runtime.repositories.Set(local, tag, id, true); err != nil {
 			return err
 		}
 	}
@@ -406,8 +406,12 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 		}
 		return nil
 	}
-
-	if err := srv.pullRepository(r, out, name, tag, sf); err != nil {
+	remote := name
+	parts := strings.Split(name, "/")
+	if len(parts) > 2 {
+		remote = fmt.Sprintf("src/%s", strings.Join(parts, "%2F"))
+	}
+	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
 		return err
 	}
 
@@ -489,7 +493,13 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	}
 	out.Write(sf.FormatStatus("Sending image list"))
 
-	repoData, err := r.PushImageJSONIndex(name, imgList, false)
+	srvName := name
+	parts := strings.Split(name, "/")
+	if len(parts) > 2 {
+		srvName = fmt.Sprintf("src/%s", strings.Join(parts, "%2F"))
+	}
+
+	repoData, err := r.PushImageJSONIndex(srvName, imgList, false)
 	if err != nil {
 		return err
 	}
@@ -506,14 +516,14 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 				// FIXME: Continue on error?
 				return err
 			}
-			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+name+"/"+elem.Tag))
-			if err := r.PushRegistryTag(name, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+srvName+"/"+elem.Tag))
+			if err := r.PushRegistryTag(srvName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(name, imgList, true); err != nil {
+	if _, err := r.PushImageJSONIndex(srvName, imgList, true); err != nil {
 		return err
 	}
 	return nil
