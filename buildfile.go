@@ -73,7 +73,7 @@ func (b *buildFile) CmdFrom(name string) error {
 			return err
 		}
 	}
-	b.image = image.Id
+	b.image = image.ID
 	b.config = &Config{}
 	return nil
 }
@@ -102,7 +102,7 @@ func (b *buildFile) CmdRun(args string) error {
 		return err
 	} else if cache != nil {
 		utils.Debugf("[BUILDER] Use cached version")
-		b.image = cache.Id
+		b.image = cache.ID
 		return nil
 	} else {
 		utils.Debugf("[BUILDER] Cache miss")
@@ -238,7 +238,7 @@ func (b *buildFile) run() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b.tmpContainers[c.Id] = struct{}{}
+	b.tmpContainers[c.ID] = struct{}{}
 
 	//start the container
 	if err := c.Start(); err != nil {
@@ -250,7 +250,7 @@ func (b *buildFile) run() (string, error) {
 		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, ret)
 	}
 
-	return c.Id, nil
+	return c.ID, nil
 }
 
 // Commit the container <id> with the autorun command <autoCmd>
@@ -266,7 +266,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		} else if cache != nil {
 			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.Id
+			b.image = cache.ID
 			return nil
 		} else {
 			utils.Debugf("[BUILDER] Cache miss")
@@ -292,8 +292,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	if err != nil {
 		return err
 	}
-	b.tmpImages[image.Id] = struct{}{}
-	b.image = image.Id
+	b.tmpImages[image.ID] = struct{}{}
+	b.image = image.ID
 	return nil
 }
 

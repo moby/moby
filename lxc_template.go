@@ -19,7 +19,7 @@ lxc.network.flags = up
 lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
-lxc.network.ipv4 = {{.NetworkSettings.IpAddress}}/{{.NetworkSettings.IpPrefixLen}}
+lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
 
 # root filesystem
 {{$ROOTFS := .RootfsPath}}

@@ -63,11 +63,11 @@ func (b *builderClient) CmdFrom(name string) error {
 		return err
 	}
 
-	img := &ApiId{}
+	img := &APIID{}
 	if err := json.Unmarshal(obj, img); err != nil {
 		return err
 	}
-	b.image = img.Id
+	b.image = img.ID
 	utils.Debugf("Using image %s", b.image)
 	return nil
 }
@@ -91,19 +91,19 @@ func (b *builderClient) CmdRun(args string) error {
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
-	body, statusCode, err := b.cli.call("POST", "/images/getCache", &ApiImageConfig{Id: b.image, Config: b.config})
+	body, statusCode, err := b.cli.call("POST", "/images/getCache", &APIImageConfig{ID: b.image, Config: b.config})
 	if err != nil {
 		if statusCode != 404 {
 			return err
 		}
 	}
 	if statusCode != 404 {
-		apiId := &ApiId{}
-		if err := json.Unmarshal(body, apiId); err != nil {
+		apiID := &APIID{}
+		if err := json.Unmarshal(body, apiID); err != nil {
 			return err
 		}
 		utils.Debugf("Use cached version")
-		b.image = apiId.Id
+		b.image = apiID.ID
 		return nil
 	}
 	cid, err := b.run()
@@ -163,7 +163,7 @@ func (b *builderClient) CmdInsert(args string) error {
 	// 	return err
 	// }
 
-	// apiId := &ApiId{}
+	// apiId := &APIId{}
 	// if err := json.Unmarshal(body, apiId); err != nil {
 	// 	return err
 	// }
@@ -182,7 +182,7 @@ func (b *builderClient) run() (string, error) {
 		return "", err
 	}
 
-	apiRun := &ApiRun{}
+	apiRun := &APIRun{}
 	if err := json.Unmarshal(body, apiRun); err != nil {
 		return "", err
 	}
@@ -191,18 +191,18 @@ func (b *builderClient) run() (string, error) {
 	}
 
 	//start the container
-	_, _, err = b.cli.call("POST", "/containers/"+apiRun.Id+"/start", nil)
+	_, _, err = b.cli.call("POST", "/containers/"+apiRun.ID+"/start", nil)
 	if err != nil {
 		return "", err
 	}
-	b.tmpContainers[apiRun.Id] = struct{}{}
+	b.tmpContainers[apiRun.ID] = struct{}{}
 
 	// Wait for it to finish
-	body, _, err = b.cli.call("POST", "/containers/"+apiRun.Id+"/wait", nil)
+	body, _, err = b.cli.call("POST", "/containers/"+apiRun.ID+"/wait", nil)
 	if err != nil {
 		return "", err
 	}
-	apiWait := &ApiWait{}
+	apiWait := &APIWait{}
 	if err := json.Unmarshal(body, apiWait); err != nil {
 		return "", err
 	}
@@ -210,7 +210,7 @@ func (b *builderClient) run() (string, error) {
 		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, apiWait.StatusCode)
 	}
 
-	return apiRun.Id, nil
+	return apiRun.ID, nil
 }
 
 func (b *builderClient) commit(id string) error {
@@ -239,12 +239,12 @@ func (b *builderClient) commit(id string) error {
 	if err != nil {
 		return err
 	}
-	apiId := &ApiId{}
-	if err := json.Unmarshal(body, apiId); err != nil {
+	apiID := &APIID{}
+	if err := json.Unmarshal(body, apiID); err != nil {
 		return err
 	}
-	b.tmpImages[apiId.Id] = struct{}{}
-	b.image = apiId.Id
+	b.tmpImages[apiID.ID] = struct{}{}
+	b.image = apiID.ID
 	b.needCommit = false
 	return nil
 }

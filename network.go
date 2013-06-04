@@ -52,7 +52,7 @@ func ipToInt(ip net.IP) int32 {
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
-func intToIp(n int32) net.IP {
+func intToIP(n int32) net.IP {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
 	return net.IP(b)
@@ -396,7 +396,7 @@ func (alloc *IPAllocator) run() {
 			}
 		}
 
-		ip := allocatedIP{ip: intToIp(newNum)}
+		ip := allocatedIP{ip: intToIP(newNum)}
 		if inUse {
 			ip.err = errors.New("No unallocated IP available")
 		}
