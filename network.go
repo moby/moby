@@ -257,6 +257,7 @@ func proxy(listener net.Listener, proto, address string) error {
 		utils.Debugf("Connected to backend, splicing")
 		splice(src, dst)
 	}
+	panic("Unreachable")
 }
 
 func halfSplice(dst, src net.Conn) error {
