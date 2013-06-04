@@ -222,11 +222,11 @@ func (b *builderClient) commit(id string) error {
 	if id == "" {
 		cmd := b.config.Cmd
 		b.config.Cmd = []string{"true"}
-		if cid, err := b.run(); err != nil {
+		cid, err := b.run()
+		if err != nil {
 			return err
-		} else {
-			id = cid
 		}
+		id = cid
 		b.config.Cmd = cmd
 	}
 

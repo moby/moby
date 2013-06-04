@@ -216,7 +216,7 @@ func (srv *Server) ImageHistory(name string) ([]ApiHistory, error) {
 		return nil, err
 	}
 
-	var outs []ApiHistory = []ApiHistory{} //produce [] when empty instead of 'null'
+	outs := []ApiHistory{} //produce [] when empty instead of 'null'
 	err = image.WalkHistory(func(img *Image) error {
 		var out ApiHistory
 		out.Id = srv.runtime.repositories.ImageName(img.ShortId())
@@ -356,11 +356,11 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 		}
 	} else {
 		// Otherwise, check that the tag exists and use only that one
-		if id, exists := tagsList[askedTag]; !exists {
+		id, exists := tagsList[askedTag]
+		if !exists {
 			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, remote)
-		} else {
-			repoData.ImgList[id].Tag = askedTag
 		}
+		repoData.ImgList[id].Tag = askedTag
 	}
 
 	for _, img := range repoData.ImgList {
@@ -714,10 +714,9 @@ func (srv *Server) ImageDelete(name string) error {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return fmt.Errorf("No such image: %s", name)
-	} else {
-		if err := srv.runtime.graph.Delete(img.Id); err != nil {
-			return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
-		}
+	}
+	if err := srv.runtime.graph.Delete(img.Id); err != nil {
+		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
 	}
 	return nil
 }

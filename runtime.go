@@ -133,25 +133,25 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.Running {
-		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+		output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput()
+		if err != nil {
 			return err
-		} else {
-			if !strings.Contains(string(output), "RUNNING") {
-				utils.Debugf("Container %s was supposed to be running be is not.", container.Id)
-				if runtime.autoRestart {
-					utils.Debugf("Restarting")
-					container.State.Ghost = false
-					container.State.setStopped(0)
-					if err := container.Start(); err != nil {
-						return err
-					}
-					nomonitor = true
-				} else {
-					utils.Debugf("Marking as stopped")
-					container.State.setStopped(-127)
-					if err := container.ToDisk(); err != nil {
-						return err
-					}
+		}
+		if !strings.Contains(string(output), "RUNNING") {
+			utils.Debugf("Container %s was supposed to be running be is not.", container.Id)
+			if runtime.autoRestart {
+				utils.Debugf("Restarting")
+				container.State.Ghost = false
+				container.State.setStopped(0)
+				if err := container.Start(); err != nil {
+					return err
+				}
+				nomonitor = true
+			} else {
+				utils.Debugf("Marking as stopped")
+				container.State.setStopped(-127)
+				if err := container.ToDisk(); err != nil {
+					return err
 				}
 			}
 		}

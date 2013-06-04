@@ -132,9 +132,8 @@ func CreateBridgeIface(ifaceName string) error {
 	}
 	if ifaceAddr == "" {
 		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", ifaceName, ifaceName)
-	} else {
-		utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 	}
+	utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 
 	if output, err := ip("link", "add", ifaceName, "type", "bridge"); err != nil {
 		return fmt.Errorf("Error creating bridge: %s (output: %s)", err, output)
@@ -464,11 +463,11 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 		return nil, err
 	}
 	// Allocate a random port if Frontend==0
-	if extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend); err != nil {
+	extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend)
+	if err != nil {
 		return nil, err
-	} else {
-		nat.Frontend = extPort
 	}
+	nat.Frontend = extPort
 	if err := iface.manager.portMapper.Map(nat.Frontend, net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}); err != nil {
 		iface.manager.portAllocator.Release(nat.Frontend)
 		return nil, err

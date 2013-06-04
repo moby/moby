@@ -431,14 +431,14 @@ func (container *Container) Start() error {
 
 	// Create the requested volumes volumes
 	for volPath := range container.Config.Volumes {
-		if c, err := container.runtime.volumes.Create(nil, container, "", "", nil); err != nil {
+		c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+		if err != nil {
 			return err
-		} else {
-			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return nil
-			}
-			container.Volumes[volPath] = c.Id
 		}
+		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+			return nil
+		}
+		container.Volumes[volPath] = c.Id
 	}
 
 	if container.Config.VolumesFrom != "" {
@@ -573,12 +573,12 @@ func (container *Container) allocateNetwork() error {
 	}
 	container.NetworkSettings.PortMapping = make(map[string]string)
 	for _, spec := range container.Config.PortSpecs {
-		if nat, err := iface.AllocatePort(spec); err != nil {
+		nat, err := iface.AllocatePort(spec)
+		if err != nil {
 			iface.Release()
 			return err
-		} else {
-			container.NetworkSettings.PortMapping[strconv.Itoa(nat.Backend)] = strconv.Itoa(nat.Frontend)
 		}
+		container.NetworkSettings.PortMapping[strconv.Itoa(nat.Backend)] = strconv.Itoa(nat.Frontend)
 	}
 	container.network = iface
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
@@ -597,12 +597,12 @@ func (container *Container) releaseNetwork() {
 // FIXME: replace this with a control socket within docker-init
 func (container *Container) waitLxc() error {
 	for {
-		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+		output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput()
+		if err != nil {
 			return err
-		} else {
-			if !strings.Contains(string(output), "RUNNING") {
-				return nil
-			}
+		}
+		if !strings.Contains(string(output), "RUNNING") {
+			return nil
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -625,7 +625,7 @@ func (container *Container) monitor() {
 	}
 	utils.Debugf("Process finished")
 
-	var exitCode int = -1
+	exitCode := -1
 	if container.cmd != nil {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	}

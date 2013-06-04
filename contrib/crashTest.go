@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var DOCKER_PATH string = path.Join(os.Getenv("DOCKERPATH"), "docker")
+var DOCKER_PATH = path.Join(os.Getenv("DOCKERPATH"), "docker")
 
 // WARNING: this crashTest will 1) crash your host, 2) remove all containers
 func runDaemon() (*exec.Cmd, error) {

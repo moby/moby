@@ -159,11 +159,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		file = os.Stdin
 	} else {
 		// Send Dockerfile from arg/Dockerfile (deprecate later)
-		if f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile")); err != nil {
+		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
+		if err != nil {
 			return err
-		} else {
-			file = f
 		}
+		file = f
 		// Send context from arg
 		// Create a FormFile multipart for the context if needed
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
@@ -176,21 +176,21 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		if wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension()); err != nil {
+		wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension())
+		if err != nil {
 			return err
-		} else {
-			// FIXME: Find a way to have a progressbar for the upload too
-			sf := utils.NewStreamFormatter(false)
-			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		}
+		// FIXME: Find a way to have a progressbar for the upload too
+		sf := utils.NewStreamFormatter(false)
+		io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
 	// Create a FormFile multipart for the Dockerfile
-	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
+	wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
+	if err != nil {
 		return err
-	} else {
-		io.Copy(wField, file)
 	}
+	io.Copy(wField, file)
 	multipartBody = io.MultiReader(multipartBody, boundary)
 
 	v := &url.Values{}
@@ -276,9 +276,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	oldState, err := term.SetRawTerminal()
 	if err != nil {
 		return err
-	} else {
-		defer term.RestoreTerminal(oldState)
 	}
+	defer term.RestoreTerminal(oldState)
 
 	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
@@ -1417,11 +1416,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 	})
 
 	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
-		if oldState, err := term.SetRawTerminal(); err != nil {
+		oldState, err := term.SetRawTerminal()
+		if err != nil {
 			return err
-		} else {
-			defer term.RestoreTerminal(oldState)
 		}
+		defer term.RestoreTerminal(oldState)
 	}
 	sendStdin := utils.Go(func() error {
 		_, err := io.Copy(rwc, in)

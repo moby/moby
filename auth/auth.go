@@ -21,7 +21,7 @@ const INDEX_SERVER = "https://index.docker.io/v1"
 //const INDEX_SERVER = "http://indexstaging-docker.dotcloud.com/"
 
 var (
-	ErrConfigFileMissing error = errors.New("The Auth config file is missing")
+	ErrConfigFileMissing = errors.New("The Auth config file is missing")
 )
 
 type AuthConfig struct {

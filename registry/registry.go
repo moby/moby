@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-var ErrAlreadyExists error = errors.New("Image already exists")
+var ErrAlreadyExists = errors.New("Image already exists")
 
 func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	for _, cookie := range c.Jar.Cookies(req.URL) {
@@ -396,11 +396,11 @@ func (r *Registry) PushImageJsonIndex(remote string, imgList []*ImgData, validat
 	}
 	if validate {
 		if res.StatusCode != 204 {
-			if errBody, err := ioutil.ReadAll(res.Body); err != nil {
+			errBody, err := ioutil.ReadAll(res.Body)
+			if err != nil {
 				return nil, err
-			} else {
-				return nil, fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody)
 			}
+			return nil, fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody)
 		}
 	}
 

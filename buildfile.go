@@ -272,11 +272,11 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			utils.Debugf("[BUILDER] Cache miss")
 		}
 
-		if cid, err := b.run(); err != nil {
+		cid, err := b.run()
+		if err != nil {
 			return err
-		} else {
-			id = cid
 		}
+		id = cid
 	}
 
 	container := b.runtime.Get(id)

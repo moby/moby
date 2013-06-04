@@ -49,9 +49,8 @@ func LoadImage(root string) (*Image, error) {
 	if stat, err := os.Stat(layerPath(root)); err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("Couldn't load image %s: no filesystem layer", img.Id)
-		} else {
-			return nil, err
 		}
+		return nil, err
 	} else if !stat.IsDir() {
 		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.Id, layerPath(root))
 	}
