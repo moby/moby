@@ -606,7 +606,6 @@ func (container *Container) waitLxc() error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	return nil
 }
 
 func (container *Container) monitor() {
@@ -795,7 +794,6 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 	case <-done:
 		return nil
 	}
-	panic("unreachable")
 }
 
 func (container *Container) EnsureMounted() error {
