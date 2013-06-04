@@ -608,7 +608,7 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JsonMessage{Progress:str})
+		b, err := json.Marshal(&JsonMessage{Status: action, Progress:str})
 		if err != nil {
                         return nil
                 }
