@@ -703,6 +703,11 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+}
+
 func ListenAndServe(addr string, srv *Server, logging bool) error {
 	r := mux.NewRouter()
 	log.Printf("Listening for HTTP on %s\n", addr)
@@ -773,12 +778,20 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
+				if srv.enableCors {
+					writeCorsHeaders(w, r)
+				}
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
 			}
 			r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
+			r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if srv.enableCors {
+					writeCorsHeaders(w, r)
+				}
+			})
 		}
 	}
 	return http.ListenAndServe(addr, r)

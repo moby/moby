@@ -870,7 +870,7 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func NewServer(autoRestart bool) (*Server, error) {
+func NewServer(autoRestart, enableCors bool) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
@@ -879,12 +879,14 @@ func NewServer(autoRestart bool) (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		runtime: runtime,
+		runtime:    runtime,
+		enableCors: enableCors,
 	}
 	runtime.srv = srv
 	return srv, nil
 }
 
 type Server struct {
-	runtime *Runtime
+	runtime    *Runtime
+	enableCors bool
 }
