@@ -355,6 +355,17 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				errors <- err
 			}()
 		}
+	} else {
+		go func() {
+			defer stdinCloser.Close()
+
+			cStdout, err := container.StdoutPipe()
+			if err != nil {
+				utils.Debugf("Error stdout pipe")
+				return
+			}
+			io.Copy(&utils.NopWriter{}, cStdout)
+		}()
 	}
 	if stderr != nil {
 		nJobs += 1
@@ -381,7 +392,19 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				errors <- err
 			}()
 		}
+	} else {
+		go func() {
+			defer stdinCloser.Close()
+
+			cStderr, err := container.StdoutPipe()
+			if err != nil {
+				utils.Debugf("Error stdout pipe")
+				return
+			}
+			io.Copy(&utils.NopWriter{}, cStderr)
+		}()
 	}
+
 	return utils.Go(func() error {
 		if cStdout != nil {
 			defer cStdout.Close()
