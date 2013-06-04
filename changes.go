@@ -65,7 +65,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		file := filepath.Base(path)
 		// If there is a whiteout, then the file was removed
 		if strings.HasPrefix(file, ".wh.") {
-			originalFile := strings.TrimLeft(file, ".wh.")
+			originalFile := file[len(".wh."):]
 			change.Path = filepath.Join(filepath.Dir(path), originalFile)
 			change.Kind = ChangeDelete
 		} else {

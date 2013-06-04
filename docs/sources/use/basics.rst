@@ -3,8 +3,8 @@
 :keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 
-The basics
-=============
+The Basics
+==========
 
 Starting Docker
 ---------------

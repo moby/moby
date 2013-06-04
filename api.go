@@ -45,6 +45,8 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	} else if strings.HasPrefix(err.Error(), "Impossible") {
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -312,16 +314,25 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
 
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if version > 1.0 {
-			w.Header().Set("Content-Type", "application/json")
-		}
-		if err := srv.ImagePull(image, tag, registry, w, version > 1.0); err != nil {
+		if err := srv.ImagePull(image, tag, registry, w, sf); err != nil {
+			if sf.Used() {
+				w.Write(sf.FormatError(err))
+				return nil
+			}
 			return err
 		}
 	} else { //import
-		if err := srv.ImageImport(src, repo, tag, r.Body, w); err != nil {
+		if err := srv.ImageImport(src, repo, tag, r.Body, w, sf); err != nil {
+			if sf.Used() {
+				w.Write(sf.FormatError(err))
+				return nil
+			}
 			return err
 		}
 	}
@@ -357,10 +368,16 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-
-	imgId, err := srv.ImageInsert(name, url, path, w)
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
+	imgId, err := srv.ImageInsert(name, url, path, w, sf)
 	if err != nil {
-		return err
+		if sf.Used() {
+			w.Write(sf.FormatError(err))
+			return nil
+		}
 	}
 	b, err := json.Marshal(&ApiId{Id: imgId})
 	if err != nil {
@@ -380,8 +397,15 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-
-	if err := srv.ImagePush(name, registry, w); err != nil {
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.0)
+	if err := srv.ImagePush(name, registry, w, sf); err != nil {
+		if sf.Used() {
+			w.Write(sf.FormatError(err))
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -650,6 +674,13 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
 	}
+	remote := r.FormValue("t")
+	tag := ""
+	if strings.Contains(remote, ":") {
+		remoteParts := strings.Split(remote, ":")
+		tag = remoteParts[1]
+		remote = remoteParts[0]
+	}
 
 	dockerfile, _, err := r.FormFile("Dockerfile")
 	if err != nil {
@@ -664,8 +695,10 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if _, err := b.Build(dockerfile, context); err != nil {
+	if id, err := b.Build(dockerfile, context); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
+	} else if remote != "" {
+		srv.runtime.repositories.Set(remote, tag, id, false)
 	}
 	return nil
 }

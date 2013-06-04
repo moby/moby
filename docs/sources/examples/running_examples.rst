@@ -4,7 +4,7 @@
 
 .. _running_examples:
 
-Running The Examples
+Running the Examples
 --------------------
 
 All the examples assume your machine is running the docker daemon. To run the docker daemon in the background, simply type:

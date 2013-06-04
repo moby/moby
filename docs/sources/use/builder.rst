@@ -125,8 +125,14 @@ curl was installed within the image.
 .. note::
     The path must include the file name.
 
-.. note::
-    This instruction has temporarily disabled
+2.8 ADD
+-------
+
+    ``ADD <src> <dest>``
+
+The `ADD` instruction will insert the files from the `<src>` path of the context into `<dest>` path 
+of the container.
+The context must be set in order to use this instruction. (see examples)
 
 3. Dockerfile Examples
 ======================

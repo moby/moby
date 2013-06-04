@@ -225,7 +225,13 @@ Image
         Content-Type: application/json
         Cookie: (Cookie provided by the Registry)
 
+
     :parameter image_id: the id for the layer you want to get
+
+- Resolve short names (to avoid passing absolute URLs all the time)
+   - username/projectname -> \https://registry.docker.io/users/<username>/repositories/<projectname>/
+- Authenticate a user as a repos owner (for a central referenced repository)
+
 
     **Example Response**:
 
