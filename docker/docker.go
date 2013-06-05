@@ -33,6 +33,11 @@ func main() {
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
 	flHost := flag.String("H", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
+
+	flags := flag.NewFlagSet("docker", flag.ContinueOnError)
+	var flDns docker.ListOpts
+	flags.Var(&flDns, "dns", "Set custom dns servers")
+
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
@@ -65,7 +70,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, host, port, *flAutoRestart); err != nil {
+		if err := daemon(*pidfile, host, port, *flAutoRestart, flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -104,7 +109,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile, addr string, port int, autoRestart bool) error {
+func daemon(pidfile, addr string, port int, autoRestart bool, flDns docker.ListOpts) error {
 	if addr != "127.0.0.1" {
 		log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
@@ -122,7 +127,7 @@ func daemon(pidfile, addr string, port int, autoRestart bool) error {
 		os.Exit(0)
 	}()
 
-	server, err := docker.NewServer(autoRestart)
+	server, err := docker.NewServer(autoRestart, flDns)
 	if err != nil {
 		return err
 	}

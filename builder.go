@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
+
 type Builder struct {
 	runtime      *Runtime
 	repositories *TagStore
@@ -67,14 +69,20 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 {
+	if len(config.Dns) > 0 || len(builder.runtime.Dns) > 0 {
+		var dns []string
+		if len(config.Dns) > 0 {
+			dns = config.Dns
+		} else {
+			dns = builder.runtime.Dns
+		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
 		f, err := os.Create(container.ResolvConfPath)
 		if err != nil {
 			return nil, err
 		}
 		defer f.Close()
-		for _, dns := range config.Dns {
+		for _, dns := range dns {
 			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
 				return nil, err
 			}
