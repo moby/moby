@@ -444,6 +444,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 	return nil
 }
 
+
 func (srv *Server) poolAdd(kind, key string) error {
 	srv.lock.Lock()
 	defer srv.lock.Unlock()
@@ -478,7 +479,6 @@ func (srv *Server) poolRemove(kind, key string) error {
 	}
 	return nil
 }
-
 func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
 	if err != nil {
@@ -489,21 +489,21 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 	}
 	defer srv.poolRemove("pull", name+":"+tag)
 
-	out = utils.NewWriteFlusher(out)
-	if endpoint != "" {
-		if err := srv.pullImage(r, out, name, endpoint, nil, sf); err != nil {
-			return err
-		}
-		return nil
-	}
 	remote := name
 	parts := strings.Split(name, "/")
 	if len(parts) > 2 {
 		remote = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
 	}
-	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
-		return err
+	out = utils.NewWriteFlusher(out)
+
+	err := srv.pullRepository(r, out, name, tag, endpoint, sf)
+	if err != nil && endpoint != "" {
+		if err := srv.pullImage(r, out, name, endpoint, nil, sf); err != nil {
+			return err
+		}
+		return nil
 	}
+
 	return nil
 }
 
