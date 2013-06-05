@@ -1228,6 +1228,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
+	if !config.AttachStdout && !config.AttachStderr {
+		fmt.Println(out.ID)
+	}
 	if connections > 0 {
 		chErrors := make(chan error, connections)
 		cli.monitorTtySize(out.ID)
@@ -1261,9 +1264,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 			connections -= 1
 		}
-	}
-	if !config.AttachStdout && !config.AttachStderr {
-		fmt.Println(out.ID)
 	}
 	return nil
 }
