@@ -126,6 +126,8 @@ func MountAUFS(ro []string, rw string, target string) error {
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
 
+	branches += ",xino=/dev/shm/aufs.xino"
+
 	//if error, try to load aufs kernel module
 	if err := mount("none", target, "aufs", 0, branches); err != nil {
 		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
