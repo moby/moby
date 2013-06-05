@@ -94,9 +94,8 @@ have AUFS filesystem support enabled, so we need to install it.
 
 **add-apt-repository support**
 
-Some installations of Ubuntu 13.04 (Digital Ocean's Ubuntu 13.04 x64 Server in
-this case) require software-properties-common to be installed before being able
-to use add-apt-repository.
+Some installations of Ubuntu 13.04 require ``software-properties-common`` to be
+installed before being able to use add-apt-repository.
 
 .. code-block:: bash
 
