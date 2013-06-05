@@ -56,7 +56,7 @@ Uses json stream instead of HTML hijack, it looks like this:
 	   Content-Type: application/json
 
 	   {"status":"Pushing..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Pushing", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 

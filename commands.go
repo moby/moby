@@ -1223,6 +1223,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
+	if !config.AttachStdout && !config.AttachStderr {
+		fmt.Println(out.ID)
+	}
 	if connections > 0 {
 		chErrors := make(chan error, connections)
 		cli.monitorTtySize(out.ID)
@@ -1256,9 +1259,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 			connections -= 1
 		}
-	}
-	if !config.AttachStdout && !config.AttachStderr {
-		fmt.Println(out.ID)
 	}
 	return nil
 }
@@ -1352,7 +1352,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 				return err
 			}
 			if m.Progress != "" {
-				fmt.Fprintf(out, "Downloading %s\r", m.Progress)
+				fmt.Fprintf(out, "%s %s\r", m.Status, m.Progress)
 			} else if m.Error != "" {
 				return fmt.Errorf(m.Error)
 			} else {
