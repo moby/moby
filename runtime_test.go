@@ -16,9 +16,11 @@ import (
 	"time"
 )
 
-const unitTestImageName string = "docker-ut"
-
-const unitTestStoreBase string = "/var/lib/docker/unit-tests"
+const (
+	unitTestImageName     = "docker-ut"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	unitTestNetworkBridge = "testdockbr0"
+)
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -55,7 +57,7 @@ func init() {
 		panic("docker tests needs to be run as root")
 	}
 
-	NetworkBridgeIface = "testdockbr0"
+	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
@@ -63,13 +65,18 @@ func init() {
 		panic(err)
 	}
 
-	// Create the "Server"
-	srv := &Server{
-		runtime: runtime,
-	}
-	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
-		panic(err)
+	// If the unit test image is not found, try to download it.
+	if _, err := runtime.repositories.LookupImage(unitTestImageName); err != nil {
+		utils.Debugf("Error getting %s: %s", unitTestImageName, err)
+
+		// Create the "Server"
+		srv := &Server{
+			runtime: runtime,
+		}
+		// Retrieve the Image
+		if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
+			panic(err)
+		}
 	}
 }
 
