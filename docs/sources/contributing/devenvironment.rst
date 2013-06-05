@@ -8,8 +8,11 @@ Setting Up a Dev Environment
 Instructions that have been verified to work on Ubuntu 12.10,
 
 .. code-block:: bash
-
-    sudo apt-get -y install lxc wget bsdtar curl golang git
+		
+    sudo apt-get install python-software-properties
+    sudo add-apt-repository ppa:gophers/go
+    sudo apt-get update
+    sudo apt-get -y install lxc wget bsdtar curl golang-stable git
 
     export GOPATH=~/go/
     export PATH=$GOPATH/bin:$PATH
