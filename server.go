@@ -409,7 +409,7 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 	remote := name
 	parts := strings.Split(name, "/")
 	if len(parts) > 2 {
-		remote = fmt.Sprintf("src/%s", strings.Join(parts, "%2F"))
+		remote = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
 	}
 	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
 		return err
@@ -496,7 +496,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	srvName := name
 	parts := strings.Split(name, "/")
 	if len(parts) > 2 {
-		srvName = fmt.Sprintf("src/%s", strings.Join(parts, "%2F"))
+		srvName = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
 	}
 
 	repoData, err := r.PushImageJSONIndex(srvName, imgList, false)
