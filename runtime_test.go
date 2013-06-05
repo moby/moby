@@ -120,7 +120,7 @@ func TestRuntimeCreate(t *testing.T) {
 	builder := NewBuilder(runtime)
 
 	container, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).Id,
+		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -140,29 +140,29 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// Make sure the container List() returns is the right one
-	if runtime.List()[0].Id != container.Id {
+	if runtime.List()[0].ID != container.ID {
 		t.Errorf("Unexpected container %v returned by List", runtime.List()[0])
 	}
 
 	// Make sure we can get the container with Get()
-	if runtime.Get(container.Id) == nil {
+	if runtime.Get(container.ID) == nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
 	// Make sure it is the right container
-	if runtime.Get(container.Id) != container {
+	if runtime.Get(container.ID) != container {
 		t.Errorf("Get() returned the wrong container")
 	}
 
 	// Make sure Exists returns it as existing
-	if !runtime.Exists(container.Id) {
+	if !runtime.Exists(container.ID) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
 
 	// Make sure crete with bad parameters returns an error
 	_, err = builder.Create(
 		&Config{
-			Image: GetTestImage(runtime).Id,
+			Image: GetTestImage(runtime).ID,
 		},
 	)
 	if err == nil {
@@ -171,7 +171,7 @@ func TestRuntimeCreate(t *testing.T) {
 
 	_, err = builder.Create(
 		&Config{
-			Image: GetTestImage(runtime).Id,
+			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
 		},
 	)
@@ -187,7 +187,7 @@ func TestDestroy(t *testing.T) {
 	}
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
-		Image: GetTestImage(runtime).Id,
+		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -210,7 +210,7 @@ func TestDestroy(t *testing.T) {
 	}
 
 	// Make sure runtime.Get() refuses to return the unexisting container
-	if runtime.Get(container.Id) != nil {
+	if runtime.Get(container.ID) != nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
@@ -237,7 +237,7 @@ func TestGet(t *testing.T) {
 	builder := NewBuilder(runtime)
 
 	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).Id,
+		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -247,7 +247,7 @@ func TestGet(t *testing.T) {
 	defer runtime.Destroy(container1)
 
 	container2, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).Id,
+		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -257,7 +257,7 @@ func TestGet(t *testing.T) {
 	defer runtime.Destroy(container2)
 
 	container3, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).Id,
+		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -266,16 +266,16 @@ func TestGet(t *testing.T) {
 	}
 	defer runtime.Destroy(container3)
 
-	if runtime.Get(container1.Id) != container1 {
-		t.Errorf("Get(test1) returned %v while expecting %v", runtime.Get(container1.Id), container1)
+	if runtime.Get(container1.ID) != container1 {
+		t.Errorf("Get(test1) returned %v while expecting %v", runtime.Get(container1.ID), container1)
 	}
 
-	if runtime.Get(container2.Id) != container2 {
-		t.Errorf("Get(test2) returned %v while expecting %v", runtime.Get(container2.Id), container2)
+	if runtime.Get(container2.ID) != container2 {
+		t.Errorf("Get(test2) returned %v while expecting %v", runtime.Get(container2.ID), container2)
 	}
 
-	if runtime.Get(container3.Id) != container3 {
-		t.Errorf("Get(test3) returned %v while expecting %v", runtime.Get(container3.Id), container3)
+	if runtime.Get(container3.ID) != container3 {
+		t.Errorf("Get(test3) returned %v while expecting %v", runtime.Get(container3.ID), container3)
 	}
 
 }
@@ -283,7 +283,7 @@ func TestGet(t *testing.T) {
 func findAvailalblePort(runtime *Runtime, port int) (*Container, error) {
 	strPort := strconv.Itoa(port)
 	container, err := NewBuilder(runtime).Create(&Config{
-		Image:     GetTestImage(runtime).Id,
+		Image:     GetTestImage(runtime).ID,
 		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p " + strPort},
 		PortSpecs: []string{strPort},
 	},
@@ -379,7 +379,7 @@ func TestRestore(t *testing.T) {
 
 	// Create a container with one instance of docker
 	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime1).Id,
+		Image: GetTestImage(runtime1).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
 	)
@@ -390,7 +390,7 @@ func TestRestore(t *testing.T) {
 
 	// Create a second container meant to be killed
 	container2, err := builder.Create(&Config{
-		Image:     GetTestImage(runtime1).Id,
+		Image:     GetTestImage(runtime1).ID,
 		Cmd:       []string{"/bin/cat"},
 		OpenStdin: true,
 	},
@@ -406,7 +406,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	if !container2.State.Running {
-		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
@@ -426,7 +426,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	if !container2.State.Running {
-		t.Fatalf("Container %v should appear as running but isn't", container2.Id)
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
 	// Here are are simulating a docker restart - that is, reloading all containers
@@ -442,14 +442,14 @@ func TestRestore(t *testing.T) {
 	runningCount := 0
 	for _, c := range runtime2.List() {
 		if c.State.Running {
-			t.Errorf("Running container found: %v (%v)", c.Id, c.Path)
+			t.Errorf("Running container found: %v (%v)", c.ID, c.Path)
 			runningCount++
 		}
 	}
 	if runningCount != 0 {
 		t.Fatalf("Expected 0 container alive, %d found", runningCount)
 	}
-	container3 := runtime2.Get(container1.Id)
+	container3 := runtime2.Get(container1.ID)
 	if container3 == nil {
 		t.Fatal("Unable to Get container")
 	}

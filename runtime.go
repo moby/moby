@@ -51,7 +51,7 @@ func (runtime *Runtime) List() []*Container {
 func (runtime *Runtime) getContainerElement(id string) *list.Element {
 	for e := runtime.containers.Front(); e != nil; e = e.Next() {
 		container := e.Value.(*Container)
-		if container.Id == id {
+		if container.ID == id {
 			return e
 		}
 	}
@@ -83,8 +83,8 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
-	if container.Id != id {
-		return container, fmt.Errorf("Container %s is stored at %s", container.Id, id)
+	if container.ID != id {
+		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
 	if container.State.Running {
 		container.State.Ghost = true
@@ -95,12 +95,12 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	return container, nil
 }
 
-// Register makes a container object usable by the runtime as <container.Id>
+// Register makes a container object usable by the runtime as <container.ID>
 func (runtime *Runtime) Register(container *Container) error {
-	if container.runtime != nil || runtime.Exists(container.Id) {
+	if container.runtime != nil || runtime.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
-	if err := validateId(container.Id); err != nil {
+	if err := validateID(container.ID); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 	// done
 	runtime.containers.PushBack(container)
-	runtime.idIndex.Add(container.Id)
+	runtime.idIndex.Add(container.ID)
 
 	// When we actually restart, Start() do the monitoring.
 	// However, when we simply 'reattach', we have to restart a monitor
@@ -133,25 +133,25 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.Running {
-		if output, err := exec.Command("lxc-info", "-n", container.Id).CombinedOutput(); err != nil {
+		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+		if err != nil {
 			return err
-		} else {
-			if !strings.Contains(string(output), "RUNNING") {
-				utils.Debugf("Container %s was supposed to be running be is not.", container.Id)
-				if runtime.autoRestart {
-					utils.Debugf("Restarting")
-					container.State.Ghost = false
-					container.State.setStopped(0)
-					if err := container.Start(); err != nil {
-						return err
-					}
-					nomonitor = true
-				} else {
-					utils.Debugf("Marking as stopped")
-					container.State.setStopped(-127)
-					if err := container.ToDisk(); err != nil {
-						return err
-					}
+		}
+		if !strings.Contains(string(output), "RUNNING") {
+			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
+			if runtime.autoRestart {
+				utils.Debugf("Restarting")
+				container.State.Ghost = false
+				container.State.setStopped(0)
+				if err := container.Start(); err != nil {
+					return err
+				}
+				nomonitor = true
+			} else {
+				utils.Debugf("Marking as stopped")
+				container.State.setStopped(-127)
+				if err := container.ToDisk(); err != nil {
+					return err
 				}
 			}
 		}
@@ -182,9 +182,9 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("The given container is <nil>")
 	}
 
-	element := runtime.getContainerElement(container.Id)
+	element := runtime.getContainerElement(container.ID)
 	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.Id)
+		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
 	}
 
 	if err := container.Stop(3); err != nil {
@@ -194,14 +194,14 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return err
 	} else if mounted {
 		if err := container.Unmount(); err != nil {
-			return fmt.Errorf("Unable to unmount container %v: %v", container.Id, err)
+			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
 		}
 	}
 	// Deregister the container before removing its directory, to avoid race conditions
-	runtime.idIndex.Delete(container.Id)
+	runtime.idIndex.Delete(container.ID)
 	runtime.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
-		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.Id, err)
+		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ func (runtime *Runtime) restore() error {
 			utils.Debugf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		utils.Debugf("Loaded container %v", container.Id)
+		utils.Debugf("Loaded container %v", container.ID)
 	}
 	return nil
 }
