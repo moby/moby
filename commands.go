@@ -31,7 +31,7 @@ import (
 const VERSION = "0.4.0"
 
 var (
-	GIT_COMMIT string
+	GITCOMMIT string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -159,11 +159,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		file = os.Stdin
 	} else {
 		// Send Dockerfile from arg/Dockerfile (deprecate later)
-		if f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile")); err != nil {
+		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
+		if err != nil {
 			return err
-		} else {
-			file = f
 		}
+		file = f
 		// Send context from arg
 		// Create a FormFile multipart for the context if needed
 		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
@@ -176,21 +176,21 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		if wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension()); err != nil {
+		wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension())
+		if err != nil {
 			return err
-		} else {
-			// FIXME: Find a way to have a progressbar for the upload too
-			sf := utils.NewStreamFormatter(false)
-			io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		}
+		// FIXME: Find a way to have a progressbar for the upload too
+		sf := utils.NewStreamFormatter(false)
+		io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
 	// Create a FormFile multipart for the Dockerfile
-	if wField, err := w.CreateFormFile("Dockerfile", "Dockerfile"); err != nil {
+	wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
+	if err != nil {
 		return err
-	} else {
-		io.Copy(wField, file)
 	}
+	io.Copy(wField, file)
 	multipartBody = io.MultiReader(multipartBody, boundary)
 
 	v := &url.Values{}
@@ -276,9 +276,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	oldState, err := term.SetRawTerminal()
 	if err != nil {
 		return err
-	} else {
-		defer term.RestoreTerminal(oldState)
 	}
+	defer term.RestoreTerminal(oldState)
 
 	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
@@ -331,7 +330,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	var out2 ApiAuth
+	var out2 APIAuth
 	err = json.Unmarshal(body, &out2)
 	if err != nil {
 		return err
@@ -358,7 +357,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 		if err != nil {
 			fmt.Printf("%s", err)
 		} else {
-			var out ApiWait
+			var out APIWait
 			err = json.Unmarshal(body, &out)
 			if err != nil {
 				return err
@@ -386,7 +385,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return err
 	}
 
-	var out ApiVersion
+	var out APIVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
@@ -419,7 +418,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		return err
 	}
 
-	var out ApiInfo
+	var out APIInfo
 	if err := json.Unmarshal(body, &out); err != nil {
 		return err
 	}
@@ -604,7 +603,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		return err
 	}
 
-	var outs []ApiHistory
+	var outs []APIHistory
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -613,7 +612,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 
 	for _, out := range outs {
-		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.Id, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
+		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil
@@ -786,7 +785,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			return err
 		}
 
-		var outs []ApiImages
+		var outs []APIImages
 		err = json.Unmarshal(body, &outs)
 		if err != nil {
 			return err
@@ -808,16 +807,16 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			if !*quiet {
 				fmt.Fprintf(w, "%s\t%s\t", out.Repository, out.Tag)
 				if *noTrunc {
-					fmt.Fprintf(w, "%s\t", out.Id)
+					fmt.Fprintf(w, "%s\t", out.ID)
 				} else {
-					fmt.Fprintf(w, "%s\t", utils.TruncateId(out.Id))
+					fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
 				}
 				fmt.Fprintf(w, "%s ago\n", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 			} else {
 				if *noTrunc {
-					fmt.Fprintln(w, out.Id)
+					fmt.Fprintln(w, out.ID)
 				} else {
-					fmt.Fprintln(w, utils.TruncateId(out.Id))
+					fmt.Fprintln(w, utils.TruncateID(out.ID))
 				}
 			}
 		}
@@ -864,7 +863,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 
-	var outs []ApiContainers
+	var outs []APIContainers
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -877,15 +876,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", out.Id, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", utils.TruncateId(out.Id), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			}
 		} else {
 			if *noTrunc {
-				fmt.Fprintln(w, out.Id)
+				fmt.Fprintln(w, out.ID)
 			} else {
-				fmt.Fprintln(w, utils.TruncateId(out.Id))
+				fmt.Fprintln(w, utils.TruncateID(out.ID))
 			}
 		}
 	}
@@ -928,13 +927,13 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return err
 	}
 
-	apiId := &ApiId{}
-	err = json.Unmarshal(body, apiId)
+	apiID := &APIID{}
+	err = json.Unmarshal(body, apiID)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(apiId.Id)
+	fmt.Println(apiID.ID)
 	return nil
 }
 
@@ -1071,7 +1070,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	outs := []ApiSearch{}
+	outs := []APISearch{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
@@ -1203,7 +1202,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	out := &ApiRun{}
+	out := &APIRun{}
 	err = json.Unmarshal(body, out)
 	if err != nil {
 		return err
@@ -1224,18 +1223,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	_, _, err = cli.call("POST", "/containers/"+out.Id+"/start", nil)
+	_, _, err = cli.call("POST", "/containers/"+out.ID+"/start", nil)
 	if err != nil {
 		return err
 	}
 
 	if connections > 0 {
 		chErrors := make(chan error, connections)
-		cli.monitorTtySize(out.Id)
+		cli.monitorTtySize(out.ID)
 
 		if splitStderr && config.AttachStderr {
 			go func() {
-				chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
+				chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
 			}()
 		}
 
@@ -1253,7 +1252,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			v.Set("stderr", "1")
 		}
 		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+out.Id+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
+			chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
 		}()
 		for connections > 0 {
 			err := <-chErrors
@@ -1264,7 +1263,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if !config.AttachStdout && !config.AttachStderr {
-		fmt.Println(out.Id)
+		fmt.Println(out.ID)
 	}
 	return nil
 }
@@ -1313,7 +1312,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1345,7 +1344,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, API_VERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -1372,7 +1371,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if resp.Header.Get("Content-Type") == "application/json" {
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var m utils.JsonMessage
+			var m utils.JSONMessage
 			if err := dec.Decode(&m); err == io.EOF {
 				break
 			} else if err != nil {
@@ -1395,7 +1394,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", API_VERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
@@ -1417,11 +1416,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 	})
 
 	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
-		if oldState, err := term.SetRawTerminal(); err != nil {
+		oldState, err := term.SetRawTerminal()
+		if err != nil {
 			return err
-		} else {
-			defer term.RestoreTerminal(oldState)
 		}
+		defer term.RestoreTerminal(oldState)
 	}
 	sendStdin := utils.Go(func() error {
 		_, err := io.Copy(rwc, in)

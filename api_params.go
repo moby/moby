@@ -1,19 +1,19 @@
 package docker
 
-type ApiHistory struct {
-	Id        string
+type APIHistory struct {
+	ID        string `json:"Id"`
 	Created   int64
 	CreatedBy string `json:",omitempty"`
 }
 
-type ApiImages struct {
+type APIImages struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
-	Id         string
+	ID         string `json:"Id"`
 	Created    int64
 }
 
-type ApiInfo struct {
+type APIInfo struct {
 	Debug       bool
 	Containers  int
 	Images      int
@@ -23,8 +23,8 @@ type ApiInfo struct {
 	SwapLimit   bool `json:",omitempty"`
 }
 
-type ApiContainers struct {
-	Id      string
+type APIContainers struct {
+	ID      string `json:"Id"`
 	Image   string
 	Command string
 	Created int64
@@ -32,39 +32,39 @@ type ApiContainers struct {
 	Ports   string
 }
 
-type ApiSearch struct {
+type APISearch struct {
 	Name        string
 	Description string
 }
 
-type ApiId struct {
-	Id string
+type APIID struct {
+	ID string `json:"Id"`
 }
 
-type ApiRun struct {
-	Id       string
+type APIRun struct {
+	ID       string   `json:"Id"`
 	Warnings []string `json:",omitempty"`
 }
 
-type ApiPort struct {
+type APIPort struct {
 	Port string
 }
 
-type ApiVersion struct {
+type APIVersion struct {
 	Version   string
 	GitCommit string `json:",omitempty"`
 	GoVersion string `json:",omitempty"`
 }
 
-type ApiWait struct {
+type APIWait struct {
 	StatusCode int
 }
 
-type ApiAuth struct {
+type APIAuth struct {
 	Status string
 }
 
-type ApiImageConfig struct {
-	Id string
+type APIImageConfig struct {
+	ID string `json:"Id"`
 	*Config
 }

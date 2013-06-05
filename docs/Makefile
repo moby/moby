@@ -63,7 +63,7 @@ site:
 connect:
 	@echo connecting dotcloud to www.docker.io website, make sure to use user 1
 	@cd _build/website/ ; \
-	dotcloud connect dockerwebsite ;
+	dotcloud connect dockerwebsite ; \
 	dotcloud list
 
 push:
