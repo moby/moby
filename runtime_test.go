@@ -22,6 +22,8 @@ const (
 	unitTestNetworkBridge = "testdockbr0"
 )
 
+var offlineMode = os.Getenv("OFFLINE_MODE") != "" && os.Getenv("OFFLINE_MODE") != "0" && strings.ToLower(os.Getenv("OFFLINE_MODE")) != "false"
+
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
 	for _, container := range runtime.List() {
@@ -68,6 +70,10 @@ func init() {
 	// If the unit test image is not found, try to download it.
 	if _, err := runtime.repositories.LookupImage(unitTestImageName); err != nil {
 		utils.Debugf("Error getting %s: %s", unitTestImageName, err)
+
+		if offlineMode {
+			panic(fmt.Sprintf("Please pull the '%s' image prior running tests in offline mode", unitTestImageName))
+		}
 
 		// Create the "Server"
 		srv := &Server{

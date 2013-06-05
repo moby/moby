@@ -19,6 +19,10 @@ import (
 )
 
 func TestGetAuth(t *testing.T) {
+	if offlineMode {
+		t.Log("Skipping due to offline mode")
+		return
+	}
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -239,6 +243,10 @@ func TestGetImagesViz(t *testing.T) {
 }
 
 func TestGetImagesSearch(t *testing.T) {
+	if offlineMode {
+		t.Log("Skipping due to offline mode")
+		return
+	}
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
