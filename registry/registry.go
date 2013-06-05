@@ -154,7 +154,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		repository = "library/" + repository
 	}
 	for _, host := range registries {
-		endpoint := fmt.Sprintf("https://%s/v1/repositories/%s/tags", host, repository)
+		endpoint := fmt.Sprintf("%s/v1/repositories/%s/tags", host, repository)
 		req, err := r.opaqueRequest("GET", endpoint, nil)
 		if err != nil {
 			return nil, err
@@ -249,7 +249,7 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 
 // Push a local image to the registry
 func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
-	registry = "https://" + registry + "/v1"
+	registry = registry + "/v1"
 	// FIXME: try json with UTF8
 	req, err := http.NewRequest("PUT", registry+"/images/"+imgData.ID+"/json", strings.NewReader(string(jsonRaw)))
 	if err != nil {
@@ -285,7 +285,7 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 }
 
 func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registry string, token []string) error {
-	registry = "https://" + registry + "/v1"
+	registry = registry + "/v1"
 	req, err := http.NewRequest("PUT", registry+"/images/"+imgId+"/layer", layer)
 	if err != nil {
 		return err
@@ -323,7 +323,7 @@ func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.R
 func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token []string) error {
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
-	registry = "https://" + registry + "/v1"
+	registry = registry + "/v1"
 
 	req, err := r.opaqueRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {
