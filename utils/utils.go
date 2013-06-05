@@ -585,7 +585,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JsonMessage{Status: str})
+		b, err := json.Marshal(&JSONMessage{Status:str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -597,7 +597,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JsonMessage{Error: err.Error()}); err == nil {
+		if b, err := json.Marshal(&JSONMessage{Error:err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
@@ -608,7 +608,7 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress:str})
 		if err != nil {
 			return nil
 		}
