@@ -52,7 +52,7 @@ func ipToInt(ip net.IP) int32 {
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
-func intToIp(n int32) net.IP {
+func intToIP(n int32) net.IP {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
 	return net.IP(b)
@@ -132,9 +132,8 @@ func CreateBridgeIface(ifaceName string) error {
 	}
 	if ifaceAddr == "" {
 		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", ifaceName, ifaceName)
-	} else {
-		utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 	}
+	utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 
 	if output, err := ip("link", "add", ifaceName, "type", "bridge"); err != nil {
 		return fmt.Errorf("Error creating bridge: %s (output: %s)", err, output)
@@ -258,7 +257,7 @@ func proxy(listener net.Listener, proto, address string) error {
 		utils.Debugf("Connected to backend, splicing")
 		splice(src, dst)
 	}
-	return nil
+	panic("Unreachable")
 }
 
 func halfSplice(dst, src net.Conn) error {
@@ -398,7 +397,7 @@ func (alloc *IPAllocator) run() {
 			}
 		}
 
-		ip := allocatedIP{ip: intToIp(newNum)}
+		ip := allocatedIP{ip: intToIP(newNum)}
 		if inUse {
 			ip.err = errors.New("No unallocated IP available")
 		}
@@ -465,11 +464,11 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 		return nil, err
 	}
 	// Allocate a random port if Frontend==0
-	if extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend); err != nil {
+	extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend)
+	if err != nil {
 		return nil, err
-	} else {
-		nat.Frontend = extPort
 	}
+	nat.Frontend = extPort
 	if err := iface.manager.portMapper.Map(nat.Frontend, net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}); err != nil {
 		iface.manager.portAllocator.Release(nat.Frontend)
 		return nil, err
