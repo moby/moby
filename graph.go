@@ -86,8 +86,8 @@ func (graph *Graph) Get(name string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	if img.Id != id {
-		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.Id)
+	if img.ID != id {
+		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
 	}
 	img.graph = graph
 	if img.Size == 0 {
@@ -101,8 +101,8 @@ func (graph *Graph) Get(name string) (*Image, error) {
 	}
 	graph.lockSumMap.Lock()
 	defer graph.lockSumMap.Unlock()
-	if _, exists := graph.checksumLock[img.Id]; !exists {
-		graph.checksumLock[img.Id] = &sync.Mutex{}
+	if _, exists := graph.checksumLock[img.ID]; !exists {
+		graph.checksumLock[img.ID] = &sync.Mutex{}
 	}
 	return img, nil
 }
@@ -110,16 +110,17 @@ func (graph *Graph) Get(name string) (*Image, error) {
 // Create creates a new image and registers it in the graph.
 func (graph *Graph) Create(layerData Archive, container *Container, comment, author string, config *Config) (*Image, error) {
 	img := &Image{
-		Id:            GenerateId(),
+		ID:            GenerateID(),
 		Comment:       comment,
 		Created:       time.Now(),
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
+		Architecture:  "x86_64",
 	}
 	if container != nil {
 		img.Parent = container.Image
-		img.Container = container.Id
+		img.Container = container.ID
 		img.ContainerConfig = *container.Config
 	}
 	if err := graph.Register(layerData, layerData != nil, img); err != nil {
@@ -132,12 +133,12 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
 func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
-	if err := ValidateId(img.Id); err != nil {
+	if err := ValidateID(img.ID); err != nil {
 		return err
 	}
 	// (This is a convenience to save time. Race conditions are taken care of by os.Rename)
-	if graph.Exists(img.Id) {
-		return fmt.Errorf("Image %s already exists", img.Id)
+	if graph.Exists(img.ID) {
+		return fmt.Errorf("Image %s already exists", img.ID)
 	}
 	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
@@ -148,12 +149,12 @@ func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 		return err
 	}
 	// Commit
-	if err := os.Rename(tmp, graph.imageRoot(img.Id)); err != nil {
+	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
 		return err
 	}
 	img.graph = graph
-	graph.idIndex.Add(img.Id)
-	graph.checksumLock[img.Id] = &sync.Mutex{}
+	graph.idIndex.Add(img.ID)
+	graph.checksumLock[img.ID] = &sync.Mutex{}
 	return nil
 }
 
@@ -174,13 +175,14 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, "Buffering to disk %v/%v (%v)", false), tmp.Root)
+	sf := utils.NewStreamFormatter(false)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
 	if id == "" {
-		id = GenerateId()
+		id = GenerateID()
 	}
 	tmp, err := graph.tmp()
 	if err != nil {
@@ -237,7 +239,7 @@ func (graph *Graph) Map() (map[string]*Image, error) {
 	}
 	images := make(map[string]*Image, len(all))
 	for _, image := range all {
-		images[image.Id] = image
+		images[image.ID] = image
 	}
 	return images, nil
 }
@@ -280,10 +282,10 @@ func (graph *Graph) ByParent() (map[string][]*Image, error) {
 		if err != nil {
 			return
 		}
-		if children, exists := byParent[parent.Id]; exists {
-			byParent[parent.Id] = []*Image{image}
+		if children, exists := byParent[parent.ID]; exists {
+			byParent[parent.ID] = []*Image{image}
 		} else {
-			byParent[parent.Id] = append(children, image)
+			byParent[parent.ID] = append(children, image)
 		}
 	})
 	return byParent, err
@@ -300,8 +302,8 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 	err = graph.WalkAll(func(image *Image) {
 		// If it's not in the byParent lookup table, then
 		// it's not a parent -> so it's a head!
-		if _, exists := byParent[image.Id]; !exists {
-			heads[image.Id] = image
+		if _, exists := byParent[image.ID]; !exists {
+			heads[image.ID] = image
 		}
 	})
 	return heads, err
@@ -324,11 +326,11 @@ func (graph *Graph) getStoredChecksums() (map[string]string, error) {
 }
 
 func (graph *Graph) storeChecksums(checksums map[string]string) error {
-	checksumJson, err := json.Marshal(checksums)
+	checksumJSON, err := json.Marshal(checksums)
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(path.Join(graph.Root, "checksums"), checksumJson, 0600); err != nil {
+	if err := ioutil.WriteFile(path.Join(graph.Root, "checksums"), checksumJSON, 0600); err != nil {
 		return err
 	}
 	return nil

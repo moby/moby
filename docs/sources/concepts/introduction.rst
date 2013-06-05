@@ -5,8 +5,8 @@
 Introduction
 ============
 
-Docker - The Linux container runtime
-------------------------------------
+Docker -- The Linux container runtime
+-------------------------------------
 
 Docker complements LXC with a high-level API which operates at the process level. It runs unix processes with strong guarantees of isolation and repeatability across servers.
 

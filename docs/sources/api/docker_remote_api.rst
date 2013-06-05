@@ -15,10 +15,17 @@ Docker Remote API
 - Default port in the docker deamon is 4243 
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
 
-2. Endpoints
+2. Version
+==========
+
+The current verson of the API is 1.1
+Calling /images/<name>/insert is the same as calling /v1.1/images/<name>/insert
+You can still call an old version of the api using /v1.0/images/<name>/insert
+
+3. Endpoints
 ============
 
-2.1 Containers
+3.1 Containers
 --------------
 
 List containers
@@ -132,6 +139,7 @@ Create a container
 	:jsonparam config: the container's configuration
 	:statuscode 201: no error
 	:statuscode 404: no such container
+	:statuscode 406: impossible to attach (container not running)
 	:statuscode 500: server error
 
 
@@ -459,7 +467,7 @@ Remove a container
         :statuscode 500: server error
 
 
-2.2 Images
+3.2 Images
 ----------
 
 List Images
@@ -548,7 +556,19 @@ Create an image
 
            POST /images/create?fromImage=base HTTP/1.1
 
-        **Example response**:
+        **Example response v1.1**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {"status":"Pulling..."}
+	   {"status":"Pulling", "progress":"1/? (n/a)"}
+	   {"error":"Invalid..."}
+	   ...
+
+        **Example response v1.0**:
 
         .. sourcecode:: http
 
@@ -579,7 +599,19 @@ Insert a file in a image
 
            POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
 
-	**Example response**:
+	**Example response v1.1**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {"status":"Inserting..."}
+	   {"status":"Inserting", "progress":"1/? (n/a)"}
+	   {"error":"Invalid..."}
+	   ...
+
+	**Example response v1.0**:
 
         .. sourcecode:: http
 
@@ -694,7 +726,19 @@ Push an image on the registry
 
 	    POST /images/test/push HTTP/1.1
 
-	 **Example response**:
+	 **Example response v1.1**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {"status":"Pushing..."}
+	   {"status":"Pushing", "progress":"1/? (n/a)"}
+	   {"error":"Invalid..."}
+	   ...
+
+	 **Example response v1.0**:
 
         .. sourcecode:: http
 
@@ -800,7 +844,7 @@ Search images
 	   :statuscode 500: server error
 
 
-2.3 Misc
+3.3 Misc
 --------
 
 Build an image from Dockerfile via stdin
@@ -826,6 +870,7 @@ Build an image from Dockerfile via stdin
 	   
 	   {{ STREAM }}
 
+	:query t: tag to be applied to the resulting image in case of success
 	:statuscode 200: no error
         :statuscode 500: server error
 
@@ -912,10 +957,12 @@ Display system-wide information
 
 	   {
 		"Containers":11,
-		"Version":"0.2.2",
 		"Images":16,
-		"GoVersion":"go1.0.3",
-		"Debug":false
+		"Debug":false,
+		"NFd": 11,
+		"NGoroutines":21,
+		"MemoryLimit":true,
+		"SwapLimit":false
 	   }
 
         :statuscode 200: no error
@@ -941,12 +988,11 @@ Show the docker version information
 
            HTTP/1.1 200 OK
 	   Content-Type: application/json
-	   
+
 	   {
 		"Version":"0.2.2",
 		"GitCommit":"5a2a5cc+CHANGES",
-		"MemoryLimit":true,
-		"SwapLimit":false
+		"GoVersion":"go1.0.3"
 	   }
 
         :statuscode 200: no error

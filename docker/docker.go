@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	GIT_COMMIT string
+	GITCOMMIT string
 )
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
-	docker.GIT_COMMIT = GIT_COMMIT
+	docker.GITCOMMIT = GITCOMMIT
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()

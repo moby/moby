@@ -92,6 +92,16 @@ have AUFS filesystem support enabled, so we need to install it.
    sudo apt-get update
    sudo apt-get install linux-image-extra-`uname -r`
 
+**add-apt-repository support**
+
+Some installations of Ubuntu 13.04 require ``software-properties-common`` to be
+installed before being able to use add-apt-repository.
+
+.. code-block:: bash
+
+  sudo apt-get install software-properties-common
+
+
 Installation
 ------------
 

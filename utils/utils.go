@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"index/suffixarray"
@@ -33,7 +34,7 @@ func Go(f func() error) chan error {
 // Request a given URL and return an io.Reader
 func Download(url string, stderr io.Writer) (*http.Response, error) {
 	var resp *http.Response
-	var err error = nil
+	var err error
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
-	json         bool
+	sf *StreamFormatter
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -93,7 +94,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	// Send newline when complete
 	if err != nil {
-		fmt.Fprintf(r.output, FormatStatus("", r.json))
+		r.output.Write(r.sf.FormatStatus(""))
 	}
 
 	return read, err
@@ -101,11 +102,12 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template string, json bool) *progressReader {
-	if template == "" {
-		template = "%v/%v (%v)\r"
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
+      	tpl := string(template)
+	if tpl == "" {
+		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
 	}
-	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, template, json}
+	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -361,11 +363,11 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	return string(idx.bytes[before:after]), err
 }
 
-// TruncateId returns a shorthand version of a string identifier for convenience.
+// TruncateID returns a shorthand version of a string identifier for convenience.
 // A collision with other shorthands is very unlikely, but possible.
 // In case of a collision a lookup with TruncIndex.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length Id.
-func TruncateId(id string) string {
+func TruncateID(id string) string {
 	shortLen := 12
 	if len(id) < shortLen {
 		shortLen = len(id)
@@ -578,16 +580,57 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-func FormatStatus(str string, json bool) string {
-	if json {
-		return "{\"status\" : \"" + str + "\"}"
-	}
-	return str + "\r\n"
+type JSONMessage struct {
+	Status   string `json:"status,omitempty"`
+	Progress string `json:"progress,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
-func FormatProgress(str string, json bool) string {
-	if json {
-		return "{\"progress\" : \"" + str + "\"}"
+type StreamFormatter struct {
+	json bool
+	used bool
+}
+
+func NewStreamFormatter(json bool) *StreamFormatter {
+	return &StreamFormatter{json, false}
+}
+
+func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte {
+	sf.used = true
+	str := fmt.Sprintf(format, a...)
+	if sf.json {
+		b, err := json.Marshal(&JSONMessage{Status:str});
+		if err != nil {
+			return sf.FormatError(err)
+		}
+		return b
 	}
-	return "Downloading " + str + "\r"
+	return []byte(str + "\r\n")
+}
+
+func (sf *StreamFormatter) FormatError(err error) []byte {
+	sf.used = true
+	if sf.json {
+		if b, err := json.Marshal(&JSONMessage{Error:err.Error()}); err == nil {
+			return b
+		}
+		return []byte("{\"error\":\"format error\"}")
+	}
+	return []byte("Error: " + err.Error() + "\r\n")
+}
+
+func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
+	sf.used = true
+	if sf.json {
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress:str})
+		if err != nil {
+                        return nil
+                }
+		return b
+	}
+	return []byte(action + " " + str + "\r")
+}
+
+func (sf *StreamFormatter) Used() bool {
+	return sf.used
 }

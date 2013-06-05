@@ -1,75 +1,75 @@
 package docker
 
-type ApiHistory struct {
-	Id        string
+type APIHistory struct {
+	ID        string `json:"Id"`
 	Created   int64
-	CreatedBy string
+	CreatedBy string `json:",omitempty"`
 }
 
-type ApiImages struct {
+type APIImages struct {
 	Repository string `json:",omitempty"`
 	Tag        string `json:",omitempty"`
-	Id         string
-	Created    int64 `json:",omitempty"`
+	ID         string `json:"Id"`
+	Created    int64
 	Size       int64
 	ParentSize int64
+
 }
 
-type ApiInfo struct {
-	Containers  int
-	Version     string
-	Images      int
+type APIInfo struct {
 	Debug       bool
-	GoVersion   string
-	NFd         int `json:",omitempty"`
-	NGoroutines int `json:",omitempty"`
+	Containers  int
+	Images      int
+	NFd         int  `json:",omitempty"`
+	NGoroutines int  `json:",omitempty"`
+	MemoryLimit bool `json:",omitempty"`
+	SwapLimit   bool `json:",omitempty"`
 }
 
-type ApiContainers struct {
-	Id         string
-	Image      string `json:",omitempty"`
-	Command    string `json:",omitempty"`
-	Created    int64  `json:",omitempty"`
-	Status     string `json:",omitempty"`
-	Ports      string `json:",omitempty"`
+type APIContainers struct {
+	ID         string `json:"Id"`
+	Image      string 
+	Command    string 
+	Created    int64  
+	Status     string 
+	Ports      string 
 	SizeRw     int64
 	SizeRootFs int64
 }
 
-type ApiSearch struct {
+type APISearch struct {
 	Name        string
 	Description string
 }
 
-type ApiId struct {
-	Id string
+type APIID struct {
+	ID string `json:"Id"`
 }
 
-type ApiRun struct {
-	Id       string
-	Warnings []string
+type APIRun struct {
+	ID       string   `json:"Id"`
+	Warnings []string `json:",omitempty"`
 }
 
-type ApiPort struct {
+type APIPort struct {
 	Port string
 }
 
-type ApiVersion struct {
-	Version     string
-	GitCommit   string
-	MemoryLimit bool
-	SwapLimit   bool
+type APIVersion struct {
+	Version   string
+	GitCommit string `json:",omitempty"`
+	GoVersion string `json:",omitempty"`
 }
 
-type ApiWait struct {
+type APIWait struct {
 	StatusCode int
 }
 
-type ApiAuth struct {
+type APIAuth struct {
 	Status string
 }
 
-type ApiImageConfig struct {
-	Id string
+type APIImageConfig struct {
+	ID string `json:"Id"`
 	*Config
 }

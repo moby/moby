@@ -137,7 +137,7 @@ func TestConversion(t *testing.T) {
 	if i == 0 {
 		t.Fatal("converted to zero")
 	}
-	conv := intToIp(i)
+	conv := intToIP(i)
 	if !ip.Equal(conv) {
 		t.Error(conv.String())
 	}

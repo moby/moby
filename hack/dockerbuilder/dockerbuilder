@@ -2,7 +2,7 @@
 set -x
 set -e
 
-export PATH=$PATH:/usr/local/go/bin
+export PATH=/usr/local/go/bin:$PATH
 
 PACKAGE=github.com/dotcloud/docker
 
@@ -36,5 +36,6 @@ else
 fi
 
 if [ -z "$NO_UBUNTU" ]; then
+	export PATH=`echo $PATH | sed 's#/usr/local/go/bin:##g'`
 	(cd packaging/ubuntu && make ubuntu)
 fi
