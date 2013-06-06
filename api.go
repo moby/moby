@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -674,31 +675,51 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
 	}
-	remote := r.FormValue("t")
+	remoteURL := r.FormValue("remote")
+	repoName := r.FormValue("t")
 	tag := ""
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
+	if strings.Contains(repoName, ":") {
+		remoteParts := strings.Split(repoName, ":")
 		tag = remoteParts[1]
-		remote = remoteParts[0]
+		repoName = remoteParts[0]
 	}
 
-	dockerfile, _, err := r.FormFile("Dockerfile")
-	if err != nil {
-		return err
-	}
+	var dockerfile, context io.ReadCloser
 
-	context, _, err := r.FormFile("Context")
-	if err != nil {
-		if err != http.ErrMissingFile {
+	if remoteURL == "" {
+		d, _, err := r.FormFile("Dockerfile")
+		if err != nil {
 			return err
+		} else {
+			dockerfile = d
+		}
+		c, _, err := r.FormFile("Context")
+		if err != nil {
+			if err != http.ErrMissingFile {
+				return err
+			}
+		} else {
+			context = c
+		}
+	} else {
+		if utils.IsGIT(remoteURL) {
+			return fmt.Errorf("Builder from git is not yet supported")
+		} else if utils.IsURL(remoteURL) {
+			f, err := utils.Download(remoteURL, ioutil.Discard)
+			if err != nil {
+				return err
+			} else {
+				dockerfile = f.Body
+			}
+			defer f.Body.Close()
 		}
 	}
 
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
 	if id, err := b.Build(dockerfile, context); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
-	} else if remote != "" {
-		srv.runtime.repositories.Set(remote, tag, id, false)
+	} else if repoName != "" {
+		srv.runtime.repositories.Set(repoName, tag, id, false)
 	}
 	return nil
 }

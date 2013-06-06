@@ -155,15 +155,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	compression := Bzip2
 
+	isRemote := false
+
 	if cmd.Arg(0) == "-" {
 		file = os.Stdin
-	} else if utils.IsURL(cmd.Arg(0)) {
-		f, err := utils.Download(cmd.Arg(0), ioutil.Discard)
-		if err != nil {
-			return err
-		}
-		defer f.Body.Close()
-		file = f.Body
+	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
+		isRemote = true
 	} else {
 		// Send Dockerfile from arg/Dockerfile (deprecate later)
 		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
@@ -192,16 +189,20 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
 		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
-	// Create a FormFile multipart for the Dockerfile
-	wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
-	if err != nil {
-		return err
+	if !isRemote {
+		// Create a FormFile multipart for the Dockerfile
+		wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
+		if err != nil {
+			return err
+		}
+		io.Copy(wField, file)
+		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
-	io.Copy(wField, file)
-	multipartBody = io.MultiReader(multipartBody, boundary)
-
 	v := &url.Values{}
 	v.Set("t", *tag)
+	if isRemote {
+		v.Set("remote", cmd.Arg(0))
+	}
 	// Send the multipart request with correct content-type
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s?%s", cli.host, cli.port, "/build", v.Encode()), multipartBody)
 	if err != nil {

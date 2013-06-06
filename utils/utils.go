@@ -624,3 +624,7 @@ func (sf *StreamFormatter) Used() bool {
 func IsURL(str string) bool {
 	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
 }
+
+func IsGIT(str string) bool {
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+}
