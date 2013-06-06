@@ -196,8 +196,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 		io.Copy(wField, file)
-		multipartBody = io.MultiReader(multipartBody, boundary)
 	}
+	multipartBody = io.MultiReader(multipartBody, boundary)
+
 	v := &url.Values{}
 	v.Set("t", *tag)
 	if isRemote {

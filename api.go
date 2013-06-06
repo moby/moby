@@ -10,6 +10,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -684,7 +687,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		repoName = remoteParts[0]
 	}
 
-	var dockerfile, context io.ReadCloser
+	var dockerfile, context io.Reader
 
 	if remoteURL == "" {
 		d, _, err := r.FormFile("Dockerfile")
@@ -703,7 +706,36 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 	} else {
 		if utils.IsGIT(remoteURL) {
-			return fmt.Errorf("Builder from git is not yet supported")
+			if !strings.HasPrefix(remoteURL, "git://") {
+				remoteURL = "https://" + remoteURL
+			}
+			root, err := ioutil.TempDir("", "docker-build-git")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(root)
+
+			if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+				return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+			}
+
+			d, err := os.Open(path.Join(root, "Dockerfile"))
+			if err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("No Dockerfile found in the repository")
+				}
+				return err
+			} else {
+				dockerfile = d
+			}
+
+			c, err := Tar(root, Bzip2)
+			if err != nil {
+				return err
+			} else {
+				context = c
+			}
+
 		} else if utils.IsURL(remoteURL) {
 			f, err := utils.Download(remoteURL, ioutil.Discard)
 			if err != nil {
