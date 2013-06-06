@@ -288,7 +288,9 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	}
 	b.config.Image = b.image
 	if id == "" {
+		cmd := b.config.Cmd
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
+		defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
 		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 			return err
