@@ -164,10 +164,6 @@ func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
 }
 
-func (b *buildFile) isUrl(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
-}
-
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	file, err := utils.Download(orig, ioutil.Discard)
 	if err != nil {
@@ -238,7 +234,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	defer container.Unmount()
 
-	if b.isUrl(orig) {
+	if utils.IsURL(orig) {
 		if err := b.addRemote(container, orig, dest); err != nil {
 			return err
 		}
