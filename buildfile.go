@@ -164,33 +164,21 @@ func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
 }
 
-func (b *buildFile) CmdAdd(args string) error {
-	if b.context == "" {
-		return fmt.Errorf("No context given. Impossible to use ADD")
-	}
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ADD format")
-	}
-	orig := strings.Trim(tmp[0], " ")
-	dest := strings.Trim(tmp[1], " ")
+func (b *buildFile) isUrl(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
 
-	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
-	cid, err := b.run()
+func (b *buildFile) addRemote(container *Container, orig, dest string) error {
+	file, err := utils.Download(orig, ioutil.Discard)
 	if err != nil {
 		return err
 	}
+	defer file.Body.Close()
 
-	container := b.runtime.Get(cid)
-	if container == nil {
-		return fmt.Errorf("Error while creating the container (CmdAdd)")
-	}
-	if err := container.EnsureMounted(); err != nil {
-		return err
-	}
-	defer container.Unmount()
+	return container.Inject(file.Body, dest)
+}
 
+func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
 
@@ -220,6 +208,46 @@ func (b *buildFile) CmdAdd(args string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (b *buildFile) CmdAdd(args string) error {
+	if b.context == "" {
+		return fmt.Errorf("No context given. Impossible to use ADD")
+	}
+	tmp := strings.SplitN(args, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid ADD format")
+	}
+	orig := strings.Trim(tmp[0], " ")
+	dest := strings.Trim(tmp[1], " ")
+
+	cmd := b.config.Cmd
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	cid, err := b.run()
+	if err != nil {
+		return err
+	}
+
+	container := b.runtime.Get(cid)
+	if container == nil {
+		return fmt.Errorf("Error while creating the container (CmdAdd)")
+	}
+	if err := container.EnsureMounted(); err != nil {
+		return err
+	}
+	defer container.Unmount()
+
+	if b.isUrl(orig) {
+		if err := b.addRemote(container, orig, dest); err != nil {
+			return err
+		}
+	} else {
+		if err := b.addContext(container, orig, dest); err != nil {
+			return err
+		}
+	}
+
 	if err := b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
 		return err
 	}
@@ -318,7 +346,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 			}
 			return "", err
 		}
-		line = strings.Replace(strings.TrimSpace(line), "	", " ", 1)
+		line = strings.TrimSpace(strings.Replace(line, "	", " ", -1))
 		// Skip comments and empty line
 		if len(line) == 0 || line[0] == '#' {
 			continue
