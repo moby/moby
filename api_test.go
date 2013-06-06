@@ -1239,6 +1239,32 @@ func TestDeleteContainers(t *testing.T) {
 	}
 }
 
+func TestGetEnabledCors(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime, enableCors: true}
+
+	r := httptest.NewRecorder()
+
+	if err := getVersion(srv, API_VERSION, r, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	allowOrigin := r.Header().Get("Access-Control-Allow-Origin")
+	allowHeaders := r.Header().Get("Access-Control-Allow-Headers")
+
+	if allowOrigin != "*" {
+		t.Errorf("Expected header Access-Control-Allow-Origin to be \"*\", %s found.", allowOrigin)
+	}
+	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept" {
+		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept\", %s found.", allowHeaders)
+	}
+}
+
 func TestDeleteImages(t *testing.T) {
 	//FIXME: Implement this test
 	t.Log("Test not implemented")
