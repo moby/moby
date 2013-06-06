@@ -157,6 +157,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	if cmd.Arg(0) == "-" {
 		file = os.Stdin
+	} else if utils.IsURL(cmd.Arg(0)) {
+		f, err := utils.Download(cmd.Arg(0), ioutil.Discard)
+		if err != nil {
+			return err
+		}
+		defer f.Body.Close()
+		file = f.Body
 	} else {
 		// Send Dockerfile from arg/Dockerfile (deprecate later)
 		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
@@ -289,15 +296,12 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	var out auth.AuthConfig
-	err = json.Unmarshal(body, &out)
-	if err != nil {
+	out := &auth.AuthConfig{}
+	if err := json.Unmarshal(body, out); err != nil {
 		return err
 	}
 
-	var username string
-	var password string
-	var email string
+	var username, password, email string
 
 	fmt.Print("Username (", out.Username, "): ")
 	username = readAndEchoString(os.Stdin, os.Stdout)
@@ -330,9 +334,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	var out2 APIAuth
-	err = json.Unmarshal(body, &out2)
-	if err != nil {
+	out2 := &APIAuth{}
+	if err := json.Unmarshal(body, &out2); err != nil {
 		return err
 	}
 	if out2.Status != "" {
