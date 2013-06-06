@@ -871,6 +871,7 @@ Build an image from Dockerfile via stdin
 	   {{ STREAM }}
 
 	:query t: tag to be applied to the resulting image in case of success
+	:query remote: URL to be fetch. Either a single Dockerfile or a Git repository
 	:statuscode 200: no error
         :statuscode 500: server error
 

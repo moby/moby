@@ -8,9 +8,11 @@
 
 ::
 
-    Usage: docker build [OPTIONS] PATH | -
+    Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
       -t="": Tag to be applied to the resulting image in case of success.
+    When a single Dockerfile is given as URL, then no context is set. When a git reppository is set as URL, the repository is used as context
+
 
 Examples
 --------
