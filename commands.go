@@ -512,28 +512,33 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := Subcmd("inspect", "CONTAINER|IMAGE", "Return low-level information on a container/image")
+	cmd := Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container/image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if cmd.NArg() < 1 {
 		cmd.Usage()
 		return nil
 	}
-	obj, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
-	if err != nil {
-		obj, _, err = cli.call("GET", "/images/"+cmd.Arg(0)+"/json", nil)
-		if err != nil {
-			return err
-		}
-	}
 
-	indented := new(bytes.Buffer)
-	if err = json.Indent(indented, obj, "", "    "); err != nil {
-		return err
-	}
-	if _, err := io.Copy(os.Stdout, indented); err != nil {
-		return err
+	for _, name := range args {
+		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
+		if err != nil {
+			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
+			if err != nil {
+				fmt.Printf("%s", err)
+				continue
+			}
+		}
+
+		indented := new(bytes.Buffer)
+		if err = json.Indent(indented, obj, "", "    "); err != nil {
+			fmt.Printf("%s", err)
+			continue
+		}
+		if _, err := io.Copy(os.Stdout, indented); err != nil {
+			fmt.Printf("%s", err)
+		}
 	}
 	return nil
 }
