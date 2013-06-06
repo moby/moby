@@ -620,3 +620,20 @@ func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
+
+func CheckLocalDns() bool {
+	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		Debugf("Error openning resolv.conf: %s", err)
+		return false
+	}
+	for _, ip := range []string{
+		"127.0.0.1",
+		"127.0.1.1",
+	} {
+		if strings.Contains(string(resolv), ip) {
+			return true
+		}
+	}
+	return false
+}
