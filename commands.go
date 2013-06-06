@@ -457,7 +457,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 		} else {
 			fmt.Println(name)
 		}
@@ -482,7 +482,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 		} else {
 			fmt.Println(name)
 		}
@@ -503,7 +503,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	for _, name := range args {
 		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 		} else {
 			fmt.Println(name)
 		}
@@ -520,26 +520,30 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	for _, name := range args {
+	fmt.Printf("[")
+	for i, name := range args {
+		if i > 0 {
+			fmt.Printf(",")
+		}
 		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
-				fmt.Printf("%s", err)
+				fmt.Fprintf(os.Stderr, "%s", err)
 				continue
 			}
 		}
 
 		indented := new(bytes.Buffer)
 		if err = json.Indent(indented, obj, "", "    "); err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 			continue
 		}
 		if _, err := io.Copy(os.Stdout, indented); err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 		}
 	}
+	fmt.Printf("]")
 	return nil
 }
 
