@@ -371,4 +371,7 @@ Standard Container Specification
 
 #### Security
 
+### Legal
+
+Transfers Docker shall be in accordance with any applicable export control or other legal requirements.
 
