@@ -70,7 +70,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
-	sf *StreamFormatter
+	sf           *StreamFormatter
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -86,7 +86,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(r.readProgress), HumanSize(r.readTotal), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -103,11 +103,23 @@ func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
-      	tpl := string(template)
+	tpl := string(template)
 	if tpl == "" {
 		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
+}
+
+func HumanSize(origSize int) string {
+	size := float64(origSize)
+	for _, unit := range []string{"b", "Kb", "Mb", "Gb", "Tb"} {
+		if int(size)/1024 == 0 {
+			return fmt.Sprintf("%.03f%s", size, unit)
+		} else {
+			size = size / 1024
+		}
+	}
+	return strconv.Itoa(origSize)
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -585,7 +597,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status:str});
+		b, err := json.Marshal(&JSONMessage{Status: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -597,7 +609,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error:err.Error()}); err == nil {
+		if b, err := json.Marshal(&JSONMessage{Error: err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
@@ -608,10 +620,10 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress:str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
 		if err != nil {
-                        return nil
-                }
+			return nil
+		}
 		return b
 	}
 	return []byte(action + " " + str + "\r")
