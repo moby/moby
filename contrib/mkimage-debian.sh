@@ -7,7 +7,7 @@ testingSuite='jessie'
 unstableSuite='sid'
 
 variant='minbase'
-include='iproute,iputils-ping'
+include='iproute,iputils-ping,gpgv'
 
 repo="$1"
 suite="${2:-$stableSuite}"
