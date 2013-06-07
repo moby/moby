@@ -1079,7 +1079,12 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
 	for _, out := range outs {
-		fmt.Fprintf(w, "%s\t%s\n", out.Name, out.Description)
+		desc := strings.Replace(out.Description, "\n", " ", -1)
+		desc = strings.Replace(desc, "\r", " ", -1)
+		if len(desc) > 45 {
+			desc = utils.Trunc(desc, 42) + "..."
+		}
+		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
 	}
 	w.Flush()
 	return nil
