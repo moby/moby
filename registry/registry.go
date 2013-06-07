@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -106,40 +107,45 @@ func (r *Registry) getImagesInRepository(repository string, authConfig *auth.Aut
 }
 
 // Retrieve an image from the Registry.
-// Returns the Image object as well as the layer as an Archive (io.Reader)
-func (r *Registry) GetRemoteImageJSON(imgId, registry string, token []string) ([]byte, error) {
+func (r *Registry) GetRemoteImageJSON(imgId, registry string, token []string) ([]byte, int, error) {
 	// Get the JSON
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/json", nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to download json: %s", err)
+		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to download json: %s", err)
+		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP code %d", res.StatusCode)
+		return nil, -1, fmt.Errorf("HTTP code %d", res.StatusCode)
 	}
+
+	imageSize, err := strconv.Atoi(res.Header.Get("X-Docker-Size"))
+	if err != nil {
+		return nil, -1, err
+	}
+
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonString)
+		return nil, -1, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonString)
 	}
-	return jsonString, nil
+	return jsonString, imageSize, nil
 }
 
-func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (io.ReadCloser, int, error) {
+func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (io.ReadCloser, error) {
 	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/layer", nil)
 	if err != nil {
-		return nil, -1, fmt.Errorf("Error while getting from the server: %s\n", err)
+		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, -1, err
+		return nil, err
 	}
-	return res.Body, int(res.ContentLength), nil
+	return res.Body, nil
 }
 
 func (r *Registry) GetRemoteTags(registries []string, repository string, token []string) (map[string]string, error) {
@@ -479,7 +485,7 @@ func NewRegistry(root string) *Registry {
 
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
-		Proxy: http.ProxyFromEnvironment,
+		Proxy:             http.ProxyFromEnvironment,
 	}
 
 	r := &Registry{
