@@ -839,9 +839,9 @@ Search images
 		}
 	   ]
 
-	   :query term: term to search
-	   :statuscode 200: no error
-	   :statuscode 500: server error
+	:query term: term to search
+	:statuscode 200: no error
+	:statuscode 500: server error
 
 
 3.3 Misc
