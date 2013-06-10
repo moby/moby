@@ -1260,7 +1260,7 @@ func TestOptionsRoute(t *testing.T) {
 	}
 
 	router.ServeHTTP(r, req)
-	if r.Code != 200 {
+	if r.Code != http.StatusOK {
 		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
 	}
 }
@@ -1287,7 +1287,7 @@ func TestGetEnabledCors(t *testing.T) {
 	}
 
 	router.ServeHTTP(r, req)
-	if r.Code != 200 {
+	if r.Code != http.StatusOK {
 		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
 	}
 

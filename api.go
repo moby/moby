@@ -793,6 +793,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 		if srv.enableCors {
 			writeCorsHeaders(w, r)
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 	return r, nil
 }
