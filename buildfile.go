@@ -124,8 +124,8 @@ func (b *buildFile) CmdEnv(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
 	}
-	key := strings.Trim(tmp[0], " ")
-	value := strings.Trim(tmp[1], " ")
+	key := strings.Trim(tmp[0], " \t")
+	value := strings.Trim(tmp[1], " \t")
 
 	for i, elem := range b.config.Env {
 		if strings.HasPrefix(elem, key+"=") {
@@ -215,8 +215,8 @@ func (b *buildFile) CmdAdd(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ADD format")
 	}
-	orig := strings.Trim(tmp[0], " ")
-	dest := strings.Trim(tmp[1], " ")
+	orig := strings.Trim(tmp[0], " \t")
+	dest := strings.Trim(tmp[1], " \t")
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
@@ -344,7 +344,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 			}
 			return "", err
 		}
-		line = strings.TrimSpace(strings.Replace(line, "	", " ", -1))
+		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		// Skip comments and empty line
 		if len(line) == 0 || line[0] == '#' {
 			continue
