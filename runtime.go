@@ -244,6 +244,10 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 }
 
+func (runtime *Runtime) Root() string {
+	return runtime.root
+}
+
 // FIXME: harmonize with NewGraph()
 func NewRuntime(autoRestart bool) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory("/var/lib/docker", autoRestart)
