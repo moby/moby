@@ -706,6 +706,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
 func ListenAndServe(addr string, srv *Server, logging bool) error {
@@ -774,12 +775,12 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 				if err != nil {
 					version = API_VERSION
 				}
+				if srv.enableCors {
+					writeCorsHeaders(w, r)
+				}
 				if version == 0 || version > API_VERSION {
 					w.WriteHeader(http.StatusNotFound)
 					return
-				}
-				if srv.enableCors {
-					writeCorsHeaders(w, r)
 				}
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
