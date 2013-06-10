@@ -709,9 +709,8 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
+func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
-	log.Printf("Listening for HTTP on %s\n", addr)
 
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
@@ -788,12 +787,22 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			}
 			r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
 			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
-			r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if srv.enableCors {
-					writeCorsHeaders(w, r)
-				}
-			})
 		}
+	}
+	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if srv.enableCors {
+			writeCorsHeaders(w, r)
+		}
+	})
+	return r, nil
+}
+
+func ListenAndServe(addr string, srv *Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s\n", addr)
+
+	r, err := createRouter(srv, logging)
+	if err != nil {
+		return err
 	}
 	return http.ListenAndServe(addr, r)
 }
