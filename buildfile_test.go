@@ -26,7 +26,7 @@ func TestBuild(t *testing.T) {
 
 	buildfile := NewBuildFile(srv, &utils.NopWriter{})
 
-	imgId, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
+	imgID, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestBuild(t *testing.T) {
 	builder := NewBuilder(runtime)
 	container, err := builder.Create(
 		&Config{
-			Image: imgId,
+			Image: imgID,
 			Cmd:   []string{"cat", "/tmp/passwd"},
 		},
 	)
@@ -53,7 +53,7 @@ func TestBuild(t *testing.T) {
 
 	container2, err := builder.Create(
 		&Config{
-			Image: imgId,
+			Image: imgID,
 			Cmd:   []string{"ls", "-d", "/var/run/sshd"},
 		},
 	)

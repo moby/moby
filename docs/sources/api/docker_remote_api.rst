@@ -564,7 +564,7 @@ Create an image
 	   Content-Type: application/json
 
 	   {"status":"Pulling..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Pulling", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -607,7 +607,7 @@ Insert a file in a image
 	   Content-Type: application/json
 
 	   {"status":"Inserting..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Inserting", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -734,7 +734,7 @@ Push an image on the registry
 	   Content-Type: application/json
 
 	   {"status":"Pushing..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Pushing", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -974,10 +974,12 @@ Display system-wide information
 
 	   {
 		"Containers":11,
-		"Version":"0.2.2",
 		"Images":16,
-		"GoVersion":"go1.0.3",
-		"Debug":false
+		"Debug":false,
+		"NFd": 11,
+		"NGoroutines":21,
+		"MemoryLimit":true,
+		"SwapLimit":false
 	   }
 
         :statuscode 200: no error
@@ -1003,12 +1005,11 @@ Show the docker version information
 
            HTTP/1.1 200 OK
 	   Content-Type: application/json
-	   
+
 	   {
 		"Version":"0.2.2",
 		"GitCommit":"5a2a5cc+CHANGES",
-		"MemoryLimit":true,
-		"SwapLimit":false
+		"GoVersion":"go1.0.3"
 	   }
 
         :statuscode 200: no error

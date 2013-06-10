@@ -40,7 +40,7 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 	}
 
 	// Generate id
-	id := GenerateId()
+	id := GenerateID()
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
@@ -49,17 +49,17 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
-		Id:              id,
+		ID:              id,
 		Created:         time.Now(),
 		Path:            config.Cmd[0],
 		Args:            config.Cmd[1:], //FIXME: de-duplicate from config
 		Config:          config,
-		Image:           img.Id, // Always use the resolved image id
+		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 	}
-	container.root = builder.runtime.containerRoot(container.Id)
+	container.root = builder.runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
@@ -110,7 +110,7 @@ func (builder *Builder) Commit(container *Container, repository, tag, comment, a
 	}
 	// Register the image if needed
 	if repository != "" {
-		if err := builder.repositories.Set(repository, tag, img.Id, true); err != nil {
+		if err := builder.repositories.Set(repository, tag, img.ID, true); err != nil {
 			return img, err
 		}
 	}

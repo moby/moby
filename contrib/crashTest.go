@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-var DOCKER_PATH string = path.Join(os.Getenv("DOCKERPATH"), "docker")
+var DOCKERPATH = path.Join(os.Getenv("DOCKERPATH"), "docker")
 
 // WARNING: this crashTest will 1) crash your host, 2) remove all containers
 func runDaemon() (*exec.Cmd, error) {
 	os.Remove("/var/run/docker.pid")
 	exec.Command("rm", "-rf", "/var/lib/docker/containers").Run()
-	cmd := exec.Command(DOCKER_PATH, "-d")
+	cmd := exec.Command(DOCKERPATH, "-d")
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func crashTest() error {
 			stop = false
 			for i := 0; i < 100 && !stop; {
 				func() error {
-					cmd := exec.Command(DOCKER_PATH, "run", "base", "echo", fmt.Sprintf("%d", totalTestCount))
+					cmd := exec.Command(DOCKERPATH, "run", "base", "echo", fmt.Sprintf("%d", totalTestCount))
 					i++
 					totalTestCount++
 					outPipe, err := cmd.StdoutPipe()
