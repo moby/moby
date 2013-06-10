@@ -399,7 +399,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				defer stdinCloser.Close()
 			}
 
-			if cStderr, err := container.StdoutPipe(); err != nil {
+			if cStderr, err := container.StderrPipe(); err != nil {
 				utils.Debugf("Error stdout pipe")
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)
