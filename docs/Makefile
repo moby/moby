@@ -46,12 +46,11 @@ clean:
 	-rm -rf $(BUILDDIR)/*
 
 docs:
-	#-rm -rf $(BUILDDIR)/*
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The documentation pages are now in $(BUILDDIR)/html."
 
-server:
+server: docs
 	@cd $(BUILDDIR)/html; $(PYTHON) -m SimpleHTTPServer 8000
 
 site:
@@ -62,12 +61,13 @@ site:
 
 connect:
 	@echo connecting dotcloud to www.docker.io website, make sure to use user 1
-	@cd _build/website/ ; \
+	@echo or create your own "dockerwebsite" app
+	@cd $(BUILDDIR)/website/ ; \
 	dotcloud connect dockerwebsite ; \
 	dotcloud list
 
 push:
-	@cd _build/website/ ; \
+	@cd $(BUILDDIR)/website/ ; \
 	dotcloud push
 
 $(VERSIONS):
