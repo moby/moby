@@ -1056,3 +1056,27 @@ Here are the steps of 'docker run' :
 
 In this first version of the API, some of the endpoints, like /attach, /pull or /push uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
+
+==================================
+Docker Remote API Client Libraries
+==================================
+
+These libraries have been not tested by the Docker Maintainers for
+compatibility. Please file issues with the library owners.  If you
+find more library implementations, please list them in Docker doc bugs
+and we will add the libraries here.
+
++----------------------+----------------+--------------------------------------------+
+| Language/Framework   | Name           | Repository                                 |
++======================+================+============================================+
+| Python               | docker-py      | https://github.com/dotcloud/docker-py      |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-ruby    | https://github.com/ActiveState/docker-ruby |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
++----------------------+----------------+--------------------------------------------+
+| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
++----------------------+----------------+--------------------------------------------+
+| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
+| **WebUI**            |                |                                            |
++----------------------+----------------+--------------------------------------------+
