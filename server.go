@@ -489,7 +489,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	}
 	out.Write(sf.FormatStatus("Sending image list"))
 
-	repoData, err := r.PushImageJSONIndex(name, imgList, false)
+	repoData, err := r.PushImageJSONIndex(name, imgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -513,7 +513,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(name, imgList, true); err != nil {
+	if _, err := r.PushImageJSONIndex(name, imgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 	return nil
