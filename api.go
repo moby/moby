@@ -674,13 +674,6 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err := r.ParseMultipartForm(4096); err != nil {
 		return err
 	}
-	remote := r.FormValue("t")
-	tag := ""
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
-		tag = remoteParts[1]
-		remote = remoteParts[0]
-	}
 
 	dockerfile, _, err := r.FormFile("Dockerfile")
 	if err != nil {
@@ -694,11 +687,24 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	tFormValue := r.FormValue("t")
+
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
 	if id, err := b.Build(dockerfile, context); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
-	} else if remote != "" {
-		srv.runtime.repositories.Set(remote, tag, id, false)
+	} else if tFormValue != "" {
+		for _, tSplitValue := range strings.Split(tFormValue, ",") {
+			remote := ""
+			tag := ""
+
+			if strings.Contains(tSplitValue, ":") {
+				remoteParts := strings.Split(tSplitValue, ":")
+				tag = remoteParts[1]
+				remote = remoteParts[0]
+			}
+
+			srv.ContainerTag(remote, tag, id, false)
+		}
 	}
 	return nil
 }
