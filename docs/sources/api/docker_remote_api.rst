@@ -1057,6 +1057,14 @@ Here are the steps of 'docker run' :
 In this first version of the API, some of the endpoints, like /attach, /pull or /push uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
 
+3.3 CORS Requests
+-----------------
+
+To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
+    
+    docker -d -H="192.168.1.9:4243" -api-enable-cors
+
+
 ==================================
 Docker Remote API Client Libraries
 ==================================
@@ -1080,3 +1088,4 @@ and we will add the libraries here.
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
 | **WebUI**            |                |                                            |
 +----------------------+----------------+--------------------------------------------+
+
