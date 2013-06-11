@@ -485,6 +485,21 @@ type Nat struct {
 func parseNat(spec string) (*Nat, error) {
 	var nat Nat
 
+	if strings.Contains(spec, "/") {
+		specParts := strings.Split(spec, "/")
+		if len(specParts) != 2 {
+			return nil, fmt.Errorf("Invalid port format.")
+		}
+		proto := specParts[1]
+		spec = specParts[0]
+		if proto != "tcp" && proto != "udp" {
+			return nil, fmt.Errorf("Invalid port format: unknown protocol %v.", proto)
+		}
+		nat.Proto = proto
+	} else {
+		nat.Proto = "tcp"
+	}
+
 	if strings.Contains(spec, ":") {
 		specParts := strings.Split(spec, ":")
 		if len(specParts) != 2 {
@@ -517,7 +532,7 @@ func parseNat(spec string) (*Nat, error) {
 		}
 		nat.Backend = int(port)
 	}
-	nat.Proto = "tcp"
+
 	return &nat, nil
 }
 
