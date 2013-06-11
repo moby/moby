@@ -703,6 +703,10 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+func optionsHandler(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
 func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
@@ -750,6 +754,9 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}": deleteContainers,
 			"/images/{name:.*}":     deleteImages,
 		},
+		"OPTIONS": {
+			"": optionsHandler,
+		},
 	}
 
 	for method, routes := range m {
@@ -785,16 +792,15 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 					httpError(w, err)
 				}
 			}
-			r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
-			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
+
+			if localRoute == "" {
+				r.Methods(localMethod).HandlerFunc(f)
+			} else {
+				r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
+				r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
+			}
 		}
 	}
-	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if srv.enableCors {
-			writeCorsHeaders(w, r)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
 	return r, nil
 }
 
