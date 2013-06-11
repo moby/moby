@@ -5,7 +5,7 @@
 APIs
 ====
 
-This following :
+Your programs and scripts can access Docker's functionality via these interfaces:
 
 .. toctree::
   :maxdepth: 3

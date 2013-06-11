@@ -1239,6 +1239,73 @@ func TestDeleteContainers(t *testing.T) {
 	}
 }
 
+func TestOptionsRoute(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime, enableCors: true}
+
+	r := httptest.NewRecorder()
+	router, err := createRouter(srv, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("OPTIONS", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	router.ServeHTTP(r, req)
+	if r.Code != http.StatusOK {
+		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
+	}
+}
+
+func TestGetEnabledCors(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime, enableCors: true}
+
+	r := httptest.NewRecorder()
+
+	router, err := createRouter(srv, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("GET", "/version", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	router.ServeHTTP(r, req)
+	if r.Code != http.StatusOK {
+		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
+	}
+
+	allowOrigin := r.Header().Get("Access-Control-Allow-Origin")
+	allowHeaders := r.Header().Get("Access-Control-Allow-Headers")
+	allowMethods := r.Header().Get("Access-Control-Allow-Methods")
+
+	if allowOrigin != "*" {
+		t.Errorf("Expected header Access-Control-Allow-Origin to be \"*\", %s found.", allowOrigin)
+	}
+	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept" {
+		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept\", %s found.", allowHeaders)
+	}
+	if allowMethods != "GET, POST, DELETE, PUT, OPTIONS" {
+		t.Errorf("Expected hearder Access-Control-Allow-Methods to be \"GET, POST, DELETE, PUT, OPTIONS\", %s found.", allowMethods)
+	}
+}
+
 func TestDeleteImages(t *testing.T) {
 	//FIXME: Implement this test
 	t.Log("Test not implemented")
