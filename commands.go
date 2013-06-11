@@ -218,7 +218,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("error: %s", body)
+		if len(body) == 0 {
+			return fmt.Errorf("Error: %s", http.StatusText(resp.StatusCode))
+		}
+		return fmt.Errorf("Error: %s", body)
 	}
 
 	// Output the result
@@ -561,7 +564,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	if frontend, exists := out.NetworkSettings.PortMapping[cmd.Arg(1)]; exists {
 		fmt.Println(frontend)
 	} else {
-		return fmt.Errorf("error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
+		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
 	}
 	return nil
 }
@@ -1335,7 +1338,10 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		return nil, -1, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		return nil, resp.StatusCode, fmt.Errorf("error: %s", body)
+		if len(body) == 0 {
+			return nil, resp.StatusCode, fmt.Errorf("Error: %s", http.StatusText(resp.StatusCode))
+		}
+		return nil, resp.StatusCode, fmt.Errorf("Error: %s", body)
 	}
 	return body, resp.StatusCode, nil
 }
@@ -1365,7 +1371,10 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("error: %s", body)
+		if len(body) == 0 {
+			return fmt.Errorf("Error :%s", http.StatusText(resp.StatusCode))
+		}
+		return fmt.Errorf("Error: %s", body)
 	}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
