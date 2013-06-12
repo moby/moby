@@ -1,7 +1,6 @@
-:title: Registry Documentation
-:description: Documentation for docker Registry and Registry API
-:keywords: docker, registry, api, index
-
+:title: Registry API
+:description: API Documentation for Docker Registry
+:keywords: API, Docker, index, registry, REST, documentation
 
 ===================
 Docker Registry API
@@ -9,29 +8,10 @@ Docker Registry API
 
 .. contents:: Table of Contents
 
-1. The 3 roles
-===============
+1. Brief introduction
+=====================
 
-1.1 Index
----------
-
-The Index is responsible for centralizing information about:
-- User accounts
-- Checksums of the images
-- Public namespaces
-
-The Index has different components:
-- Web UI
-- Meta-data store (comments, stars, list public repositories)
-- Authentication service
-- Tokenization
-
-The index is authoritative for those information.
-
-We expect that there will be only one instance of the index, run and managed by dotCloud.
-
-1.2 Registry
-------------
+- This is the REST API for the Docker Registry
 - It stores the images and the graph for a set of repositories
 - It does not have user accounts data
 - It has no notion of user accounts or authorization
@@ -60,418 +40,424 @@ We expect that there will be multiple registries out there. To help to grasp the
 
 The latter would only require two new commands in docker, e.g. “registryget” and “registryput”, wrapping access to the local filesystem (and optionally doing consistency checks). Authentication and authorization are then delegated to SSH (e.g. with public keys).
 
-1.3 Docker
+2. Endpoints
+============
+
+2.1 Images
 ----------
 
-On top of being a runtime for LXC, Docker is the Registry client. It supports:
-- Push / Pull on the registry
-- Client authentication on the Index
+Layer
+*****
 
-2. Workflow
-===========
+.. http:get:: /v1/images/(image_id)/layer 
 
-2.1 Pull
+    get image layer for a given ``image_id``
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Authorization: Token akmklmasadalkmsdfgsdgdge33
+
+    :parameter image_id: the id for the layer you want to get
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+        {
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Image not found
+
+
+.. http:put:: /v1/images/(image_id)/layer 
+
+    put image layer for a given ``image_id``
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Authorization: Token akmklmasadalkmsdfgsdgdge33
+
+        {
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
+
+    :parameter image_id: the id for the layer you want to get
+
+
+    **Example Response**:
+
+    .. sourcecode:: http
+    
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        ""
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Image not found
+
+
+Image
+*****
+
+.. http:put:: /v1/images/(image_id)/json
+
+    put image for a given ``image_id``
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/json HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+        {
+         “id”: “088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c”,
+         “checksum”:  “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
+         }
+
+    :parameter image_id: the id for the layer you want to get
+
+
+    **Example Response**:
+
+    .. sourcecode:: http
+    
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        ""
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+
+.. http:get:: /v1/images/(image_id)/json
+
+    get image for a given ``image_id``
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/json HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+    :parameter image_id: the id for the layer you want to get
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        {
+         “id”: “088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c”,
+         “checksum”:  “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
+         }
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Image not found
+
+
+Ancestry
+********
+
+.. http:get:: /v1/images/(image_id)/ancestry
+
+    get ancestry for an image given an ``image_id``
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/ancestry HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+    :parameter image_id: the id for the layer you want to get
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        ["088b4502f51920fbd9b7c503e87c7a2c05aa3adc3d35e79c031fa126b403200f",
+         "aeee63968d87c7da4a5cf5d2be6bee4e21bc226fd62273d180a49c96c62e4543",
+         "bfa4c5326bc764280b0863b46a4b20d940bc1897ef9c1dfec060604bdc383280",
+         "6ab5893c6927c15a15665191f2c6cf751f5056d8b95ceee32e43c5e8a3648544"]
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Image not found
+
+
+2.2 Tags
 --------
 
-.. image:: /static_files/docker_pull_chart.png
+.. http:get:: /v1/repositories/(namespace)/(repository)/tags
 
-1. Contact the Index to know where I should download “samalba/busybox”
-2. Index replies:
-   a. “samalba/busybox” is on Registry A
-   b. here are the checksums for “samalba/busybox” (for all layers)
-   c. token
-3. Contact Registry A to receive the layers for “samalba/busybox” (all of them to the base image). Registry A is authoritative for “samalba/busybox” but keeps a copy of all inherited layers and serve them all from the same location.
-4. registry contacts index to verify if token/user is allowed to download images
-5. Index returns true/false lettings registry know if it should proceed or error out
-6. Get the payload for all layers
+    get all of the tags for the given repo.
 
-It’s possible to run docker pull \https://<registry>/repositories/samalba/busybox. In this case, docker bypasses the Index. However the security is not guaranteed (in case Registry A is corrupted) because there won’t be any checksum checks.
+    **Example Request**:
 
-Currently registry redirects to s3 urls for downloads, going forward all downloads need to be streamed through the registry. The Registry will then abstract the calls to S3 by a top-level class which implements sub-classes for S3 and local storage.
+    .. sourcecode:: http
 
-Token is only returned when the 'X-Docker-Token' header is sent with request.
-
-Basic Auth is required to pull private repos. Basic auth isn't required for pulling public repos, but if one is provided, it needs to be valid and for an active account.
-
-API (pulling repository foo/bar):
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-1. (Docker -> Index) GET /v1/repositories/foo/bar/images
-    **Headers**:
-        Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
-        X-Docker-Token: true
-    **Action**:
-        (looking up the foo/bar in db and gets images and checksums for that repo (all if no tag is specified, if tag, only checksums for those tags) see part 4.4.1)
-
-2. (Index -> Docker) HTTP 200 OK
-
-    **Headers**:
-        - Authorization: Token signature=123abc,repository=”foo/bar”,access=write
-        - X-Docker-Endpoints: registry.docker.io [, registry2.docker.io]
-    **Body**:
-        Jsonified checksums (see part 4.4.1)
-
-3. (Docker -> Registry) GET /v1/repositories/foo/bar/tags/latest
-    **Headers**:
-        Authorization: Token signature=123abc,repository=”foo/bar”,access=write
-
-4. (Registry -> Index) GET /v1/repositories/foo/bar/images
-
-    **Headers**:
-        Authorization: Token signature=123abc,repository=”foo/bar”,access=read
-
-    **Body**:
-        <ids and checksums in payload>
-
-    **Action**:
-        ( Lookup token see if they have access to pull.)
-
-        If good:
-            HTTP 200 OK
-            Index will invalidate the token
-        If bad:
-            HTTP 401 Unauthorized
-
-5. (Docker -> Registry) GET /v1/images/928374982374/ancestry
-    **Action**:
-        (for each image id returned in the registry, fetch /json + /layer)
-
-.. note::
-
-    If someone makes a second request, then we will always give a new token, never reuse tokens.
-
-2.2 Push
---------
-
-.. image:: /static_files/docker_push_chart.png
-
-1. Contact the index to allocate the repository name “samalba/busybox” (authentication required with user credentials)
-2. If authentication works and namespace available, “samalba/busybox” is allocated and a temporary token is returned (namespace is marked as initialized in index)
-3. Push the image on the registry (along with the token)
-4. Registry A contacts the Index to verify the token (token must corresponds to the repository name)
-5. Index validates the token. Registry A starts reading the stream pushed by docker and store the repository (with its images)
-6. docker contacts the index to give checksums for upload images
-
-.. note::
-
-    **It’s possible not to use the Index at all!** In this case, a deployed version of the Registry is deployed to store and serve images. Those images are not authentified and the security is not guaranteed.
-
-.. note::
-
-    **Index can be replaced!** For a private Registry deployed, a custom Index can be used to serve and validate token according to different policies.
-
-Docker computes the checksums and submit them to the Index at the end of the push. When a repository name does not have checksums on the Index, it means that the push is in progress (since checksums are submitted at the end).
-
-API (pushing repos foo/bar):
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-1. (Docker -> Index) PUT /v1/repositories/foo/bar/
-    **Headers**:
-        Authorization: Basic sdkjfskdjfhsdkjfh==
-        X-Docker-Token: true
-
-    **Action**::
-        - in index, we allocated a new repository, and set to initialized
-
-    **Body**::
-        (The body contains the list of images that are going to be pushed, with empty checksums. The checksums will be set at the end of the push)::
-
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”}]
-
-2. (Index -> Docker) 200 Created
-    **Headers**:
-        - WWW-Authenticate: Token signature=123abc,repository=”foo/bar”,access=write
-        - X-Docker-Endpoints: registry.docker.io [, registry2.docker.io]
-
-3. (Docker -> Registry) PUT /v1/images/98765432_parent/json
-    **Headers**:
-        Authorization: Token signature=123abc,repository=”foo/bar”,access=write
-
-4. (Registry->Index) GET /v1/repositories/foo/bar/images
-    **Headers**:
-        Authorization: Token signature=123abc,repository=”foo/bar”,access=write
-    **Action**::
-        - Index:
-            will invalidate the token.
-        - Registry:
-            grants a session (if token is approved) and fetches the images id
-
-5. (Docker -> Registry) PUT /v1/images/98765432_parent/json
-    **Headers**::
-        - Authorization: Token signature=123abc,repository=”foo/bar”,access=write
-        - Cookie: (Cookie provided by the Registry)
-
-6. (Docker -> Registry) PUT /v1/images/98765432/json
-    **Headers**:
+        GET /v1/repositories/foo/bar/tags HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
         Cookie: (Cookie provided by the Registry)
 
-7. (Docker -> Registry) PUT /v1/images/98765432_parent/layer
-    **Headers**:
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        {
+            "latest": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+            “0.1.1”:  “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
+        }
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Repository not found
+
+
+.. http:get:: /v1/repositories/(namespace)/(repository)/tags/(tag)
+
+    get a tag for the given repo.
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
         Cookie: (Cookie provided by the Registry)
 
-8. (Docker -> Registry) PUT /v1/images/98765432/layer
-    **Headers**:
-        X-Docker-Checksum: sha256:436745873465fdjkhdfjkgh
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+    :parameter tag: name of tag you want to get
 
-9. (Docker -> Registry) PUT /v1/repositories/foo/bar/tags/latest
-    **Headers**:
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+
+        "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
+
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Tag not found
+
+.. http:delete:: /v1/repositories/(namespace)/(repository)/tags/(tag)
+
+    delete the tag for the repo
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        DELETE /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
         Cookie: (Cookie provided by the Registry)
-    **Body**:
-        “98765432”
 
-10. (Docker -> Index) PUT /v1/repositories/foo/bar/images
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+    :parameter tag: name of tag you want to delete
 
-    **Headers**:
-        Authorization: Basic 123oislifjsldfj==
-        X-Docker-Endpoints: registry1.docker.io (no validation on this right now)
+    **Example Response**:
 
-    **Body**:
-        (The image, id’s, tags and checksums)
+    .. sourcecode:: http
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
-        “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
 
-    **Return** HTTP 204
+        ""
 
-.. note::
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Tag not found
 
-     If push fails and they need to start again, what happens in the index, there will already be a record for the namespace/name, but it will be initialized. Should we allow it, or mark as name already used? One edge case could be if someone pushes the same thing at the same time with two different shells.
 
-     If it's a retry on the Registry, Docker has a cookie (provided by the registry after token validation). So the Index won’t have to provide a new token.
+.. http:put:: /v1/repositories/(namespace)/(repository)/tags/(tag)
 
-3. How to use the Registry in standalone mode
-=============================================
+    put a tag for the given repo.
 
-The Index has two main purposes (along with its fancy social features):
+    **Example Request**:
 
-- Resolve short names (to avoid passing absolute URLs all the time)
-   - username/projectname -> \https://registry.docker.io/users/<username>/repositories/<projectname>/
-- Authenticate a user as a repos owner (for a central referenced repository)
+    .. sourcecode:: http
 
-3.1 Without an Index
---------------------
-Using the Registry without the Index can be useful to store the images on a private network without having to rely on an external entity controlled by dotCloud.
+        PUT /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
 
-In this case, the registry will be launched in a special mode (--standalone? --no-index?). In this mode, the only thing which changes is that Registry will never contact the Index to verify a token. It will be the Registry owner responsibility to authenticate the user who pushes (or even pulls) an image using any mechanism (HTTP auth, IP based, etc...).
+        “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”
 
-In this scenario, the Registry is responsible for the security in case of data corruption since the checksums are not delivered by a trusted entity.
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+    :parameter tag: name of tag you want to add
 
-As hinted previously, a standalone registry can also be implemented by any HTTP server handling GET/PUT requests (or even only GET requests if no write access is necessary).
+    **Example Response**:
 
-3.2 With an Index
------------------
+    .. sourcecode:: http
 
-The Index data needed by the Registry are simple:
-- Serve the checksums
-- Provide and authorize a Token
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
 
-In the scenario of a Registry running on a private network with the need of centralizing and authorizing, it’s easy to use a custom Index.
+        ""
 
-The only challenge will be to tell Docker to contact (and trust) this custom Index. Docker will be configurable at some point to use a specific Index, it’ll be the private entity responsibility (basically the organization who uses Docker in a private environment) to maintain the Index and the Docker’s configuration among its consumers.
+    :statuscode 200: OK
+    :statuscode 400: Invalid data
+    :statuscode 401: Requires authorization
+    :statuscode 404: Image not found
 
-4. The API
-==========
+2.3 Repositories
+----------------
 
-The first version of the api is available here: https://github.com/jpetazzo/docker/blob/acd51ecea8f5d3c02b00a08176171c59442df8b3/docs/images-repositories-push-pull.md
+.. http:delete:: /v1/repositories/(namespace)/(repository)/
 
-4.1 Images
-----------
+    delete a repository
 
-The format returned in the images is not defined here (for layer and json), basically because Registry stores exactly the same kind of information as Docker uses to manage them.
+    **Example Request**:
 
-The format of ancestry is a line-separated list of image ids, in age order. I.e. the image’s parent is on the last line, the parent of the parent on the next-to-last line, etc.; if the image has no parent, the file is empty.
+    .. sourcecode:: http
 
-GET /v1/images/<image_id>/layer
-PUT /v1/images/<image_id>/layer
-GET /v1/images/<image_id>/json
-PUT /v1/images/<image_id>/json
-GET /v1/images/<image_id>/ancestry
-PUT /v1/images/<image_id>/ancestry
+        DELETE /v1/repositories/foo/bar/ HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
 
-4.2 Users
----------
+        ""
 
-4.2.1 Create a user (Index)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
 
-POST /v1/users
+    **Example Response**:
 
-**Body**:
-    {"email": "sam@dotcloud.com", "password": "toto42", "username": "foobar"'}
+    .. sourcecode:: http
 
-**Validation**:
-    - **username** : min 4 character, max 30 characters, must match the regular expression [a-z0-9_].
-    - **password**: min 5 characters
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
 
-**Valid**: return HTTP 200
+        ""
 
-Errors: HTTP 400 (we should create error codes for possible errors)
-- invalid json
-- missing field
-- wrong format (username, password, email, etc)
-- forbidden name
-- name already exists
+    :statuscode 200: OK
+    :statuscode 401: Requires authorization
+    :statuscode 404: Repository not found
 
-.. note::
+3.0 Authorization
+=================
+This is where we describe the authorization process, including the tokens and cookies. 
 
-    A user account will be valid only if the email has been validated (a validation link is sent to the email address).
-
-4.2.2 Update a user (Index)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-PUT /v1/users/<username>
-
-**Body**:
-    {"password": "toto"}
-
-.. note::
-
-    We can also update email address, if they do, they will need to reverify their new email address.
-
-4.2.3 Login (Index)
-^^^^^^^^^^^^^^^^^^^
-Does nothing else but asking for a user authentication. Can be used to validate credentials. HTTP Basic Auth for now, maybe change in future.
-
-GET /v1/users
-
-**Return**:
-    - Valid: HTTP 200
-    - Invalid login: HTTP 401
-    - Account inactive: HTTP 403 Account is not Active
-
-4.3 Tags (Registry)
--------------------
-
-The Registry does not know anything about users. Even though repositories are under usernames, it’s just a namespace for the registry. Allowing us to implement organizations or different namespaces per user later, without modifying the Registry’s API.
-
-The following naming restrictions apply:
-
-- Namespaces must match the same regular expression as usernames (See 4.2.1.)
-- Repository names must match the regular expression [a-zA-Z0-9-_.]
-
-4.3.1 Get all tags
-^^^^^^^^^^^^^^^^^^
-
-GET /v1/repositories/<namespace>/<repository_name>/tags
-
-**Return**: HTTP 200
-    {
-    "latest": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
-    “0.1.1”:  “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
-    }
-
-4.3.2 Read the content of a tag (resolve the image id)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-GET /v1/repositories/<namespace>/<repo_name>/tags/<tag>
-
-**Return**:
-    "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
-
-4.3.3 Delete a tag (registry)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-DELETE /v1/repositories/<namespace>/<repo_name>/tags/<tag>
-
-4.4 Images (Index)
-------------------
-
-For the Index to “resolve” the repository name to a Registry location, it uses the X-Docker-Endpoints header. In other terms, this requests always add a “X-Docker-Endpoints” to indicate the location of the registry which hosts this repository.
-
-4.4.1 Get the images
-^^^^^^^^^^^^^^^^^^^^^
-
-GET /v1/repositories/<namespace>/<repo_name>/images
-
-**Return**: HTTP 200
-    [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”, “checksum”: “md5:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
-
-
-4.4.2 Add/update the images
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You always add images, you never remove them.
-
-PUT /v1/repositories/<namespace>/<repo_name>/images
-
-**Body**:
-    [ {“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”, “checksum”: “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”} ]
-
-**Return** 204
-
-5. Chaining Registries
-======================
-
-It’s possible to chain Registries server for several reasons:
-- Load balancing
-- Delegate the next request to another server
-
-When a Registry is a reference for a repository, it should host the entire images chain in order to avoid breaking the chain during the download.
-
-The Index and Registry use this mechanism to redirect on one or the other.
-
-Example with an image download:
-On every request, a special header can be returned:
-
-X-Docker-Endpoints: server1,server2
-
-On the next request, the client will always pick a server from this list.
-
-6. Authentication & Authorization
-=================================
-
-6.1 On the Index
------------------
-
-The Index supports both “Basic” and “Token” challenges. Usually when there is a “401 Unauthorized”, the Index replies this::
-
-    401 Unauthorized
-    WWW-Authenticate: Basic realm="auth required",Token
-
-You have 3 options:
-
-1. Provide user credentials and ask for a token
-
-    **Header**:
-        - Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
-        - X-Docker-Token: true
-
-    In this case, along with the 200 response, you’ll get a new token (if user auth is ok):
-    If authorization isn't correct you get a 401 response.
-    If account isn't active you will get a 403 response.
-
-    **Response**:
-        - 200 OK
-        - X-Docker-Token: Token signature=123abc,repository=”foo/bar”,access=read
-
-2. Provide user credentials only
-
-    **Header**:
-        Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
-
-3. Provide Token
-
-    **Header**:
-        Authorization: Token signature=123abc,repository=”foo/bar”,access=read
-
-6.2 On the Registry
--------------------
-
-The Registry only supports the Token challenge::
-
-    401 Unauthorized
-    WWW-Authenticate: Token
-
-The only way is to provide a token on “401 Unauthorized” responses::
-
-    Authorization: Token signature=123abc,repository=”foo/bar”,access=read
-
-Usually, the Registry provides a Cookie when a Token verification succeeded. Every time the Registry passes a Cookie, you have to pass it back the same cookie.::
-
-    200 OK
-    Set-Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="; Path=/; HttpOnly
-
-Next request::
-
-    GET /(...)
-    Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="
+TODO: add more info.

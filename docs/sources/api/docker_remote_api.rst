@@ -69,3 +69,27 @@ Initial version
 
 .. _a8ae398: https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
+
+==================================
+Docker Remote API Client Libraries
+==================================
+
+These libraries have been not tested by the Docker Maintainers for
+compatibility. Please file issues with the library owners.  If you
+find more library implementations, please list them in Docker doc bugs
+and we will add the libraries here.
+
++----------------------+----------------+--------------------------------------------+
+| Language/Framework   | Name           | Repository                                 |
++======================+================+============================================+
+| Python               | docker-py      | https://github.com/dotcloud/docker-py      |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-ruby    | https://github.com/ActiveState/docker-ruby |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
++----------------------+----------------+--------------------------------------------+
+| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
++----------------------+----------------+--------------------------------------------+
+| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
+| **WebUI**            |                |                                            |
++----------------------+----------------+--------------------------------------------+

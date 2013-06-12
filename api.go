@@ -722,9 +722,18 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
+func optionsHandler(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
+func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
+}
+
+func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
-	log.Printf("Listening for HTTP on %s\n", addr)
 
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
@@ -764,6 +773,9 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 			"/containers/{name:.*}": deleteContainers,
 			"/images/{name:.*}":     deleteImages,
 		},
+		"OPTIONS": {
+			"": optionsHandler,
+		},
 	}
 
 	for method, routes := range m {
@@ -788,6 +800,9 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 				if err != nil {
 					version = APIVERSION
 				}
+				if srv.enableCors {
+					writeCorsHeaders(w, r)
+				}
 				if version == 0 || version > APIVERSION {
 					w.WriteHeader(http.StatusNotFound)
 					return
@@ -796,9 +811,24 @@ func ListenAndServe(addr string, srv *Server, logging bool) error {
 					httpError(w, err)
 				}
 			}
-			r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
-			r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
+
+			if localRoute == "" {
+				r.Methods(localMethod).HandlerFunc(f)
+			} else {
+				r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
+				r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
+			}
 		}
+	}
+	return r, nil
+}
+
+func ListenAndServe(addr string, srv *Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s\n", addr)
+
+	r, err := createRouter(srv, logging)
+	if err != nil {
+		return err
 	}
 	return http.ListenAndServe(addr, r)
 }
