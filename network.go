@@ -179,63 +179,6 @@ func getIfaceAddr(name string) (net.Addr, error) {
 	return addrs4[0], nil
 }
 
-// Port mapper takes care of mapping external ports to containers by setting
-// up iptables rules.
-// It keeps track of all mappings and is able to unmap at will
-type PortMapper struct {
-	mapping map[int]net.TCPAddr
-	proxies map[int]net.Listener
-}
-
-func (mapper *PortMapper) cleanup() error {
-	// Ignore errors - This could mean the chains were never set up
-	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
-	// Also cleanup rules created by older versions, or -X might fail.
-	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
-	iptables("-t", "nat", "-F", "DOCKER")
-	iptables("-t", "nat", "-X", "DOCKER")
-	mapper.mapping = make(map[int]net.TCPAddr)
-	mapper.proxies = make(map[int]net.Listener)
-	return nil
-}
-
-func (mapper *PortMapper) setup() error {
-	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
-	}
-	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
-	}
-	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
-	}
-	return nil
-}
-
-func (mapper *PortMapper) iptablesForward(rule string, port int, dest net.TCPAddr) error {
-	return iptables("-t", "nat", rule, "DOCKER", "-p", "tcp", "--dport", strconv.Itoa(port),
-		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest.IP.String(), strconv.Itoa(dest.Port)))
-}
-
-func (mapper *PortMapper) Map(port int, dest net.TCPAddr) error {
-	if err := mapper.iptablesForward("-A", port, dest); err != nil {
-		return err
-	}
-
-	mapper.mapping[port] = dest
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	if err != nil {
-		mapper.Unmap(port)
-		return err
-	}
-	mapper.proxies[port] = listener
-	go proxy(listener, "tcp", dest.String())
-	return nil
-}
-
 // proxy listens for socket connections on `listener`, and forwards them unmodified
 // to `proto:address`
 func proxy(listener net.Listener, proto, address string) error {
@@ -257,6 +200,7 @@ func proxy(listener net.Listener, proto, address string) error {
 		utils.Debugf("Connected to backend, splicing")
 		splice(src, dst)
 	}
+	panic("Unreachable")
 }
 
 func halfSplice(dst, src net.Conn) error {
@@ -272,19 +216,99 @@ func splice(a, b net.Conn) {
 	go halfSplice(b, a)
 }
 
-func (mapper *PortMapper) Unmap(port int) error {
-	dest, ok := mapper.mapping[port]
-	if !ok {
-		return errors.New("Port is not mapped")
+// Port mapper takes care of mapping external ports to containers by setting
+// up iptables rules.
+// It keeps track of all mappings and is able to unmap at will
+type PortMapper struct {
+	tcpMapping map[int]net.TCPAddr
+	tcpProxies map[int]net.Listener
+	udpMapping map[int]net.UDPAddr
+}
+
+func (mapper *PortMapper) cleanup() error {
+	// Ignore errors - This could mean the chains were never set up
+	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
+	// Also cleanup rules created by older versions, or -X might fail.
+	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
+	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
+	iptables("-t", "nat", "-F", "DOCKER")
+	iptables("-t", "nat", "-X", "DOCKER")
+	mapper.tcpMapping = make(map[int]net.TCPAddr)
+	mapper.tcpProxies = make(map[int]net.Listener)
+	mapper.udpMapping = make(map[int]net.UDPAddr)
+	return nil
+}
+
+func (mapper *PortMapper) setup() error {
+	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
+		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
 	}
-	if proxy, exists := mapper.proxies[port]; exists {
-		proxy.Close()
-		delete(mapper.proxies, port)
+	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
+		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
-	if err := mapper.iptablesForward("-D", port, dest); err != nil {
+	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER"); err != nil {
+		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+	}
+	return nil
+}
+
+func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, dest_addr string, dest_port int) error {
+	return iptables("-t", "nat", rule, "DOCKER", "-p", proto, "--dport", strconv.Itoa(port),
+		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
+}
+
+func (mapper *PortMapper) MapTCP(port int, dest net.TCPAddr) error {
+	if err := mapper.iptablesForward("-A", port, "tcp", dest.IP.String(), dest.Port); err != nil {
 		return err
 	}
-	delete(mapper.mapping, port)
+
+	mapper.tcpMapping[port] = dest
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		mapper.Unmap(port, "tcp")
+		return err
+	}
+	mapper.tcpProxies[port] = listener
+	go proxy(listener, "tcp", dest.String())
+
+	return nil
+}
+
+func (mapper *PortMapper) MapUDP(port int, dest net.UDPAddr) error {
+	if err := mapper.iptablesForward("-A", port, "udp", dest.IP.String(), dest.Port); err != nil {
+		return err
+	}
+	mapper.udpMapping[port] = dest
+
+	return nil
+}
+
+func (mapper *PortMapper) Unmap(port int, proto string) error {
+	if proto == "tcp" {
+		dest, ok := mapper.tcpMapping[port]
+		if !ok {
+			return fmt.Errorf("Port %v/%v is not mapped", port, proto)
+		}
+		if proxy, exists := mapper.tcpProxies[port]; exists {
+			proxy.Close()
+			delete(mapper.tcpProxies, port)
+		}
+		if err := mapper.iptablesForward("-D", port, proto, dest.IP.String(), dest.Port); err != nil {
+			return err
+		}
+		delete(mapper.tcpMapping, port)
+	} else {
+		dest, ok := mapper.udpMapping[port]
+		if !ok {
+			return fmt.Errorf("Port %v/%v is not mapped", port, proto)
+		}
+		if err := mapper.iptablesForward("-D", port, proto, dest.IP.String(), dest.Port); err != nil {
+			return err
+		}
+		delete(mapper.udpMapping, port)
+	}
 	return nil
 }
 
@@ -453,7 +477,7 @@ type NetworkInterface struct {
 	Gateway net.IP
 
 	manager  *NetworkManager
-	extPorts []int
+	extPorts []*Nat
 }
 
 // Allocate an external TCP port and map it to the interface
@@ -462,17 +486,32 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Allocate a random port if Frontend==0
-	extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend)
-	if err != nil {
-		return nil, err
+
+	if nat.Proto == "tcp" {
+		extPort, err := iface.manager.tcpPortAllocator.Acquire(nat.Frontend)
+		if err != nil {
+			return nil, err
+		}
+		backend := net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		if err := iface.manager.portMapper.MapTCP(extPort, backend); err != nil {
+			iface.manager.tcpPortAllocator.Release(extPort)
+			return nil, err
+		}
+		nat.Frontend = extPort
+	} else {
+		extPort, err := iface.manager.udpPortAllocator.Acquire(nat.Frontend)
+		if err != nil {
+			return nil, err
+		}
+		backend := net.UDPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		if err := iface.manager.portMapper.MapUDP(extPort, backend); err != nil {
+			iface.manager.udpPortAllocator.Release(extPort)
+			return nil, err
+		}
+		nat.Frontend = extPort
 	}
-	nat.Frontend = extPort
-	if err := iface.manager.portMapper.Map(nat.Frontend, net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}); err != nil {
-		iface.manager.portAllocator.Release(nat.Frontend)
-		return nil, err
-	}
-	iface.extPorts = append(iface.extPorts, nat.Frontend)
+	iface.extPorts = append(iface.extPorts, nat)
+
 	return nat, nil
 }
 
@@ -538,14 +577,17 @@ func parseNat(spec string) (*Nat, error) {
 
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
-	for _, port := range iface.extPorts {
-		if err := iface.manager.portMapper.Unmap(port); err != nil {
-			log.Printf("Unable to unmap port %v: %v", port, err)
+	for _, nat := range iface.extPorts {
+		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
+			log.Printf("Unable to unmap port %v: %v", nat.Frontend, err)
 		}
-		if err := iface.manager.portAllocator.Release(port); err != nil {
-			log.Printf("Unable to release port %v: %v", port, err)
+		if nat.Proto == "tcp" {
+			if err := iface.manager.tcpPortAllocator.Release(nat.Frontend); err != nil {
+				log.Printf("Unable to release port %v: %v", nat.Frontend, err)
+			}
+		} else if err := iface.manager.udpPortAllocator.Release(nat.Frontend); err != nil {
+			log.Printf("Unable to release port %v: %v", nat.Frontend, err)
 		}
-
 	}
 
 	iface.manager.ipAllocator.Release(iface.IPNet.IP)
@@ -557,9 +599,10 @@ type NetworkManager struct {
 	bridgeIface   string
 	bridgeNetwork *net.IPNet
 
-	ipAllocator   *IPAllocator
-	portAllocator *PortAllocator
-	portMapper    *PortMapper
+	ipAllocator		*IPAllocator
+	tcpPortAllocator	*PortAllocator
+	udpPortAllocator	*PortAllocator
+	portMapper		*PortMapper
 }
 
 // Allocate a network interface
@@ -592,7 +635,11 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 
 	ipAllocator := newIPAllocator(network)
 
-	portAllocator, err := newPortAllocator()
+	tcpPortAllocator, err := newPortAllocator()
+	if err != nil {
+		return nil, err
+	}
+	udpPortAllocator, err := newPortAllocator()
 	if err != nil {
 		return nil, err
 	}
@@ -603,11 +650,12 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 
 	manager := &NetworkManager{
-		bridgeIface:   bridgeIface,
-		bridgeNetwork: network,
-		ipAllocator:   ipAllocator,
-		portAllocator: portAllocator,
-		portMapper:    portMapper,
+		bridgeIface:		bridgeIface,
+		bridgeNetwork:		network,
+		ipAllocator:		ipAllocator,
+		tcpPortAllocator:	tcpPortAllocator,
+		udpPortAllocator:	udpPortAllocator,
+		portMapper:		portMapper,
 	}
 	return manager, nil
 }
