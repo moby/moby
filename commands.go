@@ -1443,7 +1443,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	}
 
-	if !term.IsTerminal(os.Stdin.Fd()) {
+	if !term.IsTerminal(in.Fd()) {
 		if err := <-sendStdin; err != nil {
 			return err
 		}
