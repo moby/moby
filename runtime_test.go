@@ -317,7 +317,7 @@ func TestGet(t *testing.T) {
 
 }
 
-func findAvailalblePort(runtime *Runtime, port int) (*Container, error) {
+func findAvailablePort(runtime *Runtime, port int) (*Container, error) {
 	strPort := strconv.Itoa(port)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image:     GetTestImage(runtime).ID,
@@ -351,7 +351,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 		port += 1
 		log.Println("Trying port", port)
 		t.Log("Trying port", port)
-		container, err = findAvailalblePort(runtime, port)
+		container, err = findAvailablePort(runtime, port)
 		if container != nil {
 			break
 		}
