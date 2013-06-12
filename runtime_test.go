@@ -375,7 +375,7 @@ func TestAllocatePortLocalhost(t *testing.T) {
 
 	conn, err := net.Dial("tcp",
 		fmt.Sprintf(
-			"localhost:%s", container.NetworkSettings.PortMapping[strconv.Itoa(port)],
+			"localhost:%s", container.NetworkSettings.PortMapping["Tcp"][strconv.Itoa(port)],
 		),
 	)
 	if err != nil {
