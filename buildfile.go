@@ -313,10 +313,11 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 	for {
 		line, err := file.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF && line == "" {
 				break
+			} else if err != io.EOF {
+				return "", err
 			}
-			return "", err
 		}
 		line = strings.Replace(strings.TrimSpace(line), "	", " ", 1)
 		// Skip comments and empty line

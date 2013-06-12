@@ -63,9 +63,6 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 	for _, repo := range results.Results {
 		var out APISearch
 		out.Description = repo["description"]
-		if len(out.Description) > 45 {
-			out.Description = utils.Trunc(out.Description, 42) + "..."
-		}
 		out.Name = repo["name"]
 		outs = append(outs, out)
 	}
