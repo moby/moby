@@ -197,14 +197,20 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-func (store *TagStore) GetImage(repoName, tag string) (*Image, error) {
+func (store *TagStore) GetImage(repoName, tagOrId string) (*Image, error) {
 	repo, err := store.Get(repoName)
 	if err != nil {
 		return nil, err
 	} else if repo == nil {
 		return nil, nil
 	}
-	if revision, exists := repo[tag]; exists {
+	//go through all the tags, to see if tag is in fact an ID
+	for _, revision := range repo {
+		if strings.HasPrefix(revision, tagOrId) {
+			return store.graph.Get(revision)
+		}
+	}
+	if revision, exists := repo[tagOrId]; exists {
 		return store.graph.Get(revision)
 	}
 	return nil, nil
