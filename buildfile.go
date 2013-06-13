@@ -220,12 +220,15 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
-	cid, err := b.run()
+
+	// Create the container and start it
+	c, err := b.builder.Create(b.config)
 	if err != nil {
 		return err
 	}
+	b.tmpContainers[c.ID] = struct{}{}
 
-	container := b.runtime.Get(cid)
+	container := b.runtime.Get(c.ID)
 	if container == nil {
 		return fmt.Errorf("Error while creating the container (CmdAdd)")
 	}
@@ -244,7 +247,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	if err := b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(c.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
 		return err
 	}
 	b.config.Cmd = cmd
