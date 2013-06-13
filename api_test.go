@@ -1307,8 +1307,63 @@ func TestGetEnabledCors(t *testing.T) {
 }
 
 func TestDeleteImages(t *testing.T) {
-	//FIXME: Implement this test
-	t.Log("Test not implemented")
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	if err := srv.runtime.repositories.Set("test", "test", unitTestImageName, true); err != nil {
+		t.Fatal(err)
+	}
+
+	images, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 2 {
+		t.Errorf("Excepted 2 images, %d found", len(images))
+	}
+
+	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	if err := deleteImages(srv, APIVERSION, r, req, map[string]string{"name": "test:test"}); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	var outs []APIRmi
+	if err := json.Unmarshal(r.Body.Bytes(), &outs); err != nil {
+		t.Fatal(err)
+	}
+	if len(outs) != 1 {
+		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs))
+	}
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 1 {
+		t.Errorf("Excepted 1 image, %d found", len(images))
+	}
+
+	/*	if c := runtime.Get(container.Id); c != nil {
+			t.Fatalf("The container as not been deleted")
+		}
+
+		if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
+			t.Fatalf("The test file has not been deleted")
+		} */
 }
 
 // Mocked types for tests

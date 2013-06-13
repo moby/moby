@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
@@ -717,15 +718,110 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	return nil
 }
 
-func (srv *Server) ImageDelete(name string) error {
-	img, err := srv.runtime.repositories.LookupImage(name)
-	if err != nil {
-		return fmt.Errorf("No such image: %s", name)
+var ErrImageReferenced = errors.New("Image referenced by a repository")
+
+func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
+	// If the image is referenced by a repo, do not delete
+	if len(srv.runtime.repositories.ByID()[id]) != 0 {
+		return ErrImageReferenced
 	}
-	if err := srv.runtime.graph.Delete(img.ID); err != nil {
-		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+
+	// If the image is not referenced but has children, go recursive
+	referenced := false
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
+	for _, img := range byParents[id] {
+		if err := srv.deleteImageAndChildren(img.ID, imgs); err != nil {
+			if err != ErrImageReferenced {
+				return err
+			}
+			referenced = true
+		}
+	}
+	if referenced {
+		return ErrImageReferenced
+	}
+
+	// If the image is not referenced and has no children, remove it
+	byParents, err = srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
+	if len(byParents[id]) == 0 {
+		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
+			return err
+		}
+		err := srv.runtime.graph.Delete(id)
+		if err != nil {
+			return err
+		}
+		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
+		return nil
 	}
 	return nil
+}
+
+func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
+	if img.Parent != "" {
+		parent, err := srv.runtime.graph.Get(img.Parent)
+		if err != nil {
+			return err
+		}
+		// Remove all children images
+		if err := srv.deleteImageAndChildren(img.Parent, imgs); err != nil {
+			return err
+		}
+		return srv.deleteImageParents(parent, imgs)
+	}
+	return nil
+}
+
+func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error) {
+	//Untag the current image
+	var imgs []APIRmi
+	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
+	if err != nil {
+		return nil, err
+	}
+	if tagDeleted {
+		imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
+	}
+	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
+		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
+			if err != ErrImageReferenced {
+				return &imgs, err
+			}
+		} else if err := srv.deleteImageParents(img, &imgs); err != nil {
+			if err != ErrImageReferenced {
+				return &imgs, err
+			}
+		}
+	}
+	return &imgs, nil
+}
+
+func (srv *Server) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
+	img, err := srv.runtime.repositories.LookupImage(name)
+	if err != nil {
+		return nil, fmt.Errorf("No such image: %s", name)
+	}
+	if !autoPrune {
+		if err := srv.runtime.graph.Delete(img.ID); err != nil {
+			return nil, fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+		}
+		return nil, nil
+	}
+
+	var tag string
+	if strings.Contains(name, ":") {
+		nameParts := strings.Split(name, ":")
+		name = nameParts[0]
+		tag = nameParts[1]
+	}
+
+	return srv.deleteImage(img, name, tag)
 }
 
 func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
