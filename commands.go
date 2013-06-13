@@ -287,27 +287,16 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return nil
 	}
 
-	body, _, err := cli.call("GET", "/auth", nil)
-	if err != nil {
-		return err
-	}
-
-	var out auth.AuthConfig
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return err
-	}
-
 	var username string
 	var password string
 	var email string
 
-	fmt.Print("Username (", out.Username, "): ")
+	fmt.Print("Username (", cli.authConfig.Username, "): ")
 	username = readAndEchoString(os.Stdin, os.Stdout)
 	if username == "" {
-		username = out.Username
+		username = cli.authConfig.Username
 	}
-	if username != out.Username {
+	if username != cli.authConfig.Username {
 		fmt.Print("Password: ")
 		password = readString(os.Stdin, os.Stdout)
 
@@ -315,20 +304,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			return fmt.Errorf("Error : Password Required")
 		}
 
-		fmt.Print("Email (", out.Email, "): ")
+		fmt.Print("Email (", cli.authConfig.Email, "): ")
 		email = readAndEchoString(os.Stdin, os.Stdout)
 		if email == "" {
-			email = out.Email
+			email = cli.authConfig.Email
 		}
 	} else {
-		email = out.Email
+		email = cli.authConfig.Email
 	}
+	term.RestoreTerminal(oldState)
 
-	out.Username = username
-	out.Password = password
-	out.Email = email
+	cli.authConfig.Username = username
+	cli.authConfig.Password = password
+	cli.authConfig.Email = email
 
-	body, _, err = cli.call("POST", "/auth", out)
+	body, _, err := cli.call("POST", "/auth", cli.authConfig)
 	if err != nil {
 		return err
 	}
@@ -336,10 +326,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	var out2 APIAuth
 	err = json.Unmarshal(body, &out2)
 	if err != nil {
+		auth.LoadConfig(os.Getenv("HOME"))
 		return err
 	}
+	auth.SaveConfig(cli.authConfig)
 	if out2.Status != "" {
-		term.RestoreTerminal(oldState)
 		fmt.Print(out2.Status)
 	}
 	return nil
@@ -724,18 +715,22 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	username, err := cli.checkIfLogged(*registry == "", "push")
-	if err != nil {
+	if err := cli.checkIfLogged(*registry == "", "push"); err != nil {
 		return err
 	}
 
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
+	}
+
+	buf, err := json.Marshal(cli.authConfig)
+	if err != nil {
+		return err
 	}
 
 	v := url.Values{}
 	v.Set("registry", *registry)
-	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, os.Stdout); err != nil {
+	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), os.Stdout); err != nil {
 		return err
 	}
 	return nil
@@ -1296,38 +1291,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) checkIfLogged(condition bool, action string) (string, error) {
-	body, _, err := cli.call("GET", "/auth", nil)
-	if err != nil {
-		return "", err
-	}
-
-	var out auth.AuthConfig
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return "", err
-	}
-
+func (cli *DockerCli) checkIfLogged(condition bool, action string) error {
 	// If condition AND the login failed
-	if condition && out.Username == "" {
+	if condition && cli.authConfig.Username == "" {
 		if err := cli.CmdLogin(""); err != nil {
-			return "", err
+			return err
 		}
-
-		body, _, err = cli.call("GET", "/auth", nil)
-		if err != nil {
-			return "", err
-		}
-		err = json.Unmarshal(body, &out)
-		if err != nil {
-			return "", err
-		}
-
-		if out.Username == "" {
-			return "", fmt.Errorf("Please login prior to %s. ('docker login')", action)
+		if cli.authConfig.Username == "" {
+			return fmt.Errorf("Please login prior to %s. ('docker login')", action)
 		}
 	}
-	return out.Username, nil
+	return nil
 }
 
 func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, error) {
@@ -1514,10 +1488,12 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 }
 
 func NewDockerCli(addr string, port int) *DockerCli {
-	return &DockerCli{addr, port}
+	authConfig, _ := auth.LoadConfig(os.Getenv("HOME"))
+	return &DockerCli{addr, port, authConfig}
 }
 
 type DockerCli struct {
-	host string
-	port int
+	host       string
+	port       int
+	authConfig *auth.AuthConfig
 }

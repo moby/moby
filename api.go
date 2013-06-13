@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.1
+const APIVERSION = 1.2
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -71,8 +71,10 @@ func getBoolParam(value string) (bool, error) {
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	// FIXME: Handle multiple login at once
-	// FIXME: return specific error code if config file missing?
+	if version > 1.1 {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
 	authConfig, err := auth.LoadConfig(srv.runtime.root)
 	if err != nil {
 		if err != auth.ErrConfigFileMissing {
@@ -89,29 +91,34 @@ func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	// FIXME: Handle multiple login at once
-	config := &auth.AuthConfig{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	authConfig := &auth.AuthConfig{}
+	err := json.NewDecoder(r.Body).Decode(authConfig)
+	if err != nil {
 		return err
 	}
-
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
-	if err != nil {
-		if err != auth.ErrConfigFileMissing {
+	status := ""
+	if version > 1.1 {
+		status, err = auth.Login(authConfig, false)
+		if err != nil {
 			return err
 		}
-		authConfig = &auth.AuthConfig{}
-	}
-	if config.Username == authConfig.Username {
-		config.Password = authConfig.Password
-	}
+	} else {
+		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
+		if err != nil {
+			if err != auth.ErrConfigFileMissing {
+				return err
+			}
+		}
+		if authConfig.Username == localAuthConfig.Username {
+			authConfig.Password = localAuthConfig.Password
+		}
 
-	newAuthConfig := auth.NewAuthConfig(config.Username, config.Password, config.Email, srv.runtime.root)
-	status, err := auth.Login(newAuthConfig)
-	if err != nil {
-		return err
+		newAuthConfig := auth.NewAuthConfig(authConfig.Username, authConfig.Password, authConfig.Email, srv.runtime.root)
+		status, err = auth.Login(newAuthConfig, true)
+		if err != nil {
+			return err
+		}
 	}
-
 	if status != "" {
 		b, err := json.Marshal(&APIAuth{Status: status})
 		if err != nil {
@@ -322,7 +329,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
 		registry := r.Form.Get("registry")
-		if err := srv.ImagePull(image, tag, registry, w, sf); err != nil {
+		if err := srv.ImagePull(image, tag, registry, w, sf, &auth.AuthConfig{}); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -390,6 +397,18 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	authConfig := &auth.AuthConfig{}
+	if version > 1.1 {
+		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+			return err
+		}
+	} else {
+		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
+		if err != nil && err != auth.ErrConfigFileMissing {
+			return err
+		}
+		authConfig = localAuthConfig
+	}
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -403,7 +422,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, registry, w, sf); err != nil {
+	if err := srv.ImagePush(name, registry, w, sf, authConfig); err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil
@@ -490,7 +509,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	imgs, err := srv.ImageDelete(name, version > 1.0)
+	imgs, err := srv.ImageDelete(name, version > 1.1)
 	if err != nil {
 		return err
 	}

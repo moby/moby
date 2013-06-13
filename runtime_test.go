@@ -68,7 +68,7 @@ func init() {
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 		panic(err)
 	}
 }
