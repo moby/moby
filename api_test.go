@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -18,7 +17,7 @@ import (
 	"time"
 )
 
-func TestGetAuth(t *testing.T) {
+func TestPostAuth(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -53,12 +52,6 @@ func TestGetAuth(t *testing.T) {
 
 	if r.Code != http.StatusOK && r.Code != 0 {
 		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
-	}
-
-	newAuthConfig := registry.NewRegistry(runtime.root).GetAuthConfig(false)
-	if newAuthConfig.Username != authConfig.Username ||
-		newAuthConfig.Email != authConfig.Email {
-		t.Fatalf("The auth configuration hasn't been set correctly")
 	}
 }
 
@@ -491,40 +484,6 @@ func TestGetContainersByName(t *testing.T) {
 	}
 	if outContainer.ID != container.ID {
 		t.Fatalf("Wrong containers retrieved. Expected %s, recieved %s", container.ID, outContainer.ID)
-	}
-}
-
-func TestPostAuth(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime: runtime,
-	}
-
-	config := &auth.AuthConfig{
-		Username: "utest",
-		Email:    "utest@yopmail.com",
-	}
-
-	authStr := auth.EncodeAuth(config)
-	auth.SaveConfig(runtime.root, authStr, config.Email)
-
-	r := httptest.NewRecorder()
-	if err := getAuth(srv, APIVERSION, r, nil, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	authConfig := &auth.AuthConfig{}
-	if err := json.Unmarshal(r.Body.Bytes(), authConfig); err != nil {
-		t.Fatal(err)
-	}
-
-	if authConfig.Username != config.Username || authConfig.Email != config.Email {
-		t.Errorf("The retrieve auth mismatch with the one set.")
 	}
 }
 
