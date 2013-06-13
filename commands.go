@@ -1045,7 +1045,9 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		connections += 1
 	}
 	chErrors := make(chan error, connections)
-	cli.monitorTtySize(cmd.Arg(0))
+	if container.Config.Tty {
+		cli.monitorTtySize(cmd.Arg(0))
+	}
 	if splitStderr {
 		go func() {
 			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
@@ -1256,7 +1258,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 	if connections > 0 {
 		chErrors := make(chan error, connections)
-		cli.monitorTtySize(out.ID)
+		if config.Tty {
+			cli.monitorTtySize(out.ID)
+		}
 
 		if splitStderr && config.AttachStderr {
 			go func() {
@@ -1283,6 +1287,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		for connections > 0 {
 			err := <-chErrors
 			if err != nil {
+				utils.Debugf("Error hijack: %s", err)
 				return err
 			}
 			connections -= 1
@@ -1431,19 +1436,22 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		defer term.RestoreTerminal(oldState)
 	}
 	sendStdin := utils.Go(func() error {
-		_, err := io.Copy(rwc, in)
+		io.Copy(rwc, in)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't send EOF: %s\n", err)
+			utils.Debugf("Couldn't send EOF: %s\n", err)
 		}
-		return err
+		// Discard errors due to pipe interruption
+		return nil
 	})
 
 	if err := <-receiveStdout; err != nil {
+		utils.Debugf("Error receiveStdout: %s", err)
 		return err
 	}
 
 	if !term.IsTerminal(in.Fd()) {
 		if err := <-sendStdin; err != nil {
+			utils.Debugf("Error sendStdin: %s", err)
 			return err
 		}
 	}
