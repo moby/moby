@@ -176,16 +176,14 @@ func (b *buildFile) CmdAdd(args string) error {
 	dest := strings.Trim(tmp[1], " ")
 
 	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
-	cid, err := b.run()
+
+	// Create the container and start it
+	container, err := b.builder.Create(b.config)
 	if err != nil {
 		return err
 	}
+	b.tmpContainers[container.ID] = struct{}{}
 
-	container := b.runtime.Get(cid)
-	if container == nil {
-		return fmt.Errorf("Error while creating the container (CmdAdd)")
-	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
@@ -220,7 +218,7 @@ func (b *buildFile) CmdAdd(args string) error {
 			return err
 		}
 	}
-	if err := b.commit(cid, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
 		return err
 	}
 	b.config.Cmd = cmd
@@ -272,11 +270,19 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			utils.Debugf("[BUILDER] Cache miss")
 		}
 
-		cid, err := b.run()
+		// Create the container and start it
+		container, err := b.builder.Create(b.config)
 		if err != nil {
 			return err
 		}
-		id = cid
+		b.tmpContainers[container.ID] = struct{}{}
+
+		if err := container.EnsureMounted(); err != nil {
+			return err
+		}
+		defer container.Unmount()
+
+		id = container.ID
 	}
 
 	container := b.runtime.Get(id)
