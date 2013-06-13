@@ -222,16 +222,12 @@ func (b *buildFile) CmdAdd(args string) error {
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 
 	// Create the container and start it
-	c, err := b.builder.Create(b.config)
+	container, err := b.builder.Create(b.config)
 	if err != nil {
 		return err
 	}
-	b.tmpContainers[c.ID] = struct{}{}
+	b.tmpContainers[container.ID] = struct{}{}
 
-	container := b.runtime.Get(c.ID)
-	if container == nil {
-		return fmt.Errorf("Error while creating the container (CmdAdd)")
-	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
@@ -247,7 +243,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	if err := b.commit(c.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
 		return err
 	}
 	b.config.Cmd = cmd
@@ -266,6 +262,7 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
+	fmt.Fprintf(b.out, "## %s\n", c.ID)
 
 	//start the container
 	if err := c.Start(); err != nil {
@@ -301,11 +298,16 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			utils.Debugf("[BUILDER] Cache miss")
 		}
 
-		cid, err := b.run()
+		container, err := b.builder.Create(b.config)
 		if err != nil {
 			return err
 		}
-		id = cid
+		b.tmpContainers[container.ID] = struct{}{}
+		id = container.ID
+		if err := container.EnsureMounted(); err != nil {
+			return err
+		}
+		defer container.Unmount()
 	}
 
 	container := b.runtime.Get(id)
@@ -374,7 +376,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		fmt.Fprintf(b.out, "===> %v\n", b.image)
 	}
 	if b.image != "" {
-		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
+		fmt.Fprintf(b.out, "Build successful.\n%s\n", b.image)
 		return b.image, nil
 	}
 	return "", fmt.Errorf("An error occured during the build\n")
