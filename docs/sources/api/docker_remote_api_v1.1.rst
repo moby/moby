@@ -1,3 +1,4 @@
+
 :title: Remote API v1.1
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
@@ -744,6 +745,7 @@ Tag an image into a repository
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 

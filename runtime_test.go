@@ -17,7 +17,7 @@ import (
 )
 
 const unitTestImageName string = "docker-ut"
-
+const unitTestImageId string = "e9aa60c60128cad1"
 const unitTestStoreBase string = "/var/lib/docker/unit-tests"
 
 func nuke(runtime *Runtime) error {

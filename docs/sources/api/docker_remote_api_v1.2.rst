@@ -745,6 +745,7 @@ Tag an image into a repository
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -765,10 +766,18 @@ Remove an image
 
         .. sourcecode:: http
 
-           HTTP/1.1 204 OK
+	   HTTP/1.1 200 OK
+	   Content-type: application/json
+
+	   [
+	    {"Untagged":"3e2f21a89f"},
+	    {"Deleted":"3e2f21a89f"},
+	    {"Deleted":"53b4f83ac9"}
+	   ]
 
 	:statuscode 204: no error
         :statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 

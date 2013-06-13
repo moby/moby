@@ -45,6 +45,8 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	} else if strings.HasPrefix(err.Error(), "Conflict") {
+		http.Error(w, err.Error(), http.StatusConflict)
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
@@ -500,14 +502,30 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 }
 
 func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	if err := srv.ImageDelete(name); err != nil {
+	imgs, err := srv.ImageDelete(name, version > 1.1)
+	if err != nil {
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if imgs != nil {
+		if len(*imgs) != 0 {
+			b, err := json.Marshal(imgs)
+			if err != nil {
+				return err
+			}
+			writeJSON(w, b)
+		} else {
+			return fmt.Errorf("Conflict, %s wasn't deleted", name)
+		}
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 	return nil
 }
 

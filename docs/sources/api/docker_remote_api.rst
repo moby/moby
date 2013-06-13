@@ -35,6 +35,9 @@ The client should send it's authConfig as POST on each call of /images/(name)/pu
 .. http:get:: /auth is now deprecated
 .. http:post:: /auth only checks the configuration but doesn't store it on the server
 
+Deleting an image is now improved, will only untag the image if it has chidrens and remove all the untagged parents if has any.
+.. http:post:: /images/<name>/delete now returns a JSON with the list of images deleted/untagged
+
 
 :doc:`docker_remote_api_v1.1`
 *****************************
@@ -60,12 +63,14 @@ Uses json stream instead of HTML hijack, it looks like this:
 	   {"error":"Invalid..."}
 	   ...
 
-:doc:`docker_remote_api_v1.0`
-*****************************
 
 docker v0.3.4 8d73740_
 
+What's new
+----------
+
 Initial version
+
 
 .. _a8ae398: https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
