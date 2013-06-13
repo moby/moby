@@ -17,7 +17,7 @@ func TestLookupImage(t *testing.T) {
 		t.Errorf("Expected 1 image, none found")
 	}
 
-	if img, err := runtime.repositories.LookupImage(unitTestImageName + ":" + DEFAULT_TAG); err != nil {
+	if img, err := runtime.repositories.LookupImage(unitTestImageName + ":" + DEFAULTTAG); err != nil {
 		t.Fatal(err)
 	} else if img == nil {
 		t.Errorf("Expected 1 image, none found")
