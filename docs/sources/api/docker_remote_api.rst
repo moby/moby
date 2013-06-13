@@ -564,7 +564,7 @@ Create an image
 	   Content-Type: application/json
 
 	   {"status":"Pulling..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Pulling", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -607,7 +607,7 @@ Insert a file in a image
 	   Content-Type: application/json
 
 	   {"status":"Inserting..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Inserting", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -734,7 +734,7 @@ Push an image on the registry
 	   Content-Type: application/json
 
 	   {"status":"Pushing..."}
-	   {"progress":"1/? (n/a)"}
+	   {"status":"Pushing", "progress":"1/? (n/a)"}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -777,6 +777,7 @@ Tag an image into a repository
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -793,14 +794,30 @@ Remove an image
 
 	   DELETE /images/test HTTP/1.1
 
-	**Example response**:
+	**Example response v1.0**:
 
         .. sourcecode:: http
 
            HTTP/1.1 204 OK
 
+	**Example response v1.1**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-type: application/json
+
+	   [
+	    {"Untagged":"3e2f21a89f"},
+	    {"Deleted":"3e2f21a89f"},
+	    {"Deleted":"53b4f83ac9"}
+	   ]
+
+	:query force: 1/True/true or 0/False/false, default false
+	:statuscode 200: no error
 	:statuscode 204: no error
         :statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -839,9 +856,9 @@ Search images
 		}
 	   ]
 
-	   :query term: term to search
-	   :statuscode 200: no error
-	   :statuscode 500: server error
+	:query term: term to search
+	:statuscode 200: no error
+	:statuscode 500: server error
 
 
 3.3 Misc
@@ -1056,3 +1073,36 @@ Here are the steps of 'docker run' :
 
 In this first version of the API, some of the endpoints, like /attach, /pull or /push uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
+
+3.3 CORS Requests
+-----------------
+
+To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
+    
+    docker -d -H="192.168.1.9:4243" -api-enable-cors
+
+
+==================================
+Docker Remote API Client Libraries
+==================================
+
+These libraries have been not tested by the Docker Maintainers for
+compatibility. Please file issues with the library owners.  If you
+find more library implementations, please list them in Docker doc bugs
+and we will add the libraries here.
+
++----------------------+----------------+--------------------------------------------+
+| Language/Framework   | Name           | Repository                                 |
++======================+================+============================================+
+| Python               | docker-py      | https://github.com/dotcloud/docker-py      |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-ruby    | https://github.com/ActiveState/docker-ruby |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
++----------------------+----------------+--------------------------------------------+
+| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
++----------------------+----------------+--------------------------------------------+
+| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
+| **WebUI**            |                |                                            |
++----------------------+----------------+--------------------------------------------+
+

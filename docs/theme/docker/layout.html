@@ -64,14 +64,15 @@
 
             <div style="float: right" class="pull-right">
                 <ul class="nav">
-                    <li><a href="http://www.docker.io/">Introduction</a></li>
-                    <li><a href="http://www.docker.io/gettingstarted/">Getting started</a></li>
-                    <li class="active"><a href="http://docs.docker.io/en/latest/">Documentation</a></li>
+                    <li id="nav-introduction"><a href="http://www.docker.io/">Introduction</a></li>
+                    <li id="nav-gettingstarted"><a href="http://www.docker.io/gettingstarted/">Getting started</a></li>
+                    <li id="nav-documentation" class="active"><a href="http://docs.docker.io/en/latest/">Documentation</a></li>
+                    <li id="nav-blog"><a href="http://blog.docker.io/">Blog</a></li>
                 </ul>
-                <div class="social links" style="float: right; margin-top: 14px; margin-left: 12px">
-                    <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
-                    <a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
-                </div>
+                <!--<div class="social links" style="float: right; margin-top: 14px; margin-left: 12px">-->
+                    <!--<a class="twitter" href="http://twitter.com/getdocker">Twitter</a>-->
+                    <!--<a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>-->
+                <!--</div>-->
             </div>
 
             <div style="margin-left: -12px; float: left;">
@@ -86,8 +87,13 @@
 
 <div class="container">
     <div class="row">
-        <div class="span12 titlebar"><h1 class="pageheader">DOCUMENTATION</h1>
+        <div class="span12 titlebar">
             <!--<span class="pull-right" style="margin-left: 20px; font-size: 20px">{{version}}</span>-->
+            <div class="pull-right" id="fork-us" style="margin-top: 16px; margin-right: 16px;">
+                <a  href="http://github.com/dotcloud/docker/"><img src="{{ pathto('_static/img/fork-us.png', 1) }}"> Fork us on Github</a>
+            </div>
+            <h1 class="pageheader">DOCUMENTATION</h1>
+
         </div>
     </div>
 
@@ -123,8 +129,14 @@
     <div class="row">
 
         <div class="span12 footer">
+            <div class="tbox textright forceleftmargin social links pull-right">
+                <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
+                <a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
+            </div>
 
             Docker is a project by <a href="http://www.dotcloud.com">dotCloud</a>
+
+
 {#            {%- if show_source and has_source and sourcename %}#}
 {#            ·#}
 {#            <a href="{{ pathto('_sources/' + sourcename, true)|e }}"#}
@@ -157,7 +169,7 @@
   <!-- script which should be loaded after everything else -->
 <script type="text/javascript">
 
-
+    // Function to make the sticky header possible
     var shiftWindow = function() {
         scrollBy(0, -70);
         console.log("window shifted")

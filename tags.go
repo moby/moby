@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const DEFAULT_TAG = "latest"
+const DEFAULTTAG = "latest"
 
 type TagStore struct {
 	path         string
@@ -72,7 +72,7 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 		// (so we can pass all errors here)
 		repoAndTag := strings.SplitN(name, ":", 2)
 		if len(repoAndTag) == 1 {
-			repoAndTag = append(repoAndTag, DEFAULT_TAG)
+			repoAndTag = append(repoAndTag, DEFAULTTAG)
 		}
 		if i, err := store.GetImage(repoAndTag[0], repoAndTag[1]); err != nil {
 			return nil, err
@@ -87,27 +87,73 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 
 // Return a reverse-lookup table of all the names which refer to each image
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
-func (store *TagStore) ById() map[string][]string {
-	byId := make(map[string][]string)
+func (store *TagStore) ByID() map[string][]string {
+	byID := make(map[string][]string)
 	for repoName, repository := range store.Repositories {
 		for tag, id := range repository {
 			name := repoName + ":" + tag
-			if _, exists := byId[id]; !exists {
-				byId[id] = []string{name}
+			if _, exists := byID[id]; !exists {
+				byID[id] = []string{name}
 			} else {
-				byId[id] = append(byId[id], name)
-				sort.Strings(byId[id])
+				byID[id] = append(byID[id], name)
+				sort.Strings(byID[id])
 			}
 		}
 	}
-	return byId
+	return byID
 }
 
 func (store *TagStore) ImageName(id string) string {
-	if names, exists := store.ById()[id]; exists && len(names) > 0 {
+	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
 		return names[0]
 	}
-	return utils.TruncateId(id)
+	return utils.TruncateID(id)
+}
+
+func (store *TagStore) DeleteAll(id string) error {
+	names, exists := store.ByID()[id]
+	if !exists || len(names) == 0 {
+		return nil
+	}
+	for _, name := range names {
+		if strings.Contains(name, ":") {
+			nameParts := strings.Split(name, ":")
+			if _, err := store.Delete(nameParts[0], nameParts[1]); err != nil {
+				return err
+			}
+		} else {
+			if _, err := store.Delete(name, ""); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+	deleted := false
+	if err := store.Reload(); err != nil {
+		return false, err
+	}
+	if r, exists := store.Repositories[repoName]; exists {
+		if tag != "" {
+			if _, exists2 := r[tag]; exists2 {
+				delete(r, tag)
+				if len(r) == 0 {
+					delete(store.Repositories, repoName)
+				}
+				deleted = true
+			} else {
+				return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+			}
+		} else {
+			delete(store.Repositories, repoName)
+			deleted = true
+		}
+	} else {
+		fmt.Errorf("No such repository: %s", repoName)
+	}
+	return deleted, store.Save()
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
@@ -116,7 +162,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		return err
 	}
 	if tag == "" {
-		tag = DEFAULT_TAG
+		tag = DEFAULTTAG
 	}
 	if err := validateRepoName(repoName); err != nil {
 		return err
@@ -133,11 +179,11 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	} else {
 		repo = make(map[string]string)
 		if old, exists := store.Repositories[repoName]; exists && !force {
-			return fmt.Errorf("Tag %s:%s is already set to %s", repoName, tag, old)
+			return fmt.Errorf("Conflict: Tag %s:%s is already set to %s", repoName, tag, old)
 		}
 		store.Repositories[repoName] = repo
 	}
-	repo[tag] = img.Id
+	repo[tag] = img.ID
 	return store.Save()
 }
 

@@ -16,12 +16,12 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // the registry server we want to login against
-const INDEX_SERVER = "https://index.docker.io/v1"
+const INDEXSERVER = "https://index.docker.io/v1"
 
-//const INDEX_SERVER = "http://indexstaging-docker.dotcloud.com/"
+//const INDEXSERVER = "http://indexstaging-docker.dotcloud.com/"
 
 var (
-	ErrConfigFileMissing error = errors.New("The Auth config file is missing")
+	ErrConfigFileMissing = errors.New("The Auth config file is missing")
 )
 
 type AuthConfig struct {
@@ -44,7 +44,7 @@ func IndexServerAddress() string {
 	if os.Getenv("DOCKER_INDEX_URL") != "" {
 		return os.Getenv("DOCKER_INDEX_URL") + "/v1"
 	}
-	return INDEX_SERVER
+	return INDEXSERVER
 }
 
 // create a base64 encoded auth string to store in config

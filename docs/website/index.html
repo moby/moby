@@ -44,8 +44,17 @@
         .debug {
             border: 1px red dotted;
         }
+        .twitterblock {
+            min-height: 75px;
+        }
+
+        .twitterblock img {
+            float: left;
+            margin-right: 10px;
+        }
 
     </style>
+
 
 </head>
 
@@ -56,17 +65,18 @@
     <div class="navbar-dotcloud">
         <div class="container" style="text-align: center;">
 
+
+            <div class="pull-left" id="fork-us" style="margin-top: 16px;">
+                <a  href="http://github.com/dotcloud/docker/"><img src="static/img/fork-us.png" alt="fork-icon"> Fork us on Github</a>
+            </div>
+
             <div class="pull-right" >
                 <ul class="nav">
-                    <li class="active"><a href="/">Introduction</a></li>
-                    <li ><a href="gettingstarted">Getting started</a></li>
-                    <li class=""><a href="http://docs.docker.io/en/latest/">Documentation</a></li>
+                    <li id="nav-introduction" class="active"><a href="/">Introduction</a></li>
+                    <li id="nav-gettingstarted"><a href="gettingstarted">Getting started</a></li>
+                    <li id="nav-documentation" class=""><a href="http://docs.docker.io/en/latest/">Documentation</a></li>
+                    <li id="nav-blog"><a href="http://blog.docker.io/">Blog</a></li>
                 </ul>
-
-                <div class="social links" style="float: right; margin-top: 14px; margin-left: 12px">
-                    <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
-                    <a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
-                </div>
             </div>
         </div>
     </div>
@@ -81,7 +91,7 @@
 
                 <div class="span5" style="margin-bottom: 15px;">
                     <div style="text-align: center;" >
-                        <img src="static/img/docker_letters_500px.png">
+                        <img src="static/img/docker_letters_500px.png" alt="docker letters">
 
                         <h2>The Linux container engine</h2>
                     </div>
@@ -130,7 +140,7 @@
             <section class="contentblock">
                 <div class="container">
                 <div class="span2" style="margin-left: 0" >
-                    <a href="http://dotcloud.theresumator.com/apply/mWjkD4/Software-Engineer.html" title="Job description"><img src="static/img/hiring_graphic.png" width="140px" style="margin-top: 25px"></a>
+                    <a href="http://dotcloud.theresumator.com/apply/mWjkD4/Software-Engineer.html" title="Job description"><img src="static/img/hiring_graphic.png" alt="we're hiring" width="140" style="margin-top: 25px"></a>
                 </div>
                 <div class="span4" style="margin-left: 0">
                     <h4>Do you think it is cool to hack on docker? Join us!</h4>
@@ -156,7 +166,7 @@
                     </div>
                 </a>
                 &nbsp;
-                <input type="button" class="searchbutton" type="submit" value="Search images"
+                <input type="button" class="searchbutton" value="Search images"
                        onClick="window.open('https://index.docker.io')" />
 
             </section>
@@ -184,32 +194,19 @@
 
 </div>
 
-<style>
-    .twitterblock {
-        min-height: 75px;
-    }
-
-    .twitterblock img {
-        float: left;
-        margin-right: 10px;
-    }
-
-</style>
-
-
 <div class="container">
 
     <div class="row">
         <div class="span6">
             <section class="contentblock twitterblock">
                 <img src="https://si0.twimg.com/profile_images/2707460527/252a64411a339184ff375a96fb68dcb0_bigger.png">
-                <em>Mitchell Hashimoto‏@mitchellh:</em> Docker launched today. It is incredible. They’re also working RIGHT NOW on a Vagrant provider. LXC is COMING!!
+                <em>Mitchell Hashimoto ‏@mitchellh:</em> Docker launched today. It is incredible. They’re also working RIGHT NOW on a Vagrant provider. LXC is COMING!!
             </section>
         </div>
         <div class="span6">
             <section class="contentblock twitterblock">
                 <img src="https://si0.twimg.com/profile_images/1108290260/Adam_Jacob-114x150_original_bigger.jpg">
-                <em>Adam Jacob‏@adamhjk:</em> Docker is clearly the right idea. @solomonstre absolutely killed it. Containerized app deployment is the future, I think.
+                <em>Adam Jacob ‏@adamhjk:</em> Docker is clearly the right idea. @solomonstre absolutely killed it. Containerized app deployment is the future, I think.
             </section>
         </div>
     </div>
@@ -217,13 +214,13 @@
         <div class="span6">
             <section class="contentblock twitterblock">
                 <img src="https://si0.twimg.com/profile_images/14872832/twitter_pic_bigger.jpg">
-                <em>Matt Townsend‏@mtownsend:</em> I have a serious code crush on docker.io - it's Lego for PaaS. Motherfucking awesome Lego.
+                <em>Matt Townsend ‏@mtownsend:</em> I have a serious code crush on docker.io - it's Lego for PaaS. Motherfucking awesome Lego.
             </section>
         </div>
         <div class="span6">
             <section class="contentblock twitterblock">
                 <img src="https://si0.twimg.com/profile_images/1312352395/rupert-259x300_bigger.jpg">
-                <em>Rob Harrop‏@robertharrop:</em> Impressed by @getdocker - it's all kinds of magic. Serious rethink of AWS architecture happening @skillsmatter.
+                <em>Rob Harrop ‏@robertharrop:</em> Impressed by @getdocker - it's all kinds of magic. Serious rethink of AWS architecture happening @skillsmatter.
             </section>
         </div>
     </div>
@@ -317,7 +314,10 @@
     <footer id="footer" class="footer">
         <div class="row">
             <div class="span12">
-
+                <div class="tbox textright forceleftmargin social links pull-right">
+                    <a class="twitter" href="http://twitter.com/getdocker">Twitter</a>
+                    <a class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
+                </div>
                 Docker is a project by <a href="http://www.dotcloud.com">dotCloud</a>
 
             </div>

@@ -2,6 +2,7 @@
 :description: Docker's tutorial to run docker on Windows
 :keywords: Docker, Docker documentation, Windows, requirements, virtualbox, vagrant, git, ssh, putty, cygwin
 
+.. _windows:
 
 Using Vagrant (Windows)
 =======================

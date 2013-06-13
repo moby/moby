@@ -18,7 +18,7 @@ steps and commit them along the way, giving you a final image.
 To use Docker Builder, assemble the steps into a text file (commonly referred to
 as a Dockerfile) and supply this to `docker build` on STDIN, like so:
 
-    ``docker build < Dockerfile``
+    ``docker build - < Dockerfile``
 
 Docker will run your steps one-by-one, committing the result if necessary, 
 before finally outputting the ID of your new image.

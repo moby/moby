@@ -251,7 +251,7 @@ Note
 ----
 
 We also keep the documentation in this repository. The website documentation is generated using sphinx using these sources.
-Please find it under docs/sources/ and read more about it https://github.com/dotcloud/docker/master/docs/README.md
+Please find it under docs/sources/ and read more about it https://github.com/dotcloud/docker/tree/master/docs/README.md
 
 Please feel free to fix / update the documentation and send us pull requests. More tutorials are also welcome.
 
@@ -371,4 +371,10 @@ Standard Container Specification
 
 #### Security
 
+### Legal
+
+Transfers of Docker shall be in accordance with applicable export controls of any country and all other applicable
+legal requirements.  Docker shall not be distributed or downloaded to or in Cuba, Iran, North Korea, Sudan or Syria
+and shall not be distributed or downloaded to any person on the Denied Persons List administered by the U.S.
+Department of Commerce.
 

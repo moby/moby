@@ -34,7 +34,7 @@ func Go(f func() error) chan error {
 // Request a given URL and return an io.Reader
 func Download(url string, stderr io.Writer) (*http.Response, error) {
 	var resp *http.Response
-	var err error = nil
+	var err error
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
@@ -349,11 +349,11 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	return string(idx.bytes[before:after]), err
 }
 
-// TruncateId returns a shorthand version of a string identifier for convenience.
+// TruncateID returns a shorthand version of a string identifier for convenience.
 // A collision with other shorthands is very unlikely, but possible.
 // In case of a collision a lookup with TruncIndex.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length Id.
-func TruncateId(id string) string {
+func TruncateID(id string) string {
 	shortLen := 12
 	if len(id) < shortLen {
 		shortLen = len(id)
@@ -566,7 +566,7 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-type JsonMessage struct {
+type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
@@ -585,7 +585,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JsonMessage{Status:str});
+		b, err := json.Marshal(&JSONMessage{Status:str});
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -597,7 +597,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JsonMessage{Error:err.Error()}); err == nil {
+		if b, err := json.Marshal(&JSONMessage{Error:err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
@@ -608,7 +608,7 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JsonMessage{Progress:str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress:str})
 		if err != nil {
                         return nil
                 }

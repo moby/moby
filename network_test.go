@@ -18,6 +18,32 @@ func TestIptables(t *testing.T) {
 	}
 }
 
+func TestParseNat(t *testing.T) {
+	if nat, err := parseNat("4500"); err == nil {
+		if nat.Frontend != 0 || nat.Backend != 4500 {
+			t.Errorf("-p 4500 should produce 0->4500, got %d->%d", nat.Frontend, nat.Backend)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat(":4501"); err == nil {
+		if nat.Frontend != 4501 || nat.Backend != 4501 {
+			t.Errorf("-p :4501 should produce 4501->4501, got %d->%d", nat.Frontend, nat.Backend)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat("4502:4503"); err == nil {
+		if nat.Frontend != 4502 || nat.Backend != 4503 {
+			t.Errorf("-p 4502:4503 should produce 4502->4503, got %d->%d", nat.Frontend, nat.Backend)
+		}
+	} else {
+		t.Fatal(err)
+	}
+}
+
 func TestPortAllocation(t *testing.T) {
 	allocator, err := newPortAllocator()
 	if err != nil {
@@ -137,7 +163,7 @@ func TestConversion(t *testing.T) {
 	if i == 0 {
 		t.Fatal("converted to zero")
 	}
-	conv := intToIp(i)
+	conv := intToIP(i)
 	if !ip.Equal(conv) {
 		t.Error(conv.String())
 	}
