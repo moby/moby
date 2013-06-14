@@ -200,21 +200,17 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err := os.MkdirAll(destPath, 0700); err != nil {
 			return err
 		}
-
-		files, err := ioutil.ReadDir(path.Join(b.context, orig))
-		if err != nil {
+		if err := CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-		for _, fi := range files {
-			if err := utils.CopyDirectory(path.Join(origPath, fi.Name()), path.Join(destPath, fi.Name())); err != nil {
-				return err
-			}
-		}
-	} else {
+		// First try to unpack the source as an archive
+	} else if err := UntarPath(origPath, destPath); err != nil {
+		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
+		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
 			return err
 		}
-		if err := utils.CopyDirectory(origPath, destPath); err != nil {
+		if err := CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 	}
