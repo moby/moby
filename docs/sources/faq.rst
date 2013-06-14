@@ -35,13 +35,16 @@ Most frequently asked questions.
 
     You can find more answers on:
 
-    * `IRC: docker on freenode`_
+    * `Docker club mailinglist`_
+    * `IRC, docker on freenode`_
     * `Github`_
     * `Ask questions on Stackoverflow`_
     * `Join the conversation on Twitter`_
 
+
+    .. _Docker club mailinglist: https://groups.google.com/d/forum/docker-club
     .. _the repo: http://www.github.com/dotcloud/docker
-    .. _IRC: docker on freenode: docker on freenode: irc://chat.freenode.net#docker
+    .. _IRC, docker on freenode: irc://chat.freenode.net#docker
     .. _Github: http://www.github.com/dotcloud/docker
     .. _Ask questions on Stackoverflow: http://stackoverflow.com/search?q=docker
     .. _Join the conversation on Twitter: http://twitter.com/getdocker

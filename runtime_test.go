@@ -20,6 +20,7 @@ const (
 	unitTestImageName     = "docker-ut"
 	unitTestStoreBase     = "/var/lib/docker/unit-tests"
 	unitTestNetworkBridge = "testdockbr0"
+	unitTestImageId       = "e9aa60c60128cad1"
 )
 
 var offlineMode = os.Getenv("OFFLINE_MODE") != "" && os.Getenv("OFFLINE_MODE") != "0" && strings.ToLower(os.Getenv("OFFLINE_MODE")) != "false"
@@ -80,7 +81,7 @@ func init() {
 			runtime: runtime,
 		}
 		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
+		if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 			panic(err)
 		}
 	}
