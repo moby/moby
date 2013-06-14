@@ -69,7 +69,7 @@ func init() {
 	}
 
 	// If the unit test image is not found, try to download it.
-	if _, err := runtime.repositories.LookupImage(unitTestImageName); err != nil {
+	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageId {
 		utils.Debugf("Error getting %s: %s", unitTestImageName, err)
 
 		if offlineMode {
