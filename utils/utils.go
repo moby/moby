@@ -86,7 +86,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(r.readProgress), HumanSize(r.readTotal), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -108,18 +108,6 @@ func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte
 		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
-}
-
-func HumanSize(origSize int) string {
-	size := float64(origSize)
-	for _, unit := range []string{"b", "Kb", "Mb", "Gb", "Tb"} {
-		if int(size)/1024 == 0 {
-			return fmt.Sprintf("%.03f%s", size, unit)
-		} else {
-			size = size / 1024
-		}
-	}
-	return strconv.Itoa(origSize)
 }
 
 // HumanDuration returns a human-readable approximation of a duration
