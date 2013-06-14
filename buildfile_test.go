@@ -11,8 +11,13 @@ const Dockerfile = `
 # DOCKER-VERSION	0.2
 
 from   ` + unitTestImageName + `
+maintainer docker
+expose 22
+env    FOO BAR
+cmd    ["echo", "hello", "world"]
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
+add    . /src
 `
 
 const DockerfileNoNewLine = `
@@ -20,10 +25,15 @@ const DockerfileNoNewLine = `
 # DOCKER-VERSION	0.2
 
 from   ` + unitTestImageName + `
+maintainer docker
+expose 22
+env    FOO BAR
+cmd    ["echo", "hello", "world"]
 run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd`
+run    mkdir -p /var/run/sshd
+add    . /src`
 
-func TestBuild(t *testing.T) {
+func TestBuildFile(t *testing.T) {
 	dockerfiles := []string{Dockerfile, DockerfileNoNewLine}
 	for _, Dockerfile := range dockerfiles {
 		runtime, err := newTestRuntime()
@@ -36,7 +46,12 @@ func TestBuild(t *testing.T) {
 
 		buildfile := NewBuildFile(srv, &utils.NopWriter{})
 
-		imgID, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
+		context, err := fakeTar()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		imgID, err := buildfile.Build(strings.NewReader(Dockerfile), context)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,5 +94,25 @@ func TestBuild(t *testing.T) {
 		if string(output) != "/var/run/sshd\n" {
 			t.Fatal("/var/run/sshd has not been created")
 		}
+
+		container3, err := builder.Create(
+			&Config{
+				Image: imgID,
+				Cmd:   []string{"ls", "/src"},
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer runtime.Destroy(container3)
+
+		output, err = container3.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(output) != "etc\nvar\n" {
+			t.Fatalf("Unexpected output. Expected: '%s', received: '%s'", "etc\nvar\n", string(output))
+		}
+
 	}
 }
