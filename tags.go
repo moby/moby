@@ -110,6 +110,52 @@ func (store *TagStore) ImageName(id string) string {
 	return utils.TruncateID(id)
 }
 
+func (store *TagStore) DeleteAll(id string) error {
+	names, exists := store.ByID()[id]
+	if !exists || len(names) == 0 {
+		return nil
+	}
+	for _, name := range names {
+		if strings.Contains(name, ":") {
+			nameParts := strings.Split(name, ":")
+			if _, err := store.Delete(nameParts[0], nameParts[1]); err != nil {
+				return err
+			}
+		} else {
+			if _, err := store.Delete(name, ""); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+	deleted := false
+	if err := store.Reload(); err != nil {
+		return false, err
+	}
+	if r, exists := store.Repositories[repoName]; exists {
+		if tag != "" {
+			if _, exists2 := r[tag]; exists2 {
+				delete(r, tag)
+				if len(r) == 0 {
+					delete(store.Repositories, repoName)
+				}
+				deleted = true
+			} else {
+				return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+			}
+		} else {
+			delete(store.Repositories, repoName)
+			deleted = true
+		}
+	} else {
+		fmt.Errorf("No such repository: %s", repoName)
+	}
+	return deleted, store.Save()
+}
+
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	img, err := store.LookupImage(imageName)
 	if err != nil {
@@ -133,7 +179,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	} else {
 		repo = make(map[string]string)
 		if old, exists := store.Repositories[repoName]; exists && !force {
-			return fmt.Errorf("Tag %s:%s is already set to %s", repoName, tag, old)
+			return fmt.Errorf("Conflict: Tag %s:%s is already set to %s", repoName, tag, old)
 		}
 		store.Repositories[repoName] = repo
 	}
@@ -151,14 +197,20 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-func (store *TagStore) GetImage(repoName, tag string) (*Image, error) {
+func (store *TagStore) GetImage(repoName, tagOrId string) (*Image, error) {
 	repo, err := store.Get(repoName)
 	if err != nil {
 		return nil, err
 	} else if repo == nil {
 		return nil, nil
 	}
-	if revision, exists := repo[tag]; exists {
+	//go through all the tags, to see if tag is in fact an ID
+	for _, revision := range repo {
+		if strings.HasPrefix(revision, tagOrId) {
+			return store.graph.Get(revision)
+		}
+	}
+	if revision, exists := repo[tagOrId]; exists {
 		return store.graph.Get(revision)
 	}
 	return nil, nil

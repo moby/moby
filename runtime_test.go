@@ -17,7 +17,7 @@ import (
 )
 
 const unitTestImageName string = "docker-ut"
-
+const unitTestImageId string = "e9aa60c60128cad1"
 const unitTestStoreBase string = "/var/lib/docker/unit-tests"
 
 func nuke(runtime *Runtime) error {
@@ -68,7 +68,7 @@ func init() {
 		runtime: runtime,
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false)); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 		panic(err)
 	}
 }

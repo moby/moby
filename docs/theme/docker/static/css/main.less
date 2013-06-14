@@ -391,6 +391,38 @@ section.header {
 }
 
 
+#fork-us {
+  /*font-family: 'Maven Pro';*/
+  /*font-weight: bold;*/
+  font-size: 12px;
+  /*text-transform: uppercase;*/
+  display: block;
+  padding: 0px 1em;
+  height: 28px;
+  line-height: 28px;
+  background-color: #43484c;
+  filter: progid:DXImageTransform.Microsoft.gradient(gradientType=0, startColorstr='#FFFF6E56', endColorstr='#FFED4F35');
+  background-image: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #747474), color-stop(100%, #43484c));
+  background-image: -webkit-linear-gradient(top, #747474 0%, #43484c 100%);
+  background-image: -moz-linear-gradient(top, #747474 0%, #43484c 100%);
+  background-image: -o-linear-gradient(top, #747474 0%, #43484c 100%);
+  background-image: linear-gradient(top, #747474 0%, #43484c 100%);
+  border: 1px solid #43484c;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  -ms-border-radius: 4px;
+  -o-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
+  -moz-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
+  box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
+  margin: 8px;
+
+  a {
+    color: #faf2ee;
+    text-shadow: rgba(0, 0, 0, 0.3) 0px 1px 0px;
+  }
+}
 /* =======================
    Media size overrides
 ======================= */
@@ -441,14 +473,17 @@ section.header {
   /* TODO: Fix this to be relative to the navigation size */
     padding-top: 600px;
   }
-
+  #fork-us {
+    display: none;
+  }
 }
 
 
 /* Landscape phones and down */
 @media (max-width: 480px) {
-
-
+  #nav-gettingstarted {
+    display: none;
+  }
 }
 
 /* Misc fixes */

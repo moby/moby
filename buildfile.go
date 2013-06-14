@@ -61,7 +61,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				remote = name
 			}
 
-			if err := b.srv.ImagePull(remote, tag, "", b.out, utils.NewStreamFormatter(false)); err != nil {
+			if err := b.srv.ImagePull(remote, tag, "", b.out, utils.NewStreamFormatter(false), nil); err != nil {
 				return err
 			}
 
@@ -344,10 +344,11 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 	for {
 		line, err := file.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF && line == "" {
 				break
+			} else if err != io.EOF {
+				return "", err
 			}
-			return "", err
 		}
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		// Skip comments and empty line
