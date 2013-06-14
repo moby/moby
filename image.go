@@ -263,6 +263,13 @@ func (img *Image) layers() ([]string, error) {
 	if len(list) == 0 {
 		return nil, fmt.Errorf("No layer found for image %s\n", img.ID)
 	}
+
+	// Inject the dockerinit layer (empty place-holder for mount-binding dockerinit)
+	if dockerinitLayer, err := img.getDockerInitLayer(); err != nil {
+		return nil, err
+	} else {
+		list = append([]string{dockerinitLayer}, list...)
+	}
 	return list, nil
 }
 
@@ -290,6 +297,13 @@ func (img *Image) GetParent() (*Image, error) {
 		return nil, fmt.Errorf("Can't lookup parent of unregistered image")
 	}
 	return img.graph.Get(img.Parent)
+}
+
+func (img *Image) getDockerInitLayer() (string, error) {
+	if img.graph == nil {
+		return "", fmt.Errorf("Can't lookup dockerinit layer of unregistered image")
+	}
+	return img.graph.getDockerInitLayer()
 }
 
 func (img *Image) root() (string, error) {

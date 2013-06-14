@@ -69,7 +69,7 @@ func layerArchive(tarfile string) (io.Reader, error) {
 
 func init() {
 	// Hack to run sys init during unit testing
-	if utils.SelfPath() == "/sbin/init" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		SysInit()
 		return
 	}
