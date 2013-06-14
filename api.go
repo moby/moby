@@ -434,17 +434,23 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
+	out := &APIRun{}
+
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
+
+	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
+		out.Warnings = append(out.Warnings, fmt.Sprintf("WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
+		config.Dns = defaultDns
+	}
+
 	id, err := srv.ContainerCreate(config)
 	if err != nil {
 		return err
 	}
+	out.ID = id
 
-	out := &APIRun{
-		ID: id,
-	}
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -453,6 +459,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
+
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err
