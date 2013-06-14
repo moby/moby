@@ -296,16 +296,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if username == "" {
 		username = cli.authConfig.Username
 	}
-	fmt.Print("Password: ")
-	password = readString(os.Stdin, os.Stdout)
+	if username != cli.authConfig.Username {
+		fmt.Print("Password: ")
+		password = readString(os.Stdin, os.Stdout)
 
-	if password == "" {
-		return fmt.Errorf("Error : Password Required")
-	}
+		if password == "" {
+			return fmt.Errorf("Error : Password Required")
+		}
 
-	fmt.Print("Email (", cli.authConfig.Email, "): ")
-	email = readAndEchoString(os.Stdin, os.Stdout)
-	if email == "" {
+		fmt.Print("Email (", cli.authConfig.Email, "): ")
+		email = readAndEchoString(os.Stdin, os.Stdout)
+		if email == "" {
+			email = cli.authConfig.Email
+		}
+	} else {
+		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
 	term.RestoreTerminal(oldState)
@@ -314,7 +319,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cli.authConfig.Password = password
 	cli.authConfig.Email = email
 
-	body, _, err := cli.call("POST", "/auth", cli.authConfig)
+	body, statusCode, err := cli.call("POST", "/auth", cli.authConfig)
+	if statusCode == 401 {
+		cli.authConfig.Username = ""
+		cli.authConfig.Password = ""
+		cli.authConfig.Email = ""
+		auth.SaveConfig(cli.authConfig)
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -327,7 +339,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	auth.SaveConfig(cli.authConfig)
 	if out2.Status != "" {
-		fmt.Print(out2.Status)
+		fmt.Println(out2.Status)
 	}
 	return nil
 }

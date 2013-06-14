@@ -877,9 +877,16 @@ Check auth configuration
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {
+		"Status": "Login Succeeded"
+	   }
 
         :statuscode 200: no error
         :statuscode 204: no error
+        :statuscode 401: unauthorized
+        :statuscode 403: forbidden
         :statuscode 500: server error
 
 
