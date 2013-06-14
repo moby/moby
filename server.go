@@ -497,7 +497,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		srvName = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
 	}
 
-	repoData, err := r.PushImageJSONIndex(srvName, imgList, false)
+	repoData, err := r.PushImageJSONIndex(srvName, imgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -521,7 +521,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(srvName, imgList, true); err != nil {
+	if _, err := r.PushImageJSONIndex(srvName, imgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 	return nil
