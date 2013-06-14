@@ -134,6 +134,14 @@ The `ADD` instruction will insert the files from the `<src>` path of the context
 of the container.
 The context must be set in order to use this instruction. (see examples)
 
+2.9 TAG
+-------
+
+    ``TAG <value>``
+
+The `TAG` instruction will tag the current image version in the default repository.  You can have multiple 
+`TAG` instructions in a Dockerfile.
+
 3. Dockerfile Examples
 ======================
 
