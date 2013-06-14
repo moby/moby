@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	if utils.SelfPath() == "/sbin/init" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		// Running in init mode
 		docker.SysInit()
 		return
