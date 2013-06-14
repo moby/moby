@@ -296,20 +296,16 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if username == "" {
 		username = cli.authConfig.Username
 	}
-	if username != cli.authConfig.Username {
-		fmt.Print("Password: ")
-		password = readString(os.Stdin, os.Stdout)
+	fmt.Print("Password: ")
+	password = readString(os.Stdin, os.Stdout)
 
-		if password == "" {
-			return fmt.Errorf("Error : Password Required")
-		}
+	if password == "" {
+		return fmt.Errorf("Error : Password Required")
+	}
 
-		fmt.Print("Email (", cli.authConfig.Email, "): ")
-		email = readAndEchoString(os.Stdin, os.Stdout)
-		if email == "" {
-			email = cli.authConfig.Email
-		}
-	} else {
+	fmt.Print("Email (", cli.authConfig.Email, "): ")
+	email = readAndEchoString(os.Stdin, os.Stdout)
+	if email == "" {
 		email = cli.authConfig.Email
 	}
 	term.RestoreTerminal(oldState)
