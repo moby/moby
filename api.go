@@ -441,7 +441,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	}
 
 	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
-		out.Warnings = append(out.Warnings, fmt.Sprintf("WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
+		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
 
