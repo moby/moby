@@ -147,3 +147,25 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 }
+
+func TestRunWithTooLowMemoryLimit(t *testing.T) {
+	runtime, err := newTestRuntime()
+	srv := &Server{runtime: runtime}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
+	_, err = srv.ContainerCreate(
+		&Config{
+			Image:     GetTestImage(runtime).ID,
+			Memory:    524287,
+			CpuShares: 1000,
+			Cmd:       []string{"/bin/cat"},
+		},
+	)
+	if err == nil {
+		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
+	}
+
+}

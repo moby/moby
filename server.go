@@ -174,6 +174,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.Tag = tag
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -183,6 +185,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			var out APIImages
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -268,6 +272,8 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
+		c.SizeRw, c.SizeRootFs = container.GetSize()
+
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
@@ -497,7 +503,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		srvName = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
 	}
 
-	repoData, err := r.PushImageJSONIndex(srvName, imgList, false)
+	repoData, err := r.PushImageJSONIndex(srvName, imgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -521,7 +527,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(srvName, imgList, true); err != nil {
+	if _, err := r.PushImageJSONIndex(srvName, imgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 	return nil
@@ -651,6 +657,10 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 }
 
 func (srv *Server) ContainerCreate(config *Config) (string, error) {
+
+	if config.Memory != 0 && config.Memory < 524288 {
+		return "", fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
+	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		config.Memory = 0
