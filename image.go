@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -29,6 +30,7 @@ type Image struct {
 	Config          *Config   `json:"config,omitempty"`
 	Architecture    string    `json:"architecture,omitempty"`
 	graph           *Graph
+	Size            int64
 }
 
 func LoadImage(root string) (*Image, error) {
@@ -94,6 +96,18 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	if err := Untar(layerData, layer); err != nil {
 		return err
 	}
+
+	return StoreSize(img, root)
+}
+
+func StoreSize(img *Image, root string) error {
+	layer := layerPath(root)
+
+	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
+		img.Size += fileInfo.Size()
+		return nil
+	})
+
 	// Store the json ball
 	jsonData, err := json.Marshal(img)
 	if err != nil {
@@ -125,6 +139,8 @@ func MountAUFS(ro []string, rw string, target string) error {
 		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
+
+	branches += ",xino=/dev/shm/aufs.xino"
 
 	//if error, try to load aufs kernel module
 	if err := mount("none", target, "aufs", 0, branches); err != nil {
@@ -359,6 +375,15 @@ func (img *Image) Checksum() (string, error) {
 	}
 
 	return hash, nil
+}
+
+func (img *Image) getParentsSize(size int64) int64 {
+	parentImage, err := img.GetParent()
+	if err != nil || parentImage == nil {
+		return size
+	}
+	size += parentImage.Size
+	return parentImage.getParentsSize(size)
 }
 
 // Build an Image object from raw json data

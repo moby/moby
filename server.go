@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
@@ -54,7 +55,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 
-	results, err := registry.NewRegistry(srv.runtime.root).SearchRepositories(term)
+	results, err := registry.NewRegistry(srv.runtime.root, nil).SearchRepositories(term)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +64,6 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 	for _, repo := range results.Results {
 		var out APISearch
 		out.Description = repo["description"]
-		if len(out.Description) > 45 {
-			out.Description = utils.Trunc(out.Description, 42) + "..."
-		}
 		out.Name = repo["name"]
 		outs = append(outs, out)
 	}
@@ -176,6 +174,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.Tag = tag
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -185,6 +185,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			var out APIImages
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -270,6 +272,8 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
+		c.SizeRw, c.SizeRootFs = container.GetSize()
+
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
@@ -330,8 +334,8 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, askedTag string, sf *utils.StreamFormatter) error {
-	out.Write(sf.FormatStatus("Pulling repository %s from %s", remote, auth.IndexServerAddress()))
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, remote, askedTag string, sf *utils.StreamFormatter) error {
+	out.Write(sf.FormatStatus("Pulling repository %s from %s", local, auth.IndexServerAddress()))
 	repoData, err := r.GetRepositoryData(remote)
 	if err != nil {
 		return err
@@ -358,7 +362,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, remote)
+			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, local)
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -386,7 +390,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 		if askedTag != "" && tag != askedTag {
 			continue
 		}
-		if err := srv.runtime.repositories.Set(remote, tag, id, true); err != nil {
+		if err := srv.runtime.repositories.Set(local, tag, id, true); err != nil {
 			return err
 		}
 	}
@@ -397,8 +401,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, remote, a
 	return nil
 }
 
-func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter) error {
-	r := registry.NewRegistry(srv.runtime.root)
+func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	r := registry.NewRegistry(srv.runtime.root, authConfig)
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
 		if err := srv.pullImage(r, out, name, endpoint, nil, sf); err != nil {
@@ -406,8 +410,12 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 		}
 		return nil
 	}
-
-	if err := srv.pullRepository(r, out, name, tag, sf); err != nil {
+	remote := name
+	parts := strings.Split(name, "/")
+	if len(parts) > 2 {
+		remote = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
+	}
+	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
 		return err
 	}
 
@@ -489,7 +497,13 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	}
 	out.Write(sf.FormatStatus("Sending image list"))
 
-	repoData, err := r.PushImageJSONIndex(name, imgList, false)
+	srvName := name
+	parts := strings.Split(name, "/")
+	if len(parts) > 2 {
+		srvName = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
+	}
+
+	repoData, err := r.PushImageJSONIndex(srvName, imgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -506,14 +520,14 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 				// FIXME: Continue on error?
 				return err
 			}
-			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+name+"/"+elem.Tag))
-			if err := r.PushRegistryTag(name, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+srvName+"/"+elem.Tag))
+			if err := r.PushRegistryTag(srvName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(name, imgList, true); err != nil {
+	if _, err := r.PushImageJSONIndex(srvName, imgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 	return nil
@@ -579,10 +593,10 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	return nil
 }
 
-func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter) error {
+func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
-	r := registry.NewRegistry(srv.runtime.root)
+	r := registry.NewRegistry(srv.runtime.root, authConfig)
 
 	if err != nil {
 		out.Write(sf.FormatStatus("The push refers to a repository [%s] (len: %d)", name, len(srv.runtime.repositories.Repositories[name])))
@@ -710,15 +724,110 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	return nil
 }
 
-func (srv *Server) ImageDelete(name string) error {
-	img, err := srv.runtime.repositories.LookupImage(name)
-	if err != nil {
-		return fmt.Errorf("No such image: %s", name)
+var ErrImageReferenced = errors.New("Image referenced by a repository")
+
+func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
+	// If the image is referenced by a repo, do not delete
+	if len(srv.runtime.repositories.ByID()[id]) != 0 {
+		return ErrImageReferenced
 	}
-	if err := srv.runtime.graph.Delete(img.ID); err != nil {
-		return fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+
+	// If the image is not referenced but has children, go recursive
+	referenced := false
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
+	for _, img := range byParents[id] {
+		if err := srv.deleteImageAndChildren(img.ID, imgs); err != nil {
+			if err != ErrImageReferenced {
+				return err
+			}
+			referenced = true
+		}
+	}
+	if referenced {
+		return ErrImageReferenced
+	}
+
+	// If the image is not referenced and has no children, remove it
+	byParents, err = srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
+	}
+	if len(byParents[id]) == 0 {
+		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
+			return err
+		}
+		err := srv.runtime.graph.Delete(id)
+		if err != nil {
+			return err
+		}
+		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
+		return nil
 	}
 	return nil
+}
+
+func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
+	if img.Parent != "" {
+		parent, err := srv.runtime.graph.Get(img.Parent)
+		if err != nil {
+			return err
+		}
+		// Remove all children images
+		if err := srv.deleteImageAndChildren(img.Parent, imgs); err != nil {
+			return err
+		}
+		return srv.deleteImageParents(parent, imgs)
+	}
+	return nil
+}
+
+func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error) {
+	//Untag the current image
+	var imgs []APIRmi
+	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
+	if err != nil {
+		return nil, err
+	}
+	if tagDeleted {
+		imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
+	}
+	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
+		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
+			if err != ErrImageReferenced {
+				return &imgs, err
+			}
+		} else if err := srv.deleteImageParents(img, &imgs); err != nil {
+			if err != ErrImageReferenced {
+				return &imgs, err
+			}
+		}
+	}
+	return &imgs, nil
+}
+
+func (srv *Server) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
+	img, err := srv.runtime.repositories.LookupImage(name)
+	if err != nil {
+		return nil, fmt.Errorf("No such image: %s", name)
+	}
+	if !autoPrune {
+		if err := srv.runtime.graph.Delete(img.ID); err != nil {
+			return nil, fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+		}
+		return nil, nil
+	}
+
+	var tag string
+	if strings.Contains(name, ":") {
+		nameParts := strings.Split(name, ":")
+		name = nameParts[0]
+		tag = nameParts[1]
+	}
+
+	return srv.deleteImage(img, name, tag)
 }
 
 func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
@@ -869,7 +978,7 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func NewServer(autoRestart bool) (*Server, error) {
+func NewServer(autoRestart, enableCors bool) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
@@ -878,12 +987,14 @@ func NewServer(autoRestart bool) (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		runtime: runtime,
+		runtime:    runtime,
+		enableCors: enableCors,
 	}
 	runtime.srv = srv
 	return srv, nil
 }
 
 type Server struct {
-	runtime *Runtime
+	runtime    *Runtime
+	enableCors bool
 }

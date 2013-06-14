@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -355,6 +356,18 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				errors <- err
 			}()
 		}
+	} else {
+		go func() {
+			if stdinCloser != nil {
+				defer stdinCloser.Close()
+			}
+
+			if cStdout, err := container.StdoutPipe(); err != nil {
+				utils.Debugf("Error stdout pipe")
+			} else {
+				io.Copy(&utils.NopWriter{}, cStdout)
+			}
+		}()
 	}
 	if stderr != nil {
 		nJobs += 1
@@ -381,7 +394,20 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				errors <- err
 			}()
 		}
+	} else {
+		go func() {
+			if stdinCloser != nil {
+				defer stdinCloser.Close()
+			}
+
+			if cStderr, err := container.StderrPipe(); err != nil {
+				utils.Debugf("Error stdout pipe")
+			} else {
+				io.Copy(&utils.NopWriter{}, cStderr)
+			}
+		}()
 	}
+
 	return utils.Go(func() error {
 		if cStdout != nil {
 			defer cStdout.Close()
@@ -893,4 +919,27 @@ func validateID(id string) error {
 		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
+}
+
+// GetSize, return real size, virtual size
+func (container *Container) GetSize() (int64, int64) {
+	var sizeRw, sizeRootfs int64
+
+	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
+		if fileInfo != nil {
+			sizeRw += fileInfo.Size()
+		}
+		return nil
+	})
+
+	_, err := os.Stat(container.RootfsPath())
+	if err == nil {
+		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
+			if fileInfo != nil {
+				sizeRootfs += fileInfo.Size()
+			}
+			return nil
+		})
+	}
+	return sizeRw, sizeRootfs
 }

@@ -7,10 +7,12 @@ type APIHistory struct {
 }
 
 type APIImages struct {
-	Repository string `json:",omitempty"`
-	Tag        string `json:",omitempty"`
-	ID         string `json:"Id"`
-	Created    int64
+	Repository  string `json:",omitempty"`
+	Tag         string `json:",omitempty"`
+	ID          string `json:"Id"`
+	Created     int64
+	Size        int64
+	VirtualSize int64
 }
 
 type APIInfo struct {
@@ -23,13 +25,20 @@ type APIInfo struct {
 	SwapLimit   bool `json:",omitempty"`
 }
 
+type APIRmi struct {
+	Deleted  string `json:",omitempty"`
+	Untagged string `json:",omitempty"`
+}
+
 type APIContainers struct {
-	ID      string `json:"Id"`
-	Image   string
-	Command string
-	Created int64
-	Status  string
-	Ports   string
+	ID         string `json:"Id"`
+	Image      string
+	Command    string
+	Created    int64
+	Status     string
+	Ports      string
+	SizeRw     int64
+	SizeRootFs int64
 }
 
 type APISearch struct {
