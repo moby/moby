@@ -1435,25 +1435,16 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		}
 		defer term.RestoreTerminal(oldState)
 	}
-	sendStdin := utils.Go(func() error {
+	go func() {
 		io.Copy(rwc, in)
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			utils.Debugf("Couldn't send EOF: %s\n", err)
 		}
-		// Discard errors due to pipe interruption
-		return nil
-	})
+	}()
 
 	if err := <-receiveStdout; err != nil {
 		utils.Debugf("Error receiveStdout: %s", err)
 		return err
-	}
-
-	if !term.IsTerminal(in.Fd()) {
-		if err := <-sendStdin; err != nil {
-			utils.Debugf("Error sendStdin: %s", err)
-			return err
-		}
 	}
 	return nil
 
