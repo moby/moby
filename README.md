@@ -373,5 +373,8 @@ Standard Container Specification
 
 ### Legal
 
-Transfers Docker shall be in accordance with any applicable export control or other legal requirements.
+Transfers of Docker shall be in accordance with applicable export controls of any country and all other applicable
+legal requirements.  Docker shall not be distributed or downloaded to or in Cuba, Iran, North Korea, Sudan or Syria
+and shall not be distributed or downloaded to any person on the Denied Persons List administered by the U.S.
+Department of Commerce.
 

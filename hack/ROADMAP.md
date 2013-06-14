@@ -86,3 +86,20 @@ Production-ready
 Docker is still alpha software, and not suited for production.
 We are working hard to get there, and we are confident that it will be possible within a few months.
 
+
+Advanced port redirections
+--------------------------
+
+Docker currently supports 2 flavors of port redirection: STATIC->STATIC (eg. "redirect public port 80 to private port 80")
+and RANDOM->STATIC (eg. "redirect any public port to private port 80").
+
+With these 2 flavors, docker can support the majority of backend programs out there. But some applications have more exotic
+requirements, generally to implement custom clustering techniques. These applications include Hadoop, MongoDB, Riak, RabbitMQ,
+Disco, and all programs relying on Erlang's OTP.
+
+To support these applications, Docker needs to support more advanced redirection flavors, including:
+
+* RANDOM->RANDOM
+* STATIC1->STATIC2
+
+These flavors should be implemented without breaking existing semantics, if at all possible.
