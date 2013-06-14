@@ -811,7 +811,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
 		}
 
 		for _, out := range outs {
@@ -829,7 +829,12 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				} else {
 					fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
 				}
-				fmt.Fprintf(w, "%s ago\n", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				if out.VirtualSize > 0 {
+					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
+				} else {
+					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+				}
 			} else {
 				if *noTrunc {
 					fmt.Fprintln(w, out.ID)
@@ -888,15 +893,20 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tSIZE")
 	}
 
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\n", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+			}
+			if out.SizeRootFs > 0 {
+				fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+			} else {
+				fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
 			}
 		} else {
 			if *noTrunc {

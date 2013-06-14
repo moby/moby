@@ -174,6 +174,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.Tag = tag
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -183,6 +185,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			var out APIImages
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
+			out.Size = image.Size
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -268,6 +272,8 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
+		c.SizeRw, c.SizeRootFs = container.GetSize()
+
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
