@@ -225,8 +225,9 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
-func (b *buildFile) CmdTag(tag string) error {
-	return b.runtime.repositories.Set("<none>", tag, b.image, false)
+func (b *buildFile) CmdTag(remote string) error {
+	remote, tag := splitTagParts(remote)
+	return b.runtime.repositories.Set(remote, tag, b.image, false)
 }
 
 func (b *buildFile) run() (string, error) {

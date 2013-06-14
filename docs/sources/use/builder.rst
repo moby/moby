@@ -140,7 +140,7 @@ The context must be set in order to use this instruction. (see examples)
     ``TAG <value>``
 
 The `TAG` instruction will tag the current image version in the default repository.  You can have multiple 
-`TAG` instructions in a Dockerfile.
+`TAG` instructions in a Dockerfile.  The format for the tag should be `repo:tag`.
 
 3. Dockerfile Examples
 ======================
