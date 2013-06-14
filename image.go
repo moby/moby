@@ -31,7 +31,6 @@ type Image struct {
 	Architecture    string    `json:"architecture,omitempty"`
 	graph           *Graph
 	Size            int64
-	ParentSize      int64
 }
 
 func LoadImage(root string) (*Image, error) {
@@ -376,13 +375,13 @@ func (img *Image) Checksum() (string, error) {
 	return hash, nil
 }
 
-func (img *Image) getVirtualSize(size int64) int64 {
+func (img *Image) getParentsSize(size int64) int64 {
 	parentImage, err := img.GetParent()
 	if err != nil || parentImage == nil {
 		return size
 	}
 	size += parentImage.Size
-	return parentImage.getVirtualSize(size)
+	return parentImage.getParentsSize(size)
 }
 
 // Build an Image object from raw json data

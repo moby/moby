@@ -177,7 +177,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
-			out.ParentSize = image.getVirtualSize(0)
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}
@@ -188,7 +188,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
-			out.ParentSize = image.getVirtualSize(0)
+			out.VirtualSize = image.getParentsSize(0) + image.Size
 			outs = append(outs, out)
 		}
 	}

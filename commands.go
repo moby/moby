@@ -812,8 +812,8 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 					fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
 				}
 				fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
-				if out.ParentSize > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.ParentSize))
+				if out.VirtualSize > 0 {
+					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
 				} else {
 					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
 				}
