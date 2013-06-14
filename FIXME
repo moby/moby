@@ -26,3 +26,5 @@ to put them - so we put them here :)
 - Ensure /proc/sys/net/ipv4/ip_forward is 1
 - Force DNS to public!
 - Always generate a resolv.conf per container, to avoid changing resolv.conf under thne container's feet
+- Save metadata with import/export
+- Upgrade dockerd without stopping containers
