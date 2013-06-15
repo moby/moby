@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.2
+const APIVERSION = 1.3
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -715,9 +715,7 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := r.ParseMultipartForm(4096); err != nil {
-		return err
-	}
+	// FIXME: "remote" is not a clear variable name.
 	remote := r.FormValue("t")
 	tag := ""
 	if strings.Contains(remote, ":") {
@@ -725,21 +723,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		tag = remoteParts[1]
 		remote = remoteParts[0]
 	}
-
-	dockerfile, _, err := r.FormFile("Dockerfile")
-	if err != nil {
-		return err
-	}
-
-	context, _, err := r.FormFile("Context")
-	if err != nil {
-		if err != http.ErrMissingFile {
-			return err
-		}
-	}
-
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(dockerfile, context); err != nil {
+	if id, err := b.Build(r.Body); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
 	} else if remote != "" {
 		srv.runtime.repositories.Set(remote, tag, id, false)

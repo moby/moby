@@ -2,7 +2,6 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
-	"strings"
 	"testing"
 )
 
@@ -23,6 +22,16 @@ from   ` + unitTestImageName + `
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd`
 
+// mkTestContext generates a build context from the contents of the provided dockerfile.
+// This context is suitable for use as an argument to BuildFile.Build()
+func mkTestContext(dockerfile string, t *testing.T) Archive {
+	context, err := mkBuildContext(dockerfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return context
+}
+
 func TestBuild(t *testing.T) {
 	dockerfiles := []string{Dockerfile, DockerfileNoNewLine}
 	for _, Dockerfile := range dockerfiles {
@@ -36,7 +45,7 @@ func TestBuild(t *testing.T) {
 
 		buildfile := NewBuildFile(srv, &utils.NopWriter{})
 
-		imgID, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
+		imgID, err := buildfile.Build(mkTestContext(Dockerfile, t))
 		if err != nil {
 			t.Fatal(err)
 		}
