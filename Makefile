@@ -17,7 +17,7 @@ endif
 GIT_COMMIT = $(shell git rev-parse --short HEAD)
 GIT_STATUS = $(shell test -n "`git status --porcelain`" && echo "+CHANGES")
 
-BUILD_OPTIONS = -ldflags "-X main.GITCOMMIT $(GIT_COMMIT)$(GIT_STATUS) -d -w"
+BUILD_OPTIONS = -a -ldflags "-X main.GITCOMMIT $(GIT_COMMIT)$(GIT_STATUS) -d -w"
 
 SRC_DIR := $(GOPATH)/src
 
