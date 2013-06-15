@@ -178,6 +178,8 @@ func (b *buildFile) CmdAdd(args string) error {
 	cmd := b.config.Cmd
 
 	// Create the container and start it
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	b.config.Image = b.image
 	container, err := b.builder.Create(b.config)
 	if err != nil {
 		return err
