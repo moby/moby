@@ -135,6 +135,20 @@ func HumanDuration(d time.Duration) string {
 	return fmt.Sprintf("%d years", d.Hours()/24/365)
 }
 
+// HumanSize returns a human-readable approximation of a size
+// using SI standard (eg. "44kB", "17MB")
+func HumanSize(size int64) string {
+	i := 0
+	var sizef float64
+	sizef = float64(size)
+	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	for sizef >= 1000.0 {
+		sizef = sizef / 1000.0
+		i++
+	}
+	return fmt.Sprintf("%.4g %s", sizef, units[i])
+}
+
 func Trunc(s string, maxlen int) string {
 	if len(s) <= maxlen {
 		return s
@@ -627,4 +641,21 @@ func IsURL(str string) bool {
 
 func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+}
+
+func CheckLocalDns() bool {
+	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		Debugf("Error openning resolv.conf: %s", err)
+		return false
+	}
+	for _, ip := range []string{
+		"127.0.0.1",
+		"127.0.1.1",
+	} {
+		if strings.Contains(string(resolv), ip) {
+			return true
+		}
+	}
+	return false
 }
