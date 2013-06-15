@@ -132,18 +132,22 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 // mkBuildContext returns an archive of an empty context with the contents
 // of `dockerfile` at the path ./Dockerfile
-func mkBuildContext(content string) (Archive, error) {
+func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
-	hdr := &tar.Header{
-		Name: "Dockerfile",
-		Size: int64(len(content)),
-	}
-	if err := tw.WriteHeader(hdr); err != nil {
-		return nil, err
-	}
-	if _, err := tw.Write([]byte(content)); err != nil {
-		return nil, err
+	files = append(files, [2]string{"Dockerfile", dockerfile})
+	for _, file := range files {
+		name, content := file[0], file[1]
+		hdr := &tar.Header{
+			Name: name,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+		if _, err := tw.Write([]byte(content)); err != nil {
+			return nil, err
+		}
 	}
 	if err := tw.Close(); err != nil {
 		return nil, err
@@ -174,7 +178,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		context, err = mkBuildContext(string(dockerfile))
+		context, err = mkBuildContext(string(dockerfile), nil)
 	} else {
 		context, err = Tar(cmd.Arg(0), Uncompressed)
 	}

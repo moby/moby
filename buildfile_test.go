@@ -1,40 +1,75 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"testing"
 )
 
-const Dockerfile = `
-# VERSION		0.1
-# DOCKER-VERSION	0.2
-
-from   ` + unitTestImageName + `
-run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd
-`
-
-const DockerfileNoNewLine = `
-# VERSION		0.1
-# DOCKER-VERSION	0.2
-
-from   ` + unitTestImageName + `
-run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd`
-
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
-func mkTestContext(dockerfile string, t *testing.T) Archive {
-	context, err := mkBuildContext(dockerfile)
+func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
+	context, err := mkBuildContext(dockerfile, files)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return context
 }
 
+// A testContextTemplate describes a build context and how to test it
+type testContextTemplate struct {
+	// Contents of the Dockerfile
+	dockerfile string
+	// Additional files in the context, eg [][2]string{"./passwd", "gordon"}
+	files [][2]string
+	// Test commands to run in the resulting image
+	tests []testCommand
+}
+
+// A testCommand describes a command to run in a container, and the exact output required to pass the test
+type testCommand struct {
+	// The command to run, eg. []string{"echo", "hello", "world"}
+	cmd []string
+	// The exact output expected, eg. "hello world\n"
+	output string
+}
+
+// A table of all the contexts to build and test.
+// A new docker runtime will be created and torn down for each context.
+var testContexts []testContextTemplate = []testContextTemplate{
+	{
+		`
+# VERSION		0.1
+# DOCKER-VERSION	0.2
+
+from   docker-ut
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    mkdir -p /var/run/sshd
+`,
+		nil,
+		[]testCommand{
+			{[]string{"cat", "/tmp/passwd"}, "root:testpass\n"},
+			{[]string{"ls", "-d", "/var/run/sshd"}, "/var/run/sshd\n"},
+		},
+	},
+
+	{
+		`
+# VERSION		0.1
+# DOCKER-VERSION	0.2
+
+from   docker-ut
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    mkdir -p /var/run/sshd`,
+		nil,
+		[]testCommand{
+			{[]string{"cat", "/tmp/passwd"}, "root:testpass\n"},
+			{[]string{"ls", "-d", "/var/run/sshd"}, "/var/run/sshd\n"},
+		},
+	},
+}
+
 func TestBuild(t *testing.T) {
-	dockerfiles := []string{Dockerfile, DockerfileNoNewLine}
-	for _, Dockerfile := range dockerfiles {
+	for _, ctx := range testContexts {
 		runtime, err := newTestRuntime()
 		if err != nil {
 			t.Fatal(err)
@@ -43,50 +78,33 @@ func TestBuild(t *testing.T) {
 
 		srv := &Server{runtime: runtime}
 
-		buildfile := NewBuildFile(srv, &utils.NopWriter{})
+		buildfile := NewBuildFile(srv, ioutil.Discard)
 
-		imgID, err := buildfile.Build(mkTestContext(Dockerfile, t))
+		imgID, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		builder := NewBuilder(runtime)
-		container, err := builder.Create(
-			&Config{
-				Image: imgID,
-				Cmd:   []string{"cat", "/tmp/passwd"},
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer runtime.Destroy(container)
+		for _, testCmd := range ctx.tests {
+			container, err := builder.Create(
+				&Config{
+					Image: imgID,
+					Cmd:   testCmd.cmd,
+				},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer runtime.Destroy(container)
 
-		output, err := container.Output()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(output) != "root:testpass\n" {
-			t.Fatalf("Unexpected output. Read '%s', expected '%s'", output, "root:testpass\n")
-		}
-
-		container2, err := builder.Create(
-			&Config{
-				Image: imgID,
-				Cmd:   []string{"ls", "-d", "/var/run/sshd"},
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer runtime.Destroy(container2)
-
-		output, err = container2.Output()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(output) != "/var/run/sshd\n" {
-			t.Fatal("/var/run/sshd has not been created")
+			output, err := container.Output()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(output) != testCmd.output {
+				t.Fatalf("Unexpected output. Read '%s', expected '%s'", output, testCmd.output)
+			}
 		}
 	}
 }
