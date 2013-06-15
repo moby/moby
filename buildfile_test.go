@@ -66,6 +66,16 @@ run    mkdir -p /var/run/sshd`,
 			{[]string{"ls", "-d", "/var/run/sshd"}, "/var/run/sshd\n"},
 		},
 	},
+
+	{
+		`
+from docker-ut
+add foo /usr/lib/bla/bar`,
+		[][2]string{{"foo", "hello world!"}},
+		[]testCommand{
+			{[]string{"cat", "/usr/lib/bla/bar"}, "hello world!"},
+		},
+	},
 }
 
 func TestBuild(t *testing.T) {
