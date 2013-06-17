@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
-	"github.com/shin-/cookiejar"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 )
@@ -438,11 +438,6 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	return result, err
 }
 
-func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
-	r.authConfig = authConfig
-	r.client.Jar = cookiejar.NewCookieJar()
-}
-
 func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
 	password := ""
 	if withPasswd {
@@ -478,18 +473,18 @@ type Registry struct {
 	authConfig *auth.AuthConfig
 }
 
-func NewRegistry(root string, authConfig *auth.AuthConfig) *Registry {
+func NewRegistry(root string, authConfig *auth.AuthConfig) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy: http.ProxyFromEnvironment,
 	}
 
-	r := &Registry{
+	r = &Registry{
 		authConfig: authConfig,
 		client: &http.Client{
 			Transport: httpTransport,
 		},
 	}
-	r.client.Jar = cookiejar.NewCookieJar()
-	return r
+	r.client.Jar, err = cookiejar.New(nil)
+	return r, err
 }
