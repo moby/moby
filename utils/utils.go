@@ -548,6 +548,7 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}, nil
 }
 
+// FIXME: this is deprecated by CopyWithTar in archive.go
 func CopyDirectory(source, dest string) error {
 	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
 		return fmt.Errorf("Error copy: %s (%s)", err, output)
