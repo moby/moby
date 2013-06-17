@@ -33,6 +33,12 @@ run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
 add    . /src`
 
+// FIXME: test building with a context
+
+// FIXME: test building with a local ADD as first command
+
+// FIXME: test building with 2 successive overlapping ADD commands
+
 func TestBuildFile(t *testing.T) {
 	dockerfiles := []string{Dockerfile, DockerfileNoNewLine}
 	for _, Dockerfile := range dockerfiles {

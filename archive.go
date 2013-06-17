@@ -51,6 +51,7 @@ func Tar(path string, compression Compression) (io.Reader, error) {
 	return CmdStream(cmd)
 }
 
+// FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
 	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-x")
 	cmd.Stdin = archive
@@ -62,6 +63,30 @@ func Untar(archive io.Reader, path string) error {
 		return fmt.Errorf("%s: %s", err, output)
 	}
 	return nil
+}
+
+// UntarPath is a convenience function which looks for an archive
+// at filesystem path `src`, and unpacks it at `dst`.
+func UntarPath(src, dst string) error {
+	if archive, err := os.Open(src); err != nil {
+		return err
+	} else if err := Untar(archive, dst); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CopyWithTar creates a tar archive of filesystem path `src`, and
+// unpacks it at filesystem path `dst`.
+// The archive is streamed directly with fixed buffering and no
+// intermediary disk IO.
+//
+func CopyWithTar(src, dst string) error {
+	archive, err := Tar(src, Uncompressed)
+	if err != nil {
+		return err
+	}
+	return Untar(archive, dst)
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.
