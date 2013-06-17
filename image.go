@@ -150,7 +150,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 		}
 		log.Printf("...module loaded.")
 		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
+			return fmt.Errorf("Unable to mount using aufs :-(")
 		}
 	}
 	return nil
