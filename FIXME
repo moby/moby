@@ -16,15 +16,21 @@ to put them - so we put them here :)
 * Unify build commands and regular commands
 * Move source code into src/ subdir for clarity
 * Clean up the Makefile, it's a mess
-- docker buidl: show short IDs
-- docker build: on non-existent local path for ADD, don't show full absolute path on the host
-- mount into /dockerinit rather than /sbin/init
-- docker tag foo REPO:TAG
-- use size header for progress bar in pull
-- Clean up context upload in build!!!
-- Parallel pull
-- Ensure /proc/sys/net/ipv4/ip_forward is 1
-- Force DNS to public!
-- Always generate a resolv.conf per container, to avoid changing resolv.conf under thne container's feet
-- Save metadata with import/export
-- Upgrade dockerd without stopping containers
+* docker buidl: show short IDs
+* docker build: on non-existent local path for ADD, don't show full absolute path on the host
+* mount into /dockerinit rather than /sbin/init
+* docker tag foo REPO:TAG
+* use size header for progress bar in pull
+* Clean up context upload in build!!!
+* Parallel pull
+* Ensure /proc/sys/net/ipv4/ip_forward is 1
+* Force DNS to public!
+* Always generate a resolv.conf per container, to avoid changing resolv.conf under thne container's feet
+* Save metadata with import/export
+* Upgrade dockerd without stopping containers
+* bring back git revision info, looks like it was lost
+* Simple command to remove all untagged images
+* Simple command to clean up containers for disk space
+* Caching after an ADD
+* entry point config
+* bring back git revision info, looks like it was lost

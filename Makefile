@@ -46,6 +46,7 @@ whichrelease:
 
 release: $(BINRELEASE)
 	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
+	s3cmd -P put docker-latest.tgz s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-latest.tgz
 
 srcrelease: $(SRCRELEASE)
 deps: $(DOCKER_DIR)
@@ -60,6 +61,7 @@ $(SRCRELEASE):
 $(BINRELEASE): $(SRCRELEASE)
 	rm -f $(BINRELEASE)
 	cd $(SRCRELEASE); make; cp -R bin docker-$(RELEASE_VERSION); tar -f ../$(BINRELEASE) -zv -c docker-$(RELEASE_VERSION)
+	cd $(SRCRELEASE); cp -R bin docker-latest; tar -f ../docker-latest.tgz -zv -c docker-latest
 
 clean:
 	@rm -rf $(dir $(DOCKER_BIN))
