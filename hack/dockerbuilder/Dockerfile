@@ -1,5 +1,13 @@
-# This will build a container capable of producing an official binary build of docker and
-# uploading it to S3
+# DESCRIPTION     Build a container capable of producing official binary and
+#                 PPA packages and uploading them to S3 and Launchpad
+# VERSION         1.2
+# DOCKER_VERSION  0.4
+# AUTHOR          Solomon Hykes <solomon@dotcloud.com>
+#                 Daniel Mizyrycki <daniel@dotcloud.net>
+# BUILD_CMD       docker build -t dockerbuilder .
+# RUN_CMD         docker run -e AWS_ID="$AWS_ID" -e AWS_KEY="$AWS_KEY" -e GPG_KEY="$GPG_KEY" dockerbuilder
+#
+#
 from	ubuntu:12.04
 maintainer	Solomon Hykes <solomon@dotcloud.com>
 # Workaround the upstart issue
@@ -8,7 +16,7 @@ run ln -s /bin/true /sbin/initctl
 # Enable universe and gophers PPA
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q python-software-properties
 run	add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
-run	add-apt-repository -y ppa:gophers/go/ubuntu
+run	add-apt-repository -y ppa:dotcloud/docker-golang/ubuntu
 run	apt-get update
 # Packages required to checkout, build and upload docker
 run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd
