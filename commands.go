@@ -1058,6 +1058,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
+	if !container.State.Running {
+		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
+	}
+
 	splitStderr := container.Config.Tty
 
 	connections := 1
