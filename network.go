@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"container/list"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
 
 var NetworkBridgeIface string
@@ -20,6 +23,8 @@ const (
 	DefaultNetworkBridge = "docker0"
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
+	UDPConnTrackTimeout  = 90 * time.Second
+	UDPBufSize           = 2048
 )
 
 // Calculates the first and last IP addresses in an IPNet
@@ -216,6 +221,132 @@ func splice(a, b net.Conn) {
 	go halfSplice(b, a)
 }
 
+type UDPConnTrackTable struct {
+			sync.Mutex
+	entries		list.List
+}
+
+type UDPConnTrackTableEntry struct {
+	proxyConn	*net.UDPConn
+	clientAddr	*net.UDPAddr
+}
+
+func NewUDPConnTrackTable() (*UDPConnTrackTable) {
+	table := &UDPConnTrackTable{}
+	table.entries.Init()
+	return table
+}
+
+func (table *UDPConnTrackTable) Lookup(addr *net.UDPAddr) (*net.UDPConn, bool) {
+	for it := table.entries.Front(); it != nil; it = it.Next() {
+		entry := it.Value.(*UDPConnTrackTableEntry)
+		if entry.clientAddr.IP.Equal(addr.IP) && entry.clientAddr.Port == addr.Port {
+			return entry.proxyConn, true
+		}
+	}
+	return nil, false
+}
+
+func (table *UDPConnTrackTable) Insert(addr *net.UDPAddr, conn *net.UDPConn) {
+	table.entries.PushFront(&UDPConnTrackTableEntry{proxyConn: conn, clientAddr: addr})
+}
+
+func (table *UDPConnTrackTable) Remove(addr *net.UDPAddr) {
+	for it := table.entries.Front(); it != nil; it = it.Next() {
+		entry := it.Value.(*UDPConnTrackTableEntry)
+		if entry.clientAddr.IP.Equal(addr.IP) && entry.clientAddr.Port == addr.Port {
+			table.entries.Remove(it)
+			return
+		}
+	}
+	log.Printf("%v is not in the UDP connection tracking table, can't remove it!", addr.String())
+}
+
+type UDPProxy struct {
+	backendAddr	*net.UDPAddr
+	frontendAddr	*net.UDPAddr
+	frontendConn	*net.UDPConn
+	connTrackTable	*UDPConnTrackTable
+}
+
+func NewUDPProxy(on *net.UDPAddr, to *net.UDPAddr) (*UDPProxy, error) {
+	conn, err := net.ListenUDP("udp4", on)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UDPProxy{
+		backendAddr: to, frontendAddr: on,
+		frontendConn: conn, connTrackTable: NewUDPConnTrackTable(),
+	}, nil
+}
+
+func (proxy *UDPProxy) Run() {
+	utils.Debugf("proxying to udp:%v on %v", proxy.backendAddr.String(), proxy.frontendAddr.String())
+	defer utils.Debugf("done proxying to udp:%v on %v", proxy.backendAddr.String(), proxy.frontendAddr.String())
+	readBuf := make([]byte, UDPBufSize)
+	for {
+		read, from, err := proxy.frontendConn.ReadFromUDP(readBuf)
+		if err != nil {
+			break
+		}
+
+		proxy.connTrackTable.Lock()
+		proxyConn, hit := proxy.connTrackTable.Lookup(from)
+		if !hit {
+			proxyConn, err = net.DialUDP("udp4", nil, proxy.backendAddr)
+			if err != nil {
+				log.Printf("can't proxy a datagram to udp:%s: %v", proxy.backendAddr.String(), err)
+				continue
+			}
+			proxy.connTrackTable.Insert(from, proxyConn)
+			go func(proxyConn *net.UDPConn, client *net.UDPAddr) {
+				defer func() {
+					proxy.connTrackTable.Lock()
+					proxy.connTrackTable.Remove(client)
+					proxy.connTrackTable.Unlock()
+					utils.Debugf("done proxying between udp:%v and udp:%v", client.String(), proxy.backendAddr.String())
+					proxyConn.Close()
+				}()
+				readBuf := make([]byte, UDPBufSize)
+				for {
+					proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
+				again:
+					read, err := proxyConn.Read(readBuf)
+					if err != nil {
+						if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+							// This will happen if the last write failed (e.g:
+							// nothing is actually listening on the proxied port
+							// on the container), ignore it and run the coroutine
+							// until UDPConnTrackTimeout expires:
+							goto again
+						}
+						return
+					}
+					for i := 0; i != read; {
+						written, err := proxy.frontendConn.WriteToUDP(readBuf[i:read], client)
+						if err != nil {
+							return
+						}
+						i += written
+						utils.Debugf("forwarded %v/%v bytes to udp:%v", i, read, client.String())
+					}
+				}
+			}(proxyConn, from)
+		}
+		proxy.connTrackTable.Unlock()
+		for i := 0; i != read; {
+			written, err := proxyConn.Write(readBuf[i:read])
+			if err != nil {
+				log.Printf("can't proxy a datagram to udp:%s: %v", proxy.backendAddr.String(), err)
+				break
+			}
+			i += written
+			log.Printf("forwarded %v/%v bytes to udp:%v", i, read, proxy.backendAddr.String())
+		}
+	}
+}
+
 // Port mapper takes care of mapping external ports to containers by setting
 // up iptables rules.
 // It keeps track of all mappings and is able to unmap at will
@@ -223,6 +354,7 @@ type PortMapper struct {
 	tcpMapping map[int]net.TCPAddr
 	tcpProxies map[int]net.Listener
 	udpMapping map[int]net.UDPAddr
+	udpProxies map[int]*UDPProxy
 }
 
 func (mapper *PortMapper) cleanup() error {
@@ -238,6 +370,7 @@ func (mapper *PortMapper) cleanup() error {
 	mapper.tcpMapping = make(map[int]net.TCPAddr)
 	mapper.tcpProxies = make(map[int]net.Listener)
 	mapper.udpMapping = make(map[int]net.UDPAddr)
+	mapper.udpProxies = make(map[int]*UDPProxy)
 	return nil
 }
 
@@ -263,8 +396,8 @@ func (mapper *PortMapper) MapTCP(port int, dest net.TCPAddr) error {
 	if err := mapper.iptablesForward("-A", port, "tcp", dest.IP.String(), dest.Port); err != nil {
 		return err
 	}
-
 	mapper.tcpMapping[port] = dest
+
 	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		mapper.Unmap(port, "tcp")
@@ -281,6 +414,14 @@ func (mapper *PortMapper) MapUDP(port int, dest net.UDPAddr) error {
 		return err
 	}
 	mapper.udpMapping[port] = dest
+
+	proxy, err := NewUDPProxy(&net.UDPAddr{Port: port, IP: net.IPv4(127, 0, 0, 1)}, &dest)
+	if err != nil {
+		mapper.Unmap(port, "udp")
+		return err
+	}
+	mapper.udpProxies[port] = proxy
+	go proxy.Run()
 
 	return nil
 }
@@ -303,6 +444,11 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 		dest, ok := mapper.udpMapping[port]
 		if !ok {
 			return fmt.Errorf("Port %v/%v is not mapped", port, proto)
+		}
+		if proxy, exists := mapper.udpProxies[port]; exists {
+			proxy.frontendConn.Close()
+			utils.Debugf("udp proxy frontendConn closed")
+			delete(mapper.udpProxies, port)
 		}
 		if err := mapper.iptablesForward("-D", port, proto, dest.IP.String(), dest.Port); err != nil {
 			return err
@@ -578,8 +724,9 @@ func parseNat(spec string) (*Nat, error) {
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
 	for _, nat := range iface.extPorts {
+		utils.Debugf("Unmaping %v/%v", nat.Frontend, nat.Proto)
 		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
-			log.Printf("Unable to unmap port %v: %v", nat.Frontend, err)
+			log.Printf("Unable to unmap port %v/%v: %v", nat.Frontend, nat.Proto, err)
 		}
 		if nat.Proto == "tcp" {
 			if err := iface.manager.tcpPortAllocator.Release(nat.Frontend); err != nil {
