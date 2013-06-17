@@ -27,5 +27,4 @@ run	apt-get install -y -q devscripts
 # Copy dockerbuilder files into the container
 add	.       /src
 run	cp /src/dockerbuilder /usr/local/bin/ && chmod +x /usr/local/bin/dockerbuilder
-run	cp /src/s3cfg /.s3cfg
 cmd	["dockerbuilder"]
