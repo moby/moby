@@ -132,7 +132,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | -", "Build a new container image from the source code at PATH")
-	tag := cmd.String("t", "", "Tag(s) to be applied to the resulting image in case of success. If more than one tag, separate with commas")
+	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
