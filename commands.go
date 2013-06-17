@@ -1058,37 +1058,23 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	splitStderr := container.Config.Tty
-
-	connections := 1
-	if splitStderr {
-		connections += 1
-	}
-	chErrors := make(chan error, connections)
+	chErrors := make(chan error)
 	if container.Config.Tty {
 		cli.monitorTtySize(cmd.Arg(0))
 	}
-	if splitStderr {
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
-		}()
-	}
+
 	v := url.Values{}
 	v.Set("stream", "1")
 	v.Set("stdin", "1")
 	v.Set("stdout", "1")
-	if !splitStderr {
-		v.Set("stderr", "1")
-	}
+	v.Set("stderr", "1")
+
 	go func() {
 		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
 	}()
-	for connections > 0 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-		connections -= 1
+
+	if err := <-chErrors; err != nil {
+		return err
 	}
 	return nil
 }
