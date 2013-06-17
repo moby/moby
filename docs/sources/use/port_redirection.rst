@@ -19,7 +19,7 @@ public port will be allocated.
     docker run -p 80 <image> <cmd>
 
     # PUBLIC port 80 is redirected to PRIVATE port 80
-    docker run -p 80:80 <image <cmd>
+    docker run -p 80:80 <image> <cmd>
 
 
 Default port redirects can be built into a container with the EXPOSE build command.
