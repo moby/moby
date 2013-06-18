@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"bytes"
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -85,17 +85,17 @@ func Tar(path string, compression Compression) (io.Reader, error) {
 
 func Untar(archive io.Reader, path string) error {
 
-	buf := make([]byte, 10)
-	if _, err := archive.Read(buf); err != nil {
+	bufferedArchive := bufio.NewReaderSize(archive, 10)
+	buf, err := bufferedArchive.Peek(10)
+	if err != nil {
 		return err
 	}
 	compression := DetectCompression(buf)
-	archive = io.MultiReader(bytes.NewReader(buf), archive)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
 
 	cmd := exec.Command("tar", "-f", "-", "-C", path, "-x"+compression.Flag())
-	cmd.Stdin = archive
+	cmd.Stdin = bufferedArchive
 	// Hardcode locale environment for predictable outcome regardless of host configuration.
 	//   (see https://github.com/dotcloud/docker/issues/355)
 	cmd.Env = []string{"LANG=en_US.utf-8", "LC_ALL=en_US.utf-8"}
