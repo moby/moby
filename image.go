@@ -171,6 +171,7 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 }
 
 func (image *Image) Mount(root, rw string) error {
+	log.Printf("Mount")
 	if mounted, err := Mounted(root); err != nil {
 		return err
 	} else if mounted {
