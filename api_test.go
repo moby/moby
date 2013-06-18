@@ -953,8 +953,8 @@ func TestPostContainersStart(t *testing.T) {
 	if err := postContainersStart(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	if r.Code != http.StatusOK {
+		t.Fatalf("HTTP Status 200 expected, received %d\n", r.Code)
 	}
 
 	// Give some time to the process to start
@@ -1015,8 +1015,8 @@ func TestPostContainersStop(t *testing.T) {
 	if err := postContainersStop(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
+	if r.Code != http.StatusOK {
+		t.Fatalf("HTTP Status 200 expected, received %d\n", r.Code)
 	}
 	if container.State.Running {
 		t.Fatalf("The container hasn't been stopped")

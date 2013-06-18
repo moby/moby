@@ -538,13 +538,15 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
+    w.WriteHeader(http.StatusBadRequest)
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 	if err := srv.ContainerStart(name); err != nil {
+    w.WriteHeader(http.StatusInternalServerError)
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
@@ -558,14 +560,16 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if vars == nil {
+    w.WriteHeader(http.StatusBadRequest)
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
 
 	if err := srv.ContainerStop(name, t); err != nil {
+    w.WriteHeader(http.StatusInternalServerError)
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
