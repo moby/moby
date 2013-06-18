@@ -158,6 +158,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 		}
 		log.Printf(":-)")
 	}
+	log.Printf("####")
 	return nil
 }
 
