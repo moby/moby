@@ -942,9 +942,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if container.State.Ghost {
 			return fmt.Errorf("Impossible to attach to a ghost container")
 		}
-		if !container.State.Running {
-			return fmt.Errorf("Impossible to attach to a stopped container, start it first")
-		}
 
 		var (
 			cStdin           io.ReadCloser
