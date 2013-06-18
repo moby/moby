@@ -1270,7 +1270,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.ID)
 	} else {
-		chErrors := make(chan error)
 		if config.Tty {
 			cli.monitorTtySize(out.ID)
 		}
@@ -1288,10 +1287,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if config.AttachStderr {
 			v.Set("stderr", "1")
 		}
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
-		}()
-		if err := <-chErrors; err != nil {
+		if err := cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
