@@ -15,10 +15,18 @@ steps and commit them along the way, giving you a final image.
 1. Usage
 ========
 
-To use Docker Builder, assemble the steps into a text file (commonly referred to
-as a Dockerfile) and supply this to `docker build` on STDIN, like so:
+To build an image from a source repository, create a description file called `Dockerfile`
+at the root of your repository. This file will describe the steps to assemble
+the image.
 
-    ``docker build - < Dockerfile``
+Then call `docker build` with the path of your source repository as argument:
+
+    ``docker build .``
+
+You can specify a repository and tag at which to save the new image if the
+build succeeds:
+
+    ``docker build -t shykes/myapp .``
 
 Docker will run your steps one-by-one, committing the result if necessary, 
 before finally outputting the ID of your new image.

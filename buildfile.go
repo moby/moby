@@ -101,6 +101,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
 	} else if cache != nil {
+		fmt.Fprintf(b.out, " ---> Using cache\n")
 		utils.Debugf("[BUILDER] Use cached version")
 		b.image = cache.ID
 		return nil
@@ -259,7 +260,7 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.out, "## %s\n", c.ID)
+	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	//start the container
 	if err := c.Start(); err != nil {
@@ -288,6 +289,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 			return err
 		} else if cache != nil {
+			fmt.Fprintf(b.out, " ---> Using cache\n")
 			utils.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return nil
@@ -299,6 +301,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		b.tmpContainers[container.ID] = struct{}{}
+		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 		if err := container.EnsureMounted(); err != nil {
 			return err
@@ -337,6 +340,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		b.context = name
 	}
 	file := bufio.NewReader(dockerfile)
+	stepN := 0
 	for {
 		line, err := file.ReadString('\n')
 		if err != nil {
@@ -357,12 +361,13 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
-
-		fmt.Fprintf(b.out, "%s %s (%s)\n", strings.ToUpper(instruction), arguments, b.image)
+		stepN += 1
+		// FIXME: only count known instructions as build steps
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
-			fmt.Fprintf(b.out, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 			continue
 		}
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
@@ -370,10 +375,10 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 			return "", ret.(error)
 		}
 
-		fmt.Fprintf(b.out, "===> %v\n", b.image)
+		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
-		fmt.Fprintf(b.out, "Build successful.\n%s\n", b.image)
+		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
 		return b.image, nil
 	}
 	return "", fmt.Errorf("An error occured during the build\n")
