@@ -1058,7 +1058,6 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	chErrors := make(chan error)
 	if container.Config.Tty {
 		cli.monitorTtySize(cmd.Arg(0))
 	}
@@ -1069,11 +1068,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	go func() {
-		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
-	}()
-
-	if err := <-chErrors; err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout); err != nil {
 		return err
 	}
 	return nil
