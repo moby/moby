@@ -141,6 +141,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
 
 	branches += ",xino=/dev/shm/aufs.xino"
+	log.Printf("END")
 
 	//if error, try to load aufs kernel module
 	if err := mount("none", target, "aufs", 0, branches); err != nil {
@@ -158,7 +159,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 		}
 		log.Printf(":-)")
 	}
-	log.Printf("####")
+	log.Printf("END")
 	return nil
 }
 
