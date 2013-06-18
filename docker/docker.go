@@ -24,15 +24,13 @@ func main() {
 		docker.SysInit()
 		return
 	}
-	host := "127.0.0.1"
-	port := 4243
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flHost := flag.String("H", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
+	flHost := flag.String("H", fmt.Sprintf("%s:%d", docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT), "Host:port to bind/connect to")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flag.Parse()
@@ -42,21 +40,8 @@ func main() {
 		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
 
-	if strings.Contains(*flHost, ":") {
-		hostParts := strings.Split(*flHost, ":")
-		if len(hostParts) != 2 {
-			log.Fatal("Invalid bind address format.")
-			os.Exit(-1)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		}
-		if p, err := strconv.Atoi(hostParts[1]); err == nil {
-			port = p
-		}
-	} else {
-		host = *flHost
-	}
+	protoAddr := parseHost(*flHost)
+	protoAddrs := []string{protoAddr}
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
@@ -67,12 +52,13 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, host, port, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, protoAddrs, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
 	} else {
-		if err := docker.ParseCommands(host, port, flag.Args()...); err != nil {
+		protoAddrParts := strings.SplitN(protoAddrs[0], "://", 2)
+		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -106,10 +92,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile, addr string, port int, autoRestart, enableCors bool, flDns string) error {
-	if addr != "127.0.0.1" {
-		log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-	}
+func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -131,6 +114,55 @@ func daemon(pidfile, addr string, port int, autoRestart, enableCors bool, flDns 
 	if err != nil {
 		return err
 	}
+	chErrors := make(chan error, len(protoAddrs))
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if protoAddrParts[0] == "unix" {
+			syscall.Unlink(protoAddrParts[1]);
+		} else if protoAddrParts[0] == "tcp" {
+			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
+				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			}
+		} else {
+			log.Fatal("Invalid protocol format.")
+			os.Exit(-1)
+		}
+		go func() {
+			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
+		}()
+	}
+	for i :=0 ; i < len(protoAddrs); i+=1 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	return docker.ListenAndServe(fmt.Sprintf("%s:%d", addr, port), server, true)
+func parseHost(addr string) string {
+	if strings.HasPrefix(addr, "unix://") {
+		return addr
+	}
+	host :=	docker.DEFAULTHTTPHOST
+	port := docker.DEFAULTHTTPPORT
+	if strings.HasPrefix(addr, "tcp://") {
+		addr = strings.TrimPrefix(addr, "tcp://")
+	}
+	if strings.Contains(addr, ":") {
+		hostParts := strings.Split(addr, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
+		if hostParts[0] != "" {
+			host = hostParts[0]
+		}
+		if p, err := strconv.Atoi(hostParts[1]); err == nil {		
+			port = p
+		}
+	} else {
+		host = addr
+	}
+	return fmt.Sprintf("tcp://%s:%d", host, port)
 }
