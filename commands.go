@@ -29,7 +29,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.4.1"
+const VERSION = "0.4.2"
 
 var (
 	GITCOMMIT string
