@@ -8,7 +8,7 @@
 
 echo "Ensuring basic dependencies are installed..."
 apt-get -qq update
-apt-get -qq install lxc wget bsdtar
+apt-get -qq install lxc wget
 
 echo "Looking in /proc/filesystems to see if we have AUFS support..."
 if grep -q aufs /proc/filesystems
