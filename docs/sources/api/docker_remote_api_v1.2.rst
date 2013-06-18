@@ -846,7 +846,7 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-	Build an image from Dockerfile via stdin
+	Build an image from Dockerfile
 
 	**Example request**:
 
@@ -865,8 +865,11 @@ Build an image from Dockerfile via stdin
 	   {{ STREAM }}
 
 	:query t: tag to be applied to the resulting image in case of success
+	:query remote: resource to fetch, as URI
 	:statuscode 200: no error
         :statuscode 500: server error
+
+{{ STREAM }} is the raw text output of the build command. It uses the HTTP Hijack method in order to stream.
 
 
 Check auth configuration
