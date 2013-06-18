@@ -218,12 +218,26 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 		return nil, err
 	}
 
+	lookupMap := make(map[string]string)
+	for name, repository := range srv.runtime.repositories.Repositories {
+		for tag, id := range repository {
+			// If the ID already has a reverse lookup, do not update it unless for "latest"
+			if _, exists := lookupMap[id]; exists {
+				if tag != "latest" {
+					continue
+				}
+			}
+			lookupMap[id] = name + ":" + tag
+		}
+	}
+
 	outs := []APIHistory{} //produce [] when empty instead of 'null'
 	err = image.WalkHistory(func(img *Image) error {
 		var out APIHistory
 		out.ID = srv.runtime.repositories.ImageName(img.ShortID())
 		out.Created = img.Created.Unix()
 		out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
+		out.Tag = lookupMap[img.ID]
 		outs = append(outs, out)
 		return nil
 	})

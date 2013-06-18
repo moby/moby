@@ -2,6 +2,7 @@ package docker
 
 type APIHistory struct {
 	ID        string `json:"Id"`
+	Tag       string `json:",omitempty"`
 	Created   int64
 	CreatedBy string `json:",omitempty"`
 }
