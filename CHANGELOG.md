@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.2 (2013-06-17)
+ - Packaging: Bumped version to work around an Ubuntu bug
+
 ## 0.4.1 (2013-06-17)
  + Remote Api: Add flag to enable cross domain requests
  + Remote Api/Client: Add images and containers sizes in docker ps and docker images
