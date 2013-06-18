@@ -146,7 +146,7 @@ func MountAUFS(ro []string, rw string, target string) error {
 	//if error, try to load aufs kernel module
 	if err := mount("none", target, "aufs", 0, branches); err != nil {
 		log.Printf("1[")
-		fmt.Println(err)
+		fmt.Errorf("first mount: %g", err)
 		log.Printf("]1")
 		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
 		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
