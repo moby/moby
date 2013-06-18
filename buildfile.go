@@ -212,7 +212,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
 			return err
 		}
-		if err := CopyWithTar(origPath, destPath); err != nil {
+		if err := utils.CopyDirectory(origPath, destPath); err != nil {
 			return err
 		}
 	}
