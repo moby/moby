@@ -40,6 +40,8 @@
 
     {%- set script_files = script_files + ['_static/js/docs.js'] %}
 
+    <link rel="canonical" href="http://docs.docker.io/en/latest/{{ pagename }}/">
+
     {%- for cssfile in css_files %}
     <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
     {%- endfor %}
@@ -48,9 +50,8 @@
     <script type="text/javascript" src="{{ pathto(scriptfile, 1) }}"></script>
     {%- endfor %}
 
-    {%- if favicon %}
-    <link rel="shortcut icon" href="{{ pathto('_static/' + favicon, 1) }}"/>
-    {%- endif %}
+    <link rel="shortcut icon" href="{{ pathto('_static/favicon.png', 1) }}"/>
+
 
     {%- block extrahead %}{% endblock %}
 
@@ -104,11 +105,8 @@
     <!-- Docs nav
      ================================================== -->
     <div class="row" style="position: relative">
-        <div class="span3" style="height:100%;" >
 
-        </div>
-
-        <div class="span3 sidebar bs-docs-sidebar" style="position: absolute">
+        <div class="span3 sidebar bs-docs-sidebar">
             {{ toctree(collapse=False, maxdepth=3) }}
         </div>
 
