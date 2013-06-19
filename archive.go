@@ -1,8 +1,10 @@
 package docker
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,6 +21,37 @@ const (
 	Gzip
 	Xz
 )
+
+func DetectCompression(source []byte) Compression {
+	for _, c := range source[:10] {
+		utils.Debugf("%x", c)
+	}
+
+	sourceLen := len(source)
+	for compression, m := range map[Compression][]byte{
+		Bzip2: {0x42, 0x5A, 0x68},
+		Gzip:  {0x1F, 0x8B, 0x08},
+		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+	} {
+		fail := false
+		if len(m) > sourceLen {
+			utils.Debugf("Len too short")
+			continue
+		}
+		i := 0
+		for _, b := range m {
+			if b != source[i] {
+				fail = true
+				break
+			}
+			i++
+		}
+		if !fail {
+			return compression
+		}
+	}
+	return Uncompressed
+}
 
 func (compression *Compression) Flag() string {
 	switch *compression {
@@ -47,14 +80,23 @@ func (compression *Compression) Extension() string {
 }
 
 func Tar(path string, compression Compression) (io.Reader, error) {
-	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-c"+compression.Flag(), ".")
-	return CmdStream(cmd)
+	return CmdStream(exec.Command("tar", "-f", "-", "-C", path, "-c"+compression.Flag(), "."))
 }
 
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
-	cmd := exec.Command("bsdtar", "-f", "-", "-C", path, "-x")
-	cmd.Stdin = archive
+
+	bufferedArchive := bufio.NewReaderSize(archive, 10)
+	buf, err := bufferedArchive.Peek(10)
+	if err != nil {
+		return err
+	}
+	compression := DetectCompression(buf)
+
+	utils.Debugf("Archive compression detected: %s", compression.Extension())
+
+	cmd := exec.Command("tar", "-f", "-", "-C", path, "-x"+compression.Flag())
+	cmd.Stdin = bufferedArchive
 	// Hardcode locale environment for predictable outcome regardless of host configuration.
 	//   (see https://github.com/dotcloud/docker/issues/355)
 	cmd.Env = []string{"LANG=en_US.utf-8", "LC_ALL=en_US.utf-8"}

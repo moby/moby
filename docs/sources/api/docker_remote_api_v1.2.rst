@@ -691,6 +691,7 @@ Get the history of an image
 	   [
 		{
 			"Id":"b750fe79269d",
+			"Tag":["base:latest"],
 			"Created":1364102658,
 			"CreatedBy":"/bin/bash"
 		},

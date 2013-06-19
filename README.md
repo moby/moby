@@ -181,7 +181,7 @@ Running an irc bouncer
 ----------------------
 
 ```bash
-BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
+BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc zncrun $USER $PASSWORD)
 echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
 ```
 
@@ -262,7 +262,7 @@ Setting up a dev environment
 Instructions that have been verified to work on Ubuntu 12.10,
 
 ```bash
-sudo apt-get -y install lxc wget bsdtar curl golang git
+sudo apt-get -y install lxc curl xz-utils golang git
 
 export GOPATH=~/go/
 export PATH=$GOPATH/bin:$PATH
