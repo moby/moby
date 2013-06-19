@@ -715,6 +715,9 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version < 1.3 {
+		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
+	}
 	// FIXME: "remote" is not a clear variable name.
 	remote := r.FormValue("t")
 	tag := ""
