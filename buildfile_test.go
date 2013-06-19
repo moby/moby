@@ -54,21 +54,6 @@ run    mkdir -p /var/run/sshd
 
 	{
 		`
-# VERSION		0.1
-# DOCKER-VERSION	0.2
-
-from   docker-ut
-run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd`,
-		nil,
-		[]testCommand{
-			{[]string{"cat", "/tmp/passwd"}, "root:testpass\n"},
-			{[]string{"ls", "-d", "/var/run/sshd"}, "/var/run/sshd\n"},
-		},
-	},
-
-	{
-		`
 from docker-ut
 add foo /usr/lib/bla/bar`,
 		[][2]string{{"foo", "hello world!"}},
