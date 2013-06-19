@@ -269,7 +269,7 @@ export PATH=$GOPATH/bin:$PATH
 
 mkdir -p $GOPATH/src/github.com/dotcloud
 cd $GOPATH/src/github.com/dotcloud
-git clone git@github.com:dotcloud/docker.git
+git clone https://github.com/dotcloud/docker.git
 cd docker
 
 go get -v github.com/dotcloud/docker/...
