@@ -262,7 +262,7 @@ Setting up a dev environment
 Instructions that have been verified to work on Ubuntu 12.10,
 
 ```bash
-sudo apt-get -y install lxc wget bsdtar curl golang git
+sudo apt-get -y install lxc curl xz-utils golang git
 
 export GOPATH=~/go/
 export PATH=$GOPATH/bin:$PATH
