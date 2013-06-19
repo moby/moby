@@ -185,9 +185,9 @@ func CopyWithTar(src, dst string) error {
 	}
 	// Create the destination
 	var dstDir string
-	if dst[len(dst)-1] == '/' {
-		// The destination ends in /
-		//   --> dst is the holding directory
+	if srcSt.IsDir() || dst[len(dst)-1] == '/' {
+		// The destination ends in /, or the source is a directory
+		//   --> dst is the holding directory and needs to be created for -C
 		dstDir = dst
 	} else {
 		// The destination doesn't end in /
