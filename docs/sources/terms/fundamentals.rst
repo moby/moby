@@ -25,13 +25,13 @@ associate with Unix-like operating systems: ``/dev, /proc, /bin, /etc,
 and libraries required to run user applications (like bash, ls, and so
 forth). 
 
-While there can be important kernal differences between differnt Linux
-distributions, the contents and organization of the root file system
-are usually what make your software packages dependant on one
+While there can be important kernal differences between different
+Linux distributions, the contents and organization of the root file
+system are usually what make your software packages dependent on one
 distribution versus another. Docker can help solve this problem by
 running multiple distributions at the same time.
 
-.. image:: images/docker-filesystems-busyboxrw.png
+.. image:: images/docker-filesystems-multiroot.png
 
 Layers and Union Mounts
 =======================
@@ -45,7 +45,7 @@ it takes advantage of a `union mount
 system *over* the read-only file system. In fact there may be multiple
 read-only file systems stacked on top of each other.
 
-.. image:: images/docker-filesystems-debianrw.png
+.. image:: images/docker-filesystems-multilayer.png
 
 At first, the top layer has nothing in it, but any time a process
 creates a file, this happens in the top layer. And if something needs
@@ -60,11 +60,11 @@ a **union file system**.
 Image
 =====
 
-In Docker terminology, the read-only layer is called the
-**image**. An image never changes. Because Docker uses a union file
-system, the applications think the whole file system is mounted
-read-write, because any file can be changed. But all the changes go to
-the top-most layer, and underneath, the image is unchanged. Since they
+In Docker terminology, a read-only layer is called an **image**. An
+image never changes. Because Docker uses a union file system, the
+applications think the whole file system is mounted read-write,
+because any file can be changed. But all the changes go to the
+top-most layer, and underneath, the image is unchanged. Since they
 don't change, images do not have state.
 
 Each image may depend on one more image which forms the layer beneath
@@ -79,7 +79,7 @@ An image that has no parent is a **base image**.
 Container
 =========
 
-Once you start a Docker container from an image, Docker fetches the
+Once you start a process in Docker from an image, Docker fetches the
 image and its parent, and repeats the process until it reaches the
 base image. Then the union file system adds a read-write layer on
 top. That read-write layer, plus the information about its parent and
