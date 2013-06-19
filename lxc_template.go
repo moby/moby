@@ -67,7 +67,11 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 
 
 # standard mount point
+#  WARNING: procfs is a known attack vector and should probably be disabled
+#           if your userspace allows it. eg. see http://blog.zx2c4.com/749
 lxc.mount.entry = proc {{$ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
+#  WARNING: sysfs is a known attack vector and should probably be disabled
+#           if your userspace allows it. eg. see http://bit.ly/T9CkqJ
 lxc.mount.entry = sysfs {{$ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
 #lxc.mount.entry = varrun {{$ROOTFS}}/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0
