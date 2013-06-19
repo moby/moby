@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 )
 
 type Archive io.Reader
@@ -79,10 +80,29 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
+// Tar creates an archive from the directory at `path`, and returns it as a
+// stream of bytes.
 func Tar(path string, compression Compression) (io.Reader, error) {
-	return CmdStream(exec.Command("tar", "-f", "-", "-C", path, "-c"+compression.Flag(), "."))
+	return TarFilter(path, compression, nil)
 }
 
+// Tar creates an archive from the directory at `path`, only including files whose relative
+// paths are included in `filter`. If `filter` is nil, then all files are included.
+func TarFilter(path string, compression Compression, filter []string) (io.Reader, error) {
+	args := []string{"tar", "-f", "-", "-C", path}
+	if filter == nil {
+		filter = []string{"."}
+	}
+	for _, f := range filter {
+		args = append(args, "-c"+compression.Flag(), f)
+	}
+	return CmdStream(exec.Command(args[0], args[1:]...))
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `path`.
+// The archive may be compressed with one of the following algorithgms:
+//  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
 
@@ -107,6 +127,18 @@ func Untar(archive io.Reader, path string) error {
 	return nil
 }
 
+// TarUntar is a convenience function which calls Tar and Untar, with
+// the output of one piped into the other. If either Tar or Untar fails,
+// TarUntar aborts and returns the error.
+func TarUntar(src string, filter []string, dst string) error {
+	utils.Debugf("TarUntar(%s %s %s)", src, filter, dst)
+	archive, err := TarFilter(src, Uncompressed, filter)
+	if err != nil {
+		return err
+	}
+	return Untar(archive, dst)
+}
+
 // UntarPath is a convenience function which looks for an archive
 // at filesystem path `src`, and unpacks it at `dst`.
 func UntarPath(src, dst string) error {
@@ -124,11 +156,55 @@ func UntarPath(src, dst string) error {
 // intermediary disk IO.
 //
 func CopyWithTar(src, dst string) error {
-	archive, err := Tar(src, Uncompressed)
+	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
 	}
-	return Untar(archive, dst)
+	var dstExists bool
+	dstSt, err := os.Stat(dst)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		dstExists = true
+	}
+	// Things that can go wrong if the source is a directory
+	if srcSt.IsDir() {
+		// The destination exists and is a regular file
+		if dstExists && !dstSt.IsDir() {
+			return fmt.Errorf("Can't copy a directory over a regular file")
+		}
+		// Things that can go wrong if the source is a regular file
+	} else {
+		utils.Debugf("The destination exists, it's a directory, and doesn't end in /")
+		// The destination exists, it's a directory, and doesn't end in /
+		if dstExists && dstSt.IsDir() && dst[len(dst)-1] != '/' {
+			return fmt.Errorf("Can't copy a regular file over a directory %s |%s|", dst, dst[len(dst)-1])
+		}
+	}
+	// Create the destination
+	var dstDir string
+	if dst[len(dst)-1] == '/' {
+		// The destination ends in /
+		//   --> dst is the holding directory
+		dstDir = dst
+	} else {
+		// The destination doesn't end in /
+		//   --> dst is the file
+		dstDir = path.Dir(dst)
+	}
+	if !dstExists {
+		// Create the holding directory if necessary
+		utils.Debugf("Creating the holding directory %s", dstDir)
+		if err := os.MkdirAll(dstDir, 0700); err != nil && !os.IsExist(err) {
+			return err
+		}
+	}
+	if !srcSt.IsDir() {
+		return TarUntar(path.Dir(src), []string{path.Base(src)}, dstDir)
+	}
+	return TarUntar(src, nil, dstDir)
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.
