@@ -27,9 +27,6 @@ func TestEncodeAuth(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	if os.Getenv("OFFLINE") != "" {
-		t.Skip("Offline mode, skipping.")
-	}
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	authConfig := NewAuthConfig("unittester", "surlautrerivejetattendrai", "noise+unittester@dotcloud.com", "/tmp")
@@ -43,9 +40,6 @@ func TestLogin(t *testing.T) {
 }
 
 func TestCreateAccount(t *testing.T) {
-	if os.Getenv("OFFLINE") != "" {
-		t.Skip("Offline mode, skipping.")
-	}
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	tokenBuffer := make([]byte, 16)
