@@ -181,7 +181,7 @@ Running an irc bouncer
 ----------------------
 
 ```bash
-BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
+BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc zncrun $USER $PASSWORD)
 echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
 ```
 

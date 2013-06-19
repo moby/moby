@@ -218,12 +218,24 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 		return nil, err
 	}
 
+	lookupMap := make(map[string][]string)
+	for name, repository := range srv.runtime.repositories.Repositories {
+		for tag, id := range repository {
+			// If the ID already has a reverse lookup, do not update it unless for "latest"
+			if _, exists := lookupMap[id]; !exists {
+				lookupMap[id] = []string{}
+			}
+			lookupMap[id] = append(lookupMap[id], name+":"+tag)
+		}
+	}
+
 	outs := []APIHistory{} //produce [] when empty instead of 'null'
 	err = image.WalkHistory(func(img *Image) error {
 		var out APIHistory
 		out.ID = srv.runtime.repositories.ImageName(img.ShortID())
 		out.Created = img.Created.Unix()
 		out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
+		out.Tags = lookupMap[img.ID]
 		outs = append(outs, out)
 		return nil
 	})
@@ -929,9 +941,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	if stream {
 		if container.State.Ghost {
 			return fmt.Errorf("Impossible to attach to a ghost container")
-		}
-		if !container.State.Running {
-			return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 		}
 
 		var (
