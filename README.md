@@ -108,7 +108,7 @@ Note that some methods are community contributions and not yet officially suppor
 
 * [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
 * [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
-* [MacOS X (with Vagrant)](http://docs.docker.io/en/latest/installation/macos/)
+* [Mac OS X (with Vagrant)](http://docs.docker.io/en/latest/installation/vagrant/)
 * [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
 * [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
