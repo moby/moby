@@ -138,9 +138,39 @@ curl was installed within the image.
 
     ``ADD <src> <dest>``
 
-The `ADD` instruction will insert the files from the `<src>` path of the context into `<dest>` path 
-of the container.
-The context must be set in order to use this instruction. (see examples)
+The `ADD` instruction will copy new files from <src> and add them to the container's filesystem at path `<dest>`.
+
+`<src>` must be the path to a file or directory relative to the source directory being built (also called the
+context of the build).
+
+`<dest>` is the path at which the source will be copied in the destination container.
+
+The copy obeys the following rules:
+
+If `<src>` is a directory, the entire directory is copied, including filesystem metadata.
+
+If `<src>` is a tar archive in a recognized compression format (identity, gzip, bzip2 or xz), it
+is unpacked as a directory.
+
+When a directory is copied or unpacked, it has the same behavior as 'tar -x': the result is the union of
+a) whatever existed at the destination path and b) the contents of the source tree, with conflicts resolved
+in favor of b on a file-by-file basis.
+
+If `<src>` is any other kind of file, it is copied individually along with its metadata.
+
+If `<dest>` doesn't exist, it is created along with all missing directories in its path. All new
+files and directories are created with mode 0700, uid and gid 0.
+
+If `<dest>` ends with a trailing slash '/', the contents of `<src>` is copied `inside` it.
+For example "ADD foo /usr/src/" creates /usr/src/foo in the container. If `<dest>` already exists,
+it MUST be a directory.
+
+If `<dest>` does not end with a trailing slash '/', the contents of `<src>` is copied `over` it.
+For example "ADD foo /usr/src" creates /usr/src with the contents of the "foo". If `<dest>` already
+exists, it MUST be of the same type as the source.
+
+
+
 
 3. Dockerfile Examples
 ======================
