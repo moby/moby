@@ -86,7 +86,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}

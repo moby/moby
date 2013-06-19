@@ -1,10 +1,13 @@
 package docker
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"testing"
 	"time"
 )
@@ -58,20 +61,58 @@ func TestCmdStreamGood(t *testing.T) {
 	}
 }
 
-func TestTarUntar(t *testing.T) {
-	archive, err := Tar(".", Uncompressed)
+func tarUntar(t *testing.T, origin string, compression Compression) error {
+	archive, err := Tar(origin, compression)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	buf := make([]byte, 10)
+	if _, err := archive.Read(buf); err != nil {
+		return err
+	}
+	archive = io.MultiReader(bytes.NewReader(buf), archive)
+
+	detectedCompression := DetectCompression(buf)
+	if detectedCompression.Extension() != compression.Extension() {
+		return fmt.Errorf("Wrong compression detected. Actual compression: %s, found %s", compression.Extension(), detectedCompression.Extension())
+	}
+
 	tmp, err := ioutil.TempDir("", "docker-test-untar")
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(tmp)
 	if err := Untar(archive, tmp); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	if _, err := os.Stat(tmp); err != nil {
-		t.Fatalf("Error stating %s: %s", tmp, err.Error())
+		return err
+	}
+	return nil
+}
+
+func TestTarUntar(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []Compression{
+		Uncompressed,
+		Gzip,
+		Bzip2,
+		Xz,
+	} {
+		if err := tarUntar(t, origin, c); err != nil {
+			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
+		}
 	}
 }
