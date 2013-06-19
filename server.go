@@ -321,7 +321,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
 			out.Write(sf.FormatStatus("Pulling %s metadata", id))
-			imgJSON, err := r.GetRemoteImageJSON(id, endpoint, token)
+			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
 				return err
@@ -333,12 +333,12 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 
 			// Get the layer
 			out.Write(sf.FormatStatus("Pulling %s fs layer", id))
-			layer, contentLength, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
+			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
 				return err
 			}
 		}
@@ -941,9 +941,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	if stream {
 		if container.State.Ghost {
 			return fmt.Errorf("Impossible to attach to a ghost container")
-		}
-		if !container.State.Running {
-			return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 		}
 
 		var (

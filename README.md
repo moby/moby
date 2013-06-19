@@ -108,7 +108,7 @@ Note that some methods are community contributions and not yet officially suppor
 
 * [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
 * [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
-* [MacOS X (with Vagrant)](http://docs.docker.io/en/latest/installation/macos/)
+* [Mac OS X (with Vagrant)](http://docs.docker.io/en/latest/installation/vagrant/)
 * [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
 * [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
@@ -262,7 +262,7 @@ Setting up a dev environment
 Instructions that have been verified to work on Ubuntu 12.10,
 
 ```bash
-sudo apt-get -y install lxc wget bsdtar curl golang git
+sudo apt-get -y install lxc curl xz-utils golang git
 
 export GOPATH=~/go/
 export PATH=$GOPATH/bin:$PATH
