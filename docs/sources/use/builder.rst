@@ -156,21 +156,14 @@ When a directory is copied or unpacked, it has the same behavior as 'tar -x': th
 a) whatever existed at the destination path and b) the contents of the source tree, with conflicts resolved
 in favor of b on a file-by-file basis.
 
-If `<src>` is any other kind of file, it is copied individually along with its metadata.
+If `<src>` is any other kind of file, it is copied individually along with its metadata. In this case,
+if `<dst>` ends with a trailing slash '/', it will be considered a directory and the contents of `<src>`
+will be written at `<dst>/base(<src>)`.
+If `<dst>` does not end with a trailing slash, it will be considered a regular file and the contents
+of `<src>` will be written at `<dst>`.
 
 If `<dest>` doesn't exist, it is created along with all missing directories in its path. All new
 files and directories are created with mode 0700, uid and gid 0.
-
-If `<dest>` ends with a trailing slash '/', the contents of `<src>` is copied `inside` it.
-For example "ADD foo /usr/src/" creates /usr/src/foo in the container. If `<dest>` already exists,
-it MUST be a directory.
-
-If `<dest>` does not end with a trailing slash '/', the contents of `<src>` is copied `over` it.
-For example "ADD foo /usr/src" creates /usr/src with the contents of the "foo". If `<dest>` already
-exists, it MUST be of the same type as the source.
-
-
-
 
 3. Dockerfile Examples
 ======================
