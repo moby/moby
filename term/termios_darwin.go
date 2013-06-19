@@ -9,16 +9,16 @@ const (
 	getTermios = syscall.TIOCGETA
 	setTermios = syscall.TIOCSETA
 
-	ECHO    = 0x00000008
-	ONLCR   = 0x2
-	ISTRIP  = 0x20
-	INLCR   = 0x40
-	ISIG    = 0x80
-	IGNCR   = 0x80
-	ICANON  = 0x100
-	ICRNL   = 0x100
-	IXOFF   = 0x400
-	IXON    = 0x200
+	ECHO   = 0x00000008
+	ONLCR  = 0x2
+	ISTRIP = 0x20
+	INLCR  = 0x40
+	ISIG   = 0x80
+	IGNCR  = 0x80
+	ICANON = 0x100
+	ICRNL  = 0x100
+	IXOFF  = 0x400
+	IXON   = 0x200
 )
 
 type Termios struct {

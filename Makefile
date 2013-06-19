@@ -72,7 +72,7 @@ else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
 endif
 
 test: all
-	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))
+	@(cd $(DOCKER_DIR); sudo -E go test ./... $(GO_OPTIONS))
 
 fmt:
 	@gofmt -s -l -w .

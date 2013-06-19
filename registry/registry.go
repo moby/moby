@@ -481,7 +481,7 @@ type Registry struct {
 func NewRegistry(root string, authConfig *auth.AuthConfig) *Registry {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
-		Proxy: http.ProxyFromEnvironment,
+		Proxy:             http.ProxyFromEnvironment,
 	}
 
 	r := &Registry{
