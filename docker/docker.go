@@ -30,19 +30,23 @@ func main() {
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flHost := flag.String("H", fmt.Sprintf("%s:%d", docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT), "Host:port to bind/connect to")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
+	flHosts := docker.ListOpts{fmt.Sprintf("tcp://%s:%d", docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT)}
+	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flag.Parse()
+	if len(flHosts) > 1 {
+		flHosts = flHosts[1:len(flHosts)] //trick to display a nice defaul value in the usage
+	}
+	for i, flHost := range flHosts {
+		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+	}
+
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
 	} else {
 		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
 	}
-
-	protoAddr := parseHost(*flHost)
-	protoAddrs := []string{protoAddr}
-
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
@@ -52,12 +56,16 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, protoAddrs, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
 	} else {
-		protoAddrParts := strings.SplitN(protoAddrs[0], "://", 2)
+		if len(flHosts) > 1 {
+			log.Fatal("Please specify only one -H")
+			return
+		}
+		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
@@ -140,29 +148,3 @@ func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, f
 	return nil
 }
 
-func parseHost(addr string) string {
-	if strings.HasPrefix(addr, "unix://") {
-		return addr
-	}
-	host :=	docker.DEFAULTHTTPHOST
-	port := docker.DEFAULTHTTPPORT
-	if strings.HasPrefix(addr, "tcp://") {
-		addr = strings.TrimPrefix(addr, "tcp://")
-	}
-	if strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			log.Fatal("Invalid bind address format.")
-			os.Exit(-1)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		}
-		if p, err := strconv.Atoi(hostParts[1]); err == nil {		
-			port = p
-		}
-	} else {
-		host = addr
-	}
-	return fmt.Sprintf("tcp://%s:%d", host, port)
-}

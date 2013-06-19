@@ -74,7 +74,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=[tcp://%s:%d]: tcp://host:port to bind/connect to or unix://path/to/socker to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
 	for _, command := range [][2]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
