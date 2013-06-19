@@ -162,10 +162,10 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		}
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		res, err := r.client.Do(req)
-		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		if err != nil {
 			return nil, err
 		}
+		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
 		if res.StatusCode != 200 && res.StatusCode != 404 {
