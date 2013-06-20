@@ -59,13 +59,12 @@ func writeJSON(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
-// FIXME: Use stvconv.ParseBool() instead?
 func getBoolParam(value string) (bool, error) {
-	if value == "1" || strings.ToLower(value) == "true" {
-		return true, nil
-	}
-	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+	if value == "" {
 		return false, nil
+	}
+	if ret, err := strconv.ParseBool(value); err == nil {
+		return ret, err
 	}
 	return false, fmt.Errorf("Bad parameter")
 }
