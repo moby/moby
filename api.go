@@ -8,12 +8,16 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
 
 const APIVERSION = 1.2
+const DEFAULTHTTPHOST string = "127.0.0.1"
+const DEFAULTHTTPPORT int = 4243
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -848,12 +852,21 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s\n", addr)
+func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, r)
+	l, e := net.Listen(proto, addr)
+	if e != nil {
+		return e
+	}
+	//as the daemon is launched as root, change to permission of the socket to allow non-root to connect
+	if proto == "unix" {
+		os.Chmod(addr, 0777)
+	}
+	httpSrv := http.Server{Addr: addr, Handler: r}
+	return httpSrv.Serve(l)
 }
