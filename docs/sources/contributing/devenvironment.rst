@@ -33,7 +33,7 @@ Installation
     sudo apt-get install python-software-properties
     sudo add-apt-repository ppa:gophers/go
     sudo apt-get update
-    sudo apt-get -y install lxc wget bsdtar curl golang-stable git aufs-tools
+    sudo apt-get -y install lxc xz-utils curl golang-stable git aufs-tools
 
     export GOPATH=~/go/
     export PATH=$GOPATH/bin:$PATH

@@ -15,6 +15,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -321,7 +322,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
 			out.Write(sf.FormatStatus("Pulling %s metadata", id))
-			imgJSON, err := r.GetRemoteImageJSON(id, endpoint, token)
+			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
 				return err
@@ -333,12 +334,12 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 
 			// Get the layer
 			out.Write(sf.FormatStatus("Pulling %s fs layer", id))
-			layer, contentLength, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
+			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, contentLength, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
 				return err
 			}
 		}
@@ -413,7 +414,47 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 	return nil
 }
 
+func (srv *Server) poolAdd(kind, key string) error {
+	srv.lock.Lock()
+	defer srv.lock.Unlock()
+
+	if _, exists := srv.pullingPool[key]; exists {
+		return fmt.Errorf("%s %s is already in progress", key, kind)
+	}
+
+	switch kind {
+	case "pull":
+		srv.pullingPool[key] = struct{}{}
+		break
+	case "push":
+		srv.pushingPool[key] = struct{}{}
+		break
+	default:
+		return fmt.Errorf("Unkown pool type")
+	}
+	return nil
+}
+
+func (srv *Server) poolRemove(kind, key string) error {
+	switch kind {
+	case "pull":
+		delete(srv.pullingPool, key)
+		break
+	case "push":
+		delete(srv.pushingPool, key)
+		break
+	default:
+		return fmt.Errorf("Unkown pool type")
+	}
+	return nil
+}
+
 func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	if err := srv.poolAdd("pull", name+":"+tag); err != nil {
+		return err
+	}
+	defer srv.poolRemove("pull", name+":"+tag)
+
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
@@ -430,7 +471,6 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -532,7 +572,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 				// FIXME: Continue on error?
 				return err
 			}
-			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+srvName+"/"+elem.Tag))
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/repositories/"+srvName+"/tags/"+elem.Tag))
 			if err := r.PushRegistryTag(srvName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
@@ -605,7 +645,13 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	return nil
 }
 
+// FIXME: Allow to interupt current push when new push of same image is done.
 func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	if err := srv.poolAdd("push", name); err != nil {
+		return err
+	}
+	defer srv.poolRemove("push", name)
+
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
@@ -705,6 +751,9 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 
 func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	if container := srv.runtime.Get(name); container != nil {
+		if container.State.Running {
+			return fmt.Errorf("Impossible to remove a running container, please stop it first")
+		}
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
@@ -942,9 +991,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if container.State.Ghost {
 			return fmt.Errorf("Impossible to attach to a ghost container")
 		}
-		if !container.State.Running {
-			return fmt.Errorf("Impossible to attach to a stopped container, start it first")
-		}
 
 		var (
 			cStdin           io.ReadCloser
@@ -1003,14 +1049,20 @@ func NewServer(autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		runtime:    runtime,
-		enableCors: enableCors,
+		runtime:     runtime,
+		enableCors:  enableCors,
+		lock:        &sync.Mutex{},
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
 	}
 	runtime.srv = srv
 	return srv, nil
 }
 
 type Server struct {
-	runtime    *Runtime
-	enableCors bool
+	runtime     *Runtime
+	enableCors  bool
+	lock        *sync.Mutex
+	pullingPool map[string]struct{}
+	pushingPool map[string]struct{}
 }

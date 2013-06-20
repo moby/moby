@@ -82,7 +82,8 @@ Expose a service on a TCP port
 
   # Connect to the public port via the host's public address
   # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
-  IP=$(ifconfig eth0 | perl -n -e 'if (m/inet addr:([\d\.]+)/g) { print $1 }')
+  # Replace *eth0* according to your local interface name.
+  IP=$(ip -o -4 addr list eth0 | perl -n -e 'if (m{inet\s([\d\.]+)\/\d+\s}xms) { print $1 }')
   echo hello world | nc $IP $PORT
 
   # Verify that the network connection worked

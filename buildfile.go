@@ -178,15 +178,15 @@ func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
-
+	// Preserve the trailing '/'
+	if dest[len(dest)-1] == '/' {
+		destPath = destPath + "/"
+	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		return err
 	}
 	if fi.IsDir() {
-		if err := os.MkdirAll(destPath, 0700); err != nil {
-			return err
-		}
 		if err := CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}

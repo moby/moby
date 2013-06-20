@@ -1070,37 +1070,22 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	splitStderr := container.Config.Tty
-
-	connections := 1
-	if splitStderr {
-		connections += 1
+	if !container.State.Running {
+		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
-	chErrors := make(chan error, connections)
+
 	if container.Config.Tty {
 		cli.monitorTtySize(cmd.Arg(0))
 	}
-	if splitStderr {
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
-		}()
-	}
+
 	v := url.Values{}
 	v.Set("stream", "1")
 	v.Set("stdin", "1")
 	v.Set("stdout", "1")
-	if !splitStderr {
-		v.Set("stderr", "1")
-	}
-	go func() {
-		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
-	}()
-	for connections > 0 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-		connections -= 1
+	v.Set("stderr", "1")
+
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1269,16 +1254,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
-	splitStderr := !config.Tty
-
-	connections := 0
-	if config.AttachStdin || config.AttachStdout || (!splitStderr && config.AttachStderr) {
-		connections += 1
-	}
-	if splitStderr && config.AttachStderr {
-		connections += 1
-	}
-
 	//start the container
 	_, _, err = cli.call("POST", "/containers/"+out.ID+"/start", nil)
 	if err != nil {
@@ -1287,17 +1262,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.ID)
-	}
-	if connections > 0 {
-		chErrors := make(chan error, connections)
+	} else {
 		if config.Tty {
 			cli.monitorTtySize(out.ID)
-		}
-
-		if splitStderr && config.AttachStderr {
-			go func() {
-				chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
-			}()
 		}
 
 		v := url.Values{}
@@ -1310,19 +1277,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if config.AttachStdout {
 			v.Set("stdout", "1")
 		}
-		if !splitStderr && config.AttachStderr {
+		if config.AttachStderr {
 			v.Set("stderr", "1")
 		}
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
-		}()
-		for connections > 0 {
-			err := <-chErrors
-			if err != nil {
-				utils.Debugf("Error hijack: %s", err)
-				return err
-			}
-			connections -= 1
+		if err := cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout); err != nil {
+			utils.Debugf("Error hijack: %s", err)
+			return err
 		}
 	}
 	return nil
