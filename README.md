@@ -108,7 +108,7 @@ Note that some methods are community contributions and not yet officially suppor
 
 * [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
 * [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
-* [MacOS X (with Vagrant)](http://docs.docker.io/en/latest/installation/macos/)
+* [Mac OS X (with Vagrant)](http://docs.docker.io/en/latest/installation/vagrant/)
 * [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
 * [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
@@ -181,7 +181,7 @@ Running an irc bouncer
 ----------------------
 
 ```bash
-BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc $USER $PASSWORD)
+BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc zncrun $USER $PASSWORD)
 echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
 ```
 
@@ -216,7 +216,8 @@ PORT=$(docker port $JOB 4444)
 
 # Connect to the public port via the host's public address
 # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
-IP=$(ifconfig eth0 | perl -n -e 'if (m/inet addr:([\d\.]+)/g) { print $1 }')
+# Replace *eth0* according to your local interface name.
+IP=$(ip -o -4 addr list eth0 | perl -n -e 'if (m{inet\s([\d\.]+)\/\d+\s}xms) { print $1 }')
 echo hello world | nc $IP $PORT
 
 # Verify that the network connection worked
@@ -262,14 +263,14 @@ Setting up a dev environment
 Instructions that have been verified to work on Ubuntu 12.10,
 
 ```bash
-sudo apt-get -y install lxc wget bsdtar curl golang git
+sudo apt-get -y install lxc curl xz-utils golang git
 
 export GOPATH=~/go/
 export PATH=$GOPATH/bin:$PATH
 
 mkdir -p $GOPATH/src/github.com/dotcloud
 cd $GOPATH/src/github.com/dotcloud
-git clone git@github.com:dotcloud/docker.git
+git clone https://github.com/dotcloud/docker.git
 cd docker
 
 go get -v github.com/dotcloud/docker/...

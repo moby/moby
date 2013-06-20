@@ -192,8 +192,16 @@ func TestDelete(t *testing.T) {
 	}
 	assertNImages(graph, t, 0)
 
+	archive, err = fakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test 2 create (same name) / 1 delete
 	img1, err := graph.Create(archive, nil, "Testing", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err = fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,6 +220,10 @@ func TestDelete(t *testing.T) {
 	}
 	assertNImages(graph, t, 1)
 
+	archive, err = fakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test delete twice (pull -> rm -> pull -> rm)
 	if err := graph.Register(archive, false, img1); err != nil {
 		t.Fatal(err)
