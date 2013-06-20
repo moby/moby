@@ -751,6 +751,9 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 
 func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	if container := srv.runtime.Get(name); container != nil {
+		if container.State.Running {
+			return fmt.Errorf("Impossible to remove a running container, please stop it first")
+		}
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
