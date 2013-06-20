@@ -30,6 +30,7 @@ func main() {
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
+	flGraphPath := flag.String("g", "/var/lib/docker", "Path to graph storage base dir.")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := docker.ListOpts{fmt.Sprintf("tcp://%s:%d", docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT)}
@@ -56,7 +57,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -100,7 +101,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, f
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(autoRestart, enableCors, dns)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
 	if err != nil {
 		return err
 	}
