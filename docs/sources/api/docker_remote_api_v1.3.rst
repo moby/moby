@@ -1,9 +1,9 @@
-:title: Remote API v1.2
+:title: Remote API v1.3
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 ======================
-Docker Remote API v1.2
+Docker Remote API v1.3
 ======================
 
 .. contents:: Table of Contents
