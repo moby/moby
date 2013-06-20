@@ -197,7 +197,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v := &url.Values{}
 	v.Set("t", *tag)
 	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("/v%s/build?%s", APIVERSION, v.Encode()), multipartBody)
+	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), multipartBody)
 	if err != nil {
 		return err
 	}
