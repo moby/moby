@@ -10,6 +10,7 @@ import (
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -652,3 +653,30 @@ func CheckLocalDns() bool {
 	}
 	return false
 }
+
+func ParseHost(host string, port int, addr string) string {
+	if strings.HasPrefix(addr, "unix://") {
+		return addr
+	}
+	if strings.HasPrefix(addr, "tcp://") {
+		addr = strings.TrimPrefix(addr, "tcp://")
+	}
+	if strings.Contains(addr, ":") {
+		hostParts := strings.Split(addr, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
+		if hostParts[0] != "" {
+			host = hostParts[0]
+		}
+		if p, err := strconv.Atoi(hostParts[1]); err == nil {
+			port = p
+		}
+	} else {
+		host = addr
+	}
+	return fmt.Sprintf("tcp://%s:%d", host, port)
+}
+
+
