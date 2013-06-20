@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
-	"github.com/shin-/cookiejar"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"strings"
@@ -156,7 +156,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("https://%s/v1/repositories/%s/tags", host, repository)
-		req, err := http.NewRequest("GET", endpoint, nil)
+		req, err := r.opaqueRequest("GET", endpoint, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +190,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	repositoryTarget := auth.IndexServerAddress() + "/repositories/" + remote + "/images"
 
-	req, err := http.NewRequest("GET", repositoryTarget, nil)
+	req, err := r.opaqueRequest("GET", repositoryTarget, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +309,15 @@ func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registr
 	return nil
 }
 
+func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, urlStr, body)
+	if err != nil {
+		return nil, err
+	}
+	req.URL.Opaque = strings.Replace(urlStr, req.URL.Scheme+":", "", 1)
+	return req, err
+}
+
 // push a tag on the registry.
 // Remote has the format '<user>/<repo>
 func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token []string) error {
@@ -316,7 +325,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	revision = "\"" + revision + "\""
 	registry = "https://" + registry + "/v1"
 
-	req, err := http.NewRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
+	req, err := r.opaqueRequest("PUT", registry+"/repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {
 		return err
 	}
@@ -346,7 +355,7 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 
 	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
 
-	req, err := http.NewRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/"+suffix, bytes.NewReader(imgListJSON))
+	req, err := r.opaqueRequest("PUT", auth.IndexServerAddress()+"/repositories/"+remote+"/"+suffix, bytes.NewReader(imgListJSON))
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +375,7 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		utils.Debugf("Redirected to %s\n", res.Header.Get("Location"))
-		req, err = http.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
+		req, err = r.opaqueRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err
 		}
@@ -444,11 +453,6 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	return result, err
 }
 
-func (r *Registry) ResetClient(authConfig *auth.AuthConfig) {
-	r.authConfig = authConfig
-	r.client.Jar = cookiejar.NewCookieJar()
-}
-
 func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
 	password := ""
 	if withPasswd {
@@ -484,18 +488,18 @@ type Registry struct {
 	authConfig *auth.AuthConfig
 }
 
-func NewRegistry(root string, authConfig *auth.AuthConfig) *Registry {
+func NewRegistry(root string, authConfig *auth.AuthConfig) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
 	}
 
-	r := &Registry{
+	r = &Registry{
 		authConfig: authConfig,
 		client: &http.Client{
 			Transport: httpTransport,
 		},
 	}
-	r.client.Jar = cookiejar.NewCookieJar()
-	return r
+	r.client.Jar, err = cookiejar.New(nil)
+	return r, err
 }

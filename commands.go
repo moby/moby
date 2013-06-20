@@ -28,7 +28,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.4.2"
+const VERSION = "0.4.3"
 
 var (
 	GITCOMMIT string
@@ -39,8 +39,8 @@ func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
 	return reflect.TypeOf(cli).MethodByName(methodName)
 }
 
-func ParseCommands(addr string, port int, args ...string) error {
-	cli := NewDockerCli(addr, port)
+func ParseCommands(proto, addr string, args ...string) error {
+	cli := NewDockerCli(proto, addr)
 
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
@@ -73,7 +73,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=\"%s:%d\": Host:port to bind/connect to\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", cli.host, cli.port)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=[tcp://%s:%d]: tcp://host:port to bind/connect to or unix://path/to/socker to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
 	for _, command := range [][2]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -1055,37 +1055,18 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
-	splitStderr := container.Config.Tty
-
-	connections := 1
-	if splitStderr {
-		connections += 1
-	}
-	chErrors := make(chan error, connections)
 	if container.Config.Tty {
 		cli.monitorTtySize(cmd.Arg(0))
 	}
-	if splitStderr {
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?stream=1&stderr=1", false, nil, os.Stderr)
-		}()
-	}
+
 	v := url.Values{}
 	v.Set("stream", "1")
 	v.Set("stdin", "1")
 	v.Set("stdout", "1")
-	if !splitStderr {
-		v.Set("stderr", "1")
-	}
-	go func() {
-		chErrors <- cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout)
-	}()
-	for connections > 0 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-		connections -= 1
+	v.Set("stderr", "1")
+
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, os.Stdin, os.Stdout); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1311,7 +1292,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1321,7 +1302,13 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	} else if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	dial, err := net.Dial(cli.proto, cli.addr)
+	if err != nil {
+		return nil, -1, err
+	}
+	clientconn := httputil.NewClientConn(dial, nil)
+	resp, err := clientconn.Do(req)
+	defer clientconn.Close()
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
@@ -1346,7 +1333,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d/v%g%s", cli.host, cli.port, APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -1354,7 +1341,13 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	dial, err := net.Dial(cli.proto, cli.addr)
+	if err != nil {
+		return err
+	}
+	clientconn := httputil.NewClientConn(dial, nil)
+	resp, err := clientconn.Do(req)
+	defer clientconn.Close()
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
@@ -1404,7 +1397,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	}
 	req.Header.Set("Content-Type", "plain/text")
-	dial, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cli.host, cli.port))
+	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		return err
 	}
@@ -1487,13 +1480,13 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
-func NewDockerCli(addr string, port int) *DockerCli {
+func NewDockerCli(proto, addr string) *DockerCli {
 	authConfig, _ := auth.LoadConfig(os.Getenv("HOME"))
-	return &DockerCli{addr, port, authConfig}
+	return &DockerCli{proto, addr, authConfig}
 }
 
 type DockerCli struct {
-	host       string
-	port       int
+	proto      string
+	addr       string
 	authConfig *auth.AuthConfig
 }
