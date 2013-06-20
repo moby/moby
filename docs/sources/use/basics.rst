@@ -36,9 +36,13 @@ Running an interactive shell
 Bind Docker to another host/port or a unix socket
 -------------------------------------------------
 
-If you want Docker to listen to another port and bind to another ip
-use -H on both deamon and client.
--H could be (if no sheme, tcp is assumed):
+With -H it is possible to make the Docker daemon to listen on a specific ip and port. By default, it will listen on 127.0.0.1:4243 to allow only local connections but you can set it to 0.0.0.0:4243 or a specific host ip to give access to everybody.
+
+Similarly, the Docker client can use -H to connect to a custom port.
+
+-H accepts host and port assignment in the following format: tcp://[host][:port] or unix://path
+For example:
+
 * tcp://host -> tcp connection on host:4243
 * tcp://host:port -> tcp connection on host:port
 * tcp://:port -> tcp connection on 127.0.0.1:port
@@ -51,7 +55,7 @@ use -H on both deamon and client.
    # Download a base image
    docker -H :5555 pull base
 
-You can use multiple -H, for exemple, if you want to listen
+You can use multiple -H, for example, if you want to listen
 on both tcp and a unix socket
 
 .. code-block:: bash
