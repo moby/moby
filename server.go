@@ -251,7 +251,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all bool, n int, since, before string) []APIContainers {
+func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
 	var foundBefore bool
 	var displayed int
 	retContainers := []APIContainers{}
@@ -285,8 +285,9 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
-		c.SizeRw, c.SizeRootFs = container.GetSize()
-
+		if size {
+			c.SizeRw, c.SizeRootFs = container.GetSize()
+		}
 		retContainers = append(retContainers, c)
 	}
 	return retContainers

@@ -248,6 +248,10 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
+	size, err := getBoolParam(r.Form.Get("size"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -255,7 +259,7 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 		n = -1
 	}
 
-	outs := srv.Containers(all, n, since, before)
+	outs := srv.Containers(all, size, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err
