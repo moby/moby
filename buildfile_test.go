@@ -63,6 +63,12 @@ add foo /usr/lib/bla/bar`,
 	},
 }
 
+// FIXME: test building with a context
+
+// FIXME: test building with a local ADD as first command
+
+// FIXME: test building with 2 successive overlapping ADD commands
+
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
 		runtime, err := newTestRuntime()

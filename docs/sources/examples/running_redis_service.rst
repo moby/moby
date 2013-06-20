@@ -72,7 +72,7 @@ Connect to the host os with the redis-cli.
 
     docker ps  # grab the new container id
     docker port <container_id> 6379  # grab the external port
-    ifconfig   # grab the host ip address
+    ip addr show   # grab the host ip address
     redis-cli -h <host ipaddress> -p <external port>
     redis 192.168.0.1:49153> set docker awesome
     OK

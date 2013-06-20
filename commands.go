@@ -28,7 +28,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.4.0"
+const VERSION = "0.4.2"
 
 var (
 	GITCOMMIT string
@@ -617,7 +617,10 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
 
 	for _, out := range outs {
-		fmt.Fprintf(w, "%s\t%s ago\t%s\n", out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
+		if out.Tags != nil {
+			out.ID = out.Tags[0]
+		}
+		fmt.Fprintf(w, "%s \t%s ago\t%s\n", out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil
@@ -1048,6 +1051,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
+	if !container.State.Running {
+		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
+	}
+
 	splitStderr := container.Config.Tty
 
 	connections := 1
@@ -1247,16 +1254,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintln(os.Stderr, "WARNING: ", warning)
 	}
 
-	splitStderr := !config.Tty
-
-	connections := 0
-	if config.AttachStdin || config.AttachStdout || (!splitStderr && config.AttachStderr) {
-		connections += 1
-	}
-	if splitStderr && config.AttachStderr {
-		connections += 1
-	}
-
 	//start the container
 	_, _, err = cli.call("POST", "/containers/"+out.ID+"/start", nil)
 	if err != nil {
@@ -1265,17 +1262,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.ID)
-	}
-	if connections > 0 {
-		chErrors := make(chan error, connections)
+	} else {
 		if config.Tty {
 			cli.monitorTtySize(out.ID)
-		}
-
-		if splitStderr && config.AttachStderr {
-			go func() {
-				chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?logs=1&stream=1&stderr=1", config.Tty, nil, os.Stderr)
-			}()
 		}
 
 		v := url.Values{}
@@ -1288,19 +1277,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if config.AttachStdout {
 			v.Set("stdout", "1")
 		}
-		if !splitStderr && config.AttachStderr {
+		if config.AttachStderr {
 			v.Set("stderr", "1")
 		}
-		go func() {
-			chErrors <- cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout)
-		}()
-		for connections > 0 {
-			err := <-chErrors
-			if err != nil {
-				utils.Debugf("Error hijack: %s", err)
-				return err
-			}
-			connections -= 1
+		if err := cli.hijack("POST", "/containers/"+out.ID+"/attach?"+v.Encode(), config.Tty, os.Stdin, os.Stdout); err != nil {
+			utils.Debugf("Error hijack: %s", err)
+			return err
 		}
 	}
 	return nil

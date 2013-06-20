@@ -16,7 +16,6 @@ to put them - so we put them here :)
 * Unify build commands and regular commands
 * Move source code into src/ subdir for clarity
 * Clean up the Makefile, it's a mess
-* docker buidl: show short IDs
 * docker build: on non-existent local path for ADD, don't show full absolute path on the host
 * mount into /dockerinit rather than /sbin/init
 * docker tag foo REPO:TAG
