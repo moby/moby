@@ -32,6 +32,7 @@ type Runtime struct {
 	autoRestart    bool
 	volumes        *Graph
 	srv            *Server
+	Dns            []string
 }
 
 var sysInitPath string
@@ -245,11 +246,12 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(autoRestart bool) (*Runtime, error) {
+func NewRuntime(autoRestart bool, dns []string) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory("/var/lib/docker", autoRestart)
 	if err != nil {
 		return nil, err
 	}
+	runtime.Dns = dns
 
 	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)

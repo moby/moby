@@ -8,7 +8,7 @@ Homepage: http://github.com/dotcloud/docker
 
 Package: lxc-docker
 Architecture: linux-any
-Depends: ${misc:Depends},${shlibs:Depends},lxc,bsdtar
+Depends: ${misc:Depends},${shlibs:Depends},lxc,bsdtar,aufs-tools
 Conflicts: docker
 Description: lxc-docker is a Linux container runtime
  Docker complements LXC with a high-level API which operates at the process

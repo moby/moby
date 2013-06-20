@@ -34,6 +34,7 @@ func main() {
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
 	flHost := flag.String("H", fmt.Sprintf("%s:%d", host, port), "Host:port to bind/connect to")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
+	flDns := flag.String("dns", "", "Set custom dns servers")
 	flag.Parse()
 	if *bridgeName != "" {
 		docker.NetworkBridgeIface = *bridgeName
@@ -66,7 +67,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, host, port, *flAutoRestart, *flEnableCors); err != nil {
+		if err := daemon(*pidfile, host, port, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -105,7 +106,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile, addr string, port int, autoRestart, enableCors bool) error {
+func daemon(pidfile, addr string, port int, autoRestart, enableCors bool, flDns string) error {
 	if addr != "127.0.0.1" {
 		log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
@@ -122,8 +123,11 @@ func daemon(pidfile, addr string, port int, autoRestart, enableCors bool) error 
 		removePidFile(pidfile)
 		os.Exit(0)
 	}()
-
-	server, err := docker.NewServer(autoRestart, enableCors)
+	var dns []string
+	if flDns != "" {
+		dns = []string{flDns}
+	}
+	server, err := docker.NewServer(autoRestart, enableCors, dns)
 	if err != nil {
 		return err
 	}

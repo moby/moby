@@ -30,8 +30,7 @@ Dependencies:
 * 3.8 Kernel (read more about :ref:`kernel`)
 * AUFS filesystem support
 * lxc
-* bsdtar
-
+* xz-utils
 
 Get the docker binary:
 ----------------------

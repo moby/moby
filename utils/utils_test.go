@@ -261,3 +261,16 @@ func TestCompareKernelVersion(t *testing.T) {
 		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
 		-1)
 }
+
+func TestHumanSize(t *testing.T) {
+
+	size1000 := HumanSize(1000)
+	if size1000 != "1 kB" {
+		t.Errorf("1000 -> expected 1 kB, got %s", size1000)
+	}
+
+	size1024 := HumanSize(1024)
+	if size1024 != "1.024 kB" {
+		t.Errorf("1024 -> expected 1.024 kB, got %s", size1024)
+	}
+}

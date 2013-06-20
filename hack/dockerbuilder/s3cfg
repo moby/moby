@@ -1,3 +1,0 @@
-[default]
-access_key = $AWS_ID
-secret_key = $AWS_KEY
