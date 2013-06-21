@@ -36,6 +36,7 @@ The client should send it's authConfig as POST on each call of /images/(name)/pu
 .. http:post:: /auth only checks the configuration but doesn't store it on the server
 
 Deleting an image is now improved, will only untag the image if it has chidrens and remove all the untagged parents if has any.
+
 .. http:post:: /images/<name>/delete now returns a JSON with the list of images deleted/untagged
 
 
