@@ -13,6 +13,8 @@ const Dockerfile = `
 from   ` + unitTestImageName + `
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 `
 
 const DockerfileNoNewLine = `
@@ -21,7 +23,9 @@ const DockerfileNoNewLine = `
 
 from   ` + unitTestImageName + `
 run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd`
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`
 
 // FIXME: test building with a context
 
@@ -42,48 +46,8 @@ func TestBuild(t *testing.T) {
 
 		buildfile := NewBuildFile(srv, &utils.NopWriter{})
 
-		imgID, err := buildfile.Build(strings.NewReader(Dockerfile), nil)
-		if err != nil {
+		if _, err := buildfile.Build(strings.NewReader(Dockerfile), nil); err != nil {
 			t.Fatal(err)
-		}
-
-		builder := NewBuilder(runtime)
-		container, err := builder.Create(
-			&Config{
-				Image: imgID,
-				Cmd:   []string{"cat", "/tmp/passwd"},
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer runtime.Destroy(container)
-
-		output, err := container.Output()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(output) != "root:testpass\n" {
-			t.Fatalf("Unexpected output. Read '%s', expected '%s'", output, "root:testpass\n")
-		}
-
-		container2, err := builder.Create(
-			&Config{
-				Image: imgID,
-				Cmd:   []string{"ls", "-d", "/var/run/sshd"},
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer runtime.Destroy(container2)
-
-		output, err = container2.Output()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(output) != "/var/run/sshd\n" {
-			t.Fatal("/var/run/sshd has not been created")
 		}
 	}
 }
