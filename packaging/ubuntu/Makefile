@@ -2,11 +2,11 @@
 #
 # Dependencies:  debhelper autotools-dev devscripts golang-stable
 # Notes:
-# Use 'make ubuntu' to create the ubuntu package
-# GPG_KEY environment variable needs to contain a GPG private key for package to be signed
-# and uploaded to docker PPA.
-# If GPG_KEY is not defined, make ubuntu will create docker package and exit with
-# status code 2
+# Use 'make ubuntu' to create the ubuntu package and push it to stating PPA by
+# default. To push to production, set PUBLISH_PPA=1 before doing 'make ubuntu'
+# GPG_KEY environment variable needs to contain a GPG private key for package
+# to be signed and uploaded to docker PPA. If GPG_KEY is not defined,
+# make ubuntu will create docker package and exit with status code 2
 
 PKG_NAME=lxc-docker
 GITHUB_PATH=github.com/dotcloud/docker
@@ -15,7 +15,7 @@ VERSION=$(shell sed -En '0,/^\#\# /{s/^\#\# ([^ ]+).+/\1/p}' ../../CHANGELOG.md)
 
 all:
 	# Compile docker. Used by dpkg-buildpackage.
-	cd src/${GITHUB_PATH}/docker; GOPATH=${CURDIR} go build
+	cd src/${GITHUB_PATH}/docker; GOPATH=${CURDIR} CGO_ENABLED=0 go build -a -ldflags '-d -w'
 
 install:
 	# Used by dpkg-buildpackage
@@ -52,9 +52,11 @@ ubuntu:
 	if /usr/bin/test "$${GPG_KEY}" == ""; then exit 2; fi
 	mkdir ${BUILD_SRC}
 	# Import gpg signing key
-	echo "$${GPG_KEY}" | gpg --allow-secret-key-import --import
+	echo "$${GPG_KEY}" | gpg --allow-secret-key-import --import || true
 	# Sign the package
 	cd ${BUILD_SRC}; dpkg-source -x ${BUILD_SRC}/../${PKG_NAME}_${VERSION}-1.dsc
 	cd ${BUILD_SRC}/${PKG_NAME}-${VERSION}; debuild -S -sa
-	cd ${BUILD_SRC};dput ppa:dotcloud/lxc-docker ${PKG_NAME}_${VERSION}-1_source.changes
+	# Upload to PPA
+	if [ "${PUBLISH_PPA}" = "1" ];  then cd ${BUILD_SRC};dput ppa:dotcloud/lxc-docker ${PKG_NAME}_${VERSION}-1_source.changes; fi
+	if [ "${PUBLISH_PPA}" != "1" ]; then cd ${BUILD_SRC};dput ppa:dotcloud/docker-staging ${PKG_NAME}_${VERSION}-1_source.changes; fi
 	rm -rf ${BUILD_SRC}

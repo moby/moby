@@ -100,7 +100,7 @@ Memory and Swap Accounting on Debian/Ubuntu
 If you use Debian or Ubuntu kernels, and want to enable memory and swap
 accounting, you must add the following command-line parameters to your kernel::
 
-    cgroup_enable=memory swapaccount
+    cgroup_enable=memory swapaccount=1
 
 On Debian or Ubuntu systems, if you use the default GRUB bootloader, you can
 add those parameters by editing ``/etc/default/grub`` and extending
@@ -110,6 +110,6 @@ add those parameters by editing ``/etc/default/grub`` and extending
 
 And replace it by the following one::
 
-    GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount"
+    GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 Then run ``update-grub``, and reboot.

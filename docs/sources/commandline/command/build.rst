@@ -8,9 +8,11 @@
 
 ::
 
-    Usage: docker build [OPTIONS] PATH | -
+    Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
       -t="": Tag to be applied to the resulting image in case of success.
+    When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
+
 
 Examples
 --------
@@ -27,7 +29,15 @@ Examples
 
 .. code-block:: bash
 
-    docker build -
+    docker build - < Dockerfile
 
 | This will read a Dockerfile from Stdin without context. Due to the lack of a context, no contents of any local directory will be sent to the docker daemon.
 | ADD doesn't work when running in this mode due to the absence of the context, thus having no source files to copy to the container.
+
+
+.. code-block:: bash
+
+    docker build github.com/creack/docker-firefox
+
+| This will clone the github repository and use it as context. The Dockerfile at the root of the repository is used as Dockerfile.
+| Note that you can specify an arbitrary git repository by using the 'git://' schema.
