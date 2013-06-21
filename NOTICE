@@ -4,3 +4,8 @@ Copyright 2012-2013 dotCloud, inc.
 This product includes software developed at dotCloud, inc. (http://www.dotcloud.com).
 
 This product contains software (https://github.com/kr/pty) developed by Keith Rarick, licensed under the MIT License.
+
+Transfers of Docker shall be in accordance with applicable export controls of any country and all other applicable
+legal requirements.  Docker shall not be distributed or downloaded to or in Cuba, Iran, North Korea, Sudan or Syria
+and shall not be distributed or downloaded to any person on the Denied Persons List administered by the U.S.
+Department of Commerce.

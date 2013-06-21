@@ -10,6 +10,7 @@ import (
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -70,7 +71,7 @@ type progressReader struct {
 	readProgress int           // How much has been read so far (bytes)
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
-	sf *StreamFormatter
+	sf           *StreamFormatter
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -86,7 +87,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, r.readProgress, r.readTotal, fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -103,7 +104,7 @@ func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
-      	tpl := string(template)
+	tpl := string(template)
 	if tpl == "" {
 		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
 	}
@@ -133,6 +134,20 @@ func HumanDuration(d time.Duration) string {
 		return fmt.Sprintf("%d months", hours/24/30)
 	}
 	return fmt.Sprintf("%d years", d.Hours()/24/365)
+}
+
+// HumanSize returns a human-readable approximation of a size
+// using SI standard (eg. "44kB", "17MB")
+func HumanSize(size int64) string {
+	i := 0
+	var sizef float64
+	sizef = float64(size)
+	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	for sizef >= 1000.0 {
+		sizef = sizef / 1000.0
+		i++
+	}
+	return fmt.Sprintf("%.4g %s", sizef, units[i])
 }
 
 func Trunc(s string, maxlen int) string {
@@ -534,6 +549,7 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}, nil
 }
 
+// FIXME: this is deprecated by CopyWithTar in archive.go
 func CopyDirectory(source, dest string) error {
 	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
 		return fmt.Errorf("Error copy: %s (%s)", err, output)
@@ -585,7 +601,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status:str});
+		b, err := json.Marshal(&JSONMessage{Status: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -597,7 +613,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error:err.Error()}); err == nil {
+		if b, err := json.Marshal(&JSONMessage{Error: err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
@@ -608,10 +624,10 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress:str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
 		if err != nil {
-                        return nil
-                }
+			return nil
+		}
 		return b
 	}
 	return []byte(action + " " + str + "\r")
@@ -620,3 +636,47 @@ func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
 func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
+
+func CheckLocalDns() bool {
+	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		Debugf("Error openning resolv.conf: %s", err)
+		return false
+	}
+	for _, ip := range []string{
+		"127.0.0.1",
+		"127.0.1.1",
+	} {
+		if strings.Contains(string(resolv), ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func ParseHost(host string, port int, addr string) string {
+	if strings.HasPrefix(addr, "unix://") {
+		return addr
+	}
+	if strings.HasPrefix(addr, "tcp://") {
+		addr = strings.TrimPrefix(addr, "tcp://")
+	}
+	if strings.Contains(addr, ":") {
+		hostParts := strings.Split(addr, ":")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid bind address format.")
+			os.Exit(-1)
+		}
+		if hostParts[0] != "" {
+			host = hostParts[0]
+		}
+		if p, err := strconv.Atoi(hostParts[1]); err == nil {
+			port = p
+		}
+	} else {
+		host = addr
+	}
+	return fmt.Sprintf("tcp://%s:%d", host, port)
+}
+
+

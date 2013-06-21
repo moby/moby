@@ -17,7 +17,7 @@ endif
 GIT_COMMIT = $(shell git rev-parse --short HEAD)
 GIT_STATUS = $(shell test -n "`git status --porcelain`" && echo "+CHANGES")
 
-BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT $(GIT_COMMIT)$(GIT_STATUS)"
+BUILD_OPTIONS = -ldflags "-X main.GITCOMMIT $(GIT_COMMIT)$(GIT_STATUS)"
 
 SRC_DIR := $(GOPATH)/src
 
@@ -46,6 +46,7 @@ whichrelease:
 
 release: $(BINRELEASE)
 	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
+	s3cmd -P put docker-latest.tgz s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-latest.tgz
 
 srcrelease: $(SRCRELEASE)
 deps: $(DOCKER_DIR)
@@ -60,6 +61,7 @@ $(SRCRELEASE):
 $(BINRELEASE): $(SRCRELEASE)
 	rm -f $(BINRELEASE)
 	cd $(SRCRELEASE); make; cp -R bin docker-$(RELEASE_VERSION); tar -f ../$(BINRELEASE) -zv -c docker-$(RELEASE_VERSION)
+	cd $(SRCRELEASE); cp -R bin docker-latest; tar -f ../docker-latest.tgz -zv -c docker-latest
 
 clean:
 	@rm -rf $(dir $(DOCKER_BIN))
@@ -71,6 +73,9 @@ endif
 
 test: all
 	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))
+
+testall: all
+	@(cd $(DOCKER_DIR); sudo -E go test ./... $(GO_OPTIONS))
 
 fmt:
 	@gofmt -s -l -w .

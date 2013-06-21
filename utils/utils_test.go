@@ -261,3 +261,34 @@ func TestCompareKernelVersion(t *testing.T) {
 		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
 		-1)
 }
+
+func TestHumanSize(t *testing.T) {
+
+	size1000 := HumanSize(1000)
+	if size1000 != "1 kB" {
+		t.Errorf("1000 -> expected 1 kB, got %s", size1000)
+	}
+
+	size1024 := HumanSize(1024)
+	if size1024 != "1.024 kB" {
+		t.Errorf("1024 -> expected 1.024 kB, got %s", size1024)
+	}
+}
+
+func TestParseHost(t *testing.T) {
+	if addr := ParseHost("127.0.0.1", 4243, "0.0.0.0"); addr != "tcp://0.0.0.0:4243" {
+		t.Errorf("0.0.0.0 -> expected tcp://0.0.0.0:4243, got %s", addr)
+	}
+	if addr := ParseHost("127.0.0.1", 4243, "0.0.0.1:5555"); addr != "tcp://0.0.0.1:5555" {
+		t.Errorf("0.0.0.1:5555 -> expected tcp://0.0.0.1:5555, got %s", addr)
+	}
+	if addr := ParseHost("127.0.0.1", 4243, ":6666"); addr != "tcp://127.0.0.1:6666" {
+		t.Errorf(":6666 -> expected tcp://127.0.0.1:6666, got %s", addr)
+	}
+	if addr := ParseHost("127.0.0.1", 4243, "tcp://:7777"); addr != "tcp://127.0.0.1:7777" {
+		t.Errorf("tcp://:7777 -> expected tcp://127.0.0.1:7777, got %s", addr)
+	}
+	if addr := ParseHost("127.0.0.1", 4243, "unix:///var/run/docker.sock"); addr != "unix:///var/run/docker.sock" {
+		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
+	}
+}
