@@ -19,9 +19,24 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.2
-Calling /images/<name>/insert is the same as calling /v1.2/images/<name>/insert
+The current verson of the API is 1.3
+Calling /images/<name>/insert is the same as calling /v1.3/images/<name>/insert
 You can still call an old version of the api using /v1.0/images/<name>/insert
+
+:doc:`docker_remote_api_v1.3`
+*****************************
+
+What's new
+----------
+
+Builder (/build):
+- Simplify the upload of the build context
+- Simply stream a tarball instead of multipart upload with 4 intermediary buffers
+- Simpler, less memory usage, less disk usage and faster
+
+.. Note::
+The /build improvements are not reverse-compatible. Pre 1.3 clients will break on /build.
+
 
 :doc:`docker_remote_api_v1.2`
 *****************************
