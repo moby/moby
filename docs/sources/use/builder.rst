@@ -121,19 +121,7 @@ functionally equivalent to prefixing the command with `<key>=<value>`
 .. note::
     The environment variables will persist when a container is run from the resulting image.
 
-2.7 INSERT
-----------
-
-    ``INSERT <file url> <path>``
-
-The `INSERT` instruction will download the file from the given url to the given
-path within the image. It is similar to `RUN curl -o <path> <url>`, assuming 
-curl was installed within the image.
-
-.. note::
-    The path must include the file name.
-
-2.8 ADD
+2.7 ADD
 -------
 
     ``ADD <src> <dest>``
@@ -182,7 +170,6 @@ files and directories are created with mode 0700, uid and gid 0.
     RUN apt-get update
     
     RUN apt-get install -y inotify-tools nginx apache2 openssh-server
-    INSERT https://raw.github.com/creack/docker-vps/master/nginx-wrapper.sh /usr/sbin/nginx-wrapper
 
 .. code-block:: bash
 
