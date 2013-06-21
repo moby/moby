@@ -16,9 +16,12 @@ import (
 	"time"
 )
 
-const unitTestImageName string = "docker-ut"
-const unitTestImageId string = "e9aa60c60128cad1"
-const unitTestStoreBase string = "/var/lib/docker/unit-tests"
+const (
+	unitTestImageName     = "docker-ut"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	unitTestNetworkBridge = "testdockbr0"
+	unitTestImageId       = "e9aa60c60128cad1"
+)
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -55,7 +58,7 @@ func init() {
 		panic("docker tests needs to be run as root")
 	}
 
-	NetworkBridgeIface = "testdockbr0"
+	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
@@ -63,17 +66,22 @@ func init() {
 		panic(err)
 	}
 
-	// Create the "Server"
-	srv := &Server{
-		runtime:     runtime,
-		enableCors:  false,
-		lock:        &sync.Mutex{},
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
-	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
-		panic(err)
+	// If the unit test image is not found, try to download it.
+	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageId {
+		utils.Debugf("Error getting %s: %s", unitTestImageName, err)
+
+		// Create the "Server"
+		srv := &Server{
+			runtime: runtime,
+			enableCors:  false,
+			lock:        &sync.Mutex{},
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
+		// Retrieve the Image
+		if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+			panic(err)
+		}
 	}
 }
 
