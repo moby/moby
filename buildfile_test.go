@@ -21,16 +21,6 @@ type testContextTemplate struct {
 	dockerfile string
 	// Additional files in the context, eg [][2]string{"./passwd", "gordon"}
 	files [][2]string
-	// Test commands to run in the resulting image
-	tests []testCommand
-}
-
-// A testCommand describes a command to run in a container, and the exact output required to pass the test
-type testCommand struct {
-	// The command to run, eg. []string{"echo", "hello", "world"}
-	cmd []string
-	// The exact output expected, eg. "hello world\n"
-	output string
 }
 
 // A table of all the contexts to build and test.
@@ -44,21 +34,44 @@ var testContexts []testContextTemplate = []testContextTemplate{
 from   docker-ut
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 `,
 		nil,
-		[]testCommand{
-			{[]string{"cat", "/tmp/passwd"}, "root:testpass\n"},
-			{[]string{"ls", "-d", "/var/run/sshd"}, "/var/run/sshd\n"},
-		},
 	},
 
 	{
 		`
 from docker-ut
-add foo /usr/lib/bla/bar`,
+add foo /usr/lib/bla/bar
+run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
+`,
 		[][2]string{{"foo", "hello world!"}},
-		[]testCommand{
-			{[]string{"cat", "/usr/lib/bla/bar"}, "hello world!"},
+	},
+
+	{
+		`
+from docker-ut
+add f /
+run [ "$(cat /f)" = "hello" ]
+add f /abc
+run [ "$(cat /abc)" = "hello" ]
+add f /x/y/z
+run [ "$(cat /x/y/z)" = "hello" ]
+add f /x/y/d/
+run [ "$(cat /x/y/d/f)" = "hello" ]
+add d /
+run [ "$(cat /ga)" = "bu" ]
+add d /somewhere
+run [ "$(cat /somewhere/ga)" = "bu" ]
+add d /anotherplace/
+run [ "$(cat /anotherplace/ga)" = "bu" ]
+add d /somewheeeere/over/the/rainbooow
+run [ "$(cat /somewheeeere/over/the/rainbooow/ga)" = "bu" ]
+`,
+		[][2]string{
+			{"f", "hello"},
+			{"d/ga", "bu"},
 		},
 	},
 }
@@ -80,32 +93,8 @@ func TestBuild(t *testing.T) {
 		srv := &Server{runtime: runtime}
 
 		buildfile := NewBuildFile(srv, ioutil.Discard)
-
-		imgID, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t))
-		if err != nil {
+		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
 			t.Fatal(err)
-		}
-
-		builder := NewBuilder(runtime)
-		for _, testCmd := range ctx.tests {
-			container, err := builder.Create(
-				&Config{
-					Image: imgID,
-					Cmd:   testCmd.cmd,
-				},
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer runtime.Destroy(container)
-
-			output, err := container.Output()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(output) != testCmd.output {
-				t.Fatalf("Unexpected output. Read '%s', expected '%s'", output, testCmd.output)
-			}
 		}
 	}
 }
