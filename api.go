@@ -773,9 +773,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		context = c
 	}
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(context); err != nil {
+	id, err := b.Build(context)
+	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
-	} else if repoName != "" {
+		return err
+	}
+	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
 	}
 	return nil
