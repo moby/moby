@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.4 (2013-06-19)
+ - Builder: fix a regression introduced in 0.4.3 which caused builds to fail on new clients.
+
 ## 0.4.3 (2013-06-19)
  + Builder: ADD of a local file will detect tar archives and unpack them
  * Runtime: Remove bsdtar dependency

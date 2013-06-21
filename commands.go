@@ -28,7 +28,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.4.3"
+const VERSION = "0.4.4"
 
 var (
 	GITCOMMIT string
@@ -192,7 +192,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// Upload the build context
 	v := &url.Values{}
 	v.Set("t", *tag)
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d%s?%s", cli.host, cli.port, "/build", v.Encode()), body)
+	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
 		return err
 	}
@@ -1021,10 +1021,10 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", nil, os.Stdout); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", false, nil, os.Stdout); err != nil {
 		return err
 	}
-	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", nil, os.Stderr); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", false, nil, os.Stderr); err != nil {
 		return err
 	}
 	return nil
@@ -1355,6 +1355,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		return err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -1392,18 +1393,23 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
 	req.Header.Set("Content-Type", "plain/text")
+
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
-	clientconn.Do(req)
 	defer clientconn.Close()
+
+	// Server hijacks the connection, error 'connection closed' expected
+	clientconn.Do(req)
 
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
