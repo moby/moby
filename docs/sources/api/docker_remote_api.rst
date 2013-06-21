@@ -30,6 +30,7 @@ What's new
 ----------
 
 Builder (/build):
+
 - Simplify the upload of the build context
 - Simply stream a tarball instead of multipart upload with 4 intermediary buffers
 - Simpler, less memory usage, less disk usage and faster
@@ -37,9 +38,15 @@ Builder (/build):
 .. Note::
 The /build improvements are not reverse-compatible. Pre 1.3 clients will break on /build.
 
+List containers (/containers/json):
+
+- You can use size=1 to get the size of the containers
+
 
 :doc:`docker_remote_api_v1.2`
 *****************************
+
+docker v0.4.2 2e7649b_
 
 What's new
 ----------
@@ -80,6 +87,9 @@ Uses json stream instead of HTML hijack, it looks like this:
 	   ...
 
 
+:doc:`docker_remote_api_v1.0`
+*****************************
+
 docker v0.3.4 8d73740_
 
 What's new
@@ -90,6 +100,7 @@ Initial version
 
 .. _a8ae398: https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
+.. _2e7649b: https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168
 
 ==================================
 Docker Remote API Client Libraries
