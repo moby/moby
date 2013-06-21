@@ -116,7 +116,6 @@ func crashTest() error {
 			return err
 		}
 	}
-	return nil
 }
 
 func main() {

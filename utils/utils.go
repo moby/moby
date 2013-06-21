@@ -236,7 +236,6 @@ func (r *bufReader) Read(p []byte) (n int, err error) {
 		}
 		r.wait.Wait()
 	}
-	panic("unreachable")
 }
 
 func (r *bufReader) Close() error {
@@ -678,5 +677,3 @@ func ParseHost(host string, port int, addr string) string {
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, port)
 }
-
-
