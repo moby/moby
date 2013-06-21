@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"archive/tar"
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -10,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 )
 
 type Archive io.Reader
@@ -160,51 +163,60 @@ func CopyWithTar(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	var dstExists bool
-	dstSt, err := os.Stat(dst)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	} else {
-		dstExists = true
-	}
-	// Things that can go wrong if the source is a directory
-	if srcSt.IsDir() {
-		// The destination exists and is a regular file
-		if dstExists && !dstSt.IsDir() {
-			return fmt.Errorf("Can't copy a directory over a regular file")
-		}
-		// Things that can go wrong if the source is a regular file
-	} else {
-		utils.Debugf("The destination exists, it's a directory, and doesn't end in /")
-		// The destination exists, it's a directory, and doesn't end in /
-		if dstExists && dstSt.IsDir() && dst[len(dst)-1] != '/' {
-			return fmt.Errorf("Can't copy a regular file over a directory %s |%s|", dst, dst[len(dst)-1])
-		}
-	}
-	// Create the destination
-	var dstDir string
-	if srcSt.IsDir() || dst[len(dst)-1] == '/' {
-		// The destination ends in /, or the source is a directory
-		//   --> dst is the holding directory and needs to be created for -C
-		dstDir = dst
-	} else {
-		// The destination doesn't end in /
-		//   --> dst is the file
-		dstDir = path.Dir(dst)
-	}
-	if !dstExists {
-		// Create the holding directory if necessary
-		utils.Debugf("Creating the holding directory %s", dstDir)
-		if err := os.MkdirAll(dstDir, 0700); err != nil && !os.IsExist(err) {
-			return err
-		}
-	}
 	if !srcSt.IsDir() {
-		return TarUntar(path.Dir(src), []string{path.Base(src)}, dstDir)
+		return CopyFileWithTar(src, dst)
 	}
-	return TarUntar(src, nil, dstDir)
+	// Create dst, copy src's content into it
+	utils.Debugf("Creating dest directory: %s", dst)
+	if err := os.MkdirAll(dst, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
+	return TarUntar(src, nil, dst)
+}
+
+// CopyFileWithTar emulates the behavior of the 'cp' command-line
+// for a single file. It copies a regular file from path `src` to
+// path `dst`, and preserves all its metadata.
+//
+// If `dst` ends with a trailing slash '/', the final destination path
+// will be `dst/base(src)`.
+func CopyFileWithTar(src, dst string) error {
+	utils.Debugf("CopyFileWithTar(%s, %s)", src, dst)
+	srcSt, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if srcSt.IsDir() {
+		return fmt.Errorf("Can't copy a directory")
+	}
+	// Clean up the trailing /
+	if dst[len(dst)-1] == '/' {
+		dst = path.Join(dst, filepath.Base(src))
+	}
+	// Create the holding directory if necessary
+	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	hdr, err := tar.FileInfoHeader(srcSt, "")
+	if err != nil {
+		return err
+	}
+	hdr.Name = filepath.Base(dst)
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+	srcF, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(tw, srcF); err != nil {
+		return err
+	}
+	tw.Close()
+	return Untar(buf, filepath.Dir(dst))
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.

@@ -636,6 +636,14 @@ func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
 
+func IsURL(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
+
+func IsGIT(str string) bool {
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+}
+
 func CheckLocalDns() bool {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
