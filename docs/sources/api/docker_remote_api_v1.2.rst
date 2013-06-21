@@ -47,28 +47,40 @@ List containers
 			"Image": "base:latest",
 			"Command": "echo 1",
 			"Created": 1367854155,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":"",
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "9cd87474be90",
 			"Image": "base:latest",
 			"Command": "echo 222222",
 			"Created": 1367854155,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":"",
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "3176a2479c92",
 			"Image": "base:latest",
 			"Command": "echo 3333333333333333",
 			"Created": 1367854154,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":"",
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "4cb07b47f9fb",
 			"Image": "base:latest",
 			"Command": "echo 444444444444444444444444444444444",
 			"Created": 1367854152,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":"",
+			"SizeRw":12288,
+			"SizeRootFs":0
 		}
 	   ]
  
@@ -488,13 +500,17 @@ List Images
 			"Repository":"base",
 			"Tag":"ubuntu-12.10",
 			"Id":"b750fe79269d",
-			"Created":1364102658
+			"Created":1364102658,
+			"Size":24653,
+			"VirtualSize":180116135
 		},
 		{
 			"Repository":"base",
 			"Tag":"ubuntu-quantal",
 			"Id":"b750fe79269d",
-			"Created":1364102658
+			"Created":1364102658,
+			"Size":24653,
+			"VirtualSize":180116135
 		}
 	   ]
 
@@ -643,7 +659,8 @@ Inspect an image
 				"Image":"base",
 				"Volumes":null,
 				"VolumesFrom":""
-			}
+			},
+		"Size": 6824592
 	   }
 
 	:statuscode 200: no error
@@ -674,6 +691,7 @@ Get the history of an image
 	   [
 		{
 			"Id":"b750fe79269d",
+			"Tag":["base:latest"],
 			"Created":1364102658,
 			"CreatedBy":"/bin/bash"
 		},
@@ -1016,5 +1034,5 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 
 To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
     
-    docker -d -H="192.168.1.9:4243" -api-enable-cors
+    docker -d -H="tcp://192.168.1.9:4243" -api-enable-cors
 

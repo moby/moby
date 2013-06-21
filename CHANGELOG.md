@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.4.4 (2013-06-19)
+ - Builder: fix a regression introduced in 0.4.3 which caused builds to fail on new clients.
+
+## 0.4.3 (2013-06-19)
+ + Builder: ADD of a local file will detect tar archives and unpack them
+ * Runtime: Remove bsdtar dependency
+ * Runtime: Add unix socket and multiple -H support
+ * Runtime: Prevent rm of running containers
+ * Runtime: Use go1.1 cookiejar
+ * Builder: ADD improvements: use tar for copy + automatically unpack local archives
+ * Builder: ADD uses tar/untar for copies instead of calling 'cp -ar'
+ * Builder: nicer output for 'docker build'
+ * Builder: fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
+ * Client: HumanReadable ProgressBar sizes in pull
+ * Client: Fix docker version's git commit output
+ * API: Send all tags on History API call
+ * API: Add tag lookup to history command. Fixes #882
+ - Runtime: Fix issue detaching from running TTY container
+ - Runtime: Forbid parralel push/pull for a single image/repo. Fixes #311
+ - Runtime: Fix race condition within Run command when attaching.
+ - Builder: fix a bug which caused builds to fail if ADD was the first command
+ - Documentation: fix missing command in irc bouncer example
+
+## 0.4.2 (2013-06-17)
+ - Packaging: Bumped version to work around an Ubuntu bug
+
+## 0.4.1 (2013-06-17)
+ + Remote Api: Add flag to enable cross domain requests
+ + Remote Api/Client: Add images and containers sizes in docker ps and docker images
+ + Runtime: Configure dns configuration host-wide with 'docker -d -dns'
+ + Runtime: Detect faulty DNS configuration and replace it with a public default
+ + Runtime: allow docker run <name>:<id>
+ + Runtime: you can now specify public port (ex: -p 80:4500)
+ * Client: allow multiple params in inspect
+ * Client: Print the container id before the hijack in `docker run`
+ * Registry: add regexp check on repo's name
+ * Registry: Move auth to the client
+ * Runtime: improved image removal to garbage-collect unreferenced parents
+ * Vagrantfile: Add the rest api port to vagrantfile's port_forward
+ * Upgrade to Go 1.1
+ - Builder: don't ignore last line in Dockerfile when it doesn't end with \n
+ - Registry: Remove login check on pull
+
 ## 0.4.0 (2013-06-03)
  + Introducing Builder: 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
  + Introducing Remote API: control Docker programmatically using a simple HTTP/json API

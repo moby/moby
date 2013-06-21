@@ -59,6 +59,7 @@ The password is 'screencast'
 	 # it has now given us a port to connect to
 	 # we have to connect using a public ip of our host
 	 $ hostname
+	 # *ifconfig* is deprecated, better use *ip addr show* now
 	 $ ifconfig
 	 $ ssh root@192.168.33.10 -p 49153
 	 # Ah! forgot to set root passwd
@@ -70,6 +71,7 @@ The password is 'screencast'
 	 $ docker commit 9e863f0ca0af31c8b951048ba87641d67c382d08d655c2e4879c51410e0fedc1 dhrp/sshd
 	 $ docker run -d -p 22 dhrp/sshd /usr/sbin/sshd -D
 	 $ docker port a0aaa9558c90cf5c7782648df904a82365ebacce523e4acc085ac1213bfe2206 22
+	 # *ifconfig* is deprecated, better use *ip addr show* now
 	 $ ifconfig
 	 $ ssh root@192.168.33.10 -p 49154
 	 # Thanks for watching, Thatcher thatcher@dotcloud.com

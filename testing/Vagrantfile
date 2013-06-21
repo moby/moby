@@ -30,7 +30,7 @@ Vagrant::Config.run do |config|
     # Install docker dependencies
     pkg_cmd << "apt-get install -q -y python-software-properties; " \
       "add-apt-repository -y ppa:gophers/go/ubuntu; apt-get update -qq; " \
-      "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc bsdtar git golang-stable make; "
+      "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc git golang-stable aufs-tools make; "
     # Activate new kernel
     pkg_cmd << "shutdown -r +1; "
     config.vm.provision :shell, :inline => pkg_cmd

@@ -304,9 +304,9 @@ func (b *builderClient) Build(dockerfile, context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuilderClient(addr string, port int) BuildFile {
+func NewBuilderClient(proto, addr string) BuildFile {
 	return &builderClient{
-		cli:           NewDockerCli(addr, port),
+		cli:           NewDockerCli(proto, addr),
 		config:        &Config{},
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),

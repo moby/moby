@@ -20,6 +20,20 @@ import sys, os
 
 # -- General configuration -----------------------------------------------------
 
+
+
+# Additional templates that should be rendered to pages, maps page names to
+# template names.
+# the 'redirect_home.html' page redirects using a http meta refresh which, according
+# to official sources is more or less equivalent of a 301.
+
+html_additional_pages = {
+    'concepts/containers': 'redirect_home.html',
+    'concepts/introduction': 'redirect_home.html',
+    }
+
+
+
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.0'
 
@@ -120,7 +134,11 @@ html_theme_path = ['../theme']
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = None
+
+# We use a png favicon. This is not compatible with internet explorer, but looks
+# much better on all other browsers. However, sphynx doesn't like it (it likes
+# .ico better) so we have just put it in the template rather than used this setting
+# html_favicon = 'favicon.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -137,10 +155,6 @@ html_static_path = ['static_files']
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
-
-# Additional templates that should be rendered to pages, maps page names to
-# template names.
-#html_additional_pages = {}
 
 # If false, no module index is generated.
 #html_domain_indices = True

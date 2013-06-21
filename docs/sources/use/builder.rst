@@ -15,10 +15,18 @@ steps and commit them along the way, giving you a final image.
 1. Usage
 ========
 
-To use Docker Builder, assemble the steps into a text file (commonly referred to
-as a Dockerfile) and supply this to `docker build` on STDIN, like so:
+To build an image from a source repository, create a description file called `Dockerfile`
+at the root of your repository. This file will describe the steps to assemble
+the image.
 
-    ``docker build - < Dockerfile``
+Then call `docker build` with the path of your source repository as argument:
+
+    ``docker build .``
+
+You can specify a repository and tag at which to save the new image if the
+build succeeds:
+
+    ``docker build -t shykes/myapp .``
 
 Docker will run your steps one-by-one, committing the result if necessary, 
 before finally outputting the ID of your new image.
@@ -130,9 +138,32 @@ curl was installed within the image.
 
     ``ADD <src> <dest>``
 
-The `ADD` instruction will insert the files from the `<src>` path of the context into `<dest>` path 
-of the container.
-The context must be set in order to use this instruction. (see examples)
+The `ADD` instruction will copy new files from <src> and add them to the container's filesystem at path `<dest>`.
+
+`<src>` must be the path to a file or directory relative to the source directory being built (also called the
+context of the build).
+
+`<dest>` is the path at which the source will be copied in the destination container.
+
+The copy obeys the following rules:
+
+If `<src>` is a directory, the entire directory is copied, including filesystem metadata.
+
+If `<src>` is a tar archive in a recognized compression format (identity, gzip, bzip2 or xz), it
+is unpacked as a directory.
+
+When a directory is copied or unpacked, it has the same behavior as 'tar -x': the result is the union of
+a) whatever existed at the destination path and b) the contents of the source tree, with conflicts resolved
+in favor of b on a file-by-file basis.
+
+If `<src>` is any other kind of file, it is copied individually along with its metadata. In this case,
+if `<dst>` ends with a trailing slash '/', it will be considered a directory and the contents of `<src>`
+will be written at `<dst>/base(<src>)`.
+If `<dst>` does not end with a trailing slash, it will be considered a regular file and the contents
+of `<src>` will be written at `<dst>`.
+
+If `<dest>` doesn't exist, it is created along with all missing directories in its path. All new
+files and directories are created with mode 0700, uid and gid 0.
 
 3. Dockerfile Examples
 ======================

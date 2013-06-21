@@ -82,7 +82,7 @@ func decodeAuth(authStr string) (*AuthConfig, error) {
 func LoadConfig(rootPath string) (*AuthConfig, error) {
 	confFile := path.Join(rootPath, CONFIGFILE)
 	if _, err := os.Stat(confFile); err != nil {
-		return &AuthConfig{rootPath:rootPath}, ErrConfigFileMissing
+		return &AuthConfig{rootPath: rootPath}, ErrConfigFileMissing
 	}
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {

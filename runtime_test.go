@@ -65,7 +65,11 @@ func init() {
 
 	// Create the "Server"
 	srv := &Server{
-		runtime: runtime,
+		runtime:     runtime,
+		enableCors:  false,
+		lock:        &sync.Mutex{},
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
 	}
 	// Retrieve the Image
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {

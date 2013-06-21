@@ -2,13 +2,18 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"time"
 )
 
 func Unmount(target string) error {
+	if err := exec.Command("auplink", target, "flush").Run(); err != nil {
+		utils.Debugf("[warning]: couldn't run auplink before unmount: %s", err)
+	}
 	if err := syscall.Unmount(target, 0); err != nil {
 		return err
 	}

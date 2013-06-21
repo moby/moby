@@ -8,12 +8,16 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
 
 const APIVERSION = 1.2
+const DEFAULTHTTPHOST string = "127.0.0.1"
+const DEFAULTHTTPPORT int = 4243
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -438,17 +442,23 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
+	out := &APIRun{}
+
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
+
+	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
+		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
+		config.Dns = defaultDns
+	}
+
 	id, err := srv.ContainerCreate(config)
 	if err != nil {
 		return err
 	}
+	out.ID = id
 
-	out := &APIRun{
-		ID: id,
-	}
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -457,6 +467,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
+
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err
@@ -809,6 +820,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
 				utils.Debugf("Calling %s %s", localMethod, localRoute)
+
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
@@ -829,6 +841,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
+
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
@@ -845,12 +858,21 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s\n", addr)
+func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, r)
+	l, e := net.Listen(proto, addr)
+	if e != nil {
+		return e
+	}
+	//as the daemon is launched as root, change to permission of the socket to allow non-root to connect
+	if proto == "unix" {
+		os.Chmod(addr, 0777)
+	}
+	httpSrv := http.Server{Addr: addr, Handler: r}
+	return httpSrv.Serve(l)
 }

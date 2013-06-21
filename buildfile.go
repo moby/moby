@@ -101,6 +101,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
 	} else if cache != nil {
+		fmt.Fprintf(b.out, " ---> Using cache\n")
 		utils.Debugf("[BUILDER] Use cached version")
 		b.image = cache.ID
 		return nil
@@ -178,11 +179,14 @@ func (b *buildFile) CmdAdd(args string) error {
 	cmd := b.config.Cmd
 
 	// Create the container and start it
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	b.config.Image = b.image
 	container, err := b.builder.Create(b.config)
 	if err != nil {
 		return err
 	}
 	b.tmpContainers[container.ID] = struct{}{}
+	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 
 	if err := container.EnsureMounted(); err != nil {
 		return err
@@ -191,30 +195,26 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
-
+	// Preserve the trailing '/'
+	if dest[len(dest)-1] == '/' {
+		destPath = destPath + "/"
+	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		return err
 	}
 	if fi.IsDir() {
-		if err := os.MkdirAll(destPath, 0700); err != nil {
+		if err := CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-
-		files, err := ioutil.ReadDir(path.Join(b.context, orig))
-		if err != nil {
-			return err
-		}
-		for _, fi := range files {
-			if err := utils.CopyDirectory(path.Join(origPath, fi.Name()), path.Join(destPath, fi.Name())); err != nil {
-				return err
-			}
-		}
-	} else {
+		// First try to unpack the source as an archive
+	} else if err := UntarPath(origPath, destPath); err != nil {
+		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
+		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
 			return err
 		}
-		if err := utils.CopyDirectory(origPath, destPath); err != nil {
+		if err := CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 	}
@@ -237,6 +237,7 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
+	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	//start the container
 	if err := c.Start(); err != nil {
@@ -263,6 +264,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 			return err
 		} else if cache != nil {
+			fmt.Fprintf(b.out, " ---> Using cache\n")
 			utils.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return nil
@@ -276,6 +278,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		b.tmpContainers[container.ID] = struct{}{}
+		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 
 		if err := container.EnsureMounted(); err != nil {
 			return err
@@ -316,6 +319,7 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		b.context = name
 	}
 	file := bufio.NewReader(dockerfile)
+	stepN := 0
 	for {
 		line, err := file.ReadString('\n')
 		if err != nil {
@@ -336,12 +340,13 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
-
-		fmt.Fprintf(b.out, "%s %s (%s)\n", strings.ToUpper(instruction), arguments, b.image)
+		stepN += 1
+		// FIXME: only count known instructions as build steps
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
-			fmt.Fprintf(b.out, "Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 			continue
 		}
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
@@ -349,10 +354,10 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 			return "", ret.(error)
 		}
 
-		fmt.Fprintf(b.out, "===> %v\n", b.image)
+		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
-		fmt.Fprintf(b.out, "Build successful.\n===> %s\n", b.image)
+		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
 		return b.image, nil
 	}
 	return "", fmt.Errorf("An error occured during the build\n")

@@ -33,11 +33,20 @@ Running an interactive shell
   # allocate a tty, attach stdin and stdout
   docker run -i -t base /bin/bash
 
-Bind Docker to another host/port
---------------------------------
+Bind Docker to another host/port or a unix socket
+-------------------------------------------------
 
-If you want Docker to listen to another port and bind to another ip
-use -host and -port on both deamon and client
+With -H it is possible to make the Docker daemon to listen on a specific ip and port. By default, it will listen on 127.0.0.1:4243 to allow only local connections but you can set it to 0.0.0.0:4243 or a specific host ip to give access to everybody.
+
+Similarly, the Docker client can use -H to connect to a custom port.
+
+-H accepts host and port assignment in the following format: tcp://[host][:port] or unix://path
+For example:
+
+* tcp://host -> tcp connection on host:4243
+* tcp://host:port -> tcp connection on host:port
+* tcp://:port -> tcp connection on 127.0.0.1:port
+* unix://path/to/socket -> unix socket located at path/to/socket
 
 .. code-block:: bash
 
@@ -46,6 +55,17 @@ use -host and -port on both deamon and client
    # Download a base image
    docker -H :5555 pull base
 
+You can use multiple -H, for example, if you want to listen
+on both tcp and a unix socket
+
+.. code-block:: bash
+
+   # Run docker in daemon mode
+   sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock
+   # Download a base image
+   docker pull base
+   # OR
+   docker -H unix:///var/run/docker.sock pull base
 
 Starting a long-running worker process
 --------------------------------------
@@ -82,7 +102,8 @@ Expose a service on a TCP port
 
   # Connect to the public port via the host's public address
   # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
-  IP=$(ifconfig eth0 | perl -n -e 'if (m/inet addr:([\d\.]+)/g) { print $1 }')
+  # Replace *eth0* according to your local interface name.
+  IP=$(ip -o -4 addr list eth0 | perl -n -e 'if (m{inet\s([\d\.]+)\/\d+\s}xms) { print $1 }')
   echo hello world | nc $IP $PORT
 
   # Verify that the network connection worked
