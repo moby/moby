@@ -34,7 +34,7 @@ func TestLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status != "Login Succeeded\n" {
+	if status != "Login Succeeded" {
 		t.Fatalf("Expected status \"Login Succeeded\", found \"%s\" instead", status)
 	}
 }
@@ -55,7 +55,7 @@ func TestCreateAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedStatus := "Account created. Please use the confirmation link we sent" +
-		" to your e-mail to activate it.\n"
+		" to your e-mail to activate it."
 	if status != expectedStatus {
 		t.Fatalf("Expected status: \"%s\", found \"%s\" instead.", expectedStatus, status)
 	}
