@@ -69,15 +69,15 @@ func writeJSON(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
-// FIXME: Use stvconv.ParseBool() instead?
 func getBoolParam(value string) (bool, error) {
-	if value == "1" || strings.ToLower(value) == "true" {
-		return true, nil
-	}
-	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+	if value == "" {
 		return false, nil
 	}
-	return false, fmt.Errorf("Bad parameter")
+	ret, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("Bad parameter")
+	}
+	return ret, nil
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -258,6 +258,10 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
+	size, err := getBoolParam(r.Form.Get("size"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -265,7 +269,7 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 		n = -1
 	}
 
-	outs := srv.Containers(all, n, since, before)
+	outs := srv.Containers(all, size, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err

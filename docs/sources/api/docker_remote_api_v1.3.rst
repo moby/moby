@@ -32,7 +32,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 	   
 	**Example response**:
 
@@ -88,6 +88,7 @@ List containers
 	:query limit: Show ``limit`` last created containers, include non-running ones.
 	:query since: Show only containers created since Id, include non-running ones.
 	:query before: Show only containers created before Id, include non-running ones.
+	:query size: 1/True/true or 0/False/false, Show the containers sizes
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 500: server error

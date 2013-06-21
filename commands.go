@@ -878,6 +878,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 func (cli *DockerCli) CmdPs(args ...string) error {
 	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
+	size := cmd.Bool("s", false, "Display sizes")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	nLatest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
@@ -904,6 +905,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if *before != "" {
 		v.Set("before", *before)
 	}
+	if *size {
+		v.Set("size", "1")
+	}
 
 	body, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil)
 	if err != nil {
@@ -917,7 +921,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tSIZE")
+		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		if *size {
+			fmt.Fprintln(w, "\tSIZE")
+		} else {
+			fmt.Fprint(w, "\n")
+		}
 	}
 
 	for _, out := range outs {
@@ -927,10 +936,14 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			} else {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			}
-			if out.SizeRootFs > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+			if *size {
+				if out.SizeRootFs > 0 {
+					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+				} else {
+					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+				}
 			} else {
-				fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+				fmt.Fprint(w, "\n")
 			}
 		} else {
 			if *noTrunc {
