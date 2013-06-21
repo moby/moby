@@ -19,19 +19,14 @@ run	add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) 
 run	add-apt-repository -y ppa:dotcloud/docker-golang/ubuntu
 run	apt-get update
 # Packages required to checkout, build and upload docker
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl
+run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q s3cmd curl
 run	curl -s -o /go.tar.gz https://go.googlecode.com/files/go1.1.1.linux-amd64.tar.gz
 run	tar -C /usr/local -xzf /go.tar.gz
 run	echo "export PATH=/usr/local/go/bin:$PATH" > /.bashrc
 run	echo "export PATH=/usr/local/go/bin:$PATH" > /.bash_profile
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q git
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q build-essential
+run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q git build-essential
 # Packages required to build an ubuntu package
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang-stable
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q debhelper
-run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q autotools-dev
-run	apt-get install -y -q devscripts
+run	DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang-stable debhelper autotools-dev devscripts
 # Copy dockerbuilder files into the container
 add	.       /src
 run	cp /src/dockerbuilder /usr/local/bin/ && chmod +x /usr/local/bin/dockerbuilder

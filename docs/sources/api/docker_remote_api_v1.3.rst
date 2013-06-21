@@ -1,9 +1,9 @@
-:title: Remote API v1.2
+:title: Remote API v1.3
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 ======================
-Docker Remote API v1.2
+Docker Remote API v1.3
 ======================
 
 .. contents:: Table of Contents
@@ -691,7 +691,6 @@ Get the history of an image
 	   [
 		{
 			"Id":"b750fe79269d",
-			"Tag":["base:latest"],
 			"Created":1364102658,
 			"CreatedBy":"/bin/bash"
 		},
@@ -847,7 +846,7 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-	Build an image from Dockerfile
+	Build an image from Dockerfile via stdin
 
 	**Example request**:
 
@@ -865,12 +864,17 @@ Build an image from Dockerfile via stdin
 	   
 	   {{ STREAM }}
 
+
+        The stream must be a tar archive compressed with one of the following algorithms:
+        identity (no compression), gzip, bzip2, xz. The archive must include a file called
+        `Dockerfile` at its root. It may include any number of other files, which will be
+        accessible in the build context (See the ADD build command).
+
+        The Content-type header should be set to "application/tar".
+
 	:query t: tag to be applied to the resulting image in case of success
-	:query remote: resource to fetch, as URI
 	:statuscode 200: no error
         :statuscode 500: server error
-
-{{ STREAM }} is the raw text output of the build command. It uses the HTTP Hijack method in order to stream.
 
 
 Check auth configuration
@@ -1030,5 +1034,5 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 
 To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
     
-    docker -d -H="tcp://192.168.1.9:4243" -api-enable-cors
+    docker -d -H="192.168.1.9:4243" -api-enable-cors
 

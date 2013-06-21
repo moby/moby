@@ -9,15 +9,17 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 )
 
-const APIVERSION = 1.2
+const APIVERSION = 1.3
+const DEFAULTHTTPHOST string = "127.0.0.1"
+const DEFAULTHTTPPORT int = 4243
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -719,8 +721,8 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := r.ParseMultipartForm(4096); err != nil {
-		return err
+	if version < 1.3 {
+		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
@@ -731,68 +733,47 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		repoName = remoteParts[0]
 	}
 
-	var dockerfile, context io.Reader
+	var context io.Reader
 
 	if remoteURL == "" {
-		d, _, err := r.FormFile("Dockerfile")
+		context = r.Body
+	} else if utils.IsGIT(remoteURL) {
+		if !strings.HasPrefix(remoteURL, "git://") {
+			remoteURL = "https://" + remoteURL
+		}
+		root, err := ioutil.TempDir("", "docker-build-git")
 		if err != nil {
 			return err
-		} else {
-			dockerfile = d
 		}
-		c, _, err := r.FormFile("Context")
+		defer os.RemoveAll(root)
+
+		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+		}
+
+		c, err := Tar(root, Bzip2)
 		if err != nil {
-			if err != http.ErrMissingFile {
-				return err
-			}
-		} else {
-			context = c
+			return err
 		}
-	} else {
-		if utils.IsGIT(remoteURL) {
-			if !strings.HasPrefix(remoteURL, "git://") {
-				remoteURL = "https://" + remoteURL
-			}
-			root, err := ioutil.TempDir("", "docker-build-git")
-			if err != nil {
-				return err
-			}
-			defer os.RemoveAll(root)
-
-			if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
-				return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
-			}
-
-			d, err := os.Open(path.Join(root, "Dockerfile"))
-			if err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("No Dockerfile found in the repository")
-				}
-				return err
-			} else {
-				dockerfile = d
-			}
-
-			c, err := Tar(root, Bzip2)
-			if err != nil {
-				return err
-			} else {
-				context = c
-			}
-
-		} else if utils.IsURL(remoteURL) {
-			f, err := utils.Download(remoteURL, ioutil.Discard)
-			if err != nil {
-				return err
-			} else {
-				dockerfile = f.Body
-			}
-			defer f.Body.Close()
+		context = c
+	} else if utils.IsURL(remoteURL) {
+		f, err := utils.Download(remoteURL, ioutil.Discard)
+		if err != nil {
+			return err
 		}
+		defer f.Body.Close()
+		dockerFile, err := ioutil.ReadAll(f.Body)
+		if err != nil {
+			return err
+		}
+		c, err := mkBuildContext(string(dockerFile), nil)
+		if err != nil {
+			return err
+		}
+		context = c
 	}
-
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(dockerfile, context); err != nil {
+	if id, err := b.Build(context); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
 	} else if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
@@ -865,6 +846,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
 				utils.Debugf("Calling %s %s", localMethod, localRoute)
+
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
@@ -885,6 +867,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
+
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
@@ -901,12 +884,21 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s\n", addr)
+func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, r)
+	l, e := net.Listen(proto, addr)
+	if e != nil {
+		return e
+	}
+	//as the daemon is launched as root, change to permission of the socket to allow non-root to connect
+	if proto == "unix" {
+		os.Chmod(addr, 0777)
+	}
+	httpSrv := http.Server{Addr: addr, Handler: r}
+	return httpSrv.Serve(l)
 }

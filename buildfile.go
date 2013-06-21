@@ -14,7 +14,7 @@ import (
 )
 
 type BuildFile interface {
-	Build(io.Reader, io.Reader) (string, error)
+	Build(io.Reader) (string, error)
 	CmdFrom(string) error
 	CmdRun(string) error
 }
@@ -327,18 +327,23 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	return nil
 }
 
-func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
-	if context != nil {
-		name, err := ioutil.TempDir("/tmp", "docker-build")
-		if err != nil {
-			return "", err
-		}
-		if err := Untar(context, name); err != nil {
-			return "", err
-		}
-		defer os.RemoveAll(name)
-		b.context = name
+func (b *buildFile) Build(context io.Reader) (string, error) {
+	// FIXME: @creack any reason for using /tmp instead of ""?
+	// FIXME: @creack "name" is a terrible variable name
+	name, err := ioutil.TempDir("/tmp", "docker-build")
+	if err != nil {
+		return "", err
 	}
+	if err := Untar(context, name); err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(name)
+	b.context = name
+	dockerfile, err := os.Open(path.Join(name, "Dockerfile"))
+	if err != nil {
+		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
+	}
+	// FIXME: "file" is also a terrible variable name ;)
 	file := bufio.NewReader(dockerfile)
 	stepN := 0
 	for {
