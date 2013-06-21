@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -10,14 +11,12 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -131,8 +130,33 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	return nil
 }
 
+// mkBuildContext returns an archive of an empty context with the contents
+// of `dockerfile` at the path ./Dockerfile
+func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	files = append(files, [2]string{"Dockerfile", dockerfile})
+	for _, file := range files {
+		name, content := file[0], file[1]
+		hdr := &tar.Header{
+			Name: name,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+		if _, err := tw.Write([]byte(content)); err != nil {
+			return nil, err
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS] PATH | -", "Build a new container image from the source code at PATH")
+	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -143,68 +167,43 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	var (
-		multipartBody io.Reader
-		file          io.ReadCloser
-		contextPath   string
+		context  Archive
+		isRemote bool
+		err      error
 	)
 
-	// Init the needed component for the Multipart
-	buff := bytes.NewBuffer([]byte{})
-	multipartBody = buff
-	w := multipart.NewWriter(buff)
-	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
-
-	compression := Bzip2
-
 	if cmd.Arg(0) == "-" {
-		file = os.Stdin
+		// As a special case, 'docker build -' will build from an empty context with the
+		// contents of stdin as a Dockerfile
+		dockerfile, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+		context, err = mkBuildContext(string(dockerfile), nil)
+	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
+		isRemote = true
 	} else {
-		// Send Dockerfile from arg/Dockerfile (deprecate later)
-		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
-		if err != nil {
-			return err
-		}
-		file = f
-		// Send context from arg
-		// Create a FormFile multipart for the context if needed
-		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
-		context, err := Tar(cmd.Arg(0), compression)
-		if err != nil {
-			return err
-		}
-		// NOTE: Do this in case '.' or '..' is input
-		absPath, err := filepath.Abs(cmd.Arg(0))
-		if err != nil {
-			return err
-		}
-		wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension())
-		if err != nil {
-			return err
-		}
-		// FIXME: Find a way to have a progressbar for the upload too
+		context, err = Tar(cmd.Arg(0), Uncompressed)
+	}
+	var body io.Reader
+	// Setup an upload progress bar
+	// FIXME: ProgressReader shouldn't be this annoyning to use
+	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
-		multipartBody = io.MultiReader(multipartBody, boundary)
+		body = utils.ProgressReader(ioutil.NopCloser(context), 0, os.Stderr, sf.FormatProgress("Uploading context", "%v bytes%0.0s%0.0s"), sf)
 	}
-	// Create a FormFile multipart for the Dockerfile
-	wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
-	if err != nil {
-		return err
-	}
-	io.Copy(wField, file)
-	multipartBody = io.MultiReader(multipartBody, boundary)
-
+	// Upload the build context
 	v := &url.Values{}
 	v.Set("t", *tag)
-	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), multipartBody)
+	if isRemote {
+		v.Set("remote", cmd.Arg(0))
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	if contextPath != "" {
-		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
-		fmt.Println("Uploading Context...")
+	if context != nil {
+		req.Header.Set("Content-Type", "application/tar")
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
@@ -217,7 +216,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	defer resp.Body.Close()
-
 	// Check for errors
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)

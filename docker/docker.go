@@ -126,7 +126,7 @@ func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, f
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1]);
+			syscall.Unlink(protoAddrParts[1])
 		} else if protoAddrParts[0] == "tcp" {
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
@@ -139,7 +139,7 @@ func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, f
 			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
 		}()
 	}
-	for i :=0 ; i < len(protoAddrs); i+=1 {
+	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
 			return err
@@ -147,4 +147,3 @@ func daemon(pidfile string, protoAddrs []string, autoRestart, enableCors bool, f
 	}
 	return nil
 }
-
