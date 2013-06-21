@@ -316,6 +316,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			email = cli.authConfig.Email
 		}
 	} else {
+		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
 	term.RestoreTerminal(oldState)
@@ -324,7 +325,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cli.authConfig.Password = password
 	cli.authConfig.Email = email
 
-	body, _, err := cli.call("POST", "/auth", cli.authConfig)
+	body, statusCode, err := cli.call("POST", "/auth", cli.authConfig)
+	if statusCode == 401 {
+		cli.authConfig.Username = ""
+		cli.authConfig.Password = ""
+		cli.authConfig.Email = ""
+		auth.SaveConfig(cli.authConfig)
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -337,7 +345,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	auth.SaveConfig(cli.authConfig)
 	if out2.Status != "" {
-		fmt.Print(out2.Status)
+		fmt.Println(out2.Status)
 	}
 	return nil
 }
