@@ -63,10 +63,11 @@ func getBoolParam(value string) (bool, error) {
 	if value == "" {
 		return false, nil
 	}
-	if ret, err := strconv.ParseBool(value); err == nil {
+	if ret, err := strconv.ParseBool(value); err != nil {
+		return false, fmt.Errorf("Bad parameter")
+	} else {
 		return ret, err
 	}
-	return false, fmt.Errorf("Bad parameter")
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
