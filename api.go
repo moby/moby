@@ -53,6 +53,10 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusConflict)
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
+	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+	} else if strings.Contains(err.Error(), "hasn't been activated") {
+		http.Error(w, err.Error(), http.StatusForbidden)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
