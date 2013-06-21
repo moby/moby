@@ -22,7 +22,7 @@ Vagrant::Config.run do |config|
   pkg_cmd = "touch #{DOCKER_PATH}; "
   # Install docker dependencies
   pkg_cmd << "export DEBIAN_FRONTEND=noninteractive; apt-get -qq update; " \
-    "apt-get install -q -y lxc git aufs-tools golang make linux-image-extra-3.8.0-19-generic; " \
+    "apt-get install -q -y lxc git aufs-tools golang make linux-image-extra-`uname -r`; " \
     "chown -R #{USER}.#{USER} #{GOPATH}; " \
     "install -m 0664 #{CFG_PATH}/bash_profile /home/#{USER}/.bash_profile"
   config.vm.provision :shell, :inline => pkg_cmd

@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-func (srv *Server) DockerVersion() APIVersion {
+func (srv *ServerImpl) DockerVersion() APIVersion {
 	return APIVersion{
 		Version:   VERSION,
 		GitCommit: GITCOMMIT,
@@ -25,7 +25,7 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
-func (srv *Server) ContainerKill(name string) error {
+func (srv *ServerImpl) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
 			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
@@ -36,7 +36,7 @@ func (srv *Server) ContainerKill(name string) error {
 	return nil
 }
 
-func (srv *Server) ContainerExport(name string, out io.Writer) error {
+func (srv *ServerImpl) ContainerExport(name string, out io.Writer) error {
 	if container := srv.runtime.Get(name); container != nil {
 
 		data, err := container.Export()
@@ -53,7 +53,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
+func (srv *ServerImpl) ImagesSearch(term string) ([]APISearch, error) {
 
 	results, err := registry.NewRegistry(srv.runtime.root, nil).SearchRepositories(term)
 	if err != nil {
@@ -70,7 +70,7 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 	return outs, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
+func (srv *ServerImpl) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
@@ -106,7 +106,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	return img.ShortID(), nil
 }
 
-func (srv *Server) ImagesViz(out io.Writer) error {
+func (srv *ServerImpl) ImagesViz(out io.Writer) error {
 	images, _ := srv.runtime.graph.All()
 	if images == nil {
 		return nil
@@ -144,7 +144,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
+func (srv *ServerImpl) Images(all bool, filter string) ([]APIImages, error) {
 	var (
 		allImages map[string]*Image
 		err       error
@@ -193,7 +193,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	return outs, nil
 }
 
-func (srv *Server) DockerInfo() *APIInfo {
+func (srv *ServerImpl) DockerInfo() *APIInfo {
 	images, _ := srv.runtime.graph.All()
 	var imgcount int
 	if images == nil {
@@ -212,7 +212,7 @@ func (srv *Server) DockerInfo() *APIInfo {
 	}
 }
 
-func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
+func (srv *ServerImpl) ImageHistory(name string) ([]APIHistory, error) {
 	image, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return nil, err
@@ -243,14 +243,14 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerChanges(name string) ([]Change, error) {
+func (srv *ServerImpl) ContainerChanges(name string) ([]Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Changes()
 	}
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all bool, n int, since, before string) []APIContainers {
+func (srv *ServerImpl) Containers(all bool, n int, since, before string) []APIContainers {
 	var foundBefore bool
 	var displayed int
 	retContainers := []APIContainers{}
@@ -291,7 +291,7 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 	return retContainers
 }
 
-func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
+func (srv *ServerImpl) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return "", fmt.Errorf("No such container: %s", name)
@@ -303,14 +303,14 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	return img.ShortID(), err
 }
 
-func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
+func (srv *ServerImpl) ContainerTag(name, repo, tag string, force bool) error {
 	if err := srv.runtime.repositories.Set(repo, tag, name, force); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error {
+func (srv *ServerImpl) pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error {
 	history, err := r.GetRemoteHistory(imgId, endpoint, token)
 	if err != nil {
 		return err
@@ -346,7 +346,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, remote, askedTag string, sf *utils.StreamFormatter) error {
+func (srv *ServerImpl) pullRepository(r *registry.Registry, out io.Writer, local, remote, askedTag string, sf *utils.StreamFormatter) error {
 	out.Write(sf.FormatStatus("Pulling repository %s from %s", local, auth.IndexServerAddress()))
 	repoData, err := r.GetRepositoryData(remote)
 	if err != nil {
@@ -413,7 +413,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 	return nil
 }
 
-func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+func (srv *ServerImpl) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
@@ -440,7 +440,7 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 // - Check if the archive exists, if it does not, ask the registry
 // - If the archive does exists, process the checksum from it
 // - If the archive does not exists and not found on registry, process checksum from layer
-func (srv *Server) getChecksum(imageId string) (string, error) {
+func (srv *ServerImpl) getChecksum(imageId string) (string, error) {
 	// FIXME: Use in-memory map instead of reading the file each time
 	if sums, err := srv.runtime.graph.getStoredChecksums(); err != nil {
 		return "", err
@@ -471,7 +471,7 @@ func (srv *Server) getChecksum(imageId string) (string, error) {
 
 // Retrieve the all the images to be uploaded in the correct order
 // Note: we can't use a map as it is not ordered
-func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgData, error) {
+func (srv *ServerImpl) getImageList(localRepo map[string]string) ([]*registry.ImgData, error) {
 	var imgList []*registry.ImgData
 
 	imageSet := make(map[string]struct{})
@@ -500,7 +500,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 	return imgList, nil
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name string, localRepo map[string]string, sf *utils.StreamFormatter) error {
+func (srv *ServerImpl) pushRepository(r *registry.Registry, out io.Writer, name string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	out.Write(sf.FormatStatus("Processing checksums"))
 	imgList, err := srv.getImageList(localRepo)
@@ -545,7 +545,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	return nil
 }
 
-func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId, ep string, token []string, sf *utils.StreamFormatter) error {
+func (srv *ServerImpl) pushImage(r *registry.Registry, out io.Writer, remote, imgId, ep string, token []string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
 	if err != nil {
@@ -605,7 +605,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	return nil
 }
 
-func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+func (srv *ServerImpl) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
 	r := registry.NewRegistry(srv.runtime.root, authConfig)
@@ -629,7 +629,7 @@ func (srv *Server) ImagePush(name, endpoint string, out io.Writer, sf *utils.Str
 	return nil
 }
 
-func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Writer, sf *utils.StreamFormatter) error {
+func (srv *ServerImpl) ImageImport(src, repo, tag string, in io.Reader, out io.Writer, sf *utils.StreamFormatter) error {
 	var archive io.Reader
 	var resp *http.Response
 
@@ -668,7 +668,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(config *Config) (string, error) {
+func (srv *ServerImpl) ContainerCreate(config *Config) (string, error) {
 
 	if config.Memory != 0 && config.Memory < 524288 {
 		return "", fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
@@ -692,7 +692,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 	return container.ShortID(), nil
 }
 
-func (srv *Server) ContainerRestart(name string, t int) error {
+func (srv *ServerImpl) ContainerRestart(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(t); err != nil {
 			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
@@ -703,7 +703,7 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
+func (srv *ServerImpl) ContainerDestroy(name string, removeVolume bool) error {
 	if container := srv.runtime.Get(name); container != nil {
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
@@ -742,7 +742,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
-func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
+func (srv *ServerImpl) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	// If the image is referenced by a repo, do not delete
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
@@ -785,7 +785,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	return nil
 }
 
-func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
+func (srv *ServerImpl) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 	if img.Parent != "" {
 		parent, err := srv.runtime.graph.Get(img.Parent)
 		if err != nil {
@@ -800,7 +800,7 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 	return nil
 }
 
-func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error) {
+func (srv *ServerImpl) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error) {
 	//Untag the current image
 	var imgs []APIRmi
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
@@ -824,7 +824,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, err
 	return &imgs, nil
 }
 
-func (srv *Server) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
+func (srv *ServerImpl) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return nil, fmt.Errorf("No such image: %s", name)
@@ -846,7 +846,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
 	return srv.deleteImage(img, name, tag)
 }
 
-func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
+func (srv *ServerImpl) ImageGetCached(imgId string, config *Config) (*Image, error) {
 
 	// Retrieve all images
 	images, err := srv.runtime.graph.All()
@@ -876,7 +876,7 @@ func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) 
 	return nil, nil
 }
 
-func (srv *Server) ContainerStart(name string) error {
+func (srv *ServerImpl) ContainerStart(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Start(); err != nil {
 			return fmt.Errorf("Error starting container %s: %s", name, err.Error())
@@ -887,7 +887,7 @@ func (srv *Server) ContainerStart(name string) error {
 	return nil
 }
 
-func (srv *Server) ContainerStop(name string, t int) error {
+func (srv *ServerImpl) ContainerStop(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(t); err != nil {
 			return fmt.Errorf("Error stopping container %s: %s", name, err.Error())
@@ -898,21 +898,21 @@ func (srv *Server) ContainerStop(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerWait(name string) (int, error) {
+func (srv *ServerImpl) ContainerWait(name string) (int, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Wait(), nil
 	}
 	return 0, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerResize(name string, h, w int) error {
+func (srv *ServerImpl) ContainerResize(name string, h, w int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Resize(h, w)
 	}
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
+func (srv *ServerImpl) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
@@ -977,21 +977,29 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	return nil
 }
 
-func (srv *Server) ContainerInspect(name string) (*Container, error) {
+func (srv *ServerImpl) ContainerInspect(name string) (*Container, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container, nil
 	}
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ImageInspect(name string) (*Image, error) {
+func (srv *ServerImpl) ImageInspect(name string) (*Image, error) {
 	if image, err := srv.runtime.repositories.LookupImage(name); err == nil && image != nil {
 		return image, nil
 	}
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func NewServer(autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
+func (srv *ServerImpl) GetRuntime() *Runtime {
+	return srv.runtime
+}
+
+func (srv *ServerImpl) GetEnableCors() bool {
+	return srv.enableCors
+}
+
+func NewServer(autoRestart, enableCors bool, dns ListOpts) (Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
@@ -999,7 +1007,7 @@ func NewServer(autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	srv := &Server{
+	srv := &ServerImpl{
 		runtime:    runtime,
 		enableCors: enableCors,
 	}
@@ -1007,7 +1015,49 @@ func NewServer(autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
 	return srv, nil
 }
 
-type Server struct {
+type ServerImpl struct {
 	runtime    *Runtime
 	enableCors bool
+}
+
+type Server interface {
+	DockerVersion() APIVersion
+	ContainerKill(name string) error
+	ContainerExport(name string, out io.Writer) error
+	ImagesSearch(term string) ([]APISearch, error)
+	ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error)
+	ImagesViz(out io.Writer) error
+	Images(all bool, filter string) ([]APIImages, error)
+	DockerInfo() *APIInfo
+	ImageHistory(name string) ([]APIHistory, error)
+	ContainerChanges(name string) ([]Change, error)
+	Containers(all bool, n int, since, before string) []APIContainers
+	ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error)
+	ContainerTag(name, repo, tag string, force bool) error
+	pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error
+	pullRepository(r *registry.Registry, out io.Writer, local, remote, askedTag string, sf *utils.StreamFormatter) error
+	ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error
+	getChecksum(imageId string) (string, error)
+	getImageList(localRepo map[string]string) ([]*registry.ImgData, error)
+	pushRepository(r *registry.Registry, out io.Writer, name string, localRepo map[string]string, sf *utils.StreamFormatter) error
+	pushImage(r *registry.Registry, out io.Writer, remote, imgId, ep string, token []string, sf *utils.StreamFormatter) error
+	ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error
+	ImageImport(src, repo, tag string, in io.Reader, out io.Writer, sf *utils.StreamFormatter) error
+	ContainerCreate(config *Config) (string, error)
+	ContainerRestart(name string, t int) error
+	ContainerDestroy(name string, removeVolume bool) error
+	deleteImageAndChildren(id string, imgs *[]APIRmi) error
+	deleteImageParents(img *Image, imgs *[]APIRmi) error
+	deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error)
+	ImageDelete(name string, autoPrune bool) (*[]APIRmi, error)
+	ImageGetCached(imgId string, config *Config) (*Image, error)
+	ContainerStart(name string) error
+	ContainerStop(name string, t int) error
+	ContainerWait(name string) (int, error)
+	ContainerResize(name string, h, w int) error
+	ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error
+	ContainerInspect(name string) (*Container, error)
+	ImageInspect(name string) (*Image, error)
+	GetRuntime() *Runtime
+	GetEnableCors() bool
 }

@@ -31,7 +31,7 @@ type Runtime struct {
 	kernelVersion  *utils.KernelVersionInfo
 	autoRestart    bool
 	volumes        *Graph
-	srv            *Server
+	srv            Server
 	Dns            []string
 }
 

@@ -17,6 +17,14 @@ import (
 	"time"
 )
 
+type TestServer struct {
+}
+
+func TestCleanAcceptsCreatedBefore(t *testing.T) {
+	srv := &TestServer{}
+	postClean(srv, version, w, r, vars)
+}
+
 func TestPostAuth(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {

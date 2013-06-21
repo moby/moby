@@ -22,7 +22,7 @@ type BuildFile interface {
 type buildFile struct {
 	runtime *Runtime
 	builder *Builder
-	srv     *Server
+	srv     Server
 
 	image      string
 	maintainer string
@@ -363,10 +363,10 @@ func (b *buildFile) Build(dockerfile, context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer) BuildFile {
+func NewBuildFile(srv Server, out io.Writer) BuildFile {
 	return &buildFile{
-		builder:       NewBuilder(srv.runtime),
-		runtime:       srv.runtime,
+		builder:       NewBuilder(srv.GetRuntime()),
+		runtime:       srv.GetRuntime(),
 		srv:           srv,
 		config:        &Config{},
 		out:           out,
