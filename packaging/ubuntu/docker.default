@@ -1,0 +1,4 @@
+# configuration file for docker (http://docker.io)
+# this file is sourced by the docker upstart script in /etc/init/docker.conf
+#
+

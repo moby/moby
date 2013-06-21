@@ -24,6 +24,7 @@ install:
 	mkdir -p ${DESTDIR}/DEBIAN
 	install -m 0755 src/${GITHUB_PATH}/docker/docker ${DESTDIR}/usr/bin
 	install -o root -m 0755 debian/docker.upstart ${DESTDIR}/etc/init/docker.conf
+	install -o root -m 0644 debian/docker.default ${DESTDIR}/etc/default/docker
 	install debian/lxc-docker.prerm ${DESTDIR}/DEBIAN/prerm
 	install debian/lxc-docker.postinst ${DESTDIR}/DEBIAN/postinst
 

@@ -5,5 +5,8 @@ stop on starting rc RUNLEVEL=[016]
 respawn
 
 script
+    # source /etc/default/docker, if it exists
+    [ -r /etc/default/docker ] && . /etc/default/docker
+
     /usr/bin/docker -d
 end script
