@@ -165,6 +165,14 @@ of `<src>` will be written at `<dst>`.
 If `<dest>` doesn't exist, it is created along with all missing directories in its path. All new
 files and directories are created with mode 0700, uid and gid 0.
 
+2.9 TAG
+-------
+
+    ``TAG <value>``
+
+The `TAG` instruction will tag the current image version in the default repository.  You can have multiple 
+`TAG` instructions in a Dockerfile.  The format for the tag should be `repo:tag`.
+
 3. Dockerfile Examples
 ======================
 

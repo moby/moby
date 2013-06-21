@@ -225,6 +225,11 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdTag(remote string) error {
+	remote, tag := splitTagParts(remote)
+	return b.runtime.repositories.Set(remote, tag, b.image, false)
+}
+
 func (b *buildFile) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")

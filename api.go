@@ -727,12 +727,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 	remote := r.FormValue("t")
-	tag := ""
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
-		tag = remoteParts[1]
-		remote = remoteParts[0]
-	}
+	remote, tag := splitTagParts(remote)
 
 	dockerfile, _, err := r.FormFile("Dockerfile")
 	if err != nil {

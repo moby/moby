@@ -1,5 +1,9 @@
 package docker
 
+import (
+	"strings"
+)
+
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs
 func CompareConfig(a, b *Config) bool {
@@ -85,4 +89,14 @@ func MergeConfig(userConf, imageConf *Config) {
 	if userConf.Dns == nil || len(userConf.Dns) == 0 {
 		userConf.Dns = imageConf.Dns
 	}
+}
+
+func splitTagParts(remote string) (string, string) {
+	tag := ""
+	if strings.Contains(remote, ":") {
+		parts := strings.Split(remote, ":")
+		tag = parts[1]
+		remote = parts[0]
+	}
+	return remote, tag
 }
