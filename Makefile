@@ -17,7 +17,7 @@ endif
 GIT_COMMIT = $(shell git rev-parse --short HEAD)
 GIT_STATUS = $(shell test -n "`git status --porcelain`" && echo "+CHANGES")
 
-BUILD_OPTIONS = -ldflags "-X main.GITCOMMIT $(GIT_COMMIT)$(GIT_STATUS)"
+BUILD_OPTIONS = -a -ldflags "-X main.GITCOMMIT $(GIT_COMMIT)$(GIT_STATUS) -d -w"
 
 SRC_DIR := $(GOPATH)/src
 
@@ -33,7 +33,7 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); CGO_ENABLED=0 go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):
