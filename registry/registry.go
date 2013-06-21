@@ -314,7 +314,7 @@ func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.R
 	if err != nil {
 		return nil, err
 	}
-	req.URL.Opaque = strings.Replace(urlStr, req.URL.Scheme + ":", "", 1)
+	req.URL.Opaque = strings.Replace(urlStr, req.URL.Scheme+":", "", 1)
 	return req, err
 }
 

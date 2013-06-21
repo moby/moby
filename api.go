@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.2
+const APIVERSION = 1.3
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -723,9 +723,10 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := r.ParseMultipartForm(4096); err != nil {
-		return err
+	if version < 1.3 {
+		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
+	// FIXME: "remote" is not a clear variable name.
 	remote := r.FormValue("t")
 	tag := ""
 	if strings.Contains(remote, ":") {
@@ -733,21 +734,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		tag = remoteParts[1]
 		remote = remoteParts[0]
 	}
-
-	dockerfile, _, err := r.FormFile("Dockerfile")
-	if err != nil {
-		return err
-	}
-
-	context, _, err := r.FormFile("Context")
-	if err != nil {
-		if err != http.ErrMissingFile {
-			return err
-		}
-	}
-
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(dockerfile, context); err != nil {
+	if id, err := b.Build(r.Body); err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
 	} else if remote != "" {
 		srv.runtime.repositories.Set(remote, tag, id, false)
