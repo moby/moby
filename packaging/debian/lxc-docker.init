@@ -15,6 +15,9 @@ DOCKER=/usr/bin/lxc-docker
 # Check lxc-docker is present
 [ -x $DOCKER ] || (log_failure_msg "lxc-docker not present"; exit 1)
 
+# source /etc/default/lxc-docker, if it exists
+[ -r /etc/default/lxc-docker ] && . /etc/default/lxc-docker
+
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Get lsb functions
