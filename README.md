@@ -97,7 +97,7 @@ Quick install on Ubuntu 12.04 and 12.10
 ---------------------------------------
 
 ```bash
-curl get.docker.io | sh -x
+curl get.docker.io | sudo sh -x
 ```
 
 Binary installs
