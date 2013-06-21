@@ -282,45 +282,62 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	oldState, err := term.SetRawTerminal()
-	if err != nil {
-		return err
-	}
-	defer term.RestoreTerminal(oldState)
-
-	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
+	cmd := Subcmd("login", "[OPTIONS]", "Register or Login to the docker registry server")
+	flUsername := cmd.String("u", "", "username")
+	flPassword := cmd.String("p", "", "password")
+	flEmail := cmd.String("e", "", "email")
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+	var oldState *term.State
+	if *flUsername != "" && *flPassword != "" && *flEmail != "" {
+		oldState, err := term.SetRawTerminal()
+		if err != nil {
+			return err
+		}
+		defer term.RestoreTerminal(oldState)
 	}
 
 	var username string
 	var password string
 	var email string
 
-	fmt.Print("Username (", cli.authConfig.Username, "): ")
-	username = readAndEchoString(os.Stdin, os.Stdout)
-	if username == "" {
-		username = cli.authConfig.Username
+	if *flUsername == "" {
+		fmt.Print("Username (", cli.authConfig.Username, "): ")
+		username = readAndEchoString(os.Stdin, os.Stdout)
+		if username == "" {
+			username = cli.authConfig.Username
+		}
+	} else {
+		username = *flUsername
 	}
 	if username != cli.authConfig.Username {
-		fmt.Print("Password: ")
-		password = readString(os.Stdin, os.Stdout)
-
-		if password == "" {
-			return fmt.Errorf("Error : Password Required")
+		if *flPassword == "" {
+			fmt.Print("Password: ")
+			password = readString(os.Stdin, os.Stdout)
+			if password == "" {
+				return fmt.Errorf("Error : Password Required")
+			}
+		} else {
+			password = *flPassword
 		}
 
-		fmt.Print("Email (", cli.authConfig.Email, "): ")
-		email = readAndEchoString(os.Stdin, os.Stdout)
-		if email == "" {
-			email = cli.authConfig.Email
+		if *flEmail == "" {
+			fmt.Print("Email (", cli.authConfig.Email, "): ")
+			email = readAndEchoString(os.Stdin, os.Stdout)
+			if email == "" {
+				email = cli.authConfig.Email
+			}
+		} else {
+			email = *flEmail
 		}
 	} else {
 		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
-	term.RestoreTerminal(oldState)
-
+	if oldState != nil {
+		term.RestoreTerminal(oldState)
+	}
 	cli.authConfig.Username = username
 	cli.authConfig.Password = password
 	cli.authConfig.Email = email
