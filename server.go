@@ -979,17 +979,17 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stdout): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stdout): %s", err)
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stderr): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stderr): %s", err)
 			}
 		}
 	}

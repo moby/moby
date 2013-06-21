@@ -816,6 +816,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
 				utils.Debugf("Calling %s %s", localMethod, localRoute)
+
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
@@ -836,6 +837,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
+
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
