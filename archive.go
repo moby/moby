@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"archive/tar"
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -9,6 +11,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 )
 
 type Archive io.Reader
@@ -79,10 +83,29 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
+// Tar creates an archive from the directory at `path`, and returns it as a
+// stream of bytes.
 func Tar(path string, compression Compression) (io.Reader, error) {
-	return CmdStream(exec.Command("tar", "-f", "-", "-C", path, "-c"+compression.Flag(), "."))
+	return TarFilter(path, compression, nil)
 }
 
+// Tar creates an archive from the directory at `path`, only including files whose relative
+// paths are included in `filter`. If `filter` is nil, then all files are included.
+func TarFilter(path string, compression Compression, filter []string) (io.Reader, error) {
+	args := []string{"tar", "-f", "-", "-C", path}
+	if filter == nil {
+		filter = []string{"."}
+	}
+	for _, f := range filter {
+		args = append(args, "-c"+compression.Flag(), f)
+	}
+	return CmdStream(exec.Command(args[0], args[1:]...))
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `path`.
+// The archive may be compressed with one of the following algorithgms:
+//  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
 
@@ -107,6 +130,18 @@ func Untar(archive io.Reader, path string) error {
 	return nil
 }
 
+// TarUntar is a convenience function which calls Tar and Untar, with
+// the output of one piped into the other. If either Tar or Untar fails,
+// TarUntar aborts and returns the error.
+func TarUntar(src string, filter []string, dst string) error {
+	utils.Debugf("TarUntar(%s %s %s)", src, filter, dst)
+	archive, err := TarFilter(src, Uncompressed, filter)
+	if err != nil {
+		return err
+	}
+	return Untar(archive, dst)
+}
+
 // UntarPath is a convenience function which looks for an archive
 // at filesystem path `src`, and unpacks it at `dst`.
 func UntarPath(src, dst string) error {
@@ -124,11 +159,64 @@ func UntarPath(src, dst string) error {
 // intermediary disk IO.
 //
 func CopyWithTar(src, dst string) error {
-	archive, err := Tar(src, Uncompressed)
+	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
 	}
-	return Untar(archive, dst)
+	if !srcSt.IsDir() {
+		return CopyFileWithTar(src, dst)
+	}
+	// Create dst, copy src's content into it
+	utils.Debugf("Creating dest directory: %s", dst)
+	if err := os.MkdirAll(dst, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
+	return TarUntar(src, nil, dst)
+}
+
+// CopyFileWithTar emulates the behavior of the 'cp' command-line
+// for a single file. It copies a regular file from path `src` to
+// path `dst`, and preserves all its metadata.
+//
+// If `dst` ends with a trailing slash '/', the final destination path
+// will be `dst/base(src)`.
+func CopyFileWithTar(src, dst string) error {
+	utils.Debugf("CopyFileWithTar(%s, %s)", src, dst)
+	srcSt, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if srcSt.IsDir() {
+		return fmt.Errorf("Can't copy a directory")
+	}
+	// Clean up the trailing /
+	if dst[len(dst)-1] == '/' {
+		dst = path.Join(dst, filepath.Base(src))
+	}
+	// Create the holding directory if necessary
+	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	hdr, err := tar.FileInfoHeader(srcSt, "")
+	if err != nil {
+		return err
+	}
+	hdr.Name = filepath.Base(dst)
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+	srcF, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(tw, srcF); err != nil {
+		return err
+	}
+	tw.Close()
+	return Untar(buf, filepath.Dir(dst))
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.

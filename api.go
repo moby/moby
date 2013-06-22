@@ -7,14 +7,20 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const APIVERSION = 1.2
+const APIVERSION = 1.3
+const DEFAULTHTTPHOST string = "127.0.0.1"
+const DEFAULTHTTPPORT int = 4243
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -50,6 +56,10 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusConflict)
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
+	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+	} else if strings.Contains(err.Error(), "hasn't been activated") {
+		http.Error(w, err.Error(), http.StatusForbidden)
 	} else {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -60,15 +70,15 @@ func writeJSON(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
-// FIXME: Use stvconv.ParseBool() instead?
 func getBoolParam(value string) (bool, error) {
-	if value == "1" || strings.ToLower(value) == "true" {
-		return true, nil
-	}
-	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+	if value == "" {
 		return false, nil
 	}
-	return false, fmt.Errorf("Bad parameter")
+	ret, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("Bad parameter")
+	}
+	return ret, nil
 }
 
 func getAuth(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -249,6 +259,10 @@ func getContainersJSON(srv Server, version float64, w http.ResponseWriter, r *ht
 	if err != nil {
 		return err
 	}
+	size, err := getBoolParam(r.Form.Get("size"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -256,7 +270,7 @@ func getContainersJSON(srv Server, version float64, w http.ResponseWriter, r *ht
 		n = -1
 	}
 
-	outs := srv.Containers(all, n, since, before)
+	outs := srv.Containers(all, size, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err
@@ -716,34 +730,65 @@ func postImagesGetCache(srv Server, version float64, w http.ResponseWriter, r *h
 }
 
 func postBuild(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := r.ParseMultipartForm(4096); err != nil {
-		return err
+	if version < 1.3 {
+		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
-	remote := r.FormValue("t")
+	remoteURL := r.FormValue("remote")
+	repoName := r.FormValue("t")
 	tag := ""
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
+	if strings.Contains(repoName, ":") {
+		remoteParts := strings.Split(repoName, ":")
 		tag = remoteParts[1]
-		remote = remoteParts[0]
+		repoName = remoteParts[0]
 	}
 
-	dockerfile, _, err := r.FormFile("Dockerfile")
-	if err != nil {
-		return err
-	}
+	var context io.Reader
 
-	context, _, err := r.FormFile("Context")
-	if err != nil {
-		if err != http.ErrMissingFile {
+	if remoteURL == "" {
+		context = r.Body
+	} else if utils.IsGIT(remoteURL) {
+		if !strings.HasPrefix(remoteURL, "git://") {
+			remoteURL = "https://" + remoteURL
+		}
+		root, err := ioutil.TempDir("", "docker-build-git")
+		if err != nil {
 			return err
 		}
-	}
+		defer os.RemoveAll(root)
 
+		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+		}
+
+		c, err := Tar(root, Bzip2)
+		if err != nil {
+			return err
+		}
+		context = c
+	} else if utils.IsURL(remoteURL) {
+		f, err := utils.Download(remoteURL, ioutil.Discard)
+		if err != nil {
+			return err
+		}
+		defer f.Body.Close()
+		dockerFile, err := ioutil.ReadAll(f.Body)
+		if err != nil {
+			return err
+		}
+		c, err := mkBuildContext(string(dockerFile), nil)
+		if err != nil {
+			return err
+		}
+		context = c
+	}
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(dockerfile, context); err != nil {
+	id, err := b.Build(context)
+	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
-	} else if remote != "" {
-		srv.GetRuntime().repositories.Set(remote, tag, id, false)
+		return err
+	}
+	if repoName != "" {
+		srv.GetRuntime().repositories.Set(repoName, tag, id, false)
 	}
 	return nil
 }
@@ -893,6 +938,7 @@ func createRouter(srv Server, logging bool) (*mux.Router, error) {
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
 				utils.Debugf("Calling %s %s", localMethod, localRoute)
+
 				if logging {
 					log.Println(r.Method, r.RequestURI)
 				}
@@ -913,6 +959,7 @@ func createRouter(srv Server, logging bool) (*mux.Router, error) {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
+
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
 					httpError(w, err)
 				}
@@ -929,12 +976,21 @@ func createRouter(srv Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(addr string, srv Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s\n", addr)
+func ListenAndServe(proto, addr string, srv Server, logging bool) error {
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, r)
+	l, e := net.Listen(proto, addr)
+	if e != nil {
+		return e
+	}
+	//as the daemon is launched as root, change to permission of the socket to allow non-root to connect
+	if proto == "unix" {
+		os.Chmod(addr, 0777)
+	}
+	httpSrv := http.Server{Addr: addr, Handler: r}
+	return httpSrv.Serve(l)
 }

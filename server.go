@@ -15,6 +15,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 func (srv *ServerImpl) DockerVersion() APIVersion {
@@ -54,8 +55,11 @@ func (srv *ServerImpl) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *ServerImpl) ImagesSearch(term string) ([]APISearch, error) {
-
-	results, err := registry.NewRegistry(srv.runtime.root, nil).SearchRepositories(term)
+	r, err := registry.NewRegistry(srv.runtime.root, nil)
+	if err != nil {
+		return nil, err
+	}
+	results, err := r.SearchRepositories(term)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +254,8 @@ func (srv *ServerImpl) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *ServerImpl) Containers(all bool, n int, since, before string) []APIContainers {
+func (srv *ServerImpl) Containers(all, size bool, n int, since, before string) []APIContainers {
+
 	var foundBefore bool
 	var displayed int
 	retContainers := []APIContainers{}
@@ -284,8 +289,9 @@ func (srv *ServerImpl) Containers(all bool, n int, since, before string) []APICo
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
-		c.SizeRw, c.SizeRootFs = container.GetSize()
-
+		if size {
+			c.SizeRw, c.SizeRootFs = container.GetSize()
+		}
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
@@ -413,8 +419,51 @@ func (srv *ServerImpl) pullRepository(r *registry.Registry, out io.Writer, local
 	return nil
 }
 
+func (srv *ServerImpl) poolAdd(kind, key string) error {
+	srv.lock.Lock()
+	defer srv.lock.Unlock()
+
+	if _, exists := srv.pullingPool[key]; exists {
+		return fmt.Errorf("%s %s is already in progress", key, kind)
+	}
+
+	switch kind {
+	case "pull":
+		srv.pullingPool[key] = struct{}{}
+		break
+	case "push":
+		srv.pushingPool[key] = struct{}{}
+		break
+	default:
+		return fmt.Errorf("Unkown pool type")
+	}
+	return nil
+}
+
+func (srv *ServerImpl) poolRemove(kind, key string) error {
+	switch kind {
+	case "pull":
+		delete(srv.pullingPool, key)
+		break
+	case "push":
+		delete(srv.pushingPool, key)
+		break
+	default:
+		return fmt.Errorf("Unkown pool type")
+	}
+	return nil
+}
+
 func (srv *ServerImpl) ImagePull(name, tag, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
+	if err != nil {
+		return err
+	}
+	if err := srv.poolAdd("pull", name+":"+tag); err != nil {
+		return err
+	}
+	defer srv.poolRemove("pull", name+":"+tag)
+
 	out = utils.NewWriteFlusher(out)
 	if endpoint != "" {
 		if err := srv.pullImage(r, out, name, endpoint, nil, sf); err != nil {
@@ -430,7 +479,6 @@ func (srv *ServerImpl) ImagePull(name, tag, endpoint string, out io.Writer, sf *
 	if err := srv.pullRepository(r, out, name, remote, tag, sf); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -532,7 +580,7 @@ func (srv *ServerImpl) pushRepository(r *registry.Registry, out io.Writer, name 
 				// FIXME: Continue on error?
 				return err
 			}
-			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/users/"+srvName+"/"+elem.Tag))
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"/repositories/"+srvName+"/tags/"+elem.Tag))
 			if err := r.PushRegistryTag(srvName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
@@ -605,11 +653,19 @@ func (srv *ServerImpl) pushImage(r *registry.Registry, out io.Writer, remote, im
 	return nil
 }
 
+// FIXME: Allow to interupt current push when new push of same image is done.
 func (srv *ServerImpl) ImagePush(name, endpoint string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	if err := srv.poolAdd("push", name); err != nil {
+		return err
+	}
+	defer srv.poolRemove("push", name)
+
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(name)
-	r := registry.NewRegistry(srv.runtime.root, authConfig)
-
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
+	if err2 != nil {
+		return err2
+	}
 	if err != nil {
 		out.Write(sf.FormatStatus("The push refers to a repository [%s] (len: %d)", name, len(srv.runtime.repositories.Repositories[name])))
 		// If it fails, try to get the repository
@@ -705,6 +761,9 @@ func (srv *ServerImpl) ContainerRestart(name string, t int) error {
 
 func (srv *ServerImpl) ContainerDestroy(name string, removeVolume bool) error {
 	if container := srv.runtime.Get(name); container != nil {
+		if container.State.Running {
+			return fmt.Errorf("Impossible to remove a running container, please stop it first")
+		}
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
@@ -922,17 +981,17 @@ func (srv *ServerImpl) ContainerAttach(name string, logs, stream, stdin, stdout,
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stdout): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stdout): %s", err)
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stderr): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stderr): %s", err)
 			}
 		}
 	}
@@ -1007,17 +1066,24 @@ func NewServer(autoRestart, enableCors bool, dns ListOpts) (Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	srv := &ServerImpl{
-		runtime:    runtime,
-		enableCors: enableCors,
+		runtime:     runtime,
+		enableCors:  enableCors,
+		lock:        &sync.Mutex{},
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
 	}
 	runtime.srv = srv
 	return srv, nil
 }
 
 type ServerImpl struct {
-	runtime    *Runtime
-	enableCors bool
+	runtime     *Runtime
+	enableCors  bool
+	lock        *sync.Mutex
+	pullingPool map[string]struct{}
+	pushingPool map[string]struct{}
 }
 
 type Server interface {
@@ -1031,7 +1097,7 @@ type Server interface {
 	DockerInfo() *APIInfo
 	ImageHistory(name string) ([]APIHistory, error)
 	ContainerChanges(name string) ([]Change, error)
-	Containers(all bool, n int, since, before string) []APIContainers
+	Containers(all bool, n bool, k int, since, before string) []APIContainers
 	ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error)
 	ContainerTag(name, repo, tag string, force bool) error
 	pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error

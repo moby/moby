@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.5 (2013-06-21)
+ + Builder: 'docker build git://URL' fetches and builds a remote git repository
+ * Runtime: 'docker ps -s' optionally prints container size
+ * Tests: Improved and simplified
+ - Runtime: fix a regression introduced in 0.4.3 which caused the logs command to fail.
+ - Builder: fix a regression when using ADD with single regular file.
+
+## 0.4.4 (2013-06-19)
+ - Builder: fix a regression introduced in 0.4.3 which caused builds to fail on new clients.
+
+## 0.4.3 (2013-06-19)
+ + Builder: ADD of a local file will detect tar archives and unpack them
+ * Runtime: Remove bsdtar dependency
+ * Runtime: Add unix socket and multiple -H support
+ * Runtime: Prevent rm of running containers
+ * Runtime: Use go1.1 cookiejar
+ * Builder: ADD improvements: use tar for copy + automatically unpack local archives
+ * Builder: ADD uses tar/untar for copies instead of calling 'cp -ar'
+ * Builder: nicer output for 'docker build'
+ * Builder: fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
+ * Client: HumanReadable ProgressBar sizes in pull
+ * Client: Fix docker version's git commit output
+ * API: Send all tags on History API call
+ * API: Add tag lookup to history command. Fixes #882
+ - Runtime: Fix issue detaching from running TTY container
+ - Runtime: Forbid parralel push/pull for a single image/repo. Fixes #311
+ - Runtime: Fix race condition within Run command when attaching.
+ - Builder: fix a bug which caused builds to fail if ADD was the first command
+ - Documentation: fix missing command in irc bouncer example
+
 ## 0.4.2 (2013-06-17)
  - Packaging: Bumped version to work around an Ubuntu bug
 

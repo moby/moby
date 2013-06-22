@@ -82,7 +82,7 @@ func decodeAuth(authStr string) (*AuthConfig, error) {
 func LoadConfig(rootPath string) (*AuthConfig, error) {
 	confFile := path.Join(rootPath, CONFIGFILE)
 	if _, err := os.Stat(confFile); err != nil {
-		return &AuthConfig{rootPath:rootPath}, ErrConfigFileMissing
+		return &AuthConfig{rootPath: rootPath}, ErrConfigFileMissing
 	}
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {
@@ -146,7 +146,7 @@ func Login(authConfig *AuthConfig, store bool) (string, error) {
 
 	if reqStatusCode == 201 {
 		status = "Account created. Please use the confirmation link we sent" +
-			" to your e-mail to activate it.\n"
+			" to your e-mail to activate it."
 		storeConfig = true
 	} else if reqStatusCode == 403 {
 		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
@@ -165,10 +165,11 @@ func Login(authConfig *AuthConfig, store bool) (string, error) {
 				return "", err
 			}
 			if resp.StatusCode == 200 {
-				status = "Login Succeeded\n"
+				status = "Login Succeeded"
 				storeConfig = true
 			} else if resp.StatusCode == 401 {
 				if store {
+					authConfig.Email = ""
 					if err := SaveConfig(authConfig); err != nil {
 						return "", err
 					}

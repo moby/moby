@@ -137,14 +137,14 @@ func (_mr *_MockServerRecorder) ContainerChanges(arg0 interface{}) *gomock.Call 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ContainerChanges", arg0)
 }
 
-func (_m *MockServer) Containers(all bool, n int, since string, before string) []APIContainers {
-	ret := _m.ctrl.Call(_m, "Containers", all, n, since, before)
+func (_m *MockServer) Containers(all bool, n bool, k int, since string, before string) []APIContainers {
+	ret := _m.ctrl.Call(_m, "Containers", all, n, k, since, before)
 	ret0, _ := ret[0].([]APIContainers)
 	return ret0
 }
 
-func (_mr *_MockServerRecorder) Containers(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Containers", arg0, arg1, arg2, arg3)
+func (_mr *_MockServerRecorder) Containers(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Containers", arg0, arg1, arg2, arg3, arg4)
 }
 
 func (_m *MockServer) ContainerCommit(name string, repo string, tag string, author string, comment string, config *Config) (string, error) {

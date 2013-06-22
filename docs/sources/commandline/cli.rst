@@ -15,7 +15,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H="127.0.0.1:4243": Host:port to bind/connect to
+      -H=[tcp://127.0.0.1:4243]: tcp://host:port to bind/connect to or unix://path/to/socket to use
 
     A self-sufficient runtime for linux containers.
 
