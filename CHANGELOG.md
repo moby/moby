@@ -1,5 +1,12 @@
 # Changelog
 
+# 0.4.5 (2013-06-21)
+ + Builder: Introduce docker build from remote URL/github repository
+ * Runtime: Make the container size to be displayed via an option in docker ps.
+ * Tests: Improved and simplified
+ - Runtime: fix a regression introduced in 0.4.3 which caused the logs command to fail.
+ - Builder: fix a regression when using ADD with single regular file.
+
 ## 0.4.4 (2013-06-19)
  - Builder: fix a regression introduced in 0.4.3 which caused builds to fail on new clients.
 
