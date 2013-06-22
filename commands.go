@@ -286,12 +286,13 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	flUsername := cmd.String("u", "", "username")
 	flPassword := cmd.String("p", "", "password")
 	flEmail := cmd.String("e", "", "email")
-	if err := cmd.Parse(args); err != nil {
+	err := cmd.Parse(args)
+	if err != nil {
 		return nil
 	}
 	var oldState *term.State
-	if *flUsername != "" && *flPassword != "" && *flEmail != "" {
-		oldState, err := term.SetRawTerminal()
+	if *flUsername == "" || *flPassword == "" || *flEmail == "" {
+		oldState, err = term.SetRawTerminal()
 		if err != nil {
 			return err
 		}
