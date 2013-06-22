@@ -1,8 +1,8 @@
 # Changelog
 
 # 0.4.5 (2013-06-21)
- + Builder: Introduce docker build from remote URL/github repository
- * Runtime: Make the container size to be displayed via an option in docker ps.
+ + Builder: 'docker build git://URL' fetches and builds a remote git repository
+ * Runtime: 'docker ps -s' optionally prints container size
  * Tests: Improved and simplified
  - Runtime: fix a regression introduced in 0.4.3 which caused the logs command to fail.
  - Builder: fix a regression when using ADD with single regular file.
