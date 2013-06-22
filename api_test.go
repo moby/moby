@@ -41,7 +41,7 @@ func getRuntimeWithContainers(ids []string, createdAt []time.Time, lastStarted [
 func getRuntimeWithThreeContainers() *Runtime {
 	return getRuntimeWithContainers([]string{"abc", "def", "g12"},
 		[]time.Time{time.Unix(400000, 0), time.Unix(200000, 0), time.Unix(300000, 0)},
-		[]time.Time{time.Unix(500000, 0), time.Unix(600000, 0), time.Unix(700000, 0)})
+		[]time.Time{time.Unix(500000, 0), time.Unix(700000, 0), time.Unix(600000, 0)})
 }
 
 func TestCleanAcceptsCreatedBefore(t *testing.T) {
@@ -66,7 +66,7 @@ func TestCleanAcceptsCreatedBefore(t *testing.T) {
 	postClean(mockSrv, 1, recorder, r, vars)
 }
 
-func TestCleanWillNotDeleteVolumesIfRemoveVolumesSetToFalse(t *testing.T) {
+func TestCleanAcceptsMultipleFilters(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -74,11 +74,12 @@ func TestCleanWillNotDeleteVolumesIfRemoveVolumesSetToFalse(t *testing.T) {
 
 	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
 
-	mockSrv.EXPECT().ContainerDestroy("def", true).Times(1)
+	mockSrv.EXPECT().ContainerDestroy("g12", true).Times(1)
 
 	r := &http.Request{}
 	v := &url.Values{}
-	v.Add("createdBefore", "250000")
+	v.Add("createdBefore", "350000")
+	v.Add("lastStarted", "650000")
 	r.Form = *v
 
 	recorder := httptest.NewRecorder()
@@ -88,7 +89,30 @@ func TestCleanWillNotDeleteVolumesIfRemoveVolumesSetToFalse(t *testing.T) {
 	postClean(mockSrv, 1, recorder, r, vars)
 }
 
-func TestCleanNotPassingAnyArgumentsToWontDeleteAnything(t *testing.T) {
+func TestCleanWillNotDeleteVolumesIfRemoveVolumesSetToFalse(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockSrv := NewMockServer(mockCtrl)
+
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
+
+	mockSrv.EXPECT().ContainerDestroy("def", false).Times(1)
+
+	r := &http.Request{}
+	v := &url.Values{}
+	v.Add("createdBefore", "250000")
+	v.Add("removeVolumes", "false")
+	r.Form = *v
+
+	recorder := httptest.NewRecorder()
+
+	vars := map[string]string{}
+
+	postClean(mockSrv, 1, recorder, r, vars)
+}
+
+func TestCleanNotPassingAnyArgumentsWontDeleteAnything(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 

@@ -241,7 +241,7 @@ func (cli *DockerCli) CmdClean(args ...string) error {
 
 	lastStarted := cmd.Int("lastStarted", -1, "Remove all containers that were last started at or before Unix second _lastStarted_")
 	createdBefore := cmd.Int("createdBefore", -1, "Remove all containers that were created at or before Unix second _createdBefore_")
-	durationLessThan := cmd.String("durationLessThan", "0s", "Remove all containers whose total runtime is less than or equal to _durationLessThan_ . This option accepts values of the same format as time.ParseDuration()")
+	durationLessThan := cmd.String("durationLessThan", "", "Remove all containers whose total runtime is less than or equal to _durationLessThan_ . This option accepts values of the same format as time.ParseDuration()")
 	removeVolumes := cmd.Bool("removeVolumes", true, "When removing containers, whether or not to also remove associated unused volumes. (default true)")
 
 	if err := cmd.Parse(args); err != nil {

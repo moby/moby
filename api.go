@@ -794,6 +794,7 @@ func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 		}
 
 		if shouldDestroy {
+			w.Write([]byte(fmt.Sprintf("%s\n", container.ID)))
 			srv.ContainerDestroy(container.ID, removeVolumesBool)
 		}
 	}
