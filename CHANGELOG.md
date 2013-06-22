@@ -1,6 +1,6 @@
 # Changelog
 
-# 0.4.5 (2013-06-21)
+## 0.4.5 (2013-06-21)
  + Builder: 'docker build git://URL' fetches and builds a remote git repository
  * Runtime: 'docker ps -s' optionally prints container size
  * Tests: Improved and simplified
