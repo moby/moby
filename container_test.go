@@ -556,6 +556,30 @@ func TestKillDifferentUser(t *testing.T) {
 	}
 }
 
+// Test that creating a container with a volume doesn't crash. Regression test for #995.
+func TestCreateVolume(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	config, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewBuilder(runtime).Create(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(c)
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	c.WaitTimeout(500 * time.Millisecond)
+	c.Wait()
+}
+
 func TestKill(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
