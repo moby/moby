@@ -78,7 +78,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	for _, command := range [][2]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
-		{"clean", "Remove stale images and containers"},
+		{"clean", "Remove stale containers"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -239,9 +239,10 @@ func (cli *DockerCli) CmdClean(args ...string) error {
 
 	cmd := Subcmd("clean", "FILTER [FILTER...]", "A convenience command to remove containers based on filters. All filters are conjunctive, meaning the more filters you add, the fewer the number of containers that (might) get cleaned up. \n\nNote that this command is a simplified form of the more flexible way of doing this, ie:\n\n$  docker ps -q <some query> | docker rm")
 
-	lastStarted := cmd.Int("l", -1, "(number, in days) Remove all containers that were last started _l_ or more days ago.")
-	createdBefore := cmd.Int("c", -1, "(number, in days) Remove all containers that were created _c_ or more days ago.")
-	durationLessThan := cmd.Int("d", -1, "(number, in minutes) Remove all containers whose total runtime is less than or equal to _d_")
+	lastStarted := cmd.Int("lastStarted", -1, "Remove all containers that were last started at or before Unix second _lastStarted_")
+	createdBefore := cmd.Int("createdBefore", -1, "Remove all containers that were created at or before Unix second _createdBefore_")
+	durationLessThan := cmd.Int("durationLessThan", -1, "Remove all containers whose total runtime is less than or equal to _durationLessThan_ . This option accepts values of the same format as time.ParseDuration()")
+	removeVolumes := cmd.Bool("removeVolumes", true, "When removing containers, whether or not to also remove associated unused volumes. (default true)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -262,6 +263,7 @@ func (cli *DockerCli) CmdClean(args ...string) error {
 	if *durationLessThan != -1 {
 		v.Add("durationLessThan", strconv.Itoa(*durationLessThan))
 	}
+	v.Add("removeVolumes", strconv.FormatBool(*removeVolumes))
 
 	resp, _, err := cli.call("POST", "/clean?"+v.Encode(), nil)
 

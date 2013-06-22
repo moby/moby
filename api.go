@@ -749,7 +749,6 @@ func postBuild(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 }
 
 func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
 	err := parseForm(r)
 	if err != nil {
 		return err
@@ -765,19 +764,6 @@ func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	// utility to get time.Time from the form
-	getTimeFromArg := func(someKey string, r *http.Request) (time.Time, string, error) {
-		some := r.Form.Get(someKey)
-		if some == "" {
-			return time.Unix(0, 0), some, nil
-		}
-		someInt, err := strconv.ParseInt(some, 10, 64)
-		if err != nil {
-			return time.Unix(0, 0), some, err
-		}
-		return time.Unix(someInt, 0), some, nil
-	}
-
 	lastStartedTime, lastStarted, err := getTimeFromArg("lastStarted", r)
 	if err != nil {
 		return err
@@ -788,15 +774,21 @@ func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 		return err
 	}
 
+	durationLessThan, durationLessThanArg, err := getDurationFromArg("durationLessThan", r)
+	if err != nil {
+		return err
+	}
+
 	for _, container := range srv.GetRuntime().List() {
 
 		shouldDestroy := true
-
-		if container.Created.After(createdBeforeTime) && createdBefore != "" {
+		if createdBefore != "" && container.Created.After(createdBeforeTime) {
 			shouldDestroy = false
 		}
-
-		if container.State.StartedAt.After(lastStartedTime) && lastStarted != "" {
+		if lastStarted != "" && container.State.StartedAt.After(lastStartedTime) {
+			shouldDestroy = false
+		}
+		if durationLessThanArg != "" && durationLessThan < container.State.Uptime() {
 			shouldDestroy = false
 		}
 
@@ -804,8 +796,33 @@ func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 			srv.ContainerDestroy(container.ID, removeVolumesBool)
 		}
 	}
-
 	return nil
+}
+
+func getDurationFromArg(someKey string, r *http.Request) (time.Duration, string, error) {
+	some := r.Form.Get(someKey)
+	if some == "" {
+		return time.Duration(0), some, nil
+	}
+	theDuration, err := time.ParseDuration(some)
+	if err != nil {
+		return time.Duration(0), some, err
+	}
+	return theDuration, some, nil
+}
+
+// utility to get time.Time from a form
+func getTimeFromArg(someKey string, r *http.Request) (time.Time, string, error) {
+	var beginningOfTime time.Time
+	some := r.Form.Get(someKey)
+	if some == "" {
+		return beginningOfTime, some, nil
+	}
+	someInt, err := strconv.ParseInt(some, 10, 64)
+	if err != nil {
+		return beginningOfTime, some, err
+	}
+	return time.Unix(someInt, 0), some, nil
 }
 
 func optionsHandler(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

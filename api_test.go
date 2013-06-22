@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"code.google.com/p/gomock/gomock"
+	"container/list"
 	"encoding/json"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
@@ -11,18 +13,49 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path"
 	"testing"
 	"time"
 )
 
-type TestServer struct {
+func getRuntimeWithContainers(ids []string, createdAt []time.Time, lastStarted []time.Time) *Runtime {
+	r := &Runtime{}
+	result := list.New()
+	for i := range createdAt {
+		c := createdAt[i]
+		l := lastStarted[i]
+		container := &Container{}
+		container.Created = c
+		container.State = State{}
+		container.State.StartedAt = l
+		// result = append(result, *container)
+		result.PushFront(*container)
+	}
+	r.containers = result
+	return r
 }
 
 func TestCleanAcceptsCreatedBefore(t *testing.T) {
-	srv := &TestServer{}
-	postClean(srv, version, w, r, vars)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockSrv := NewMockServer(mockCtrl)
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithContainers(
+		[]string{"abc", "def", "g12"},
+		[]time.Time{time.Unix(400000, 0), time.Unix(200000, 0), time.Unix(300000, 0)},
+		[]time.Time{time.Unix(500000, 0), time.Unix(600000, 0), time.Unix(700000, 0)},
+	))
+	mockSrv.EXPECT().ContainerDestroy("def", true)
+
+	r := &http.Request{}
+	v := &url.Values{}
+	v.Add("createdBefore", "250000")
+	r.Form = *v
+
+	postClean(mockSrv, 1, &http.ResponseWriter{}, r, [string]string{})
+
 }
 
 func TestPostAuth(t *testing.T) {
