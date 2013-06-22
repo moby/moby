@@ -781,7 +781,8 @@ func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Reque
 
 	for _, container := range srv.GetRuntime().List() {
 
-		shouldDestroy := true
+		shouldDestroy := createdBefore != "" || lastStarted != "" || durationLessThanArg != ""
+
 		if createdBefore != "" && container.Created.After(createdBeforeTime) {
 			shouldDestroy = false
 		}

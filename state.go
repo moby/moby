@@ -28,7 +28,7 @@ func (s *State) String() string {
 }
 
 func (s *State) Uptime() time.Duration {
-	if s.StartedAt == time.Unix(0, 0) {
+	if s.StartedAt.IsZero() {
 		return time.Duration(0)
 	}
 	return time.Now().Sub(s.StartedAt)

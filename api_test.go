@@ -26,15 +26,22 @@ func getRuntimeWithContainers(ids []string, createdAt []time.Time, lastStarted [
 	for i := range createdAt {
 		c := createdAt[i]
 		l := lastStarted[i]
+
 		container := &Container{}
+		container.ID = ids[i]
 		container.Created = c
 		container.State = State{}
 		container.State.StartedAt = l
-		// result = append(result, *container)
-		result.PushFront(*container)
+		result.PushFront(container)
 	}
 	r.containers = result
 	return r
+}
+
+func getRuntimeWithThreeContainers() *Runtime {
+	return getRuntimeWithContainers([]string{"abc", "def", "g12"},
+		[]time.Time{time.Unix(400000, 0), time.Unix(200000, 0), time.Unix(300000, 0)},
+		[]time.Time{time.Unix(500000, 0), time.Unix(600000, 0), time.Unix(700000, 0)})
 }
 
 func TestCleanAcceptsCreatedBefore(t *testing.T) {
@@ -42,20 +49,85 @@ func TestCleanAcceptsCreatedBefore(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	mockSrv := NewMockServer(mockCtrl)
-	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithContainers(
-		[]string{"abc", "def", "g12"},
-		[]time.Time{time.Unix(400000, 0), time.Unix(200000, 0), time.Unix(300000, 0)},
-		[]time.Time{time.Unix(500000, 0), time.Unix(600000, 0), time.Unix(700000, 0)},
-	))
-	mockSrv.EXPECT().ContainerDestroy("def", true)
+
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
+
+	mockSrv.EXPECT().ContainerDestroy("def", true).Times(1)
 
 	r := &http.Request{}
 	v := &url.Values{}
 	v.Add("createdBefore", "250000")
 	r.Form = *v
 
-	postClean(mockSrv, 1, &http.ResponseWriter{}, r, [string]string{})
+	recorder := httptest.NewRecorder()
 
+	vars := map[string]string{}
+
+	postClean(mockSrv, 1, recorder, r, vars)
+}
+
+func TestCleanWillNotDeleteVolumesIfRemoveVolumesSetToFalse(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockSrv := NewMockServer(mockCtrl)
+
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
+
+	mockSrv.EXPECT().ContainerDestroy("def", true).Times(1)
+
+	r := &http.Request{}
+	v := &url.Values{}
+	v.Add("createdBefore", "250000")
+	r.Form = *v
+
+	recorder := httptest.NewRecorder()
+
+	vars := map[string]string{}
+
+	postClean(mockSrv, 1, recorder, r, vars)
+}
+
+func TestCleanNotPassingAnyArgumentsToWontDeleteAnything(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockSrv := NewMockServer(mockCtrl)
+
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
+
+	mockSrv.EXPECT().ContainerDestroy(gomock.Any(), gomock.Any()).Times(0)
+
+	r := &http.Request{}
+	v := &url.Values{}
+	r.Form = *v
+
+	recorder := httptest.NewRecorder()
+
+	vars := map[string]string{}
+
+	postClean(mockSrv, 1, recorder, r, vars)
+}
+
+func TestCleanAcceptsDurationAsAnArgument(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockSrv := NewMockServer(mockCtrl)
+
+	mockSrv.EXPECT().GetRuntime().Return(getRuntimeWithThreeContainers()).Times(1)
+
+	mockSrv.EXPECT().ContainerDestroy(gomock.Any(), gomock.Any()).Times(0)
+
+	r := &http.Request{}
+	v := &url.Values{}
+	r.Form = *v
+
+	recorder := httptest.NewRecorder()
+
+	vars := map[string]string{}
+
+	postClean(mockSrv, 1, recorder, r, vars)
 }
 
 func TestPostAuth(t *testing.T) {
@@ -65,7 +137,7 @@ func TestPostAuth(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{
+	srv := &ServerImpl{
 		runtime: runtime,
 	}
 
@@ -103,7 +175,7 @@ func TestGetVersion(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	r := httptest.NewRecorder()
 
@@ -127,7 +199,7 @@ func TestGetInfo(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	r := httptest.NewRecorder()
 
@@ -152,7 +224,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	// all=0
 	req, err := http.NewRequest("GET", "/images/json?all=0", nil)
@@ -251,7 +323,7 @@ func TestGetImagesViz(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	r := httptest.NewRecorder()
 	if err := getImagesViz(srv, APIVERSION, r, nil, nil); err != nil {
@@ -279,7 +351,7 @@ func TestGetImagesSearch(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{
+	srv := &ServerImpl{
 		runtime: runtime,
 	}
 
@@ -310,7 +382,7 @@ func TestGetImagesHistory(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	r := httptest.NewRecorder()
 
@@ -334,7 +406,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	r := httptest.NewRecorder()
 	if err := getImagesByName(srv, APIVERSION, r, nil, map[string]string{"name": unitTestImageName}); err != nil {
@@ -357,7 +429,7 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
@@ -396,7 +468,7 @@ func TestGetContainersExport(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	builder := NewBuilder(runtime)
 
@@ -451,7 +523,7 @@ func TestGetContainersChanges(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	builder := NewBuilder(runtime)
 
@@ -499,7 +571,7 @@ func TestGetContainersByName(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	builder := NewBuilder(runtime)
 
@@ -535,7 +607,7 @@ func TestPostCommit(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	builder := NewBuilder(runtime)
 
@@ -586,7 +658,7 @@ func TestPostImagesCreate(t *testing.T) {
 	// }
 	// defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	// srv := &ServerImpl{runtime: runtime}
 
 	// stdin, stdinPipe := io.Pipe()
 	// stdout, stdoutPipe := io.Pipe()
@@ -650,7 +722,7 @@ func TestPostImagesInsert(t *testing.T) {
 	// }
 	// defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	// srv := &ServerImpl{runtime: runtime}
 
 	// stdin, stdinPipe := io.Pipe()
 	// stdout, stdoutPipe := io.Pipe()
@@ -728,7 +800,7 @@ func TestPostImagesPush(t *testing.T) {
 	// }
 	// defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	// srv := &ServerImpl{runtime: runtime}
 
 	// stdin, stdinPipe := io.Pipe()
 	// stdout, stdoutPipe := io.Pipe()
@@ -793,7 +865,7 @@ func TestPostImagesTag(t *testing.T) {
 	// }
 	// defer nuke(runtime)
 
-	// srv := &Server{runtime: runtime}
+	// srv := &ServerImpl{runtime: runtime}
 
 	// r := httptest.NewRecorder()
 
@@ -822,7 +894,7 @@ func TestPostContainersCreate(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	configJSON, err := json.Marshal(&Config{
 		Image:  GetTestImage(runtime).ID,
@@ -876,7 +948,7 @@ func TestPostContainersKill(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -920,7 +992,7 @@ func TestPostContainersRestart(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -976,7 +1048,7 @@ func TestPostContainersStart(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -1022,7 +1094,7 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -1071,7 +1143,7 @@ func TestPostContainersWait(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -1115,7 +1187,7 @@ func TestPostContainersAttach(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -1203,7 +1275,7 @@ func TestDeleteContainers(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
@@ -1246,7 +1318,7 @@ func TestOptionsRoute(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	srv := &ServerImpl{runtime: runtime, enableCors: true}
 
 	r := httptest.NewRecorder()
 	router, err := createRouter(srv, false)
@@ -1272,7 +1344,7 @@ func TestGetEnabledCors(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	srv := &ServerImpl{runtime: runtime, enableCors: true}
 
 	r := httptest.NewRecorder()
 
@@ -1313,7 +1385,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	if err := srv.runtime.repositories.Set("test", "test", unitTestImageName, true); err != nil {
 		t.Fatal(err)

@@ -38,7 +38,7 @@ func TestBuild(t *testing.T) {
 		}
 		defer nuke(runtime)
 
-		srv := &Server{runtime: runtime}
+		srv := &ServerImpl{runtime: runtime}
 
 		buildfile := NewBuildFile(srv, &utils.NopWriter{})
 

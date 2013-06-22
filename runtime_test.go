@@ -57,20 +57,20 @@ func init() {
 
 	NetworkBridgeIface = "testdockbr0"
 
-	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
-	if err != nil {
-		panic(err)
-	}
+	// // Make it our Store root
+	// runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// Create the "Server"
-	srv := &Server{
-		runtime: runtime,
-	}
+	// srv := &ServerImpl{
+	// 	runtime: runtime,
+	// }
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
-		panic(err)
-	}
+	// if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+	// 	panic(err)
+	// }
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
