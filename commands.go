@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -10,14 +11,12 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -29,7 +28,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.4.4"
+const VERSION = "0.4.5"
 
 var (
 	GITCOMMIT string
@@ -131,8 +130,33 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	return nil
 }
 
+// mkBuildContext returns an archive of an empty context with the contents
+// of `dockerfile` at the path ./Dockerfile
+func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	files = append(files, [2]string{"Dockerfile", dockerfile})
+	for _, file := range files {
+		name, content := file[0], file[1]
+		hdr := &tar.Header{
+			Name: name,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+		if _, err := tw.Write([]byte(content)); err != nil {
+			return nil, err
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS] PATH | -", "Build a new container image from the source code at PATH")
+	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -143,68 +167,43 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	var (
-		multipartBody io.Reader
-		file          io.ReadCloser
-		contextPath   string
+		context  Archive
+		isRemote bool
+		err      error
 	)
 
-	// Init the needed component for the Multipart
-	buff := bytes.NewBuffer([]byte{})
-	multipartBody = buff
-	w := multipart.NewWriter(buff)
-	boundary := strings.NewReader("\r\n--" + w.Boundary() + "--\r\n")
-
-	compression := Bzip2
-
 	if cmd.Arg(0) == "-" {
-		file = os.Stdin
+		// As a special case, 'docker build -' will build from an empty context with the
+		// contents of stdin as a Dockerfile
+		dockerfile, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+		context, err = mkBuildContext(string(dockerfile), nil)
+	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
+		isRemote = true
 	} else {
-		// Send Dockerfile from arg/Dockerfile (deprecate later)
-		f, err := os.Open(path.Join(cmd.Arg(0), "Dockerfile"))
-		if err != nil {
-			return err
-		}
-		file = f
-		// Send context from arg
-		// Create a FormFile multipart for the context if needed
-		// FIXME: Use NewTempArchive in order to have the size and avoid too much memory usage?
-		context, err := Tar(cmd.Arg(0), compression)
-		if err != nil {
-			return err
-		}
-		// NOTE: Do this in case '.' or '..' is input
-		absPath, err := filepath.Abs(cmd.Arg(0))
-		if err != nil {
-			return err
-		}
-		wField, err := w.CreateFormFile("Context", filepath.Base(absPath)+"."+compression.Extension())
-		if err != nil {
-			return err
-		}
-		// FIXME: Find a way to have a progressbar for the upload too
+		context, err = Tar(cmd.Arg(0), Uncompressed)
+	}
+	var body io.Reader
+	// Setup an upload progress bar
+	// FIXME: ProgressReader shouldn't be this annoyning to use
+	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		io.Copy(wField, utils.ProgressReader(ioutil.NopCloser(context), -1, os.Stdout, sf.FormatProgress("Caching Context", "%v/%v (%v)"), sf))
-		multipartBody = io.MultiReader(multipartBody, boundary)
+		body = utils.ProgressReader(ioutil.NopCloser(context), 0, os.Stderr, sf.FormatProgress("Uploading context", "%v bytes%0.0s%0.0s"), sf)
 	}
-	// Create a FormFile multipart for the Dockerfile
-	wField, err := w.CreateFormFile("Dockerfile", "Dockerfile")
-	if err != nil {
-		return err
-	}
-	io.Copy(wField, file)
-	multipartBody = io.MultiReader(multipartBody, boundary)
-
+	// Upload the build context
 	v := &url.Values{}
 	v.Set("t", *tag)
-	// Send the multipart request with correct content-type
-	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), multipartBody)
+	if isRemote {
+		v.Set("remote", cmd.Arg(0))
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	if contextPath != "" {
-		req.Header.Set("X-Docker-Context-Compression", compression.Flag())
-		fmt.Println("Uploading Context...")
+	if context != nil {
+		req.Header.Set("Content-Type", "application/tar")
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
@@ -217,7 +216,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	defer resp.Body.Close()
-
 	// Check for errors
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
@@ -316,6 +314,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			email = cli.authConfig.Email
 		}
 	} else {
+		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
 	term.RestoreTerminal(oldState)
@@ -324,7 +323,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cli.authConfig.Password = password
 	cli.authConfig.Email = email
 
-	body, _, err := cli.call("POST", "/auth", cli.authConfig)
+	body, statusCode, err := cli.call("POST", "/auth", cli.authConfig)
+	if statusCode == 401 {
+		cli.authConfig.Username = ""
+		cli.authConfig.Password = ""
+		cli.authConfig.Email = ""
+		auth.SaveConfig(cli.authConfig)
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -337,7 +343,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	auth.SaveConfig(cli.authConfig)
 	if out2.Status != "" {
-		fmt.Print(out2.Status)
+		fmt.Println(out2.Status)
 	}
 	return nil
 }
@@ -872,6 +878,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 func (cli *DockerCli) CmdPs(args ...string) error {
 	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
+	size := cmd.Bool("s", false, "Display sizes")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	nLatest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
@@ -898,6 +905,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if *before != "" {
 		v.Set("before", *before)
 	}
+	if *size {
+		v.Set("size", "1")
+	}
 
 	body, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil)
 	if err != nil {
@@ -911,7 +921,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tSIZE")
+		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		if *size {
+			fmt.Fprintln(w, "\tSIZE")
+		} else {
+			fmt.Fprint(w, "\n")
+		}
 	}
 
 	for _, out := range outs {
@@ -921,10 +936,14 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			} else {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
 			}
-			if out.SizeRootFs > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+			if *size {
+				if out.SizeRootFs > 0 {
+					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+				} else {
+					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+				}
 			} else {
-				fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+				fmt.Fprint(w, "\n")
 			}
 		} else {
 			if *noTrunc {
@@ -1036,10 +1055,10 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", nil, os.Stdout); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", false, nil, os.Stdout); err != nil {
 		return err
 	}
-	if err := cli.stream("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", nil, os.Stderr); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", false, nil, os.Stderr); err != nil {
 		return err
 	}
 	return nil
@@ -1370,6 +1389,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		return err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -1407,18 +1427,23 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
 	req.Header.Set("Content-Type", "plain/text")
+
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
-	clientconn.Do(req)
 	defer clientconn.Close()
+
+	// Server hijacks the connection, error 'connection closed' expected
+	clientconn.Do(req)
 
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()

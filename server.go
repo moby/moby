@@ -254,7 +254,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all bool, n int, since, before string) []APIContainers {
+func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
 	var foundBefore bool
 	var displayed int
 	retContainers := []APIContainers{}
@@ -288,8 +288,9 @@ func (srv *Server) Containers(all bool, n int, since, before string) []APIContai
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
 		c.Ports = container.NetworkSettings.PortMappingHuman()
-		c.SizeRw, c.SizeRootFs = container.GetSize()
-
+		if size {
+			c.SizeRw, c.SizeRootFs = container.GetSize()
+		}
 		retContainers = append(retContainers, c)
 	}
 	return retContainers
@@ -979,17 +980,17 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stdout): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stdout): %s", err)
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error reading logs (stderr): %s", err)
 			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf(err.Error())
+				utils.Debugf("Error streaming logs (stderr): %s", err)
 			}
 		}
 	}

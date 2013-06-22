@@ -87,7 +87,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%",float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -147,7 +147,7 @@ func HumanSize(size int64) string {
 		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
+	return fmt.Sprintf("%5.4g %s", sizef, units[i])
 }
 
 func Trunc(s string, maxlen int) string {
@@ -236,7 +236,6 @@ func (r *bufReader) Read(p []byte) (n int, err error) {
 		}
 		r.wait.Wait()
 	}
-	panic("unreachable")
 }
 
 func (r *bufReader) Close() error {
@@ -637,6 +636,14 @@ func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
 
+func IsURL(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
+
+func IsGIT(str string) bool {
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+}
+
 func CheckLocalDns() bool {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
@@ -678,5 +685,3 @@ func ParseHost(host string, port int, addr string) string {
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, port)
 }
-
-

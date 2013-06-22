@@ -17,6 +17,30 @@ import (
 	"time"
 )
 
+func TestGetBoolParam(t *testing.T) {
+	if ret, err := getBoolParam("true"); err != nil || !ret {
+		t.Fatalf("true -> true, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam("True"); err != nil || !ret {
+		t.Fatalf("True -> true, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam("1"); err != nil || !ret {
+		t.Fatalf("1 -> true, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam(""); err != nil || ret {
+		t.Fatalf("\"\" -> false, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam("false"); err != nil || ret {
+		t.Fatalf("false -> false, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam("0"); err != nil || ret {
+		t.Fatalf("0 -> false, nil | got %b %s", ret, err)
+	}
+	if ret, err := getBoolParam("faux"); err == nil || ret {
+		t.Fatalf("faux -> false, err | got %b %s", ret, err)
+	}
+}
+
 func TestPostAuth(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
