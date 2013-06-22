@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.6 (2013-06-22)
+ - Runtime: fix a bug which caused creation of empty images (and volumes) to crash.
+
 ## 0.4.5 (2013-06-21)
  + Builder: 'docker build git://URL' fetches and builds a remote git repository
  * Runtime: 'docker ps -s' optionally prints container size
