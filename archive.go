@@ -108,7 +108,9 @@ func TarFilter(path string, compression Compression, filter []string) (io.Reader
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
-
+	if archive == nil {
+		return fmt.Errorf("Empty archive")
+	}
 	bufferedArchive := bufio.NewReaderSize(archive, 10)
 	buf, err := bufferedArchive.Peek(10)
 	if err != nil {
