@@ -765,7 +765,7 @@ func (container *Container) Stop(seconds int) error {
 }
 
 func (container *Container) Restart(seconds int) error {
-	if err := container.Stop(); err != nil {
+	if err := container.Stop(seconds); err != nil {
 		return err
 	}
 	if err := container.Start(); err != nil {
