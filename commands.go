@@ -280,11 +280,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	oldState, err := term.SetRawTerminal()
+	oldState, err := term.SetRawTerminal(os.Stdin.Fd())
 	if err != nil {
 		return err
 	}
-	defer term.RestoreTerminal(oldState)
+	defer term.RestoreTerminal(os.Stdin.Fd(), oldState)
 
 	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
@@ -319,7 +319,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
-	term.RestoreTerminal(oldState)
+	term.RestoreTerminal(os.Stdin.Fd(), oldState)
 
 	cli.authConfig.Username = username
 	cli.authConfig.Password = password
@@ -1272,13 +1272,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	_, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", nil)
-	if err != nil {
+	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", nil); err != nil {
 		return err
 	}
 
 	if !config.AttachStdout && !config.AttachStderr {
-		fmt.Fprintf(cli.out, "%s\b", runResult.ID)
+		fmt.Fprintf(cli.out, "%s\n", runResult.ID)
 	}
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
@@ -1457,11 +1456,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 	})
 
 	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
-		oldState, err := term.SetRawTerminal()
+		oldState, err := term.SetRawTerminal(os.Stdin.Fd())
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(oldState)
+		defer term.RestoreTerminal(os.Stdin.Fd(), oldState)
 	}
 	sendStdin := utils.Go(func() error {
 		io.Copy(rwc, in)
