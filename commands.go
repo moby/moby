@@ -1277,7 +1277,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if !config.AttachStdout && !config.AttachStderr {
 		fmt.Println(out.ID)
-	} else {
+	}
+	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			cli.monitorTtySize(out.ID)
 		}
