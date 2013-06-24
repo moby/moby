@@ -280,11 +280,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	oldState, err := term.SetRawTerminal(os.Stdin.Fd())
+	oldState, err := term.SetRawTerminal(cli.terminalFd)
 	if err != nil {
 		return err
 	}
-	defer term.RestoreTerminal(os.Stdin.Fd(), oldState)
+	defer term.RestoreTerminal(cli.terminalFd, oldState)
 
 	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
 	if err := cmd.Parse(args); err != nil {
@@ -319,7 +319,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
-	term.RestoreTerminal(os.Stdin.Fd(), oldState)
+	term.RestoreTerminal(cli.terminalFd, oldState)
 
 	cli.authConfig.Username = username
 	cli.authConfig.Password = password
@@ -1092,7 +1092,9 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if container.Config.Tty {
-		cli.monitorTtySize(cmd.Arg(0))
+		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
+			return err
+		}
 	}
 
 	v := url.Values{}
@@ -1101,7 +1103,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in.(*os.File), cli.out); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out); err != nil {
 		return err
 	}
 	return nil
@@ -1281,7 +1283,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
-			cli.monitorTtySize(runResult.ID)
+			if err := cli.monitorTtySize(runResult.ID); err != nil {
+				return err
+			}
 		}
 
 		v := url.Values{}
@@ -1297,7 +1301,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if config.AttachStderr {
 			v.Set("stderr", "1")
 		}
-		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in.(*os.File), cli.out); err != nil {
+		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
@@ -1428,7 +1432,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.File, out io.Writer) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, out io.Writer) error {
 
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
@@ -1455,15 +1459,17 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	})
 
-	if in != nil && setRawTerminal && term.IsTerminal(in.Fd()) && os.Getenv("NORAW") == "" {
-		oldState, err := term.SetRawTerminal(os.Stdin.Fd())
+	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
+		oldState, err := term.SetRawTerminal(cli.terminalFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(os.Stdin.Fd(), oldState)
+		defer term.RestoreTerminal(cli.terminalFd, oldState)
 	}
 	sendStdin := utils.Go(func() error {
-		io.Copy(rwc, in)
+		if in != nil {
+			io.Copy(rwc, in)
+		}
 		if err := rwc.(*net.TCPConn).CloseWrite(); err != nil {
 			utils.Debugf("Couldn't send EOF: %s\n", err)
 		}
@@ -1476,7 +1482,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 		return err
 	}
 
-	if !term.IsTerminal(in.Fd()) {
+	if !cli.isTerminal {
 		if err := <-sendStdin; err != nil {
 			utils.Debugf("Error sendStdin: %s", err)
 			return err
@@ -1487,7 +1493,10 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in *os.Fi
 }
 
 func (cli *DockerCli) resizeTty(id string) {
-	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if !cli.isTerminal {
+		return
+	}
+	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
 		utils.Debugf("Error getting size: %s", err)
 	}
@@ -1499,7 +1508,10 @@ func (cli *DockerCli) resizeTty(id string) {
 	}
 }
 
-func (cli *DockerCli) monitorTtySize(id string) {
+func (cli *DockerCli) monitorTtySize(id string) error {
+	if !cli.isTerminal {
+		return fmt.Errorf("Impossible to monitor size on non-tty")
+	}
 	cli.resizeTty(id)
 
 	c := make(chan os.Signal, 1)
@@ -1511,6 +1523,7 @@ func (cli *DockerCli) monitorTtySize(id string) {
 			}
 		}
 	}()
+	return nil
 }
 
 func Subcmd(name, signature, description string) *flag.FlagSet {
@@ -1524,6 +1537,22 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
+	var (
+		isTerminal bool = false
+		terminalFd uintptr
+	)
+
+	if in != nil {
+		if file, ok := in.(*os.File); ok {
+			terminalFd = file.Fd()
+			isTerminal = term.IsTerminal(terminalFd)
+		}
+	}
+
+	if err == nil {
+		err = out
+	}
+
 	authConfig, _ := auth.LoadConfig(os.Getenv("HOME"))
 	return &DockerCli{
 		proto:      proto,
@@ -1532,6 +1561,8 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 		in:         in,
 		out:        out,
 		err:        err,
+		isTerminal: isTerminal,
+		terminalFd: terminalFd,
 	}
 }
 
@@ -1542,4 +1573,6 @@ type DockerCli struct {
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
+	isTerminal bool
+	terminalFd uintptr
 }

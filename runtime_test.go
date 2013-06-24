@@ -77,6 +77,13 @@ func init() {
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 		panic(err)
 	}
+
+	// Spawn a Daemon
+	go func() {
+		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
+			panic(err)
+		}
+	}()
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
