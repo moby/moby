@@ -8,10 +8,10 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/user"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -49,10 +49,8 @@ func init() {
 		return
 	}
 
-	if usr, err := user.Current(); err != nil {
-		panic(err)
-	} else if usr.Uid != "0" {
-		panic("docker tests needs to be run as root")
+	if uid := syscall.Geteuid(); uid != 0 {
+		log.Fatal("docker tests needs to be run as root")
 	}
 
 	NetworkBridgeIface = "testdockbr0"
