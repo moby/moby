@@ -22,9 +22,16 @@ func (s *State) String() string {
 		if s.Ghost {
 			return fmt.Sprintf("Ghost")
 		}
-		return fmt.Sprintf("Up %s", utils.HumanDuration(time.Now().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", utils.HumanDuration(s.Uptime()))
 	}
 	return fmt.Sprintf("Exit %d", s.ExitCode)
+}
+
+func (s *State) Uptime() time.Duration {
+	if s.StartedAt.IsZero() {
+		return time.Duration(0)
+	}
+	return time.Now().Sub(s.StartedAt)
 }
 
 func (s *State) setRunning(pid int) {

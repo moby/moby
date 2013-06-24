@@ -92,7 +92,7 @@ func TestBuild(t *testing.T) {
 		}
 		defer nuke(runtime)
 
-		srv := &Server{runtime: runtime}
+		srv := &ServerImpl{runtime: runtime}
 
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {

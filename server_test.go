@@ -11,7 +11,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	if err := srv.runtime.repositories.Set("utest", "tag1", unitTestImageName, false); err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestCreateRm(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	config, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 
 	config, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	runtime, err := newTestRuntime()
-	srv := &Server{runtime: runtime}
+	srv := &ServerImpl{runtime: runtime}
 	if err != nil {
 		t.Fatal(err)
 	}

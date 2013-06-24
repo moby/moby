@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const APIVERSION = 1.3
@@ -80,12 +81,12 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
-func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getAuth(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version > 1.1 {
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
+	authConfig, err := auth.LoadConfig(srv.GetRuntime().root)
 	if err != nil {
 		if err != auth.ErrConfigFileMissing {
 			return err
@@ -100,7 +101,7 @@ func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
-func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postAuth(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
 	err := json.NewDecoder(r.Body).Decode(authConfig)
 	if err != nil {
@@ -113,7 +114,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 			return err
 		}
 	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
+		localAuthConfig, err := auth.LoadConfig(srv.GetRuntime().root)
 		if err != nil {
 			if err != auth.ErrConfigFileMissing {
 				return err
@@ -123,7 +124,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 			authConfig.Password = localAuthConfig.Password
 		}
 
-		newAuthConfig := auth.NewAuthConfig(authConfig.Username, authConfig.Password, authConfig.Email, srv.runtime.root)
+		newAuthConfig := auth.NewAuthConfig(authConfig.Username, authConfig.Password, authConfig.Email, srv.GetRuntime().root)
 		status, err = auth.Login(newAuthConfig, true)
 		if err != nil {
 			return err
@@ -141,7 +142,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getVersion(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	m := srv.DockerVersion()
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -151,7 +152,7 @@ func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	return nil
 }
 
-func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersKill(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -163,7 +164,7 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
-func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersExport(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -176,7 +177,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	return nil
 }
 
-func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesJSON(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -199,14 +200,14 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	return nil
 }
 
-func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesViz(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := srv.ImagesViz(w); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getInfo(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	out := srv.DockerInfo()
 	b, err := json.Marshal(out)
 	if err != nil {
@@ -216,7 +217,7 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
-func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesHistory(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -233,7 +234,7 @@ func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersChanges(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -250,7 +251,7 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
-func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersJSON(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -278,7 +279,7 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	return nil
 }
 
-func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesTag(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -300,7 +301,7 @@ func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.
 	return nil
 }
 
-func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postCommit(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -327,7 +328,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 }
 
 // Creates an image from Pull or from Import
-func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesCreate(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -362,7 +363,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesSearch(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -380,7 +381,7 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesInsert(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -410,14 +411,14 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesPush(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
 	if version > 1.1 {
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
 			return err
 		}
 	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
+		localAuthConfig, err := auth.LoadConfig(srv.GetRuntime().root)
 		if err != nil && err != auth.ErrConfigFileMissing {
 			return err
 		}
@@ -446,7 +447,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	return nil
 }
 
-func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersCreate(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
 	out := &APIRun{}
 
@@ -454,7 +455,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
+	if len(config.Dns) == 0 && len(srv.GetRuntime().Dns) == 0 && utils.CheckLocalDns() {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
@@ -465,11 +466,11 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	}
 	out.ID = id
 
-	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
+	if config.Memory > 0 && !srv.GetRuntime().capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 	}
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
+	if config.Memory > 0 && !srv.GetRuntime().capabilities.SwapLimit {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
@@ -483,7 +484,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
-func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersRestart(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -502,7 +503,7 @@ func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, 
 	return nil
 }
 
-func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func deleteContainers(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -522,7 +523,7 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func deleteImages(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -550,7 +551,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersStart(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -562,7 +563,7 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	return nil
 }
 
-func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersStop(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -583,7 +584,7 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
-func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersWait(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -600,7 +601,7 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
-func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersResize(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -622,7 +623,7 @@ func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
-func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersAttach(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -669,7 +670,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
-func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getContainersByName(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -687,7 +688,7 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 	return nil
 }
 
-func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getImagesByName(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -705,7 +706,7 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postImagesGetCache(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	apiConfig := &APIImageConfig{}
 	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
 		return err
@@ -728,7 +729,7 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
-func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postBuild(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version < 1.3 {
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
@@ -787,12 +788,91 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 	if repoName != "" {
-		srv.runtime.repositories.Set(repoName, tag, id, false)
+		srv.GetRuntime().repositories.Set(repoName, tag, id, false)
 	}
 	return nil
 }
 
-func optionsHandler(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postClean(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	err := parseForm(r)
+	if err != nil {
+		return err
+	}
+
+	removeVolumes := r.Form.Get("removeVolumes")
+	removeVolumesBool := true
+
+	if removeVolumes != "" {
+		removeVolumesBool, err = strconv.ParseBool(removeVolumes)
+		if err != nil {
+			return err
+		}
+	}
+
+	lastStartedTime, lastStarted, err := getTimeFromArg("lastStarted", r)
+	if err != nil {
+		return err
+	}
+
+	createdBeforeTime, createdBefore, err := getTimeFromArg("createdBefore", r)
+	if err != nil {
+		return err
+	}
+
+	durationLessThan, durationLessThanArg, err := getDurationFromArg("durationLessThan", r)
+	if err != nil {
+		return err
+	}
+
+	for _, container := range srv.GetRuntime().List() {
+
+		shouldDestroy := createdBefore != "" || lastStarted != "" || durationLessThanArg != ""
+
+		if createdBefore != "" && container.Created.After(createdBeforeTime) {
+			shouldDestroy = false
+		}
+		if lastStarted != "" && container.State.StartedAt.After(lastStartedTime) {
+			shouldDestroy = false
+		}
+		if durationLessThanArg != "" && durationLessThan < container.State.Uptime() {
+			shouldDestroy = false
+		}
+
+		if shouldDestroy {
+			w.Write([]byte(fmt.Sprintf("%s\n", container.ID)))
+			srv.ContainerDestroy(container.ID, removeVolumesBool)
+		}
+	}
+	return nil
+}
+
+func getDurationFromArg(someKey string, r *http.Request) (time.Duration, string, error) {
+	some := r.Form.Get(someKey)
+	if some == "" {
+		return time.Duration(0), some, nil
+	}
+	theDuration, err := time.ParseDuration(some)
+	if err != nil {
+		return time.Duration(0), some, err
+	}
+	return theDuration, some, nil
+}
+
+// utility to get time.Time from a form
+func getTimeFromArg(someKey string, r *http.Request) (time.Time, string, error) {
+	var beginningOfTime time.Time
+	some := r.Form.Get(someKey)
+	if some == "" {
+		return beginningOfTime, some, nil
+	}
+	someInt, err := strconv.ParseInt(some, 10, 64)
+	if err != nil {
+		return beginningOfTime, some, err
+	}
+	return time.Unix(someInt, 0), some, nil
+}
+
+func optionsHandler(srv Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
 }
@@ -802,10 +882,10 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
-func createRouter(srv *Server, logging bool) (*mux.Router, error) {
+func createRouter(srv Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
-	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
+	m := map[string]map[string]func(Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
 			"/auth":                         getAuth,
 			"/version":                      getVersion,
@@ -825,6 +905,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
 			"/build":                        postBuild,
+			"/clean":                        postClean,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
@@ -871,7 +952,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 				if err != nil {
 					version = APIVERSION
 				}
-				if srv.enableCors {
+				if srv.GetEnableCors() {
 					writeCorsHeaders(w, r)
 				}
 				if version == 0 || version > APIVERSION {
@@ -895,7 +976,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
+func ListenAndServe(proto, addr string, srv Server, logging bool) error {
 	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 
 	r, err := createRouter(srv, logging)

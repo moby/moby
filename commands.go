@@ -77,6 +77,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	for _, command := range [][2]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
+		{"clean", "Remove stale containers"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -230,6 +231,49 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	// Output the result
 	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) CmdClean(args ...string) error {
+	// naive implementation for now will remove specific containers
+
+	cmd := Subcmd("clean", "FILTER [FILTER...]", "A convenience command to remove containers based on filters. All filters are conjunctive, meaning the more filters you add, the fewer the number of containers that (might) get cleaned up. \n\nNote that this command is a simplified form of the more flexible way of doing this, ie:\n\n$  docker ps -q <some query> | docker rm")
+
+	lastStarted := cmd.Int("lastStarted", -1, "Remove all containers that were last started at or before Unix second _lastStarted_")
+	createdBefore := cmd.Int("createdBefore", -1, "Remove all containers that were created at or before Unix second _createdBefore_")
+	durationLessThan := cmd.String("durationLessThan", "", "Remove all containers whose total runtime is less than or equal to _durationLessThan_ . This option accepts values of the same format as time.ParseDuration()")
+	removeVolumes := cmd.Bool("removeVolumes", true, "When removing containers, whether or not to also remove associated unused volumes. (default true)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NFlag() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+
+	if *lastStarted != -1 {
+		v.Add("lastStarted", strconv.Itoa(*lastStarted))
+	}
+	if *createdBefore != -1 {
+		v.Add("createdBefore", strconv.Itoa(*createdBefore))
+	}
+
+	v.Add("durationLessThan", *durationLessThan)
+	v.Add("removeVolumes", strconv.FormatBool(*removeVolumes))
+
+	resp, _, err := cli.call("POST", "/clean?"+v.Encode(), nil)
+
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(os.Stdout, string(resp)); err != nil {
 		return err
 	}
 

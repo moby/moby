@@ -55,14 +55,15 @@ func init() {
 
 	NetworkBridgeIface = "testdockbr0"
 
-	// Make it our Store root
+	// // Make it our Store root
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
 	if err != nil {
 		panic(err)
 	}
 
 	// Create the "Server"
-	srv := &Server{
+
+	srv := &ServerImpl{
 		runtime:     runtime,
 		enableCors:  false,
 		lock:        &sync.Mutex{},
