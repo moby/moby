@@ -16,9 +16,13 @@ import (
 	"time"
 )
 
-const unitTestImageName string = "docker-ut"
-const unitTestImageId string = "e9aa60c60128cad1"
-const unitTestStoreBase string = "/var/lib/docker/unit-tests"
+const (
+	unitTestImageName = "docker-ut"
+	unitTestImageId   = "e9aa60c60128cad1"
+	unitTestStoreBase = "/var/lib/docker/unit-tests"
+	testDaemonAddr    = "127.0.0.1:4270"
+	testDaemonProto   = "tcp"
+)
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup

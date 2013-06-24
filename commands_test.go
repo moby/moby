@@ -334,7 +334,8 @@ func TestRunDisconnectTty(t *testing.T) {
 		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
 	}
 }
-
+*/
+/*
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
@@ -345,6 +346,10 @@ func TestRunAttachStdin(t *testing.T) {
 	}
 	defer nuke(runtime)
 	srv := &Server{runtime: runtime}
+	// enableCors:  false,
+	// lock:        &sync.Mutex{},
+	// pullingPool: make(map[string]struct{}),
+	// pushingPool: make(map[string]struct{}),
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
@@ -399,7 +404,8 @@ func TestRunAttachStdin(t *testing.T) {
 		}
 	}
 }
-
+*/
+/*
 // Expected behaviour, the process stays alive when the client disconnects
 func TestAttachDisconnect(t *testing.T) {
 	runtime, err := newTestRuntime()
