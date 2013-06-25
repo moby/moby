@@ -588,7 +588,7 @@ func TestKill(t *testing.T) {
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"cat", "/dev/zero"},
+		Cmd:   []string{"sleep", "2"},
 	},
 	)
 	if err != nil {
@@ -897,7 +897,7 @@ func TestMultipleContainers(t *testing.T) {
 
 	container1, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"cat", "/dev/zero"},
+		Cmd:   []string{"sleep", "2"},
 	},
 	)
 	if err != nil {
@@ -907,7 +907,7 @@ func TestMultipleContainers(t *testing.T) {
 
 	container2, err := builder.Create(&Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"cat", "/dev/zero"},
+		Cmd:   []string{"sleep", "2"},
 	},
 	)
 	if err != nil {
