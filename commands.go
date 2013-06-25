@@ -576,7 +576,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	}
 
 	if frontend, exists := out.NetworkSettings.PortMapping[cmd.Arg(1)]; exists {
-		fmt.Println(frontend)
+		fmt.Fprintf(cli.out, "%s\n", frontend)
 	} else {
 		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
 	}
@@ -606,9 +606,9 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 			for _, out := range outs {
 				if out.Deleted != "" {
-					fmt.Println("Deleted:", out.Deleted)
+					fmt.Fprintf(cli.out, "Deleted: %s\n", out.Deleted)
 				} else {
-					fmt.Println("Untagged:", out.Untagged)
+					fmt.Fprintf(cli.out, "Untagged: %s\n", out.Untagged)
 				}
 			}
 		}
@@ -666,9 +666,9 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
-			fmt.Println(name)
+			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
 	return nil
@@ -688,9 +688,9 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 	for _, name := range args {
 		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
-			fmt.Println(name)
+			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
 	return nil
@@ -814,7 +814,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s", body)
+		fmt.Fprintf(cli.out, "%s", body)
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {
@@ -1000,7 +1000,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return err
 	}
 
-	fmt.Println(apiID.ID)
+	fmt.Fprintf(cli.out, "%s\n", apiID.ID)
 	return nil
 }
 
@@ -1042,7 +1042,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return err
 	}
 	for _, change := range changes {
-		fmt.Println(change.String())
+		fmt.Fprintf(cli.out, "%s\n", change.String())
 	}
 	return nil
 }
