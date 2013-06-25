@@ -120,6 +120,8 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-client  | https://github.com/geku/docker-client      |
 +----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
++----------------------+----------------+--------------------------------------------+
 | Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
 +----------------------+----------------+--------------------------------------------+
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
