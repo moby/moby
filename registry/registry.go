@@ -424,10 +424,20 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 		}
 	}
 
-	return &RepositoryData{
-		Tokens:    tokens,
-		Endpoints: endpoints,
-	}, nil
+	repoData, err := r.GetRepositoryData(remote)
+
+	if err != nil {
+		if err.Error() == "HTTP code: 404" {
+			return &RepositoryData{
+				Endpoints: endpoints,
+				Tokens:    tokens,
+			}, nil
+		} else {
+			utils.Debugf("Error getting repository data: %s", err.Error())
+			return nil, err
+		}
+	}
+	return repoData, nil
 }
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
