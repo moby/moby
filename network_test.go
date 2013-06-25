@@ -248,7 +248,9 @@ func TestIPAllocator(t *testing.T) {
 	}
 
 	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
-	alloc := newIPAllocator(&net.IPNet{IP: gwIP, Mask: n.Mask})
+	network := NetworkInterfaceIP{IPNet: net.IPNet{IP: gwIP, Mask: n.Mask}, Gateway: gwIP}
+	networks := []NetworkInterfaceIP{network}
+	alloc := newIPAllocator(networks)
 	// Pool after initialisation (f = free, u = used)
 	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//  ↑
@@ -256,12 +258,12 @@ func TestIPAllocator(t *testing.T) {
 	// Check that we get 5 IPs, from 127.0.0.2–127.0.0.6, in that
 	// order.
 	for i := 0; i < 5; i++ {
-		ip, err := alloc.Acquire()
+		ips, err := alloc.Acquire()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		assertIPEquals(t, expectedIPs[i], ip)
+		assertIPEquals(t, expectedIPs[i], ips[0].IPNet.IP)
 	}
 	// Before loop begin
 	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
@@ -310,12 +312,12 @@ func TestIPAllocator(t *testing.T) {
 	// with the first released IP
 	newIPs := make([]net.IP, 3)
 	for i := 0; i < 3; i++ {
-		ip, err := alloc.Acquire()
+		ips, err := alloc.Acquire()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		newIPs[i] = ip
+		newIPs[i] = ips[0].IPNet.IP
 	}
 	// Before loop begin
 	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
