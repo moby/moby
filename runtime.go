@@ -246,8 +246,8 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory("/var/lib/docker", autoRestart)
+func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
 	if err != nil {
 		return nil, err
 	}

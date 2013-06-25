@@ -1049,11 +1049,11 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func NewServer(autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
+func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime(autoRestart, dns)
+	runtime, err := NewRuntime(flGraphPath, autoRestart, dns)
 	if err != nil {
 		return nil, err
 	}
