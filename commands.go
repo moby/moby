@@ -1279,8 +1279,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if !config.AttachStdout && !config.AttachStderr {
-		fmt.Fprintf(cli.out, "%s\n", runResult.ID)
+		// Make this asynchrone in order to let the client write to stdin before having to read the ID
+		go fmt.Fprintf(cli.out, "%s\n", runResult.ID)
 	}
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
@@ -1301,6 +1303,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if config.AttachStderr {
 			v.Set("stderr", "1")
 		}
+
 		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
@@ -1466,6 +1469,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 		defer term.RestoreTerminal(cli.terminalFd, oldState)
 	}
+
 	sendStdin := utils.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)

@@ -3,8 +3,9 @@ package docker
 import (
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
-	_ "io/ioutil"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -59,20 +60,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 }
 
 /*TODO
-func cmdWait(srv *Server, container *Container) error {
-	stdout, stdoutPipe := io.Pipe()
-
-	go func() {
-		srv.CmdWait(nil, stdoutPipe, container.Id)
-	}()
-
-	if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
-		return err
-	}
-	// Cleanup pipes
-	return closeWrap(stdout, stdoutPipe)
-}
-
 func cmdImages(srv *Server, args ...string) (string, error) {
 	stdout, stdoutPipe := io.Pipe()
 
@@ -144,41 +131,39 @@ func TestImages(t *testing.T) {
 	// todo: add checks for -a
 }
 
+*/
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
-
-	stdin, _ := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(nil, stdoutPipe, nil, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
 
 	c := make(chan struct{})
 	go func() {
-		if err := srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-h", "foobar", GetTestImage(runtime).Id, "hostname"); err != nil {
+		defer close(c)
+		if err := cli.CmdRun("-h", "foobar", unitTestImageId, "hostname"); err != nil {
 			t.Fatal(err)
 		}
-		close(c)
 	}()
-	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cmdOutput != "foobar\n" {
-		t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", cmdOutput)
-	}
+	utils.Debugf("--")
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmdOutput != "foobar\n" {
+			t.Fatalf("'hostname' should display '%s', not '%s'", "foobar\n", cmdOutput)
+		}
+	})
 
-	setTimeout(t, "CmdRun timed out", 2*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
-		cmdWait(srv, srv.runtime.List()[0])
 	})
 
 }
 
+/*
 func TestRunExit(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -335,33 +320,26 @@ func TestRunDisconnectTty(t *testing.T) {
 	}
 }
 */
-/*
+
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
 func TestRunAttachStdin(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
-	// enableCors:  false,
-	// lock:        &sync.Mutex{},
-	// pullingPool: make(map[string]struct{}),
-	// pushingPool: make(map[string]struct{}),
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
+	cli := NewDockerCli(stdin, stdoutPipe, nil, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
 	ch := make(chan struct{})
 	go func() {
-		srv.CmdRun(stdin, rcli.NewDockerLocalConn(stdoutPipe), "-i", "-a", "stdin", GetTestImage(runtime).Id, "sh", "-c", "echo hello; cat")
-		close(ch)
+		defer close(ch)
+		cli.CmdRun("-i", "-a", "stdin", unitTestImageId, "sh", "-c", "echo hello && cat")
 	}()
 
 	// Send input to the command, close stdin
-	setTimeout(t, "Write timed out", 2*time.Second, func() {
+	setTimeout(t, "Write timed out", 10*time.Second, func() {
 		if _, err := stdinPipe.Write([]byte("hi there\n")); err != nil {
 			t.Fatal(err)
 		}
@@ -370,23 +348,27 @@ func TestRunAttachStdin(t *testing.T) {
 		}
 	})
 
-	container := runtime.List()[0]
+	container := globalRuntime.List()[0]
 
 	// Check output
-	cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cmdOutput != container.ShortId()+"\n" {
-		t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortId()+"\n", cmdOutput)
-	}
+	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmdOutput != container.ShortID()+"\n" {
+			t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortID()+"\n", cmdOutput)
+		}
+	})
 
 	// wait for CmdRun to return
-	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+	setTimeout(t, "Waiting for CmdRun timed out", 5*time.Second, func() {
+		// Unblock hijack end
+		stdout.Read([]byte{})
 		<-ch
 	})
 
-	setTimeout(t, "Waiting for command to exit timed out", 2*time.Second, func() {
+	setTimeout(t, "Waiting for command to exit timed out", 5*time.Second, func() {
 		container.Wait()
 	})
 
@@ -404,7 +386,7 @@ func TestRunAttachStdin(t *testing.T) {
 		}
 	}
 }
-*/
+
 /*
 // Expected behaviour, the process stays alive when the client disconnects
 func TestAttachDisconnect(t *testing.T) {

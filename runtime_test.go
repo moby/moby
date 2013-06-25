@@ -24,6 +24,8 @@ const (
 	testDaemonProto   = "tcp"
 )
 
+var globalRuntime *Runtime
+
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
 	for _, container := range runtime.List() {
@@ -35,6 +37,23 @@ func nuke(runtime *Runtime) error {
 	}
 	wg.Wait()
 	return os.RemoveAll(runtime.root)
+}
+
+func cleanup(runtime *Runtime) error {
+	for _, container := range runtime.List() {
+		container.Kill()
+		runtime.Destroy(container)
+	}
+	images, err := runtime.graph.All()
+	if err != nil {
+		return err
+	}
+	for _, image := range images {
+		if image.ID != unitTestImageId {
+			runtime.graph.Delete(image.ID)
+		}
+	}
+	return nil
 }
 
 func layerArchive(tarfile string) (io.Reader, error) {
@@ -64,6 +83,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	globalRuntime = runtime
 
 	// Create the "Server"
 	srv := &Server{
@@ -84,6 +104,9 @@ func init() {
 			panic(err)
 		}
 	}()
+
+	// Give some time to ListenAndServer to actually start
+	time.Sleep(time.Second)
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
