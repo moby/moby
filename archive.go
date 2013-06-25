@@ -92,7 +92,7 @@ func Tar(path string, compression Compression) (io.Reader, error) {
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
 func TarFilter(path string, compression Compression, filter []string) (io.Reader, error) {
-	args := []string{"tar", "-f", "-", "-C", path}
+	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path}
 	if filter == nil {
 		filter = []string{"."}
 	}
@@ -120,7 +120,7 @@ func Untar(archive io.Reader, path string) error {
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
 
-	cmd := exec.Command("tar", "-f", "-", "-C", path, "-x"+compression.Flag())
+	cmd := exec.Command("tar", "--numeric-owner", "-f", "-", "-C", path, "-x"+compression.Flag())
 	cmd.Stdin = bufferedArchive
 	// Hardcode locale environment for predictable outcome regardless of host configuration.
 	//   (see https://github.com/dotcloud/docker/issues/355)
