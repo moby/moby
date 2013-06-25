@@ -40,8 +40,11 @@
 
     {%- set script_files = script_files + ['_static/js/docs.js'] %}
 
+    {%- if pagename == 'index' %}
+    <link rel="canonical" href="http://docs.docker.io/en/latest/">
+    {% else %}
     <link rel="canonical" href="http://docs.docker.io/en/latest/{{ pagename }}/">
-
+    {% endif %}
     {%- for cssfile in css_files %}
     <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
     {%- endfor %}
