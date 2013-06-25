@@ -82,6 +82,15 @@ run    [ "$FOO" = "BAR" ]
 `,
 		nil,
 	},
+
+	{
+		`
+from docker-ut
+ENTRYPOINT /bin/echo
+CMD Hello world
+`,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
