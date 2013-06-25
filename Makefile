@@ -2,6 +2,8 @@ DOCKER_PACKAGE := github.com/dotcloud/docker
 RELEASE_VERSION := $(shell git tag | grep -E "v[0-9\.]+$$" | sort -nr | head -n 1)
 SRCRELEASE := docker-$(RELEASE_VERSION)
 BINRELEASE := docker-$(RELEASE_VERSION).tgz
+BUILD_SRC := build_src
+BUILD_PATH := ${BUILD_SRC}/src/${DOCKER_PACKAGE}
 
 GIT_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(CURDIR)/.gopath
@@ -71,8 +73,13 @@ else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
 	@rm -f $(DOCKER_DIR)
 endif
 
-test: all
-	@(cd $(DOCKER_DIR); sudo -E go test $(GO_OPTIONS))
+test:
+	# Copy docker source and dependencies for testing
+	rm -rf ${BUILD_SRC}; mkdir -p ${BUILD_PATH}
+	tar --exclude=${BUILD_SRC} -cz . | tar -xz -C ${BUILD_PATH}
+	GOPATH=${CURDIR}/${BUILD_SRC} go get -d
+	# Do the test
+	sudo -E GOPATH=${CURDIR}/${BUILD_SRC} go test ${GO_OPTIONS}
 
 testall: all
 	@(cd $(DOCKER_DIR); sudo -E go test ./... $(GO_OPTIONS))
