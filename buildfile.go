@@ -141,7 +141,7 @@ func (b *buildFile) CmdEnv(args string) error {
 func (b *buildFile) CmdCmd(args string) error {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, using /bin/sh -c", err)
+		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
 	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
@@ -163,6 +163,23 @@ func (b *buildFile) CmdInsert(args string) error {
 
 func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
+}
+
+func (b *buildFile) CmdEntrypoint(args string) error {
+	if args == "" {
+		return fmt.Errorf("Entrypoint cannot be empty")
+	}
+
+	var entrypoint []string
+	if err := json.Unmarshal([]byte(args), &entrypoint); err != nil {
+		b.config.Entrypoint = []string{"/bin/sh", "-c", args}
+	} else {
+		b.config.Entrypoint = entrypoint
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %s", args)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {

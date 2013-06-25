@@ -44,7 +44,11 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
-
+	for i := 0; i < len(a.Entrypoint); i++ {
+		if a.Entrypoint[i] != b.Entrypoint[i] {
+			return false
+		}
+	}
 	return true
 }
 
@@ -84,5 +88,8 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.Dns == nil || len(userConf.Dns) == 0 {
 		userConf.Dns = imageConf.Dns
+	}
+	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
+		userConf.Entrypoint = imageConf.Entrypoint
 	}
 }

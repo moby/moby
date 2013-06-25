@@ -50,12 +50,23 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		config.Hostname = id[:12]
 	}
 
+	var args []string
+	var entrypoint string
+
+	if len(config.Entrypoint) != 0 {
+		entrypoint = config.Entrypoint[0]
+		args = append(config.Entrypoint[1:], config.Cmd...)
+	} else {
+		entrypoint = config.Cmd[0]
+		args = config.Cmd[1:]
+	}
+
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
 		Created:         time.Now(),
-		Path:            config.Cmd[0],
-		Args:            config.Cmd[1:], //FIXME: de-duplicate from config
+		Path:            entrypoint,
+		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
