@@ -20,6 +20,10 @@ lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
 lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
+{{if .NetworkSettings.IPV6Address}}
+lxc.network.ipv6 = {{.NetworkSettings.IPV6Address}}/{{.NetworkSettings.IPV6PrefixLen}}
+lxc.network.ipv6.gateway = {{.NetworkSettings.GatewayV6}}
+{{end}}
 
 # root filesystem
 {{$ROOTFS := .RootfsPath}}
