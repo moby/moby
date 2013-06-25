@@ -84,12 +84,9 @@ lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
 lxc.mount.entry = {{.ResolvConfPath}} {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
 {{if .Volumes}}
-{{range $virtualPath, $realPath := .GetVolumes}}
-lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,rw 0 0
-{{end}}
-{{end}}
-{{if .Binds}}# User-defined bind mounts
-{{range $bindMap := .Binds}}lxc.mount.entry = {{$bindMap.SrcPath}} {{$ROOTFS}}{{$bindMap.DstPath}} none bind,{{$bindMap.Mode}} 0 0
++{{ $rw := .VolumesRW }}
++{{range $virtualPath, $realPath := .Volumes}}
++lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if index $rw $virtualPath }}rw{{else}}ro{{end}} 0 0
 {{end}}
 {{end}}
 

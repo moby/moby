@@ -52,8 +52,9 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
-
-	Binds []BindMap
+	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Easier than migrating older container configs :)
+	VolumesRW map[string]bool
 }
 
 type Config struct {
@@ -481,41 +482,15 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		container.Config.MemorySwap = -1
 	}
 	container.Volumes = make(map[string]string)
-
-	// Create the requested volumes volumes
-	for volPath := range container.Config.Volumes {
-		c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-		if err != nil {
-			return err
-		}
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-			return nil
-		}
-		container.Volumes[volPath] = c.ID
-	}
-
-	if container.Config.VolumesFrom != "" {
-		c := container.runtime.Get(container.Config.VolumesFrom)
-		if c == nil {
-			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-		}
-		for volPath, id := range c.Volumes {
-			if _, exists := container.Volumes[volPath]; exists {
-				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.ID)
-			}
-			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return nil
-			}
-			container.Volumes[volPath] = id
-		}
-	}
+	container.VolumesRW = make(map[string]bool)
 
 	// Create the requested bind mounts
-	binds := []BindMap{}
+	binds := make(map[string]BindMap)
 	// Define illegal container destinations
 	illegal_dsts := []string{"/", "."}
 
 	for _, bind := range hostConfig.Binds {
+		// FIXME: factorize bind parsing in parseBind
 		var src, dst, mode string
 		arr := strings.Split(bind, ":")
 		if len(arr) == 2 {
@@ -542,9 +517,54 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			DstPath: dst,
 			Mode:    mode,
 		}
-		binds = append(binds, bindMap)
+		binds[path.Clean(dst)] = bindMap
 	}
-	container.Binds = binds
+
+	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
+	// Create the requested volumes volumes
+	for volPath := range container.Config.Volumes {
+		volPath = path.Clean(volPath)
+		// If an external bind is defined for this volume, use that as a source
+		if bindMap, exists := binds[volPath]; exists {
+			container.Volumes[volPath] = bindMap.SrcPath
+			if strings.ToLower(bindMap.Mode) == "rw" {
+				container.VolumesRW[volPath] = true
+			}
+			// Otherwise create an directory in $ROOT/volumes/ and use that
+		} else {
+			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+			if err != nil {
+				return err
+			}
+			srcPath, err := c.layer()
+			if err != nil {
+				return err
+			}
+			container.Volumes[volPath] = srcPath
+			container.VolumesRW[volPath] = true // RW by default
+		}
+		// Create the mountpoint
+		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+			return nil
+		}
+	}
+
+	if container.Config.VolumesFrom != "" {
+		c := container.runtime.Get(container.Config.VolumesFrom)
+		if c == nil {
+			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+		}
+		for volPath, id := range c.Volumes {
+			if _, exists := container.Volumes[volPath]; exists {
+				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.ID)
+			}
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
+			}
+			container.Volumes[volPath] = id
+		}
+	}
+	container.VolumesRW = make(map[string]bool)
 
 	if err := container.generateLXCConfig(); err != nil {
 		return err
@@ -955,22 +975,6 @@ func (container *Container) lxcConfigPath() string {
 // This method must be exported to be used from the lxc template
 func (container *Container) RootfsPath() string {
 	return path.Join(container.root, "rootfs")
-}
-
-func (container *Container) GetVolumes() (map[string]string, error) {
-	ret := make(map[string]string)
-	for volPath, id := range container.Volumes {
-		volume, err := container.runtime.volumes.Get(id)
-		if err != nil {
-			return nil, err
-		}
-		root, err := volume.root()
-		if err != nil {
-			return nil, err
-		}
-		ret[volPath] = path.Join(root, "layer")
-	}
-	return ret, nil
 }
 
 func (container *Container) rwPath() string {
