@@ -145,11 +145,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	// add any bind targets to the list of container volumes
-	type empty struct{}
 	for _, bind := range flBinds {
 		arr := strings.Split(bind, ":")
 		dstDir := arr[1]
-		flVolumes[dstDir] = empty{}
+		flVolumes[dstDir] = struct{}{}
 	}
 
 	parsedArgs := cmd.Args()
@@ -564,7 +563,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			container.Volumes[volPath] = id
 		}
 	}
-	container.VolumesRW = make(map[string]bool)
 
 	if err := container.generateLXCConfig(); err != nil {
 		return err
