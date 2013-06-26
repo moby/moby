@@ -16,9 +16,15 @@ import (
 	"time"
 )
 
-const unitTestImageName string = "docker-ut"
-const unitTestImageId string = "e9aa60c60128cad1"
-const unitTestStoreBase string = "/var/lib/docker/unit-tests"
+const (
+	unitTestImageName = "docker-ut"
+	unitTestImageId   = "e9aa60c60128cad1"
+	unitTestStoreBase = "/var/lib/docker/unit-tests"
+	testDaemonAddr    = "127.0.0.1:4270"
+	testDaemonProto   = "tcp"
+)
+
+var globalRuntime *Runtime
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -31,6 +37,23 @@ func nuke(runtime *Runtime) error {
 	}
 	wg.Wait()
 	return os.RemoveAll(runtime.root)
+}
+
+func cleanup(runtime *Runtime) error {
+	for _, container := range runtime.List() {
+		container.Kill()
+		runtime.Destroy(container)
+	}
+	images, err := runtime.graph.All()
+	if err != nil {
+		return err
+	}
+	for _, image := range images {
+		if image.ID != unitTestImageId {
+			runtime.graph.Delete(image.ID)
+		}
+	}
+	return nil
 }
 
 func layerArchive(tarfile string) (io.Reader, error) {
@@ -60,6 +83,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	globalRuntime = runtime
 
 	// Create the "Server"
 	srv := &Server{
@@ -73,6 +97,16 @@ func init() {
 	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 		panic(err)
 	}
+
+	// Spawn a Daemon
+	go func() {
+		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
+			panic(err)
+		}
+	}()
+
+	// Give some time to ListenAndServer to actually start
+	time.Sleep(time.Second)
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output

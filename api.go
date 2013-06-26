@@ -660,7 +660,20 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if tcpc, ok := in.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else {
+			in.Close()
+		}
+	}()
+	defer func() {
+		if tcpc, ok := out.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else if closer, ok := out.(io.Closer); ok {
+			closer.Close()
+		}
+	}()
 
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
