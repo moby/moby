@@ -1235,7 +1235,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRun(args ...string) error {
-	config, cmd, err := ParseRun(args, nil)
+	config, hostConfig, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
 	}
@@ -1274,7 +1274,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", nil); err != nil {
+	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig); err != nil {
 		return err
 	}
 
