@@ -540,7 +540,7 @@ func TestCreateVolume(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
+	config, hc, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func TestCreateVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(c)
-	if err := c.Start(); err != nil {
+	if err := c.Start(hc); err != nil {
 		t.Fatal(err)
 	}
 	c.WaitTimeout(500 * time.Millisecond)
@@ -1202,7 +1202,7 @@ func TestBindMounts(t *testing.T) {
 
 	// test writing to bind mount
 	runContainer(r, []string{"-b", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
-	readFile("/tmp/holla", t) // Will fail if the file doesn't exist
+	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
 	if _, err := runContainer(r, []string{"-b", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {

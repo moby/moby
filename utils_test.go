@@ -32,7 +32,7 @@ func writeFile(dst, content string, t *testing.T) {
 	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil && !os.IsExist(err) {
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(dst, os.O_RDWR|os.O_TRUNC, 0700)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +57,7 @@ func readFile(src string, t *testing.T) (content string) {
 }
 
 // Create a test container from the given runtime `r` and run arguments `args`.
+// The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
 func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig) {
@@ -64,16 +65,17 @@ func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConf
 	if err != nil {
 		t.Fatal(err)
 	}
+	config.Image = GetTestImage(r).ID
 	c, err := NewBuilder(r).Create(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Image = GetTestImage(r).ID
 	return c, hostConfig
 }
 
 // Create a test container, start it, wait for it to complete, destroy it,
 // and return its standard output as a string.
+// The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
 // If t is not nil, call t.Fatal() at the first error. Otherwise return errors normally.
 func runContainer(r *Runtime, args []string, t *testing.T) (output string, err error) {
 	defer func() {
