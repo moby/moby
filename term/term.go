@@ -38,13 +38,13 @@ func IsTerminal(fd uintptr) bool {
 
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
-func Restore(fd uintptr, state *State) error {
+func RestoreTerminal(fd uintptr, state *State) error {
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)))
 	return err
 }
 
-func SetRawTerminal() (*State, error) {
-	oldState, err := MakeRaw(os.Stdin.Fd())
+func SetRawTerminal(fd uintptr) (*State, error) {
+	oldState, err := MakeRaw(fd)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,8 @@ func SetRawTerminal() (*State, error) {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		_ = <-c
-		Restore(os.Stdin.Fd(), oldState)
+		RestoreTerminal(fd, oldState)
 		os.Exit(0)
 	}()
 	return oldState, err
-}
-
-func RestoreTerminal(state *State) {
-	Restore(os.Stdin.Fd(), state)
 }
