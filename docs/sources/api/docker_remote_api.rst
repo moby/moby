@@ -42,6 +42,9 @@ List containers (/containers/json):
 
 - You can use size=1 to get the size of the containers
 
+Start containers (/containers/<id>/start):
+
+- You can now pass host-specific configuration (e.g. bind mounts) in the POST body for start calls 
 
 :doc:`docker_remote_api_v1.2`
 *****************************
