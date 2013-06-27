@@ -1278,9 +1278,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
+	var wait chan struct{}
+
 	if !config.AttachStdout && !config.AttachStderr {
 		// Make this asynchrone in order to let the client write to stdin before having to read the ID
-		go fmt.Fprintf(cli.out, "%s\n", runResult.ID)
+		wait = make(chan struct{})
+		go func() {
+			defer close(wait)
+			fmt.Fprintf(cli.out, "%s\n", runResult.ID)
+		}()
 	}
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
@@ -1308,6 +1314,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
+	}
+
+	if !config.AttachStdout && !config.AttachStderr {
+		<-wait
 	}
 	return nil
 }
