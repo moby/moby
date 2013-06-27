@@ -551,11 +551,20 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	hostConfig := &HostConfig{}
+
+	// allow a nil body for backwards compatibility
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
+			return err
+		}
+	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	if err := srv.ContainerStart(name); err != nil {
+	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -660,7 +669,20 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if tcpc, ok := in.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else {
+			in.Close()
+		}
+	}()
+	defer func() {
+		if tcpc, ok := out.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else if closer, ok := out.(io.Closer); ok {
+			closer.Close()
+		}
+	}()
 
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {

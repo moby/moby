@@ -65,7 +65,7 @@ func TestCreateRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	err = srv.ContainerStart(id)
+	err = srv.ContainerStart(id, hostConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStart(id)
+	err = srv.ContainerStart(id, hostConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -265,8 +265,8 @@ func TestCompareKernelVersion(t *testing.T) {
 func TestHumanSize(t *testing.T) {
 
 	size1000 := HumanSize(1000)
-	if size1000 != "1 kB" {
-		t.Errorf("1000 -> expected 1 kB, got %s", size1000)
+	if size1000 != "    1 kB" {
+		t.Errorf("1000 -> expected     1 kB, got %s", size1000)
 	}
 
 	size1024 := HumanSize(1024)

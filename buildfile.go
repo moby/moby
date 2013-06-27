@@ -87,7 +87,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,8 @@ func (b *buildFile) run() (string, error) {
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	//start the container
-	if err := c.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := c.Start(hostConfig); err != nil {
 		return "", err
 	}
 
