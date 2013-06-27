@@ -335,7 +335,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	defer func() {
 		// If we have an error and a container, the display the logs
 		if b.lastContainer != nil {
-			fmt.Fprintf(b.out, "Logs from last container (%s):\n", b.lastContainer.ShortID())
+			fmt.Fprintf(b.out, "******** Logs from last container (%s) *******\n", b.lastContainer.ShortID())
 
 			cLog, err := b.lastContainer.ReadLog("stdout")
 			if err != nil {
@@ -351,7 +351,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			if _, err := io.Copy(b.out, cLog); err != nil {
 				utils.Debugf("Error streaming logs (stderr): %s", err)
 			}
-			fmt.Fprintf(b.out, "End of logs for %s\n", b.lastContainer.ShortID())
+			fmt.Fprintf(b.out, "************* End of logs for %s *************\n", b.lastContainer.ShortID())
 		}
 	}()
 
