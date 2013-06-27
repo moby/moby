@@ -301,6 +301,9 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	if container == nil {
 		return "", fmt.Errorf("No such container: %s", name)
 	}
+	if _, err := os.Stat(container.rwPath()); err != nil && os.IsNotExist(err) {
+		return "", fmt.Errorf("The container must be run at least once before commit")
+	}
 	img, err := NewBuilder(srv.runtime).Commit(container, repo, tag, comment, author, config)
 	if err != nil {
 		return "", err
