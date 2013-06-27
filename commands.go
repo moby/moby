@@ -345,7 +345,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	auth.SaveConfig(cli.authConfig)
 	if out2.Status != "" {
-		fmt.Fprintln(cli.out, "%s\n", out2.Status)
+		fmt.Fprintf(cli.out, "%s\n", out2.Status)
 	}
 	return nil
 }
@@ -370,7 +370,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cli.out, "%s\n", out.StatusCode)
+			fmt.Fprintf(cli.out, "%d\n", out.StatusCode)
 		}
 	}
 	return nil
@@ -405,7 +405,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		fmt.Fprintf(cli.out, "Git commit: %s\n", out.GitCommit)
 	}
 	if out.GoVersion != "" {
-		fmt.Fprintln(cli.out, "Go version: %s\n", out.GoVersion)
+		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
 	}
 	return nil
 }
@@ -513,7 +513,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
-			fmt.Fprintln(cli.out, "%s\n", name)
+			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
 	return nil
