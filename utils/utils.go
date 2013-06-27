@@ -528,7 +528,9 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}
 
 	if len(tmp2) > 2 {
-		minor, err = strconv.Atoi(tmp2[2])
+		// Removes "+" because git kernels might set it
+		minorUnparsed := strings.Trim(tmp2[2], "+")
+		minor, err = strconv.Atoi(minorUnparsed)
 		if err != nil {
 			return nil, err
 		}
