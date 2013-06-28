@@ -26,6 +26,33 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
+type plainVersionChecker struct {
+	name    string
+	version string
+}
+
+func (v *plainVersionChecker) Name() string {
+	return v.name
+}
+
+func (v *plainVersionChecker) Version() string {
+	return v.version
+}
+
+func (srv *Server) versionCheckers() []registry.VersionChecker {
+	v := srv.DockerVersion()
+	ret := make([]registry.VersionChecker, 0, 3)
+	ret = append(ret, &plainVersionChecker{"docker", v.Version})
+
+	if len(v.GoVersion) > 0 {
+		ret = append(ret, &plainVersionChecker{"go", v.GoVersion})
+	}
+	if len(v.GitCommit) > 0 {
+		ret = append(ret, &plainVersionChecker{"git-commit", v.GitCommit})
+	}
+	return ret
+}
+
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
@@ -55,7 +82,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.DockerVersion())
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionCheckers()...)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +497,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.DockerVersion())
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionCheckers()...)
 	if err != nil {
 		return err
 	}
@@ -687,7 +714,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.DockerVersion())
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionCheckers()...)
 	if err2 != nil {
 		return err2
 	}

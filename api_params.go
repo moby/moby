@@ -66,18 +66,6 @@ type APIVersion struct {
 	GoVersion string `json:",omitempty"`
 }
 
-func (v *APIVersion) Name() string {
-	return "docker"
-}
-
-func (v *APIVersion) Version() string {
-	r, err := json.Marshal(v)
-	if err != nil {
-		return r.Version
-	}
-	return string(r)
-}
-
 type APIWait struct {
 	StatusCode int
 }
