@@ -145,9 +145,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	if err != nil {
-		return nil, err
-	}
+	r.setUserAgent(req)
 	res, err := r.client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
