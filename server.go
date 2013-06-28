@@ -41,7 +41,7 @@ func (v *plainVersionChecker) Version() string {
 
 func (srv *Server) versionCheckers() []registry.VersionChecker {
 	v := srv.DockerVersion()
-	ret := make([]registry.VersionChecker, 0, 3)
+	ret := make([]registry.VersionChecker, 0, 4)
 	ret = append(ret, &plainVersionChecker{"docker", v.Version})
 
 	if len(v.GoVersion) > 0 {
@@ -50,6 +50,11 @@ func (srv *Server) versionCheckers() []registry.VersionChecker {
 	if len(v.GitCommit) > 0 {
 		ret = append(ret, &plainVersionChecker{"git-commit", v.GitCommit})
 	}
+	kernelVersion, err := utils.GetKernelVersion()
+	if err == nil {
+		ret = append(ret, &plainVersionChecker{"kernel", kernelVersion.String()})
+	}
+
 	return ret
 }
 
