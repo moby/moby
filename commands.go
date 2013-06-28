@@ -736,22 +736,29 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return err
 	}
 
-	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
+	if *registry == "" {
+		// If we're not using a custom registry, we know the restrictions
+		// applied to repository names and can warn the user in advance.
+		// Custom repositories can have different rules, and we must also
+		// allow pushing by image ID.
+		if len(strings.SplitN(name, "/", 2)) == 1 {
+			return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
+		}
+
+		nameParts := strings.SplitN(name, "/", 2)
+		validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
+		if !validNamespace.MatchString(nameParts[0]) {
+			return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", nameParts[0])
+		}
+		validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
+		if !validRepo.MatchString(nameParts[1]) {
+			return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", nameParts[1])
+		}
 	}
 
 	buf, err := json.Marshal(cli.authConfig)
 	if err != nil {
 		return err
-	}
-	nameParts := strings.SplitN(name, "/", 2)
-	validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
-	if !validNamespace.MatchString(nameParts[0]) {
-		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", nameParts[0])
-	}
-	validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
-	if !validRepo.MatchString(nameParts[1]) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", nameParts[1])
 	}
 
 	v := url.Values{}
