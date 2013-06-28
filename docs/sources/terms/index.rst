@@ -1,11 +1,11 @@
-:title: Terms
+:title: Glossary
 :description: Definitions of terms used in Docker documentation
 :keywords: concepts, documentation, docker, containers
 
 
 
-Terms
-=====
+Glossary
+========
 
 Definitions of terms used in Docker documentation.
 
@@ -14,5 +14,9 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
-   fundamentals
+   filesystem
+   layer
+   image
+   container
+
 
