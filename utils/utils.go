@@ -78,7 +78,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.readProgress += read
 
-	updateEvery := 1024*512 //512kB
+	updateEvery := 1024 * 512 //512kB
 	if r.readTotal > 0 {
 		// Update progress for every 1% read if 1% < 512kB
 		if increment := int(0.01 * float64(r.readTotal)); increment < updateEvery {
@@ -87,7 +87,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%",float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -133,7 +133,7 @@ func HumanDuration(d time.Duration) string {
 	} else if hours < 24*365*2 {
 		return fmt.Sprintf("%d months", hours/24/30)
 	}
-	return fmt.Sprintf("%d years", d.Hours()/24/365)
+	return fmt.Sprintf("%f years", d.Hours()/24/365)
 }
 
 // HumanSize returns a human-readable approximation of a size
