@@ -155,6 +155,9 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%s/v1/repositories/%s/tags", host, repository)
+		if !(strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://")) {
+				endpoint = "https://" + endpoint
+			}
 		req, err := r.opaqueRequest("GET", endpoint, nil)
 		if err != nil {
 			return nil, err
