@@ -38,8 +38,9 @@ type Container struct {
 	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
-	SysInitPath    string
-	ResolvConfPath string
+	SysInitPath     string
+	ResolvConfPath  string
+	DockerMountPath string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -55,6 +56,12 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
+}
+
+type InjectFile struct {
+	Path     string
+	Contents []byte
+	Mode     int
 }
 
 type Config struct {
@@ -73,6 +80,7 @@ type Config struct {
 	Env          []string
 	Cmd          []string
 	Dns          []string
+	InjectFiles  []InjectFile
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes      map[string]struct{}
 	VolumesFrom  string
@@ -561,6 +569,16 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return nil
 			}
 			container.Volumes[volPath] = id
+		}
+	}
+
+	// Create the mountpoint for /.docker
+	if container.DockerMountPath != "" {
+		mountpoint := path.Join(container.RootfsPath(), ".docker")
+		utils.Debugf("Creating mountpoint: %s", mountpoint)
+		
+		if err := os.MkdirAll(mountpoint, 0755); err != nil {
+			return nil
 		}
 	}
 

@@ -79,6 +79,35 @@ func executeProgram(name string, args []string) {
 	}
 }
 
+func isDirectory(f string) (bool, error) {
+	stat, err := os.Stat(f)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return stat.IsDir(), nil
+}
+
+func injectFiles() {
+	src := "/.docker/files/"
+	dest := "/"
+
+	isdir, err := isDirectory(src)
+	if err != nil {
+		log.Fatalf("isDirectory failed: %v", err)
+	}
+	if !isdir {
+		return
+	}
+
+	err = CopyTree(src, dest)
+	if err != nil {
+		log.Fatalf("CopyTree failed: %v", err)
+	}
+}
+
 // Sys Init code
 // This code is run INSIDE the container and is responsible for setting
 // up the environment before running the actual process
@@ -96,6 +125,7 @@ func SysInit() {
 	flag.Parse()
 
 	cleanupEnv(flEnv)
+	injectFiles()
 	setupNetworking(*gw)
 	changeUser(*u)
 	executeProgram(flag.Arg(0), flag.Args())

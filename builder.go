@@ -5,6 +5,8 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -95,6 +97,47 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		}
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
+	}
+
+	if len(config.InjectFiles) > 0 {
+		// Create the .docker directory
+		container.DockerMountPath = path.Join(container.root, ".docker")
+		fileBase := path.Join(container.DockerMountPath, "files")
+		if err := os.MkdirAll(fileBase, 0700); err != nil {
+			return nil, err
+		}
+
+		for _, inject := range config.InjectFiles {
+			relpath := strings.TrimPrefix(inject.Path, "/")
+			abspath := filepath.Join(fileBase, relpath)
+
+			// Check for relative path attacks (e.g. ../../etc/passwd)
+			rel, err := filepath.Rel(fileBase, abspath)
+			if err != nil {
+				return nil, err
+			}
+			if rel != relpath {
+				return nil, fmt.Errorf("Invalid file injection path")
+			}
+
+			if err := os.MkdirAll(filepath.Dir(abspath), 0700); err != nil {
+				return nil, err
+			}
+
+			mode := inject.Mode
+			if mode == 0 {
+				mode = 0700
+			}
+
+			f, err := os.OpenFile(abspath, os.O_RDWR|os.O_CREATE, os.FileMode(mode))
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			if _, err := f.Write(inject.Contents); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Step 2: save the container json
