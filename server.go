@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"strings"
@@ -245,6 +247,40 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 	})
 	return outs, nil
 
+}
+
+func (srv *Server) ContainerProc(name string) ([]APIProc, error) {
+	if container := srv.runtime.Get(name); container != nil {
+		output, err := exec.Command("lxc-ps", "--name", container.ID).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
+		}
+		var procs []APIProc
+		for i, line := range strings.Split(string(output), "\n") {
+			if i == 0 || len(line) == 0 {
+				continue
+			}
+			proc := APIProc{}
+			scanner := bufio.NewScanner(strings.NewReader(line))
+			scanner.Split(bufio.ScanWords)
+			if !scanner.Scan() {
+				return nil, fmt.Errorf("Error trying to use lxc-ps")
+			}
+			// no scanner.Text because we skip container id
+			scanner.Scan()
+			proc.PID = scanner.Text()
+			scanner.Scan()
+			proc.Tty = scanner.Text()
+			scanner.Scan()
+			proc.Time = scanner.Text()
+			scanner.Scan()
+			proc.Cmd = scanner.Text()
+			procs = append(procs, proc)
+		}
+		return procs, nil
+
+	}
+	return nil, fmt.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) ContainerChanges(name string) ([]Change, error) {

@@ -250,6 +250,23 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
+func getContainersProc(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+	procsStr, err := srv.ContainerProc(name)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(procsStr)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, b)
+	return nil
+}
+
 func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -842,6 +859,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
+			"/containers/{name:.*}/proc":    getContainersProc,
 		},
 		"POST": {
 			"/auth":                         postAuth,
