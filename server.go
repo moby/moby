@@ -55,7 +55,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil)
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.DockerVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +470,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.DockerVersion())
 	if err != nil {
 		return err
 	}
@@ -687,7 +687,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.DockerVersion())
 	if err2 != nil {
 		return err2
 	}
