@@ -369,8 +369,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 		}
 	} else {
 		repoData = &registry.RepositoryData{
-			Tokens: []string{},
-			ImgList: make(map[string]*registry.ImgData),
+			Tokens:    []string{},
+			ImgList:   make(map[string]*registry.ImgData),
 			Endpoints: []string{registryEp},
 		}
 	}
@@ -385,8 +385,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 	if registryEp != "" {
 		for tag, id := range tagsList {
 			repoData.ImgList[id] = &registry.ImgData{
-				ID: id,
-				Tag: tag,
+				ID:       id,
+				Tag:      tag,
 				Checksum: "",
 			}
 		}
@@ -443,7 +443,6 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 
 	return nil
 }
-
 
 func (srv *Server) poolAdd(kind, key string) error {
 	srv.lock.Lock()
@@ -594,8 +593,8 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 		}
 	} else {
 		repoData = &registry.RepositoryData{
-			ImgList: make(map[string]*registry.ImgData),
-			Tokens: []string{},
+			ImgList:   make(map[string]*registry.ImgData),
+			Tokens:    []string{},
 			Endpoints: []string{registryEp},
 		}
 		tagsList, err := r.GetRemoteTags(repoData.Endpoints, name, repoData.Tokens)
@@ -604,8 +603,8 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 		} else if err == nil {
 			for tag, id := range tagsList {
 				repoData.ImgList[id] = &registry.ImgData{
-					ID: id,
-					Tag: tag,
+					ID:       id,
+					Tag:      tag,
 					Checksum: "",
 				}
 			}
