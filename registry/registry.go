@@ -98,6 +98,35 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return endpoint, reposName, err
 }
 
+// VersionChecker is used to model entities which has a version.
+// It is basically a tupple with name and version.
+type VersionChecker interface {
+	Name() string
+	Version() string
+}
+
+func setUserAgentHeader(req *http.Request, baseVersions []VersionChecker, extra ...VersionChecker) error {
+	if len(baseVersions)+len(extra) == 0 {
+		return nil
+	}
+	userAgent := make(map[string]string, len(baseVersions)+len(extra))
+
+	for _, v := range baseVersions {
+		userAgent[v.Name()] = v.Version()
+	}
+	for _, v := range extra {
+		userAgent[v.Name()] = v.Version()
+	}
+
+	header, err := json.Marshal(userAgent)
+	userAgent = nil
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", string(header))
+	return nil
+}
+
 func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	for _, cookie := range c.Jar.Cookies(req.URL) {
 		req.AddCookie(cookie)
@@ -536,11 +565,12 @@ type ImgData struct {
 }
 
 type Registry struct {
-	client     *http.Client
-	authConfig *auth.AuthConfig
+	client       *http.Client
+	authConfig   *auth.AuthConfig
+	baseVersions []VersionChecker
 }
 
-func NewRegistry(root string, authConfig *auth.AuthConfig) (r *Registry, err error) {
+func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...VersionChecker) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
@@ -553,5 +583,9 @@ func NewRegistry(root string, authConfig *auth.AuthConfig) (r *Registry, err err
 		},
 	}
 	r.client.Jar, err = cookiejar.New(nil)
-	return r, err
+	if err != nil {
+		return nil, err
+	}
+	r.baseVersions = baseVersions
+	return r, nil
 }
