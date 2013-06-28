@@ -392,7 +392,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, remote))
 		success := false
 		for _, ep := range repoData.Endpoints {
-			if err := srv.pullImage(r, out, img.ID, "https://"+ep+"/v1", repoData.Tokens, sf); err != nil {
+			ep = fmt.Sprintf("%s://%s/v1", registry.UrlScheme(), ep)
+			if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 				out.Write(sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint", askedTag, err))
 				continue
 			}
