@@ -116,23 +116,9 @@ func (r *Registry) setUserAgent(req *http.Request, extra ...VersionChecker) {
 	if len(r.baseVersions)+len(extra) == 0 {
 		return
 	}
-	userAgent := make(map[string]string, len(r.baseVersions)+len(extra))
 
-	for _, v := range r.baseVersions {
-		if v == nil {
-			continue
-		}
-		userAgent[v.Name()] = v.Version()
-	}
-	for _, v := range extra {
-		if v == nil {
-			continue
-		}
-		userAgent[v.Name()] = v.Version()
-	}
-
-	header, _ := json.Marshal(userAgent)
-	req.Header.Set("User-Agent", string(header))
+	userAgent := appendVersions(r.baseVersionsStr, extra...)
+	req.Header.Set("User-Agent", userAgent)
 	return
 }
 
@@ -577,9 +563,43 @@ type ImgData struct {
 }
 
 type Registry struct {
-	client       *http.Client
-	authConfig   *auth.AuthConfig
-	baseVersions []VersionChecker
+	client          *http.Client
+	authConfig      *auth.AuthConfig
+	baseVersions    []VersionChecker
+	baseVersionsStr string
+}
+
+func validVersion(version VersionChecker) bool {
+	stopChars := " \t\r\n/"
+	if strings.ContainsAny(version.Name(), stopChars) {
+		return false
+	}
+	if strings.ContainsAny(version.Version(), stopChars) {
+		return false
+	}
+	return true
+}
+
+func appendVersions(base string, versions ...VersionChecker) string {
+	if len(versions) == 0 {
+		return base
+	}
+
+	var buf bytes.Buffer
+	if len(base) > 0 {
+		buf.Write([]byte(base))
+	}
+
+	for _, v := range versions {
+		if !validVersion(v) {
+			continue
+		}
+		buf.Write([]byte(v.Name()))
+		buf.Write([]byte("/"))
+		buf.Write([]byte(v.Version()))
+		buf.Write([]byte(" "))
+	}
+	return buf.String()
 }
 
 func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...VersionChecker) (r *Registry, err error) {
@@ -599,5 +619,6 @@ func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...Versi
 		return nil, err
 	}
 	r.baseVersions = baseVersions
+	r.baseVersionsStr = appendVersions("", baseVersions...)
 	return r, nil
 }
