@@ -132,7 +132,6 @@ func (r *Registry) setUserAgent(req *http.Request, extra ...VersionChecker) {
 	}
 
 	header, _ := json.Marshal(userAgent)
-	userAgent = nil
 	req.Header.Set("User-Agent", string(header))
 	return
 }
