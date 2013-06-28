@@ -613,7 +613,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 
 	for _, ep := range repoData.Endpoints {
 		if !(strings.HasPrefix(ep, "http://") || strings.HasPrefix(ep, "https://")) {
-			ep = "https://" + ep
+			ep = fmt.Sprintf("%s://%s", registry.UrlScheme(), ep)
 		}
 		out.Write(sf.FormatStatus("Pushing repository %s to %s (%d tags)", name, ep, len(localRepo)))
 		// For each image within the repo, push them
