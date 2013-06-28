@@ -9,8 +9,6 @@ import (
 type treeCopyingVisitor struct {
 	src  string
 	dest string
-
-	err error
 }
 
 func copyFile(src string, dest string, info os.FileInfo) error {
@@ -65,6 +63,5 @@ func CopyTree(src string, dest string) error {
 		return visitor.visit(path, info)
 	}
 
-	filepath.Walk(src, f)
-	return visitor.err
+	return filepath.Walk(src, f)
 }
