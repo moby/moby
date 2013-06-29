@@ -71,7 +71,7 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 
 	// create the 'rw' directory in case a container is commited without being started
 	if err := os.Mkdir(path.Join(container.root, "rw"), 0755); err != nil {
-	  return nil, err
+		return nil, err
 	}
 
 	if len(config.Dns) == 0 && len(builder.runtime.Dns) == 0 && utils.CheckLocalDns() {
