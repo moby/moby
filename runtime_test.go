@@ -135,10 +135,13 @@ func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.All()
 	if err != nil {
 		panic(err)
-	} else if len(imgs) < 1 {
-		panic("GASP")
 	}
-	return imgs[0]
+	for i := range imgs {
+		if imgs[i].ID == unitTestImageId {
+			return imgs[i]
+		}
+	}
+	panic(fmt.Errorf("Test image %v not found", unitTestImageId))
 }
 
 func TestRuntimeCreate(t *testing.T) {
