@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	unitTestImageName = "docker-ut"
+	unitTestImageName = "docker-unit-tests"
 	unitTestImageId   = "e9aa60c60128cad1"
 	unitTestStoreBase = "/var/lib/docker/unit-tests"
 	testDaemonAddr    = "127.0.0.1:4270"
