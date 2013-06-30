@@ -42,6 +42,17 @@ type APIContainers struct {
 	SizeRootFs int64
 }
 
+type APISessions struct {
+	ID         string `json:"Id"`
+	Created    int64
+
+	Name string
+	AutomaticRelease bool
+	Timeout int64
+
+	Containers []APIContainers
+}
+
 type APISearch struct {
 	Name        string
 	Description string

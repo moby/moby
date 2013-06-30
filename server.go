@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -295,6 +296,66 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	}
 	return retContainers
 }
+
+func (srv *Server) Sessions(all, size bool, n int, since, before string) []APISessions {
+	var foundBefore bool
+	var displayed int
+
+	retSessions := []APISessions{}
+
+	for _, session := range srv.runtime.ListSessions() {
+		if before != "" {
+			if session.ShortID() == before {
+				foundBefore = true
+				continue
+			}
+			if !foundBefore {
+				continue
+			}
+		}
+		if displayed == n {
+			break
+		}
+		if session.ShortID() == since {
+			break
+		}
+		displayed++
+
+		sessionContainers := []APIContainers{}
+		for _, container := range srv.runtime.ListContainersForSession(session) {
+			if !container.State.Running && !all && n == -1 && since == "" && before == "" {
+				continue
+			}
+
+			c := APIContainers{
+				ID: container.ID,
+			}
+			c.Image = srv.runtime.repositories.ImageName(container.Image)
+			c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+			c.Created = container.Created.Unix()
+			c.Status = container.State.String()
+			c.Ports = container.NetworkSettings.PortMappingHuman()
+			if size {
+				c.SizeRw, c.SizeRootFs = container.GetSize()
+			}
+			sessionContainers = append(sessionContainers, c)
+
+		}
+		s := APISessions{
+			ID: session.ID,
+			Timeout: session.Timeout,
+			Created: session.Created.Unix(),
+			Name: session.Name,
+			AutomaticRelease: session.AutomaticRelease,
+			Containers: sessionContainers,
+		}
+		retSessions = append(retSessions, s);
+	}
+
+	return retSessions
+}
+
+
 
 func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
 	container := srv.runtime.Get(name)
@@ -849,6 +910,72 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
+	return nil
+}
+
+
+func (srv *Server) SessionCreate(config *SessionConfig) (string, error) {
+	b := NewBuilder(srv.runtime)
+	session, err := b.CreateSession(config)
+	if err != nil {
+		return "", err
+	}
+	return session.ShortID(), nil
+}
+
+
+func (srv *Server) SessionDestroy(name string, removeVolume bool) error {
+	if session := srv.runtime.GetSession(name); session != nil {
+
+		containers := srv.runtime.ListContainersForSession(session);
+		for _, container:= range containers {
+			if container.State.Running {
+				return fmt.Errorf("Container %s is running. Impossible to remove a session with a running container, please stop it first", container.ID)
+			}
+		}
+
+		for _, container:= range containers {
+			if cerror:=srv.ContainerDestroy(container.ID, removeVolume); cerror!=nil {
+				return cerror;
+			}
+		}
+
+		if err := srv.runtime.DestroySession(session); err != nil {
+			return fmt.Errorf("Error destroying session %s: %s", name, err.Error())
+		}
+
+
+	} else {
+		return fmt.Errorf("No such session: %s", name)
+	}
+	return nil
+}
+
+func (srv *Server) CleanSessions() error {
+
+	sessions := srv.runtime.ListSessions();
+	sessionloop: for _, session:= range sessions{
+		if (session.AutomaticRelease){
+			lastUsed := session.Created;
+			containers := srv.runtime.ListContainersForSession(session);
+			for _, container:= range containers {
+				if container.State.Running {
+					// the session is active, so we do not want to clean up yet
+					continue sessionloop;
+				}
+				if container.Created.After(lastUsed) {
+					lastUsed = container.Created;
+				}
+			}
+			if lastUsed.Add(time.Duration(session.Timeout)*time.Second).Before(time.Now()){
+				// destroy the session, but keep volumes, the should not be automatically destroyed.
+				srv.SessionDestroy(session.ID, false);
+			}
+
+		}
+
+	}
+
 	return nil
 }
 

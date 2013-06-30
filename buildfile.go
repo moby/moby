@@ -24,6 +24,7 @@ type buildFile struct {
 	builder *Builder
 	srv     *Server
 
+	session  string
 	image      string
 	maintainer string
 	config     *Config
@@ -95,8 +96,8 @@ func (b *buildFile) CmdRun(args string) error {
 	cmd := b.config.Cmd
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
-
-	utils.Debugf("Command to be executed: %v", b.config.Cmd)
+	b.config.Session = b.session;
+	utils.Debugf("Command to be executed: %v, session: %s", b.config.Cmd)
 
 	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 		return err
@@ -217,7 +218,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
-
+	b.config.Session = b.session;
 	b.config.Image = b.image
 	// Create the container and start it
 	container, err := b.builder.Create(b.config)
@@ -253,7 +254,7 @@ func (b *buildFile) run() (string, error) {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.config.Image = b.image
-
+	b.config.Session = b.session
 	// Create the container and start it
 	c, err := b.builder.Create(b.config)
 	if err != nil {
@@ -282,6 +283,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.config.Image = b.image
+	b.config.Session = b.session
 	if id == "" {
 		cmd := b.config.Cmd
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
@@ -390,12 +392,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, session string) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},
+		session:     session,
 		out:           out,
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
