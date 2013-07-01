@@ -90,7 +90,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
-		{"proc", "Lookup the running processes of a container"},
+		{"top", "Lookup the running processes of a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -556,8 +556,8 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) CmdProc(args ...string) error {
-	cmd := Subcmd("proc", "CONTAINER", "Lookup the running processes of a container")
+func (cli *DockerCli) CmdTop(args ...string) error {
+	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -565,11 +565,11 @@ func (cli *DockerCli) CmdProc(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/proc", nil)
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
 	if err != nil {
 		return err
 	}
-	var procs []APIProc
+	var procs []APITop
 	err = json.Unmarshal(body, &procs)
 	if err != nil {
 		return err

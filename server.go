@@ -249,18 +249,18 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerProc(name string) ([]APIProc, error) {
+func (srv *Server) ContainerTop(name string) ([]APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		output, err := exec.Command("lxc-ps", "--name", container.ID).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
 		}
-		var procs []APIProc
+		var procs []APITop
 		for i, line := range strings.Split(string(output), "\n") {
 			if i == 0 || len(line) == 0 {
 				continue
 			}
-			proc := APIProc{}
+			proc := APITop{}
 			scanner := bufio.NewScanner(strings.NewReader(line))
 			scanner.Split(bufio.ScanWords)
 			if !scanner.Scan() {

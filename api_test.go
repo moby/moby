@@ -475,7 +475,7 @@ func TestGetContainersChanges(t *testing.T) {
 	}
 }
 
-func TestGetContainersProc(t *testing.T) {
+func TestGetContainersTop(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -509,10 +509,10 @@ func TestGetContainersProc(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersProc(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	if err := getContainersTop(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
-	procs := []APIProc{}
+	procs := []APITop{}
 	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
 		t.Fatal(err)
 	}

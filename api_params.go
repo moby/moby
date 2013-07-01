@@ -26,7 +26,7 @@ type APIInfo struct {
 	SwapLimit   bool `json:",omitempty"`
 }
 
-type APIProc struct {
+type APITop struct {
 	PID  string
 	Tty  string
 	Time string

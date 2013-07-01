@@ -29,7 +29,7 @@ You can still call an old version of the api using /v1.0/images/<name>/insert
 What's new
 ----------
 
-Listing processes (/proc):
+Listing processes (/top):
 
 - List the processes inside a container
 

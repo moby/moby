@@ -223,7 +223,7 @@ Inspect a container
 List processes running inside a container
 *****************************************
 
-.. http:get:: /containers/(id)/proc
+.. http:get:: /containers/(id)/top
 
 	List processes running inside the container ``id``
 
@@ -231,7 +231,7 @@ List processes running inside a container
 
 	.. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678/proc HTTP/1.1
+	   GET /containers/4fa6e0f0c678/top HTTP/1.1
 
 	**Example response**:
 

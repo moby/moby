@@ -41,7 +41,6 @@ Available Commands
    command/login
    command/logs
    command/port
-   command/proc
    command/ps
    command/pull
    command/push
@@ -53,5 +52,6 @@ Available Commands
    command/start
    command/stop
    command/tag
+   command/top
    command/version
    command/wait

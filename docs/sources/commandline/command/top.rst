@@ -1,13 +1,13 @@
-:title: Proc Command
+:title: Top Command
 :description: Lookup the running processes of a container
-:keywords: proc, docker, container, documentation
+:keywords: top, docker, container, documentation
 
 =======================================================
-``proc`` -- Lookup the running processes of a container
+``top`` -- Lookup the running processes of a container
 =======================================================
 
 ::
 
-    Usage: docker proc CONTAINER
+    Usage: docker top CONTAINER
 
     Lookup the running processes of a container
