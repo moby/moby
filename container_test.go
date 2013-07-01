@@ -1043,6 +1043,32 @@ func TestEnv(t *testing.T) {
 	}
 }
 
+func TestEntrypoint(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo"},
+			Cmd:        []string{"-n", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "foobar" {
+		t.Error(string(output))
+	}
+}
+
 func grepFile(t *testing.T, path string, pattern string) {
 	f, err := os.Open(path)
 	if err != nil {

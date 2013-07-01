@@ -76,6 +76,7 @@ type Config struct {
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes      map[string]struct{}
 	VolumesFrom  string
+	Entrypoint   []string
 }
 
 type HostConfig struct {
@@ -123,6 +124,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(flVolumes, "v", "Attach a data volume")
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
+	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
 	var flBinds ListOpts
 	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
@@ -153,6 +155,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
+	entrypoint := []string{}
 	image := ""
 	if len(parsedArgs) >= 1 {
 		image = cmd.Arg(0)
@@ -160,6 +163,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
+	if *flEntrypoint != "" {
+		entrypoint = []string{*flEntrypoint}
+	}
+
 	config := &Config{
 		Hostname:     *flHostname,
 		PortSpecs:    flPorts,
@@ -177,6 +184,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Image:        image,
 		Volumes:      flVolumes,
 		VolumesFrom:  *flVolumesFrom,
+		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
 		Binds: flBinds,
