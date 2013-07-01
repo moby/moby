@@ -535,7 +535,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return err
 	}
 	if imgs != nil {
-		if len(*imgs) != 0 {
+		if len(imgs) != 0 {
 			b, err := json.Marshal(imgs)
 			if err != nil {
 				return err

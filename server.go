@@ -912,7 +912,7 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 	return nil
 }
 
-func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, error) {
+func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
 	//Untag the current image
 	var imgs []APIRmi
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
@@ -925,18 +925,18 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) (*[]APIRmi, err
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
 		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
 			if err != ErrImageReferenced {
-				return &imgs, err
+				return imgs, err
 			}
 		} else if err := srv.deleteImageParents(img, &imgs); err != nil {
 			if err != ErrImageReferenced {
-				return &imgs, err
+				return imgs, err
 			}
 		}
 	}
-	return &imgs, nil
+	return imgs, nil
 }
 
-func (srv *Server) ImageDelete(name string, autoPrune bool) (*[]APIRmi, error) {
+func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return nil, fmt.Errorf("No such image: %s", name)
