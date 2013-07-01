@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.8 (2013-07-01)
+ + Runtime: Add Entrypoint to builder and container config
+ - Runtime: Make sure the ID is displayed when use docker run -d
+ - Tests: Fix issues in the test suite
+
 ## 0.4.7 (2013-06-28)
  * Registry: easier push/pull to a custom registry
  * Remote API: the progress bar updates faster when downloading and uploading large files
