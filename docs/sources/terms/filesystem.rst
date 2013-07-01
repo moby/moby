@@ -4,8 +4,8 @@
 
 .. _filesystem_def:
 
-File Systems
-============
+File System
+===========
 
 .. image:: images/docker-filesystems-generic.png
 

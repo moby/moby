@@ -2,6 +2,8 @@
 :description: Definitions of a container
 :keywords: containers, lxc, concepts, explanation, image, container
 
+.. _container_def:
+
 Container
 =========
 
