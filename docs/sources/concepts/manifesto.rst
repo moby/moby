@@ -2,13 +2,14 @@
 :description: An overview of Docker and standard containers
 :keywords: containers, lxc, concepts, explanation
 
-The Big Picture
-===============
+.. _dockermanifesto:
 
-What is Docker now, and what do we want Docker to become? Read on!
+*(This was our original Welcome page, but it is a bit forward-looking
+for docs, and maybe not enough vision for a true manifesto. We'll
+reveal more vision in the future to make it more Manifesto-y.)*
 
-Docker -- The Linux container runtime
--------------------------------------
+Docker Manifesto
+----------------
 
 Docker complements LXC with a high-level API which operates at the
 process level. It runs unix processes with strong guarantees of
@@ -28,7 +29,7 @@ systems, private PaaS, service-oriented architectures, etc.
 
 
 What is a Standard Container?
------------------------------
+.............................
 
 Docker defines a unit of software delivery called a Standard Container. The goal of a Standard Container is to encapsulate a software component and all its dependencies in
 a format that is self-describing and portable, so that any compliant runtime can run it without extra dependency, regardless of the underlying machine and the contents of the container.

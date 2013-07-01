@@ -9,7 +9,12 @@ Welcome
 
 .. image:: concepts/images/dockerlogo-h.png
 
-``docker``, the Linux Container Runtime, runs three ways:
+``docker``, the Linux Container Runtime, runs Unix processes with
+strong guarantees of isolation across servers. Your software runs
+repeatably everywhere because its :ref:`container_def` includes any
+dependencies.
+
+``docker`` runs three ways:
 
 * as a daemon to manage LXC containers on your :ref:`Linux host <kernel>` (``sudo docker -d``)
 * as a :ref:`CLI <cli>` which talks to the daemon's `REST API <api/docker_remote_api>`_ (``docker run ...``)
