@@ -112,6 +112,11 @@ func TestGetInfo(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
+	initialImages, err := srv.runtime.graph.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := httptest.NewRecorder()
 
 	if err := getInfo(srv, APIVERSION, r, nil, nil); err != nil {
@@ -123,8 +128,8 @@ func TestGetInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Images != 1 {
-		t.Errorf("Excepted images: %d, %d found", 1, infos.Images)
+	if infos.Images != len(initialImages) {
+		t.Errorf("Excepted images: %d, %d found", len(initialImages), infos.Images)
 	}
 }
 
