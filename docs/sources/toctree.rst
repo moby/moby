@@ -18,5 +18,6 @@ This documentation has the following resources:
    contributing/index
    api/index
    faq
+   terms/index
 
 .. image:: concepts/images/lego_docker.jpg

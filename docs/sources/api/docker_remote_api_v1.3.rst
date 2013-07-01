@@ -1,9 +1,9 @@
-:title: Remote API v1.2
+:title: Remote API v1.3
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 ======================
-Docker Remote API v1.2
+Docker Remote API v1.3
 ======================
 
 .. contents:: Table of Contents
@@ -32,7 +32,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 	   
 	**Example response**:
 
@@ -88,6 +88,7 @@ List containers
 	:query limit: Show ``limit`` last created containers, include non-running ones.
 	:query since: Show only containers created since Id, include non-running ones.
 	:query before: Show only containers created before Id, include non-running ones.
+	:query size: 1/True/true or 0/False/false, Show the containers sizes
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 500: server error
@@ -293,23 +294,30 @@ Start a container
 
 .. http:post:: /containers/(id)/start
 
-	Start the container ``id``
+        Start the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/start HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/(id)/start HTTP/1.1
+           Content-Type: application/json
 
-	.. sourcecode:: http
+           {
+                "Binds":["/tmp:/tmp"]
+           }
 
-	   HTTP/1.1 200 OK
-	   	
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 204 No Content
+           Content-Type: text/plain
+
+        :jsonparam hostConfig: the container's host configuration (optional)
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Stop a contaier
@@ -691,7 +699,6 @@ Get the history of an image
 	   [
 		{
 			"Id":"b750fe79269d",
-			"Tag":["base:latest"],
 			"Created":1364102658,
 			"CreatedBy":"/bin/bash"
 		},
@@ -847,7 +854,7 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-	Build an image from Dockerfile
+	Build an image from Dockerfile via stdin
 
 	**Example request**:
 
@@ -865,12 +872,17 @@ Build an image from Dockerfile via stdin
 	   
 	   {{ STREAM }}
 
+
+        The stream must be a tar archive compressed with one of the following algorithms:
+        identity (no compression), gzip, bzip2, xz. The archive must include a file called
+        `Dockerfile` at its root. It may include any number of other files, which will be
+        accessible in the build context (See the ADD build command).
+
+        The Content-type header should be set to "application/tar".
+
 	:query t: tag to be applied to the resulting image in case of success
-	:query remote: resource to fetch, as URI
 	:statuscode 200: no error
         :statuscode 500: server error
-
-{{ STREAM }} is the raw text output of the build command. It uses the HTTP Hijack method in order to stream.
 
 
 Check auth configuration
@@ -898,16 +910,9 @@ Check auth configuration
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
-
-	   {
-		"Status": "Login Succeeded"
-	   }
 
         :statuscode 200: no error
         :statuscode 204: no error
-        :statuscode 401: unauthorized
-        :statuscode 403: forbidden
         :statuscode 500: server error
 
 
@@ -1037,5 +1042,5 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 
 To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
     
-    docker -d -H="tcp://192.168.1.9:4243" -api-enable-cors
+    docker -d -H="192.168.1.9:4243" -api-enable-cors
 

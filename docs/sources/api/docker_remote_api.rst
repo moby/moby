@@ -19,12 +19,37 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.2
-Calling /images/<name>/insert is the same as calling /v1.2/images/<name>/insert
+The current verson of the API is 1.3
+Calling /images/<name>/insert is the same as calling /v1.3/images/<name>/insert
 You can still call an old version of the api using /v1.0/images/<name>/insert
+
+:doc:`docker_remote_api_v1.3`
+*****************************
+
+What's new
+----------
+
+Builder (/build):
+
+- Simplify the upload of the build context
+- Simply stream a tarball instead of multipart upload with 4 intermediary buffers
+- Simpler, less memory usage, less disk usage and faster
+
+.. Note::
+The /build improvements are not reverse-compatible. Pre 1.3 clients will break on /build.
+
+List containers (/containers/json):
+
+- You can use size=1 to get the size of the containers
+
+Start containers (/containers/<id>/start):
+
+- You can now pass host-specific configuration (e.g. bind mounts) in the POST body for start calls 
 
 :doc:`docker_remote_api_v1.2`
 *****************************
+
+docker v0.4.2 2e7649b_
 
 What's new
 ----------
@@ -65,6 +90,9 @@ Uses json stream instead of HTML hijack, it looks like this:
 	   ...
 
 
+:doc:`docker_remote_api_v1.0`
+*****************************
+
 docker v0.3.4 8d73740_
 
 What's new
@@ -75,6 +103,7 @@ Initial version
 
 .. _a8ae398: https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
+.. _2e7649b: https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168
 
 ==================================
 Docker Remote API Client Libraries
@@ -93,6 +122,8 @@ and we will add the libraries here.
 | Ruby                 | docker-ruby    | https://github.com/ActiveState/docker-ruby |
 +----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-client  | https://github.com/geku/docker-client      |
++----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
 +----------------------+----------------+--------------------------------------------+
 | Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
 +----------------------+----------------+--------------------------------------------+

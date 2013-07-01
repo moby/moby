@@ -78,16 +78,16 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.readProgress += read
 
-	updateEvery := 4096
+	updateEvery := 1024 * 512 //512kB
 	if r.readTotal > 0 {
-		// Only update progress for every 1% read
-		if increment := int(0.01 * float64(r.readTotal)); increment > updateEvery {
+		// Update progress for every 1% read if 1% < 512kB
+		if increment := int(0.01 * float64(r.readTotal)); increment < updateEvery {
 			updateEvery = increment
 		}
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -133,7 +133,7 @@ func HumanDuration(d time.Duration) string {
 	} else if hours < 24*365*2 {
 		return fmt.Sprintf("%d months", hours/24/30)
 	}
-	return fmt.Sprintf("%d years", d.Hours()/24/365)
+	return fmt.Sprintf("%f years", d.Hours()/24/365)
 }
 
 // HumanSize returns a human-readable approximation of a size
@@ -147,7 +147,7 @@ func HumanSize(size int64) string {
 		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
+	return fmt.Sprintf("%5.4g %s", sizef, units[i])
 }
 
 func Trunc(s string, maxlen int) string {
@@ -236,7 +236,6 @@ func (r *bufReader) Read(p []byte) (n int, err error) {
 		}
 		r.wait.Wait()
 	}
-	panic("unreachable")
 }
 
 func (r *bufReader) Close() error {
@@ -529,7 +528,9 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}
 
 	if len(tmp2) > 2 {
-		minor, err = strconv.Atoi(tmp2[2])
+		// Removes "+" because git kernels might set it
+		minorUnparsed := strings.Trim(tmp2[2], "+")
+		minor, err = strconv.Atoi(minorUnparsed)
 		if err != nil {
 			return nil, err
 		}
@@ -637,6 +638,14 @@ func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
 
+func IsURL(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
+
+func IsGIT(str string) bool {
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+}
+
 func CheckLocalDns() bool {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
@@ -678,5 +687,3 @@ func ParseHost(host string, port int, addr string) string {
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, port)
 }
-
-

@@ -52,6 +52,9 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
+	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Easier than migrating older container configs :)
+	VolumesRW map[string]bool
 }
 
 type Config struct {
@@ -75,8 +78,18 @@ type Config struct {
 	VolumesFrom  string
 }
 
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet, error) {
-	cmd := Subcmd("run", "[OPTIONS] IMAGE COMMAND [ARG...]", "Run a command in a new container")
+type HostConfig struct {
+	Binds []string
+}
+
+type BindMap struct {
+	SrcPath string
+	DstPath string
+	Mode    string
+}
+
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
 	}
@@ -111,11 +124,14 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 
+	var flBinds ListOpts
+	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
+
 	if err := cmd.Parse(args); err != nil {
-		return nil, cmd, err
+		return nil, nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -127,6 +143,14 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 			}
 		}
 	}
+
+	// add any bind targets to the list of container volumes
+	for _, bind := range flBinds {
+		arr := strings.Split(bind, ":")
+		dstDir := arr[1]
+		flVolumes[dstDir] = struct{}{}
+	}
+
 	parsedArgs := cmd.Args()
 	runCmd := []string{}
 	image := ""
@@ -154,6 +178,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 		Volumes:      flVolumes,
 		VolumesFrom:  *flVolumesFrom,
 	}
+	hostConfig := &HostConfig{
+		Binds: flBinds,
+	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
@@ -164,7 +191,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *flag.FlagSet
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, cmd, nil
+	return config, hostConfig, cmd, nil
 }
 
 type NetworkSettings struct {
@@ -430,7 +457,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func (container *Container) Start() error {
+func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.lock()
 	defer container.State.unlock()
 
@@ -454,17 +481,71 @@ func (container *Container) Start() error {
 		container.Config.MemorySwap = -1
 	}
 	container.Volumes = make(map[string]string)
+	container.VolumesRW = make(map[string]bool)
 
+	// Create the requested bind mounts
+	binds := make(map[string]BindMap)
+	// Define illegal container destinations
+	illegal_dsts := []string{"/", "."}
+
+	for _, bind := range hostConfig.Binds {
+		// FIXME: factorize bind parsing in parseBind
+		var src, dst, mode string
+		arr := strings.Split(bind, ":")
+		if len(arr) == 2 {
+			src = arr[0]
+			dst = arr[1]
+			mode = "rw"
+		} else if len(arr) == 3 {
+			src = arr[0]
+			dst = arr[1]
+			mode = arr[2]
+		} else {
+			return fmt.Errorf("Invalid bind specification: %s", bind)
+		}
+
+		// Bail if trying to mount to an illegal destination
+		for _, illegal := range illegal_dsts {
+			if dst == illegal {
+				return fmt.Errorf("Illegal bind destination: %s", dst)
+			}
+		}
+
+		bindMap := BindMap{
+			SrcPath: src,
+			DstPath: dst,
+			Mode:    mode,
+		}
+		binds[path.Clean(dst)] = bindMap
+	}
+
+	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
 	// Create the requested volumes volumes
 	for volPath := range container.Config.Volumes {
-		c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-		if err != nil {
-			return err
+		volPath = path.Clean(volPath)
+		// If an external bind is defined for this volume, use that as a source
+		if bindMap, exists := binds[volPath]; exists {
+			container.Volumes[volPath] = bindMap.SrcPath
+			if strings.ToLower(bindMap.Mode) == "rw" {
+				container.VolumesRW[volPath] = true
+			}
+			// Otherwise create an directory in $ROOT/volumes/ and use that
+		} else {
+			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+			if err != nil {
+				return err
+			}
+			srcPath, err := c.layer()
+			if err != nil {
+				return err
+			}
+			container.Volumes[volPath] = srcPath
+			container.VolumesRW[volPath] = true // RW by default
 		}
+		// Create the mountpoint
 		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
 			return nil
 		}
-		container.Volumes[volPath] = c.ID
 	}
 
 	if container.Config.VolumesFrom != "" {
@@ -552,7 +633,8 @@ func (container *Container) Start() error {
 }
 
 func (container *Container) Run() error {
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return err
 	}
 	container.Wait()
@@ -565,7 +647,8 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	defer pipe.Close()
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
@@ -632,7 +715,6 @@ func (container *Container) waitLxc() error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	panic("Unreachable")
 }
 
 func (container *Container) monitor() {
@@ -769,7 +851,8 @@ func (container *Container) Restart(seconds int) error {
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		return err
 	}
 	return nil
@@ -821,8 +904,6 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 	case <-done:
 		return nil
 	}
-
-	panic("Unreachable")
 }
 
 func (container *Container) EnsureMounted() error {
@@ -892,22 +973,6 @@ func (container *Container) lxcConfigPath() string {
 // This method must be exported to be used from the lxc template
 func (container *Container) RootfsPath() string {
 	return path.Join(container.root, "rootfs")
-}
-
-func (container *Container) GetVolumes() (map[string]string, error) {
-	ret := make(map[string]string)
-	for volPath, id := range container.Volumes {
-		volume, err := container.runtime.volumes.Get(id)
-		if err != nil {
-			return nil, err
-		}
-		root, err := volume.root()
-		if err != nil {
-			return nil, err
-		}
-		ret[volPath] = path.Join(root, "layer")
-	}
-	return ret, nil
 }
 
 func (container *Container) rwPath() string {

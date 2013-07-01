@@ -8,7 +8,7 @@
 
 ::
 
-    Usage: docker run [OPTIONS] IMAGE COMMAND [ARG...]
+    Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 
     Run a command in a new container
 
@@ -25,3 +25,4 @@
       -d=[]: Set custom dns servers for the container
       -v=[]: Creates a new volume and mounts it at the specified path.
       -volumes-from="": Mount all volumes from the given container.
+      -b=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]

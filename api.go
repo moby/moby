@@ -7,15 +7,17 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
 
-const APIVERSION = 1.2
+const APIVERSION = 1.3
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -67,15 +69,15 @@ func writeJSON(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
-// FIXME: Use stvconv.ParseBool() instead?
 func getBoolParam(value string) (bool, error) {
-	if value == "1" || strings.ToLower(value) == "true" {
-		return true, nil
-	}
-	if value == "" || value == "0" || strings.ToLower(value) == "false" {
+	if value == "" {
 		return false, nil
 	}
-	return false, fmt.Errorf("Bad parameter")
+	ret, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("Bad parameter")
+	}
+	return ret, nil
 }
 
 func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -256,6 +258,10 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
+	size, err := getBoolParam(r.Form.Get("size"))
+	if err != nil {
+		return err
+	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
@@ -263,7 +269,7 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 		n = -1
 	}
 
-	outs := srv.Containers(all, n, since, before)
+	outs := srv.Containers(all, size, n, since, before)
 	b, err := json.Marshal(outs)
 	if err != nil {
 		return err
@@ -529,7 +535,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return err
 	}
 	if imgs != nil {
-		if len(*imgs) != 0 {
+		if len(imgs) != 0 {
 			b, err := json.Marshal(imgs)
 			if err != nil {
 				return err
@@ -545,11 +551,20 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	hostConfig := &HostConfig{}
+
+	// allow a nil body for backwards compatibility
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
+			return err
+		}
+	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	if err := srv.ContainerStart(name); err != nil {
+	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -654,7 +669,20 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if tcpc, ok := in.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else {
+			in.Close()
+		}
+	}()
+	defer func() {
+		if tcpc, ok := out.(*net.TCPConn); ok {
+			tcpc.CloseWrite()
+		} else if closer, ok := out.(io.Closer); ok {
+			closer.Close()
+		}
+	}()
 
 	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
@@ -723,34 +751,65 @@ func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := r.ParseMultipartForm(4096); err != nil {
-		return err
+	if version < 1.3 {
+		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
-	remote := r.FormValue("t")
+	remoteURL := r.FormValue("remote")
+	repoName := r.FormValue("t")
 	tag := ""
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
+	if strings.Contains(repoName, ":") {
+		remoteParts := strings.Split(repoName, ":")
 		tag = remoteParts[1]
-		remote = remoteParts[0]
+		repoName = remoteParts[0]
 	}
 
-	dockerfile, _, err := r.FormFile("Dockerfile")
-	if err != nil {
-		return err
-	}
+	var context io.Reader
 
-	context, _, err := r.FormFile("Context")
-	if err != nil {
-		if err != http.ErrMissingFile {
+	if remoteURL == "" {
+		context = r.Body
+	} else if utils.IsGIT(remoteURL) {
+		if !strings.HasPrefix(remoteURL, "git://") {
+			remoteURL = "https://" + remoteURL
+		}
+		root, err := ioutil.TempDir("", "docker-build-git")
+		if err != nil {
 			return err
 		}
-	}
+		defer os.RemoveAll(root)
 
+		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+		}
+
+		c, err := Tar(root, Bzip2)
+		if err != nil {
+			return err
+		}
+		context = c
+	} else if utils.IsURL(remoteURL) {
+		f, err := utils.Download(remoteURL, ioutil.Discard)
+		if err != nil {
+			return err
+		}
+		defer f.Body.Close()
+		dockerFile, err := ioutil.ReadAll(f.Body)
+		if err != nil {
+			return err
+		}
+		c, err := mkBuildContext(string(dockerFile), nil)
+		if err != nil {
+			return err
+		}
+		context = c
+	}
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
-	if id, err := b.Build(dockerfile, context); err != nil {
+	id, err := b.Build(context)
+	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
-	} else if remote != "" {
-		srv.runtime.repositories.Set(remote, tag, id, false)
+		return err
+	}
+	if repoName != "" {
+		srv.runtime.repositories.Set(repoName, tag, id, false)
 	}
 	return nil
 }

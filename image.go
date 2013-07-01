@@ -92,9 +92,11 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 		defer file.Close()
 		layerData = file
 	}
-
-	if err := Untar(layerData, layer); err != nil {
-		return err
+	// If layerData is not nil, unpack it into the new layer
+	if layerData != nil {
+		if err := Untar(layerData, layer); err != nil {
+			return err
+		}
 	}
 
 	return StoreSize(img, root)

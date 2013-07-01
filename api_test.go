@@ -17,6 +17,30 @@ import (
 	"time"
 )
 
+func TestGetBoolParam(t *testing.T) {
+	if ret, err := getBoolParam("true"); err != nil || !ret {
+		t.Fatalf("true -> true, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam("True"); err != nil || !ret {
+		t.Fatalf("True -> true, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam("1"); err != nil || !ret {
+		t.Fatalf("1 -> true, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam(""); err != nil || ret {
+		t.Fatalf("\"\" -> false, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam("false"); err != nil || ret {
+		t.Fatalf("false -> false, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam("0"); err != nil || ret {
+		t.Fatalf("0 -> false, nil | got %t %s", ret, err)
+	}
+	if ret, err := getBoolParam("faux"); err == nil || ret {
+		t.Fatalf("faux -> false, err | got %t %s", ret, err)
+	}
+}
+
 func TestPostAuth(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -849,7 +873,8 @@ func TestPostContainersKill(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -893,7 +918,8 @@ func TestPostContainersRestart(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -949,8 +975,15 @@ func TestPostContainersStart(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
+	hostConfigJSON, err := json.Marshal(&HostConfig{})
+
+	req, err := http.NewRequest("POST", "/containers/"+container.ID+"/start", bytes.NewReader(hostConfigJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := httptest.NewRecorder()
-	if err := postContainersStart(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	if err := postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNoContent {
@@ -965,7 +998,7 @@ func TestPostContainersStart(t *testing.T) {
 	}
 
 	r = httptest.NewRecorder()
-	if err = postContainersStart(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err == nil {
+	if err = postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err == nil {
 		t.Fatalf("A running containter should be able to be started")
 	}
 
@@ -995,7 +1028,8 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1044,7 +1078,8 @@ func TestPostContainersWait(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1089,7 +1124,8 @@ func TestPostContainersAttach(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	// Start the process
-	if err := container.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
