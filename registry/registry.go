@@ -116,9 +116,11 @@ func (r *Registry) setUserAgent(req *http.Request, extra ...VersionChecker) {
 	if len(r.baseVersions)+len(extra) == 0 {
 		return
 	}
-
-	userAgent := appendVersions(r.baseVersionsStr, extra...)
-	req.Header.Set("User-Agent", userAgent)
+	if len(extra) == 0 {
+		req.Header.Set("User-Agent", r.baseVersionsStr)
+	} else {
+		req.Header.Set("User-Agent", appendVersions(r.baseVersionsStr, extra...))
+	}
 	return
 }
 
