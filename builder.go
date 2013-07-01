@@ -50,6 +50,17 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		config.Hostname = id[:12]
 	}
 
+	var sessionId string;
+	if config.Session != "" {
+		session:= builder.runtime.GetSession(config.Session);
+		if session== nil {
+			return nil, fmt.Errorf("Session was not found")
+		}
+		sessionId = session.ID;
+		// we do not want to have the session stored persistent in the config
+		config.Session = "";
+	}
+
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
@@ -61,6 +72,7 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
+		Session: sessionId,
 	}
 	container.root = builder.runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -129,4 +141,33 @@ func (builder *Builder) Commit(container *Container, repository, tag, comment, a
 		}
 	}
 	return img, nil
+}
+
+func (builder *Builder) CreateSession(config *SessionConfig) (*Session, error) {
+
+	// Generate id
+	id := GenerateID()
+
+	session := &Session{
+		ID:              id,
+		Created:         time.Now(),
+		Name: config.Name,
+		AutomaticRelease: config.AutomaticRelease,
+		Timeout:          config.Timeout,
+	}
+	session.root = builder.runtime.sessionRoot(session.ID)
+	// Step 1: create the session directory.
+	// This doubles as a barrier to avoid race conditions.
+	if err := os.Mkdir(session.root, 0700); err != nil {
+		return nil, err
+	}
+	// Step 2: save the session json
+	if err := session.ToDisk(); err != nil {
+		return nil, err
+	}
+	// Step 3: register the session
+	if err := builder.runtime.RegisterSession(session); err != nil {
+		return nil, err
+	}
+	return session, nil
 }

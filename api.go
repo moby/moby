@@ -278,6 +278,36 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	return nil
 }
 
+func getSessionsJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
+	size, err := getBoolParam(r.Form.Get("size"))
+	if err != nil {
+		return err
+	}
+	since := r.Form.Get("since")
+	before := r.Form.Get("before")
+	n, err := strconv.Atoi(r.Form.Get("limit"))
+	if err != nil {
+		n = -1
+	}
+
+	outs := srv.Sessions(all, size, n, since, before)
+	b, err := json.Marshal(outs)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, b)
+	return nil
+}
+
+
+
 func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -522,6 +552,63 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 	return nil
 }
 
+func postSessionsCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	config := &SessionConfig{}
+	out := &APIRun{}
+
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+		return err
+	}
+
+
+	id, err := srv.SessionCreate(config)
+	if err != nil {
+		return err
+	}
+	out.ID = id
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, b)
+	return nil
+}
+
+
+func deleteSessions(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+	removeVolume, err := getBoolParam(r.Form.Get("v"))
+	if err != nil {
+		return err
+	}
+
+	if err := srv.SessionDestroy(name, removeVolume); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func cleanSessions(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if err := srv.CleanSessions(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+
 func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -756,13 +843,13 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
+	sessionId := r.FormValue("session")
 	tag := ""
 	if strings.Contains(repoName, ":") {
 		remoteParts := strings.Split(repoName, ":")
 		tag = remoteParts[1]
 		repoName = remoteParts[0]
 	}
-
 	var context io.Reader
 
 	if remoteURL == "" {
@@ -802,7 +889,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	}
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), sessionId)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
@@ -842,6 +929,9 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
+			"/sessions/ps":                getSessionsJSON,
+			"/sessions/json":              getSessionsJSON,
+
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -860,9 +950,12 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/wait":    postContainersWait,
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
+			"/sessions/create":            postSessionsCreate,
+			"/sessions/clean": 			cleanSessions,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
+			"/sessions/{name:.*}": deleteSessions,
 			"/images/{name:.*}":     deleteImages,
 		},
 		"OPTIONS": {

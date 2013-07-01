@@ -22,11 +22,14 @@ type Capabilities struct {
 type Runtime struct {
 	root           string
 	repository     string
+	sessionRepository string
 	containers     *list.List
+	sessions     *list.List
 	networkManager *NetworkManager
 	graph          *Graph
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
+	sessionIdIndex        *utils.TruncIndex
 	capabilities   *Capabilities
 	kernelVersion  *utils.KernelVersionInfo
 	autoRestart    bool
@@ -171,6 +174,109 @@ func (runtime *Runtime) Register(container *Container) error {
 	return nil
 }
 
+
+func (runtime *Runtime) GetSession(name string) *Session {
+	id, err := runtime.sessionIdIndex.Get(name)
+	if err != nil {
+		return nil
+	}
+	e := runtime.getSessionElement(id)
+	if e == nil {
+		return nil
+	}
+	return e.Value.(*Session)}
+
+func (runtime *Runtime) ListSessions() []*Session {
+	sessions := new(SessionHistory)
+	for e := runtime.sessions.Front(); e != nil; e = e.Next() {
+		sessions.Add(e.Value.(*Session))
+	}
+	return *sessions
+}
+
+func (runtime *Runtime) ListContainersForSession(session *Session) []*Container{
+	containers := new(History)
+	for e := runtime.containers.Front(); e != nil; e = e.Next() {
+			container:= e.Value.(*Container);
+			if session.ID == container.Session{
+				containers.Add(container)
+			}
+	}
+	return *containers
+}
+
+func (runtime *Runtime) getSessionElement(id string) *list.Element {
+	for e := runtime.sessions.Front(); e != nil; e = e.Next() {
+		session := e.Value.(*Session)
+		if session.ID == id {
+			return e
+		}
+	}
+	return nil
+}
+
+func (runtime *Runtime) SessionExists(id string) bool {
+	return runtime.GetSession(id) != nil
+}
+
+func (runtime *Runtime) sessionRoot(id string) string {
+	return path.Join(runtime.sessionRepository, id)
+}
+
+
+
+func (runtime *Runtime) LoadSession(id string) (*Session, error) {
+	session := &Session{root: runtime.sessionRoot(id)}
+	if err := session.FromDisk(); err != nil {
+		return nil, err
+	}
+	if session.ID != id {
+		return session, fmt.Errorf("Session %s is stored at %s", session.ID, id)
+	}
+	if err := runtime.RegisterSession(session); err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+
+// Register makes a container object usable by the runtime as <container.ID>
+func (runtime *Runtime) RegisterSession(session *Session) error {
+	if session.runtime != nil {
+		return fmt.Errorf("Session is already loaded")
+	}
+	if err := validateID(session.ID); err != nil {
+		return err
+	}
+
+
+	session.runtime = runtime
+
+	runtime.sessions.PushBack(session)
+	runtime.sessionIdIndex.Add(session.ID)
+	return nil
+}
+
+func (runtime *Runtime) DestroySession(session *Session) error {
+	if session == nil {
+		return fmt.Errorf("The given session is <nil>")
+	}
+
+
+	element := runtime.getSessionElement(session.ID)
+	if element == nil {
+		return fmt.Errorf("Session %v not found - maybe it was already destroyed?", session.ID)
+	}
+	// Deregister the session before removing its directory, to avoid race conditions
+	runtime.sessionIdIndex.Delete(session.ID)
+	runtime.sessions.Remove(element)
+	if err := os.RemoveAll(session.root); err != nil {
+		return fmt.Errorf("Unable to remove filesystem for %v: %v", session.ID, err)
+	}
+	return nil
+}
+
+
 func (runtime *Runtime) LogToDisk(src *utils.WriteBroadcaster, dst string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
@@ -226,6 +332,24 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
+func (runtime *Runtime) restoreSessions() error {
+	dir, err := ioutil.ReadDir(runtime.sessionRepository)
+	if err != nil {
+		return err
+	}
+	for _, v := range dir {
+		id := v.Name()
+		session, err := runtime.LoadSession(id)
+		if err != nil {
+			utils.Debugf("Failed to load session %v: %v", id, err)
+			continue
+		}
+		utils.Debugf("Loaded session %v", session.ID)
+	}
+	return nil
+}
+
+
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
@@ -274,6 +398,11 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 
+	sessionRepo := path.Join(root, "sessions")
+	if err := os.MkdirAll(sessionRepo, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	g, err := NewGraph(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
@@ -296,16 +425,21 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	runtime := &Runtime{
 		root:           root,
 		repository:     runtimeRepo,
+		sessionRepository: sessionRepo,
 		containers:     list.New(),
+		sessions:     list.New(),
 		networkManager: netManager,
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
+		sessionIdIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
 		volumes:        volumes,
 	}
-
+	if err := runtime.restoreSessions(); err != nil {
+		return nil, err
+	}
 	if err := runtime.restore(); err != nil {
 		return nil, err
 	}
@@ -332,5 +466,29 @@ func (history *History) Swap(i, j int) {
 
 func (history *History) Add(container *Container) {
 	*history = append(*history, container)
+	sort.Sort(history)
+}
+
+
+type SessionHistory []*Session
+
+func (history *SessionHistory) Len() int {
+	return len(*history)
+}
+
+func (history *SessionHistory) Less(i, j int) bool {
+	sessions := *history
+	return sessions[j].When().Before(sessions[i].When())
+}
+
+func (history *SessionHistory) Swap(i, j int) {
+	sessions := *history
+	tmp := sessions[i]
+	sessions[i] = sessions[j]
+	sessions[j] = tmp
+}
+
+func (history *SessionHistory) Add(session *Session) {
+	*history = append(*history, session)
 	sort.Sort(history)
 }

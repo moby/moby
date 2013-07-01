@@ -78,6 +78,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
+		{"clean", "Removes sessions that are flagged as automatic releasable and their containers if the last active container is longer ago than the timeout specified at the session"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
@@ -96,8 +97,10 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"restart", "Restart a running container"},
 		{"rm", "Remove a container"},
 		{"rmi", "Remove an image"},
+		{"rms", "Remove an session"},
 		{"run", "Run a command in a new container"},
 		{"search", "Search for an image in the docker index"},
+		{"sessions", "List sessions"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
@@ -158,6 +161,7 @@ func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
+	session := cmd.String("s", "", "Session to run the containers in (optional, useful for cleanup)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -195,6 +199,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// Upload the build context
 	v := &url.Values{}
 	v.Set("t", *tag)
+	v.Set("session", *session)
 	if isRemote {
 		v.Set("remote", cmd.Arg(0))
 	}
@@ -674,6 +679,44 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdRms(args ...string) error {
+	cmd := Subcmd("rms", "[OPTIONS] SESSION [SESSION...]", "Remove a session")
+	v := cmd.Bool("v", false, "Remove the volumes associated to the containers of the session")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	val := url.Values{}
+	if *v {
+		val.Set("v", "1")
+	}
+	for _, name := range cmd.Args() {
+		_, _, err := cli.call("DELETE", "/sessions/"+name+"?"+val.Encode(), nil)
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return nil
+}
+
+
+func (cli *DockerCli) CmdClean(args ...string) error {
+	cmd := Subcmd("clean", "", "Cleans outdated sessions")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	_, _, err := cli.call("POST", "/sessions/clean", nil)
+	if err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+	}
+	return nil
+}
+
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
@@ -968,6 +1011,177 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	return nil
 }
+
+
+func (cli *DockerCli) CmdSessions(args ...string) error {
+	cmd := Subcmd("sessions", "[OPTIONS]", "List sessions")
+	quiet := cmd.Bool("q", false, "Only display numeric IDs")
+	size := cmd.Bool("s", false, "Display sizes")
+	containers := cmd.Bool("c", false, "Display containers")
+	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	nLatest := cmd.Bool("l", false, "Show only the latest created session.")
+	since := cmd.String("sinceId", "", "Show only containers created since Id.")
+	before := cmd.String("beforeId", "", "Show only sessions created before Id.")
+	last := cmd.Int("n", -1, "Show n last created sessions.")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	v := url.Values{}
+	if *last == -1 && *nLatest {
+		*last = 1
+	}
+	if *all {
+		v.Set("all", "1")
+	}
+	if *last != -1 {
+		v.Set("limit", strconv.Itoa(*last))
+	}
+	if *since != "" {
+		v.Set("since", *since)
+	}
+	if *before != "" {
+		v.Set("before", *before)
+	}
+	if *size {
+		v.Set("size", "1")
+	}
+
+	body, _, err := cli.call("GET", "/sessions/json?"+v.Encode(), nil)
+	if err != nil {
+		return err
+	}
+
+	var sessions []APISessions
+	err = json.Unmarshal(body, &sessions)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	if !*quiet {
+		if(*containers) {
+			fmt.Fprint(w, "ID\tNAME\tAUTO_RELEASE\tTIMEOUT\tCONTAINER\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+			if *size {
+				fmt.Fprintln(w, "\tSIZE\n")
+			} else {
+				fmt.Fprint(w, "\n")
+			}
+		}  else {
+			fmt.Fprint(w, "ID\tNAME\tAUTO_RELEASE\tTIMEOUT\tCREATED\tCONTAINERS\n")
+		}
+	}
+
+	for _, session := range sessions {
+		if !*quiet {
+			if(*containers) {
+				if *noTrunc {
+					fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t\t\t\t%s ago\t\t\t\n", session.ID, session.Name, session.AutomaticRelease, session.Timeout, utils.HumanDuration(time.Now().Sub(time.Unix(session.Created, 0))))
+				} else {
+					fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t\t\t\t%s ago\t\t\t\n",  utils.TruncateID(session.ID), session.Name, session.AutomaticRelease, session.Timeout, utils.HumanDuration(time.Now().Sub(time.Unix(session.Created, 0))))
+				}
+				for _, out := range session.Containers {
+					if !*quiet {
+						if *noTrunc {
+							fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", session.ID, session.Name, session.AutomaticRelease, session.Timeout, out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+						} else {
+							fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(session.ID), session.Name, session.AutomaticRelease, session.Timeout, utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, out.Ports)
+						}
+						if *size {
+							if out.SizeRootFs > 0 {
+								fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+							} else {
+								fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+							}
+						} else {
+							fmt.Fprint(w, "\n")
+						}
+					} else {
+						if *noTrunc {
+							fmt.Fprintln(w, out.ID)
+						} else {
+							fmt.Fprintln(w, utils.TruncateID(out.ID))
+						}
+					}
+				}
+			} else {
+				if *noTrunc {
+					fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t%s ago\t%d\n", session.ID, session.Name, session.AutomaticRelease, session.Timeout, utils.HumanDuration(time.Now().Sub(time.Unix(session.Created, 0))),len(session.Containers))
+				} else {
+					fmt.Fprintf(w, "%s\t%s\t%t\t%d s\t%s ago\t%d\n",  utils.TruncateID(session.ID), session.Name, session.AutomaticRelease, session.Timeout, utils.HumanDuration(time.Now().Sub(time.Unix(session.Created, 0))),len(session.Containers))
+				}
+			}
+		} else {
+			if *noTrunc {
+				fmt.Fprintln(w, session.ID)
+			} else {
+				fmt.Fprintln(w, utils.TruncateID(session.ID))
+			}
+		}
+	}
+
+	if !*quiet {
+		w.Flush()
+	}
+	return nil
+}
+
+func (cli *DockerCli) CmdSession(args ...string) error {
+	cmd := Subcmd("session", "[OPTIONS] [name]", "create a new session")
+	autoRelease := cmd.Bool("r", false, "Automatic release of the session after timeout (on next clean)")
+	timeout := cmd.Int64("t", -1, "Timout after which an inactive session can be cleaned. it will only be cleaned if you run docker clean")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	parsedArgs := cmd.Args()
+	name := ""
+	if len(parsedArgs) >= 1 {
+		name = cmd.Arg(0)
+	}
+
+	if *autoRelease && (*timeout<0) {
+		// if you do not specify a timeout
+		*timeout=60*60*24;
+	} else
+	if *timeout>-1 {
+		// if a timeout is set, autoRelease must be set too.
+		*autoRelease=true;
+	} else
+    if !*autoRelease {
+		// if we do not have autorelease, the timeout should be zero
+		*timeout=0;
+	}
+
+	v := &SessionConfig{
+		Timeout: *timeout,
+		AutomaticRelease: *autoRelease,
+		Name: name,
+	}
+
+
+	//create the container
+	body, _, err := cli.call("POST", "/sessions/create", v)
+	if err != nil {
+		return err
+	}
+
+	runResult := &APIRun{}
+	err = json.Unmarshal(body, runResult)
+	if err != nil {
+		return err
+	}
+
+	for _, warning := range runResult.Warnings {
+		fmt.Fprintln(cli.err, "WARNING: ", warning)
+	}
+	fmt.Fprintf(cli.out, "%s\n", runResult.ID)
+	return nil
+}
+
+
+
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")

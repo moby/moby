@@ -26,6 +26,8 @@ type Container struct {
 
 	ID string
 
+	Session string
+
 	Created time.Time
 
 	Path string
@@ -76,6 +78,7 @@ type Config struct {
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes      map[string]struct{}
 	VolumesFrom  string
+    Session string // id of the session, this container belongs to
 }
 
 type HostConfig struct {
@@ -102,6 +105,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flSession := cmd.String("s", "", "Session")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -177,6 +181,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Image:        image,
 		Volumes:      flVolumes,
 		VolumesFrom:  *flVolumesFrom,
+		Session: *flSession,
 	}
 	hostConfig := &HostConfig{
 		Binds: flBinds,
