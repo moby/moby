@@ -42,6 +42,9 @@ List containers (/containers/json):
 
 - You can use size=1 to get the size of the containers
 
+Start containers (/containers/<id>/start):
+
+- You can now pass host-specific configuration (e.g. bind mounts) in the POST body for start calls 
 
 :doc:`docker_remote_api_v1.2`
 *****************************
@@ -120,8 +123,13 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-client  | https://github.com/geku/docker-client      |
 +----------------------+----------------+--------------------------------------------+
+| Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
++----------------------+----------------+--------------------------------------------+
 | Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
 +----------------------+----------------+--------------------------------------------+
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
 | **WebUI**            |                |                                            |
 +----------------------+----------------+--------------------------------------------+
+| Java                 | docker-java    | https://github.com/kpelykh/docker-java     |
++----------------------+----------------+--------------------------------------------+
+

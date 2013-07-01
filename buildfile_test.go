@@ -2,13 +2,15 @@ package docker
 
 import (
 	"io/ioutil"
+	"sync"
 	"testing"
+	"fmt"
 )
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
-	context, err := mkBuildContext(dockerfile, files)
+	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageId), files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +30,7 @@ type testContextTemplate struct {
 var testContexts []testContextTemplate = []testContextTemplate{
 	{
 		`
-from   docker-ut
+from   %s
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
 run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
@@ -39,7 +41,7 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 
 	{
 		`
-from docker-ut
+from %s
 add foo /usr/lib/bla/bar
 run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
 `,
@@ -48,7 +50,7 @@ run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
 
 	{
 		`
-from docker-ut
+from %s
 add f /
 run [ "$(cat /f)" = "hello" ]
 add f /abc
@@ -74,9 +76,18 @@ run [ "$(cat /somewheeeere/over/the/rainbooow/ga)" = "bu" ]
 
 	{
 		`
-from docker-ut
+from %s
 env    FOO BAR
 run    [ "$FOO" = "BAR" ]
+`,
+		nil,
+	},
+
+	{
+		`
+from docker-ut
+ENTRYPOINT /bin/echo
+CMD Hello world
 `,
 		nil,
 	},
@@ -92,7 +103,12 @@ func TestBuild(t *testing.T) {
 		}
 		defer nuke(runtime)
 
-		srv := &Server{runtime: runtime}
+		srv := &Server{
+			runtime: runtime,
+			lock: &sync.Mutex{},
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
 
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {

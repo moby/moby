@@ -87,7 +87,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (b *buildFile) CmdEnv(args string) error {
 func (b *buildFile) CmdCmd(args string) error {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, using /bin/sh -c", err)
+		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
 	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
@@ -163,6 +163,23 @@ func (b *buildFile) CmdInsert(args string) error {
 
 func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
+}
+
+func (b *buildFile) CmdEntrypoint(args string) error {
+	if args == "" {
+		return fmt.Errorf("Entrypoint cannot be empty")
+	}
+
+	var entrypoint []string
+	if err := json.Unmarshal([]byte(args), &entrypoint); err != nil {
+		b.config.Entrypoint = []string{"/bin/sh", "-c", args}
+	} else {
+		b.config.Entrypoint = entrypoint
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %s", args)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
@@ -263,7 +280,8 @@ func (b *buildFile) run() (string, error) {
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	//start the container
-	if err := c.Start(); err != nil {
+	hostConfig := &HostConfig{}
+	if err := c.Start(hostConfig); err != nil {
 		return "", err
 	}
 
