@@ -143,18 +143,30 @@ func MountAUFS(ro []string, rw string, target string) error {
 	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
 
 	branches += ",xino=/dev/shm/aufs.xino"
+	log.Printf("START")
 
 	//if error, try to load aufs kernel module
 	if err := mount("none", target, "aufs", 0, branches); err != nil {
+		log.Printf("1[")
+		fmt.Println(err)
+		log.Printf("]1")
 		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
 		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
+			log.Printf("2[")
+			fmt.Println(err)
+			log.Printf("]3")
+			return fmt.Errorf("Unable to load the AUFS module :-(")
 		}
-		log.Printf("...module loaded.")
+		log.Printf("...module loaded. :-|")
 		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
+			log.Printf("3[")
+			fmt.Println(err)
+			log.Printf("]3")
+			return fmt.Errorf("Unable to mount using aufs :-(")
 		}
+		log.Printf(":-)")
 	}
+	log.Printf("END")
 	return nil
 }
 
@@ -168,6 +180,7 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 }
 
 func (image *Image) Mount(root, rw string) error {
+	log.Printf("Mount")
 	if mounted, err := Mounted(root); err != nil {
 		return err
 	} else if mounted {
