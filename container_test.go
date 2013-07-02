@@ -511,12 +511,11 @@ func TestKillDifferentUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Give some time to lxc to spawn the process (setuid might take some time)
-	container.WaitTimeout(500 * time.Millisecond)
-
-	if !container.State.Running {
-		t.Errorf("Container should be running")
-	}
+	setTimeout(t, "Waiting for the container to be started timed out", 2 * time.Second, func() {
+		for !container.State.Running {
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
 
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
@@ -1001,7 +1000,7 @@ func TestEnv(t *testing.T) {
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"/usr/bin/env"},
+		Cmd:   []string{"env"},
 	},
 	)
 	if err != nil {
