@@ -142,12 +142,13 @@ func TestGetImagesJSON(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	initialImages, err := srv.Images(true, "")
+	// all=0
+
+	initialImages, err := srv.Images(false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// all=0
 	req, err := http.NewRequest("GET", "/images/json?all=0", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -182,6 +183,12 @@ func TestGetImagesJSON(t *testing.T) {
 	r2 := httptest.NewRecorder()
 
 	// all=1
+
+	initialImages, err = srv.Images(true, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	req2, err := http.NewRequest("GET", "/images/json?all=true", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -352,7 +359,7 @@ func TestGetImagesByName(t *testing.T) {
 	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
 		t.Fatal(err)
 	}
-	if img.ID != GetTestImage(runtime).ID || img.Comment != "Imported from http://get.docker.io/images/busybox" {
+	if img.ID != unitTestImageId {
 		t.Errorf("Error inspecting image")
 	}
 }

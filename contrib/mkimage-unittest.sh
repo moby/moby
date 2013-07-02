@@ -23,7 +23,9 @@ mkdir bin etc dev dev/pts lib proc sys tmp
 touch etc/resolv.conf
 cp /etc/nsswitch.conf etc/nsswitch.conf
 echo root:x:0:0:root:/:/bin/sh > etc/passwd
+echo daemon:x:1:1:daemon:/usr/sbin:/bin/sh >> etc/passwd
 echo root:x:0: > etc/group
+echo daemon:x:1: >> etc/group
 ln -s lib lib64
 ln -s bin sbin
 cp $BUSYBOX $SOCAT bin
@@ -41,6 +43,7 @@ do
     cp -a /dev/$X dev
 done
 
+chmod 0755 $ROOTFS # See #486
 tar -cf- . | docker import - docker-ut
 docker run -i -u root docker-ut /bin/echo Success.
 rm -rf $ROOTFS
