@@ -849,6 +849,23 @@ func TestUser(t *testing.T) {
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
 		t.Error(string(output))
 	}
+
+	// Test an wrong username
+	container, err = builder.Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"id"},
+
+		User: "unkownuser",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err = container.Output()
+	if container.State.ExitCode == 0 {
+		t.Fatal("Starting container with wrong uid should fail but it passed.")
+	}
 }
 
 func TestMultipleContainers(t *testing.T) {

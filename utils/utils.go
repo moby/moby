@@ -702,6 +702,9 @@ func ParseRepositoryTag(repos string) (string, string) {
 	return repos, ""
 }
 
+// UserLookup check if the given username or uid is present in /etc/passwd
+// and returns the user struct.
+// If the username is not found, an error is returned.
 func UserLookup(uid string) (*user.User, error) {
 	file, err := ioutil.ReadFile("/etc/passwd")
 	if err != nil {
