@@ -997,7 +997,7 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 }
 
 func (container *Container) hostConfigPath() string {
-	return path.Join("/tmp", container.ID+".config.host")
+	return path.Join(container.root, "hostconfig.json")
 }
 
 func (container *Container) jsonPath() string {
