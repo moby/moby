@@ -19,7 +19,6 @@ Docker is a great building block for automating distributed systems:
 large-scale web deployments, database clusters, continuous deployment
 systems, private PaaS, service-oriented architectures, etc.
 
-
 - **Heterogeneous payloads** Any combination of binaries, libraries,
   configuration files, scripts, virtualenvs, jars, gems, tarballs, you
   name it. No more juggling between domain-specific tools. Docker can
@@ -34,7 +33,7 @@ systems, private PaaS, service-oriented architectures, etc.
   alongside what they run.
 
 .. image:: images/lego_docker.jpg
-
+   :target: http://bricks.argz.com/ins/7823-1/12
 
 What is a Standard Container?
 .............................
@@ -52,8 +51,7 @@ set of standard operations, and 3) an execution environment.
 
 A great analogy for this is the shipping container. Just like Standard
 Containers are a fundamental unit of software delivery, shipping
-containers (http://bricks.argz.com/ins/7823-1/12) are a fundamental
-unit of physical delivery.
+containers are a fundamental unit of physical delivery.
 
 Standard operations
 ~~~~~~~~~~~~~~~~~~~
@@ -77,7 +75,6 @@ uploaded in the same way whether they contain a postgres database, a
 php application with its dependencies and application server, or Java
 build artifacts.
 
-
 Infrastructure-agnostic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -92,7 +89,6 @@ uploaded to S3, downloaded, run and snapshotted by a build server at
 Equinix in Virginia, uploaded to 10 staging servers in a home-made
 Openstack cluster, then sent to 30 production instances across 3 EC2
 regions.
-
 
 Designed for automation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,7 +115,6 @@ post-it notes were lost, logs were misplaced, cluster updates were
 half-broken. The process was slow, inefficient and cost a fortune -
 and was entirely different depending on the language and
 infrastructure provider.
-
 
 Industrial-grade delivery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
