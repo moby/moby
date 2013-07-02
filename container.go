@@ -265,6 +265,29 @@ func (container *Container) ToDisk() (err error) {
 	return ioutil.WriteFile(container.jsonPath(), data, 0666)
 }
 
+func (container *Container) ReadTempHostConfig() (*HostConfig, error) {
+	data, err := ioutil.ReadFile(container.hostConfigPath())
+	if err != nil {
+		return &HostConfig{}, err
+	}
+	hostConfig := &HostConfig{}
+	if err := json.Unmarshal(data, hostConfig); err != nil {
+		return &HostConfig{}, err
+	}
+	return hostConfig, nil
+}
+
+func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
+	if hostConfig == nil {
+		return os.Remove(container.hostConfigPath())
+	}
+	data, err := json.Marshal(hostConfig)
+	if err != nil {
+		return
+	}
+	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
+}
+
 func (container *Container) generateLXCConfig() error {
 	fo, err := os.Create(container.lxcConfigPath())
 	if err != nil {
@@ -636,6 +659,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.waitLock = make(chan struct{})
 
 	container.ToDisk()
+	container.SaveHostConfig(hostConfig)
 	go container.monitor()
 	return nil
 }
@@ -791,6 +815,8 @@ func (container *Container) monitor() {
 		// FIXME: why are we serializing running state to disk in the first place?
 		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
 	}
+	// Remove temp host config
+	container.SaveHostConfig(nil)
 }
 
 func (container *Container) kill() error {
@@ -968,6 +994,10 @@ func (container *Container) logPath(name string) string {
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
 	return os.Open(container.logPath(name))
+}
+
+func (container *Container) hostConfigPath() string {
+	return path.Join("/tmp", container.ID+".config.host")
 }
 
 func (container *Container) jsonPath() string {
