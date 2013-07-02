@@ -32,7 +32,7 @@ For an overview of Docker, please see the `Introduction
 <http://www.docker.io>`_. When you're ready to start working with
 Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
 and a more in-depth guide to :ref:`ubuntu_linux` and other
-`installation </installation>`_ paths including prebuilt binaries,
+:ref:`installation_list` paths including prebuilt binaries,
 Vagrant-created VMs, Rackspace and Amazon instances.
 
 Enough reading! :ref:`Try it out! <running_examples>`
