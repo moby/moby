@@ -357,15 +357,15 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 	repoData, err := r.GetRepositoryData(remote)
 
 	if err != nil {
-	    if err.Error() == "HTTP code: 404" {
-	        repoData = &RepositoryData{
-	            Endpoints: nil,
-	            Tokens:    nil,
-	        }
-	    } else {
-	        utils.Debugf("Error getting repository data: %s", err.Error())
-	        return nil, err
-	    }
+		if err.Error() == "HTTP code: 404" {
+			repoData = &RepositoryData{
+				Endpoints: nil,
+				Tokens:    nil,
+			}
+		} else {
+			utils.Debugf("Error getting repository data: %s", err.Error())
+			return nil, err
+		}
 	}
 
 	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
