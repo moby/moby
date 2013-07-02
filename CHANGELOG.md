@@ -1,8 +1,8 @@
 # Changelog
 
 ## 0.4.8 (2013-07-01)
- + Runtime: Add Entrypoint to builder and container config
- - Runtime: Make sure the ID is displayed when use docker run -d
+ + Builder: New build operation ENTRYPOINT adds an executable entry point to the container.
+ - Runtime: Fix a bug which caused 'docker run -d' to no longer print the container ID.
  - Tests: Fix issues in the test suite
 
 ## 0.4.7 (2013-06-28)
