@@ -92,7 +92,7 @@ regions.
 
 
 Designed for automation
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Because they offer the same standard operations regardless of content
 and infrastructure, Standard Containers, just like their physical
@@ -117,9 +117,8 @@ half-broken. The process was slow, inefficient and cost a fortune -
 and was entirely different depending on the language and
 infrastructure provider.
 
-
 Industrial-grade delivery
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are 17 million shipping containers in existence, packed with
 every physical good imaginable. Every single one of them can be loaded
