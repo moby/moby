@@ -402,7 +402,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repositoy %s", askedTag, local)
+			return fmt.Errorf("Tag %s not found in repository %s", askedTag, local)
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -410,6 +410,11 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 	for _, img := range repoData.ImgList {
 		if askedTag != "" && img.Tag != askedTag {
 			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
+			continue
+		}
+
+		if img.Tag == "" {
+			utils.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
 			continue
 		}
 		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, remote))
