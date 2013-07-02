@@ -99,7 +99,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if v.Version != VERSION {
-		t.Errorf("Excepted version %s, %s found", VERSION, v.Version)
+		t.Errorf("Expected version %s, %s found", VERSION, v.Version)
 	}
 }
 
@@ -129,7 +129,7 @@ func TestGetInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if infos.Images != len(initialImages) {
-		t.Errorf("Excepted images: %d, %d found", len(initialImages), infos.Images)
+		t.Errorf("Expected images: %d, %d found", len(initialImages), infos.Images)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 
 	found := false
@@ -177,7 +177,7 @@ func TestGetImagesJSON(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("Excepted image %s, %+v found", unitTestImageName, images)
+		t.Errorf("Expected image %s, %+v found", unitTestImageName, images)
 	}
 
 	r2 := httptest.NewRecorder()
@@ -204,7 +204,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images2) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images2))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images2))
 	}
 
 	found = false
@@ -236,7 +236,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images3) != 0 {
-		t.Errorf("Excepted 0 image, %d found", len(images3))
+		t.Errorf("Expected 0 image, %d found", len(images3))
 	}
 
 	r4 := httptest.NewRecorder()
@@ -282,7 +282,7 @@ func TestGetImagesViz(t *testing.T) {
 		t.Fatal(err)
 	}
 	if line != "digraph docker {\n" {
-		t.Errorf("Excepted digraph docker {\n, %s found", line)
+		t.Errorf("Expected digraph docker {\n, %s found", line)
 	}
 }
 
@@ -313,7 +313,7 @@ func TestGetImagesSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(results) < 2 {
-		t.Errorf("Excepted at least 2 lines, %d found", len(results))
+		t.Errorf("Expected at least 2 lines, %d found", len(results))
 	}
 }
 
@@ -337,7 +337,7 @@ func TestGetImagesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(history) != 1 {
-		t.Errorf("Excepted 1 line, %d found", len(history))
+		t.Errorf("Expected 1 line, %d found", len(history))
 	}
 }
 
@@ -396,7 +396,7 @@ func TestGetContainersJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(containers) != 1 {
-		t.Fatalf("Excepted %d container, %d found", 1, len(containers))
+		t.Fatalf("Expected %d container, %d found", 1, len(containers))
 	}
 	if containers[0].ID != container.ID {
 		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ID, containers[0].ID)
@@ -1356,7 +1356,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages)+1 {
-		t.Errorf("Excepted %d images, %d found", len(initialImages)+1, len(images))
+		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
@@ -1385,7 +1385,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 
 	/*	if c := runtime.Get(container.Id); c != nil {
