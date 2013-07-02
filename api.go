@@ -535,7 +535,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		return err
 	}
 	if imgs != nil {
-		if len(*imgs) != 0 {
+		if len(imgs) != 0 {
 			b, err := json.Marshal(imgs)
 			if err != nil {
 				return err
@@ -555,8 +555,10 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
-		if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
-			return err
+		if r.Header.Get("Content-Type") == "application/json" {
+			if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
+				return err
+			}
 		}
 	}
 

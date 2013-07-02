@@ -26,3 +26,4 @@
       -v=[]: Creates a new volume and mounts it at the specified path.
       -volumes-from="": Mount all volumes from the given container.
       -b=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]
+      -entrypoint="": Overwrite the default entrypoint set by the image.

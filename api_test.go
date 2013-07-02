@@ -112,6 +112,11 @@ func TestGetInfo(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
+	initialImages, err := srv.runtime.graph.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := httptest.NewRecorder()
 
 	if err := getInfo(srv, APIVERSION, r, nil, nil); err != nil {
@@ -123,8 +128,8 @@ func TestGetInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Images != 1 {
-		t.Errorf("Excepted images: %d, %d found", 1, infos.Images)
+	if infos.Images != len(initialImages) {
+		t.Errorf("Excepted images: %d, %d found", len(initialImages), infos.Images)
 	}
 }
 
@@ -136,6 +141,11 @@ func TestGetImagesJSON(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
+
+	initialImages, err := srv.Images(true, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// all=0
 	req, err := http.NewRequest("GET", "/images/json?all=0", nil)
@@ -154,12 +164,19 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 1 {
-		t.Errorf("Excepted 1 image, %d found", len(images))
+	if len(images) != len(initialImages) {
+		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
 	}
 
-	if images[0].Repository != unitTestImageName {
-		t.Errorf("Excepted image %s, %s found", unitTestImageName, images[0].Repository)
+	found := false
+	for _, img := range images {
+		if img.Repository == unitTestImageName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Excepted image %s, %+v found", unitTestImageName, images)
 	}
 
 	r2 := httptest.NewRecorder()
@@ -179,18 +196,25 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images2) != 1 {
-		t.Errorf("Excepted 1 image, %d found", len(images2))
+	if len(images2) != len(initialImages) {
+		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images2))
 	}
 
-	if images2[0].ID != GetTestImage(runtime).ID {
-		t.Errorf("Retrieved image Id differs, expected %s, received %s", GetTestImage(runtime).ID, images2[0].ID)
+	found = false
+	for _, img := range images2 {
+		if img.ID == GetTestImage(runtime).ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Retrieved image Id differs, expected %s, received %+v", GetTestImage(runtime).ID, images2)
 	}
 
 	r3 := httptest.NewRecorder()
 
 	// filter=a
-	req3, err := http.NewRequest("GET", "/images/json?filter=a", nil)
+	req3, err := http.NewRequest("GET", "/images/json?filter=aaaaaaaaaa", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +229,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images3) != 0 {
-		t.Errorf("Excepted 1 image, %d found", len(images3))
+		t.Errorf("Excepted 0 image, %d found", len(images3))
 	}
 
 	r4 := httptest.NewRecorder()
@@ -1310,6 +1334,11 @@ func TestDeleteImages(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
+	initialImages, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if err := srv.runtime.repositories.Set("test", "test", unitTestImageName, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1319,8 +1348,8 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 2 {
-		t.Errorf("Excepted 2 images, %d found", len(images))
+	if len(images) != len(initialImages)+1 {
+		t.Errorf("Excepted %d images, %d found", len(initialImages)+1, len(images))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
@@ -1348,8 +1377,8 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 1 {
-		t.Errorf("Excepted 1 image, %d found", len(images))
+	if len(images) != len(initialImages) {
+		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
 	}
 
 	/*	if c := runtime.Get(container.Id); c != nil {
