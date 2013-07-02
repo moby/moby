@@ -9,7 +9,7 @@ import (
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
-	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageId), files)
+	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageID), files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ type testContextTemplate struct {
 
 // A table of all the contexts to build and test.
 // A new docker runtime will be created and torn down for each context.
-var testContexts []testContextTemplate = []testContextTemplate{
+var testContexts = []testContextTemplate{
 	{
 		`
 from   %s

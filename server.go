@@ -315,8 +315,8 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
-func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error {
-	history, err := r.GetRemoteHistory(imgId, endpoint, token)
+func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
+	history, err := r.GetRemoteHistory(imgID, endpoint, token)
 	if err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 		success := false
 		for _, ep := range repoData.Endpoints {
 			if !(strings.HasPrefix(ep, "http://") || strings.HasPrefix(ep, "https://")) {
-				ep = fmt.Sprintf("%s://%s", registry.UrlScheme(), ep)
+				ep = fmt.Sprintf("%s://%s", registry.URLScheme(), ep)
 			}
 			if err := srv.pullImage(r, out, img.ID, ep+"/v1", repoData.Tokens, sf); err != nil {
 				out.Write(sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint", askedTag, err))
@@ -516,20 +516,20 @@ func (srv *Server) ImagePull(name, tag, endpoint string, out io.Writer, sf *util
 // - Check if the archive exists, if it does not, ask the registry
 // - If the archive does exists, process the checksum from it
 // - If the archive does not exists and not found on registry, process checksum from layer
-func (srv *Server) getChecksum(imageId string) (string, error) {
+func (srv *Server) getChecksum(imageID string) (string, error) {
 	// FIXME: Use in-memory map instead of reading the file each time
 	if sums, err := srv.runtime.graph.getStoredChecksums(); err != nil {
 		return "", err
-	} else if checksum, exists := sums[imageId]; exists {
+	} else if checksum, exists := sums[imageID]; exists {
 		return checksum, nil
 	}
 
-	img, err := srv.runtime.graph.Get(imageId)
+	img, err := srv.runtime.graph.Get(imageID)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := os.Stat(layerArchivePath(srv.runtime.graph.imageRoot(imageId))); err != nil {
+	if _, err := os.Stat(layerArchivePath(srv.runtime.graph.imageRoot(imageID))); err != nil {
 		if os.IsNotExist(err) {
 			// TODO: Ask the registry for the checksum
 			//       As the archive is not there, it is supposed to come from a pull.
@@ -618,7 +618,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 
 	for _, ep := range repoData.Endpoints {
 		if !(strings.HasPrefix(ep, "http://") || strings.HasPrefix(ep, "https://")) {
-			ep = fmt.Sprintf("%s://%s", registry.UrlScheme(), ep)
+			ep = fmt.Sprintf("%s://%s", registry.URLScheme(), ep)
 		}
 		out.Write(sf.FormatStatus("Pushing repository %s to %s (%d tags)", name, ep, len(localRepo)))
 		// For each image within the repo, push them
@@ -650,21 +650,21 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 	return nil
 }
 
-func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId, ep string, token []string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
-	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
+	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgID, "json"))
 	if err != nil {
-		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
+		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgID, err)
 	}
-	out.Write(sf.FormatStatus("Pushing %s", imgId))
+	out.Write(sf.FormatStatus("Pushing %s", imgID))
 
 	// Make sure we have the image's checksum
-	checksum, err := srv.getChecksum(imgId)
+	checksum, err := srv.getChecksum(imgID)
 	if err != nil {
 		return err
 	}
 	imgData := &registry.ImgData{
-		ID:       imgId,
+		ID:       imgID,
 		Checksum: checksum,
 	}
 
@@ -680,11 +680,11 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	// Retrieve the tarball to be sent
 	var layerData *TempArchive
 	// If the archive exists, use it
-	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgId)))
+	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgID)))
 	if err != nil {
 		if os.IsNotExist(err) {
 			// If the archive does not exist, create one from the layer
-			layerData, err = srv.runtime.graph.TempLayerArchive(imgId, Xz, out)
+			layerData, err = srv.runtime.graph.TempLayerArchive(imgID, Xz, out)
 			if err != nil {
 				return fmt.Errorf("Failed to generate layer archive: %s", err)
 			}
@@ -963,7 +963,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	return srv.deleteImage(img, name, tag)
 }
 
-func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
+func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
 
 	// Retrieve all images
 	images, err := srv.runtime.graph.All()
@@ -981,7 +981,7 @@ func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) 
 	}
 
 	// Loop on the children of the given image and check the config
-	for elem := range imageMap[imgId] {
+	for elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
 			return nil, err

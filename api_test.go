@@ -359,7 +359,7 @@ func TestGetImagesByName(t *testing.T) {
 	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
 		t.Fatal(err)
 	}
-	if img.ID != unitTestImageId {
+	if img.ID != unitTestImageID {
 		t.Errorf("Error inspecting image")
 	}
 }
