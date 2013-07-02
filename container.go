@@ -265,7 +265,7 @@ func (container *Container) ToDisk() (err error) {
 	return ioutil.WriteFile(container.jsonPath(), data, 0666)
 }
 
-func (container *Container) ReadTempHostConfig() (*HostConfig, error) {
+func (container *Container) ReadHostConfig() (*HostConfig, error) {
 	data, err := ioutil.ReadFile(container.hostConfigPath())
 	if err != nil {
 		return &HostConfig{}, err
@@ -278,9 +278,6 @@ func (container *Container) ReadTempHostConfig() (*HostConfig, error) {
 }
 
 func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
-	if hostConfig == nil {
-		return os.Remove(container.hostConfigPath())
-	}
 	data, err := json.Marshal(hostConfig)
 	if err != nil {
 		return
@@ -491,6 +488,9 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.lock()
 	defer container.State.unlock()
+	if len(hostConfig.Binds) == 0 {
+		hostConfig, _ = container.ReadHostConfig()
+	}
 
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
@@ -815,8 +815,6 @@ func (container *Container) monitor() {
 		// FIXME: why are we serializing running state to disk in the first place?
 		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
 	}
-	// Remove temp host config
-	container.SaveHostConfig(nil)
 }
 
 func (container *Container) kill() error {

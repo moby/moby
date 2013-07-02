@@ -144,8 +144,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				// assume empty host config
-				hostConfig, _ := container.ReadTempHostConfig()
+				hostConfig := &HostConfig{}
 				if err := container.Start(hostConfig); err != nil {
 					return err
 				}
@@ -156,8 +155,6 @@ func (runtime *Runtime) Register(container *Container) error {
 				if err := container.ToDisk(); err != nil {
 					return err
 				}
-				// remove temp host config
-				container.SaveHostConfig(nil)
 			}
 		}
 	}
