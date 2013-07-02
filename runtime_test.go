@@ -366,13 +366,13 @@ func TestAllocatePortLocalhost(t *testing.T) {
 	defer container.Kill()
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for {
-			if container.State.Running {
-				break
-			}
+		for !container.State.Running {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
+
+	// Even if the state is running, lets give some time to lxc to spawn the process
+	container.WaitTimeout(500 * time.Millisecond)
 
 	conn, err := net.Dial("tcp",
 		fmt.Sprintf(

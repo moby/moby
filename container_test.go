@@ -511,11 +511,14 @@ func TestKillDifferentUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	setTimeout(t, "Waiting for the container to be started timed out", 2 * time.Second, func() {
+	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
 		for !container.State.Running {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
+
+	// Even if the state is running, lets give some time to lxc to spawn the process
+	container.WaitTimeout(500 * time.Millisecond)
 
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
