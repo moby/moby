@@ -1,21 +1,21 @@
 :title: Working With Repositories
-:description: Generally, there are two types of repositories: Top-level repositories which are controlled by the people behind Docker, and user repositories.
+:description: Repositories allow users to share images.
 :keywords: repo, repositiores, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
-Working with the Repository
-===========================
+Working with Repositories
+=========================
 
 
 Top-level repositories and user repositories
 --------------------------------------------
 
-Generally, there are two types of repositories: Top-level repositories which are controlled by the people behind
-Docker, and user repositories.
+Generally, there are two types of repositories: Top-level repositories
+which are controlled by the people behind Docker, and user
+repositories.
 
-* Top-level repositories can easily be recognized by not having a ``/`` (slash) in their name. These repositories can
-  generally be trusted.
+* Top-level repositories can easily be recognized by not having a ``/`` (slash) in their name. These repositories can  generally be trusted.
 * User repositories always come in the form of ``<username>/<repo_name>``. This is what your published images will look like.
 * User images are not checked, it is therefore up to you whether or not you trust the creator of this image.
 

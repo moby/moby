@@ -1,10 +1,10 @@
-:title: Concepts
-:description: -- todo: change me
+:title: Overview
+:description: Docker documentation summary
 :keywords: concepts, documentation, docker, containers
 
 
 
-Concepts
+Overview
 ========
 
 Contents:
@@ -13,4 +13,4 @@ Contents:
    :maxdepth: 1
 
    ../index
-
+   manifesto
