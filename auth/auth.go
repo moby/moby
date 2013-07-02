@@ -74,7 +74,6 @@ func decodeAuth(authStr string) (*AuthConfig, error) {
 	}
 	password := strings.Trim(arr[1], "\x00")
 	return &AuthConfig{Username: arr[0], Password: password}, nil
-
 }
 
 // load up the auth config information and return values

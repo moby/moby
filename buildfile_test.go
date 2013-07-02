@@ -2,6 +2,7 @@ package docker
 
 import (
 	"io/ioutil"
+	"sync"
 	"testing"
 )
 
@@ -92,7 +93,12 @@ func TestBuild(t *testing.T) {
 		}
 		defer nuke(runtime)
 
-		srv := &Server{runtime: runtime}
+		srv := &Server{
+			runtime: runtime,
+			lock: &sync.Mutex{},
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
 
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {

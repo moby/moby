@@ -30,6 +30,7 @@ import sys, os
 html_additional_pages = {
     'concepts/containers': 'redirect_home.html',
     'concepts/introduction': 'redirect_home.html',
+    'builder/basics': 'redirect_build.html',
     }
 
 
