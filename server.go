@@ -572,7 +572,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		// For each image within the repo, push them
 		for _, elem := range imgList {
 			if _, exists := repoData.ImgList[elem.ID]; exists {
-				out.Write(sf.FormatStatus("Image %s already on registry, skipping", name))
+				out.Write(sf.FormatStatus("Image %s already on registry, skipping", elem.ID))
 				continue
 			}
 			if err := srv.pushImage(r, out, name, elem.ID, ep, repoData.Tokens, sf); err != nil {
