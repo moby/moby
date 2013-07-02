@@ -450,8 +450,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, local, re
 }
 
 func (srv *Server) poolAdd(kind, key string) error {
-	srv.lock.Lock()
-	defer srv.lock.Unlock()
+	srv.Lock()
+	defer srv.Unlock()
 
 	if _, exists := srv.pullingPool[key]; exists {
 		return fmt.Errorf("%s %s is already in progress", key, kind)
@@ -1119,7 +1119,6 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 	srv := &Server{
 		runtime:     runtime,
 		enableCors:  enableCors,
-		lock:        &sync.Mutex{},
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -1128,9 +1127,9 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 }
 
 type Server struct {
+	sync.Mutex
 	runtime     *Runtime
 	enableCors  bool
-	lock        *sync.Mutex
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}
 }

@@ -188,10 +188,10 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 }
 
 type bufReader struct {
+	sync.Mutex
 	buf    *bytes.Buffer
 	reader io.Reader
 	err    error
-	l      sync.Mutex
 	wait   sync.Cond
 }
 
@@ -200,7 +200,7 @@ func NewBufReader(r io.Reader) *bufReader {
 		buf:    &bytes.Buffer{},
 		reader: r,
 	}
-	reader.wait.L = &reader.l
+	reader.wait.L = &reader.Mutex
 	go reader.drain()
 	return reader
 }
@@ -209,14 +209,14 @@ func (r *bufReader) drain() {
 	buf := make([]byte, 1024)
 	for {
 		n, err := r.reader.Read(buf)
-		r.l.Lock()
+		r.Lock()
 		if err != nil {
 			r.err = err
 		} else {
 			r.buf.Write(buf[0:n])
 		}
 		r.wait.Signal()
-		r.l.Unlock()
+		r.Unlock()
 		if err != nil {
 			break
 		}
@@ -224,8 +224,8 @@ func (r *bufReader) drain() {
 }
 
 func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.l.Lock()
-	defer r.l.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	for {
 		n, err = r.buf.Read(p)
 		if n > 0 {
@@ -247,27 +247,27 @@ func (r *bufReader) Close() error {
 }
 
 type WriteBroadcaster struct {
-	mu      sync.Mutex
+	sync.Mutex
 	writers map[io.WriteCloser]struct{}
 }
 
 func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
-	w.mu.Lock()
+	w.Lock()
 	w.writers[writer] = struct{}{}
-	w.mu.Unlock()
+	w.Unlock()
 }
 
 // FIXME: Is that function used?
 // FIXME: This relies on the concrete writer type used having equality operator
 func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.mu.Lock()
+	w.Lock()
 	delete(w.writers, writer)
-	w.mu.Unlock()
+	w.Unlock()
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	for writer := range w.writers {
 		if n, err := writer.Write(p); err != nil || n != len(p) {
 			// On error, evict the writer
@@ -278,8 +278,8 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 }
 
 func (w *WriteBroadcaster) CloseWriters() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	for writer := range w.writers {
 		writer.Close()
 	}
