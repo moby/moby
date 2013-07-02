@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.8 (2013-07-01)
+ + Builder: New build operation ENTRYPOINT adds an executable entry point to the container.
+ - Runtime: Fix a bug which caused 'docker run -d' to no longer print the container ID.
+ - Tests: Fix issues in the test suite
+
 ## 0.4.7 (2013-06-28)
  * Registry: easier push/pull to a custom registry
  * Remote API: the progress bar updates faster when downloading and uploading large files
