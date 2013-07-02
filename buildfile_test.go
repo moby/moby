@@ -1,10 +1,10 @@
 package docker
 
 import (
+	"fmt"
 	"io/ioutil"
 	"sync"
 	"testing"
-	"fmt"
 )
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
@@ -104,8 +104,8 @@ func TestBuild(t *testing.T) {
 		defer nuke(runtime)
 
 		srv := &Server{
-			runtime: runtime,
-			lock: &sync.Mutex{},
+			runtime:     runtime,
+			lock:        &sync.Mutex{},
 			pullingPool: make(map[string]struct{}),
 			pushingPool: make(map[string]struct{}),
 		}
