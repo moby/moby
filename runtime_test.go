@@ -18,7 +18,7 @@ import (
 
 const (
 	unitTestImageName = "docker-unit-tests"
-	unitTestImageId   = "e9aa60c60128cad1"
+	unitTestImageID   = "e9aa60c60128cad1"
 	unitTestStoreBase = "/var/lib/docker/unit-tests"
 	testDaemonAddr    = "127.0.0.1:4270"
 	testDaemonProto   = "tcp"
@@ -49,7 +49,7 @@ func cleanup(runtime *Runtime) error {
 		return err
 	}
 	for _, image := range images {
-		if image.ID != unitTestImageId {
+		if image.ID != unitTestImageID {
 			runtime.graph.Delete(image.ID)
 		}
 	}
@@ -135,11 +135,11 @@ func GetTestImage(runtime *Runtime) *Image {
 		panic(err)
 	}
 	for i := range imgs {
-		if imgs[i].ID == unitTestImageId {
+		if imgs[i].ID == unitTestImageID {
 			return imgs[i]
 		}
 	}
-	panic(fmt.Errorf("Test image %v not found", unitTestImageId))
+	panic(fmt.Errorf("Test image %v not found", unitTestImageID))
 }
 
 func TestRuntimeCreate(t *testing.T) {

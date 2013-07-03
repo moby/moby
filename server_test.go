@@ -31,7 +31,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages)+2 {
-		t.Errorf("Excepted %d images, %d found", len(initialImages)+2, len(images))
+		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
 	}
 
 	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
@@ -44,7 +44,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages)+1 {
-		t.Errorf("Excepted %d images, %d found", len(initialImages)+1, len(images))
+		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
 	if _, err := srv.ImageDelete("utest:tag1", true); err != nil {
@@ -57,7 +57,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -251,7 +250,7 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		}
 		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(errors.New(err.Error() + ": " + string(errText)))
+			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errText))
 		} else {
 			pipeW.Close()
 		}
