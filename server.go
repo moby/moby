@@ -624,7 +624,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name, reg
 		// For each image within the repo, push them
 		for _, elem := range imgList {
 			if _, exists := repoData.ImgList[elem.ID]; exists {
-				out.Write(sf.FormatStatus("Image %s already on registry, skipping", name))
+				out.Write(sf.FormatStatus("Image %s already on registry, skipping", elem.ID))
 				continue
 			} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
 				fmt.Fprintf(out, "Image %s already on registry, skipping\n", name)
