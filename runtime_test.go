@@ -89,7 +89,6 @@ func init() {
 	srv := &Server{
 		runtime:     runtime,
 		enableCors:  false,
-		lock:        &sync.Mutex{},
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
