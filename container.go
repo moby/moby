@@ -466,8 +466,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start(hostConfig *HostConfig) error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
@@ -821,8 +821,8 @@ func (container *Container) kill() error {
 }
 
 func (container *Container) Kill() error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}
@@ -830,8 +830,8 @@ func (container *Container) Kill() error {
 }
 
 func (container *Container) Stop(seconds int) error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}

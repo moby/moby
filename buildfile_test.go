@@ -3,7 +3,6 @@ package docker
 import (
 	"fmt"
 	"io/ioutil"
-	"sync"
 	"testing"
 )
 
@@ -105,7 +104,6 @@ func TestBuild(t *testing.T) {
 
 		srv := &Server{
 			runtime:     runtime,
-			lock:        &sync.Mutex{},
 			pullingPool: make(map[string]struct{}),
 			pushingPool: make(map[string]struct{}),
 		}
