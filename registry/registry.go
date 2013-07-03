@@ -67,7 +67,7 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 func (r *Registry) LookupRemoteImage(imgId, registry string, token []string) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
-	req, err := http.NewRequest("GET", registry+"/images/"+imgId+"/json", nil)
+	req, err := http.NewRequest("GET", registry+"/v1/images/"+imgId+"/json", nil)
 	if err != nil {
 		return false
 	}
