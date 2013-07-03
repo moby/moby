@@ -494,7 +494,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
 	// Define illegal container destinations
-	illegal_dsts := []string{"/", "."}
+	illegalDsts := []string{"/", "."}
 
 	for _, bind := range hostConfig.Binds {
 		// FIXME: factorize bind parsing in parseBind
@@ -513,7 +513,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 
 		// Bail if trying to mount to an illegal destination
-		for _, illegal := range illegal_dsts {
+		for _, illegal := range illegalDsts {
 			if dst == illegal {
 				return fmt.Errorf("Illegal bind destination: %s", dst)
 			}

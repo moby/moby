@@ -170,10 +170,9 @@ func SelfPath() string {
 	return path
 }
 
-type NopWriter struct {
-}
+type NopWriter struct{}
 
-func (w *NopWriter) Write(buf []byte) (int, error) {
+func (*NopWriter) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
