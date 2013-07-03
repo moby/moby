@@ -687,3 +687,25 @@ func ParseHost(host string, port int, addr string) string {
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, port)
 }
+
+func GetReleaseVersion() string {
+	type githubTag struct {
+		Name string `json:"name"`
+	}
+
+	resp, err := http.Get("https://api.github.com/repos/dotcloud/docker/tags")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	var tags []githubTag
+	err = json.Unmarshal(body, &tags)
+	if err != nil || len(tags) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(tags[0].Name, "v")
+}
