@@ -94,6 +94,46 @@ func TestCreateRm(t *testing.T) {
 
 }
 
+func TestCommit(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err == nil {
+		t.Errorf("Expected \"The container must be run at least once before commit\" error, found none")
+	} else if err.Error() != "The container must be run at least once before commit" {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerStart(id, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerStop(id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
