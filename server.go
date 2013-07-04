@@ -684,7 +684,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	if err != nil {
 		if os.IsNotExist(err) {
 			// If the archive does not exist, create one from the layer
-			layerData, err = srv.runtime.graph.TempLayerArchive(imgID, Xz, out)
+			layerData, err = srv.runtime.graph.TempLayerArchive(imgID, Xz, sf, out)
 			if err != nil {
 				return fmt.Errorf("Failed to generate layer archive: %s", err)
 			}
