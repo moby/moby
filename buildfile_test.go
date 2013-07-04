@@ -90,6 +90,15 @@ CMD Hello world
 `,
 		nil,
 	},
+
+	{
+		`
+from docker-ut
+VOLUME /test
+CMD Hello world
+`,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
