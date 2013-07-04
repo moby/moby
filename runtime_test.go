@@ -73,7 +73,7 @@ func init() {
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {
-		log.Fatal("docker tests needs to be run as root")
+		log.Fatal("docker tests need to be run as root")
 	}
 
 	NetworkBridgeIface = "testdockbr0"
