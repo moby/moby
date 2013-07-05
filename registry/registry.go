@@ -65,7 +65,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	if len(nameParts) < 2 {
 		// There is a dot in repos name (and no registry address)
 		// Is it a Registry address without repos name?
-		return "", "", errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+		return "", "", fmt.Errorf("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
