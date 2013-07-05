@@ -87,8 +87,8 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
-func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]string, error) {
-	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/ancestry", nil)
+func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]string, error) {
+	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/ancestry", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
-	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/json", nil)
+	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return false
 	}
@@ -134,7 +134,7 @@ func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) boo
 // Retrieve an image from the Registry.
 func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([]byte, int, error) {
 	// Get the JSON
-	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/json", nil)
+	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
@@ -160,8 +160,8 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	return jsonString, imageSize, nil
 }
 
-func (r *Registry) GetRemoteImageLayer(imgId, registry string, token []string) (io.ReadCloser, error) {
-	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/layer", nil)
+func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (io.ReadCloser, error) {
+	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/layer", nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
@@ -313,8 +313,8 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	return nil
 }
 
-func (r *Registry) PushImageLayerRegistry(imgId string, layer io.Reader, registry string, token []string) error {
-	req, err := http.NewRequest("PUT", registry+"images/"+imgId+"/layer", layer)
+func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string) error {
+	req, err := http.NewRequest("PUT", registry+"images/"+imgID+"/layer", layer)
 	if err != nil {
 		return err
 	}
