@@ -20,8 +20,7 @@ import (
 var ErrAlreadyExists = errors.New("Image already exists")
 
 func pingRegistryEndpoint(endpoint string) error {
-	// FIXME: implement the check to discover if it should be http or https
-	resp, err := http.Get(endpoint)
+	resp, err := http.Get(endpoint + "/_ping")
 	if err != nil {
 		return err
 	}
@@ -31,7 +30,19 @@ func pingRegistryEndpoint(endpoint string) error {
 	return nil
 }
 
-func validateRepositoryName(namespace, name string) error {
+func validateRepositoryName(repositoryName string) error {
+	var (
+		namespace string
+		name      string
+	)
+	nameParts := strings.SplitN(repositoryName, "/", 2)
+	if len(nameParts) < 2 {
+		namespace = "library"
+		name = nameParts[0]
+	} else {
+		namespace = nameParts[0]
+		name = nameParts[1]
+	}
 	validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
 	if !validNamespace.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
@@ -48,12 +59,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	nameParts := strings.SplitN(reposName, "/", 2)
 	if !strings.Contains(nameParts[0], ".") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		var err error
-		if len(nameParts) < 2 {
-			err = validateRepositoryName("library", nameParts[0])
-		} else {
-			err = validateRepositoryName(nameParts[0], nameParts[1])
-		}
+		err := validateRepositoryName(reposName)
 		return "https://index.docker.io/v1/", reposName, err
 	}
 	if len(nameParts) < 2 {
@@ -61,20 +67,18 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		// Is it a Registry address without repos name?
 		return "", "", errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	}
-	n := strings.LastIndex(reposName, "/")
 	hostname := nameParts[0]
-	path := reposName[len(nameParts[0]):n]
-	reposName = reposName[n+1:]
-	endpoint := fmt.Sprintf("https://%s%s/v1/", hostname, path)
+	reposName = nameParts[1]
+	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
 	if err := pingRegistryEndpoint(endpoint); err != nil {
 		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
-		endpoint = fmt.Sprintf("http://%s%s/v1/", hostname, path)
+		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
 		if err = pingRegistryEndpoint(endpoint); err != nil {
 			//TODO: triggering highland build can be done there without "failing"
 			return "", "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
 	}
-	err := validateRepositoryName("library", reposName)
+	err := validateRepositoryName(reposName)
 	return endpoint, reposName, err
 }
 
