@@ -20,7 +20,7 @@ import (
 var ErrAlreadyExists = errors.New("Image already exists")
 
 func pingRegistryEndpoint(endpoint string) error {
-	resp, err := http.Get(endpoint + "/_ping")
+	resp, err := http.Get(endpoint + "_ping")
 	if err != nil {
 		return err
 	}
