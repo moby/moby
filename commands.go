@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -721,7 +720,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
-	registry := cmd.String("registry", "", "Registry host to push the image to")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -732,28 +730,16 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	if err := cli.checkIfLogged(*registry == "", "push"); err != nil {
+	if err := cli.checkIfLogged("push"); err != nil {
 		return err
 	}
 
-	if *registry == "" {
-		// If we're not using a custom registry, we know the restrictions
-		// applied to repository names and can warn the user in advance.
-		// Custom repositories can have different rules, and we must also
-		// allow pushing by image ID.
-		if len(strings.SplitN(name, "/", 2)) == 1 {
-			return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
-		}
-
-		nameParts := strings.SplitN(name, "/", 2)
-		validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
-		if !validNamespace.MatchString(nameParts[0]) {
-			return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", nameParts[0])
-		}
-		validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
-		if !validRepo.MatchString(nameParts[1]) {
-			return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", nameParts[1])
-		}
+	// If we're not using a custom registry, we know the restrictions
+	// applied to repository names and can warn the user in advance.
+	// Custom repositories can have different rules, and we must also
+	// allow pushing by image ID.
+	if len(strings.SplitN(name, "/", 2)) == 1 {
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
 	}
 
 	buf, err := json.Marshal(cli.authConfig)
@@ -762,7 +748,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("registry", *registry)
 	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out); err != nil {
 		return err
 	}
@@ -772,7 +757,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
-	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -792,7 +776,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	v := url.Values{}
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
-	v.Set("registry", *registry)
 
 	if err := cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out); err != nil {
 		return err
@@ -1329,9 +1312,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) checkIfLogged(condition bool, action string) error {
+func (cli *DockerCli) checkIfLogged(action string) error {
 	// If condition AND the login failed
-	if condition && cli.authConfig.Username == "" {
+	if cli.authConfig.Username == "" {
 		if err := cli.CmdLogin(""); err != nil {
 			return err
 		}
