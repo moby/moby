@@ -30,6 +30,16 @@ Deployment
   export AWS_KEYPAIR_NAME=xxxxxxxxxxxx
   export AWS_SSH_PRIVKEY=xxxxxxxxxxxx
 
+  # Define email recipient and IRC channel
+  export EMAIL_RCP=xxxxxx@domain.com
+  export IRC_CHANNEL=docker
+
+  # Define buildbot credentials
+  export BUILDBOT_PWD=xxxxxxxxxxxx
+  export IRC_PWD=xxxxxxxxxxxx
+  export SMTP_USER=xxxxxxxxxxxx
+  export SMTP_PWD=xxxxxxxxxxxx
+
   # Checkout docker
   git clone git://github.com/dotcloud/docker.git
 
