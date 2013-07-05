@@ -29,7 +29,7 @@ func (srv *Server) DockerVersion() APIVersion {
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -809,7 +809,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 func (srv *Server) ContainerRestart(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(t); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -828,7 +828,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
-			return fmt.Errorf("Error destroying container %s: %s", name, err.Error())
+			return fmt.Errorf("Error destroying container %s: %s", name, err)
 		}
 
 		if removeVolume {
@@ -948,7 +948,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	}
 	if !autoPrune {
 		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+			return nil, fmt.Errorf("Error deleting image %s: %s", name, err)
 		}
 		return nil, nil
 	}
@@ -996,7 +996,7 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Start(hostConfig); err != nil {
-			return fmt.Errorf("Error starting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -1007,7 +1007,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStop(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(t); err != nil {
-			return fmt.Errorf("Error stopping container %s: %s", name, err.Error())
+			return fmt.Errorf("Error stopping container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
