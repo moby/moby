@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"code.google.com/p/go.net/websocket"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -693,6 +694,52 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
+func wsContainersAttach(srv *Server, ws *websocket.Conn, vars map[string]string) error {
+
+	r := ws.Request()
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	logs, err := getBoolParam(r.Form.Get("logs"))
+	if err != nil {
+		return err
+	}
+	stream, err := getBoolParam(r.Form.Get("stream"))
+	if err != nil {
+		return err
+	}
+	stdin, err := getBoolParam(r.Form.Get("stdin"))
+	if err != nil {
+		return err
+	}
+	stdout, err := getBoolParam(r.Form.Get("stdout"))
+	if err != nil {
+		return err
+	}
+	stderr, err := getBoolParam(r.Form.Get("stderr"))
+	if err != nil {
+		return err
+	}
+
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	if _, err := srv.ContainerInspect(name); err != nil {
+		return err
+	}
+
+	defer ws.Close()
+
+	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -898,12 +945,14 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 				if srv.enableCors {
 					writeCorsHeaders(w, r)
 				}
+
 				if version == 0 || version > APIVERSION {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
 
 				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
+					utils.Debugf("Error: %s", err)
 					httpError(w, err)
 				}
 			}
@@ -914,8 +963,26 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 				r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
 				r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
 			}
+
 		}
 	}
+	attachHandler := websocket.Handler(func(ws *websocket.Conn) {
+		r := ws.Request()
+		utils.Debugf("Calling %s %s", r.Method, r.RequestURI)
+
+		if logging {
+			log.Println(r.Method, r.RequestURI)
+		}
+		if err := wsContainersAttach(srv, ws, mux.Vars(r)); err != nil {
+			utils.Debugf("Error: %s", err)
+			ws.Close()
+		}
+	})
+
+	attachRoute := "/containers/{name:.*}/attach/ws"
+	r.Path("/v{version:[0-9.]+}" + attachRoute).Methods("GET").Handler(attachHandler)
+	r.Path(attachRoute).Methods("GET").Handler(attachHandler)
+
 	return r, nil
 }
 
