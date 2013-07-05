@@ -93,7 +93,7 @@ func init() {
 		pushingPool: make(map[string]struct{}),
 	}
 	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+	if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 		panic(err)
 	}
 	// Spawn a Daemon
