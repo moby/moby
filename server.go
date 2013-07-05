@@ -681,13 +681,9 @@ func (srv *Server) ImagePush(name string, out io.Writer, sf *utils.StreamFormatt
 	defer srv.poolRemove("push", name)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	var (
-		endpoint string
-		e        error
-	)
-	endpoint, name, e = registry.ResolveRepositoryName(name)
-	if e != nil {
-		return e
+	endpoint, name, err := registry.ResolveRepositoryName(name)
+	if err != nil {
+		return err
 	}
 
 	out = utils.NewWriteFlusher(out)
