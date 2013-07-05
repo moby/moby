@@ -29,7 +29,7 @@ func (srv *Server) DockerVersion() APIVersion {
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -315,8 +315,8 @@ func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	return nil
 }
 
-func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgId, endpoint string, token []string, sf *utils.StreamFormatter) error {
-	history, err := r.GetRemoteHistory(imgId, endpoint, token)
+func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
+	history, err := r.GetRemoteHistory(imgID, endpoint, token)
 	if err != nil {
 		return err
 	}
@@ -435,8 +435,8 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, ask
 }
 
 func (srv *Server) poolAdd(kind, key string) error {
-	srv.lock.Lock()
-	defer srv.lock.Unlock()
+	srv.Lock()
+	defer srv.Unlock()
 
 	if _, exists := srv.pullingPool[key]; exists {
 		return fmt.Errorf("%s %s is already in progress", key, kind)
@@ -504,20 +504,20 @@ func (srv *Server) ImagePull(name string, tag string, out io.Writer, sf *utils.S
 // - Check if the archive exists, if it does not, ask the registry
 // - If the archive does exists, process the checksum from it
 // - If the archive does not exists and not found on registry, process checksum from layer
-func (srv *Server) getChecksum(imageId string) (string, error) {
+func (srv *Server) getChecksum(imageID string) (string, error) {
 	// FIXME: Use in-memory map instead of reading the file each time
 	if sums, err := srv.runtime.graph.getStoredChecksums(); err != nil {
 		return "", err
-	} else if checksum, exists := sums[imageId]; exists {
+	} else if checksum, exists := sums[imageID]; exists {
 		return checksum, nil
 	}
 
-	img, err := srv.runtime.graph.Get(imageId)
+	img, err := srv.runtime.graph.Get(imageID)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := os.Stat(layerArchivePath(srv.runtime.graph.imageRoot(imageId))); err != nil {
+	if _, err := os.Stat(layerArchivePath(srv.runtime.graph.imageRoot(imageID))); err != nil {
 		if os.IsNotExist(err) {
 			// TODO: Ask the registry for the checksum
 			//       As the archive is not there, it is supposed to come from a pull.
@@ -591,6 +591,9 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 			if _, exists := repoData.ImgList[elem.ID]; exists {
 				out.Write(sf.FormatStatus("Image %s already on registry, skipping", name))
 				continue
+			} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
+				fmt.Fprintf(out, "Image %s already on registry, skipping\n", name)
+				continue
 			}
 			if err := srv.pushImage(r, out, name, elem.ID, ep, repoData.Tokens, sf); err != nil {
 				// FIXME: Continue on error?
@@ -610,21 +613,21 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 	return nil
 }
 
-func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId, ep string, token []string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
-	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgId, "json"))
+	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgID, "json"))
 	if err != nil {
-		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgId, err)
+		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgID, err)
 	}
-	out.Write(sf.FormatStatus("Pushing %s", imgId))
+	out.Write(sf.FormatStatus("Pushing %s", imgID))
 
 	// Make sure we have the image's checksum
-	checksum, err := srv.getChecksum(imgId)
+	checksum, err := srv.getChecksum(imgID)
 	if err != nil {
 		return err
 	}
 	imgData := &registry.ImgData{
-		ID:       imgId,
+		ID:       imgID,
 		Checksum: checksum,
 	}
 
@@ -640,11 +643,11 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgId,
 	// Retrieve the tarball to be sent
 	var layerData *TempArchive
 	// If the archive exists, use it
-	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgId)))
+	file, err := os.Open(layerArchivePath(srv.runtime.graph.imageRoot(imgID)))
 	if err != nil {
 		if os.IsNotExist(err) {
 			// If the archive does not exist, create one from the layer
-			layerData, err = srv.runtime.graph.TempLayerArchive(imgId, Xz, out)
+			layerData, err = srv.runtime.graph.TempLayerArchive(imgID, Xz, out)
 			if err != nil {
 				return fmt.Errorf("Failed to generate layer archive: %s", err)
 			}
@@ -780,7 +783,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 func (srv *Server) ContainerRestart(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(t); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -799,7 +802,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
-			return fmt.Errorf("Error destroying container %s: %s", name, err.Error())
+			return fmt.Errorf("Error destroying container %s: %s", name, err)
 		}
 
 		if removeVolume {
@@ -919,7 +922,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	}
 	if !autoPrune {
 		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Error deleting image %s: %s", name, err.Error())
+			return nil, fmt.Errorf("Error deleting image %s: %s", name, err)
 		}
 		return nil, nil
 	}
@@ -934,7 +937,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	return srv.deleteImage(img, name, tag)
 }
 
-func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) {
+func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
 
 	// Retrieve all images
 	images, err := srv.runtime.graph.All()
@@ -952,7 +955,7 @@ func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) 
 	}
 
 	// Loop on the children of the given image and check the config
-	for elem := range imageMap[imgId] {
+	for elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
 			return nil, err
@@ -967,7 +970,7 @@ func (srv *Server) ImageGetCached(imgId string, config *Config) (*Image, error) 
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Start(hostConfig); err != nil {
-			return fmt.Errorf("Error starting container %s: %s", name, err.Error())
+			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -978,7 +981,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStop(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(t); err != nil {
-			return fmt.Errorf("Error stopping container %s: %s", name, err.Error())
+			return fmt.Errorf("Error stopping container %s: %s", name, err)
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
@@ -1090,7 +1093,6 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 	srv := &Server{
 		runtime:     runtime,
 		enableCors:  enableCors,
-		lock:        &sync.Mutex{},
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -1099,9 +1101,9 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 }
 
 type Server struct {
+	sync.Mutex
 	runtime     *Runtime
 	enableCors  bool
-	lock        *sync.Mutex
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}
 }

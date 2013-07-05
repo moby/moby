@@ -1548,7 +1548,7 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
 	var (
-		isTerminal bool = false
+		isTerminal = false
 		terminalFd uintptr
 	)
 

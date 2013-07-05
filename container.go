@@ -466,8 +466,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start(hostConfig *HostConfig) error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
@@ -494,7 +494,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
 	// Define illegal container destinations
-	illegal_dsts := []string{"/", "."}
+	illegalDsts := []string{"/", "."}
 
 	for _, bind := range hostConfig.Binds {
 		// FIXME: factorize bind parsing in parseBind
@@ -513,7 +513,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 
 		// Bail if trying to mount to an illegal destination
-		for _, illegal := range illegal_dsts {
+		for _, illegal := range illegalDsts {
 			if dst == illegal {
 				return fmt.Errorf("Illegal bind destination: %s", dst)
 			}
@@ -821,8 +821,8 @@ func (container *Container) kill() error {
 }
 
 func (container *Container) Kill() error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}
@@ -830,8 +830,8 @@ func (container *Container) Kill() error {
 }
 
 func (container *Container) Stop(seconds int) error {
-	container.State.lock()
-	defer container.State.unlock()
+	container.State.Lock()
+	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}

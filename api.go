@@ -170,7 +170,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Debugf("%s", err)
 		return err
 	}
 	return nil
@@ -306,7 +306,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Debugf("%s", err)
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")

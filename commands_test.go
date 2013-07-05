@@ -142,7 +142,7 @@ func TestRunHostname(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdRun("-h", "foobar", unitTestImageId, "hostname"); err != nil {
+		if err := cli.CmdRun("-h", "foobar", unitTestImageID, "hostname"); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -335,7 +335,7 @@ func TestRunAttachStdin(t *testing.T) {
 	ch := make(chan struct{})
 	go func() {
 		defer close(ch)
-		cli.CmdRun("-i", "-a", "stdin", unitTestImageId, "sh", "-c", "echo hello && cat")
+		cli.CmdRun("-i", "-a", "stdin", unitTestImageID, "sh", "-c", "echo hello && cat")
 	}()
 
 	// Send input to the command, close stdin

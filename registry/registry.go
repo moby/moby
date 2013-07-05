@@ -96,7 +96,7 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 	res, err := r.client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
-			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgId)
+			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID)
 		}
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (r *Registry) GetRemoteHistory(imgId, registry string, token []string) ([]s
 }
 
 // Check if an image exists in the Registry
-func (r *Registry) LookupRemoteImage(imgId, registry string, token []string) bool {
+func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
 	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/json", nil)
@@ -132,7 +132,7 @@ func (r *Registry) LookupRemoteImage(imgId, registry string, token []string) boo
 }
 
 // Retrieve an image from the Registry.
-func (r *Registry) GetRemoteImageJSON(imgId, registry string, token []string) ([]byte, int, error) {
+func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([]byte, int, error) {
 	// Get the JSON
 	req, err := http.NewRequest("GET", registry+"images/"+imgId+"/json", nil)
 	if err != nil {

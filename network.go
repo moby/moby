@@ -301,9 +301,9 @@ func newPortMapper() (*PortMapper, error) {
 
 // Port allocator: Atomatically allocate and release networking ports
 type PortAllocator struct {
+	sync.Mutex
 	inUse    map[int]struct{}
 	fountain chan (int)
-	lock     sync.Mutex
 }
 
 func (alloc *PortAllocator) runFountain() {
@@ -317,9 +317,9 @@ func (alloc *PortAllocator) runFountain() {
 // FIXME: Release can no longer fail, change its prototype to reflect that.
 func (alloc *PortAllocator) Release(port int) error {
 	utils.Debugf("Releasing %d", port)
-	alloc.lock.Lock()
+	alloc.Lock()
 	delete(alloc.inUse, port)
-	alloc.lock.Unlock()
+	alloc.Unlock()
 	return nil
 }
 
@@ -334,8 +334,8 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 		}
 		return -1, fmt.Errorf("Port generator ended unexpectedly")
 	}
-	alloc.lock.Lock()
-	defer alloc.lock.Unlock()
+	alloc.Lock()
+	defer alloc.Unlock()
 	if _, inUse := alloc.inUse[port]; inUse {
 		return -1, fmt.Errorf("Port already in use: %d", port)
 	}
