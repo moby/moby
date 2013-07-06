@@ -889,7 +889,7 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 
 func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
 	//Untag the current image
-	var imgs []APIRmi
+	imgs := []APIRmi{}
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 	if err != nil {
 		return nil, err
