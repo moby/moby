@@ -313,7 +313,7 @@ func TestRunDisconnectTty(t *testing.T) {
 	// In tty mode, we expect the process to stay alive even after client's stdin closes.
 	// Do not wait for run to finish
 
-	// Give some time to monitor to do his thing
+	// Give some time to monitor to do their thing
 	container.WaitTimeout(500 * time.Millisecond)
 	if !container.State.Running {
 		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
@@ -439,13 +439,13 @@ func TestAttachDisconnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished their job
 	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
 		<-c1
 	})
 
 	// We closed stdin, expect /bin/cat to still be running
-	// Wait a little bit to make sure container.monitor() did his thing
+	// Wait a little bit to make sure container.monitor() did their thing
 	err = container.WaitTimeout(500 * time.Millisecond)
 	if err == nil || !container.State.Running {
 		t.Fatalf("/bin/cat is not running after closing stdin")

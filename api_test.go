@@ -651,7 +651,7 @@ func TestPostImagesCreate(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 
-	// // Wait for imagesCreate to finish, the client disconnected, therefore, Create finished his job
+	// // Wait for imagesCreate to finish, the client disconnected, therefore, Create finished their job
 	// setTimeout(t, "Waiting for imagesCreate timed out", 10*time.Second, func() {
 	// 	<-c1
 	// })
@@ -710,7 +710,7 @@ func TestPostImagesInsert(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 
-	// // Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	// // Wait for attach to finish, the client disconnected, therefore, Attach finished their job
 	// setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
 	// 	<-c1
 	// })
@@ -792,7 +792,7 @@ func TestPostImagesPush(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 
-	// // Wait for imagesPush to finish, the client disconnected, therefore, Push finished his job
+	// // Wait for imagesPush to finish, the client disconnected, therefore, Push finished their job
 	// setTimeout(t, "Waiting for imagesPush timed out", 10*time.Second, func() {
 	// 	<-c1
 	// })
@@ -1201,13 +1201,13 @@ func TestPostContainersAttach(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished their job
 	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
 		<-c1
 	})
 
 	// We closed stdin, expect /bin/cat to still be running
-	// Wait a little bit to make sure container.monitor() did his thing
+	// Wait a little bit to make sure container.monitor() did their thing
 	err = container.WaitTimeout(500 * time.Millisecond)
 	if err == nil || !container.State.Running {
 		t.Fatalf("/bin/cat is not running after closing stdin")
