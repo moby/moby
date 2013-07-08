@@ -1516,6 +1516,9 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
 		utils.Debugf("Error getting size: %s", err)
+		if ws == nil {
+			return 0, 0
+		}
 	}
 	return int(ws.Height), int(ws.Width)
 }
