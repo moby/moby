@@ -152,6 +152,14 @@ destination container.
 
 The copy obeys the following rules:
 
+* If ``<src>`` is a URL and ``<dest>`` does not end with a trailing slash,
+  then a file is downloaded from the URL and copied to ``<dest>``.
+* If ``<src>`` is a URL and ``<dest>`` does end with a trailing slash,
+  then the filename is inferred from the URL and the file is downloaded to
+  ``<dest>/<filename>``. For instance, ``ADD http://example.com/foobar /``
+  would create the file ``/foobar``. The URL must have a nontrivial path
+  so that an appropriate filename can be discovered in this case
+  (``http://example.com`` will not work).
 * If ``<src>`` is a directory, the entire directory is copied,
   including filesystem metadata.
 * If ``<src>``` is a tar archive in a recognized compression format
