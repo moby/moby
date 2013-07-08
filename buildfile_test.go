@@ -123,3 +123,40 @@ func TestBuild(t *testing.T) {
 		}
 	}
 }
+
+func TestVolume(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		lock:        &sync.Mutex{},
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	buildfile := NewBuildFile(srv, ioutil.Discard)
+	imgId, err := buildfile.Build(mkTestContext(`
+from docker-ut
+VOLUME /test
+CMD Hello world
+`, nil, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := srv.ImageInspect(imgId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(img.Config.Volumes) == 0 {
+		t.Fail()
+	}
+	for key, _ := range img.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+}
