@@ -108,7 +108,7 @@ func (b *buildFile) CmdRun(args string) error {
 	} else {
 		utils.Debugf("[BUILDER] Cache miss")
 	}
-
+	
 	cid, err := b.run()
 	if err != nil {
 		return err
@@ -278,6 +278,13 @@ func (b *buildFile) run() (string, error) {
 	}
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
+
+	// override the entry point that may have been picked up from the base image
+	c.Path = b.config.Cmd[0]
+	c.Args = b.config.Cmd[1:]	
+	if err := c.ToDisk(); err != nil {
+		return "", err
+	}
 
 	//start the container
 	hostConfig := &HostConfig{}
