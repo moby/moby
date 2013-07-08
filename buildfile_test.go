@@ -84,7 +84,7 @@ run    [ "$FOO" = "BAR" ]
 
 	{
 		`
-from docker-ut
+from %s
 ENTRYPOINT /bin/echo
 CMD Hello world
 `,
