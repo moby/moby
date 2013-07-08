@@ -108,7 +108,7 @@ func (b *buildFile) CmdRun(args string) error {
 	} else {
 		utils.Debugf("[BUILDER] Cache miss")
 	}
-	
+
 	cid, err := b.run()
 	if err != nil {
 		return err
