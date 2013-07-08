@@ -282,6 +282,10 @@ func (b *buildFile) run() (string, error) {
 	b.lastContainer = c
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
+	// override the entry point that may have been picked up from the base image
+	c.Path = b.config.Cmd[0]
+	c.Args = b.config.Cmd[1:]
+
 	//start the container
 	hostConfig := &HostConfig{}
 	if err := c.Start(hostConfig); err != nil {
