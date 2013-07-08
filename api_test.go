@@ -1359,21 +1359,31 @@ func TestDeleteImages(t *testing.T) {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
-	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r := httptest.NewRecorder()
-	if err := deleteImages(srv, APIVERSION, r, req, map[string]string{"name": "test:test"}); err != nil {
+	if err := deleteImages(srv, APIVERSION, r, req, map[string]string{"name": unitTestImageID}); err == nil {
+		t.Fatalf("Expected conflict error, got none")
+	}
+
+	req2, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusOK {
+
+	r2 := httptest.NewRecorder()
+	if err := deleteImages(srv, APIVERSION, r2, req2, map[string]string{"name": "test:test"}); err != nil {
+		t.Fatal(err)
+	}
+	if r2.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
 	var outs []APIRmi
-	if err := json.Unmarshal(r.Body.Bytes(), &outs); err != nil {
+	if err := json.Unmarshal(r2.Body.Bytes(), &outs); err != nil {
 		t.Fatal(err)
 	}
 	if len(outs) != 1 {
