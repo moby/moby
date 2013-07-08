@@ -86,6 +86,22 @@ run [ "$(cat /somewheeeere/over/the/rainbooow/ga)" = "bu" ]
 
 	{
 		`
+from {IMAGE}
+add http://{SERVERADDR}/x /a/b/c
+run [ "$(cat /a/b/c)" = "hello" ]
+add http://{SERVERADDR}/x?foo=bar /
+run [ "$(cat /x)" = "hello" ]
+add http://{SERVERADDR}/x /d/
+run [ "$(cat /d/x)" = "hello" ]
+add http://{SERVERADDR} /e
+run [ "$(cat /e)" = "blah" ]
+`,
+		nil,
+		[][2]string{{"/x", "hello"}, {"/", "blah"}},
+	},
+
+	{
+		`
 from   {IMAGE}
 env    FOO BAR
 run    [ "$FOO" = "BAR" ]

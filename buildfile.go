@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -201,6 +202,24 @@ func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	}
 	defer file.Body.Close()
 
+	// If the destination is a directory, figure out the filename.
+	if strings.HasSuffix(dest, "/") {
+		u, err := url.Parse(orig)
+		if err != nil {
+			return err
+		}
+		path := u.Path
+		if strings.HasSuffix(path, "/") {
+			path = path[:len(path)-1]
+		}
+		parts := strings.Split(path, "/")
+		filename := parts[len(parts)-1]
+		if filename == "" {
+			return fmt.Errorf("cannot determine filename from url: %s", u)
+		}
+		dest = dest + filename
+	}
+
 	return container.Inject(file.Body, dest)
 }
 
@@ -208,7 +227,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
 	// Preserve the trailing '/'
-	if dest[len(dest)-1] == '/' {
+	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
 	}
 	fi, err := os.Stat(origPath)
