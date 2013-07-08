@@ -30,7 +30,7 @@ build succeeds:
 
     ``docker build -t shykes/myapp .``
 
-Docker will run your steps one-by-one, committing the result if necessary, 
+Docker will run your steps one-by-one, committing the result if necessary,
 before finally outputting the ID of your new image.
 
 2. Format
@@ -43,7 +43,7 @@ The Dockerfile format is quite simple:
     # Comment
     INSTRUCTION arguments
 
-The Instruction is not case-sensitive, however convention is for them to be 
+The Instruction is not case-sensitive, however convention is for them to be
 UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker evaluates the instructions in a Dockerfile in order. **The first
@@ -106,7 +106,7 @@ The ``CMD`` instruction sets the command to be executed when running
 the image.  This is functionally equivalent to running ``docker commit
 -run '{"Cmd": <command>}'`` outside the builder.
 
-.. note:: 
+.. note::
     Don't confuse `RUN` with `CMD`. `RUN` actually runs a
     command and commits the result; `CMD` does not execute anything at
     build time, but specifies the intended command for the image.
@@ -131,7 +131,7 @@ value ``<value>``. This value will be passed to all future ``RUN``
 instructions. This is functionally equivalent to prefixing the command
 with ``<key>=<value>``
 
-.. note:: 
+.. note::
     The environment variables will persist when a container is run
     from the resulting image.
 
@@ -158,10 +158,10 @@ The copy obeys the following rules:
   (identity, gzip, bzip2 or xz), it is unpacked as a directory.
 
   When a directory is copied or unpacked, it has the same behavior as
-  ``tar -x``: the result is the union of 
+  ``tar -x``: the result is the union of
 
   1. whatever existed at the destination path and
-  2. the contents of the source tree, 
+  2. the contents of the source tree,
 
   with conflicts resolved in favor of 2) on a file-by-file basis.
 
@@ -203,14 +203,14 @@ container created from the image.
     # Nginx
     #
     # VERSION               0.0.1
-    
+
     FROM      ubuntu
     MAINTAINER Guillaume J. Charmes "guillaume@dotcloud.com"
-    
+
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     RUN apt-get update
-    
+
     RUN apt-get install -y inotify-tools nginx apache2 openssh-server
 
 .. code-block:: bash
@@ -218,12 +218,12 @@ container created from the image.
     # Firefox over VNC
     #
     # VERSION               0.3
-    
+
     FROM ubuntu
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     RUN apt-get update
-    
+
     # Install vnc, xvfb in order to create a 'fake' display and firefox
     RUN apt-get install -y x11vnc xvfb firefox
     RUN mkdir /.vnc
@@ -231,7 +231,7 @@ container created from the image.
     RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
     # Autostart firefox (might not be the best way, but it does the trick)
     RUN bash -c 'echo "firefox" >> /.bashrc'
-    
+
     EXPOSE 5900
     CMD    ["x11vnc", "-forever", "-usepw", "-create"]
 
