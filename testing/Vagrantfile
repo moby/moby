@@ -27,7 +27,9 @@ Vagrant::Config.run do |config|
     pkg_cmd << "apt-get install -q -y python-dev python-pip supervisor; " \
       "pip install -r #{CFG_PATH}/requirements.txt; " \
       "chown #{USER}.#{USER} /data; cd /data; " \
-      "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH}; "
+      "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH} #{ENV['BUILDBOT_PWD']} " \
+        "#{ENV['IRC_PWD']} #{ENV['IRC_CHANNEL']} #{ENV['SMTP_USER']} " \
+        "#{ENV['SMTP_PWD']} #{ENV['EMAIL_RCP']}; "
     # Install docker dependencies
     pkg_cmd << "apt-get install -q -y python-software-properties; " \
       "add-apt-repository -y ppa:dotcloud/docker-golang/ubuntu; apt-get update -qq; " \

@@ -108,9 +108,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	// init the wait lock
 	container.waitLock = make(chan struct{})
 
-	// Even if not running, we init the lock (prevents races in start/stop/kill)
-	container.State.initLock()
-
 	container.runtime = runtime
 
 	// Attach to stdout and stderr

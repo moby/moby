@@ -60,9 +60,6 @@ func cleanupEnv(env ListOpts) {
 		if len(parts) == 1 {
 			parts = append(parts, "")
 		}
-		if parts[0] == "container" {
-			continue
-		}
 		os.Setenv(parts[0], parts[1])
 	}
 }
