@@ -94,9 +94,12 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	}
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
+		start := time.Now()
+		utils.Debugf("Start untar layer")
 		if err := Untar(layerData, layer); err != nil {
 			return err
 		}
+		utils.Debugf("Untar time: %vs\n", time.Now().Sub(start).Seconds())
 	}
 
 	return StoreSize(img, root)
