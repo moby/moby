@@ -878,7 +878,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localMethod := method
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
-				utils.Debugf("Calling %s %s", localMethod, localRoute)
+				utils.Debugf("Calling %s %s from %s", localMethod, localRoute, r.RemoteAddr)
 
 				if logging {
 					log.Println(r.Method, r.RequestURI)
