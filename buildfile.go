@@ -281,10 +281,7 @@ func (b *buildFile) run() (string, error) {
 
 	// override the entry point that may have been picked up from the base image
 	c.Path = b.config.Cmd[0]
-	c.Args = b.config.Cmd[1:]	
-	if err := c.ToDisk(); err != nil {
-		return "", err
-	}
+	c.Args = b.config.Cmd[1:]
 
 	//start the container
 	hostConfig := &HostConfig{}
