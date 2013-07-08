@@ -12,8 +12,8 @@ type State struct {
 }
 
 type Winsize struct {
-	Width  uint16
 	Height uint16
+	Width  uint16
 	x      uint16
 	y      uint16
 }

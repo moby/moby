@@ -1101,6 +1101,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1122,13 +1123,19 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
+	_, width := cli.getTtySize()
+	if width == 0 {
+		width = 45
+	} else {
+		width = width - 33 //remote the first column
+	}
 	for _, out := range outs {
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if len(desc) > 45 {
-			desc = utils.Trunc(desc, 42) + "..."
+		if !*noTrunc && len(desc) > width {
+			desc = utils.Trunc(desc, width-3) + "..."
 		}
 		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
 	}
@@ -1502,17 +1509,28 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 }
 
-func (cli *DockerCli) resizeTty(id string) {
+func (cli *DockerCli) getTtySize() (int, int) {
 	if !cli.isTerminal {
-		return
+		return 0, 0
 	}
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
 		utils.Debugf("Error getting size: %s", err)
+		if ws == nil {
+			return 0, 0
+		}
+	}
+	return int(ws.Height), int(ws.Width)
+}
+
+func (cli *DockerCli) resizeTty(id string) {
+	height, width := cli.getTtySize()
+	if height == 0 && width == 0 {
+		return
 	}
 	v := url.Values{}
-	v.Set("h", strconv.Itoa(int(ws.Height)))
-	v.Set("w", strconv.Itoa(int(ws.Width)))
+	v.Set("h", strconv.Itoa(height))
+	v.Set("w", strconv.Itoa(width))
 	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
 		utils.Debugf("Error resize: %s", err)
 	}
