@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -38,44 +37,6 @@ func TestGetBoolParam(t *testing.T) {
 	}
 	if ret, err := getBoolParam("faux"); err == nil || ret {
 		t.Fatalf("faux -> false, err | got %t %s", ret, err)
-	}
-}
-
-func TestPostAuth(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime: runtime,
-	}
-
-	r := httptest.NewRecorder()
-
-	authConfig := &auth.AuthConfig{
-		Username: "utest",
-		Password: "utest",
-		Email:    "utest@yopmail.com",
-	}
-
-	authConfigJSON, err := json.Marshal(authConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest("POST", "/auth", bytes.NewReader(authConfigJSON))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := postAuth(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Code != http.StatusOK && r.Code != 0 {
-		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
 	}
 }
 
@@ -283,37 +244,6 @@ func TestGetImagesViz(t *testing.T) {
 	}
 	if line != "digraph docker {\n" {
 		t.Errorf("Expected digraph docker {\n, %s found", line)
-	}
-}
-
-func TestGetImagesSearch(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime: runtime,
-	}
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", "/images/search?term=redis", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := getImagesSearch(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	results := []APISearch{}
-	if err := json.Unmarshal(r.Body.Bytes(), &results); err != nil {
-		t.Fatal(err)
-	}
-	if len(results) < 2 {
-		t.Errorf("Expected at least 2 lines, %d found", len(results))
 	}
 }
 
