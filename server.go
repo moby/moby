@@ -485,6 +485,11 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		return err
 	}
 
+	if endpoint == auth.IndexServerAddress() {
+		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
+		localName = remoteName
+	}
+
 	out = utils.NewWriteFlusher(out)
 	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf)
 	if err != nil {

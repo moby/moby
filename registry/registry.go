@@ -18,8 +18,14 @@ import (
 )
 
 var ErrAlreadyExists = errors.New("Image already exists")
+var ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 func pingRegistryEndpoint(endpoint string) error {
+	if endpoint == auth.IndexServerAddress() {
+		// Skip the check, we now this one is valid
+		// (and we never want to fallback to http in case of error)
+		return nil
+	}
 	resp, err := http.Get(endpoint + "_ping")
 	if err != nil {
 		return err
@@ -56,16 +62,20 @@ func validateRepositoryName(repositoryName string) error {
 
 // Resolves a repository name to a endpoint + name
 func ResolveRepositoryName(reposName string) (string, string, error) {
+	if strings.Contains(reposName, "://") {
+		// It cannot contain a scheme!
+		return "", "", ErrInvalidRepositoryName
+	}
 	nameParts := strings.SplitN(reposName, "/", 2)
 	if !strings.Contains(nameParts[0], ".") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
-		return "https://index.docker.io/v1/", reposName, err
+		return auth.IndexServerAddress(), reposName, err
 	}
 	if len(nameParts) < 2 {
 		// There is a dot in repos name (and no registry address)
 		// Is it a Registry address without repos name?
-		return "", "", fmt.Errorf("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+		return "", "", ErrInvalidRepositoryName
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
