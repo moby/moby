@@ -1267,7 +1267,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	for _, warning := range runResult.Warnings {
-		fmt.Fprintln(cli.err, "WARNING: ", warning)
+		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
 
 	//start the container
