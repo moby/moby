@@ -754,6 +754,20 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	return nil
 }
 
+// Get a repos name and returns the right reposName + tag
+// The tag can be confusing because of a port in a repository name.
+//     Ex: localhost.localdomain:5000/samalba/hipache:latest
+func parseRepositoryTag(repos string) (string, string) {
+	n := strings.LastIndex(repos, ":")
+	if n < 0 {
+		return repos, ""
+	}
+	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
+		return repos[:n], tag
+	}
+	return repos, ""
+}
+
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
@@ -766,12 +780,8 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return nil
 	}
 
-	remote := cmd.Arg(0)
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
-		tag = &remoteParts[1]
-		remote = remoteParts[0]
-	}
+	remote, parsedTag := parseRepositoryTag(cmd.Arg(0))
+	*tag = parsedTag
 
 	v := url.Values{}
 	v.Set("fromImage", remote)

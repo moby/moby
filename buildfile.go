@@ -52,20 +52,10 @@ func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.runtime.repositories.LookupImage(name)
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
-
-			var tag, remote string
-			if strings.Contains(name, ":") {
-				remoteParts := strings.Split(name, ":")
-				tag = remoteParts[1]
-				remote = remoteParts[0]
-			} else {
-				remote = name
-			}
-
+			tag, remote := parseRepositoryTag(name)
 			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil); err != nil {
 				return err
 			}
-
 			image, err = b.runtime.repositories.LookupImage(name)
 			if err != nil {
 				return err
