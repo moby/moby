@@ -67,7 +67,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		return "", "", ErrInvalidRepositoryName
 	}
 	nameParts := strings.SplitN(reposName, "/", 2)
-	if !strings.Contains(nameParts[0], ".") {
+	if !strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
 		return auth.IndexServerAddress(), reposName, err
@@ -79,6 +79,12 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
+	if strings.Contains(hostname, "index.docker.io") {
+		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
+	}
+	if err := validateRepositoryName(reposName); err != nil {
+		return "", "", err
+	}
 	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
 	if err := pingRegistryEndpoint(endpoint); err != nil {
 		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
