@@ -221,9 +221,6 @@ func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}
-	if strings.Contains(name, ":") {
-		return fmt.Errorf("Illegal repository name: %s", name)
-	}
 	return nil
 }
 
