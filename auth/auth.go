@@ -41,9 +41,6 @@ func NewAuthConfig(username, password, email, rootPath string) *AuthConfig {
 }
 
 func IndexServerAddress() string {
-	if os.Getenv("DOCKER_INDEX_URL") != "" {
-		return os.Getenv("DOCKER_INDEX_URL") + "/v1/"
-	}
 	return INDEXSERVER
 }
 
