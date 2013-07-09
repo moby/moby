@@ -129,6 +129,38 @@ CMD Hello world
 		nil,
 		nil,
 	},
+
+	{
+		`
+from {IMAGE}
+env    FOO /foo/baz
+env    BAR /bar
+env    BAZ $BAR
+env    FOOPATH $PATH:$FOO
+run    [ "$BAR" = "$BAZ" ]
+run    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+`,
+		nil,
+		nil,
+	},
+
+	{
+		`
+from {IMAGE}
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -242,8 +274,14 @@ func TestBuildEnv(t *testing.T) {
         env port 4243
         `,
 		nil, nil}, t)
-
-	if img.Config.Env[0] != "port=4243" {
+	hasEnv := false
+	for _, envVar := range img.Config.Env {
+		if envVar == "port=4243" {
+			hasEnv = true
+			break
+		}
+	}
+	if !hasEnv {
 		t.Fail()
 	}
 }
