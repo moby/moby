@@ -51,7 +51,7 @@ firstname() {
 	echo $1 | cut -d' ' -f1
 }
 
-echo "--- $PRIMARY is the PRIMARY MAINTAINER of $1. Assign pull requests to him."
+echo "--- $PRIMARY is the PRIMARY MAINTAINER of $1. Assign pull requests to them"
 echo "$(firstname $PRIMARY) may assign pull requests to the following secondary maintainers:"
 for SECONDARY in "${MAINTAINERS[@]:1}"; do
 	echo "--- $SECONDARY"

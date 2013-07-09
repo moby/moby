@@ -62,11 +62,11 @@ This is usually difficult for several reasons:
   * Conflicting dependencies. Different applications may depend on different versions of the same dependency. Packaging tools handle these situations with various degrees of ease -
   	but they all handle them in different and incompatible ways, which again forces the developer to do extra work.
   
-  * Custom dependencies. A developer may need to prepare a custom version of his application's dependency. Some packaging systems can handle custom versions of a dependency,
+  * Custom dependencies. A developer may need to prepare a custom version of their application's dependency. Some packaging systems can handle custom versions of a dependency,
   	others can't - and all of them handle it differently.
 
 
-Docker solves dependency hell by giving the developer a simple way to express *all* his application's dependencies in one place,
+Docker solves dependency hell by giving the developer a simple way to express *all* their application's dependencies in one place,
 and streamline the process of assembling them. If this makes you think of [XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates their use in a simple and repeatable way. How does it do that? With layers.
 
