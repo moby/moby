@@ -1,13 +1,13 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
-	"github.com/dotcloud/docker/utils"
 )
 
 // This file contains utility functions for docker's unit test suite.

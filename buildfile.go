@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -66,6 +67,11 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	b.image = image.ID
 	b.config = &Config{}
+	if b.config.Env == nil || len(b.config.Env) == 0 {
+		b.config.Env = make(map[string]string)
+		b.config.Env["HOME"] = "/"
+		b.config.Env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	}
 	return nil
 }
 
@@ -111,6 +117,24 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
+func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
+	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+	if err != nil {
+		return value, err
+	}
+	matches := exp.FindAllString(value, -1)
+	for _, match := range matches {
+		match = match[strings.Index(match, "$"):]
+		matchKey := strings.Trim(match, "${}")
+		matchValue, matchExists := b.config.Env[matchKey]
+
+		if matchExists {
+			value = strings.Replace(value, match, matchValue, -1)
+		}
+	}
+	return value, nil
+}
+
 func (b *buildFile) CmdEnv(args string) error {
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
@@ -119,13 +143,19 @@ func (b *buildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	for i, elem := range b.config.Env {
-		if strings.HasPrefix(elem, key+"=") {
-			b.config.Env[i] = key + "=" + value
-			return nil
-		}
+	_, keyExists := b.config.Env[key]
+	replacedValue, err := b.ReplaceEnvMatches(value)
+	if err != nil {
+		return err
 	}
-	b.config.Env = append(b.config.Env, key+"="+value)
+	if replacedValue != value {
+		value = replacedValue
+	}
+	b.config.Env[key] = value
+	if keyExists {
+		return nil
+	}
+
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
 }
 
@@ -241,8 +271,16 @@ func (b *buildFile) CmdAdd(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ADD format")
 	}
-	orig := strings.Trim(tmp[0], " \t")
-	dest := strings.Trim(tmp[1], " \t")
+
+	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	if err != nil {
+		return err
+	}
+
+	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	if err != nil {
+		return err
+	}
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
