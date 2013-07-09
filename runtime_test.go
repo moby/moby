@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	unitTestImageName = "docker-unit-tests"
-	unitTestImageID   = "e9aa60c60128cad1"
-	unitTestStoreBase = "/var/lib/docker/unit-tests"
-	testDaemonAddr    = "127.0.0.1:4270"
-	testDaemonProto   = "tcp"
+	unitTestImageName     = "docker-unit-tests"
+	unitTestImageID       = "e9aa60c60128cad1"
+	unitTestNetworkBridge = "testdockbr0"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	testDaemonAddr        = "127.0.0.1:4270"
+	testDaemonProto       = "tcp"
 )
 
 var globalRuntime *Runtime
@@ -76,7 +77,7 @@ func init() {
 		log.Fatal("docker tests need to be run as root")
 	}
 
-	NetworkBridgeIface = "testdockbr0"
+	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
@@ -92,9 +93,12 @@ func init() {
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
-	// Retrieve the Image
-	if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
-		panic(err)
+	// If the unit test is not found, try to download it.
+	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
+		// Retrieve the Image
+		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+			panic(err)
+		}
 	}
 	// Spawn a Daemon
 	go func() {
