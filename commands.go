@@ -1242,7 +1242,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
-		v.Set("fromImage", config.Image)
+		repos, tag := utils.ParseRepositoryTag(config.Image)
+		v.Set("fromImage", repos)
+		v.Set("tag", tag)
 		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err)
 		if err != nil {
 			return err
