@@ -70,11 +70,11 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	if err != nil {
 		// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 		// (so we can pass all errors here)
-		repoAndTag := strings.SplitN(name, ":", 2)
-		if len(repoAndTag) == 1 {
-			repoAndTag = append(repoAndTag, DEFAULTTAG)
+		repos, tag := utils.ParseRepositoryTag(name)
+		if tag == "" {
+			tag = DEFAULTTAG
 		}
-		if i, err := store.GetImage(repoAndTag[0], repoAndTag[1]); err != nil {
+		if i, err := store.GetImage(repos, tag); err != nil {
 			return nil, err
 		} else if i == nil {
 			return nil, fmt.Errorf("Image does not exist: %s", name)
