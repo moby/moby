@@ -15,6 +15,12 @@ This could be used for hot upgrades, testing different versions of couchdb on th
 Create first database
 ---------------------
 
+We are downloading the "shykes/couchdb:2013-05-03" docker image
+
+.. code-block:: bash
+
+    docker pull shykes/couchdb:2013-05-03
+
 Note that we're marking /var/lib/couchdb as a data volume.
 
 .. code-block:: bash
