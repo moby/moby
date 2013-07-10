@@ -880,7 +880,7 @@ Build an image from Dockerfile via stdin
 
         The Content-type header should be set to "application/tar".
 
-	:query t: tag to be applied to the resulting image in case of success
+	:query t: repository name to be applied to the resulting image in case of success
 	:statuscode 200: no error
         :statuscode 500: server error
 
