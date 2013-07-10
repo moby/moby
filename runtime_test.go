@@ -396,7 +396,7 @@ func TestAllocateTCPPortLocalhost(t *testing.T) {
 	}
 	buf := make([]byte, 16)
 	read := 0
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(4 * time.Second))
 	read, err = conn.Read(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -421,7 +421,7 @@ func TestAllocateUDPPortLocalhost(t *testing.T) {
 
 	input := bytes.NewBufferString("well hello there\n")
 	buf := make([]byte, 16)
-	for i := 0; i != 10; i++ {
+	for i := 0; i != 20; i++ {
 		_, err := conn.Write(input.Bytes())
 		if err != nil {
 			t.Fatal(err)
