@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -17,12 +18,12 @@ import (
 )
 
 const (
-	unitTestImageName     = "docker-unit-tests"
-	unitTestImageID       = "e9aa60c60128cad1"
-	unitTestNetworkBridge = "testdockbr0"
-	unitTestStoreBase     = "/var/lib/docker/unit-tests"
-	testDaemonAddr        = "127.0.0.1:4270"
-	testDaemonProto       = "tcp"
+	unitTestImageName	= "docker-test-image"
+	unitTestImageID		= "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestNetworkBridge	= "testdockbr0"
+	unitTestStoreBase	= "/var/lib/docker/unit-tests"
+	testDaemonAddr		= "127.0.0.1:4270"
+	testDaemonProto		= "tcp"
 )
 
 var globalRuntime *Runtime
@@ -321,52 +322,47 @@ func TestGet(t *testing.T) {
 
 }
 
-func findAvailalblePort(runtime *Runtime, port int) (*Container, error) {
-	strPort := strconv.Itoa(port)
-	container, err := NewBuilder(runtime).Create(&Config{
-		Image:     GetTestImage(runtime).ID,
-		Cmd:       []string{"sh", "-c", "echo well hello there | nc -l -p " + strPort},
-		PortSpecs: []string{strPort},
-	},
-	)
-	if err != nil {
-		return nil, err
-	}
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
-		if strings.Contains(err.Error(), "address already in use") {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return container, nil
-}
-
-// Run a container with a TCP port allocated, and test that it can receive connections on localhost
-func TestAllocatePortLocalhost(t *testing.T) {
+func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container, string) {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
-	port := 5554
 
+	port := 5554
 	var container *Container
+	var strPort string
 	for {
 		port += 1
-		log.Println("Trying port", port)
-		t.Log("Trying port", port)
-		container, err = findAvailalblePort(runtime, port)
+		strPort = strconv.Itoa(port)
+		var cmd string
+		if proto == "tcp" {
+			cmd = "socat TCP-LISTEN:" + strPort + ",reuseaddr,fork EXEC:/bin/cat"
+		} else if proto == "udp" {
+			cmd = "socat UDP-RECVFROM:" + strPort + ",fork EXEC:/bin/cat"
+		} else {
+			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
+		}
+		t.Log("Trying port", strPort)
+		container, err = NewBuilder(runtime).Create(&Config{
+			Image:     GetTestImage(runtime).ID,
+			Cmd:       []string{"sh", "-c", cmd},
+			PortSpecs: []string{fmt.Sprintf("%s/%s", strPort, proto)},
+		})
 		if container != nil {
 			break
 		}
 		if err != nil {
+			nuke(runtime)
 			t.Fatal(err)
 		}
-		log.Println("Port", port, "already in use")
-		t.Log("Port", port, "already in use")
+		t.Logf("Port %v already in use", strPort)
 	}
 
-	defer container.Kill()
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
+		nuke(runtime)
+		t.Fatal(err)
+	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
 		for !container.State.Running {
@@ -377,26 +373,70 @@ func TestAllocatePortLocalhost(t *testing.T) {
 	// Even if the state is running, lets give some time to lxc to spawn the process
 	container.WaitTimeout(500 * time.Millisecond)
 
-	conn, err := net.Dial("tcp",
-		fmt.Sprintf(
-			"localhost:%s", container.NetworkSettings.PortMapping[strconv.Itoa(port)],
-		),
-	)
+	strPort = container.NetworkSettings.PortMapping[strings.Title(proto)][strPort]
+	return runtime, container, strPort
+}
+
+// Run a container with a TCP port allocated, and test that it can receive connections on localhost
+func TestAllocateTCPPortLocalhost(t *testing.T) {
+	runtime, container, port := startEchoServerContainer(t, "tcp")
+	defer nuke(runtime)
+	defer container.Kill()
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	output, err := ioutil.ReadAll(conn)
+
+	input := bytes.NewBufferString("well hello there\n")
+	_, err = conn.Write(input.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(output) != "well hello there\n" {
-		t.Fatalf("Received wrong output from network connection: should be '%s', not '%s'",
-			"well hello there\n",
-			string(output),
-		)
+	buf := make([]byte, 16)
+	read := 0
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	read, err = conn.Read(buf)
+	if err != nil {
+		t.Fatal(err)
 	}
-	container.Wait()
+	output := string(buf[:read])
+	if !strings.Contains(output, "well hello there") {
+		t.Fatal(fmt.Errorf("[%v] doesn't contain [well hello there]", output))
+	}
+}
+
+// Run a container with a TCP port allocated, and test that it can receive connections on localhost
+func TestAllocateUDPPortLocalhost(t *testing.T) {
+	runtime, container, port := startEchoServerContainer(t, "udp")
+	defer nuke(runtime)
+	defer container.Kill()
+
+	conn, err := net.Dial("udp", fmt.Sprintf("localhost:%v", port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	input := bytes.NewBufferString("well hello there\n")
+	buf := make([]byte, 16)
+	for i := 0; i != 10; i++ {
+		_, err := conn.Write(input.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		read, err := conn.Read(buf)
+		if err == nil {
+			output := string(buf[:read])
+			if strings.Contains(output, "well hello there") {
+				return
+			}
+		}
+	}
+
+	t.Fatal("No reply from the container")
 }
 
 func TestRestore(t *testing.T) {
