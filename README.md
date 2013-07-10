@@ -23,15 +23,15 @@ happens, for a few reasons:
 
   * *Size*: VMs are very large which makes them impractical to store and transfer.
   * *Performance*: running VMs consumes significant CPU and memory, which makes them impractical in many scenarios, for example local development of multi-tier applications, and
-  	large-scale deployment of cpu and memory-intensive applications on large numbers of machines.
+    large-scale deployment of cpu and memory-intensive applications on large numbers of machines.
   * *Portability*: competing VM environments don't play well with each other. Although conversion tools do exist, they are limited and add even more overhead.
   * *Hardware-centric*: VMs were designed with machine operators in mind, not software developers. As a result, they offer very limited tooling for what developers need most:
-  	building, testing and running their software. For example, VMs offer no facilities for application versioning, monitoring, configuration, logging or service discovery.
+    building, testing and running their software. For example, VMs offer no facilities for application versioning, monitoring, configuration, logging or service discovery.
 
 By contrast, Docker relies on a different sandboxing method known as *containerization*. Unlike traditional virtualization,
 containerization takes place at the kernel level. Most modern operating system kernels now support the primitives necessary
 for containerization, including Linux with [openvz](http://openvz.org), [vserver](http://linux-vserver.org) and more recently [lxc](http://lxc.sourceforge.net),
-	Solaris with [zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc) and FreeBSD with [Jails](http://www.freebsd.org/doc/handbook/jails.html).
+    Solaris with [zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc) and FreeBSD with [Jails](http://www.freebsd.org/doc/handbook/jails.html).
 
 Docker builds on top of these low-level primitives to offer developers a portable format and runtime environment that solves
 all 4 problems. Docker containers are small (and their transfer can be optimized with layers), they have basically zero memory and cpu overhead,
@@ -56,17 +56,17 @@ A common problem for developers is the difficulty of managing all their applicat
 This is usually difficult for several reasons:
 
   * *Cross-platform dependencies*. Modern applications often depend on a combination of system libraries and binaries, language-specific packages, framework-specific modules,
-  	internal components developed for another project, etc. These dependencies live in different "worlds" and require different tools - these tools typically don't work
-	well with each other, requiring awkward custom integrations.
+    internal components developed for another project, etc. These dependencies live in different "worlds" and require different tools - these tools typically don't work
+    well with each other, requiring awkward custom integrations.
 
   * Conflicting dependencies. Different applications may depend on different versions of the same dependency. Packaging tools handle these situations with various degrees of ease -
-  	but they all handle them in different and incompatible ways, which again forces the developer to do extra work.
+    but they all handle them in different and incompatible ways, which again forces the developer to do extra work.
   
-  * Custom dependencies. A developer may need to prepare a custom version of his application's dependency. Some packaging systems can handle custom versions of a dependency,
-  	others can't - and all of them handle it differently.
+  * Custom dependencies. A developer may need to prepare a custom version of their application's dependency. Some packaging systems can handle custom versions of a dependency,
+    others can't - and all of them handle it differently.
 
 
-Docker solves dependency hell by giving the developer a simple way to express *all* his application's dependencies in one place,
+Docker solves dependency hell by giving the developer a simple way to express *all* their application's dependencies in one place,
 and streamline the process of assembling them. If this makes you think of [XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates their use in a simple and repeatable way. How does it do that? With layers.
 
