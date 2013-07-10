@@ -766,12 +766,8 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return nil
 	}
 
-	remote := cmd.Arg(0)
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
-		tag = &remoteParts[1]
-		remote = remoteParts[0]
-	}
+	remote, parsedTag := utils.ParseRepositoryTag(cmd.Arg(0))
+	*tag = parsedTag
 
 	v := url.Values{}
 	v.Set("fromImage", remote)
@@ -1246,7 +1242,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
-		v.Set("fromImage", config.Image)
+		repos, tag := utils.ParseRepositoryTag(config.Image)
+		v.Set("fromImage", repos)
+		v.Set("tag", tag)
 		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err)
 		if err != nil {
 			return err
