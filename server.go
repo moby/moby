@@ -351,10 +351,10 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, askedTag, indexEp string, sf *utils.StreamFormatter) error {
-	out.Write(sf.FormatStatus("Pulling repository %s from %s", name, indexEp))
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag, indexEp string, sf *utils.StreamFormatter) error {
+	out.Write(sf.FormatStatus("Pulling repository %s", localName))
 
-	repoData, err := r.GetRepositoryData(indexEp, name)
+	repoData, err := r.GetRepositoryData(indexEp, remoteName)
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, ask
 	}
 
 	utils.Debugf("Retrieving the tag list")
-	tagsList, err := r.GetRemoteTags(repoData.Endpoints, name, repoData.Tokens)
+	tagsList, err := r.GetRemoteTags(repoData.Endpoints, remoteName, repoData.Tokens)
 	if err != nil {
 		utils.Debugf("%v", err)
 		return err
@@ -390,7 +390,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, ask
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repository %s", askedTag, name)
+			return fmt.Errorf("Tag %s not found in repository %s", askedTag, localName)
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -405,7 +405,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, ask
 			utils.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
 			continue
 		}
-		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, name))
+		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, localName))
 		success := false
 		for _, ep := range repoData.Endpoints {
 			if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
@@ -423,7 +423,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, name, ask
 		if askedTag != "" && tag != askedTag {
 			continue
 		}
-		if err := srv.runtime.repositories.Set(name, tag, id, true); err != nil {
+		if err := srv.runtime.repositories.Set(localName, tag, id, true); err != nil {
 			return err
 		}
 	}
@@ -469,27 +469,31 @@ func (srv *Server) poolRemove(kind, key string) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(name string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
 	if err != nil {
 		return err
 	}
-	if err := srv.poolAdd("pull", name+":"+tag); err != nil {
+	if err := srv.poolAdd("pull", localName+":"+tag); err != nil {
 		return err
 	}
-	defer srv.poolRemove("pull", name+":"+tag)
+	defer srv.poolRemove("pull", localName+":"+tag)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	var endpoint string
-	endpoint, name, err = registry.ResolveRepositoryName(name)
+	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
 		return err
+	}
+
+	if endpoint == auth.IndexServerAddress() {
+		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
+		localName = remoteName
 	}
 
 	out = utils.NewWriteFlusher(out)
-	err = srv.pullRepository(r, out, name, tag, endpoint, sf)
+	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf)
 	if err != nil {
-		if err := srv.pullImage(r, out, name, endpoint, nil, sf); err != nil {
+		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
 			return err
 		}
 		return nil
@@ -564,7 +568,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgDat
 	return imgList, nil
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name string, localRepo map[string]string, indexEp string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, indexEp string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	out.Write(sf.FormatStatus("Processing checksums"))
 	imgList, err := srv.getImageList(localRepo)
@@ -572,41 +576,36 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, name stri
 		return err
 	}
 	out.Write(sf.FormatStatus("Sending image list"))
-	srvName := name
-	parts := strings.Split(name, "/")
-	if len(parts) > 2 {
-		srvName = fmt.Sprintf("src/%s", url.QueryEscape(strings.Join(parts, "/")))
-	}
 
 	var repoData *registry.RepositoryData
-	repoData, err = r.PushImageJSONIndex(indexEp, name, imgList, false, nil)
+	repoData, err = r.PushImageJSONIndex(indexEp, remoteName, imgList, false, nil)
 	if err != nil {
 		return err
 	}
 
 	for _, ep := range repoData.Endpoints {
-		out.Write(sf.FormatStatus("Pushing repository %s to %s (%d tags)", name, ep, len(localRepo)))
+		out.Write(sf.FormatStatus("Pushing repository %s (%d tags)", localName, len(localRepo)))
 		// For each image within the repo, push them
 		for _, elem := range imgList {
 			if _, exists := repoData.ImgList[elem.ID]; exists {
-				out.Write(sf.FormatStatus("Image %s already on registry, skipping", name))
+				out.Write(sf.FormatStatus("Image %s already pushed, skipping", elem.ID))
 				continue
 			} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
-				fmt.Fprintf(out, "Image %s already on registry, skipping\n", name)
+				out.Write(sf.FormatStatus("Image %s already pushed, skipping", elem.ID))
 				continue
 			}
-			if err := srv.pushImage(r, out, name, elem.ID, ep, repoData.Tokens, sf); err != nil {
+			if err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
-			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+srvName+"/tags/"+elem.Tag))
-			if err := r.PushRegistryTag(srvName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
+			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
+			if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 				return err
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(indexEp, name, imgList, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(indexEp, remoteName, imgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 
@@ -634,7 +633,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	// Send the json
 	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep, token); err != nil {
 		if err == registry.ErrAlreadyExists {
-			out.Write(sf.FormatStatus("Image %s already uploaded ; skipping", imgData.ID))
+			out.Write(sf.FormatStatus("Image %s already pushed, skipping", imgData.ID))
 			return nil
 		}
 		return err
@@ -674,30 +673,31 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 }
 
 // FIXME: Allow to interupt current push when new push of same image is done.
-func (srv *Server) ImagePush(name string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	if err := srv.poolAdd("push", name); err != nil {
+func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	if err := srv.poolAdd("push", localName); err != nil {
 		return err
 	}
-	defer srv.poolRemove("push", name)
+	defer srv.poolRemove("push", localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, name, err := registry.ResolveRepositoryName(name)
+	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
 		return err
 	}
 
 	out = utils.NewWriteFlusher(out)
-	img, err := srv.runtime.graph.Get(name)
+	img, err := srv.runtime.graph.Get(localName)
 	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
 	if err2 != nil {
 		return err2
 	}
 
 	if err != nil {
-		out.Write(sf.FormatStatus("The push refers to a repository [%s] (len: %d)", name, len(srv.runtime.repositories.Repositories[name])))
+		reposLen := len(srv.runtime.repositories.Repositories[localName])
+		out.Write(sf.FormatStatus("The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
-		if localRepo, exists := srv.runtime.repositories.Repositories[name]; exists {
-			if err := srv.pushRepository(r, out, name, localRepo, endpoint, sf); err != nil {
+		if localRepo, exists := srv.runtime.repositories.Repositories[localName]; exists {
+			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, endpoint, sf); err != nil {
 				return err
 			}
 			return nil
@@ -706,8 +706,8 @@ func (srv *Server) ImagePush(name string, out io.Writer, sf *utils.StreamFormatt
 	}
 
 	var token []string
-	out.Write(sf.FormatStatus("The push refers to an image: [%s]", name))
-	if err := srv.pushImage(r, out, name, img.ID, endpoint, token, sf); err != nil {
+	out.Write(sf.FormatStatus("The push refers to an image: [%s]", localName))
+	if err := srv.pushImage(r, out, remoteName, img.ID, endpoint, token, sf); err != nil {
 		return err
 	}
 	return nil
