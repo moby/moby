@@ -93,7 +93,7 @@ CMD Hello world
 
 	{
 		`
-from docker-ut
+from %s
 VOLUME /test
 CMD Hello world
 `,
@@ -133,14 +133,13 @@ func TestVolume(t *testing.T) {
 
 	srv := &Server{
 		runtime:     runtime,
-		lock:        &sync.Mutex{},
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
 
 	buildfile := NewBuildFile(srv, ioutil.Discard)
 	imgId, err := buildfile.Build(mkTestContext(`
-from docker-ut
+from %s
 VOLUME /test
 CMD Hello world
 `, nil, t))
