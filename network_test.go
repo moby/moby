@@ -20,26 +20,95 @@ func TestIptables(t *testing.T) {
 
 func TestParseNat(t *testing.T) {
 	if nat, err := parseNat("4500"); err == nil {
-		if nat.Frontend != 0 || nat.Backend != 4500 {
-			t.Errorf("-p 4500 should produce 0->4500, got %d->%d", nat.Frontend, nat.Backend)
+		if nat.Frontend != 0 || nat.Backend != 4500 || nat.Proto != "tcp" {
+			t.Errorf("-p 4500 should produce 0->4500/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
 		}
 	} else {
 		t.Fatal(err)
 	}
 
 	if nat, err := parseNat(":4501"); err == nil {
-		if nat.Frontend != 4501 || nat.Backend != 4501 {
-			t.Errorf("-p :4501 should produce 4501->4501, got %d->%d", nat.Frontend, nat.Backend)
+		if nat.Frontend != 4501 || nat.Backend != 4501 || nat.Proto != "tcp" {
+			t.Errorf("-p :4501 should produce 4501->4501/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
 		}
 	} else {
 		t.Fatal(err)
 	}
 
 	if nat, err := parseNat("4502:4503"); err == nil {
-		if nat.Frontend != 4502 || nat.Backend != 4503 {
-			t.Errorf("-p 4502:4503 should produce 4502->4503, got %d->%d", nat.Frontend, nat.Backend)
+		if nat.Frontend != 4502 || nat.Backend != 4503 || nat.Proto != "tcp" {
+			t.Errorf("-p 4502:4503 should produce 4502->4503/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
 		}
 	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat("4502:4503/tcp"); err == nil {
+		if nat.Frontend != 4502 || nat.Backend != 4503 || nat.Proto != "tcp" {
+			t.Errorf("-p 4502:4503/tcp should produce 4502->4503/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat("4502:4503/udp"); err == nil {
+		if nat.Frontend != 4502 || nat.Backend != 4503 || nat.Proto != "udp" {
+			t.Errorf("-p 4502:4503/udp should produce 4502->4503/udp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat(":4503/udp"); err == nil {
+		if nat.Frontend != 4503 || nat.Backend != 4503 || nat.Proto != "udp" {
+			t.Errorf("-p :4503/udp should produce 4503->4503/udp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat(":4503/tcp"); err == nil {
+		if nat.Frontend != 4503 || nat.Backend != 4503 || nat.Proto != "tcp" {
+			t.Errorf("-p :4503/tcp should produce 4503->4503/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat("4503/tcp"); err == nil {
+		if nat.Frontend != 0 || nat.Backend != 4503 || nat.Proto != "tcp" {
+			t.Errorf("-p 4503/tcp should produce 0->4503/tcp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if nat, err := parseNat("4503/udp"); err == nil {
+		if nat.Frontend != 0 || nat.Backend != 4503 || nat.Proto != "udp" {
+			t.Errorf("-p 4503/udp should produce 0->4503/udp, got %d->%d/%s",
+				nat.Frontend, nat.Backend, nat.Proto)
+		}
+	} else {
+		t.Fatal(err)
+	}
+
+	if _, err := parseNat("4503/tcpgarbage"); err == nil {
+		t.Fatal(err)
+	}
+
+	if _, err := parseNat("4503/tcp/udp"); err == nil {
+		t.Fatal(err)
+	}
+
+	if _, err := parseNat("4503/"); err == nil {
 		t.Fatal(err)
 	}
 }

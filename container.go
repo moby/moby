@@ -202,19 +202,24 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	return config, hostConfig, cmd, nil
 }
 
+type portMapping map[string]string
+
 type NetworkSettings struct {
 	IPAddress   string
 	IPPrefixLen int
 	Gateway     string
 	Bridge      string
-	PortMapping map[string]string
+	PortMapping map[string]portMapping
 }
 
 // String returns a human-readable description of the port mapping defined in the settings
 func (settings *NetworkSettings) PortMappingHuman() string {
 	var mapping []string
-	for private, public := range settings.PortMapping {
+	for private, public := range settings.PortMapping["Tcp"] {
 		mapping = append(mapping, fmt.Sprintf("%s->%s", public, private))
+	}
+	for private, public := range settings.PortMapping["Udp"] {
+		mapping = append(mapping, fmt.Sprintf("%s->%s/udp", public, private))
 	}
 	sort.Strings(mapping)
 	return strings.Join(mapping, ", ")
@@ -688,14 +693,18 @@ func (container *Container) allocateNetwork() error {
 	if err != nil {
 		return err
 	}
-	container.NetworkSettings.PortMapping = make(map[string]string)
+	container.NetworkSettings.PortMapping = make(map[string]portMapping)
+	container.NetworkSettings.PortMapping["Tcp"] = make(portMapping)
+	container.NetworkSettings.PortMapping["Udp"] = make(portMapping)
 	for _, spec := range container.Config.PortSpecs {
 		nat, err := iface.AllocatePort(spec)
 		if err != nil {
 			iface.Release()
 			return err
 		}
-		container.NetworkSettings.PortMapping[strconv.Itoa(nat.Backend)] = strconv.Itoa(nat.Frontend)
+		proto := strings.Title(nat.Proto)
+		backend, frontend := strconv.Itoa(nat.Backend), strconv.Itoa(nat.Frontend)
+		container.NetworkSettings.PortMapping[proto][backend] = frontend
 	}
 	container.network = iface
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
