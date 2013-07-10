@@ -1,2 +1,5 @@
-git://github.com/dotcloud/ubuntu-quantal
-git://github.com/dotcloud/ubuntu-precise
+latest	git://github.com/dotcloud/ubuntu-quantal
+quantal	git://github.com/dotcloud/ubuntu-quantal
+12.10	git://github.com/dotcloud/ubuntu-quantal
+precise	git://github.com/dotcloud/ubuntu-precise
+12.04	git://github.com/dotcloud/ubuntu-precise
