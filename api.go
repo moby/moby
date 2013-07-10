@@ -217,6 +217,31 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
+func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	events := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.events[r.RemoteAddr] = events
+	srv.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	wf := utils.NewWriteFlusher(w)
+	for {
+		event := <-events
+		b, err := json.Marshal(event)
+		if err != nil {
+			continue
+		}
+		_, err = wf.Write(b)
+		if err != nil {
+			utils.Debugf("%s", err)
+			srv.Lock()
+			delete(srv.events, r.RemoteAddr)
+			srv.Unlock()
+			return err
+		}
+	}
+	return nil
+}
+
 func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -855,8 +880,9 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
 			"/auth":                         getAuth,
-			"/version":                      getVersion,
+			"/events":                       getEvents,
 			"/info":                         getInfo,
+			"/version":                      getVersion,
 			"/images/json":                  getImagesJSON,
 			"/images/viz":                   getImagesViz,
 			"/images/search":                getImagesSearch,
