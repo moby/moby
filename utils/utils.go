@@ -247,30 +247,52 @@ func (r *bufReader) Close() error {
 
 type WriteBroadcaster struct {
 	sync.Mutex
-	writers map[io.WriteCloser]struct{}
+	writers map[StreamWriter][]byte
 }
 
-func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
+type StreamWriter struct {
+	wc io.WriteCloser
+	stream string
+}
+
+func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
-	w.writers[writer] = struct{}{}
+	sw := StreamWriter{wc: writer, stream: stream}
+	w.writers[sw] = []byte{}
 	w.Unlock()
 }
 
-// FIXME: Is that function used?
-// FIXME: This relies on the concrete writer type used having equality operator
-func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.Lock()
-	delete(w.writers, writer)
-	w.Unlock()
+type JSONLog struct {
+	Log   string `json:"log,omitempty"`
+	Stream string `json:"stream,omitempty"`
+	Created time.Time `json:"time"`
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		if n, err := writer.Write(p); err != nil || n != len(p) {
+	for sw := range w.writers {
+		lp := p
+		if sw.stream != "" {
+			w.writers[sw] = append(w.writers[sw], p...)
+			s := string(p)
+			if s[len(s)-1] == '\n' {
+			/*	lp, err = json.Marshal(&JSONLog{Log: s, Stream: sw.stream, Created: time.Now()})
+				if err != nil {
+					// On error, evict the writer
+					delete(w.writers, sw)
+					continue
+				}
+			*/
+				lp = []byte("[" + time.Now().String() + "] [" + sw.stream + "] " + s)
+				w.writers[sw] = []byte{}
+			} else {
+				continue
+			}
+		}
+		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
 			// On error, evict the writer
-			delete(w.writers, writer)
+			delete(w.writers, sw)
 		}
 	}
 	return len(p), nil
@@ -279,15 +301,15 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		writer.Close()
+	for sw := range w.writers {
+		sw.wc.Close()
 	}
-	w.writers = make(map[io.WriteCloser]struct{})
+	w.writers = make(map[StreamWriter][]byte)
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[io.WriteCloser]struct{})}
+	return &WriteBroadcaster{writers: make(map[StreamWriter][]byte)}
 }
 
 func GetTotalUsedFds() int {
