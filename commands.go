@@ -574,8 +574,10 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontend, exists := out.NetworkSettings.PortMapping[cmd.Arg(1)]; exists {
-		fmt.Fprintf(cli.out, "%s\n", frontend)
+	if frontend, exists := out.NetworkSettings.PortMapping["Tcp"][cmd.Arg(1)]; exists {
+		fmt.Fprintf(cli.out, "tcp: %s\n", frontend)
+	} else if frontend, exists := out.NetworkSettings.PortMapping["Udp"][cmd.Arg(1)]; exists {
+		fmt.Fprintf(cli.out, "udp: %s\n", frontend)
 	} else {
 		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
 	}
