@@ -14,6 +14,7 @@
 
       -a=map[]: Attach to stdin, stdout or stderr.
       -c=0: CPU shares (relative weight)
+      -cidfile="": Write the container ID to the file
       -d=false: Detached mode: leave the container running in the background
       -e=[]: Set environment variables
       -h="": Container host name
