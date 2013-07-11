@@ -90,6 +90,15 @@ CMD Hello world
 `,
 		nil,
 	},
+
+	{
+		`
+from %s
+VOLUME /test
+CMD Hello world
+`,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -111,6 +120,42 @@ func TestBuild(t *testing.T) {
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestVolume(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	buildfile := NewBuildFile(srv, ioutil.Discard)
+	imgId, err := buildfile.Build(mkTestContext(`
+from %s
+VOLUME /test
+CMD Hello world
+`, nil, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := srv.ImageInspect(imgId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(img.Config.Volumes) == 0 {
+		t.Fail()
+	}
+	for key, _ := range img.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
 		}
 	}
 }

@@ -89,4 +89,7 @@ func MergeConfig(userConf, imageConf *Config) {
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
+	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
+		userConf.Volumes = imageConf.Volumes
+	}
 }

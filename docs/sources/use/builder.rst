@@ -160,6 +160,13 @@ files and directories are created with mode 0700, uid and gid 0.
 
 The `ENTRYPOINT` instruction adds an entry command that will not be overwritten when arguments are passed to docker run, unlike the behavior of `CMD`.  This allows arguments to be passed to the entrypoint.  i.e. `docker run <image> -d` will pass the "-d" argument to the entrypoint.
 
+2.9 VOLUME
+----------
+
+    ``VOLUME ["/data"]``
+
+The `VOLUME` instruction will add one or more new volumes to any container created from the image.
+
 3. Dockerfile Examples
 ======================
 
