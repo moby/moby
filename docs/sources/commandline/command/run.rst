@@ -27,3 +27,13 @@
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "host-dir" is missing, then docker creates a new volume.
       -volumes-from="": Mount all volumes from the given container.
       -entrypoint="": Overwrite the default entrypoint set by the image.
+
+
+Examples
+--------
+
+.. code-block:: bash
+
+    docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
+
+| This will create a container and print "test" to the console. The cidfile flag makes docker attempt to create a new file and write the container ID to it. If the file exists already, docker will return an error. Docker will close this file when docker run exits.
