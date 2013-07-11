@@ -1311,6 +1311,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	var containerIDFile *os.File
+	if len(hostConfig.ContainerIDFile) > 0 {
+		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
+			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
+		}
+		containerIDFile, err = os.Create(hostConfig.ContainerIDFile)
+		if err != nil {
+			return fmt.Errorf("failed to create the container ID file: %s", err)
+		}
+		defer containerIDFile.Close()
+	}
+
 	//create the container
 	body, statusCode, err := cli.call("POST", "/containers/create", config)
 	//if image not found try to pull it
@@ -1342,16 +1354,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
 	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
-			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
-		}
-		file, err := os.Create(hostConfig.ContainerIDFile)
-		if err != nil {
-			return fmt.Errorf("failed to create the container ID file: %s", err)
-		}
-
-		defer file.Close()
-		if _, err = file.WriteString(runResult.ID); err != nil {
+		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}
 	}
