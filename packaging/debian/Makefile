@@ -13,8 +13,8 @@ PKG_NAME=lxc-docker
 ROOT_PATH=$(shell git rev-parse --show-toplevel)
 GITHUB_PATH=github.com/dotcloud/docker
 BUILD_SRC=build_src
-VERSION_TAG?=v$(shell sed -E 's/.+\((.+)-.+\).+/\1/;q' changelog)
-VERSION=$(shell echo ${VERSION_TAG} | cut -c2-)
+VERSION=$(shell sed -En '0,/^\#\# /{s/^\#\# ([^ ]+).+/\1/p}' ../../CHANGELOG.md)
+VERSION_TAG?=v${VERSION}
 DOCKER_VERSION=${PKG_NAME}_${VERSION}
 
 all:
@@ -28,7 +28,6 @@ install:
 	mkdir -p $(DESTDIR)/usr/share/doc/lxc-docker
 	install -m 0755 src/${GITHUB_PATH}/docker/docker $(DESTDIR)/usr/bin/lxc-docker
 	cp debian/lxc-docker.1 $(DESTDIR)/usr/share/man/man1
-	cp debian/CHANGELOG.md $(DESTDIR)/usr/share/doc/lxc-docker/changelog
 
 debian:
 	# Prepare docker source from revision ${VERSION_TAG}
@@ -41,6 +40,7 @@ debian:
 	cp -r `ls | grep -v ${BUILD_SRC}` ${BUILD_SRC}/debian
 	cp ${ROOT_PATH}/README.md ${BUILD_SRC}
 	cp ${ROOT_PATH}/CHANGELOG.md ${BUILD_SRC}/debian
+	./parse_changelog.py < ../../CHANGELOG.md  > ${BUILD_SRC}/debian/changelog
 	# Cleanup
 	rm -rf `find . -name '.git*'`
 	rm -f ${DOCKER_VERSION}*
