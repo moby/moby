@@ -8,6 +8,10 @@
 
 ::
 
-    Usage: docker login
+    Usage: docker login [OPTIONS]
 
     Register or Login to the docker registry server
+
+    -e="": email
+    -p="": password
+    -u="": username
