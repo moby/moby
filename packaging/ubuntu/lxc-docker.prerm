@@ -1,4 +1,4 @@
 #!/bin/sh
 
 # Stop docker
-/sbin/stop docker
+if [ "`pgrep -f '/usr/bin/docker -d'`" != "" ]; then /sbin/stop docker; fi

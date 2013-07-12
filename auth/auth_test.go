@@ -68,6 +68,6 @@ func TestCreateAccount(t *testing.T) {
 	expectedError := "Login: Account is not Active"
 
 	if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("Expected message \"%s\" but found \"%s\" instead", expectedError, err.Error())
+		t.Fatalf("Expected message \"%s\" but found \"%s\" instead", expectedError, err)
 	}
 }

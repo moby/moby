@@ -162,7 +162,7 @@ func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 //   The archive is stored on disk and will be automatically deleted as soon as has been read.
 //   If output is not nil, a human-readable progress bar will be written to it.
 //   FIXME: does this belong in Graph? How about MktempFile, let the caller use it for archives?
-func (graph *Graph) TempLayerArchive(id string, compression Compression, output io.Writer) (*TempArchive, error) {
+func (graph *Graph) TempLayerArchive(id string, compression Compression, sf *utils.StreamFormatter, output io.Writer) (*TempArchive, error) {
 	image, err := graph.Get(id)
 	if err != nil {
 		return nil, err
@@ -175,7 +175,6 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, output 
 	if err != nil {
 		return nil, err
 	}
-	sf := utils.NewStreamFormatter(false)
 	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
 }
 

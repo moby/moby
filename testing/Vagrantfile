@@ -19,17 +19,20 @@ Vagrant::Config.run do |config|
   config.vm.share_folder "v-data", DOCKER_PATH, "#{File.dirname(__FILE__)}/.."
   config.vm.network :hostonly, BUILDBOT_IP
 
+
   # Deploy buildbot and its dependencies if it was not done
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
-    pkg_cmd = "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "
+    pkg_cmd = "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
     # Deploy buildbot CI
     pkg_cmd << "apt-get install -q -y python-dev python-pip supervisor; " \
       "pip install -r #{CFG_PATH}/requirements.txt; " \
       "chown #{USER}.#{USER} /data; cd /data; " \
-      "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH}; "
+      "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH} #{ENV['BUILDBOT_PWD']} " \
+        "#{ENV['IRC_PWD']} #{ENV['IRC_CHANNEL']} #{ENV['SMTP_USER']} " \
+        "#{ENV['SMTP_PWD']} #{ENV['EMAIL_RCP']}; "
     # Install docker dependencies
     pkg_cmd << "apt-get install -q -y python-software-properties; " \
-      "add-apt-repository -y ppa:gophers/go/ubuntu; apt-get update -qq; " \
+      "add-apt-repository -y ppa:dotcloud/docker-golang/ubuntu; apt-get update -qq; " \
       "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc git golang-stable aufs-tools make; "
     # Activate new kernel
     pkg_cmd << "shutdown -r +1; "
@@ -40,6 +43,7 @@ end
 # Providers were added on Vagrant >= 1.1.0
 Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :aws do |aws, override|
+    aws.tags = { 'Name' => 'docker-ci' }
     aws.access_key_id = ENV["AWS_ACCESS_KEY_ID"]
     aws.secret_access_key = ENV["AWS_SECRET_ACCESS_KEY"]
     aws.keypair_name = ENV["AWS_KEYPAIR_NAME"]

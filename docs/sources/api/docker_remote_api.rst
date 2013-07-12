@@ -135,3 +135,6 @@ and we will add the libraries here.
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
 | **WebUI**            |                |                                            |
 +----------------------+----------------+--------------------------------------------+
+| Java                 | docker-java    | https://github.com/kpelykh/docker-java     |
++----------------------+----------------+--------------------------------------------+
+

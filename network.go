@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
-	"io"
 	"log"
 	"net"
 	"os/exec"
@@ -183,8 +182,10 @@ func getIfaceAddr(name string) (net.Addr, error) {
 // up iptables rules.
 // It keeps track of all mappings and is able to unmap at will
 type PortMapper struct {
-	mapping map[int]net.TCPAddr
-	proxies map[int]net.Listener
+	tcpMapping map[int]*net.TCPAddr
+	tcpProxies map[int]Proxy
+	udpMapping map[int]*net.UDPAddr
+	udpProxies map[int]Proxy
 }
 
 func (mapper *PortMapper) cleanup() error {
@@ -197,8 +198,10 @@ func (mapper *PortMapper) cleanup() error {
 	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
 	iptables("-t", "nat", "-F", "DOCKER")
 	iptables("-t", "nat", "-X", "DOCKER")
-	mapper.mapping = make(map[int]net.TCPAddr)
-	mapper.proxies = make(map[int]net.Listener)
+	mapper.tcpMapping = make(map[int]*net.TCPAddr)
+	mapper.tcpProxies = make(map[int]Proxy)
+	mapper.udpMapping = make(map[int]*net.UDPAddr)
+	mapper.udpProxies = make(map[int]Proxy)
 	return nil
 }
 
@@ -215,76 +218,72 @@ func (mapper *PortMapper) setup() error {
 	return nil
 }
 
-func (mapper *PortMapper) iptablesForward(rule string, port int, dest net.TCPAddr) error {
-	return iptables("-t", "nat", rule, "DOCKER", "-p", "tcp", "--dport", strconv.Itoa(port),
-		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest.IP.String(), strconv.Itoa(dest.Port)))
+func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, dest_addr string, dest_port int) error {
+	return iptables("-t", "nat", rule, "DOCKER", "-p", proto, "--dport", strconv.Itoa(port),
+		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
 }
 
-func (mapper *PortMapper) Map(port int, dest net.TCPAddr) error {
-	if err := mapper.iptablesForward("-A", port, dest); err != nil {
-		return err
+func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
+	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
+		backendPort := backendAddr.(*net.TCPAddr).Port
+		backendIP := backendAddr.(*net.TCPAddr).IP
+		if err := mapper.iptablesForward("-A", port, "tcp", backendIP.String(), backendPort); err != nil {
+			return err
+		}
+		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
+		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		if err != nil {
+			mapper.Unmap(port, "tcp")
+			return err
+		}
+		mapper.tcpProxies[port] = proxy
+		go proxy.Run()
+	} else {
+		backendPort := backendAddr.(*net.UDPAddr).Port
+		backendIP := backendAddr.(*net.UDPAddr).IP
+		if err := mapper.iptablesForward("-A", port, "udp", backendIP.String(), backendPort); err != nil {
+			return err
+		}
+		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
+		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		if err != nil {
+			mapper.Unmap(port, "udp")
+			return err
+		}
+		mapper.udpProxies[port] = proxy
+		go proxy.Run()
 	}
-
-	mapper.mapping[port] = dest
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	if err != nil {
-		mapper.Unmap(port)
-		return err
-	}
-	mapper.proxies[port] = listener
-	go proxy(listener, "tcp", dest.String())
 	return nil
 }
 
-// proxy listens for socket connections on `listener`, and forwards them unmodified
-// to `proto:address`
-func proxy(listener net.Listener, proto, address string) error {
-	utils.Debugf("proxying to %s:%s", proto, address)
-	defer utils.Debugf("Done proxying to %s:%s", proto, address)
-	for {
-		utils.Debugf("Listening on %s", listener)
-		src, err := listener.Accept()
-		if err != nil {
+func (mapper *PortMapper) Unmap(port int, proto string) error {
+	if proto == "tcp" {
+		backendAddr, ok := mapper.tcpMapping[port]
+		if !ok {
+			return fmt.Errorf("Port tcp/%v is not mapped", port)
+		}
+		if proxy, exists := mapper.tcpProxies[port]; exists {
+			proxy.Close()
+			delete(mapper.tcpProxies, port)
+		}
+		if err := mapper.iptablesForward("-D", port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
 			return err
 		}
-		utils.Debugf("Connecting to %s:%s", proto, address)
-		dst, err := net.Dial(proto, address)
-		if err != nil {
-			log.Printf("Error connecting to %s:%s: %s", proto, address, err)
-			src.Close()
-			continue
+		delete(mapper.tcpMapping, port)
+	} else {
+		backendAddr, ok := mapper.udpMapping[port]
+		if !ok {
+			return fmt.Errorf("Port udp/%v is not mapped", port)
 		}
-		utils.Debugf("Connected to backend, splicing")
-		splice(src, dst)
+		if proxy, exists := mapper.udpProxies[port]; exists {
+			proxy.Close()
+			delete(mapper.udpProxies, port)
+		}
+		if err := mapper.iptablesForward("-D", port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
+			return err
+		}
+		delete(mapper.udpMapping, port)
 	}
-}
-
-func halfSplice(dst, src net.Conn) error {
-	_, err := io.Copy(dst, src)
-	// FIXME: on EOF from a tcp connection, pass WriteClose()
-	dst.Close()
-	src.Close()
-	return err
-}
-
-func splice(a, b net.Conn) {
-	go halfSplice(a, b)
-	go halfSplice(b, a)
-}
-
-func (mapper *PortMapper) Unmap(port int) error {
-	dest, ok := mapper.mapping[port]
-	if !ok {
-		return errors.New("Port is not mapped")
-	}
-	if proxy, exists := mapper.proxies[port]; exists {
-		proxy.Close()
-		delete(mapper.proxies, port)
-	}
-	if err := mapper.iptablesForward("-D", port, dest); err != nil {
-		return err
-	}
-	delete(mapper.mapping, port)
 	return nil
 }
 
@@ -301,9 +300,9 @@ func newPortMapper() (*PortMapper, error) {
 
 // Port allocator: Atomatically allocate and release networking ports
 type PortAllocator struct {
+	sync.Mutex
 	inUse    map[int]struct{}
 	fountain chan (int)
-	lock     sync.Mutex
 }
 
 func (alloc *PortAllocator) runFountain() {
@@ -317,9 +316,9 @@ func (alloc *PortAllocator) runFountain() {
 // FIXME: Release can no longer fail, change its prototype to reflect that.
 func (alloc *PortAllocator) Release(port int) error {
 	utils.Debugf("Releasing %d", port)
-	alloc.lock.Lock()
+	alloc.Lock()
 	delete(alloc.inUse, port)
-	alloc.lock.Unlock()
+	alloc.Unlock()
 	return nil
 }
 
@@ -334,8 +333,8 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 		}
 		return -1, fmt.Errorf("Port generator ended unexpectedly")
 	}
-	alloc.lock.Lock()
-	defer alloc.lock.Unlock()
+	alloc.Lock()
+	defer alloc.Unlock()
 	if _, inUse := alloc.inUse[port]; inUse {
 		return -1, fmt.Errorf("Port already in use: %d", port)
 	}
@@ -453,7 +452,7 @@ type NetworkInterface struct {
 	Gateway net.IP
 
 	manager  *NetworkManager
-	extPorts []int
+	extPorts []*Nat
 }
 
 // Allocate an external TCP port and map it to the interface
@@ -462,17 +461,32 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Allocate a random port if Frontend==0
-	extPort, err := iface.manager.portAllocator.Acquire(nat.Frontend)
-	if err != nil {
-		return nil, err
+
+	if nat.Proto == "tcp" {
+		extPort, err := iface.manager.tcpPortAllocator.Acquire(nat.Frontend)
+		if err != nil {
+			return nil, err
+		}
+		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
+			iface.manager.tcpPortAllocator.Release(extPort)
+			return nil, err
+		}
+		nat.Frontend = extPort
+	} else {
+		extPort, err := iface.manager.udpPortAllocator.Acquire(nat.Frontend)
+		if err != nil {
+			return nil, err
+		}
+		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
+			iface.manager.udpPortAllocator.Release(extPort)
+			return nil, err
+		}
+		nat.Frontend = extPort
 	}
-	nat.Frontend = extPort
-	if err := iface.manager.portMapper.Map(nat.Frontend, net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}); err != nil {
-		iface.manager.portAllocator.Release(nat.Frontend)
-		return nil, err
-	}
-	iface.extPorts = append(iface.extPorts, nat.Frontend)
+	iface.extPorts = append(iface.extPorts, nat)
+
 	return nat, nil
 }
 
@@ -484,6 +498,21 @@ type Nat struct {
 
 func parseNat(spec string) (*Nat, error) {
 	var nat Nat
+
+	if strings.Contains(spec, "/") {
+		specParts := strings.Split(spec, "/")
+		if len(specParts) != 2 {
+			return nil, fmt.Errorf("Invalid port format.")
+		}
+		proto := specParts[1]
+		spec = specParts[0]
+		if proto != "tcp" && proto != "udp" {
+			return nil, fmt.Errorf("Invalid port format: unknown protocol %v.", proto)
+		}
+		nat.Proto = proto
+	} else {
+		nat.Proto = "tcp"
+	}
 
 	if strings.Contains(spec, ":") {
 		specParts := strings.Split(spec, ":")
@@ -517,20 +546,24 @@ func parseNat(spec string) (*Nat, error) {
 		}
 		nat.Backend = int(port)
 	}
-	nat.Proto = "tcp"
+
 	return &nat, nil
 }
 
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
-	for _, port := range iface.extPorts {
-		if err := iface.manager.portMapper.Unmap(port); err != nil {
-			log.Printf("Unable to unmap port %v: %v", port, err)
+	for _, nat := range iface.extPorts {
+		utils.Debugf("Unmaping %v/%v", nat.Proto, nat.Frontend)
+		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
+			log.Printf("Unable to unmap port %v/%v: %v", nat.Proto, nat.Frontend, err)
 		}
-		if err := iface.manager.portAllocator.Release(port); err != nil {
-			log.Printf("Unable to release port %v: %v", port, err)
+		if nat.Proto == "tcp" {
+			if err := iface.manager.tcpPortAllocator.Release(nat.Frontend); err != nil {
+				log.Printf("Unable to release port tcp/%v: %v", nat.Frontend, err)
+			}
+		} else if err := iface.manager.udpPortAllocator.Release(nat.Frontend); err != nil {
+			log.Printf("Unable to release port udp/%v: %v", nat.Frontend, err)
 		}
-
 	}
 
 	iface.manager.ipAllocator.Release(iface.IPNet.IP)
@@ -542,9 +575,10 @@ type NetworkManager struct {
 	bridgeIface   string
 	bridgeNetwork *net.IPNet
 
-	ipAllocator   *IPAllocator
-	portAllocator *PortAllocator
-	portMapper    *PortMapper
+	ipAllocator      *IPAllocator
+	tcpPortAllocator *PortAllocator
+	udpPortAllocator *PortAllocator
+	portMapper       *PortMapper
 }
 
 // Allocate a network interface
@@ -577,7 +611,11 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 
 	ipAllocator := newIPAllocator(network)
 
-	portAllocator, err := newPortAllocator()
+	tcpPortAllocator, err := newPortAllocator()
+	if err != nil {
+		return nil, err
+	}
+	udpPortAllocator, err := newPortAllocator()
 	if err != nil {
 		return nil, err
 	}
@@ -588,11 +626,12 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 
 	manager := &NetworkManager{
-		bridgeIface:   bridgeIface,
-		bridgeNetwork: network,
-		ipAllocator:   ipAllocator,
-		portAllocator: portAllocator,
-		portMapper:    portMapper,
+		bridgeIface:      bridgeIface,
+		bridgeNetwork:    network,
+		ipAllocator:      ipAllocator,
+		tcpPortAllocator: tcpPortAllocator,
+		udpPortAllocator: udpPortAllocator,
+		portMapper:       portMapper,
 	}
 	return manager, nil
 }

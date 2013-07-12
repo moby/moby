@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -8,7 +9,7 @@ import (
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
-	context, err := mkBuildContext(dockerfile, files)
+	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageID), files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,10 +26,10 @@ type testContextTemplate struct {
 
 // A table of all the contexts to build and test.
 // A new docker runtime will be created and torn down for each context.
-var testContexts []testContextTemplate = []testContextTemplate{
+var testContexts = []testContextTemplate{
 	{
 		`
-from   docker-ut
+from   %s
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
 run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
@@ -39,7 +40,7 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 
 	{
 		`
-from docker-ut
+from %s
 add foo /usr/lib/bla/bar
 run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
 `,
@@ -48,7 +49,7 @@ run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
 
 	{
 		`
-from docker-ut
+from %s
 add f /
 run [ "$(cat /f)" = "hello" ]
 add f /abc
@@ -74,9 +75,27 @@ run [ "$(cat /somewheeeere/over/the/rainbooow/ga)" = "bu" ]
 
 	{
 		`
-from docker-ut
+from %s
 env    FOO BAR
 run    [ "$FOO" = "BAR" ]
+`,
+		nil,
+	},
+
+	{
+		`
+from %s
+ENTRYPOINT /bin/echo
+CMD Hello world
+`,
+		nil,
+	},
+
+	{
+		`
+from %s
+VOLUME /test
+CMD Hello world
 `,
 		nil,
 	},
@@ -92,11 +111,51 @@ func TestBuild(t *testing.T) {
 		}
 		defer nuke(runtime)
 
-		srv := &Server{runtime: runtime}
+		srv := &Server{
+			runtime:     runtime,
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
 
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestVolume(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	buildfile := NewBuildFile(srv, ioutil.Discard)
+	imgId, err := buildfile.Build(mkTestContext(`
+from %s
+VOLUME /test
+CMD Hello world
+`, nil, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := srv.ImageInspect(imgId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(img.Config.Volumes) == 0 {
+		t.Fail()
+	}
+	for key, _ := range img.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
 		}
 	}
 }

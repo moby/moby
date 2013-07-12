@@ -5,8 +5,11 @@
 # AUTHOR          Solomon Hykes <solomon@dotcloud.com>
 #                 Daniel Mizyrycki <daniel@dotcloud.net>
 # BUILD_CMD       docker build -t dockerbuilder .
-# RUN_CMD         docker run -e AWS_ID="$AWS_ID" -e AWS_KEY="$AWS_KEY" -e GPG_KEY="$GPG_KEY" dockerbuilder
+# RUN_CMD         docker run -e AWS_ID="$AWS_ID" -e AWS_KEY="$AWS_KEY" -e GPG_KEY="$GPG_KEY" -e PUBLISH_PPA="$PUBLISH_PPA" dockerbuilder
 #
+# ENV_VARIABLES   AWS_ID, AWS_KEY: S3 credentials for uploading Docker binary and tarball
+#                 GPG_KEY: Signing key for docker package
+#                 PUBLISH_PPA: 0 for staging release, 1 for production release
 #
 from	ubuntu:12.04
 maintainer	Solomon Hykes <solomon@dotcloud.com>

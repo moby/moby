@@ -132,17 +132,18 @@ func TestImages(t *testing.T) {
 }
 
 */
+
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(nil, stdoutPipe, nil, testDaemonProto, testDaemonAddr)
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalRuntime)
 
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdRun("-h", "foobar", unitTestImageId, "hostname"); err != nil {
+		if err := cli.CmdRun("-h", "foobar", unitTestImageID, "hostname"); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -329,13 +330,13 @@ func TestRunAttachStdin(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, nil, testDaemonProto, testDaemonAddr)
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalRuntime)
 
 	ch := make(chan struct{})
 	go func() {
 		defer close(ch)
-		cli.CmdRun("-i", "-a", "stdin", unitTestImageId, "sh", "-c", "echo hello && cat")
+		cli.CmdRun("-i", "-a", "stdin", unitTestImageID, "sh", "-c", "echo hello && cat")
 	}()
 
 	// Send input to the command, close stdin

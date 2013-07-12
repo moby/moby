@@ -840,7 +840,7 @@ Remove an image
 	    {"Deleted":"53b4f83ac9"}
 	   ]
 
-	:statuscode 204: no error
+	:statuscode 200: no error
         :statuscode 404: no such image
 	:statuscode 409: conflict
         :statuscode 500: server error

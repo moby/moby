@@ -511,12 +511,14 @@ func TestKillDifferentUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Give some time to lxc to spawn the process (setuid might take some time)
-	container.WaitTimeout(500 * time.Millisecond)
+	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
+		for !container.State.Running {
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
 
-	if !container.State.Running {
-		t.Errorf("Container should be running")
-	}
+	// Even if the state is running, lets give some time to lxc to spawn the process
+	container.WaitTimeout(500 * time.Millisecond)
 
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
@@ -1001,7 +1003,7 @@ func TestEnv(t *testing.T) {
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"/usr/bin/env"},
+		Cmd:   []string{"env"},
 	},
 	)
 	if err != nil {
@@ -1040,6 +1042,32 @@ func TestEnv(t *testing.T) {
 		if actualEnv[i] != goodEnv[i] {
 			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
 		}
+	}
+}
+
+func TestEntrypoint(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo"},
+			Cmd:        []string{"-n", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(output) != "foobar" {
+		t.Error(string(output))
 	}
 }
 

@@ -20,7 +20,8 @@ func CompareConfig(a, b *Config) bool {
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
-		len(a.PortSpecs) != len(b.PortSpecs) {
+		len(a.PortSpecs) != len(b.PortSpecs) ||
+		len(a.Entrypoint) != len(b.Entrypoint) {
 		return false
 	}
 
@@ -44,14 +45,15 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
-
+	for i := 0; i < len(a.Entrypoint); i++ {
+		if a.Entrypoint[i] != b.Entrypoint[i] {
+			return false
+		}
+	}
 	return true
 }
 
 func MergeConfig(userConf, imageConf *Config) {
-	if userConf.Hostname == "" {
-		userConf.Hostname = imageConf.Hostname
-	}
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
@@ -84,5 +86,11 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.Dns == nil || len(userConf.Dns) == 0 {
 		userConf.Dns = imageConf.Dns
+	}
+	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
+		userConf.Entrypoint = imageConf.Entrypoint
+	}
+	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
+		userConf.Volumes = imageConf.Volumes
 	}
 }
