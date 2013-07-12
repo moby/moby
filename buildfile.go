@@ -30,7 +30,6 @@ type buildFile struct {
 	context    string
 	verbose    bool
 
-	lastContainer *Container
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
@@ -255,7 +254,6 @@ func (b *buildFile) CmdAdd(args string) error {
 		return err
 	}
 	b.tmpContainers[container.ID] = struct{}{}
-	b.lastContainer = container
 
 	if err := container.EnsureMounted(); err != nil {
 		return err
@@ -291,7 +289,6 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
-	b.lastContainer = c
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
@@ -345,7 +342,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		b.tmpContainers[container.ID] = struct{}{}
-		b.lastContainer = container
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 		if err := container.EnsureMounted(); err != nil {
@@ -373,29 +369,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	defer func() {
-		// If we have an error and a container, the display the logs
-		if b.lastContainer != nil {
-			fmt.Fprintf(b.out, "******** Logs from last container (%s) *******\n", b.lastContainer.ShortID())
-
-			cLog, err := b.lastContainer.ReadLog("stdout")
-			if err != nil {
-				utils.Debugf("Error reading logs (stdout): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stdout): %s", err)
-			}
-			cLog, err = b.lastContainer.ReadLog("stderr")
-			if err != nil {
-				utils.Debugf("Error reading logs (stderr): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stderr): %s", err)
-			}
-			fmt.Fprintf(b.out, "************* End of logs for %s *************\n", b.lastContainer.ShortID())
-		}
-	}()
-
 	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("/tmp", "docker-build")
@@ -448,7 +421,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			return "", ret.(error)
 		}
 
-		b.lastContainer = nil
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
