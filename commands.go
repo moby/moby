@@ -469,7 +469,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
-	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before stopping the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -494,7 +494,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
-	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
+	nSeconds := cmd.Int("t", 10, "wait t seconds before restarting the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -773,7 +773,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
+	cmd := Subcmd("push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
