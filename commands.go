@@ -1058,7 +1058,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 }
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
-	cmd := Subcmd("events", "", "Get real time events from the server")
+	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
+	since := cmd.String("since", "", "Show events previously created (used for polling).")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1068,7 +1069,12 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("GET", "/events", nil, cli.out); err != nil {
+	v := url.Values{}
+	if *since != "" {
+		v.Set("since", *since)
+	}
+
+	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out); err != nil {
 		return err
 	}
 	return nil

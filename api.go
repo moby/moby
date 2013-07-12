@@ -218,24 +218,55 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	events := make(chan utils.JSONMessage)
-	srv.Lock()
-	srv.events[r.RemoteAddr] = events
-	srv.Unlock()
-	w.Header().Set("Content-Type", "application/json")
-	wf := utils.NewWriteFlusher(w)
-	for {
-		event := <-events
+	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) (bool, error) {
 		b, err := json.Marshal(event)
 		if err != nil {
-			continue
+			return true, nil
 		}
 		_, err = wf.Write(b)
 		if err != nil {
 			utils.Debugf("%s", err)
 			srv.Lock()
-			delete(srv.events, r.RemoteAddr)
+			delete(srv.listeners, r.RemoteAddr)
 			srv.Unlock()
+			return false, err
+		}
+		return false, nil
+	}
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	listener := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.listeners[r.RemoteAddr] = listener
+	srv.Unlock()
+	since, err := strconv.ParseInt(r.Form.Get("since"), 10, 0)
+	if err != nil {
+		since = 0
+	}
+	w.Header().Set("Content-Type", "application/json")
+	wf := utils.NewWriteFlusher(w)
+	if since != 0 {
+		for _, event := range srv.events {
+			if event.Time >= since {
+				skip, err := sendEvent(wf, &event)
+				if skip {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for {
+		event := <-listener
+		skip, err := sendEvent(wf, &event)
+		if skip {
+			continue
+		}
+		if err != nil {
 			return err
 		}
 	}
