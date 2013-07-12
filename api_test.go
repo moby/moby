@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -41,44 +40,6 @@ func TestGetBoolParam(t *testing.T) {
 	}
 }
 
-func TestPostAuth(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime: runtime,
-	}
-
-	r := httptest.NewRecorder()
-
-	authConfig := &auth.AuthConfig{
-		Username: "utest",
-		Password: "utest",
-		Email:    "utest@yopmail.com",
-	}
-
-	authConfigJSON, err := json.Marshal(authConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest("POST", "/auth", bytes.NewReader(authConfigJSON))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := postAuth(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Code != http.StatusOK && r.Code != 0 {
-		t.Fatalf("%d OK or 0 expected, received %d\n", http.StatusOK, r.Code)
-	}
-}
-
 func TestGetVersion(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -99,7 +60,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if v.Version != VERSION {
-		t.Errorf("Excepted version %s, %s found", VERSION, v.Version)
+		t.Errorf("Expected version %s, %s found", VERSION, v.Version)
 	}
 }
 
@@ -129,7 +90,7 @@ func TestGetInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if infos.Images != len(initialImages) {
-		t.Errorf("Excepted images: %d, %d found", len(initialImages), infos.Images)
+		t.Errorf("Expected images: %d, %d found", len(initialImages), infos.Images)
 	}
 }
 
@@ -166,7 +127,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 
 	found := false
@@ -177,7 +138,7 @@ func TestGetImagesJSON(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("Excepted image %s, %+v found", unitTestImageName, images)
+		t.Errorf("Expected image %s, %+v found", unitTestImageName, images)
 	}
 
 	r2 := httptest.NewRecorder()
@@ -204,7 +165,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images2) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images2))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images2))
 	}
 
 	found = false
@@ -236,7 +197,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 
 	if len(images3) != 0 {
-		t.Errorf("Excepted 0 image, %d found", len(images3))
+		t.Errorf("Expected 0 image, %d found", len(images3))
 	}
 
 	r4 := httptest.NewRecorder()
@@ -282,38 +243,7 @@ func TestGetImagesViz(t *testing.T) {
 		t.Fatal(err)
 	}
 	if line != "digraph docker {\n" {
-		t.Errorf("Excepted digraph docker {\n, %s found", line)
-	}
-}
-
-func TestGetImagesSearch(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime: runtime,
-	}
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", "/images/search?term=redis", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := getImagesSearch(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	results := []APISearch{}
-	if err := json.Unmarshal(r.Body.Bytes(), &results); err != nil {
-		t.Fatal(err)
-	}
-	if len(results) < 2 {
-		t.Errorf("Excepted at least 2 lines, %d found", len(results))
+		t.Errorf("Expected digraph docker {\n, %s found", line)
 	}
 }
 
@@ -337,7 +267,7 @@ func TestGetImagesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(history) != 1 {
-		t.Errorf("Excepted 1 line, %d found", len(history))
+		t.Errorf("Expected 1 line, %d found", len(history))
 	}
 }
 
@@ -359,7 +289,7 @@ func TestGetImagesByName(t *testing.T) {
 	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
 		t.Fatal(err)
 	}
-	if img.ID != unitTestImageId {
+	if img.ID != unitTestImageID {
 		t.Errorf("Error inspecting image")
 	}
 }
@@ -396,7 +326,7 @@ func TestGetContainersJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(containers) != 1 {
-		t.Fatalf("Excepted %d container, %d found", 1, len(containers))
+		t.Fatalf("Expected %d container, %d found", 1, len(containers))
 	}
 	if containers[0].ID != container.ID {
 		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ID, containers[0].ID)
@@ -1356,24 +1286,34 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages)+1 {
-		t.Errorf("Excepted %d images, %d found", len(initialImages)+1, len(images))
+		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
-	req, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r := httptest.NewRecorder()
-	if err := deleteImages(srv, APIVERSION, r, req, map[string]string{"name": "test:test"}); err != nil {
+	if err := deleteImages(srv, APIVERSION, r, req, map[string]string{"name": unitTestImageID}); err == nil {
+		t.Fatalf("Expected conflict error, got none")
+	}
+
+	req2, err := http.NewRequest("DELETE", "/images/test:test", nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusOK {
+
+	r2 := httptest.NewRecorder()
+	if err := deleteImages(srv, APIVERSION, r2, req2, map[string]string{"name": "test:test"}); err != nil {
+		t.Fatal(err)
+	}
+	if r2.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
 	var outs []APIRmi
-	if err := json.Unmarshal(r.Body.Bytes(), &outs); err != nil {
+	if err := json.Unmarshal(r2.Body.Bytes(), &outs); err != nil {
 		t.Fatal(err)
 	}
 	if len(outs) != 1 {
@@ -1385,7 +1325,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	if len(images) != len(initialImages) {
-		t.Errorf("Excepted %d image, %d found", len(initialImages), len(images))
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 
 	/*	if c := runtime.Get(container.Id); c != nil {

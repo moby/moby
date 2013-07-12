@@ -3,14 +3,13 @@ package docker
 import (
 	"fmt"
 	"io/ioutil"
-	"sync"
 	"testing"
 )
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
-	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageId), files)
+	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageID), files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +26,7 @@ type testContextTemplate struct {
 
 // A table of all the contexts to build and test.
 // A new docker runtime will be created and torn down for each context.
-var testContexts []testContextTemplate = []testContextTemplate{
+var testContexts = []testContextTemplate{
 	{
 		`
 from   %s
@@ -85,8 +84,17 @@ run    [ "$FOO" = "BAR" ]
 
 	{
 		`
-from docker-ut
+from %s
 ENTRYPOINT /bin/echo
+CMD Hello world
+`,
+		nil,
+	},
+
+	{
+		`
+from %s
+VOLUME /test
 CMD Hello world
 `,
 		nil,
@@ -105,7 +113,6 @@ func TestBuild(t *testing.T) {
 
 		srv := &Server{
 			runtime:     runtime,
-			lock:        &sync.Mutex{},
 			pullingPool: make(map[string]struct{}),
 			pushingPool: make(map[string]struct{}),
 		}
@@ -113,6 +120,42 @@ func TestBuild(t *testing.T) {
 		buildfile := NewBuildFile(srv, ioutil.Discard)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestVolume(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	buildfile := NewBuildFile(srv, ioutil.Discard)
+	imgId, err := buildfile.Build(mkTestContext(`
+from %s
+VOLUME /test
+CMD Hello world
+`, nil, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := srv.ImageInspect(imgId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(img.Config.Volumes) == 0 {
+		t.Fail()
+	}
+	for key, _ := range img.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
 		}
 	}
 }

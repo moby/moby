@@ -16,7 +16,7 @@ func TestCmdStreamLargeStderr(t *testing.T) {
 	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
 	out, err := CmdStream(cmd)
 	if err != nil {
-		t.Fatalf("Failed to start command: " + err.Error())
+		t.Fatalf("Failed to start command: %s", err)
 	}
 	errCh := make(chan error)
 	go func() {
@@ -26,7 +26,7 @@ func TestCmdStreamLargeStderr(t *testing.T) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("Command should not have failed (err=%s...)", err.Error()[:100])
+			t.Fatalf("Command should not have failed (err=%.100s...)", err)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("Command did not complete in 5 seconds; probable deadlock")
@@ -37,12 +37,12 @@ func TestCmdStreamBad(t *testing.T) {
 	badCmd := exec.Command("/bin/sh", "-c", "echo hello; echo >&2 error couldn\\'t reverse the phase pulser; exit 1")
 	out, err := CmdStream(badCmd)
 	if err != nil {
-		t.Fatalf("Failed to start command: " + err.Error())
+		t.Fatalf("Failed to start command: %s", err)
 	}
 	if output, err := ioutil.ReadAll(out); err == nil {
 		t.Fatalf("Command should have failed")
 	} else if err.Error() != "exit status 1: error couldn't reverse the phase pulser\n" {
-		t.Fatalf("Wrong error value (%s)", err.Error())
+		t.Fatalf("Wrong error value (%s)", err)
 	} else if s := string(output); s != "hello\n" {
 		t.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
 	}

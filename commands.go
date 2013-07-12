@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -73,7 +72,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=[tcp://%s:%d]: tcp://host:port to bind/connect to or unix://path/to/socker to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=[tcp://%s:%d]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -730,7 +729,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
-	registry := cmd.String("registry", "", "Registry host to push the image to")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -741,28 +739,16 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	if err := cli.checkIfLogged(*registry == "", "push"); err != nil {
+	if err := cli.checkIfLogged("push"); err != nil {
 		return err
 	}
 
-	if *registry == "" {
-		// If we're not using a custom registry, we know the restrictions
-		// applied to repository names and can warn the user in advance.
-		// Custom repositories can have different rules, and we must also
-		// allow pushing by image ID.
-		if len(strings.SplitN(name, "/", 2)) == 1 {
-			return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
-		}
-
-		nameParts := strings.SplitN(name, "/", 2)
-		validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
-		if !validNamespace.MatchString(nameParts[0]) {
-			return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", nameParts[0])
-		}
-		validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
-		if !validRepo.MatchString(nameParts[1]) {
-			return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", nameParts[1])
-		}
+	// If we're not using a custom registry, we know the restrictions
+	// applied to repository names and can warn the user in advance.
+	// Custom repositories can have different rules, and we must also
+	// allow pushing by image ID.
+	if len(strings.SplitN(name, "/", 2)) == 1 {
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
 	}
 
 	buf, err := json.Marshal(cli.authConfig)
@@ -771,7 +757,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("registry", *registry)
 	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out); err != nil {
 		return err
 	}
@@ -781,7 +766,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
-	registry := cmd.String("registry", "", "Registry to download from. Necessary if image is pulled by ID")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -791,17 +775,12 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return nil
 	}
 
-	remote := cmd.Arg(0)
-	if strings.Contains(remote, ":") {
-		remoteParts := strings.Split(remote, ":")
-		tag = &remoteParts[1]
-		remote = remoteParts[0]
-	}
+	remote, parsedTag := utils.ParseRepositoryTag(cmd.Arg(0))
+	*tag = parsedTag
 
 	v := url.Values{}
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
-	v.Set("registry", *registry)
 
 	if err := cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out); err != nil {
 		return err
@@ -1127,6 +1106,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1148,13 +1128,19 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
+	_, width := cli.getTtySize()
+	if width == 0 {
+		width = 45
+	} else {
+		width = width - 33 //remote the first column
+	}
 	for _, out := range outs {
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if len(desc) > 45 {
-			desc = utils.Trunc(desc, 42) + "..."
+		if !*noTrunc && len(desc) > width {
+			desc = utils.Trunc(desc, width-3) + "..."
 		}
 		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
 	}
@@ -1265,7 +1251,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	//if image not found try to pull it
 	if statusCode == 404 {
 		v := url.Values{}
-		v.Set("fromImage", config.Image)
+		repos, tag := utils.ParseRepositoryTag(config.Image)
+		v.Set("fromImage", repos)
+		v.Set("tag", tag)
 		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err)
 		if err != nil {
 			return err
@@ -1286,7 +1274,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	for _, warning := range runResult.Warnings {
-		fmt.Fprintln(cli.err, "WARNING: ", warning)
+		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
 
 	//start the container
@@ -1338,9 +1326,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) checkIfLogged(condition bool, action string) error {
+func (cli *DockerCli) checkIfLogged(action string) error {
 	// If condition AND the login failed
-	if condition && cli.authConfig.Username == "" {
+	if cli.authConfig.Username == "" {
 		if err := cli.CmdLogin(""); err != nil {
 			return err
 		}
@@ -1528,17 +1516,28 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 }
 
-func (cli *DockerCli) resizeTty(id string) {
+func (cli *DockerCli) getTtySize() (int, int) {
 	if !cli.isTerminal {
-		return
+		return 0, 0
 	}
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
 		utils.Debugf("Error getting size: %s", err)
+		if ws == nil {
+			return 0, 0
+		}
+	}
+	return int(ws.Height), int(ws.Width)
+}
+
+func (cli *DockerCli) resizeTty(id string) {
+	height, width := cli.getTtySize()
+	if height == 0 && width == 0 {
+		return
 	}
 	v := url.Values{}
-	v.Set("h", strconv.Itoa(int(ws.Height)))
-	v.Set("w", strconv.Itoa(int(ws.Width)))
+	v.Set("h", strconv.Itoa(height))
+	v.Set("w", strconv.Itoa(width))
 	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
 		utils.Debugf("Error resize: %s", err)
 	}
@@ -1574,7 +1573,7 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
 	var (
-		isTerminal bool = false
+		isTerminal = false
 		terminalFd uintptr
 	)
 

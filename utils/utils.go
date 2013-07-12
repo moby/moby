@@ -170,10 +170,9 @@ func SelfPath() string {
 	return path
 }
 
-type NopWriter struct {
-}
+type NopWriter struct{}
 
-func (w *NopWriter) Write(buf []byte) (int, error) {
+func (*NopWriter) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
@@ -188,10 +187,10 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 }
 
 type bufReader struct {
+	sync.Mutex
 	buf    *bytes.Buffer
 	reader io.Reader
 	err    error
-	l      sync.Mutex
 	wait   sync.Cond
 }
 
@@ -200,7 +199,7 @@ func NewBufReader(r io.Reader) *bufReader {
 		buf:    &bytes.Buffer{},
 		reader: r,
 	}
-	reader.wait.L = &reader.l
+	reader.wait.L = &reader.Mutex
 	go reader.drain()
 	return reader
 }
@@ -209,14 +208,14 @@ func (r *bufReader) drain() {
 	buf := make([]byte, 1024)
 	for {
 		n, err := r.reader.Read(buf)
-		r.l.Lock()
+		r.Lock()
 		if err != nil {
 			r.err = err
 		} else {
 			r.buf.Write(buf[0:n])
 		}
 		r.wait.Signal()
-		r.l.Unlock()
+		r.Unlock()
 		if err != nil {
 			break
 		}
@@ -224,8 +223,8 @@ func (r *bufReader) drain() {
 }
 
 func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.l.Lock()
-	defer r.l.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	for {
 		n, err = r.buf.Read(p)
 		if n > 0 {
@@ -247,27 +246,27 @@ func (r *bufReader) Close() error {
 }
 
 type WriteBroadcaster struct {
-	mu      sync.Mutex
+	sync.Mutex
 	writers map[io.WriteCloser]struct{}
 }
 
 func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
-	w.mu.Lock()
+	w.Lock()
 	w.writers[writer] = struct{}{}
-	w.mu.Unlock()
+	w.Unlock()
 }
 
 // FIXME: Is that function used?
 // FIXME: This relies on the concrete writer type used having equality operator
 func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.mu.Lock()
+	w.Lock()
 	delete(w.writers, writer)
-	w.mu.Unlock()
+	w.Unlock()
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	for writer := range w.writers {
 		if n, err := writer.Write(p); err != nil || n != len(p) {
 			// On error, evict the writer
@@ -278,8 +277,8 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 }
 
 func (w *WriteBroadcaster) CloseWriters() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	for writer := range w.writers {
 		writer.Close()
 	}
@@ -689,11 +688,7 @@ func ParseHost(host string, port int, addr string) string {
 }
 
 func GetReleaseVersion() string {
-	type githubTag struct {
-		Name string `json:"name"`
-	}
-
-	resp, err := http.Get("https://api.github.com/repos/dotcloud/docker/tags")
+	resp, err := http.Get("http://get.docker.io/latest")
 	if err != nil {
 		return ""
 	}
@@ -702,10 +697,19 @@ func GetReleaseVersion() string {
 	if err != nil {
 		return ""
 	}
-	var tags []githubTag
-	err = json.Unmarshal(body, &tags)
-	if err != nil || len(tags) == 0 {
-		return ""
+	return strings.TrimSpace(string(body))
+}
+
+// Get a repos name and returns the right reposName + tag
+// The tag can be confusing because of a port in a repository name.
+//     Ex: localhost.localdomain:5000/samalba/hipache:latest
+func ParseRepositoryTag(repos string) (string, string) {
+	n := strings.LastIndex(repos, ":")
+	if n < 0 {
+		return repos, ""
 	}
-	return strings.TrimPrefix(tags[0].Name, "v")
+	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
+		return repos[:n], tag
+	}
+	return repos, ""
 }
