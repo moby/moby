@@ -28,6 +28,7 @@ type buildFile struct {
 	maintainer string
 	config     *Config
 	context    string
+	verbose    bool
 
 	lastContainer *Container
 	tmpContainers map[string]struct{}
@@ -303,6 +304,13 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 
+	if b.verbose {
+		err = <-c.Attach(nil, nil, b.out, b.out)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	// Wait for it to finish
 	if ret := c.Wait(); ret != 0 {
 		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, ret)
@@ -450,7 +458,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -459,5 +467,6 @@ func NewBuildFile(srv *Server, out io.Writer) BuildFile {
 		out:           out,
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
+		verbose:       verbose,
 	}
 }
