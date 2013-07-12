@@ -41,10 +41,8 @@ func TestGetBoolParam(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var err error
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -65,10 +63,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -95,10 +90,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetImagesJSON(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -220,10 +212,7 @@ func TestGetImagesJSON(t *testing.T) {
 }
 
 func TestGetImagesViz(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -248,10 +237,7 @@ func TestGetImagesViz(t *testing.T) {
 }
 
 func TestGetImagesHistory(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -272,10 +258,7 @@ func TestGetImagesHistory(t *testing.T) {
 }
 
 func TestGetImagesByName(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -295,10 +278,7 @@ func TestGetImagesByName(t *testing.T) {
 }
 
 func TestGetContainersJSON(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -334,10 +314,7 @@ func TestGetContainersJSON(t *testing.T) {
 }
 
 func TestGetContainersExport(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -389,10 +366,7 @@ func TestGetContainersExport(t *testing.T) {
 }
 
 func TestGetContainersChanges(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -437,10 +411,7 @@ func TestGetContainersChanges(t *testing.T) {
 }
 
 func TestGetContainersByName(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -473,10 +444,7 @@ func TestGetContainersByName(t *testing.T) {
 }
 
 func TestPostCommit(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -522,10 +490,7 @@ func TestPostCommit(t *testing.T) {
 }
 
 func TestPostContainersCreate(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -576,10 +541,7 @@ func TestPostContainersCreate(t *testing.T) {
 }
 
 func TestPostContainersKill(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -621,10 +583,7 @@ func TestPostContainersKill(t *testing.T) {
 }
 
 func TestPostContainersRestart(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -678,10 +637,7 @@ func TestPostContainersRestart(t *testing.T) {
 }
 
 func TestPostContainersStart(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -731,10 +687,7 @@ func TestPostContainersStart(t *testing.T) {
 }
 
 func TestPostContainersStop(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -781,10 +734,7 @@ func TestPostContainersStop(t *testing.T) {
 }
 
 func TestPostContainersWait(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -826,10 +776,7 @@ func TestPostContainersWait(t *testing.T) {
 }
 
 func TestPostContainersAttach(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -915,10 +862,7 @@ func TestPostContainersAttach(t *testing.T) {
 // FIXME: Test deleting container with volume
 // FIXME: Test deleting volume in use by other container
 func TestDeleteContainers(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -958,10 +902,7 @@ func TestDeleteContainers(t *testing.T) {
 }
 
 func TestOptionsRoute(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime, enableCors: true}
@@ -984,10 +925,7 @@ func TestOptionsRoute(t *testing.T) {
 }
 
 func TestGetEnabledCors(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime, enableCors: true}
@@ -1025,10 +963,7 @@ func TestGetEnabledCors(t *testing.T) {
 }
 
 func TestDeleteImages(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}

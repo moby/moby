@@ -96,10 +96,7 @@ CMD Hello world
 
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
-		runtime, err := newTestRuntime()
-		if err != nil {
-			t.Fatal(err)
-		}
+		runtime := mkRuntime(t)
 		defer nuke(runtime)
 
 		srv := &Server{

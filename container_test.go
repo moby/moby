@@ -1046,10 +1046,7 @@ func TestEnv(t *testing.T) {
 }
 
 func TestEntrypoint(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(
 		&Config{
@@ -1125,10 +1122,7 @@ func TestLXCConfig(t *testing.T) {
 }
 
 func BenchmarkRunSequencial(b *testing.B) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		b.Fatal(err)
-	}
+	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
 		container, err := NewBuilder(runtime).Create(&Config{
@@ -1154,10 +1148,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 }
 
 func BenchmarkRunParallel(b *testing.B) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		b.Fatal(err)
-	}
+	runtime := mkRuntime(b)
 	defer nuke(runtime)
 
 	var tasks []chan error
