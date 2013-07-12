@@ -106,7 +106,7 @@ func (r *progressReader) Close() error {
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
 	tpl := string(template)
 	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
+		tpl = string(sf.FormatProgress("", "%8v/%v (%v)"))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
