@@ -482,12 +482,12 @@ func TestGetContainersTop(t *testing.T) {
 		t.Fatalf("Expected 2 processes, found %d.", len(procs))
 	}
 
-	if procs[0].Cmd != "sh" && procs[0].Cmd != "exe" {
-		t.Fatalf("Expected `sleep` or `sh`, found %s.", procs[0].Cmd)
+	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
 	}
 
-	if procs[1].Cmd != "sh" && procs[1].Cmd != "exe" {
-		t.Fatalf("Expected `sleep` or `sh`, found %s.", procs[1].Cmd)
+	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
 	}
 }
 
