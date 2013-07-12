@@ -673,20 +673,20 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 }
 
 // FIXME: Allow to interupt current push when new push of same image is done.
-func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	if err := srv.poolAdd("push", localName); err != nil {
+func (srv *Server) ImagePush(remoteName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+	if err := srv.poolAdd("push", remoteName); err != nil {
 		return err
 	}
-	defer srv.poolRemove("push", localName)
+	defer srv.poolRemove("push", remoteName)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
+	endpoint, localName, err := registry.ResolveRepositoryName(remoteName)
 	if err != nil {
 		return err
 	}
 
 	out = utils.NewWriteFlusher(out)
-	img, err := srv.runtime.graph.Get(localName)
+	img, err := srv.runtime.graph.Get(remoteName)
 	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
 	if err2 != nil {
 		return err2
