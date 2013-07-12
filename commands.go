@@ -89,6 +89,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"top", "Lookup the running processes of a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -551,6 +552,33 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 	}
 	fmt.Fprintf(cli.out, "]")
+	return nil
+}
+
+func (cli *DockerCli) CmdTop(args ...string) error {
+	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
+	if err != nil {
+		return err
+	}
+	var procs []APITop
+	err = json.Unmarshal(body, &procs)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	fmt.Fprintln(w, "PID\tTTY\tTIME\tCMD")
+	for _, proc := range procs {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", proc.PID, proc.Tty, proc.Time, proc.Cmd)
+	}
+	w.Flush()
 	return nil
 }
 
