@@ -173,6 +173,27 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdVolume(args string) error {
+	if args == "" {
+		return fmt.Errorf("Volume cannot be empty")
+	}
+
+	var volume []string
+	if err := json.Unmarshal([]byte(args), &volume); err != nil {
+		volume = []string{args}
+	}
+	if b.config.Volumes == nil {
+		b.config.Volumes = NewPathOpts()
+	}
+	for _, v := range volume {
+		b.config.Volumes[v] = struct{}{}
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	file, err := utils.Download(orig, ioutil.Discard)
 	if err != nil {
