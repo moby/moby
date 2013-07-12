@@ -48,12 +48,12 @@ Docker will ignore lines in Dockerfiles prefixed with "`#`", so you may add
 comment lines. A comment marker in the rest of the line will be treated as an
 argument.
 
-2. Instructions
+3. Instructions
 ===============
 
 Docker builder comes with a set of instructions, described below.
 
-2.1 FROM
+3.1 FROM
 --------
 
     ``FROM <image>``
@@ -65,7 +65,7 @@ a valid Dockerfile must have it as its first instruction.
 create multiple images. Simply make a note of the last image id output by the 
 commit before each new `FROM` command.
 
-2.2 MAINTAINER
+3.2 MAINTAINER
 --------------
 
     ``MAINTAINER <name>``
@@ -73,7 +73,7 @@ commit before each new `FROM` command.
 The `MAINTAINER` instruction allows you to set the Author field of the generated 
 images.
 
-2.3 RUN
+3.3 RUN
 -------
 
     ``RUN <command>``
@@ -86,7 +86,7 @@ Layering `RUN` instructions and generating commits conforms to the
 core concepts of Docker where commits are cheap and containers can be created
 from any point in an image's history, much like source control.
 
-2.4 CMD
+3.4 CMD
 -------
 
     ``CMD <command>``
@@ -100,7 +100,7 @@ This is functionally equivalent to running
     the result; `CMD` does not execute anything at build time, but specifies the
     intended command for the image.
 
-2.5 EXPOSE
+3.5 EXPOSE
 ----------
 
     ``EXPOSE <port> [<port>...]``
@@ -109,7 +109,7 @@ The `EXPOSE` instruction sets ports to be publicly exposed when running the
 image. This is functionally equivalent to running 
 `docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the builder.
 
-2.6 ENV
+3.6 ENV
 -------
 
     ``ENV <key> <value>``
@@ -121,7 +121,7 @@ functionally equivalent to prefixing the command with `<key>=<value>`
 .. note::
     The environment variables will persist when a container is run from the resulting image.
 
-2.7 ADD
+3.7 ADD
 -------
 
     ``ADD <src> <dest>``
@@ -153,21 +153,21 @@ of `<src>` will be written at `<dst>`.
 If `<dest>` doesn't exist, it is created along with all missing directories in its path. All new
 files and directories are created with mode 0700, uid and gid 0.
 
-2.8 ENTRYPOINT
+3.8 ENTRYPOINT
 -------------
 
     ``ENTRYPOINT /bin/echo``
 
 The `ENTRYPOINT` instruction adds an entry command that will not be overwritten when arguments are passed to docker run, unlike the behavior of `CMD`.  This allows arguments to be passed to the entrypoint.  i.e. `docker run <image> -d` will pass the "-d" argument to the entrypoint.
 
-2.9 VOLUME
+3.9 VOLUME
 ----------
 
     ``VOLUME ["/data"]``
 
 The `VOLUME` instruction will add one or more new volumes to any container created from the image.
 
-3. Dockerfile Examples
+4. Dockerfile Examples
 ======================
 
 .. code-block:: bash
