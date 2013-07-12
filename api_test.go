@@ -41,10 +41,8 @@ func TestGetBoolParam(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var err error
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -65,10 +63,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -95,10 +90,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetImagesJSON(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -220,10 +212,7 @@ func TestGetImagesJSON(t *testing.T) {
 }
 
 func TestGetImagesViz(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -248,10 +237,7 @@ func TestGetImagesViz(t *testing.T) {
 }
 
 func TestGetImagesHistory(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -272,10 +258,7 @@ func TestGetImagesHistory(t *testing.T) {
 }
 
 func TestGetImagesByName(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -295,10 +278,7 @@ func TestGetImagesByName(t *testing.T) {
 }
 
 func TestGetContainersJSON(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -334,10 +314,7 @@ func TestGetContainersJSON(t *testing.T) {
 }
 
 func TestGetContainersExport(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -389,10 +366,7 @@ func TestGetContainersExport(t *testing.T) {
 }
 
 func TestGetContainersChanges(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -492,10 +466,7 @@ func TestGetContainersTop(t *testing.T) {
 }
 
 func TestGetContainersByName(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -528,10 +499,7 @@ func TestGetContainersByName(t *testing.T) {
 }
 
 func TestPostCommit(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -576,249 +544,8 @@ func TestPostCommit(t *testing.T) {
 	}
 }
 
-func TestPostImagesCreate(t *testing.T) {
-	// FIXME: Use the staging in order to perform tests
-
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
-
-	// srv := &Server{runtime: runtime}
-
-	// stdin, stdinPipe := io.Pipe()
-	// stdout, stdoutPipe := io.Pipe()
-
-	// c1 := make(chan struct{})
-	// go func() {
-	// 	defer close(c1)
-
-	// 	r := &hijackTester{
-	// 		ResponseRecorder: httptest.NewRecorder(),
-	// 		in:               stdin,
-	// 		out:              stdoutPipe,
-	// 	}
-
-	// 	req, err := http.NewRequest("POST", "/images/create?fromImage="+unitTestImageName, bytes.NewReader([]byte{}))
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-
-	// 	body, err := postImagesCreate(srv, r, req, nil)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if body != nil {
-	// 		t.Fatalf("No body expected, received: %s\n", body)
-	// 	}
-	// }()
-
-	// // Acknowledge hijack
-	// setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-	// 	stdout.Read([]byte{})
-	// 	stdout.Read(make([]byte, 4096))
-	// })
-
-	// setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
-	// 	reader := bufio.NewReader(stdout)
-	// 	line, err := reader.ReadString('\n')
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if !strings.HasPrefix(line, "Pulling repository d from") {
-	// 		t.Fatalf("Expected Pulling repository docker-ut from..., found %s", line)
-	// 	}
-	// })
-
-	// // Close pipes (client disconnects)
-	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// // Wait for imagesCreate to finish, the client disconnected, therefore, Create finished his job
-	// setTimeout(t, "Waiting for imagesCreate timed out", 10*time.Second, func() {
-	// 	<-c1
-	// })
-}
-
-func TestPostImagesInsert(t *testing.T) {
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
-
-	// srv := &Server{runtime: runtime}
-
-	// stdin, stdinPipe := io.Pipe()
-	// stdout, stdoutPipe := io.Pipe()
-
-	// // Attach to it
-	// c1 := make(chan struct{})
-	// go func() {
-	// 	defer close(c1)
-	// 	r := &hijackTester{
-	// 		ResponseRecorder: httptest.NewRecorder(),
-	// 		in:               stdin,
-	// 		out:              stdoutPipe,
-	// 	}
-
-	// 	req, err := http.NewRequest("POST", "/images/"+unitTestImageName+"/insert?path=%2Ftest&url=https%3A%2F%2Fraw.github.com%2Fdotcloud%2Fdocker%2Fmaster%2FREADME.md", bytes.NewReader([]byte{}))
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if err := postContainersCreate(srv, r, req, nil); err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// }()
-
-	// // Acknowledge hijack
-	// setTimeout(t, "hijack acknowledge timed out", 5*time.Second, func() {
-	// 	stdout.Read([]byte{})
-	// 	stdout.Read(make([]byte, 4096))
-	// })
-
-	// id := ""
-	// setTimeout(t, "Waiting for imagesInsert output", 10*time.Second, func() {
-	// 	for {
-	// 		reader := bufio.NewReader(stdout)
-	// 		id, err = reader.ReadString('\n')
-	// 		if err != nil {
-	// 			t.Fatal(err)
-	// 		}
-	// 	}
-	// })
-
-	// // Close pipes (client disconnects)
-	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// // Wait for attach to finish, the client disconnected, therefore, Attach finished his job
-	// setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
-	// 	<-c1
-	// })
-
-	// img, err := srv.runtime.repositories.LookupImage(id)
-	// if err != nil {
-	// 	t.Fatalf("New image %s expected but not found", id)
-	// }
-
-	// layer, err := img.layer()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// if _, err := os.Stat(path.Join(layer, "test")); err != nil {
-	// 	t.Fatalf("The test file has not been found")
-	// }
-
-	// if err := srv.runtime.graph.Delete(img.ID); err != nil {
-	// 	t.Fatal(err)
-	// }
-}
-
-func TestPostImagesPush(t *testing.T) {
-	//FIXME: Use staging in order to perform tests
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
-
-	// srv := &Server{runtime: runtime}
-
-	// stdin, stdinPipe := io.Pipe()
-	// stdout, stdoutPipe := io.Pipe()
-
-	// c1 := make(chan struct{})
-	// go func() {
-	// 	r := &hijackTester{
-	// 		ResponseRecorder: httptest.NewRecorder(),
-	// 		in:               stdin,
-	// 		out:              stdoutPipe,
-	// 	}
-
-	// 	req, err := http.NewRequest("POST", "/images/docker-ut/push", bytes.NewReader([]byte{}))
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-
-	// 	body, err := postImagesPush(srv, r, req, map[string]string{"name": "docker-ut"})
-	// 	close(c1)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if body != nil {
-	// 		t.Fatalf("No body expected, received: %s\n", body)
-	// 	}
-	// }()
-
-	// // Acknowledge hijack
-	// setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
-	// 	stdout.Read([]byte{})
-	// 	stdout.Read(make([]byte, 4096))
-	// })
-
-	// setTimeout(t, "Waiting for imagesCreate output", 5*time.Second, func() {
-	// 	reader := bufio.NewReader(stdout)
-	// 	line, err := reader.ReadString('\n')
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if !strings.HasPrefix(line, "Processing checksum") {
-	// 		t.Fatalf("Processing checksum..., found %s", line)
-	// 	}
-	// })
-
-	// // Close pipes (client disconnects)
-	// if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// // Wait for imagesPush to finish, the client disconnected, therefore, Push finished his job
-	// setTimeout(t, "Waiting for imagesPush timed out", 10*time.Second, func() {
-	// 	<-c1
-	// })
-}
-
-func TestPostImagesTag(t *testing.T) {
-	// FIXME: Use staging in order to perform tests
-
-	// runtime, err := newTestRuntime()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// defer nuke(runtime)
-
-	// srv := &Server{runtime: runtime}
-
-	// r := httptest.NewRecorder()
-
-	// req, err := http.NewRequest("POST", "/images/docker-ut/tag?repo=testrepo&tag=testtag", bytes.NewReader([]byte{}))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// body, err := postImagesTag(srv, r, req, map[string]string{"name": "docker-ut"})
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// if body != nil {
-	// 	t.Fatalf("No body expected, received: %s\n", body)
-	// }
-	// if r.Code != http.StatusCreated {
-	// 	t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
-	// }
-}
-
 func TestPostContainersCreate(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -869,10 +596,7 @@ func TestPostContainersCreate(t *testing.T) {
 }
 
 func TestPostContainersKill(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -914,10 +638,7 @@ func TestPostContainersKill(t *testing.T) {
 }
 
 func TestPostContainersRestart(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -971,10 +692,7 @@ func TestPostContainersRestart(t *testing.T) {
 }
 
 func TestPostContainersStart(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -1024,10 +742,7 @@ func TestPostContainersStart(t *testing.T) {
 }
 
 func TestPostContainersStop(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -1074,10 +789,7 @@ func TestPostContainersStop(t *testing.T) {
 }
 
 func TestPostContainersWait(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -1119,10 +831,7 @@ func TestPostContainersWait(t *testing.T) {
 }
 
 func TestPostContainersAttach(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -1208,10 +917,7 @@ func TestPostContainersAttach(t *testing.T) {
 // FIXME: Test deleting container with volume
 // FIXME: Test deleting volume in use by other container
 func TestDeleteContainers(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -1251,10 +957,7 @@ func TestDeleteContainers(t *testing.T) {
 }
 
 func TestOptionsRoute(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime, enableCors: true}
@@ -1277,10 +980,7 @@ func TestOptionsRoute(t *testing.T) {
 }
 
 func TestGetEnabledCors(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime, enableCors: true}
@@ -1318,10 +1018,7 @@ func TestGetEnabledCors(t *testing.T) {
 }
 
 func TestDeleteImages(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
