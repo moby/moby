@@ -141,7 +141,6 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				// assume empty host config
 				hostConfig := &HostConfig{}
 				if err := container.Start(hostConfig); err != nil {
 					return err
