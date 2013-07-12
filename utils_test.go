@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"github.com/dotcloud/docker/utils"
 )
 
 // This file contains utility functions for docker's unit test suite.
@@ -15,12 +16,38 @@ import (
 
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(t *testing.T) *Runtime {
+func mkRuntime(f Fataler) *Runtime {
 	runtime, err := newTestRuntime()
 	if err != nil {
-		t.Fatal(err)
+		f.Fatal(err)
 	}
 	return runtime
+}
+
+// A common interface to access the Fatal method of
+// both testing.B and testing.T.
+type Fataler interface {
+	Fatal(args ...interface{})
+}
+
+func newTestRuntime() (*Runtime, error) {
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Remove(root); err != nil {
+		return nil, err
+	}
+	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
+		return nil, err
+	}
+
+	runtime, err := NewRuntimeFromDirectory(root, false)
+	if err != nil {
+		return nil, err
+	}
+	runtime.UpdateCapabilities(true)
+	return runtime, nil
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
