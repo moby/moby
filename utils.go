@@ -20,7 +20,8 @@ func CompareConfig(a, b *Config) bool {
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
-		len(a.PortSpecs) != len(b.PortSpecs) {
+		len(a.PortSpecs) != len(b.PortSpecs) ||
+		len(a.Entrypoint) != len(b.Entrypoint) {
 		return false
 	}
 
