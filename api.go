@@ -170,7 +170,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Debugf("%s", err)
 		return err
 	}
 	return nil
@@ -306,7 +306,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Debugf("%s", err)
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -342,8 +342,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
-		registry := r.Form.Get("registry")
-		if err := srv.ImagePull(image, tag, registry, w, sf, &auth.AuthConfig{}); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -426,7 +425,6 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	registry := r.Form.Get("registry")
 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -436,7 +434,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, registry, w, sf, authConfig); err != nil {
+	if err := srv.ImagePush(name, w, sf, authConfig); err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil
@@ -880,7 +878,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localMethod := method
 			localFct := fct
 			f := func(w http.ResponseWriter, r *http.Request) {
-				utils.Debugf("Calling %s %s", localMethod, localRoute)
+				utils.Debugf("Calling %s %s from %s", localMethod, localRoute, r.RemoteAddr)
 
 				if logging {
 					log.Println(r.Method, r.RequestURI)

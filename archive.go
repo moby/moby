@@ -2,9 +2,7 @@ package docker
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -27,10 +25,6 @@ const (
 )
 
 func DetectCompression(source []byte) Compression {
-	for _, c := range source[:10] {
-		utils.Debugf("%x", c)
-	}
-
 	sourceLen := len(source)
 	for compression, m := range map[Compression][]byte{
 		Bzip2: {0x42, 0x5A, 0x68},
@@ -111,17 +105,26 @@ func Untar(archive io.Reader, path string) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
 	}
-	bufferedArchive := bufio.NewReaderSize(archive, 10)
-	buf, err := bufferedArchive.Peek(10)
-	if err != nil {
-		return err
+
+	buf := make([]byte, 10)
+	totalN := 0
+	for totalN < 10 {
+		if n, err := archive.Read(buf[totalN:]); err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Tarball too short")
+			}
+			return err
+		} else {
+			totalN += n
+			utils.Debugf("[tar autodetect] n: %d", n)
+		}
 	}
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
 
 	cmd := exec.Command("tar", "--numeric-owner", "-f", "-", "-C", path, "-x"+compression.Flag())
-	cmd.Stdin = bufferedArchive
+	cmd.Stdin = io.MultiReader(bytes.NewReader(buf), archive)
 	// Hardcode locale environment for predictable outcome regardless of host configuration.
 	//   (see https://github.com/dotcloud/docker/issues/355)
 	cmd.Env = []string{"LANG=en_US.utf-8", "LC_ALL=en_US.utf-8"}
@@ -251,7 +254,7 @@ func CmdStream(cmd *exec.Cmd) (io.Reader, error) {
 		}
 		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(errors.New(err.Error() + ": " + string(errText)))
+			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errText))
 		} else {
 			pipeW.Close()
 		}

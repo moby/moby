@@ -37,7 +37,7 @@ func main() {
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flag.Parse()
 	if len(flHosts) > 1 {
-		flHosts = flHosts[1:len(flHosts)] //trick to display a nice defaul value in the usage
+		flHosts = flHosts[1:] //trick to display a nice defaul value in the usage
 	}
 	for i, flHost := range flHosts {
 		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
