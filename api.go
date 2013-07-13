@@ -914,7 +914,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
-	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
+	m := map[string]map[string]HttpApiFunc{
 		"GET": {
 			"/auth":                           getAuth,
 			"/version":                        getVersion,
