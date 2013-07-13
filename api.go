@@ -876,14 +876,6 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
-func logRequest(logging bool, localMethod string, localRoute string, r *http.Request) {
-	utils.Debugf("Calling %s %s", localMethod, localRoute)
-
-	if logging {
-		log.Println(r.Method, r.RequestURI)
-	}
-}
-
 func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
