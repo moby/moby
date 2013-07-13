@@ -100,7 +100,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), path); err != nil {
 		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -379,7 +379,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), false, img); err != nil {
 				return err
 			}
 		}
@@ -702,7 +702,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	}
 
 	// Send the layer
-	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%v/%v (%v)"), sf), ep, token); err != nil {
+	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%8v/%v (%v)"), sf), ep, token); err != nil {
 		return err
 	}
 	return nil
@@ -772,7 +772,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		if err != nil {
 			return err
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%v/%v (%v)"), sf)
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%8v/%v (%v)"), sf)
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
