@@ -821,7 +821,9 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	remote, parsedTag := utils.ParseRepositoryTag(cmd.Arg(0))
-	*tag = parsedTag
+	if *tag == "" {
+		*tag = parsedTag
+	}
 
 	v := url.Values{}
 	v.Set("fromImage", remote)
