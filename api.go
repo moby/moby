@@ -47,21 +47,22 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	statusCode := http.StatusInternalServerError
 	if strings.HasPrefix(err.Error(), "No such") {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		statusCode = http.StatusNotFound
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		statusCode = http.StatusBadRequest
 	} else if strings.HasPrefix(err.Error(), "Conflict") {
-		http.Error(w, err.Error(), http.StatusConflict)
+		statusCode = http.StatusConflict
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		statusCode = http.StatusNotAcceptable
 	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
-		http.Error(w, err.Error(), http.StatusForbidden)
-	} else {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		statusCode = http.StatusForbidden
 	}
+	utils.Debugf("[error %d] %s", statusCode, err)
+	http.Error(w, err.Error(), statusCode)
 }
 
 func writeJSON(w http.ResponseWriter, b []byte) {
