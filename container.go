@@ -597,6 +597,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return nil
 			}
 			container.Volumes[volPath] = id
+			if isRW, exists := c.VolumesRW[volPath]; exists {
+				container.VolumesRW[volPath] = isRW
+			}
 		}
 	}
 

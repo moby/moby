@@ -1229,3 +1229,57 @@ func TestBindMounts(t *testing.T) {
 
 	}
 }
+
+// Test that VolumesRW values are copied to the new container.  Regression test for #1201
+func TestVolumesFromReadonlyMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:   GetTestImage(runtime).ID,
+			Cmd:     []string{"/bin/echo", "-n", "foobar"},
+			Volumes: map[string]struct{}{"/test": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !container.VolumesRW["/test"] {
+		t.Fail()
+	}
+
+	container2, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"/bin/echo", "-n", "foobar"},
+			VolumesFrom: container.ID,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Fail()
+	}
+
+	actual, exists := container2.VolumesRW["/test"]
+	if !exists {
+		t.Fail()
+	}
+
+	if container.VolumesRW["/test"] != actual {
+		t.Fail()
+	}
+}
