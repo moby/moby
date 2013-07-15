@@ -49,6 +49,7 @@ whichrelease:
 release: $(BINRELEASE)
 	s3cmd -P put $(BINRELEASE) s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-$(RELEASE_VERSION).tgz
 	s3cmd -P put docker-latest.tgz s3://get.docker.io/builds/`uname -s`/`uname -m`/docker-latest.tgz
+	s3cmd -P put $(SRCRELEASE)/bin/docker s3://get.docker.io/builds/`uname -s`/`uname -m`/docker
 
 srcrelease: $(SRCRELEASE)
 deps: $(DOCKER_DIR)
