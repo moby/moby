@@ -3,10 +3,10 @@ package docker
 import (
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"log"
 	"os"
 	"os/exec"
-	"os/user"
 	"strconv"
 	"strings"
 	"syscall"
@@ -27,10 +27,7 @@ func changeUser(u string) {
 	if u == "" {
 		return
 	}
-	userent, err := user.LookupId(u)
-	if err != nil {
-		userent, err = user.Lookup(u)
-	}
+	userent, err := utils.UserLookup(u)
 	if err != nil {
 		log.Fatalf("Unable to find user %v: %v", u, err)
 	}
