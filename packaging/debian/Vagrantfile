@@ -13,6 +13,9 @@ Vagrant::Config.run do |config|
 
   # Install debian packaging dependencies and create debian packages
   pkg_cmd = "apt-get -qq update; DEBIAN_FRONTEND=noninteractive apt-get install -qq -y #{PKG_DEP}; " \
+      "curl -s -o /go.tar.gz https://go.googlecode.com/files/go1.1.1.linux-amd64.tar.gz; " \
+      "tar -C /usr/local -xzf /go.tar.gz; rm /usr/bin/go; " \
+      "ln -s /usr/local/go/bin/go /usr/bin; "\
       "export GPG_KEY='#{ENV['GPG_KEY']}'; cd /data/docker/packaging/debian; make debian"
   config.vm.provision :shell, :inline => pkg_cmd
 end

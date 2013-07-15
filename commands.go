@@ -89,6 +89,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"top", "Lookup the running processes of a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -279,15 +280,22 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return readStringOnRawTerminal(stdin, stdout, false)
 	}
 
-	oldState, err := term.SetRawTerminal(cli.terminalFd)
+	cmd := Subcmd("login", "[OPTIONS]", "Register or Login to the docker registry server")
+	flUsername := cmd.String("u", "", "username")
+	flPassword := cmd.String("p", "", "password")
+	flEmail := cmd.String("e", "", "email")
+	err := cmd.Parse(args)
 	if err != nil {
-		return err
-	}
-	defer term.RestoreTerminal(cli.terminalFd, oldState)
-
-	cmd := Subcmd("login", "", "Register or Login to the docker registry server")
-	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+
+	var oldState *term.State
+	if *flUsername == "" || *flPassword == "" || *flEmail == "" {
+		oldState, err = term.SetRawTerminal(cli.terminalFd)
+		if err != nil {
+			return err
+		}
+		defer term.RestoreTerminal(cli.terminalFd, oldState)
 	}
 
 	var (
@@ -296,30 +304,42 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
-	fmt.Fprintf(cli.out, "Username (%s):", cli.authConfig.Username)
-	username = readAndEchoString(cli.in, cli.out)
-	if username == "" {
-		username = cli.authConfig.Username
+	if *flUsername == "" {
+		fmt.Fprintf(cli.out, "Username (%s): ", cli.authConfig.Username)
+		username = readAndEchoString(cli.in, cli.out)
+		if username == "" {
+			username = cli.authConfig.Username
+		}
+	} else {
+		username = *flUsername
 	}
 	if username != cli.authConfig.Username {
-		fmt.Fprintf(cli.out, "Password: ")
-		password = readString(cli.in, cli.out)
-
-		if password == "" {
-			return fmt.Errorf("Error : Password Required")
+		if *flPassword == "" {
+			fmt.Fprintf(cli.out, "Password: ")
+			password = readString(cli.in, cli.out)
+			if password == "" {
+				return fmt.Errorf("Error : Password Required")
+			}
+		} else {
+			password = *flPassword
 		}
 
-		fmt.Fprintf(cli.out, "Email (%s): ", cli.authConfig.Email)
-		email = readAndEchoString(cli.in, cli.out)
-		if email == "" {
-			email = cli.authConfig.Email
+		if *flEmail == "" {
+			fmt.Fprintf(cli.out, "Email (%s): ", cli.authConfig.Email)
+			email = readAndEchoString(cli.in, cli.out)
+			if email == "" {
+				email = cli.authConfig.Email
+			}
+		} else {
+			email = *flEmail
 		}
 	} else {
 		password = cli.authConfig.Password
 		email = cli.authConfig.Email
 	}
-	term.RestoreTerminal(cli.terminalFd, oldState)
-
+	if oldState != nil {
+		term.RestoreTerminal(cli.terminalFd, oldState)
+	}
 	cli.authConfig.Username = username
 	cli.authConfig.Password = password
 	cli.authConfig.Email = email
@@ -554,6 +574,33 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdTop(args ...string) error {
+	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
+	if err != nil {
+		return err
+	}
+	var procs []APITop
+	err = json.Unmarshal(body, &procs)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	fmt.Fprintln(w, "PID\tTTY\tTIME\tCMD")
+	for _, proc := range procs {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", proc.PID, proc.Tty, proc.Time, proc.Cmd)
+	}
+	w.Flush()
+	return nil
+}
+
 func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd := Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
@@ -564,6 +611,13 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return nil
 	}
 
+	port := cmd.Arg(1)
+	proto := "Tcp"
+	parts := strings.SplitN(port, "/", 2)
+	if len(parts) == 2 && len(parts[1]) != 0 {
+		port = parts[0]
+		proto = strings.ToUpper(parts[1][:1]) + strings.ToLower(parts[1][1:])
+	}
 	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
 		return err
@@ -574,7 +628,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontend, exists := out.NetworkSettings.PortMapping[cmd.Arg(1)]; exists {
+	if frontend, exists := out.NetworkSettings.PortMapping[proto][port]; exists {
 		fmt.Fprintf(cli.out, "%s\n", frontend)
 	} else {
 		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
@@ -767,7 +821,9 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	remote, parsedTag := utils.ParseRepositoryTag(cmd.Arg(0))
-	*tag = parsedTag
+	if *tag == "" {
+		*tag = parsedTag
+	}
 
 	v := url.Values{}
 	v.Set("fromImage", remote)
