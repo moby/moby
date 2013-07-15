@@ -4,6 +4,4 @@ start on runlevel [2345]
 stop on starting rc RUNLEVEL=[016]
 respawn
 
-script
-    /usr/bin/docker -d
-end script
+exec /usr/bin/docker -d
