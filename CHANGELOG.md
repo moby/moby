@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 (2013-07-16)
+ + Remote API: Add /top endpoint
+ + Runtime: host directories can be mounted as volumes with 'docker run -b'
+ + Runtime: Add UDP support
+ + Builder: Add ENTRYPOINT instruction
+ + Builder: Add VOLUMES instruction
+ * Runtime: Add options to docker login
+ * Builder: Display full output by default
+ - Registry: Fix issues when pushing to 3rd part registries
+ - Runtime: Skip `hostname` when merging config
+
 ## 0.4.8 (2013-07-01)
  + Builder: New build operation ENTRYPOINT adds an executable entry point to the container.
  - Runtime: Fix a bug which caused 'docker run -d' to no longer print the container ID.
