@@ -1300,3 +1300,46 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 		t.Fail()
 	}
 }
+
+// Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
+func TestRestartWithVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"echo", "-n", "foobar"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+	// Run the container again to verify the volume path persists
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := container.Volumes["/test"]
+	if expected != actual {
+		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
+	}
+}
