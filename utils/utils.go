@@ -247,47 +247,49 @@ func (r *bufReader) Close() error {
 
 type WriteBroadcaster struct {
 	sync.Mutex
-	writers map[StreamWriter][]byte
+	buf     *bytes.Buffer
+	writers map[StreamWriter]bool
 }
 
 type StreamWriter struct {
-	wc io.WriteCloser
+	wc     io.WriteCloser
 	stream string
 }
 
 func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
 	sw := StreamWriter{wc: writer, stream: stream}
-	w.writers[sw] = []byte{}
+	w.writers[sw] = true
 	w.Unlock()
 }
 
 type JSONLog struct {
-	Log   string `json:"log,omitempty"`
-	Stream string `json:"stream,omitempty"`
+	Log     string    `json:"log,omitempty"`
+	Stream  string    `json:"stream,omitempty"`
 	Created time.Time `json:"time"`
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
+	w.buf.Write(p)
 	for sw := range w.writers {
 		lp := p
 		if sw.stream != "" {
-			w.writers[sw] = append(w.writers[sw], p...)
-			s := string(p)
-			if s[len(s)-1] == '\n' {
-			/*	lp, err = json.Marshal(&JSONLog{Log: s, Stream: sw.stream, Created: time.Now()})
+			lp = nil
+			for {
+				line, err := w.buf.ReadString('\n')
+				if err != nil {
+					w.buf.Write([]byte(line))
+					break
+				}
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
 				if err != nil {
 					// On error, evict the writer
 					delete(w.writers, sw)
 					continue
 				}
-			*/
-				lp = []byte("[" + time.Now().String() + "] [" + sw.stream + "] " + s)
-				w.writers[sw] = []byte{}
-			} else {
-				continue
+				lp = append(lp, b...)
 			}
 		}
 		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
@@ -304,12 +306,12 @@ func (w *WriteBroadcaster) CloseWriters() error {
 	for sw := range w.writers {
 		sw.wc.Close()
 	}
-	w.writers = make(map[StreamWriter][]byte)
+	w.writers = make(map[StreamWriter]bool)
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[StreamWriter][]byte)}
+	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
 }
 
 func GetTotalUsedFds() int {

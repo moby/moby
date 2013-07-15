@@ -640,21 +640,13 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.cmd = exec.Command("lxc-start", params...)
 
 	// Setup logging of stdout and stderr to disk
-	/*
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout"), ""); err != nil {
-		return err
-	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr"), ""); err != nil {
-		return err
-	}
-	*/
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
 	}
 	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
-	
+
 	var err error
 	if container.Config.Tty {
 		err = container.startPty()

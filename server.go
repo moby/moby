@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -1042,20 +1043,21 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	}
 	//logs
 	if logs {
-		if stdout {
-			cLog, err := container.ReadLog("stdout")
-			if err != nil {
-				utils.Debugf("Error reading logs (stdout): %s", err)
-			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stdout): %s", err)
-			}
+		cLog, err := container.ReadLog("json")
+		if err != nil {
+			utils.Debugf("Error reading logs (json): %s", err)
 		}
-		if stderr {
-			cLog, err := container.ReadLog("stderr")
-			if err != nil {
-				utils.Debugf("Error reading logs (stderr): %s", err)
-			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stderr): %s", err)
+		dec := json.NewDecoder(cLog)
+		for {
+			var l utils.JSONLog
+			if err := dec.Decode(&l); err == io.EOF {
+				break
+			} else if err != nil {
+				utils.Debugf("Error streaming logs: %s", err)
+				break
+			}
+			if (l.Stream == "stdout" && stdout) || (l.Stream == "stderr" && stderr) {
+				fmt.Fprintf(out, "%s", l.Log)
 			}
 		}
 	}
