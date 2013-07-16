@@ -129,6 +129,30 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 	return
 }
 
+func TestCompareConfig(t *testing.T) {
+	config1 := Config{
+		Dns:       []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+	}
+	config2 := Config{
+		Dns:       []string{"0.0.0.0", "2.2.2.2"},
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+	}
+	config3 := Config{
+		Dns:       []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs: []string{"0000:0000", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+	}
+	if CompareConfig(&config1, &config2) {
+		t.Fatalf("CompareConfig should return false, Dns are different")
+	}
+	if CompareConfig(&config1, &config3) {
+		t.Fatalf("CompareConfig should return false, PortSpecs are different")
+	}
+}
+
 func TestMergeConfig(t *testing.T) {
 	volumesImage := make(map[string]struct{})
 	volumesImage["/test1"] = struct{}{}
