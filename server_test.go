@@ -2,6 +2,7 @@ package docker
 
 import (
 	"testing"
+	"time"
 )
 
 func TestContainerTagImageDelete(t *testing.T) {
@@ -162,4 +163,91 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
 
+}
+
+func TestContainerTop(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{runtime: runtime}
+	defer nuke(runtime)
+
+	c, hostConfig := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	defer runtime.Destroy(c)
+	if err := c.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	c.WaitTimeout(500 * time.Millisecond)
+
+	if !c.State.Running {
+		t.Errorf("Container should be running")
+	}
+	procs, err := srv.ContainerTop(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(procs) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs))
+	}
+
+	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
+	}
+
+	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
+	}
+}
+
+func TestPools(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+	defer nuke(runtime)
+
+	err := srv.poolAdd("pull", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolAdd("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolAdd("push", "test1")
+	if err == nil || err.Error() != "pull test1 is already in progress" {
+		t.Fatalf("Expected `pull test1 is already in progress`")
+	}
+	err = srv.poolAdd("pull", "test1")
+	if err == nil || err.Error() != "pull test1 is already in progress" {
+		t.Fatalf("Expected `pull test1 is already in progress`")
+	}
+	err = srv.poolAdd("wait", "test3")
+	if err == nil || err.Error() != "Unkown pool type" {
+		t.Fatalf("Expected `Unkown pool type`")
+	}
+
+	err = srv.poolRemove("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("pull", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("push", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("wait", "test3")
+	if err == nil || err.Error() != "Unkown pool type" {
+		t.Fatalf("Expected `Unkown pool type`")
+	}
 }

@@ -475,7 +475,7 @@ func (srv *Server) poolAdd(kind, key string) error {
 	defer srv.Unlock()
 
 	if _, exists := srv.pullingPool[key]; exists {
-		return fmt.Errorf("%s %s is already in progress", key, kind)
+		return fmt.Errorf("pull %s is already in progress", key)
 	}
 
 	switch kind {
