@@ -121,13 +121,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
-	cmd.Var(flVolumes, "v", "Attach a data volume")
+	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	var flBinds ListOpts
-	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -146,11 +143,17 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
+	var binds []string
+
 	// add any bind targets to the list of container volumes
-	for _, bind := range flBinds {
+	for bind := range flVolumes {
 		arr := strings.Split(bind, ":")
-		dstDir := arr[1]
-		flVolumes[dstDir] = struct{}{}
+		if len(arr) > 1 {
+			dstDir := arr[1]
+			flVolumes[dstDir] = struct{}{}
+			binds = append(binds, bind)
+			delete(flVolumes, bind)
+		}
 	}
 
 	parsedArgs := cmd.Args()
@@ -187,7 +190,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: flBinds,
+		Binds: binds,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -493,6 +496,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
+
 	if len(hostConfig.Binds) == 0 {
 		hostConfig, _ = container.ReadHostConfig()
 	}
