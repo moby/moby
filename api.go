@@ -878,23 +878,24 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	name := vars["name"]
 
 	copyData := &APICopy{}
-	if r.Header.Get("Content-Type") == "application/json" {
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
 		if err := json.NewDecoder(r.Body).Decode(copyData); err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Content-Type not supported: %s", r.Header.Get("Content-Type"))
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
 	}
 
 	if copyData.Resource == "" {
 		return fmt.Errorf("Resource cannot be empty")
 	}
 	if copyData.Resource[0] == '/' {
-		return fmt.Errorf("Resource cannot contain a leading /")
+		copyData.Resource = copyData.Resource[1:]
 	}
 
 	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
-		utils.Debugf("%s", err)
+		utils.Debugf("%s", err.Error())
 		return err
 	}
 	return nil

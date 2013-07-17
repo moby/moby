@@ -1181,7 +1181,7 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	copyData := APICopy{HostPath: ".", Resource: "test.txt"}
+	copyData := APICopy{HostPath: ".", Resource: "/test.txt"}
 
 	jsonData, err := json.Marshal(copyData)
 	if err != nil {

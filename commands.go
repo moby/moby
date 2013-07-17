@@ -1492,8 +1492,8 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		return err
 	}
 
-	r := bytes.NewReader(data)
 	if statusCode == 200 {
+		r := bytes.NewReader(data)
 		if err := Untar(r, copyData.HostPath); err != nil {
 			return err
 		}
