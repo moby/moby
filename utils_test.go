@@ -130,26 +130,59 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 }
 
 func TestCompareConfig(t *testing.T) {
+	volumes1 := make(map[string]struct{})
+	volumes1["/test1"] = struct{}{}
 	config1 := Config{
-		Dns:       []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs: []string{"1111:1111", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs:   []string{"1111:1111", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "11111111",
+		Volumes:     volumes1,
 	}
 	config2 := Config{
-		Dns:       []string{"0.0.0.0", "2.2.2.2"},
-		PortSpecs: []string{"1111:1111", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
+		Dns:         []string{"0.0.0.0", "2.2.2.2"},
+		PortSpecs:   []string{"1111:1111", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "11111111",
+		Volumes:     volumes1,
 	}
 	config3 := Config{
-		Dns:       []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs: []string{"0000:0000", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs:   []string{"0000:0000", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "11111111",
+		Volumes:     volumes1,
+	}
+	config4 := Config{
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs:   []string{"0000:0000", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "22222222",
+		Volumes:     volumes1,
+	}
+	volumes2 := make(map[string]struct{})
+	volumes2["/test2"] = struct{}{}
+	config5 := Config{
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs:   []string{"0000:0000", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "11111111",
+		Volumes:     volumes2,
 	}
 	if CompareConfig(&config1, &config2) {
 		t.Fatalf("CompareConfig should return false, Dns are different")
 	}
 	if CompareConfig(&config1, &config3) {
 		t.Fatalf("CompareConfig should return false, PortSpecs are different")
+	}
+	if CompareConfig(&config1, &config4) {
+		t.Fatalf("CompareConfig should return false, VolumesFrom are different")
+	}
+	if CompareConfig(&config1, &config5) {
+		t.Fatalf("CompareConfig should return false, Volumes are different")
+	}
+	if !CompareConfig(&config1, &config1) {
+		t.Fatalf("CompareConfig should return true")
 	}
 }
 

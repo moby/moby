@@ -18,14 +18,16 @@ func CompareConfig(a, b *Config) bool {
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty {
+		a.Tty != b.Tty ||
+		a.VolumesFrom != b.VolumesFrom {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
-		len(a.Entrypoint) != len(b.Entrypoint) {
+		len(a.Entrypoint) != len(b.Entrypoint) ||
+		len(a.Volumes) != len(b.Volumes) {
 		return false
 	}
 
@@ -51,6 +53,11 @@ func CompareConfig(a, b *Config) bool {
 	}
 	for i := 0; i < len(a.Entrypoint); i++ {
 		if a.Entrypoint[i] != b.Entrypoint[i] {
+			return false
+		}
+	}
+	for key := range a.Volumes {
+		if _, exists := b.Volumes[key]; !exists {
 			return false
 		}
 	}
