@@ -1249,10 +1249,22 @@ func (opts PathOpts) String() string {
 }
 
 func (opts PathOpts) Set(val string) error {
-	if !filepath.IsAbs(val) {
-		return fmt.Errorf("%s is not an absolute path", val)
+	var containerPath string
+
+	splited := strings.SplitN(val, ":", 2)
+	if len(splited) == 1 {
+		containerPath = splited[0]
+		val = filepath.Clean(splited[0])
+	} else {
+		containerPath = splited[1]
+		val = fmt.Sprintf("%s:%s", splited[0], filepath.Clean(splited[1]))
 	}
-	opts[filepath.Clean(val)] = struct{}{}
+
+	if !filepath.IsAbs(containerPath) {
+		utils.Debugf("%s is not an absolute path", containerPath)
+		return fmt.Errorf("%s is not an absolute path", containerPath)
+	}
+	opts[val] = struct{}{}
 	return nil
 }
 

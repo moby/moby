@@ -1231,19 +1231,18 @@ func TestBindMounts(t *testing.T) {
 	writeFile(path.Join(tmpDir, "touch-me"), "", t)
 
 	// Test reading from a read-only bind mount
-	stdout, _ := runContainer(r, []string{"-b", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
+	stdout, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
 	if !strings.Contains(stdout, "touch-me") {
 		t.Fatal("Container failed to read from bind mount")
 	}
 
 	// test writing to bind mount
-	runContainer(r, []string{"-b", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
+	runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-b", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
+	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
-
 	}
 }
 
