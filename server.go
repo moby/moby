@@ -870,7 +870,6 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
 	}
-
 	// If the image is not referenced but has children, go recursive
 	referenced := false
 	byParents, err := srv.runtime.graph.ByParent()
@@ -924,8 +923,22 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 }
 
 func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
-	//Untag the current image
 	imgs := []APIRmi{}
+
+	//If delete by id, see if the id belong only to one repository
+	if strings.Contains(img.ID, repoName) && tag == "" {
+		for _, repoAndTag := range srv.runtime.repositories.ByID()[img.ID] {
+			parsedRepo := strings.Split(repoAndTag, ":")[0]
+			if strings.Contains(img.ID, repoName) {
+				repoName = parsedRepo
+			} else if repoName != parsedRepo {
+				// the id belongs to multiple repos, like base:latest and user:test,
+				// in that case return conflict
+				return imgs, nil
+			}
+		}
+	}
+	//Untag the current image
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 	if err != nil {
 		return nil, err
