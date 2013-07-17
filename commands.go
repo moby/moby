@@ -94,8 +94,8 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
-		{"rm", "Remove a container"},
-		{"rmi", "Remove an image"},
+		{"rm", "Remove one or more containers"},
+		{"rmi", "Remove one or more images"},
 		{"run", "Run a command in a new container"},
 		{"search", "Search for an image in the docker index"},
 		{"start", "Start a stopped container"},
@@ -469,7 +469,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
-	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
+	nSeconds := cmd.Int("t", 10, "Number of seconds to try to stop for before killing the container. Default=10")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -494,7 +494,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
-	nSeconds := cmd.Int("t", 10, "wait t seconds before killing the container")
+	nSeconds := cmd.Int("t", 10, "Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -638,7 +638,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove an image")
+	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -703,7 +703,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRm(args ...string) error {
-	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove a container")
+	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -773,7 +773,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := Subcmd("push", "[OPTION] NAME", "Push an image or a repository to the registry")
+	cmd := Subcmd("push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
