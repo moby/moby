@@ -23,7 +23,6 @@
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
       -d=[]: Set custom dns servers for the container
-      -v=[]: Creates a new volume and mounts it at the specified path.
+      -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "host-dir" is missing, then docker creates a new volume.
       -volumes-from="": Mount all volumes from the given container.
-      -b=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]
       -entrypoint="": Overwrite the default entrypoint set by the image.
