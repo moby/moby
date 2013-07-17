@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (2013-07-16)
+## 0.5.0 (2013-07-17)
  + Runtime: List all processes running inside a container with 'docker top'
  + Runtime: Host directories can be mounted as volumes with 'docker run -b'
  + Runtime: Containers can expose public UDP ports
