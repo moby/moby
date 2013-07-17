@@ -191,10 +191,11 @@ func TestMergeConfig(t *testing.T) {
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
 	configImage := &Config{
-		Dns:       []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs: []string{"1111:1111", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
-		Volumes:   volumesImage,
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs:   []string{"1111:1111", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "1111",
+		Volumes:     volumesImage,
 	}
 
 	volumesUser := make(map[string]struct{})
@@ -241,5 +242,9 @@ func TestMergeConfig(t *testing.T) {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
+	}
+
+	if configUser.VolumesFrom != "1111" {
+		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
 }
