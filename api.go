@@ -218,20 +218,21 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) (bool, error) {
+	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) (error) {
 		b, err := json.Marshal(event)
 		if err != nil {
-			return true, nil
+			return fmt.Errorf("JSON error")
 		}
 		_, err = wf.Write(b)
 		if err != nil {
+			// On error, evict the listener
 			utils.Debugf("%s", err)
 			srv.Lock()
 			delete(srv.listeners, r.RemoteAddr)
 			srv.Unlock()
-			return false, err
+			return err
 		}
-		return false, nil
+		return nil
 	}
 
 	if err := parseForm(r); err != nil {
@@ -248,10 +249,11 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	wf := utils.NewWriteFlusher(w)
 	if since != 0 {
+		// If since, send previous events that happened after the timestamp
 		for _, event := range srv.events {
 			if event.Time >= since {
-				skip, err := sendEvent(wf, &event)
-				if skip {
+				err := sendEvent(wf, &event)
+				if err != nil && err.Error() == "JSON error" {
 					continue
 				}
 				if err != nil {
@@ -262,8 +264,8 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	for {
 		event := <-listener
-		skip, err := sendEvent(wf, &event)
-		if skip {
+		err := sendEvent(wf, &event)
+		if err != nil && err.Error() == "JSON error" {
 			continue
 		}
 		if err != nil {
