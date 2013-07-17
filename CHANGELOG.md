@@ -1,15 +1,17 @@
 # Changelog
 
 ## 0.5.0 (2013-07-16)
- + Remote API: Add /top endpoint
- + Runtime: host directories can be mounted as volumes with 'docker run -b'
- + Runtime: Add UDP support
- + Builder: Add ENTRYPOINT instruction
- + Builder: Add VOLUMES instruction
- * Runtime: Add options to docker login
- * Builder: Display full output by default
- - Registry: Fix issues when pushing to 3rd part registries
- - Runtime: Skip `hostname` when merging config
+ + Runtime: List all processes running inside a container with 'docker top'
+ + Runtime: Host directories can be mounted as volumes with 'docker run -b'
+ + Runtime: Containers can expose public UDP ports
+ + Runtime: Optionally specify an exact public port (eg. '-p 80:4500')
+ + Registry: New image naming scheme inspired by Go packaging convention allows arbitrary combinations of registries
+ + Builder: ENTRYPOINT instruction sets a default binary entry point to a container
+ + Builder: VOLUME instruction marks a part of the container as persistent data
+ * Builder: 'docker build' displays the full output of a build by default
+ * Runtime: 'docker login' supports additional options
+ - Runtime: Dont save a container's hostname when committing an image.
+ - Registry: Fix issues when uploading images to a private registry
 
 ## 0.4.8 (2013-07-01)
  + Builder: New build operation ENTRYPOINT adds an executable entry point to the container.
