@@ -1089,3 +1089,10 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 	return sizeRw, sizeRootfs
 }
+
+func (container *Container) Copy(resource string) (Archive, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	return TarFilter(container.RootfsPath(), Uncompressed, []string{resource})
+}

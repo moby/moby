@@ -1156,6 +1156,70 @@ func TestJsonContentType(t *testing.T) {
 	}
 }
 
+func TestPostContainersCopy(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"touch", "/test.txt"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	copyData := APICopy{HostPath: ".", Resource: "test.txt"}
+
+	jsonData, err := json.Marshal(copyData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/"+container.ID+"/copy", bytes.NewReader(jsonData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err = postContainersCopy(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	found := false
+	for tarReader := tar.NewReader(r.Body); ; {
+		h, err := tarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if h.Name == "test.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("The created test file has not been found in the copied output")
+	}
+}
+
 // Mocked types for tests
 type NopConn struct {
 	io.ReadCloser

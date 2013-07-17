@@ -77,6 +77,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
+		{"cp", "Copy files/folders from the containers filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -1465,6 +1466,37 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if !config.AttachStdout && !config.AttachStderr {
 		<-wait
+	}
+	return nil
+}
+
+func (cli *DockerCli) CmdCp(args ...string) error {
+	cmd := Subcmd("cp", "CONTAINER:RESOURCE HOSTPATH", "Copy files/folders from the RESOURCE to the HOSTPATH")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	var copyData APICopy
+	info := strings.Split(cmd.Arg(0), ":")
+
+	copyData.Resource = info[1]
+	copyData.HostPath = cmd.Arg(1)
+
+	data, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData)
+	if err != nil {
+		return err
+	}
+
+	r := bytes.NewReader(data)
+	if statusCode == 200 {
+		if err := Untar(r, copyData.HostPath); err != nil {
+			return err
+		}
 	}
 	return nil
 }

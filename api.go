@@ -871,6 +871,35 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	copyData := &APICopy{}
+	if r.Header.Get("Content-Type") == "application/json" {
+		if err := json.NewDecoder(r.Body).Decode(copyData); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", r.Header.Get("Content-Type"))
+	}
+
+	if copyData.Resource == "" {
+		return fmt.Errorf("Resource cannot be empty")
+	}
+	if copyData.Resource[0] == '/' {
+		return fmt.Errorf("Resource cannot contain a leading /")
+	}
+
+	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
+		utils.Debugf("%s", err)
+		return err
+	}
+	return nil
+}
+
 func optionsHandler(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -918,6 +947,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/wait":    postContainersWait,
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
+			"/containers/{name:.*}/copy":    postContainersCopy,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
