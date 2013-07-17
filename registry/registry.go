@@ -330,16 +330,52 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 	}, nil
 }
 
+func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, token []string) error {
+
+	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
+
+	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/checksum", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
+	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
+
+	res, err := doWithCookies(r.client, req)
+	if err != nil {
+		return fmt.Errorf("Failed to upload metadata: %s", err)
+	}
+	defer res.Body.Close()
+	if len(res.Cookies()) > 0 {
+		r.client.Jar.SetCookies(req.URL, res.Cookies())
+	}
+	if res.StatusCode != 200 {
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
+		}
+		var jsonBody map[string]string
+		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
+			errBody = []byte(err.Error())
+		} else if jsonBody["error"] == "Image already exists" {
+			return ErrAlreadyExists
+		}
+		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
+	}
+	return nil
+}
+
 // Push a local image to the registry
 func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
-	// FIXME: try json with UTF8
+
+	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
+
 	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
 	if err != nil {
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
 	r.setUserAgent(req)
 
 	utils.Debugf("Setting checksum for %s: %s", imgData.ID, imgData.Checksum)
@@ -364,10 +400,14 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	return nil
 }
 
-func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string) error {
-	req, err := http.NewRequest("PUT", registry+"images/"+imgID+"/layer", layer)
+func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string) (checksum string, err error) {
+
+	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
+
+	tarsumLayer := &utils.TarSum{Reader: layer}
+	req, err := http.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
@@ -375,18 +415,18 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	r.setUserAgent(req)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
-		return fmt.Errorf("Failed to upload layer: %s", err)
+		return "", fmt.Errorf("Failed to upload layer: %s", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
+			return "", fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
 		}
-		return fmt.Errorf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody)
+		return "", fmt.Errorf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody)
 	}
-	return nil
+	return tarsumLayer.Sum(), nil
 }
 
 func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
