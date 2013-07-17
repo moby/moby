@@ -114,7 +114,7 @@ func TestBuild(t *testing.T) {
 			pushingPool: make(map[string]struct{}),
 		}
 
-		buildfile := NewBuildFile(srv, ioutil.Discard)
+		buildfile := NewBuildFile(srv, ioutil.Discard, false)
 		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
 			t.Fatal(err)
 		}
@@ -134,7 +134,7 @@ func TestVolume(t *testing.T) {
 		pushingPool: make(map[string]struct{}),
 	}
 
-	buildfile := NewBuildFile(srv, ioutil.Discard)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false)
 	imgId, err := buildfile.Build(mkTestContext(`
 from %s
 VOLUME /test
@@ -150,7 +150,7 @@ CMD Hello world
 	if len(img.Config.Volumes) == 0 {
 		t.Fail()
 	}
-	for key, _ := range img.Config.Volumes {
+	for key := range img.Config.Volumes {
 		if key != "/test" {
 			t.Fail()
 		}

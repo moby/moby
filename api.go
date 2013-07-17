@@ -774,6 +774,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
+	rawSuppressOutput := r.FormValue("q")
 	tag := ""
 	if strings.Contains(repoName, ":") {
 		remoteParts := strings.Split(repoName, ":")
@@ -820,7 +821,13 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	}
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
+
+	suppressOutput, err := getBoolParam(rawSuppressOutput)
+	if err != nil {
+		return err
+	}
+
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
