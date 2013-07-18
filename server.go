@@ -26,6 +26,11 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
+// plainVersionChecker is a simple implementation of
+// the interface VersionChecker, which is used
+// to provide version information for some product,
+// component, etc. It stores the product name and the version
+// in string and returns them on calls to Name() and Version().
 type plainVersionChecker struct {
 	name    string
 	version string
@@ -39,6 +44,10 @@ func (v *plainVersionChecker) Version() string {
 	return v.version
 }
 
+// versionCheckers() returns version informations of:
+// docker, go, git-commit (of the docker) and the host's kernel.
+//
+// Such information will be used on call to NewRegistry().
 func (srv *Server) versionCheckers() []registry.VersionChecker {
 	v := srv.DockerVersion()
 	ret := make([]registry.VersionChecker, 0, 4)

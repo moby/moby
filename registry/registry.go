@@ -112,6 +112,8 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	return c.Do(req)
 }
 
+// Set the user agent field in the header based on the versions provided
+// in NewRegistry() and extra.
 func (r *Registry) setUserAgent(req *http.Request, extra ...VersionChecker) {
 	if len(r.baseVersions)+len(extra) == 0 {
 		return
@@ -582,6 +584,12 @@ func validVersion(version VersionChecker) bool {
 	return true
 }
 
+// Convert versions to a string and append the string to the string base.
+//
+// Each VersionChecker will be converted to a string in the format of
+// "product/version", where the "product" is get from the Name() method, while
+// version is get from the Version() method. Several pieces of verson information
+// will be concatinated and separated by space.
 func appendVersions(base string, versions ...VersionChecker) string {
 	if len(versions) == 0 {
 		return base
