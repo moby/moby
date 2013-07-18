@@ -1185,7 +1185,10 @@ func (srv *Server) LogEvent(action, id string) {
 	jm := utils.JSONMessage{Status: action, ID: id, Time: now}
 	srv.events = append(srv.events, jm)
 	for _, c := range srv.listeners {
-		c <- jm
+		select { // non blocking channel
+		case c <- jm:
+		default:
+		}
 	}
 }
 
