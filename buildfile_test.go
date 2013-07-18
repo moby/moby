@@ -105,23 +105,11 @@ CMD Hello world
 
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
-		runtime := mkRuntime(t)
-		defer nuke(runtime)
-
-		srv := &Server{
-			runtime:     runtime,
-			pullingPool: make(map[string]struct{}),
-			pushingPool: make(map[string]struct{}),
-		}
-
-		buildfile := NewBuildFile(srv, ioutil.Discard, false)
-		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
-			t.Fatal(err)
-		}
+		buildImage(ctx, t)
 	}
 }
 
-func TestVolume(t *testing.T) {
+func buildImage(context testContextTemplate, t *testing.T) *Image {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -133,20 +121,27 @@ func TestVolume(t *testing.T) {
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
-
 	buildfile := NewBuildFile(srv, ioutil.Discard, false)
-	imgId, err := buildfile.Build(mkTestContext(`
-from %s
-VOLUME /test
-CMD Hello world
-`, nil, t))
+
+	id, err := buildfile.Build(mkTestContext(context.dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := srv.ImageInspect(imgId)
+
+	img, err := srv.ImageInspect(id)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return img
+}
+
+func TestVolume(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        volume /test
+        cmd Hello world
+    `, nil}, t)
+
 	if len(img.Config.Volumes) == 0 {
 		t.Fail()
 	}
@@ -154,5 +149,68 @@ CMD Hello world
 		if key != "/test" {
 			t.Fail()
 		}
+	}
+}
+
+func TestBuildMaintainer(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        maintainer dockerio
+    `, nil}, t)
+
+	if img.Author != "dockerio" {
+		t.Fail()
+	}
+}
+
+func TestBuildEnv(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        env port 4243
+        `,
+		nil}, t)
+
+	if img.Config.Env[0] != "port=4243" {
+		t.Fail()
+	}
+}
+
+func TestBuildCmd(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        cmd ["/bin/echo", "Hello World"]
+        `,
+		nil}, t)
+
+	if img.Config.Cmd[0] != "/bin/echo" {
+		t.Log(img.Config.Cmd[0])
+		t.Fail()
+	}
+	if img.Config.Cmd[1] != "Hello World" {
+		t.Log(img.Config.Cmd[1])
+		t.Fail()
+	}
+}
+
+func TestBuildExpose(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        expose 4243
+        `,
+		nil}, t)
+
+	if img.Config.PortSpecs[0] != "4243" {
+		t.Fail()
+	}
+}
+
+func TestBuildEntrypoint(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from %s
+        entrypoint ["/bin/echo"]
+        `,
+		nil}, t)
+
+	if img.Config.Entrypoint[0] != "/bin/echo" {
 	}
 }
