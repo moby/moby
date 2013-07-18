@@ -2,8 +2,8 @@
 
 ## 0.5.0 (2013-07-17)
  + Runtime: List all processes running inside a container with 'docker top'
- + Runtime: Host directories can be mounted as volumes with 'docker run -b'
- + Runtime: Containers can expose public UDP ports
+ + Runtime: Host directories can be mounted as volumes with 'docker run -v'
+ + Runtime: Containers can expose public UDP ports (eg, '-p 123/udp')
  + Runtime: Optionally specify an exact public port (eg. '-p 80:4500')
  + Registry: New image naming scheme inspired by Go packaging convention allows arbitrary combinations of registries
  + Builder: ENTRYPOINT instruction sets a default binary entry point to a container
