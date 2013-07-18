@@ -1046,6 +1046,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		cLog, err := container.ReadLog("json")
 		if err != nil && os.IsNotExist(err) {
 			// Legacy logs
+			utils.Debugf("Old logs format")
 			if stdout {
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
