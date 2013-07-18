@@ -1,0 +1,2 @@
+dulwich==0.9.0
+docker==0.1.0

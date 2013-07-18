@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+import argparse
+
+import brew
+
+
+DEFAULT_REPOSITORY = 'git://github.com/dotcloud/docker'
+DEFAULT_BRANCH = 'library'
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Build the docker standard library')
+    parser.add_argument('--push', action='store_true', default=False,
+        help='push generated repositories to the official registry')
+    parser.add_argument('-n', metavar='NAMESPACE', default='library',
+        help='namespace used for generated repositories.'
+        ' Default is library')
+    parser.add_argument('-b', metavar='BRANCH', default=DEFAULT_BRANCH,
+        help='branch in the repository where the library definition'
+        ' files will be fetched. Default is ' + DEFAULT_BRANCH)
+    parser.add_argument('repository', default=DEFAULT_REPOSITORY, nargs='?',
+        help='git repository containing the library definition files.'
+        ' Default is ' + DEFAULT_REPOSITORY)
+    args = parser.parse_args()
+    brew.build_library(args.repository, args.b, args.n, args.push)
