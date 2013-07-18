@@ -426,45 +426,6 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-type KernelVersionInfo struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Flavor string
-}
-
-func (k *KernelVersionInfo) String() string {
-	flavor := ""
-	if len(k.Flavor) > 0 {
-		flavor = fmt.Sprintf("-%s", k.Flavor)
-	}
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
-}
-
-// Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
-func CompareKernelVersion(a, b *KernelVersionInfo) int {
-	if a.Kernel < b.Kernel {
-		return -1
-	} else if a.Kernel > b.Kernel {
-		return 1
-	}
-
-	if a.Major < b.Major {
-		return -1
-	} else if a.Major > b.Major {
-		return 1
-	}
-
-	if a.Minor < b.Minor {
-		return -1
-	} else if a.Minor > b.Minor {
-		return 1
-	}
-
-	return 0
-}
-
 func FindCgroupMountpoint(cgroupType string) (string, error) {
 	output, err := ioutil.ReadFile("/proc/mounts")
 	if err != nil {
@@ -485,69 +446,6 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 	}
 
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
-}
-
-func GetKernelVersion() (*KernelVersionInfo, error) {
-	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
-	)
-
-	uts, err := uname()
-	if err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	tmp := strings.SplitN(string(release), "-", 2)
-	tmp2 := strings.SplitN(tmp[0], ".", 3)
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		// Removes "+" because git kernels might set it
-		minorUnparsed := strings.Trim(tmp2[2], "+")
-		minor, err = strconv.Atoi(minorUnparsed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp) == 2 {
-		flavor = tmp[1]
-	} else {
-		flavor = ""
-	}
-
-	return &KernelVersionInfo{
-		Kernel: kernel,
-		Major:  major,
-		Minor:  minor,
-		Flavor: flavor,
-	}, nil
 }
 
 // FIXME: this is deprecated by CopyWithTar in archive.go
