@@ -114,26 +114,6 @@ func init() {
 
 // FIXME: test that ImagePull(json=true) send correct json output
 
-func newTestRuntime() (*Runtime, error) {
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		return nil, err
-	}
-	if err := os.Remove(root); err != nil {
-		return nil, err
-	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		return nil, err
-	}
-
-	runtime, err := NewRuntimeFromDirectory(root, false)
-	if err != nil {
-		return nil, err
-	}
-	runtime.UpdateCapabilities(true)
-	return runtime, nil
-}
-
 func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.All()
 	if err != nil {
@@ -148,10 +128,7 @@ func GetTestImage(runtime *Runtime) *Image {
 }
 
 func TestRuntimeCreate(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	// Make sure we start we 0 containers
@@ -223,10 +200,7 @@ func TestRuntimeCreate(t *testing.T) {
 }
 
 func TestDestroy(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
@@ -270,10 +244,7 @@ func TestDestroy(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	builder := NewBuilder(runtime)
@@ -323,11 +294,8 @@ func TestGet(t *testing.T) {
 }
 
 func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container, string) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	var err error
+	runtime := mkRuntime(t)
 	port := 5554
 	var container *Container
 	var strPort string

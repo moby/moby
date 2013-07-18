@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -264,14 +265,16 @@ func TestCompareKernelVersion(t *testing.T) {
 
 func TestHumanSize(t *testing.T) {
 
-	size1000 := HumanSize(1000)
-	if size1000 != "    1 kB" {
-		t.Errorf("1000 -> expected     1 kB, got %s", size1000)
+	size := strings.Trim(HumanSize(1000), " \t")
+	expect := "1 kB"
+	if size != expect {
+		t.Errorf("1000 -> expected '%s', got '%s'", expect, size)
 	}
 
-	size1024 := HumanSize(1024)
-	if size1024 != "1.024 kB" {
-		t.Errorf("1024 -> expected 1.024 kB, got %s", size1024)
+	size = strings.Trim(HumanSize(1024), " \t")
+	expect = "1.024 kB"
+	if size != expect {
+		t.Errorf("1024 -> expected '%s', got '%s'", expect, size)
 	}
 }
 

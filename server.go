@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"strings"
@@ -98,7 +100,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), path); err != nil {
 		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -247,6 +249,40 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
+func (srv *Server) ContainerTop(name string) ([]APITop, error) {
+	if container := srv.runtime.Get(name); container != nil {
+		output, err := exec.Command("lxc-ps", "--name", container.ID).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
+		}
+		var procs []APITop
+		for i, line := range strings.Split(string(output), "\n") {
+			if i == 0 || len(line) == 0 {
+				continue
+			}
+			proc := APITop{}
+			scanner := bufio.NewScanner(strings.NewReader(line))
+			scanner.Split(bufio.ScanWords)
+			if !scanner.Scan() {
+				return nil, fmt.Errorf("Error trying to use lxc-ps")
+			}
+			// no scanner.Text because we skip container id
+			scanner.Scan()
+			proc.PID = scanner.Text()
+			scanner.Scan()
+			proc.Tty = scanner.Text()
+			scanner.Scan()
+			proc.Time = scanner.Text()
+			scanner.Scan()
+			proc.Cmd = scanner.Text()
+			procs = append(procs, proc)
+		}
+		return procs, nil
+
+	}
+	return nil, fmt.Errorf("No such container: %s", name)
+}
+
 func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Changes()
@@ -343,7 +379,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%v/%v (%v)"), sf), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), false, img); err != nil {
 				return err
 			}
 		}
@@ -666,7 +702,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	}
 
 	// Send the layer
-	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%v/%v (%v)"), sf), ep, token); err != nil {
+	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%8v/%v (%v)"), sf), ep, token); err != nil {
 		return err
 	}
 	return nil
@@ -736,7 +772,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		if err != nil {
 			return err
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%v/%v (%v)"), sf)
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%8v/%v (%v)"), sf)
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -834,7 +870,6 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
 	}
-
 	// If the image is not referenced but has children, go recursive
 	referenced := false
 	byParents, err := srv.runtime.graph.ByParent()
@@ -888,8 +923,22 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 }
 
 func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
-	//Untag the current image
 	imgs := []APIRmi{}
+
+	//If delete by id, see if the id belong only to one repository
+	if strings.Contains(img.ID, repoName) && tag == "" {
+		for _, repoAndTag := range srv.runtime.repositories.ByID()[img.ID] {
+			parsedRepo := strings.Split(repoAndTag, ":")[0]
+			if strings.Contains(img.ID, repoName) {
+				repoName = parsedRepo
+			} else if repoName != parsedRepo {
+				// the id belongs to multiple repos, like base:latest and user:test,
+				// in that case return conflict
+				return imgs, nil
+			}
+		}
+	}
+	//Untag the current image
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 	if err != nil {
 		return nil, err

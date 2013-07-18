@@ -121,13 +121,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
-	cmd.Var(flVolumes, "v", "Attach a data volume")
+	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	var flBinds ListOpts
-	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -146,11 +143,17 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
+	var binds []string
+
 	// add any bind targets to the list of container volumes
-	for _, bind := range flBinds {
+	for bind := range flVolumes {
 		arr := strings.Split(bind, ":")
-		dstDir := arr[1]
-		flVolumes[dstDir] = struct{}{}
+		if len(arr) > 1 {
+			dstDir := arr[1]
+			flVolumes[dstDir] = struct{}{}
+			binds = append(binds, bind)
+			delete(flVolumes, bind)
+		}
 	}
 
 	parsedArgs := cmd.Args()
@@ -187,7 +190,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: flBinds,
+		Binds: binds,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -268,6 +271,26 @@ func (container *Container) ToDisk() (err error) {
 		return
 	}
 	return ioutil.WriteFile(container.jsonPath(), data, 0666)
+}
+
+func (container *Container) ReadHostConfig() (*HostConfig, error) {
+	data, err := ioutil.ReadFile(container.hostConfigPath())
+	if err != nil {
+		return &HostConfig{}, err
+	}
+	hostConfig := &HostConfig{}
+	if err := json.Unmarshal(data, hostConfig); err != nil {
+		return &HostConfig{}, err
+	}
+	return hostConfig, nil
+}
+
+func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
+	data, err := json.Marshal(hostConfig)
+	if err != nil {
+		return
+	}
+	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
 func (container *Container) generateLXCConfig() error {
@@ -474,6 +497,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
+	if len(hostConfig.Binds) == 0 {
+		hostConfig, _ = container.ReadHostConfig()
+	}
+
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
 	}
@@ -574,6 +601,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return nil
 			}
 			container.Volumes[volPath] = id
+			if isRW, exists := c.VolumesRW[volPath]; exists {
+				container.VolumesRW[volPath] = isRW
+			}
 		}
 	}
 
@@ -641,6 +671,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.waitLock = make(chan struct{})
 
 	container.ToDisk()
+	container.SaveHostConfig(hostConfig)
 	go container.monitor()
 	return nil
 }
@@ -977,6 +1008,10 @@ func (container *Container) logPath(name string) string {
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
 	return os.Open(container.logPath(name))
+}
+
+func (container *Container) hostConfigPath() string {
+	return path.Join(container.root, "hostconfig.json")
 }
 
 func (container *Container) jsonPath() string {
