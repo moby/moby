@@ -99,6 +99,36 @@ CMD Hello world
 `,
 		nil,
 	},
+
+	{
+		`
+from %s
+env    FOO /foo/baz
+env    BAR /bar
+env    BAZ $BAR
+env    FOOPATH $PATH:$FOO
+run    [ "$BAR" = "$BAZ" ]
+run    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+`,
+		nil,
+	},
+
+	{
+		`
+from %s
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands

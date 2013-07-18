@@ -39,8 +39,8 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
-	for i := 0; i < len(a.Env); i++ {
-		if a.Env[i] != b.Env[i] {
+	for key, _ := range a.Env {
+		if a.Env[key] != b.Env[key] {
 			return false
 		}
 	}

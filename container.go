@@ -70,7 +70,7 @@ type Config struct {
 	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin    bool // Open stdin
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
-	Env          []string
+	Env          map[string]string
 	Cmd          []string
 	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
@@ -114,8 +114,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
-	var flEnv ListOpts
-	cmd.Var(&flEnv, "e", "Set environment variables")
+	flEnv := NewEnvOpts()
+	cmd.Var(flEnv, "e", "Set environment variables")
 
 	var flDns ListOpts
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
@@ -636,8 +636,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 	)
 
-	for _, elem := range container.Config.Env {
-		params = append(params, "-e", elem)
+	for key, value := range container.Config.Env {
+		params = append(params, "-e", key+"="+value)
 	}
 
 	// Program

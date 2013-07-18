@@ -1243,6 +1243,28 @@ func (opts AttachOpts) Get(val string) bool {
 	return false
 }
 
+//EnvOpts stores a unique set of environment variables
+type EnvOpts map[string]string
+
+func NewEnvOpts() EnvOpts {
+	return make(EnvOpts)
+}
+
+func (opts EnvOpts) String() string {
+	return fmt.Sprintf("%v", map[string]string(opts))
+}
+
+func (opts EnvOpts) Set(val string) error {
+	parts := strings.SplitN(val, "=", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("Bad environment variable assignment: %s", val)
+	}
+	key := parts[0]
+	value := parts[1]
+	opts[key] = value
+	return nil
+}
+
 // PathOpts stores a unique set of absolute paths
 type PathOpts map[string]struct{}
 
