@@ -80,7 +80,8 @@ type Config struct {
 }
 
 type HostConfig struct {
-	Binds []string
+	Binds           []string
+	ContainerIDFile string
 }
 
 type BindMap struct {
@@ -103,6 +104,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -190,7 +192,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: binds,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
