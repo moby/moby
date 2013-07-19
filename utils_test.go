@@ -148,7 +148,7 @@ func TestMergeConfig(t *testing.T) {
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
 		Dns:       []string{"3.3.3.3"},
-		PortSpecs: []string{"2222:3333", "3333:3333"},
+		PortSpecs: []string{"3333:2222", "3333:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
 		Volumes:   volumesUser,
 	}
@@ -165,11 +165,11 @@ func TestMergeConfig(t *testing.T) {
 	}
 
 	if len(configUser.PortSpecs) != 3 {
-		t.Fatalf("Expected 3 portSpecs, 1111:1111, 2222:3333 and 3333:3333, found %d", len(configUser.PortSpecs))
+		t.Fatalf("Expected 3 portSpecs, 1111:1111, 3333:2222 and 3333:3333, found %d", len(configUser.PortSpecs))
 	}
 	for _, portSpecs := range configUser.PortSpecs {
-		if portSpecs != "1111:1111" && portSpecs != "2222:3333" && portSpecs != "3333:3333" {
-			t.Fatalf("Expected 1111:1111 or 2222:3333 or 3333:3333, found %s", portSpecs)
+		if portSpecs != "1111:1111" && portSpecs != "3333:2222" && portSpecs != "3333:3333" {
+			t.Fatalf("Expected 1111:1111 or 3333:2222 or 3333:3333, found %s", portSpecs)
 		}
 	}
 	if len(configUser.Env) != 3 {
