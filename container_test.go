@@ -39,16 +39,11 @@ func TestIDFormat(t *testing.T) {
 func TestMultipleAttachRestart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := NewBuilder(runtime).Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd: []string{"/bin/sh", "-c",
-				"i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
-		},
+	container, hostConfig, _ := mkContainer(
+		runtime,
+		[]string{"_", "/bin/sh", "-c", "i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
+		t,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer runtime.Destroy(container)
 
 	// Simulate 3 client attaching to the container and stop/restart
@@ -65,7 +60,6 @@ func TestMultipleAttachRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostConfig := &HostConfig{}
 	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -140,19 +134,8 @@ func TestMultipleAttachRestart(t *testing.T) {
 func TestDiff(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-
-	builder := NewBuilder(runtime)
-
 	// Create a container and remove a file
-	container1, err := builder.Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"/bin/rm", "/etc/passwd"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
 	defer runtime.Destroy(container1)
 
 	if err := container1.Run(); err != nil {
@@ -185,15 +168,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Create a new container from the commited image
-	container2, err := builder.Create(
-		&Config{
-			Image: img.ID,
-			Cmd:   []string{"cat", "/etc/passwd"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, _, _ := mkContainer(runtime, []string{img.ID, "cat", "/etc/passwd"}, t)
 	defer runtime.Destroy(container2)
 
 	if err := container2.Run(); err != nil {
@@ -212,15 +187,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Create a new containere
-	container3, err := builder.Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"rm", "/bin/httpd"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container3, _, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
 	defer runtime.Destroy(container3)
 
 	if err := container3.Run(); err != nil {
@@ -246,17 +213,7 @@ func TestDiff(t *testing.T) {
 func TestCommitAutoRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-
-	builder := NewBuilder(runtime)
-	container1, err := builder.Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
 	if container1.State.Running {
@@ -279,14 +236,7 @@ func TestCommitAutoRun(t *testing.T) {
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-	container2, err := builder.Create(
-		&Config{
-			Image: img.ID,
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, hostConfig, _ := mkContainer(runtime, []string{img.ID}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
@@ -296,7 +246,6 @@ func TestCommitAutoRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostConfig := &HostConfig{}
 	if err := container2.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -324,17 +273,7 @@ func TestCommitRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	builder := NewBuilder(runtime)
-
-	container1, err := builder.Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"/bin/sh", "-c", "echo hello > /world"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
 	if container1.State.Running {
@@ -357,16 +296,7 @@ func TestCommitRun(t *testing.T) {
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-
-	container2, err := builder.Create(
-		&Config{
-			Image: img.ID,
-			Cmd:   []string{"cat", "/world"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, hostConfig, _ := mkContainer(runtime, []string{img.ID, "cat", "/world"}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
@@ -376,7 +306,6 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostConfig := &HostConfig{}
 	if err := container2.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -403,18 +332,7 @@ func TestCommitRun(t *testing.T) {
 func TestStart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := NewBuilder(runtime).Create(
-		&Config{
-			Image:     GetTestImage(runtime).ID,
-			Memory:    33554432,
-			CpuShares: 1000,
-			Cmd:       []string{"/bin/cat"},
-			OpenStdin: true,
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container, hostConfig, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
 	defer runtime.Destroy(container)
 
 	cStdin, err := container.StdinPipe()
@@ -422,7 +340,6 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostConfig := &HostConfig{}
 	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -445,15 +362,7 @@ func TestStart(t *testing.T) {
 func TestRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := NewBuilder(runtime).Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"ls", "-al"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container)
 
 	if container.State.Running {
