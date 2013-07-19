@@ -1,6 +1,6 @@
-:title: Dockerfile Builder
-:description: Docker Builder specifes a simple DSL which allows you to automate the steps you would normally manually take to create an image.
-:keywords: builder, docker, Docker Builder, automation, image creation
+:title: Dockerfiles for Images
+:description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
+:keywords: builder, docker, Dockerfile, automation, image creation
 
 ==================
 Dockerfile Builder
@@ -177,7 +177,7 @@ The copy obeys the following rules:
   with mode 0700, uid and gid 0.
 
 3.8 ENTRYPOINT
--------------
+--------------
 
     ``ENTRYPOINT /bin/echo``
 
