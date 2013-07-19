@@ -26,6 +26,13 @@ type APIInfo struct {
 	SwapLimit   bool `json:",omitempty"`
 }
 
+type APITop struct {
+	PID  string
+	Tty  string
+	Time string
+	Cmd  string
+}
+
 type APIRmi struct {
 	Deleted  string `json:",omitempty"`
 	Untagged string `json:",omitempty"`

@@ -47,21 +47,22 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	statusCode := http.StatusInternalServerError
 	if strings.HasPrefix(err.Error(), "No such") {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		statusCode = http.StatusNotFound
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		statusCode = http.StatusBadRequest
 	} else if strings.HasPrefix(err.Error(), "Conflict") {
-		http.Error(w, err.Error(), http.StatusConflict)
+		statusCode = http.StatusConflict
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		statusCode = http.StatusNotAcceptable
 	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
-		http.Error(w, err.Error(), http.StatusForbidden)
-	} else {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		statusCode = http.StatusForbidden
 	}
+	utils.Debugf("[error %d] %s", statusCode, err)
+	http.Error(w, err.Error(), statusCode)
 }
 
 func writeJSON(w http.ResponseWriter, b []byte) {
@@ -243,6 +244,23 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 	b, err := json.Marshal(changesStr)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, b)
+	return nil
+}
+
+func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+	procsStr, err := srv.ContainerTop(name)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(procsStr)
 	if err != nil {
 		return err
 	}
@@ -756,6 +774,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
+	rawSuppressOutput := r.FormValue("q")
 	tag := ""
 	if strings.Contains(repoName, ":") {
 		remoteParts := strings.Split(repoName, ":")
@@ -802,7 +821,13 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	}
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
+
+	suppressOutput, err := getBoolParam(rawSuppressOutput)
+	if err != nil {
+		return err
+	}
+
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
@@ -842,6 +867,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
+			"/containers/{name:.*}/top":     getContainersTop,
 		},
 		"POST": {
 			"/auth":                         postAuth,

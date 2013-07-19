@@ -758,6 +758,23 @@ func TestUser(t *testing.T) {
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
 		t.Error(string(output))
 	}
+
+	// Test an wrong username
+	container, err = builder.Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"id"},
+
+		User: "unkownuser",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err = container.Output()
+	if container.State.ExitCode == 0 {
+		t.Fatal("Starting container with wrong uid should fail but it passed.")
+	}
 }
 
 func TestMultipleContainers(t *testing.T) {
@@ -1123,18 +1140,114 @@ func TestBindMounts(t *testing.T) {
 	writeFile(path.Join(tmpDir, "touch-me"), "", t)
 
 	// Test reading from a read-only bind mount
-	stdout, _ := runContainer(r, []string{"-b", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
+	stdout, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
 	if !strings.Contains(stdout, "touch-me") {
 		t.Fatal("Container failed to read from bind mount")
 	}
 
 	// test writing to bind mount
-	runContainer(r, []string{"-b", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
+	runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-b", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
+	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
+	}
+}
 
+// Test that VolumesRW values are copied to the new container.  Regression test for #1201
+func TestVolumesFromReadonlyMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:   GetTestImage(runtime).ID,
+			Cmd:     []string{"/bin/echo", "-n", "foobar"},
+			Volumes: map[string]struct{}{"/test": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !container.VolumesRW["/test"] {
+		t.Fail()
+	}
+
+	container2, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"/bin/echo", "-n", "foobar"},
+			VolumesFrom: container.ID,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Fail()
+	}
+
+	actual, exists := container2.VolumesRW["/test"]
+	if !exists {
+		t.Fail()
+	}
+
+	if container.VolumesRW["/test"] != actual {
+		t.Fail()
+	}
+}
+
+// Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
+func TestRestartWithVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"echo", "-n", "foobar"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+	// Run the container again to verify the volume path persists
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := container.Volumes["/test"]
+	if expected != actual {
+		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
 	}
 }

@@ -410,6 +410,61 @@ func TestGetContainersChanges(t *testing.T) {
 	}
 }
 
+func TestGetContainersTop(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"/bin/sh", "-c", "sleep 2"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.Running {
+		t.Errorf("Container should be running")
+	}
+
+	r := httptest.NewRecorder()
+	if err := getContainersTop(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+	procs := []APITop{}
+	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(procs) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs))
+	}
+
+	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
+	}
+
+	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
+	}
+}
+
 func TestGetContainersByName(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)

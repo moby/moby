@@ -30,11 +30,12 @@ up-to-date.
 
 	* CATEGORY should describe which part of the project is affected.
 	Valid categories are:
-		* Runtime
-		* Remote API
 		* Builder
 		* Documentation
 		* Hack
+		* Packaging
+		* Remote API
+		* Runtime
 
 	* DESCRIPTION: a concise description of the change that is relevant to the end-user,
 	using the present tense.
@@ -52,6 +53,10 @@ up-to-date.
 ### 3. Change VERSION in commands.go
 
 ### 4. Run all tests
+
+	```bash
+	$ make test
+	```
 
 ### 5. Commit and create a pull request
 
@@ -109,11 +114,20 @@ up-to-date.
 
 ### 9. Publish Ubuntu packages
 
-	If everything went well in the previous step, you can finalize the release by submitting the Ubuntu packages.
+	If everything went well in the previous step, you can finalize the release by submitting the Ubuntu
+	packages.
 
 	```bash
 	$ RELEASE_IMAGE=image_provided_by_infrastructure_maintainers
 	$ docker run -e RELEASE_PPA=1 $RELEASE_IMAGE
 	```
 
-	If that goes well, congratulations! You're done.
+	If that goes well, Ubuntu Precise package is in its way. It will take anywhere from 0.5 to 30 hours
+	for the builders to complete their job depending on builder demand at this time. At this point, Quantal
+	and Raring packages need to be created using the Launchpad interface:
+	  https://launchpad.net/~dotcloud/+archive/lxc-docker/+packages
+
+	Notify [the packager maintainers](https://github.com/dotcloud/docker/blob/master/packaging/MAINTAINERS)
+	who will ensure PPA is ready.
+
+	Congratulations! You're done
