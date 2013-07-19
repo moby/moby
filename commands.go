@@ -463,6 +463,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", out.NFd)
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", out.NGoroutines)
+		fmt.Fprintf(cli.out, "LXC Version: %s\n", out.LXCVersion)
 	}
 	if !out.MemoryLimit {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
