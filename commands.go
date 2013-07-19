@@ -585,23 +585,28 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if cmd.NArg() == 0 {
 		cmd.Usage()
 		return nil
 	}
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
+	val := url.Values{}
+	if cmd.NArg() > 1 {
+		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
+	}
+
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil)
 	if err != nil {
 		return err
 	}
-	var procs []APITop
+	procs := APITop{}
 	err = json.Unmarshal(body, &procs)
 	if err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "PID\tTTY\tTIME\tCMD")
-	for _, proc := range procs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", proc.PID, proc.Tty, proc.Time, proc.Cmd)
+	fmt.Fprintln(w, strings.Join(procs.Titles, "\t"))
+	for _, proc := range procs.Processes {
+		fmt.Fprintln(w, strings.Join(proc, "\t"))
 	}
 	w.Flush()
 	return nil

@@ -249,35 +249,34 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerTop(name string) ([]APITop, error) {
+func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		output, err := exec.Command("lxc-ps", "--name", container.ID).CombinedOutput()
+		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", ps_args).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
 		}
-		var procs []APITop
+		procs := APITop{}
 		for i, line := range strings.Split(string(output), "\n") {
-			if i == 0 || len(line) == 0 {
+			if len(line) == 0 {
 				continue
 			}
-			proc := APITop{}
+			words := []string{}
 			scanner := bufio.NewScanner(strings.NewReader(line))
 			scanner.Split(bufio.ScanWords)
 			if !scanner.Scan() {
 				return nil, fmt.Errorf("Error trying to use lxc-ps")
 			}
 			// no scanner.Text because we skip container id
-			scanner.Scan()
-			proc.PID = scanner.Text()
-			scanner.Scan()
-			proc.Tty = scanner.Text()
-			scanner.Scan()
-			proc.Time = scanner.Text()
-			scanner.Scan()
-			proc.Cmd = scanner.Text()
-			procs = append(procs, proc)
+			for scanner.Scan() {
+				words = append(words, scanner.Text())
+			}
+			if i == 0 {
+				procs.Titles = words
+			} else {
+				procs.Processes = append(procs.Processes, words)
+			}
 		}
-		return procs, nil
+		return &procs, nil
 
 	}
 	return nil, fmt.Errorf("No such container: %s", name)

@@ -255,8 +255,12 @@ func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	procsStr, err := srv.ContainerTop(name)
+	ps_args := r.Form.Get("ps_args")
+	procsStr, err := srv.ContainerTop(name, ps_args)
 	if err != nil {
 		return err
 	}
