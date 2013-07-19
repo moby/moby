@@ -640,6 +640,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params,
 		"-e", "HOME=/",
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"-e", "container=lxc",
 	)
 
 	for _, elem := range container.Config.Env {
