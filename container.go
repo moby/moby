@@ -520,8 +520,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
-	container.Volumes = make(map[string]string)
-	container.VolumesRW = make(map[string]bool)
 
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
@@ -561,30 +559,35 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
 	// Create the requested volumes volumes
-	for volPath := range container.Config.Volumes {
-		volPath = path.Clean(volPath)
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			container.Volumes[volPath] = bindMap.SrcPath
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				container.VolumesRW[volPath] = true
+	if container.Volumes == nil || len(container.Volumes) == 0 {
+		container.Volumes = make(map[string]string)
+		container.VolumesRW = make(map[string]bool)
+
+		for volPath := range container.Config.Volumes {
+			volPath = path.Clean(volPath)
+			// If an external bind is defined for this volume, use that as a source
+			if bindMap, exists := binds[volPath]; exists {
+				container.Volumes[volPath] = bindMap.SrcPath
+				if strings.ToLower(bindMap.Mode) == "rw" {
+					container.VolumesRW[volPath] = true
+				}
+				// Otherwise create an directory in $ROOT/volumes/ and use that
+			} else {
+				c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+				if err != nil {
+					return err
+				}
+				srcPath, err := c.layer()
+				if err != nil {
+					return err
+				}
+				container.Volumes[volPath] = srcPath
+				container.VolumesRW[volPath] = true // RW by default
 			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-			if err != nil {
-				return err
+			// Create the mountpoint
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
 			}
-			srcPath, err := c.layer()
-			if err != nil {
-				return err
-			}
-			container.Volumes[volPath] = srcPath
-			container.VolumesRW[volPath] = true // RW by default
-		}
-		// Create the mountpoint
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-			return nil
 		}
 	}
 
