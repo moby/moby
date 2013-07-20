@@ -1393,6 +1393,21 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			v.Set("stderr", "1")
 		}
 
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			for {
+				sig := <-signals
+				if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+					fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
+					if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
+						fmt.Printf("failed to stop container:", err)
+					}
+					return
+				}
+			}
+		}()
+
 		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
