@@ -475,7 +475,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
-	nSeconds := cmd.Int("t", 10, "Number of seconds to try to stop for before killing the container. Default=10")
+	nSeconds := cmd.Int("t", 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
