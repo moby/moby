@@ -645,9 +645,11 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 				out.Write(sf.FormatStatus("Image %s already pushed, skipping", elem.ID))
 				continue
 			}
-			if err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
+			if checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
 				// FIXME: Continue on error?
 				return err
+			} else {
+				elem.Checksum = checksum
 			}
 			out.Write(sf.FormatStatus("Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
 			if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
@@ -663,11 +665,11 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgID, "json"))
 	if err != nil {
-		return fmt.Errorf("Error while retreiving the path for {%s}: %s", imgID, err)
+		return "", fmt.Errorf("Error while retreiving the path for {%s}: %s", imgID, err)
 	}
 	out.Write(sf.FormatStatus("Pushing %s", imgID))
 
@@ -679,29 +681,29 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep, token); err != nil {
 		if err == registry.ErrAlreadyExists {
 			out.Write(sf.FormatStatus("Image %s already pushed, skipping", imgData.ID))
-			return nil
+			return "", nil
 		}
-		return err
+		return "", err
 	}
 
 	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, Uncompressed, sf, out)
 	if err != nil {
-		return fmt.Errorf("Failed to generate layer archive: %s", err)
+		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
 
 	// Send the layer
 	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%8v/%v (%v)"), sf), ep, token, jsonRaw); err != nil {
-		return err
+		return "", err
 	} else {
 		imgData.Checksum = checksum
 	}
 
 	// Send the checksum
 	if err := r.PushImageChecksumRegistry(imgData, ep, token); err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return imgData.Checksum, nil
 }
 
 // FIXME: Allow to interupt current push when new push of same image is done.
@@ -739,7 +741,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	var token []string
 	out.Write(sf.FormatStatus("The push refers to an image: [%s]", localName))
-	if err := srv.pushImage(r, out, remoteName, img.ID, endpoint, token, sf); err != nil {
+	if _, err := srv.pushImage(r, out, remoteName, img.ID, endpoint, token, sf); err != nil {
 		return err
 	}
 	return nil

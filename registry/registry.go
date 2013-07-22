@@ -469,7 +469,19 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 }
 
 func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
-	imgListJSON, err := json.Marshal(imgList)
+	cleanImgList := []*ImgData{}
+
+	if validate {
+		for _, elem := range imgList {
+			if elem.Checksum != "" {
+				cleanImgList = append(cleanImgList, elem)
+			}
+		}
+	} else {
+		cleanImgList = imgList
+	}
+
+	imgListJSON, err := json.Marshal(cleanImgList)
 	if err != nil {
 		return nil, err
 	}
