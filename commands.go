@@ -185,6 +185,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {
+		if _, err := os.Stat(cmd.Arg(0)); err != nil {
+			return err
+		}
 		context, err = Tar(cmd.Arg(0), Uncompressed)
 	}
 	var body io.Reader
