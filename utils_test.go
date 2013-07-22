@@ -84,18 +84,25 @@ func readFile(src string, t *testing.T) (content string) {
 }
 
 // Create a test container from the given runtime `r` and run arguments `args`.
-// The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
+// If the image name is "_", (eg. []string{"-i", "-t", "_", "bash"}, it is
+// dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
 func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
 	config, hostConfig, _, err := ParseRun(args, nil)
+	defer func() {
+		if err != nil && t != nil {
+			t.Fatal(err)
+		}
+	}()
 	if err != nil {
 		return nil, nil, err
 	}
-	config.Image = GetTestImage(r).ID
+	if config.Image == "_" {
+		config.Image = GetTestImage(r).ID
+	}
 	c, err := NewBuilder(r).Create(config)
 	if err != nil {
-		t.Fatal(err)
 		return nil, nil, err
 	}
 	return c, hostConfig, nil

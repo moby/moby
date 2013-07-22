@@ -1,3 +1,7 @@
+.. use orphan to suppress "WARNING: document isn't included in any toctree"
+.. per http://sphinx-doc.org/markup/misc.html#file-wide-metadata
+
+:orphan:
 
 :title: Remote API v1.1
 :description: API Documentation for Docker

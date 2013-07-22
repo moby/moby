@@ -2,6 +2,9 @@
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
+.. COMMENT use http://pythonhosted.org/sphinxcontrib-httpdomain/ to
+.. document the REST API.
+
 =================
 Docker Remote API
 =================
@@ -13,15 +16,23 @@ Docker Remote API
 
 - The Remote API is replacing rcli
 - Default port in the docker deamon is 4243 
-- The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
-- Since API version 1.2, the auth configuration is now handled client side, so the client has to send the authConfig as POST in /images/(name)/push
+- The API tends to be REST, but for some complex commands, like attach
+  or pull, the HTTP connection is hijacked to transport stdout stdin
+  and stderr
+- Since API version 1.2, the auth configuration is now handled client
+  side, so the client has to send the authConfig as POST in
+  /images/(name)/push
 
 2. Versions
 ===========
 
-The current verson of the API is 1.4
-Calling /images/<name>/insert is the same as calling /v1.4/images/<name>/insert
-You can still call an old version of the api using /v1.0/images/<name>/insert
+The current verson of the API is 1.3
+
+Calling /images/<name>/insert is the same as calling
+/v1.3/images/<name>/insert 
+
+You can still call an old version of the api using
+/v1.0/images/<name>/insert
 
 :doc:`docker_remote_api_v1.3`
 *****************************
@@ -29,9 +40,9 @@ You can still call an old version of the api using /v1.0/images/<name>/insert
 What's new
 ----------
 
-Listing processes (/top):
+.. http:get:: /containers/(id)/top
 
-- You can now use ps args with docker top, like `docker top <container_id> aux`
+   **New!** You can now use ps args with docker top, like `docker top <container_id> aux`
 
 :doc:`docker_remote_api_v1.3`
 *****************************
@@ -41,19 +52,21 @@ docker v0.5.0 51f6c4a_
 What's new
 ----------
 
-Listing processes (/top):
+.. http:get:: /containers/(id)/top
 
-- List the processes inside a container
-
+   List the processes running inside a container.
 
 Builder (/build):
 
 - Simplify the upload of the build context
-- Simply stream a tarball instead of multipart upload with 4 intermediary buffers
+- Simply stream a tarball instead of multipart upload with 4
+  intermediary buffers
 - Simpler, less memory usage, less disk usage and faster
 
-.. Note::
-The /build improvements are not reverse-compatible. Pre 1.3 clients will break on /build.
+.. Warning::
+
+  The /build improvements are not reverse-compatible. Pre 1.3 clients
+  will break on /build.
 
 List containers (/containers/json):
 
@@ -61,7 +74,8 @@ List containers (/containers/json):
 
 Start containers (/containers/<id>/start):
 
-- You can now pass host-specific configuration (e.g. bind mounts) in the POST body for start calls 
+- You can now pass host-specific configuration (e.g. bind mounts) in
+  the POST body for start calls
 
 :doc:`docker_remote_api_v1.2`
 *****************************
@@ -72,14 +86,25 @@ What's new
 ----------
 
 The auth configuration is now handled by the client.
-The client should send it's authConfig as POST on each call of /images/(name)/push
 
-.. http:get:: /auth is now deprecated
-.. http:post:: /auth only checks the configuration but doesn't store it on the server
+The client should send it's authConfig as POST on each call of
+/images/(name)/push
 
-Deleting an image is now improved, will only untag the image if it has chidrens and remove all the untagged parents if has any.
+.. http:get:: /auth 
 
-.. http:post:: /images/<name>/delete now returns a JSON with the list of images deleted/untagged
+  **Deprecated.**
+
+.. http:post:: /auth 
+
+  Only checks the configuration but doesn't store it on the server
+
+  Deleting an image is now improved, will only untag the image if it
+  has chidren and remove all the untagged parents if has any.
+
+.. http:post:: /images/<name>/delete 
+
+  Now returns a JSON structure with the list of images
+  deleted/untagged.
 
 
 :doc:`docker_remote_api_v1.1`
@@ -94,7 +119,7 @@ What's new
 .. http:post:: /images/(name)/insert
 .. http:post:: /images/(name)/push
 
-Uses json stream instead of HTML hijack, it looks like this:
+   Uses json stream instead of HTML hijack, it looks like this:
 
         .. sourcecode:: http
 

@@ -80,7 +80,8 @@ type Config struct {
 }
 
 type HostConfig struct {
-	Binds []string
+	Binds           []string
+	ContainerIDFile string
 }
 
 type BindMap struct {
@@ -93,6 +94,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
+		cmd.Usage = nil
 	}
 
 	flHostname := cmd.String("h", "", "Container host name")
@@ -103,6 +105,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -190,7 +193,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: binds,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -637,6 +641,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params,
 		"-e", "HOME=/",
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"-e", "container=lxc",
 	)
 
 	for _, elem := range container.Config.Env {
@@ -650,10 +655,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.cmd = exec.Command("lxc-start", params...)
 
 	// Setup logging of stdout and stderr to disk
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
 	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
 
@@ -712,13 +717,13 @@ func (container *Container) StdinPipe() (io.WriteCloser, error) {
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stdout.AddWriter(writer)
+	container.stdout.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stderr.AddWriter(writer)
+	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 

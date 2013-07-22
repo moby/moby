@@ -59,7 +59,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-
 // TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
 func TestRunHostname(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
@@ -90,7 +89,6 @@ func TestRunHostname(t *testing.T) {
 	})
 
 }
-
 
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
@@ -144,15 +142,17 @@ func TestRunAttachStdin(t *testing.T) {
 	})
 
 	// Check logs
-	if cmdLogs, err := container.ReadLog("stdout"); err != nil {
+	if cmdLogs, err := container.ReadLog("json"); err != nil {
 		t.Fatal(err)
 	} else {
 		if output, err := ioutil.ReadAll(cmdLogs); err != nil {
 			t.Fatal(err)
 		} else {
-			expectedLog := "hello\nhi there\n"
-			if string(output) != expectedLog {
-				t.Fatalf("Unexpected logs: should be '%s', not '%s'\n", expectedLog, output)
+			expectedLogs := []string{"{\"log\":\"hello\\n\",\"stream\":\"stdout\"", "{\"log\":\"hi there\\n\",\"stream\":\"stdout\""}
+			for _, expectedLog := range expectedLogs {
+				if !strings.Contains(string(output), expectedLog) {
+					t.Fatalf("Unexpected logs: should contains '%s', it is not '%s'\n", expectedLog, output)
+				}
 			}
 		}
 	}

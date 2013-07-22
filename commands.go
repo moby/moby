@@ -475,7 +475,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
-	nSeconds := cmd.Int("t", 10, "Number of seconds to try to stop for before killing the container. Default=10")
+	nSeconds := cmd.Int("t", 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1110,10 +1110,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1", false, nil, cli.out); err != nil {
-		return err
-	}
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stderr=1", false, nil, cli.err); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out); err != nil {
 		return err
 	}
 	return nil
@@ -1316,6 +1313,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	var containerIDFile *os.File
+	if len(hostConfig.ContainerIDFile) > 0 {
+		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
+			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
+		}
+		containerIDFile, err = os.Create(hostConfig.ContainerIDFile)
+		if err != nil {
+			return fmt.Errorf("failed to create the container ID file: %s", err)
+		}
+		defer containerIDFile.Close()
+	}
+
 	//create the container
 	body, statusCode, err := cli.call("POST", "/containers/create", config)
 	//if image not found try to pull it
@@ -1345,6 +1354,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	for _, warning := range runResult.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
+	}
+	if len(hostConfig.ContainerIDFile) > 0 {
+		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
+			return fmt.Errorf("failed to write the container ID to the file: %s", err)
+		}
 	}
 
 	//start the container
