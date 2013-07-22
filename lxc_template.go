@@ -13,6 +13,7 @@ lxc.utsname = {{.Id}}
 {{end}}
 #lxc.aa_profile = unconfined
 
+{{if .Config.NetworkEnabled}}
 # network configuration
 lxc.network.type = veth
 lxc.network.flags = up
@@ -20,6 +21,10 @@ lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
 lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
+{{else}}
+# Network configuration disabled
+lxc.network.type = empty
+{{end}}
 
 # root filesystem
 {{$ROOTFS := .RootfsPath}}

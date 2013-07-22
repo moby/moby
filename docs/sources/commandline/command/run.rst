@@ -20,6 +20,7 @@
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -m=0: Memory limit (in bytes)
+      -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID

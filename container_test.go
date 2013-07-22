@@ -1251,3 +1251,41 @@ func TestRestartWithVolumes(t *testing.T) {
 		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
 	}
 }
+
+func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	config, hc, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewBuilder(runtime).Create(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer runtime.Destroy(c)
+	if err := c.Start(hc); err != nil {
+		t.Fatal(err)
+	}
+	c.WaitTimeout(500 * time.Millisecond)
+	c.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(string(output), -1)
+	if len(interfaces) != 1 {
+		t.Fatalf("Wrong interface count in test container: expected [1: lo], got [%s]", interfaces)
+	}
+	if interfaces[0] != "1: lo" {
+		t.Fatalf("Wrong interface in test container: expected [1: lo], got [%s]", interfaces)
+	}
+
+}
