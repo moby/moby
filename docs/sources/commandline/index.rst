@@ -37,5 +37,6 @@ Contents:
   start   <command/start>
   stop    <command/stop>
   tag     <command/tag>
+  top     <command/top>
   version <command/version>
   wait    <command/wait>
