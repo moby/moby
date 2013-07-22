@@ -109,7 +109,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Container = container.ID
 		img.ContainerConfig = *container.Config
 	}
-	if err := graph.Register(layerData, layerData != nil, img); err != nil {
+	if err := graph.Register(nil, layerData, layerData != nil, img); err != nil {
 		return nil, err
 	}
 	return img, nil
@@ -117,7 +117,7 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
+func (graph *Graph) Register(jsonData []byte, layerData Archive, store bool, img *Image) error {
 	if err := ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
 	}
-	if err := StoreImage(img, layerData, tmp, store); err != nil {
+	if err := StoreImage(img, jsonData, layerData, tmp, store); err != nil {
 		return err
 	}
 	// Commit

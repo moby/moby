@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,6 +47,19 @@ func LoadImage(root string) (*Image, error) {
 	if err := ValidateID(img.ID); err != nil {
 		return nil, err
 	}
+
+	if buf, err := ioutil.ReadFile(path.Join(root, "layersize")); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	} else {
+		if size, err := strconv.Atoi(string(buf)); err != nil {
+			return nil, err
+		} else {
+			img.Size = int64(size)
+		}
+	}
+
 	// Check that the filesystem layer exists
 	if stat, err := os.Stat(layerPath(root)); err != nil {
 		if os.IsNotExist(err) {
@@ -58,7 +72,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, layerData Archive, root string, store bool) error {
+func StoreImage(img *Image, jsonData []byte, layerData Archive, root string, store bool) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.ID)
@@ -81,25 +95,36 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 		utils.Debugf("Untar time: %vs\n", time.Now().Sub(start).Seconds())
 	}
 
+	// If raw json is provided, then use it
+	if jsonData != nil {
+		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
+	} else { // Otherwise, unmarshal the image
+		jsonData, err := json.Marshal(img)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+			return err
+		}
+	}
+
 	return StoreSize(img, root)
 }
 
 func StoreSize(img *Image, root string) error {
 	layer := layerPath(root)
 
+	var totalSize int64 = 0
 	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
-		img.Size += fileInfo.Size()
+		totalSize += fileInfo.Size()
 		return nil
 	})
+	img.Size = totalSize
 
-	// Store the json ball
-	jsonData, err := json.Marshal(img)
-	if err != nil {
-		return err
+	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(totalSize))), 0600); err != nil {
+		return nil
 	}
-	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-		return err
-	}
+
 	return nil
 }
 
