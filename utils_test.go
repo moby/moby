@@ -155,7 +155,7 @@ func TestMergeConfig(t *testing.T) {
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
 		Dns:       []string{"3.3.3.3"},
-		PortSpecs: []string{"2222:3333", "3333:3333"},
+		PortSpecs: []string{"3333:2222", "3333:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
 		Volumes:   volumesUser,
 	}
@@ -172,11 +172,11 @@ func TestMergeConfig(t *testing.T) {
 	}
 
 	if len(configUser.PortSpecs) != 3 {
-		t.Fatalf("Expected 3 portSpecs, 1111:1111, 2222:3333 and 3333:3333, found %d", len(configUser.PortSpecs))
+		t.Fatalf("Expected 3 portSpecs, 1111:1111, 3333:2222 and 3333:3333, found %d", len(configUser.PortSpecs))
 	}
 	for _, portSpecs := range configUser.PortSpecs {
-		if portSpecs != "1111:1111" && portSpecs != "2222:3333" && portSpecs != "3333:3333" {
-			t.Fatalf("Expected 1111:1111 or 2222:3333 or 3333:3333, found %s", portSpecs)
+		if portSpecs != "1111:1111" && portSpecs != "3333:2222" && portSpecs != "3333:3333" {
+			t.Fatalf("Expected 1111:1111 or 3333:2222 or 3333:3333, found %s", portSpecs)
 		}
 	}
 	if len(configUser.Env) != 3 {
@@ -195,5 +195,47 @@ func TestMergeConfig(t *testing.T) {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
+	}
+}
+
+func TestMergeConfigPublicPortNotHonored(t *testing.T) {
+	volumesImage := make(map[string]struct{})
+	volumesImage["/test1"] = struct{}{}
+	volumesImage["/test2"] = struct{}{}
+	configImage := &Config{
+		Dns:       []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs: []string{"1111", "2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumesImage,
+	}
+
+	volumesUser := make(map[string]struct{})
+	volumesUser["/test3"] = struct{}{}
+	configUser := &Config{
+		Dns:       []string{"3.3.3.3"},
+		PortSpecs: []string{"1111:3333"},
+		Env:       []string{"VAR2=3", "VAR3=3"},
+		Volumes:   volumesUser,
+	}
+
+	MergeConfig(configUser, configImage)
+
+	contains := func(a []string, expect string) bool {
+		for _, p := range a {
+			if p == expect {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !contains(configUser.PortSpecs, "2222") {
+		t.Logf("Expected '2222' Ports: %v", configUser.PortSpecs)
+		t.Fail()
+	}
+
+	if !contains(configUser.PortSpecs, "1111:3333") {
+		t.Logf("Expected '1111:3333' Ports: %v", configUser.PortSpecs)
+		t.Fail()
 	}
 }
