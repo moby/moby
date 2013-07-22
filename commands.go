@@ -495,6 +495,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", out.KernelVersion)
 	}
+
 	if len(out.IndexServerAddress) != 0 {
 		u := cli.configFile.Configs[out.IndexServerAddress].Username
 		if len(u) > 0 {
