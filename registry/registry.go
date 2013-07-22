@@ -17,8 +17,10 @@ import (
 	"strings"
 )
 
-var ErrAlreadyExists = errors.New("Image already exists")
-var ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+var (
+	ErrAlreadyExists         = errors.New("Image already exists")
+	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+)
 
 func pingRegistryEndpoint(endpoint string) error {
 	if endpoint == auth.IndexServerAddress() {
@@ -266,7 +268,10 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 }
 
 func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, error) {
+
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
+
+	utils.Debugf("[registry] Calling GET %s", repositoryTarget)
 
 	req, err := r.opaqueRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -378,7 +383,6 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	r.setUserAgent(req)
 
-	utils.Debugf("Setting checksum for %s: %s", imgData.ID, imgData.Checksum)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
@@ -400,11 +404,12 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	return nil
 }
 
-func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string) (checksum string, err error) {
+func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string, jsonRaw []byte) (checksum string, err error) {
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
 	tarsumLayer := &utils.TarSum{Reader: layer}
+
 	req, err := http.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
 	if err != nil {
 		return "", err
@@ -426,7 +431,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 		}
 		return "", fmt.Errorf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody)
 	}
-	return tarsumLayer.Sum(), nil
+	return tarsumLayer.Sum(jsonRaw), nil
 }
 
 func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
@@ -474,7 +479,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	}
 
 	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
-	utils.Debugf("PUT %s", u)
+	utils.Debugf("[registry] PUT %s", u)
 	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
 	req, err := r.opaqueRequest("PUT", u, bytes.NewReader(imgListJSON))
 	if err != nil {
