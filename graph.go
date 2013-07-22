@@ -205,7 +205,7 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 		return "", err
 	}
 	initLayer := tmp.imageRoot("_dockerinit")
-	if err := os.Mkdir(initLayer, 0700); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(initLayer, 0755); err != nil && !os.IsExist(err) {
 		// If directory already existed, keep going.
 		// For all other errors, abort.
 		return "", err
