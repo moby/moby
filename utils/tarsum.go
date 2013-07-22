@@ -145,12 +145,12 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 func (ts *TarSum) Sum(extra []byte) string {
 	sort.Strings(ts.sums)
 	h := sha256.New()
+	if extra != nil {
+		h.Write(extra)
+	}
 	for _, sum := range ts.sums {
 		Debugf("-->%s<--", sum)
 		h.Write([]byte(sum))
-	}
-	if extra != nil {
-		h.Write(extra)
 	}
 	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
 	Debugf("checksum processed: %s", checksum)
