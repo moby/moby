@@ -514,8 +514,12 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
-	if err := container.allocateNetwork(); err != nil {
-		return err
+	if container.runtime.networkManager.disabled {
+		container.Config.NetworkEnabled = false
+	} else {
+		if err := container.allocateNetwork(); err != nil {
+			return err
+		}
 	}
 
 	// Make sure the config is compatible with the current kernel
