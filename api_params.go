@@ -17,16 +17,17 @@ type APIImages struct {
 }
 
 type APIInfo struct {
-	Debug           bool
-	Containers      int
-	Images          int
-	NFd             int    `json:",omitempty"`
-	NGoroutines     int    `json:",omitempty"`
-	MemoryLimit     bool   `json:",omitempty"`
-	SwapLimit       bool   `json:",omitempty"`
-	LXCVersion      string `json:",omitempty"`
-	NEventsListener int    `json:",omitempty"`
-	KernelVersion   string `json:",omitempty"`
+	Debug              bool
+	Containers         int
+	Images             int
+	NFd                int    `json:",omitempty"`
+	NGoroutines        int    `json:",omitempty"`
+	MemoryLimit        bool   `json:",omitempty"`
+	SwapLimit          bool   `json:",omitempty"`
+	LXCVersion         string `json:",omitempty"`
+	NEventsListener    int    `json:",omitempty"`
+	KernelVersion      string `json:",omitempty"`
+	IndexServerAddress string `json:",omitempty"`
 }
 
 type APITop struct {
