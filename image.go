@@ -72,7 +72,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData Archive, root string, store bool) error {
+func StoreImage(img *Image, jsonData []byte, layerData Archive, root string) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.ID)
