@@ -98,9 +98,9 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return endpoint, reposName, err
 }
 
-// VersionChecker is used to model entities which has a version.
+// VersionInfo is used to model entities which has a version.
 // It is basically a tupple with name and version.
-type VersionChecker interface {
+type VersionInfo interface {
 	Name() string
 	Version() string
 }
@@ -114,7 +114,7 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 
 // Set the user agent field in the header based on the versions provided
 // in NewRegistry() and extra.
-func (r *Registry) setUserAgent(req *http.Request, extra ...VersionChecker) {
+func (r *Registry) setUserAgent(req *http.Request, extra ...VersionInfo) {
 	if len(r.baseVersions)+len(extra) == 0 {
 		return
 	}
@@ -569,11 +569,11 @@ type ImgData struct {
 type Registry struct {
 	client          *http.Client
 	authConfig      *auth.AuthConfig
-	baseVersions    []VersionChecker
+	baseVersions    []VersionInfo
 	baseVersionsStr string
 }
 
-func validVersion(version VersionChecker) bool {
+func validVersion(version VersionInfo) bool {
 	stopChars := " \t\r\n/"
 	if strings.ContainsAny(version.Name(), stopChars) {
 		return false
@@ -586,11 +586,11 @@ func validVersion(version VersionChecker) bool {
 
 // Convert versions to a string and append the string to the string base.
 //
-// Each VersionChecker will be converted to a string in the format of
+// Each VersionInfo will be converted to a string in the format of
 // "product/version", where the "product" is get from the Name() method, while
 // version is get from the Version() method. Several pieces of verson information
 // will be concatinated and separated by space.
-func appendVersions(base string, versions ...VersionChecker) string {
+func appendVersions(base string, versions ...VersionInfo) string {
 	if len(versions) == 0 {
 		return base
 	}
@@ -612,7 +612,7 @@ func appendVersions(base string, versions ...VersionChecker) string {
 	return buf.String()
 }
 
-func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...VersionChecker) (r *Registry, err error) {
+func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...VersionInfo) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,

@@ -26,21 +26,21 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
-// plainVersionChecker is a simple implementation of
-// the interface VersionChecker, which is used
+// simpleVersionInfo is a simple implementation of
+// the interface VersionInfo, which is used
 // to provide version information for some product,
 // component, etc. It stores the product name and the version
 // in string and returns them on calls to Name() and Version().
-type plainVersionChecker struct {
+type simpleVersionInfo struct {
 	name    string
 	version string
 }
 
-func (v *plainVersionChecker) Name() string {
+func (v *simpleVersionInfo) Name() string {
 	return v.name
 }
 
-func (v *plainVersionChecker) Version() string {
+func (v *simpleVersionInfo) Version() string {
 	return v.version
 }
 
@@ -48,20 +48,20 @@ func (v *plainVersionChecker) Version() string {
 // docker, go, git-commit (of the docker) and the host's kernel.
 //
 // Such information will be used on call to NewRegistry().
-func (srv *Server) versionCheckers() []registry.VersionChecker {
+func (srv *Server) versionCheckers() []registry.VersionInfo {
 	v := srv.DockerVersion()
-	ret := make([]registry.VersionChecker, 0, 4)
-	ret = append(ret, &plainVersionChecker{"docker", v.Version})
+	ret := make([]registry.VersionInfo, 0, 4)
+	ret = append(ret, &simpleVersionInfo{"docker", v.Version})
 
 	if len(v.GoVersion) > 0 {
-		ret = append(ret, &plainVersionChecker{"go", v.GoVersion})
+		ret = append(ret, &simpleVersionInfo{"go", v.GoVersion})
 	}
 	if len(v.GitCommit) > 0 {
-		ret = append(ret, &plainVersionChecker{"git-commit", v.GitCommit})
+		ret = append(ret, &simpleVersionInfo{"git-commit", v.GitCommit})
 	}
 	kernelVersion, err := utils.GetKernelVersion()
 	if err == nil {
-		ret = append(ret, &plainVersionChecker{"kernel", kernelVersion.String()})
+		ret = append(ret, &simpleVersionInfo{"kernel", kernelVersion.String()})
 	}
 
 	return ret
