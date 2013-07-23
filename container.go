@@ -58,26 +58,26 @@ type Container struct {
 }
 
 type Config struct {
-	Hostname       string
-	User           string
-	Memory         int64 // Memory limit (in bytes)
-	MemorySwap     int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares      int64 // CPU shares (relative weight vs. other containers)
-	AttachStdin    bool
-	AttachStdout   bool
-	AttachStderr   bool
-	PortSpecs      []string
-	Tty            bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin      bool // Open stdin
-	StdinOnce      bool // If true, close stdin after the 1 attached client disconnects.
-	Env            []string
-	Cmd            []string
-	Dns            []string
-	Image          string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes        map[string]struct{}
-	VolumesFrom    string
-	Entrypoint     []string
-	NetworkEnabled bool
+	Hostname        string
+	User            string
+	Memory          int64 // Memory limit (in bytes)
+	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	AttachStdin     bool
+	AttachStdout    bool
+	AttachStderr    bool
+	PortSpecs       []string
+	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin       bool // Open stdin
+	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
+	Env             []string
+	Cmd             []string
+	Dns             []string
+	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Volumes         map[string]struct{}
+	VolumesFrom     string
+	Entrypoint      []string
+	NetworkDisabled bool
 }
 
 type HostConfig struct {
@@ -176,24 +176,24 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	config := &Config{
-		Hostname:       *flHostname,
-		PortSpecs:      flPorts,
-		User:           *flUser,
-		Tty:            *flTty,
-		NetworkEnabled: *flNetwork,
-		OpenStdin:      *flStdin,
-		Memory:         *flMemory,
-		CpuShares:      *flCpuShares,
-		AttachStdin:    flAttach.Get("stdin"),
-		AttachStdout:   flAttach.Get("stdout"),
-		AttachStderr:   flAttach.Get("stderr"),
-		Env:            flEnv,
-		Cmd:            runCmd,
-		Dns:            flDns,
-		Image:          image,
-		Volumes:        flVolumes,
-		VolumesFrom:    *flVolumesFrom,
-		Entrypoint:     entrypoint,
+		Hostname:        *flHostname,
+		PortSpecs:       flPorts,
+		User:            *flUser,
+		Tty:             *flTty,
+		NetworkDisabled: !*flNetwork,
+		OpenStdin:       *flStdin,
+		Memory:          *flMemory,
+		CpuShares:       *flCpuShares,
+		AttachStdin:     flAttach.Get("stdin"),
+		AttachStdout:    flAttach.Get("stdout"),
+		AttachStderr:    flAttach.Get("stderr"),
+		Env:             flEnv,
+		Cmd:             runCmd,
+		Dns:             flDns,
+		Image:           image,
+		Volumes:         flVolumes,
+		VolumesFrom:     *flVolumesFrom,
+		Entrypoint:      entrypoint,
 	}
 	hostConfig := &HostConfig{
 		Binds:           binds,
@@ -515,7 +515,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		return err
 	}
 	if container.runtime.networkManager.disabled {
-		container.Config.NetworkEnabled = false
+		container.Config.NetworkDisabled = true
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
@@ -633,7 +633,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Networking
-	if container.Config.NetworkEnabled {
+	if !container.Config.NetworkDisabled {
 		params = append(params, "-g", container.network.Gateway.String())
 	}
 
@@ -736,7 +736,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) allocateNetwork() error {
-	if !container.Config.NetworkEnabled {
+	if container.Config.NetworkDisabled {
 		return nil
 	}
 
@@ -766,7 +766,7 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
-	if !container.Config.NetworkEnabled {
+	if container.Config.NetworkDisabled {
 		return
 	}
 	container.network.Release()
