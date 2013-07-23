@@ -80,8 +80,7 @@ Manage a release of docker from beginning to end. Tests, final review, tags, bui
 
 #### 12) Train other maintainers
 
-Contribute to training other maintainers. Give advic
-
+Contribute to training other maintainers. Give advice, delegate work, help organize the bootcamp. This also means contribute to the maintainer's manual, look for ways to improve the project organization etc.
 
 ### How to study a step
 
