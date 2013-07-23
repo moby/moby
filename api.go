@@ -81,54 +81,15 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
-func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version > 1.1 {
-		w.WriteHeader(http.StatusNotFound)
-		return nil
-	}
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
-	if err != nil {
-		if err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = &auth.AuthConfig{}
-	}
-	b, err := json.Marshal(&auth.AuthConfig{Username: authConfig.Username, Email: authConfig.Email})
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
-}
-
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
 	err := json.NewDecoder(r.Body).Decode(authConfig)
 	if err != nil {
 		return err
 	}
-	status := ""
-	if version > 1.1 {
-		status, err = auth.Login(authConfig, false)
-		if err != nil {
-			return err
-		}
-	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
-		if err != nil {
-			if err != auth.ErrConfigFileMissing {
-				return err
-			}
-		}
-		if authConfig.Username == localAuthConfig.Username {
-			authConfig.Password = localAuthConfig.Password
-		}
-
-		newAuthConfig := auth.NewAuthConfig(authConfig.Username, authConfig.Password, authConfig.Email, srv.runtime.root)
-		status, err = auth.Login(newAuthConfig, true)
-		if err != nil {
-			return err
-		}
+	status, err := auth.Login(authConfig)
+	if err != nil {
+		return err
 	}
 	if status != "" {
 		b, err := json.Marshal(&APIAuth{Status: status})
@@ -429,16 +390,8 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
-	if version > 1.1 {
-		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return err
-		}
-	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
-		if err != nil && err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = localAuthConfig
+	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+		return err
 	}
 	if err := parseForm(r); err != nil {
 		return err
@@ -854,7 +807,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
-			"/auth":                         getAuth,
 			"/version":                      getVersion,
 			"/info":                         getInfo,
 			"/images/json":                  getImagesJSON,

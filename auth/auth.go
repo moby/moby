@@ -25,19 +25,15 @@ var (
 )
 
 type AuthConfig struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Auth     string `json:"auth"`
 	Email    string `json:"email"`
-	rootPath string
 }
 
-func NewAuthConfig(username, password, email, rootPath string) *AuthConfig {
-	return &AuthConfig{
-		Username: username,
-		Password: password,
-		Email:    email,
-		rootPath: rootPath,
-	}
+type ConfigFile struct {
+	Configs  map[string]AuthConfig `json:"configs,omitempty"`
+	rootPath string
 }
 
 func IndexServerAddress() string {
@@ -54,61 +50,83 @@ func encodeAuth(authConfig *AuthConfig) string {
 }
 
 // decode the auth string
-func decodeAuth(authStr string) (*AuthConfig, error) {
+func decodeAuth(authStr string) (string, string, error) {
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)
 	n, err := base64.StdEncoding.Decode(decoded, authByte)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	if n > decLen {
-		return nil, fmt.Errorf("Something went wrong decoding auth config")
+		return "", "", fmt.Errorf("Something went wrong decoding auth config")
 	}
 	arr := strings.Split(string(decoded), ":")
 	if len(arr) != 2 {
-		return nil, fmt.Errorf("Invalid auth configuration file")
+		return "", "", fmt.Errorf("Invalid auth configuration file")
 	}
 	password := strings.Trim(arr[1], "\x00")
-	return &AuthConfig{Username: arr[0], Password: password}, nil
+	return arr[0], password, nil
 }
 
 // load up the auth config information and return values
 // FIXME: use the internal golang config parser
-func LoadConfig(rootPath string) (*AuthConfig, error) {
+func LoadConfig(rootPath string) (*ConfigFile, error) {
+	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
 	confFile := path.Join(rootPath, CONFIGFILE)
 	if _, err := os.Stat(confFile); err != nil {
-		return &AuthConfig{rootPath: rootPath}, ErrConfigFileMissing
+		return &configFile, ErrConfigFileMissing
 	}
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {
 		return nil, err
 	}
-	arr := strings.Split(string(b), "\n")
-	if len(arr) < 2 {
-		return nil, fmt.Errorf("The Auth config file is empty")
+
+	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
+		arr := strings.Split(string(b), "\n")
+		if len(arr) < 2 {
+			return nil, fmt.Errorf("The Auth config file is empty")
+		}
+		authConfig := AuthConfig{}
+		origAuth := strings.Split(arr[0], " = ")
+		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
+		if err != nil {
+			return nil, err
+		}
+		origEmail := strings.Split(arr[1], " = ")
+		authConfig.Email = origEmail[1]
+		configFile.Configs[IndexServerAddress()] = authConfig
+	} else {
+		for k, authConfig := range configFile.Configs {
+			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
+			if err != nil {
+				return nil, err
+			}
+			configFile.Configs[k] = authConfig
+		}
 	}
-	origAuth := strings.Split(arr[0], " = ")
-	origEmail := strings.Split(arr[1], " = ")
-	authConfig, err := decodeAuth(origAuth[1])
-	if err != nil {
-		return nil, err
-	}
-	authConfig.Email = origEmail[1]
-	authConfig.rootPath = rootPath
-	return authConfig, nil
+	return &configFile, nil
 }
 
 // save the auth config
-func SaveConfig(authConfig *AuthConfig) error {
-	confFile := path.Join(authConfig.rootPath, CONFIGFILE)
-	if len(authConfig.Email) == 0 {
+func SaveConfig(configFile *ConfigFile) error {
+	confFile := path.Join(configFile.rootPath, CONFIGFILE)
+	if len(configFile.Configs) == 0 {
 		os.Remove(confFile)
 		return nil
 	}
-	lines := "auth = " + encodeAuth(authConfig) + "\n" + "email = " + authConfig.Email + "\n"
-	b := []byte(lines)
-	err := ioutil.WriteFile(confFile, b, 0600)
+	for k, authConfig := range configFile.Configs {
+		authConfig.Auth = encodeAuth(&authConfig)
+		authConfig.Username = ""
+		authConfig.Password = ""
+		configFile.Configs[k] = authConfig
+	}
+
+	b, err := json.Marshal(configFile.Configs)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(confFile, b, 0600)
 	if err != nil {
 		return err
 	}
@@ -116,8 +134,7 @@ func SaveConfig(authConfig *AuthConfig) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig *AuthConfig, store bool) (string, error) {
-	storeConfig := false
+func Login(authConfig *AuthConfig) (string, error) {
 	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
@@ -143,7 +160,6 @@ func Login(authConfig *AuthConfig, store bool) (string, error) {
 	if reqStatusCode == 201 {
 		status = "Account created. Please use the confirmation link we sent" +
 			" to your e-mail to activate it."
-		storeConfig = true
 	} else if reqStatusCode == 403 {
 		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
 			"Please check your e-mail for a confirmation link.")
@@ -162,14 +178,7 @@ func Login(authConfig *AuthConfig, store bool) (string, error) {
 			}
 			if resp.StatusCode == 200 {
 				status = "Login Succeeded"
-				storeConfig = true
 			} else if resp.StatusCode == 401 {
-				if store {
-					authConfig.Email = ""
-					if err := SaveConfig(authConfig); err != nil {
-						return "", err
-					}
-				}
 				return "", fmt.Errorf("Wrong login/password, please try again")
 			} else {
 				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
@@ -180,11 +189,6 @@ func Login(authConfig *AuthConfig, store bool) (string, error) {
 		}
 	} else {
 		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
-	}
-	if storeConfig && store {
-		if err := SaveConfig(authConfig); err != nil {
-			return "", err
-		}
 	}
 	return status, nil
 }

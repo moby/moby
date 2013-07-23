@@ -313,16 +313,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
+	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
+	if !ok {
+		authconfig = auth.AuthConfig{}
+	}
+
 	if *flUsername == "" {
-		fmt.Fprintf(cli.out, "Username (%s): ", cli.authConfig.Username)
+		fmt.Fprintf(cli.out, "Username (%s): ", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
 		if username == "" {
-			username = cli.authConfig.Username
+			username = authconfig.Username
 		}
 	} else {
 		username = *flUsername
 	}
-	if username != cli.authConfig.Username {
+	if username != authconfig.Username {
 		if *flPassword == "" {
 			fmt.Fprintf(cli.out, "Password: ")
 			password = readString(cli.in, cli.out)
@@ -334,31 +339,30 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if *flEmail == "" {
-			fmt.Fprintf(cli.out, "Email (%s): ", cli.authConfig.Email)
+			fmt.Fprintf(cli.out, "Email (%s): ", authconfig.Email)
 			email = readAndEchoString(cli.in, cli.out)
 			if email == "" {
-				email = cli.authConfig.Email
+				email = authconfig.Email
 			}
 		} else {
 			email = *flEmail
 		}
 	} else {
-		password = cli.authConfig.Password
-		email = cli.authConfig.Email
+		password = authconfig.Password
+		email = authconfig.Email
 	}
 	if oldState != nil {
 		term.RestoreTerminal(cli.terminalFd, oldState)
 	}
-	cli.authConfig.Username = username
-	cli.authConfig.Password = password
-	cli.authConfig.Email = email
+	authconfig.Username = username
+	authconfig.Password = password
+	authconfig.Email = email
+	cli.configFile.Configs[auth.IndexServerAddress()] = authconfig
 
-	body, statusCode, err := cli.call("POST", "/auth", cli.authConfig)
+	body, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[auth.IndexServerAddress()])
 	if statusCode == 401 {
-		cli.authConfig.Username = ""
-		cli.authConfig.Password = ""
-		cli.authConfig.Email = ""
-		auth.SaveConfig(cli.authConfig)
+		delete(cli.configFile.Configs, auth.IndexServerAddress())
+		auth.SaveConfig(cli.configFile)
 		return err
 	}
 	if err != nil {
@@ -368,10 +372,10 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	var out2 APIAuth
 	err = json.Unmarshal(body, &out2)
 	if err != nil {
-		auth.LoadConfig(os.Getenv("HOME"))
+		cli.configFile, _ = auth.LoadConfig(os.Getenv("HOME"))
 		return err
 	}
-	auth.SaveConfig(cli.authConfig)
+	auth.SaveConfig(cli.configFile)
 	if out2.Status != "" {
 		fmt.Fprintf(cli.out, "%s\n", out2.Status)
 	}
@@ -802,10 +806,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.authConfig.Username, name)
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.configFile.Configs[auth.IndexServerAddress()].Username, name)
 	}
 
-	buf, err := json.Marshal(cli.authConfig)
+	buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
 	if err != nil {
 		return err
 	}
@@ -1410,11 +1414,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 func (cli *DockerCli) checkIfLogged(action string) error {
 	// If condition AND the login failed
-	if cli.authConfig.Username == "" {
+	if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
 		if err := cli.CmdLogin(""); err != nil {
 			return err
 		}
-		if cli.authConfig.Username == "" {
+		if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
 			return fmt.Errorf("Please login prior to %s. ('docker login')", action)
 		}
 	}
@@ -1670,11 +1674,11 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 		err = out
 	}
 
-	authConfig, _ := auth.LoadConfig(os.Getenv("HOME"))
+	configFile, _ := auth.LoadConfig(os.Getenv("HOME"))
 	return &DockerCli{
 		proto:      proto,
 		addr:       addr,
-		authConfig: authConfig,
+		configFile: configFile,
 		in:         in,
 		out:        out,
 		err:        err,
@@ -1686,7 +1690,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 type DockerCli struct {
 	proto      string
 	addr       string
-	authConfig *auth.AuthConfig
+	configFile *auth.ConfigFile
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
