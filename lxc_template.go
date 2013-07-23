@@ -112,6 +112,9 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{if .Config.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
 {{end}}
+{{if .Config.Cpus}}
+lxc.cgroup.cpuset.cpus = {{.Config.CpusString}}
+{{end}}
 `
 
 var LxcTemplateCompiled *template.Template

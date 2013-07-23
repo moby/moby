@@ -63,6 +63,8 @@ type Config struct {
 	Memory          int64 // Memory limit (in bytes)
 	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
 	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	Cpus            []string
+	CpusString      string
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
@@ -115,6 +117,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
+
+	var flCpus ListOpts
+	cmd.Var(&flCpus, "C", "Which logical CPU cores to make available to the container")
 
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
@@ -174,7 +179,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	if *flEntrypoint != "" {
 		entrypoint = []string{*flEntrypoint}
 	}
-
 	config := &Config{
 		Hostname:        *flHostname,
 		PortSpecs:       flPorts,
@@ -184,6 +188,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		OpenStdin:       *flStdin,
 		Memory:          *flMemory,
 		CpuShares:       *flCpuShares,
+		Cpus:            flCpus,
+		CpusString:			 strings.Join(flCpus, ","),
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),

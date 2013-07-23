@@ -25,7 +25,8 @@ func CompareConfig(a, b *Config) bool {
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
-		len(a.Entrypoint) != len(b.Entrypoint) {
+		len(a.Entrypoint) != len(b.Entrypoint) ||
+		len(a.Cpus) != len(b.Cpus) {
 		return false
 	}
 
@@ -54,6 +55,11 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
+	for i := 0; i < len(a.Cpus); i++ {
+		if a.Cpus[i] != b.Cpus[i] {
+			return false
+		}
+	}
 	return true
 }
 
@@ -69,6 +75,9 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.CpuShares == 0 {
 		userConf.CpuShares = imageConf.CpuShares
+	}
+	if userConf.Cpus == nil || len(userConf.Cpus) == 0 {
+		 userConf.Cpus = imageConf.Cpus
 	}
 	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
 		userConf.PortSpecs = imageConf.PortSpecs
