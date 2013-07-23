@@ -5,10 +5,7 @@ import (
 )
 
 func TestContainerTagImageDelete(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -62,10 +59,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 }
 
 func TestCreateRm(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -95,10 +89,7 @@ func TestCreateRm(t *testing.T) {
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
@@ -154,11 +145,9 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 }
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
-	runtime, err := newTestRuntime()
+	var err error
+	runtime := mkRuntime(t)
 	srv := &Server{runtime: runtime}
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer nuke(runtime)
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
 	_, err = srv.ContainerCreate(

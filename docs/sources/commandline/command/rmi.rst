@@ -8,6 +8,6 @@
 
 ::
 
-    Usage: docker rmimage [OPTIONS] IMAGE
+    Usage: docker rmi IMAGE [IMAGE...]
 
-    Remove an image
+    Remove one or more images

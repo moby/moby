@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,12 +16,38 @@ import (
 
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(t *testing.T) *Runtime {
+func mkRuntime(f Fataler) *Runtime {
 	runtime, err := newTestRuntime()
 	if err != nil {
-		t.Fatal(err)
+		f.Fatal(err)
 	}
 	return runtime
+}
+
+// A common interface to access the Fatal method of
+// both testing.B and testing.T.
+type Fataler interface {
+	Fatal(args ...interface{})
+}
+
+func newTestRuntime() (*Runtime, error) {
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Remove(root); err != nil {
+		return nil, err
+	}
+	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
+		return nil, err
+	}
+
+	runtime, err := NewRuntimeFromDirectory(root, false)
+	if err != nil {
+		return nil, err
+	}
+	runtime.UpdateCapabilities(true)
+	return runtime, nil
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
@@ -57,20 +84,28 @@ func readFile(src string, t *testing.T) (content string) {
 }
 
 // Create a test container from the given runtime `r` and run arguments `args`.
-// The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
+// If the image name is "_", (eg. []string{"-i", "-t", "_", "bash"}, it is
+// dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig) {
+func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
 	config, hostConfig, _, err := ParseRun(args, nil)
+	defer func() {
+		if err != nil && t != nil {
+			t.Fatal(err)
+		}
+	}()
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
-	config.Image = GetTestImage(r).ID
+	if config.Image == "_" {
+		config.Image = GetTestImage(r).ID
+	}
 	c, err := NewBuilder(r).Create(config)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
-	return c, hostConfig
+	return c, hostConfig, nil
 }
 
 // Create a test container, start it, wait for it to complete, destroy it,
@@ -83,7 +118,10 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 			t.Fatal(err)
 		}
 	}()
-	container, hostConfig := mkContainer(r, args, t)
+	container, hostConfig, err := mkContainer(r, args, t)
+	if err != nil {
+		return "", err
+	}
 	defer r.Destroy(container)
 	stdout, err := container.StdoutPipe()
 	if err != nil {
@@ -100,4 +138,104 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 	}
 	output = string(data)
 	return
+}
+
+func TestMergeConfig(t *testing.T) {
+	volumesImage := make(map[string]struct{})
+	volumesImage["/test1"] = struct{}{}
+	volumesImage["/test2"] = struct{}{}
+	configImage := &Config{
+		Dns:       []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumesImage,
+	}
+
+	volumesUser := make(map[string]struct{})
+	volumesUser["/test3"] = struct{}{}
+	configUser := &Config{
+		Dns:       []string{"3.3.3.3"},
+		PortSpecs: []string{"3333:2222", "3333:3333"},
+		Env:       []string{"VAR2=3", "VAR3=3"},
+		Volumes:   volumesUser,
+	}
+
+	MergeConfig(configUser, configImage)
+
+	if len(configUser.Dns) != 3 {
+		t.Fatalf("Expected 3 dns, 1.1.1.1, 2.2.2.2 and 3.3.3.3, found %d", len(configUser.Dns))
+	}
+	for _, dns := range configUser.Dns {
+		if dns != "1.1.1.1" && dns != "2.2.2.2" && dns != "3.3.3.3" {
+			t.Fatalf("Expected 1.1.1.1 or 2.2.2.2 or 3.3.3.3, found %s", dns)
+		}
+	}
+
+	if len(configUser.PortSpecs) != 3 {
+		t.Fatalf("Expected 3 portSpecs, 1111:1111, 3333:2222 and 3333:3333, found %d", len(configUser.PortSpecs))
+	}
+	for _, portSpecs := range configUser.PortSpecs {
+		if portSpecs != "1111:1111" && portSpecs != "3333:2222" && portSpecs != "3333:3333" {
+			t.Fatalf("Expected 1111:1111 or 3333:2222 or 3333:3333, found %s", portSpecs)
+		}
+	}
+	if len(configUser.Env) != 3 {
+		t.Fatalf("Expected 3 env var, VAR1=1, VAR2=3 and VAR3=3, found %d", len(configUser.Env))
+	}
+	for _, env := range configUser.Env {
+		if env != "VAR1=1" && env != "VAR2=3" && env != "VAR3=3" {
+			t.Fatalf("Expected VAR1=1 or VAR2=3 or VAR3=3, found %s", env)
+		}
+	}
+
+	if len(configUser.Volumes) != 3 {
+		t.Fatalf("Expected 3 volumes, /test1, /test2 and /test3, found %d", len(configUser.Volumes))
+	}
+	for v, _ := range configUser.Volumes {
+		if v != "/test1" && v != "/test2" && v != "/test3" {
+			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
+		}
+	}
+}
+
+func TestMergeConfigPublicPortNotHonored(t *testing.T) {
+	volumesImage := make(map[string]struct{})
+	volumesImage["/test1"] = struct{}{}
+	volumesImage["/test2"] = struct{}{}
+	configImage := &Config{
+		Dns:       []string{"1.1.1.1", "2.2.2.2"},
+		PortSpecs: []string{"1111", "2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumesImage,
+	}
+
+	volumesUser := make(map[string]struct{})
+	volumesUser["/test3"] = struct{}{}
+	configUser := &Config{
+		Dns:       []string{"3.3.3.3"},
+		PortSpecs: []string{"1111:3333"},
+		Env:       []string{"VAR2=3", "VAR3=3"},
+		Volumes:   volumesUser,
+	}
+
+	MergeConfig(configUser, configImage)
+
+	contains := func(a []string, expect string) bool {
+		for _, p := range a {
+			if p == expect {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !contains(configUser.PortSpecs, "2222") {
+		t.Logf("Expected '2222' Ports: %v", configUser.PortSpecs)
+		t.Fail()
+	}
+
+	if !contains(configUser.PortSpecs, "1111:3333") {
+		t.Logf("Expected '1111:3333' Ports: %v", configUser.PortSpecs)
+		t.Fail()
+	}
 }

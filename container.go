@@ -80,7 +80,8 @@ type Config struct {
 }
 
 type HostConfig struct {
-	Binds []string
+	Binds           []string
+	ContainerIDFile string
 }
 
 type BindMap struct {
@@ -93,6 +94,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
+		cmd.Usage = nil
 	}
 
 	flHostname := cmd.String("h", "", "Container host name")
@@ -103,6 +105,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -121,13 +124,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
-	cmd.Var(flVolumes, "v", "Attach a data volume")
+	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	var flBinds ListOpts
-	cmd.Var(&flBinds, "b", "Bind mount a volume from the host (e.g. -b /host:/container)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -146,11 +146,17 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
+	var binds []string
+
 	// add any bind targets to the list of container volumes
-	for _, bind := range flBinds {
+	for bind := range flVolumes {
 		arr := strings.Split(bind, ":")
-		dstDir := arr[1]
-		flVolumes[dstDir] = struct{}{}
+		if len(arr) > 1 {
+			dstDir := arr[1]
+			flVolumes[dstDir] = struct{}{}
+			binds = append(binds, bind)
+			delete(flVolumes, bind)
+		}
 	}
 
 	parsedArgs := cmd.Args()
@@ -187,7 +193,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:   entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: flBinds,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -268,6 +275,26 @@ func (container *Container) ToDisk() (err error) {
 		return
 	}
 	return ioutil.WriteFile(container.jsonPath(), data, 0666)
+}
+
+func (container *Container) ReadHostConfig() (*HostConfig, error) {
+	data, err := ioutil.ReadFile(container.hostConfigPath())
+	if err != nil {
+		return &HostConfig{}, err
+	}
+	hostConfig := &HostConfig{}
+	if err := json.Unmarshal(data, hostConfig); err != nil {
+		return &HostConfig{}, err
+	}
+	return hostConfig, nil
+}
+
+func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
+	data, err := json.Marshal(hostConfig)
+	if err != nil {
+		return
+	}
+	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
 func (container *Container) generateLXCConfig() error {
@@ -474,6 +501,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
+	if len(hostConfig.Binds) == 0 {
+		hostConfig, _ = container.ReadHostConfig()
+	}
+
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
 	}
@@ -493,8 +524,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
-	container.Volumes = make(map[string]string)
-	container.VolumesRW = make(map[string]bool)
 
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
@@ -534,30 +563,35 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
 	// Create the requested volumes volumes
-	for volPath := range container.Config.Volumes {
-		volPath = path.Clean(volPath)
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			container.Volumes[volPath] = bindMap.SrcPath
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				container.VolumesRW[volPath] = true
+	if container.Volumes == nil || len(container.Volumes) == 0 {
+		container.Volumes = make(map[string]string)
+		container.VolumesRW = make(map[string]bool)
+
+		for volPath := range container.Config.Volumes {
+			volPath = path.Clean(volPath)
+			// If an external bind is defined for this volume, use that as a source
+			if bindMap, exists := binds[volPath]; exists {
+				container.Volumes[volPath] = bindMap.SrcPath
+				if strings.ToLower(bindMap.Mode) == "rw" {
+					container.VolumesRW[volPath] = true
+				}
+				// Otherwise create an directory in $ROOT/volumes/ and use that
+			} else {
+				c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+				if err != nil {
+					return err
+				}
+				srcPath, err := c.layer()
+				if err != nil {
+					return err
+				}
+				container.Volumes[volPath] = srcPath
+				container.VolumesRW[volPath] = true // RW by default
 			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-			if err != nil {
-				return err
+			// Create the mountpoint
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
 			}
-			srcPath, err := c.layer()
-			if err != nil {
-				return err
-			}
-			container.Volumes[volPath] = srcPath
-			container.VolumesRW[volPath] = true // RW by default
-		}
-		// Create the mountpoint
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-			return nil
 		}
 	}
 
@@ -574,6 +608,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return nil
 			}
 			container.Volumes[volPath] = id
+			if isRW, exists := c.VolumesRW[volPath]; exists {
+				container.VolumesRW[volPath] = isRW
+			}
 		}
 	}
 
@@ -604,6 +641,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params,
 		"-e", "HOME=/",
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"-e", "container=lxc",
 	)
 
 	for _, elem := range container.Config.Env {
@@ -617,10 +655,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.cmd = exec.Command("lxc-start", params...)
 
 	// Setup logging of stdout and stderr to disk
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
 	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
 
@@ -641,6 +679,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.waitLock = make(chan struct{})
 
 	container.ToDisk()
+	container.SaveHostConfig(hostConfig)
 	go container.monitor()
 	return nil
 }
@@ -678,13 +717,13 @@ func (container *Container) StdinPipe() (io.WriteCloser, error) {
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stdout.AddWriter(writer)
+	container.stdout.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stderr.AddWriter(writer)
+	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
@@ -977,6 +1016,10 @@ func (container *Container) logPath(name string) string {
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
 	return os.Open(container.logPath(name))
+}
+
+func (container *Container) hostConfigPath() string {
+	return path.Join(container.root, "hostconfig.json")
 }
 
 func (container *Container) jsonPath() string {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -114,26 +113,6 @@ func init() {
 
 // FIXME: test that ImagePull(json=true) send correct json output
 
-func newTestRuntime() (*Runtime, error) {
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		return nil, err
-	}
-	if err := os.Remove(root); err != nil {
-		return nil, err
-	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		return nil, err
-	}
-
-	runtime, err := NewRuntimeFromDirectory(root, false)
-	if err != nil {
-		return nil, err
-	}
-	runtime.UpdateCapabilities(true)
-	return runtime, nil
-}
-
 func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.All()
 	if err != nil {
@@ -148,10 +127,7 @@ func GetTestImage(runtime *Runtime) *Image {
 }
 
 func TestRuntimeCreate(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	// Make sure we start we 0 containers
@@ -223,10 +199,7 @@ func TestRuntimeCreate(t *testing.T) {
 }
 
 func TestDestroy(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
@@ -270,42 +243,16 @@ func TestDestroy(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	builder := NewBuilder(runtime)
-
-	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container1)
 
-	container2, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container2)
 
-	container3, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container3, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container3)
 
 	if runtime.Get(container1.ID) != container1 {
@@ -323,11 +270,8 @@ func TestGet(t *testing.T) {
 }
 
 func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container, string) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	var err error
+	runtime := mkRuntime(t)
 	port := 5554
 	var container *Container
 	var strPort string
@@ -463,46 +407,14 @@ func TestAllocateUDPPortLocalhost(t *testing.T) {
 }
 
 func TestRestore(t *testing.T) {
-
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(root); err != nil {
-		t.Fatal(err)
-	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime1, err := NewRuntimeFromDirectory(root, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	builder := NewBuilder(runtime1)
-
+	runtime1 := mkRuntime(t)
+	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime1).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, err := builder.Create(&Config{
-		Image:     GetTestImage(runtime1).ID,
-		Cmd:       []string{"/bin/cat"},
-		OpenStdin: true,
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
@@ -537,7 +449,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(root, false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
 	if err != nil {
 		t.Fatal(err)
 	}

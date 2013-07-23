@@ -111,10 +111,29 @@ func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
 	return nil
 }
 
+// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
+// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
+// If it can't find an address which doesn't conflict, it will return an error.
 func CreateBridgeIface(ifaceName string) error {
-	// FIXME: try more IP ranges
-	// FIXME: try bigger ranges! /24 is too small.
-	addrs := []string{"172.16.42.1/24", "10.0.42.1/24", "192.168.42.1/24"}
+	addrs := []string{
+		// Here we don't follow the convention of using the 1st IP of the range for the gateway.
+		// This is to use the same gateway IPs as the /24 ranges, which predate the /16 ranges.
+		// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
+		// on the internal addressing or other stupid things like that.
+		// The shouldn't, but hey, let's not break them unless we really have to.
+		"172.16.42.1/16",
+		"10.0.42.1/16", // Don't even try using the entire /8, that's too intrusive
+		"10.1.42.1/16",
+		"10.42.42.1/16",
+		"172.16.42.1/24",
+		"172.16.43.1/24",
+		"172.16.44.1/24",
+		"10.0.42.1/24",
+		"10.0.43.1/24",
+		"192.168.42.1/24",
+		"192.168.43.1/24",
+		"192.168.44.1/24",
+	}
 
 	var ifaceAddr string
 	for _, addr := range addrs {

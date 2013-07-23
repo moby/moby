@@ -204,14 +204,14 @@ func (store *TagStore) GetImage(repoName, tagOrID string) (*Image, error) {
 	} else if repo == nil {
 		return nil, nil
 	}
-	//go through all the tags, to see if tag is in fact an ID
+	if revision, exists := repo[tagOrID]; exists {
+		return store.graph.Get(revision)
+	}
+	// If no matching tag is found, search through images for a matching image id
 	for _, revision := range repo {
 		if strings.HasPrefix(revision, tagOrID) {
 			return store.graph.Get(revision)
 		}
-	}
-	if revision, exists := repo[tagOrID]; exists {
-		return store.graph.Get(revision)
 	}
 	return nil, nil
 }

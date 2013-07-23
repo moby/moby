@@ -5,10 +5,7 @@ import (
 )
 
 func TestLookupImage(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil {

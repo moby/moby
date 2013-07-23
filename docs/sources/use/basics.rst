@@ -51,7 +51,7 @@ For example:
 .. code-block:: bash
 
    # Run docker in daemon mode
-   sudo <path to>/docker -H 0.0.0.0:5555 &
+   sudo <path to>/docker -H 0.0.0.0:5555 -d &
    # Download a base image
    docker -H :5555 pull base
 
@@ -61,7 +61,7 @@ on both tcp and a unix socket
 .. code-block:: bash
 
    # Run docker in daemon mode
-   sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock
+   sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &
    # Download a base image
    docker pull base
    # OR
