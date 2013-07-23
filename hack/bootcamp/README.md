@@ -3,7 +3,7 @@
 ## Introduction: we need more maintainers
 
 Docker is growing incredibly fast. At the time of writing, it has received over 200 contributions from 90 people,
-and its API is used by dozens of 3d-party tools. Over 1,000 issues have been opened. As the first production deployments
+and its API is used by dozens of 3rd-party tools. Over 1,000 issues have been opened. As the first production deployments
 start going live, the growth will only accelerate.
 
 Also at the time of writing, Docker has 3 full-time maintainers, and 7 part-time subsystem maintainers. If docker
