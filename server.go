@@ -48,7 +48,7 @@ func (v *simpleVersionInfo) Version() string {
 // docker, go, git-commit (of the docker) and the host's kernel.
 //
 // Such information will be used on call to NewRegistry().
-func (srv *Server) versionCheckers() []registry.VersionInfo {
+func (srv *Server) versionInfos() []registry.VersionInfo {
 	v := srv.DockerVersion()
 	ret := make([]registry.VersionInfo, 0, 4)
 	ret = append(ret, &simpleVersionInfo{"docker", v.Version})
@@ -96,7 +96,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionCheckers()...)
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionInfos()...)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionCheckers()...)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err != nil {
 		return err
 	}
@@ -728,7 +728,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionCheckers()...)
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err2 != nil {
 		return err2
 	}
