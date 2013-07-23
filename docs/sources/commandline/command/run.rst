@@ -12,6 +12,7 @@
 
     Run a command in a new container
 
+      -C=[]: Which logical CPU cores to make available to the container
       -a=map[]: Attach to stdin, stdout or stderr.
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
