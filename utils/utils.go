@@ -617,6 +617,7 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	if jm.Error != "" {
 		return fmt.Errorf(jm.Error)
 	}
+	fmt.Fprintf(out, "%c[2K", 27)
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
@@ -626,8 +627,43 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
 	} else {
-		fmt.Fprintf(out, "%s\n", jm.Status)
+		fmt.Fprintf(out, "%s\r", jm.Status)
 	}
+	if jm.ID == "" {
+		fmt.Fprintf(out, "\n")
+	}
+	return nil
+}
+
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
+	dec := json.NewDecoder(in)
+	jm := JSONMessage{}
+	ids := make(map[string]int)
+	diff := 0
+	for {
+		if err := dec.Decode(&jm); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		if jm.ID != "" {
+			line, ok := ids[jm.ID]
+			if !ok {
+				line = len(ids)
+				ids[jm.ID] = line
+				fmt.Fprintf(out, "\n")
+				diff = 0
+			} else {
+				diff = len(ids) - line
+			}
+			fmt.Fprintf(out, "%c[%dA", 27, diff)
+		}
+		jm.Display(out)
+		if jm.ID != "" {
+			fmt.Fprintf(out, "%c[%dB", 27, diff)
+		}
+	}
+//	fmt.Fprintf(out, "\n")
 	return nil
 }
 
