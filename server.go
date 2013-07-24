@@ -30,6 +30,47 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
+// simpleVersionInfo is a simple implementation of
+// the interface VersionInfo, which is used
+// to provide version information for some product,
+// component, etc. It stores the product name and the version
+// in string and returns them on calls to Name() and Version().
+type simpleVersionInfo struct {
+	name    string
+	version string
+}
+
+func (v *simpleVersionInfo) Name() string {
+	return v.name
+}
+
+func (v *simpleVersionInfo) Version() string {
+	return v.version
+}
+
+// versionCheckers() returns version informations of:
+// docker, go, git-commit (of the docker) and the host's kernel.
+//
+// Such information will be used on call to NewRegistry().
+func (srv *Server) versionInfos() []registry.VersionInfo {
+	v := srv.DockerVersion()
+	ret := make([]registry.VersionInfo, 0, 4)
+	ret = append(ret, &simpleVersionInfo{"docker", v.Version})
+
+	if len(v.GoVersion) > 0 {
+		ret = append(ret, &simpleVersionInfo{"go", v.GoVersion})
+	}
+	if len(v.GitCommit) > 0 {
+		ret = append(ret, &simpleVersionInfo{"git-commit", v.GitCommit})
+	}
+	kernelVersion, err := utils.GetKernelVersion()
+	if err == nil {
+		ret = append(ret, &simpleVersionInfo{"kernel", kernelVersion.String()})
+	}
+
+	return ret
+}
+
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
@@ -61,7 +102,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil)
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionInfos()...)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +552,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err != nil {
 		return err
 	}
@@ -728,7 +769,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err2 != nil {
 		return err2
 	}
