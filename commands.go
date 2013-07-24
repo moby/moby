@@ -1409,7 +1409,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				return err
+				utils.Debugf("Error monitoring TTY size: %s\n", err)
 			}
 		}
 
@@ -1580,6 +1580,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	receiveStdout := utils.Go(func() error {
 		_, err := io.Copy(out, br)
+		utils.Debugf("[hijack] End of stdout")
 		return err
 	})
 
@@ -1594,6 +1595,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	sendStdin := utils.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)
+			utils.Debugf("[hijack] End of stdin")
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
