@@ -94,11 +94,6 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 		}
 		r.lastUpdate = r.readProgress
 	}
-	// Send newline when complete
-	if err != nil {
-		r.output.Write(r.sf.FormatStatus(""))
-	}
-
 	return read, err
 }
 func (r *progressReader) Close() error {
@@ -619,23 +614,22 @@ type JSONMessage struct {
 }
 
 func (jm *JSONMessage) Display(out io.Writer) (error) {
+	if jm.Error != "" {
+		return fmt.Errorf(jm.Error)
+	}
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
-	if jm.Progress != "" && jm.ID != ""{
-		fmt.Fprintf(out, "\n%s %s %s\r", jm.Status, jm.ID, jm.Progress)
-	} else if jm.Progress != "" {
+	if jm.ID != "" {
+		fmt.Fprintf(out, "%s: ", jm.ID)
+	}
+	if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
-	} else if jm.Error != "" {
-		return fmt.Errorf(jm.Error)
-	} else if jm.ID != "" {
-		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
 	} else {
 		fmt.Fprintf(out, "%s\n", jm.Status)
 	}
 	return nil
 }
-
 
 type StreamFormatter struct {
 	json bool
@@ -646,11 +640,11 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 	return &StreamFormatter{json, false}
 }
 
-func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte {
+func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: str})
+		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -670,16 +664,16 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 	return []byte("Error: " + err.Error() + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatProgress(action, str, id string) []byte {
+func (sf *StreamFormatter) FormatProgress(id, action, progress string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str, ID:id})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID:id})
 		if err != nil {
 			return nil
 		}
 		return b
 	}
-	return []byte(action + " " + str + "\r")
+	return []byte(action + " " + progress + "\r")
 }
 
 func (sf *StreamFormatter) Used() bool {

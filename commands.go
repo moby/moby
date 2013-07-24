@@ -196,7 +196,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// FIXME: ProgressReader shouldn't be this annoyning to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf.FormatProgress("Uploading context", "%v bytes%0.0s%0.0s", ""), sf)
+		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf.FormatProgress("", "Uploading context", "%v bytes%0.0s%0.0s"), sf)
 	}
 	// Upload the build context
 	v := &url.Values{}
@@ -1537,14 +1537,17 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 
 	if resp.Header.Get("Content-Type") == "application/json" {
 		dec := json.NewDecoder(resp.Body)
+		jm := utils.JSONMessage{}
 		for {
-			var jm utils.JSONMessage
 			if err := dec.Decode(&jm); err == io.EOF {
 				break
 			} else if err != nil {
 				return err
 			}
 			jm.Display(out)
+		}
+		if jm.Progress != "" {
+			fmt.Fprintf(out, "\n")
 		}
 	} else {
 		if _, err := io.Copy(out, resp.Body); err != nil {
