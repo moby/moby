@@ -187,7 +187,7 @@ The copy obeys the following rules:
 3.8 ENTRYPOINT
 --------------
 
-    ``ENTRYPOINT /bin/echo``
+    ``ENTRYPOINT ["/bin/echo"]``
 
 The ``ENTRYPOINT`` instruction adds an entry command that will not be
 overwritten when arguments are passed to docker run, unlike the

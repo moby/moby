@@ -89,6 +89,44 @@ func TestGetInfo(t *testing.T) {
 	}
 }
 
+func TestGetEvents(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{
+		runtime:   runtime,
+		events:    make([]utils.JSONMessage, 0, 64),
+		listeners: make(map[string]chan utils.JSONMessage),
+	}
+
+	srv.LogEvent("fakeaction", "fakeid")
+	srv.LogEvent("fakeaction2", "fakeid")
+
+	req, err := http.NewRequest("GET", "/events?since=1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	setTimeout(t, "", 500*time.Millisecond, func() {
+		if err := getEvents(srv, APIVERSION, r, req, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	dec := json.NewDecoder(r.Body)
+	for i := 0; i < 2; i++ {
+		var jm utils.JSONMessage
+		if err := dec.Decode(&jm); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		if jm != srv.events[i] {
+			t.Fatalf("Event received it different than expected")
+		}
+	}
+
+}
+
 func TestGetImagesJSON(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)

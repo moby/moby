@@ -11,7 +11,7 @@ BUILD_DIR := $(CURDIR)/.gopath
 GOPATH ?= $(BUILD_DIR)
 export GOPATH
 
-GO_OPTIONS ?=
+GO_OPTIONS ?= -a -ldflags='-w -d'
 ifeq ($(VERBOSE), 1)
 GO_OPTIONS += -v
 endif
@@ -80,10 +80,10 @@ test:
 	tar --exclude=${BUILD_SRC} -cz . | tar -xz -C ${BUILD_PATH}
 	GOPATH=${CURDIR}/${BUILD_SRC} go get -d
 	# Do the test
-	sudo -E GOPATH=${CURDIR}/${BUILD_SRC} go test ${GO_OPTIONS}
+	sudo -E GOPATH=${CURDIR}/${BUILD_SRC} CGO_ENABLED=0 go test ${GO_OPTIONS}
 
 testall: all
-	@(cd $(DOCKER_DIR); sudo -E go test ./... $(GO_OPTIONS))
+	@(cd $(DOCKER_DIR); CGO_ENABLED=0 sudo -E go test ./... $(GO_OPTIONS))
 
 fmt:
 	@gofmt -s -l -w .

@@ -78,6 +78,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
 		{"diff", "Inspect changes on a container's filesystem"},
+		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
@@ -470,6 +471,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", out.NFd)
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", out.NGoroutines)
+		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
 	}
 	if !out.MemoryLimit {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
@@ -1059,6 +1061,29 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdEvents(args ...string) error {
+	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
+	since := cmd.String("since", "", "Show events previously created (used for polling).")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	if *since != "" {
+		v.Set("since", *since)
+	}
+
+	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdExport(args ...string) error {
 	cmd := Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
 	if err := cmd.Parse(args); err != nil {
@@ -1513,19 +1538,13 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	if resp.Header.Get("Content-Type") == "application/json" {
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var m utils.JSONMessage
-			if err := dec.Decode(&m); err == io.EOF {
+			var jm utils.JSONMessage
+			if err := dec.Decode(&jm); err == io.EOF {
 				break
 			} else if err != nil {
 				return err
 			}
-			if m.Progress != "" {
-				fmt.Fprintf(out, "%s %s\r", m.Status, m.Progress)
-			} else if m.Error != "" {
-				return fmt.Errorf(m.Error)
-			} else {
-				fmt.Fprintf(out, "%s\n", m.Status)
-			}
+			jm.Display(out)
 		}
 	} else {
 		if _, err := io.Copy(out, resp.Body); err != nil {

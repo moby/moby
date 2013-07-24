@@ -17,6 +17,7 @@ var NetworkBridgeIface string
 
 const (
 	DefaultNetworkBridge = "docker0"
+	DisableNetworkBridge = "none"
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 )
@@ -472,10 +473,16 @@ type NetworkInterface struct {
 
 	manager  *NetworkManager
 	extPorts []*Nat
+	disabled bool
 }
 
 // Allocate an external TCP port and map it to the interface
 func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
+
+	if iface.disabled {
+		return nil, fmt.Errorf("Trying to allocate port for interface %v, which is disabled", iface) // FIXME
+	}
+
 	nat, err := parseNat(spec)
 	if err != nil {
 		return nil, err
@@ -571,6 +578,11 @@ func parseNat(spec string) (*Nat, error) {
 
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
+
+	if iface.disabled {
+		return
+	}
+
 	for _, nat := range iface.extPorts {
 		utils.Debugf("Unmaping %v/%v", nat.Proto, nat.Frontend)
 		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
@@ -598,10 +610,17 @@ type NetworkManager struct {
 	tcpPortAllocator *PortAllocator
 	udpPortAllocator *PortAllocator
 	portMapper       *PortMapper
+
+	disabled bool
 }
 
 // Allocate a network interface
 func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
+
+	if manager.disabled {
+		return &NetworkInterface{disabled: true}, nil
+	}
+
 	ip, err := manager.ipAllocator.Acquire()
 	if err != nil {
 		return nil, err
@@ -615,6 +634,14 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 }
 
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
+
+	if bridgeIface == DisableNetworkBridge {
+		manager := &NetworkManager{
+			disabled: true,
+		}
+		return manager, nil
+	}
+
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
