@@ -38,7 +38,7 @@ func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
 		f()
 		c <- false
 	}()
-	if <-c {
+	if <-c && msg != "" {
 		t.Fatal(msg)
 	}
 }
