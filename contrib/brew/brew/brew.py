@@ -10,22 +10,30 @@ DEFAULT_BRANCH = 'library'
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                    level='DEBUG')
+                    level='INFO')
 client = docker.Client()
 processed = {}
 
 
-def build_library(repository=None, branch=None, namespace=None, push=False):
+def build_library(repository=None, branch=None, namespace=None, push=False,
+        debug=False):
     if repository is None:
         repository = DEFAULT_REPOSITORY
     if branch is None:
         branch = DEFAULT_BRANCH
+    if debug:
+        logger.setLevel('DEBUG')
 
-    logger.info('Cloning docker repo from {0}, branch: {1}'.format(
-        repository, branch))
+    if not (repository.startswith('https://') or repository.startswith('git://')):
+        logger.info('Repository provided assumed to be a local path')
+        dst_folder = repository
+
     #FIXME: set destination folder and only pull latest changes instead of
     # cloning the whole repo everytime
-    dst_folder = git.clone_branch(repository, branch)
+    if not dst_folder:
+        logger.info('Cloning docker repo from {0}, branch: {1}'.format(
+            repository, branch))
+        dst_folder = git.clone_branch(repository, branch)
     for buildfile in os.listdir(os.path.join(dst_folder, 'library')):
         if buildfile == 'MAINTAINERS':
             continue
