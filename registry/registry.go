@@ -147,7 +147,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
-			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 		}
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, -1, fmt.Errorf("HTTP code %d", res.StatusCode)
+		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
 	imageSize, err := strconv.Atoi(res.Header.Get("X-Docker-Size"))
@@ -289,12 +289,12 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
-		return nil, fmt.Errorf("Please login first (HTTP code %d)", res.StatusCode)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Please login first (HTTP code %d)", res.StatusCode), res)
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP code: %d", res.StatusCode)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
 	}
 
 	var tokens []string
@@ -391,7 +391,7 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
+			return utils.NewHTTPRequestError(fmt.Sprint("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
 		var jsonBody map[string]string
 		if err := json.Unmarshal(errBody, &jsonBody); err != nil {
@@ -399,7 +399,7 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
+		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody), res)
 	}
 	return nil
 }
@@ -427,9 +427,9 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "", fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
+			return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return "", fmt.Errorf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody)
+		return utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
 	}
 	return tarsumLayer.Sum(jsonRaw), nil
 }
@@ -463,7 +463,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	}
 	res.Body.Close()
 	if res.StatusCode != 200 && res.StatusCode != 201 {
-		return fmt.Errorf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote)
+		return utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote), res)
 	}
 	return nil
 }
@@ -540,7 +540,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 			if err != nil {
 				return nil, err
 			}
-			return nil, fmt.Errorf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody), res)
 		}
 		if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
@@ -564,7 +564,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 			if err != nil {
 				return nil, err
 			}
-			return nil, fmt.Errorf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody), res)
 		}
 	}
 
@@ -586,7 +586,7 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("Unexepected status code %d", res.StatusCode)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
 	}
 	rawData, err := ioutil.ReadAll(res.Body)
 	if err != nil {

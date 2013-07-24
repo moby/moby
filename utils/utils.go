@@ -607,12 +607,22 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
+type JSONError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type JSONMessage struct {
-	Status   string `json:"status,omitempty"`
-	Progress string `json:"progress,omitempty"`
-	Error    string `json:"error,omitempty"`
-	ID       string `json:"id,omitempty"`
-	Time     int64  `json:"time,omitempty"`
+	Status       string     `json:"status,omitempty"`
+	Progress     string     `json:"progress,omitempty"`
+	ErrorMessage string     `json:"error,omitempty"` //deprecated
+	ID           string     `json:"id,omitempty"`
+	Time         int64      `json:"time,omitempty"`
+	Error        *JSONError `json:"errorDetail,omitempty"`
+}
+
+func (e *JSONError) Error() string {
+	return e.Message
 }
 
 func (jm *JSONMessage) Display(out io.Writer) error {
@@ -621,8 +631,8 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 	}
 	if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
-	} else if jm.Error != "" {
-		return fmt.Errorf(jm.Error)
+	} else if jm.Error != nil {
+		return jm.Error
 	} else if jm.ID != "" {
 		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
 	} else {
@@ -656,7 +666,7 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error: err.Error()}); err == nil {
+		if b, err := json.Marshal(&JSONMessage{Error: &JSONError{Code: code, Message: err.Error()}, ErrorMessage: err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")

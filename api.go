@@ -388,7 +388,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if image != "" { //pull
 		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}); err != nil {
 			if sf.Used() {
-				w.Write(sf.FormatError(err))
+				w.Write(sf.FormatError(err, 0))
 				return nil
 			}
 			return err
@@ -396,7 +396,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	} else { //import
 		if err := srv.ImageImport(src, repo, tag, r.Body, w, sf); err != nil {
 			if sf.Used() {
-				w.Write(sf.FormatError(err))
+				w.Write(sf.FormatError(err, 0))
 				return nil
 			}
 			return err
@@ -441,7 +441,7 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	imgID, err := srv.ImageInsert(name, url, path, w, sf)
 	if err != nil {
 		if sf.Used() {
-			w.Write(sf.FormatError(err))
+			w.Write(sf.FormatError(err, 0))
 			return nil
 		}
 	}
@@ -472,7 +472,11 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if err := srv.ImagePush(name, w, sf, authConfig); err != nil {
 		if sf.Used() {
-			w.Write(sf.FormatError(err))
+			var code int
+			if httpErr, ok := err.(*utils.HTTPRequestError); ok {
+				code = httpErr.StatusCode
+			}
+			w.Write(sf.FormatError(err, code))
 			return nil
 		}
 		return err
