@@ -16,7 +16,9 @@ processed = {}
 
 
 def build_library(repository=None, branch=None, namespace=None, push=False,
-        debug=False):
+        debug=False, prefill=True):
+    dst_folder = None
+    summary = Summary()
     if repository is None:
         repository = DEFAULT_REPOSITORY
     if branch is None:
@@ -38,7 +40,9 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         if buildfile == 'MAINTAINERS':
             continue
         f = open(os.path.join(dst_folder, 'library', buildfile))
+        linecnt = 0
         for line in f:
+            linecnt = linecnt + 1
             logger.debug('{0} ---> {1}'.format(buildfile, line))
             args = line.split()
             try:
@@ -66,11 +70,19 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
                     else:
                         raise RuntimeError('Incorrect line format, '
                             'please refer to the docs')
+                if prefill:
+                    logger.debug('Pulling {0} from official repository (cache '
+                        'fill)'.format(buildfile))
+                    client.pull(buildfile)
                 img = build_repo(url, ref, buildfile, tag, namespace, push)
+                summary.add_success(buildfile, (linecnt, line), img)
                 processed['{0}@{1}'.format(url, ref)] = img
             except Exception as e:
                 logger.exception(e)
+                summary.add_exception(buildfile, (linecnt, line), e)
+
         f.close()
+    summary.print_summary()
 
 
 def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
@@ -93,3 +105,43 @@ def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
         logger.info('Pushing result to the main registry')
         client.push(docker_repo)
     return img_id
+
+
+class Summary(object):
+    def __init__(self):
+        self._summary = {}
+        self._has_exc = False
+
+    def _add_data(self, image, linestr, data):
+        if image not in self._summary:
+            self._summary[image] = { linestr: data }
+        else:
+            self._summary[image][linestr] = data
+
+    def add_exception(self, image, line, exc):
+        lineno, linestr = line
+        self._add_data(image, linestr, { 'line': lineno, 'exc': str(exc) })
+        self._has_exc = True
+
+    def add_success(self, image, line, img_id):
+        lineno, linestr = line
+        self._add_data(image, linestr, { 'line': lineno, 'id': img_id })
+
+    def print_summary(self, logger=None):
+        linesep = ''.center(61, '-') + '\n'
+        s = 'BREW BUILD SUMMARY\n' + linesep
+        success = 'OVERALL SUCCESS: {}\n'.format(not self._has_exc)
+        details = linesep
+        for image, lines in self._summary.iteritems():
+            details = details + '{}\n{}'.format(image, linesep)
+            for linestr, data in lines.iteritems():
+                details = details + '{0:2} | {1} | {2:50}\n'.format(
+                    data['line'],
+                    'KO' if 'exc' in data else 'OK',
+                    data['exc'] if 'exc' in data else data['id']
+                )
+            details = details + linesep
+        if logger:
+            logger.info(s + success + details)
+        else:
+            print s, success, details

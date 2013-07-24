@@ -11,6 +11,8 @@ if __name__ == '__main__':
         help='push generated repositories to the official registry')
     parser.add_argument('--debug', default=False, action='store_true',
         help='Enable debugging output')
+    parser.add_argument('--noprefill', default=True, action='store_false',
+        dest='prefill', help='Disable cache prefill')
     parser.add_argument('-n', metavar='NAMESPACE', default='library',
         help='namespace used for generated repositories.'
         ' Default is library')
@@ -21,4 +23,5 @@ if __name__ == '__main__':
         nargs='?', help='git repository containing the library definition'
         ' files. Default is ' + brew.DEFAULT_REPOSITORY)
     args = parser.parse_args()
-    brew.build_library(args.repository, args.b, args.n, args.push, args.debug)
+    brew.build_library(args.repository, args.b, args.n, args.push, args.debug,
+        args.prefill)
