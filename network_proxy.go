@@ -68,6 +68,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 				from.CloseWrite()
 			}
 		}
+		to.CloseRead()
 		event <- written
 	}
 	utils.Debugf("Forwarding traffic between tcp/%v and tcp/%v", client.RemoteAddr(), backend.RemoteAddr())

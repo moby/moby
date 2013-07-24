@@ -3,13 +3,17 @@ package docker
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
-	context, err := mkBuildContext(fmt.Sprintf(dockerfile, unitTestImageID), files)
+	context, err := mkBuildContext(dockerfile, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,6 +26,8 @@ type testContextTemplate struct {
 	dockerfile string
 	// Additional files in the context, eg [][2]string{"./passwd", "gordon"}
 	files [][2]string
+	// Additional remote files to host on a local HTTP server.
+	remoteFiles [][2]string
 }
 
 // A table of all the contexts to build and test.
@@ -29,27 +35,31 @@ type testContextTemplate struct {
 var testContexts = []testContextTemplate{
 	{
 		`
-from   %s
+from   {IMAGE}
 run    sh -c 'echo root:testpass > /tmp/passwd'
 run    mkdir -p /var/run/sshd
 run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
 run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 `,
 		nil,
+		nil,
 	},
 
 	{
 		`
-from %s
+from {IMAGE}
 add foo /usr/lib/bla/bar
-run [ "$(cat /usr/lib/bla/bar)" = 'hello world!' ]
+run [ "$(cat /usr/lib/bla/bar)" = 'hello' ]
+add http://{SERVERADDR}/baz /usr/lib/baz/quux
+run [ "$(cat /usr/lib/baz/quux)" = 'world!' ]
 `,
-		[][2]string{{"foo", "hello world!"}},
+		[][2]string{{"foo", "hello"}},
+		[][2]string{{"/baz", "world!"}},
 	},
 
 	{
 		`
-from %s
+from {IMAGE}
 add f /
 run [ "$(cat /f)" = "hello" ]
 add f /abc
@@ -71,57 +81,93 @@ run [ "$(cat /somewheeeere/over/the/rainbooow/ga)" = "bu" ]
 			{"f", "hello"},
 			{"d/ga", "bu"},
 		},
+		nil,
 	},
 
 	{
 		`
-from %s
+from {IMAGE}
+add http://{SERVERADDR}/x /a/b/c
+run [ "$(cat /a/b/c)" = "hello" ]
+add http://{SERVERADDR}/x?foo=bar /
+run [ "$(cat /x)" = "hello" ]
+add http://{SERVERADDR}/x /d/
+run [ "$(cat /d/x)" = "hello" ]
+add http://{SERVERADDR} /e
+run [ "$(cat /e)" = "blah" ]
+`,
+		nil,
+		[][2]string{{"/x", "hello"}, {"/", "blah"}},
+	},
+
+	{
+		`
+from   {IMAGE}
 env    FOO BAR
 run    [ "$FOO" = "BAR" ]
 `,
 		nil,
-	},
-
-	{
-		`
-from %s
-ENTRYPOINT /bin/echo
-CMD Hello world
-`,
 		nil,
 	},
 
 	{
 		`
-from %s
+from {IMAGE}
+ENTRYPOINT /bin/echo
+CMD Hello world
+`,
+		nil,
+		nil,
+	},
+
+	{
+		`
+from {IMAGE}
 VOLUME /test
 CMD Hello world
 `,
+		nil,
 		nil,
 	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
 
+func constructDockerfile(template string, ip net.IP, port string) string {
+	serverAddr := fmt.Sprintf("%s:%s", ip, port)
+	replacer := strings.NewReplacer("{IMAGE}", unitTestImageID, "{SERVERADDR}", serverAddr)
+	return replacer.Replace(template)
+}
+
+func mkTestingFileServer(files [][2]string) (*httptest.Server, error) {
+	mux := http.NewServeMux()
+	for _, file := range files {
+		name, contents := file[0], file[1]
+		mux.HandleFunc(name, func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(contents))
+		})
+	}
+
+	// This is how httptest.NewServer sets up a net.Listener, except that our listener must accept remote
+	// connections (from the container).
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, err
+	}
+
+	s := httptest.NewUnstartedServer(mux)
+	s.Listener = listener
+	s.Start()
+	return s, nil
+}
+
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
-		runtime := mkRuntime(t)
-		defer nuke(runtime)
-
-		srv := &Server{
-			runtime:     runtime,
-			pullingPool: make(map[string]struct{}),
-			pushingPool: make(map[string]struct{}),
-		}
-
-		buildfile := NewBuildFile(srv, ioutil.Discard)
-		if _, err := buildfile.Build(mkTestContext(ctx.dockerfile, ctx.files, t)); err != nil {
-			t.Fatal(err)
-		}
+		buildImage(ctx, t)
 	}
 }
 
-func TestVolume(t *testing.T) {
+func buildImage(context testContextTemplate, t *testing.T) *Image {
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -134,25 +180,110 @@ func TestVolume(t *testing.T) {
 		pushingPool: make(map[string]struct{}),
 	}
 
-	buildfile := NewBuildFile(srv, ioutil.Discard)
-	imgId, err := buildfile.Build(mkTestContext(`
-from %s
-VOLUME /test
-CMD Hello world
-`, nil, t))
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := srv.ImageInspect(imgId)
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false)
+	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	img, err := srv.ImageInspect(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return img
+}
+
+func TestVolume(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        volume /test
+        cmd Hello world
+    `, nil, nil}, t)
+
 	if len(img.Config.Volumes) == 0 {
 		t.Fail()
 	}
-	for key, _ := range img.Config.Volumes {
+	for key := range img.Config.Volumes {
 		if key != "/test" {
 			t.Fail()
 		}
+	}
+}
+
+func TestBuildMaintainer(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+    `, nil, nil}, t)
+
+	if img.Author != "dockerio" {
+		t.Fail()
+	}
+}
+
+func TestBuildEnv(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        env port 4243
+        `,
+		nil, nil}, t)
+
+	if img.Config.Env[0] != "port=4243" {
+		t.Fail()
+	}
+}
+
+func TestBuildCmd(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        cmd ["/bin/echo", "Hello World"]
+        `,
+		nil, nil}, t)
+
+	if img.Config.Cmd[0] != "/bin/echo" {
+		t.Log(img.Config.Cmd[0])
+		t.Fail()
+	}
+	if img.Config.Cmd[1] != "Hello World" {
+		t.Log(img.Config.Cmd[1])
+		t.Fail()
+	}
+}
+
+func TestBuildExpose(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        expose 4243
+        `,
+		nil, nil}, t)
+
+	if img.Config.PortSpecs[0] != "4243" {
+		t.Fail()
+	}
+}
+
+func TestBuildEntrypoint(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        entrypoint ["/bin/echo"]
+        `,
+		nil, nil}, t)
+
+	if img.Config.Entrypoint[0] != "/bin/echo" {
 	}
 }

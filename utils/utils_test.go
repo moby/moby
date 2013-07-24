@@ -60,9 +60,9 @@ func TestWriteBroadcaster(t *testing.T) {
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
 	bufferA := &dummyWriter{}
-	writer.AddWriter(bufferA)
+	writer.AddWriter(bufferA, "")
 	bufferB := &dummyWriter{}
-	writer.AddWriter(bufferB)
+	writer.AddWriter(bufferB, "")
 	writer.Write([]byte("foo"))
 
 	if bufferA.String() != "foo" {
@@ -76,7 +76,7 @@ func TestWriteBroadcaster(t *testing.T) {
 	// Test2: bufferA and bufferB should contain "foobar",
 	// while bufferC should only contain "bar"
 	bufferC := &dummyWriter{}
-	writer.AddWriter(bufferC)
+	writer.AddWriter(bufferC, "")
 	writer.Write([]byte("bar"))
 
 	if bufferA.String() != "foobar" {
@@ -91,35 +91,22 @@ func TestWriteBroadcaster(t *testing.T) {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
-	// Test3: Test removal
-	writer.RemoveWriter(bufferB)
-	writer.Write([]byte("42"))
-	if bufferA.String() != "foobar42" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
-	if bufferB.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferB.String())
-	}
-	if bufferC.String() != "bar42" {
-		t.Errorf("Buffer contains %v", bufferC.String())
-	}
-
-	// Test4: Test eviction on failure
+	// Test3: Test eviction on failure
 	bufferA.failOnWrite = true
 	writer.Write([]byte("fail"))
-	if bufferA.String() != "foobar42" {
+	if bufferA.String() != "foobar" {
 		t.Errorf("Buffer contains %v", bufferA.String())
 	}
-	if bufferC.String() != "bar42fail" {
+	if bufferC.String() != "barfail" {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 	// Even though we reset the flag, no more writes should go in there
 	bufferA.failOnWrite = false
 	writer.Write([]byte("test"))
-	if bufferA.String() != "foobar42" {
+	if bufferA.String() != "foobar" {
 		t.Errorf("Buffer contains %v", bufferA.String())
 	}
-	if bufferC.String() != "bar42failtest" {
+	if bufferC.String() != "barfailtest" {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
@@ -141,7 +128,7 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 	writer := NewWriteBroadcaster()
 	c := make(chan bool)
 	go func() {
-		writer.AddWriter(devNullCloser(0))
+		writer.AddWriter(devNullCloser(0), "")
 		c <- true
 	}()
 	writer.Write([]byte("hello"))

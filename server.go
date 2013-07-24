@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -18,6 +19,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -28,11 +30,53 @@ func (srv *Server) DockerVersion() APIVersion {
 	}
 }
 
+// simpleVersionInfo is a simple implementation of
+// the interface VersionInfo, which is used
+// to provide version information for some product,
+// component, etc. It stores the product name and the version
+// in string and returns them on calls to Name() and Version().
+type simpleVersionInfo struct {
+	name    string
+	version string
+}
+
+func (v *simpleVersionInfo) Name() string {
+	return v.name
+}
+
+func (v *simpleVersionInfo) Version() string {
+	return v.version
+}
+
+// versionCheckers() returns version informations of:
+// docker, go, git-commit (of the docker) and the host's kernel.
+//
+// Such information will be used on call to NewRegistry().
+func (srv *Server) versionInfos() []registry.VersionInfo {
+	v := srv.DockerVersion()
+	ret := make([]registry.VersionInfo, 0, 4)
+	ret = append(ret, &simpleVersionInfo{"docker", v.Version})
+
+	if len(v.GoVersion) > 0 {
+		ret = append(ret, &simpleVersionInfo{"go", v.GoVersion})
+	}
+	if len(v.GitCommit) > 0 {
+		ret = append(ret, &simpleVersionInfo{"git-commit", v.GitCommit})
+	}
+	kernelVersion, err := utils.GetKernelVersion()
+	if err == nil {
+		ret = append(ret, &simpleVersionInfo{"kernel", kernelVersion.String()})
+	}
+
+	return ret
+}
+
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err)
+			return fmt.Errorf("Error killing container %s: %s", name, err)
 		}
+		srv.LogEvent("kill", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -51,13 +95,14 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 		if _, err := io.Copy(out, data); err != nil {
 			return err
 		}
+		srv.LogEvent("export", name)
 		return nil
 	}
 	return fmt.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil)
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionInfos()...)
 	if err != nil {
 		return nil, err
 	}
@@ -208,13 +253,14 @@ func (srv *Server) DockerInfo() *APIInfo {
 		imgcount = len(images)
 	}
 	return &APIInfo{
-		Containers:  len(srv.runtime.List()),
-		Images:      imgcount,
-		MemoryLimit: srv.runtime.capabilities.MemoryLimit,
-		SwapLimit:   srv.runtime.capabilities.SwapLimit,
-		Debug:       os.Getenv("DEBUG") != "",
-		NFd:         utils.GetTotalUsedFds(),
-		NGoroutines: runtime.NumGoroutine(),
+		Containers:      len(srv.runtime.List()),
+		Images:          imgcount,
+		MemoryLimit:     srv.runtime.capabilities.MemoryLimit,
+		SwapLimit:       srv.runtime.capabilities.SwapLimit,
+		Debug:           os.Getenv("DEBUG") != "",
+		NFd:             utils.GetTotalUsedFds(),
+		NGoroutines:     runtime.NumGoroutine(),
+		NEventsListener: len(srv.events),
 	}
 }
 
@@ -509,7 +555,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err != nil {
 		return err
 	}
@@ -726,7 +772,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig)
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err2 != nil {
 		return err2
 	}
@@ -812,6 +858,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 		}
 		return "", err
 	}
+	srv.LogEvent("create", container.ShortID())
 	return container.ShortID(), nil
 }
 
@@ -820,6 +867,7 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 		if err := container.Restart(t); err != nil {
 			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
+		srv.LogEvent("restart", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -839,6 +887,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 		if err := srv.runtime.Destroy(container); err != nil {
 			return fmt.Errorf("Error destroying container %s: %s", name, err)
 		}
+		srv.LogEvent("destroy", name)
 
 		if removeVolume {
 			// Retrieve all volumes from all remaining containers
@@ -873,7 +922,6 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
 	}
-
 	// If the image is not referenced but has children, go recursive
 	referenced := false
 	byParents, err := srv.runtime.graph.ByParent()
@@ -906,6 +954,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 			return err
 		}
 		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
+		srv.LogEvent("delete", utils.TruncateID(id))
 		return nil
 	}
 	return nil
@@ -927,14 +976,29 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 }
 
 func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
-	//Untag the current image
 	imgs := []APIRmi{}
+
+	//If delete by id, see if the id belong only to one repository
+	if strings.Contains(img.ID, repoName) && tag == "" {
+		for _, repoAndTag := range srv.runtime.repositories.ByID()[img.ID] {
+			parsedRepo := strings.Split(repoAndTag, ":")[0]
+			if strings.Contains(img.ID, repoName) {
+				repoName = parsedRepo
+			} else if repoName != parsedRepo {
+				// the id belongs to multiple repos, like base:latest and user:test,
+				// in that case return conflict
+				return imgs, nil
+			}
+		}
+	}
+	//Untag the current image
 	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 	if err != nil {
 		return nil, err
 	}
 	if tagDeleted {
 		imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
+		srv.LogEvent("untag", img.ShortID())
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
 		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
@@ -1007,6 +1071,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 		if err := container.Start(hostConfig); err != nil {
 			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
+		srv.LogEvent("start", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -1018,6 +1083,7 @@ func (srv *Server) ContainerStop(name string, t int) error {
 		if err := container.Stop(t); err != nil {
 			return fmt.Errorf("Error stopping container %s: %s", name, err)
 		}
+		srv.LogEvent("stop", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -1045,20 +1111,41 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	}
 	//logs
 	if logs {
-		if stdout {
-			cLog, err := container.ReadLog("stdout")
-			if err != nil {
-				utils.Debugf("Error reading logs (stdout): %s", err)
-			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stdout): %s", err)
+		cLog, err := container.ReadLog("json")
+		if err != nil && os.IsNotExist(err) {
+			// Legacy logs
+			utils.Debugf("Old logs format")
+			if stdout {
+				cLog, err := container.ReadLog("stdout")
+				if err != nil {
+					utils.Debugf("Error reading logs (stdout): %s", err)
+				} else if _, err := io.Copy(out, cLog); err != nil {
+					utils.Debugf("Error streaming logs (stdout): %s", err)
+				}
 			}
-		}
-		if stderr {
-			cLog, err := container.ReadLog("stderr")
-			if err != nil {
-				utils.Debugf("Error reading logs (stderr): %s", err)
-			} else if _, err := io.Copy(out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stderr): %s", err)
+			if stderr {
+				cLog, err := container.ReadLog("stderr")
+				if err != nil {
+					utils.Debugf("Error reading logs (stderr): %s", err)
+				} else if _, err := io.Copy(out, cLog); err != nil {
+					utils.Debugf("Error streaming logs (stderr): %s", err)
+				}
+			}
+		} else if err != nil {
+			utils.Debugf("Error reading logs (json): %s", err)
+		} else {
+			dec := json.NewDecoder(cLog)
+			for {
+				var l utils.JSONLog
+				if err := dec.Decode(&l); err == io.EOF {
+					break
+				} else if err != nil {
+					utils.Debugf("Error streaming logs: %s", err)
+					break
+				}
+				if (l.Stream == "stdout" && stdout) || (l.Stream == "stderr" && stderr) {
+					fmt.Fprintf(out, "%s", l.Log)
+				}
 			}
 		}
 	}
@@ -1130,9 +1217,23 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 		enableCors:  enableCors,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
+		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		listeners:   make(map[string]chan utils.JSONMessage),
 	}
 	runtime.srv = srv
 	return srv, nil
+}
+
+func (srv *Server) LogEvent(action, id string) {
+	now := time.Now().Unix()
+	jm := utils.JSONMessage{Status: action, ID: id, Time: now}
+	srv.events = append(srv.events, jm)
+	for _, c := range srv.listeners {
+		select { // non blocking channel
+		case c <- jm:
+		default:
+		}
+	}
 }
 
 type Server struct {
@@ -1141,4 +1242,6 @@ type Server struct {
 	enableCors  bool
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}
+	events      []utils.JSONMessage
+	listeners   map[string]chan utils.JSONMessage
 }

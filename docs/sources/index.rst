@@ -2,8 +2,6 @@
 :description: An overview of the Docker Documentation
 :keywords: containers, lxc, concepts, explanation
 
-.. _introduction:
-
 Welcome
 =======
 

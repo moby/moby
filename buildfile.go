@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -28,8 +29,8 @@ type buildFile struct {
 	maintainer string
 	config     *Config
 	context    string
+	verbose    bool
 
-	lastContainer *Container
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
@@ -201,6 +202,24 @@ func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	}
 	defer file.Body.Close()
 
+	// If the destination is a directory, figure out the filename.
+	if strings.HasSuffix(dest, "/") {
+		u, err := url.Parse(orig)
+		if err != nil {
+			return err
+		}
+		path := u.Path
+		if strings.HasSuffix(path, "/") {
+			path = path[:len(path)-1]
+		}
+		parts := strings.Split(path, "/")
+		filename := parts[len(parts)-1]
+		if filename == "" {
+			return fmt.Errorf("cannot determine filename from url: %s", u)
+		}
+		dest = dest + filename
+	}
+
 	return container.Inject(file.Body, dest)
 }
 
@@ -208,7 +227,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
 	// Preserve the trailing '/'
-	if dest[len(dest)-1] == '/' {
+	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
 	}
 	fi, err := os.Stat(origPath)
@@ -254,7 +273,6 @@ func (b *buildFile) CmdAdd(args string) error {
 		return err
 	}
 	b.tmpContainers[container.ID] = struct{}{}
-	b.lastContainer = container
 
 	if err := container.EnsureMounted(); err != nil {
 		return err
@@ -290,7 +308,6 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
-	b.lastContainer = c
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
@@ -301,6 +318,13 @@ func (b *buildFile) run() (string, error) {
 	hostConfig := &HostConfig{}
 	if err := c.Start(hostConfig); err != nil {
 		return "", err
+	}
+
+	if b.verbose {
+		err = <-c.Attach(nil, nil, b.out, b.out)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Wait for it to finish
@@ -337,7 +361,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		b.tmpContainers[container.ID] = struct{}{}
-		b.lastContainer = container
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 		if err := container.EnsureMounted(); err != nil {
@@ -365,29 +388,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	defer func() {
-		// If we have an error and a container, the display the logs
-		if b.lastContainer != nil {
-			fmt.Fprintf(b.out, "******** Logs from last container (%s) *******\n", b.lastContainer.ShortID())
-
-			cLog, err := b.lastContainer.ReadLog("stdout")
-			if err != nil {
-				utils.Debugf("Error reading logs (stdout): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stdout): %s", err)
-			}
-			cLog, err = b.lastContainer.ReadLog("stderr")
-			if err != nil {
-				utils.Debugf("Error reading logs (stderr): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stderr): %s", err)
-			}
-			fmt.Fprintf(b.out, "************* End of logs for %s *************\n", b.lastContainer.ShortID())
-		}
-	}()
-
 	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("/tmp", "docker-build")
@@ -440,7 +440,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			return "", ret.(error)
 		}
 
-		b.lastContainer = nil
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
@@ -450,7 +449,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -459,5 +458,6 @@ func NewBuildFile(srv *Server, out io.Writer) BuildFile {
 		out:           out,
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
+		verbose:       verbose,
 	}
 }

@@ -85,7 +85,7 @@ func MergeConfig(userConf, imageConf *Config) {
 			imageNat, _ := parseNat(imagePortSpec)
 			for _, userPortSpec := range userConf.PortSpecs {
 				userNat, _ := parseNat(userPortSpec)
-				if imageNat.Proto == userNat.Proto && imageNat.Frontend == userNat.Frontend {
+				if imageNat.Proto == userNat.Proto && imageNat.Backend == userNat.Backend {
 					found = true
 				}
 			}

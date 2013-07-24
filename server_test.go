@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/utils"
 	"testing"
 	"time"
 )
@@ -250,4 +251,41 @@ func TestPools(t *testing.T) {
 	if err == nil || err.Error() != "Unkown pool type" {
 		t.Fatalf("Expected `Unkown pool type`")
 	}
+}
+
+func TestLogEvent(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{
+		runtime:   runtime,
+		events:    make([]utils.JSONMessage, 0, 64),
+		listeners: make(map[string]chan utils.JSONMessage),
+	}
+
+	srv.LogEvent("fakeaction", "fakeid")
+
+	listener := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.listeners["test"] = listener
+	srv.Unlock()
+
+	srv.LogEvent("fakeaction2", "fakeid")
+
+	if len(srv.events) != 2 {
+		t.Fatalf("Expected 2 events, found %d", len(srv.events))
+	}
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		srv.LogEvent("fakeaction3", "fakeid")
+		time.Sleep(200 * time.Millisecond)
+		srv.LogEvent("fakeaction4", "fakeid")
+	}()
+
+	setTimeout(t, "Listening for events timed out", 2*time.Second, func() {
+		for i := 2; i < 4; i++ {
+			event := <-listener
+			if event != srv.events[i] {
+				t.Fatalf("Event received it different than expected")
+			}
+		}
+	})
 }
