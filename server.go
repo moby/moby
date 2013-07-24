@@ -252,6 +252,18 @@ func (srv *Server) DockerInfo() *APIInfo {
 	} else {
 		imgcount = len(images)
 	}
+	lxcVersion := ""
+	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
+		outputStr := string(output)
+		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
+			lxcVersion = strings.TrimSpace(strings.SplitN(string(output), ":", 2)[1])
+		}
+	}
+	kernelVersion := "<unknown>"
+	if kv, err := utils.GetKernelVersion(); err == nil {
+		kernelVersion = kv.String()
+	}
+
 	return &APIInfo{
 		Containers:      len(srv.runtime.List()),
 		Images:          imgcount,
@@ -260,7 +272,9 @@ func (srv *Server) DockerInfo() *APIInfo {
 		Debug:           os.Getenv("DEBUG") != "",
 		NFd:             utils.GetTotalUsedFds(),
 		NGoroutines:     runtime.NumGoroutine(),
+		LXCVersion:      lxcVersion,
 		NEventsListener: len(srv.events),
+		KernelVersion:   kernelVersion,
 	}
 }
 
