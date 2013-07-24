@@ -102,6 +102,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 			if err != nil {
 				return nil, err
 			}
+			authConfig.Auth = ""
 			configFile.Configs[k] = authConfig
 		}
 	}

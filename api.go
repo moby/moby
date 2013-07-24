@@ -179,7 +179,7 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) (error) {
+	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) error {
 		b, err := json.Marshal(event)
 		if err != nil {
 			return fmt.Errorf("JSON error")
