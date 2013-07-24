@@ -379,14 +379,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdin\n")
 				defer utils.Debugf("[end] attach stdin\n")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-				if cStdout != nil {
-					defer cStdout.Close()
-				}
-				if cStderr != nil {
-					defer cStderr.Close()
-				}
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
+				} else {
+					if cStdout != nil {
+						defer cStdout.Close()
+					}
+					if cStderr != nil {
+						defer cStderr.Close()
+					}
 				}
 				if container.Config.Tty {
 					_, err = utils.CopyEscapable(cStdin, stdin)
