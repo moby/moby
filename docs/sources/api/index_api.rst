@@ -452,7 +452,7 @@ User Register
          "username": "foobar"'}
 
     :jsonparameter email: valid email address, that needs to be confirmed
-    :jsonparameter username: min 4 character, max 30 characters, must match the regular expression [a-z0-9_].
+    :jsonparameter username: min 4 character, max 30 characters, must match the regular expression [a-z0-9\_].
     :jsonparameter password: min 5 characters
 
     **Example Response**:
