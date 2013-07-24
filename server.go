@@ -145,7 +145,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("Downloading", "%8v/%v (%v)", ""), sf), path); err != nil {
 		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -425,7 +425,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%8v/%v (%v)"), sf), false, img); err != nil {
+			if err := srv.runtime.graph.Register(utils.ProgressReader(layer, imgSize, out, sf.FormatProgress("Downloading", "%8v/%v (%v)", id), sf), false, img); err != nil {
 				return err
 			}
 		}
@@ -477,30 +477,43 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 		repoData.ImgList[id].Tag = askedTag
 	}
 
-	for _, img := range repoData.ImgList {
-		if askedTag != "" && img.Tag != askedTag {
-			utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
-			continue
-		}
-
-		if img.Tag == "" {
-			utils.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
-			continue
-		}
-		out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, localName))
-		success := false
-		for _, ep := range repoData.Endpoints {
-			if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
-				out.Write(sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint", askedTag, err))
-				continue
+	errors := make(chan error)
+	for _, image := range repoData.ImgList {
+		go func(img *registry.ImgData) {
+			if askedTag != "" && img.Tag != askedTag {
+				utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
+				errors <- nil
+				return
 			}
-			success = true
-			break
-		}
-		if !success {
-			return fmt.Errorf("Could not find repository on any of the indexed registries.")
+
+			if img.Tag == "" {
+				utils.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
+				errors <- nil
+				return
+			}
+			out.Write(sf.FormatStatus("Pulling image %s (%s) from %s", img.ID, img.Tag, localName))
+			success := false
+			for _, ep := range repoData.Endpoints {
+				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+					out.Write(sf.FormatStatus("Error while retrieving image for tag: %s (%s); checking next endpoint", askedTag, err))
+					continue
+				}
+				success = true
+				break
+			}
+			if !success {
+				errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
+			}
+			errors <- nil
+		}(image)
+	}
+
+	for i := 0; i < len(repoData.ImgList); i++ {
+		if err := <-errors; err != nil {
+			return err
 		}
 	}
+
 	for tag, id := range tagsList {
 		if askedTag != "" && tag != askedTag {
 			continue
@@ -748,7 +761,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	}
 
 	// Send the layer
-	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%8v/%v (%v)"), sf), ep, token); err != nil {
+	if err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("Pushing", "%8v/%v (%v)", ""), sf), ep, token); err != nil {
 		return err
 	}
 	return nil
@@ -818,7 +831,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		if err != nil {
 			return err
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%8v/%v (%v)"), sf)
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("Importing", "%8v/%v (%v)", ""), sf)
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {

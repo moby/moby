@@ -107,7 +107,7 @@ func (r *progressReader) Close() error {
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
 	tpl := string(template)
 	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%8v/%v (%v)"))
+		tpl = string(sf.FormatProgress("", "%8v/%v (%v)", ""))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
@@ -587,11 +587,14 @@ type NopFlusher struct{}
 func (f *NopFlusher) Flush() {}
 
 type WriteFlusher struct {
+	sync.Mutex
 	w       io.Writer
 	flusher http.Flusher
 }
 
 func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	wf.Lock()
+	defer wf.Unlock()
 	n, err = wf.w.Write(b)
 	wf.flusher.Flush()
 	return n, err
@@ -619,7 +622,9 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
-	if jm.Progress != "" {
+	if jm.Progress != "" && jm.ID != ""{
+		fmt.Fprintf(out, "\n%s %s %s\r", jm.Status, jm.ID, jm.Progress)
+	} else if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
 	} else if jm.Error != "" {
 		return fmt.Errorf(jm.Error)
@@ -665,10 +670,10 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 	return []byte("Error: " + err.Error() + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
+func (sf *StreamFormatter) FormatProgress(action, str, id string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str, ID:id})
 		if err != nil {
 			return nil
 		}
