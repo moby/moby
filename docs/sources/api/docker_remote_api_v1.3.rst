@@ -989,7 +989,10 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false
+		"SwapLimit":false,
+		"EventsListeners":"0",
+		"LXCVersion":"0.7.5",
+		"KernelVersion":"3.8.0-19-generic"
 	   }
 
         :statuscode 200: no error

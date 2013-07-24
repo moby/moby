@@ -218,6 +218,10 @@ func (srv *Server) DockerInfo() *APIInfo {
 			lxcVersion = strings.TrimSpace(strings.SplitN(string(output), ":", 2)[1])
 		}
 	}
+	kernelVersion := "<unknown>"
+	if kv, err := utils.GetKernelVersion(); err == nil {
+		kernelVersion = kv.String()
+	}
 
 	return &APIInfo{
 		Containers:      len(srv.runtime.List()),
@@ -229,6 +233,7 @@ func (srv *Server) DockerInfo() *APIInfo {
 		NGoroutines:     runtime.NumGoroutine(),
 		LXCVersion:      lxcVersion,
 		NEventsListener: len(srv.events),
+		KernelVersion:   kernelVersion,
 	}
 }
 

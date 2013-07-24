@@ -26,6 +26,7 @@ type APIInfo struct {
 	SwapLimit       bool   `json:",omitempty"`
 	LXCVersion      string `json:",omitempty"`
 	NEventsListener int    `json:",omitempty"`
+	KernelVersion   string `json:",omitempty"`
 }
 
 type APITop struct {

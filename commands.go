@@ -473,6 +473,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", out.NGoroutines)
 		fmt.Fprintf(cli.out, "LXC Version: %s\n", out.LXCVersion)
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
+		fmt.Fprintf(cli.out, "Kernel Version: %s\n", out.KernelVersion)
 	}
 	if !out.MemoryLimit {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
