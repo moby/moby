@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -32,8 +33,9 @@ func (srv *Server) DockerVersion() APIVersion {
 func (srv *Server) ContainerKill(name string) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err)
+			return fmt.Errorf("Error killing container %s: %s", name, err)
 		}
+		srv.LogEvent("kill", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -52,6 +54,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 		if _, err := io.Copy(out, data); err != nil {
 			return err
 		}
+		srv.LogEvent("export", name)
 		return nil
 	}
 	return fmt.Errorf("No such container: %s", name)
@@ -209,13 +212,14 @@ func (srv *Server) DockerInfo() *APIInfo {
 		imgcount = len(images)
 	}
 	return &APIInfo{
-		Containers:  len(srv.runtime.List()),
-		Images:      imgcount,
-		MemoryLimit: srv.runtime.capabilities.MemoryLimit,
-		SwapLimit:   srv.runtime.capabilities.SwapLimit,
-		Debug:       os.Getenv("DEBUG") != "",
-		NFd:         utils.GetTotalUsedFds(),
-		NGoroutines: runtime.NumGoroutine(),
+		Containers:      len(srv.runtime.List()),
+		Images:          imgcount,
+		MemoryLimit:     srv.runtime.capabilities.MemoryLimit,
+		SwapLimit:       srv.runtime.capabilities.SwapLimit,
+		Debug:           os.Getenv("DEBUG") != "",
+		NFd:             utils.GetTotalUsedFds(),
+		NGoroutines:     runtime.NumGoroutine(),
+		NEventsListener: len(srv.events),
 	}
 }
 
@@ -810,6 +814,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 		}
 		return "", err
 	}
+	srv.LogEvent("create", container.ShortID())
 	return container.ShortID(), nil
 }
 
@@ -818,6 +823,7 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 		if err := container.Restart(t); err != nil {
 			return fmt.Errorf("Error restarting container %s: %s", name, err)
 		}
+		srv.LogEvent("restart", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -837,6 +843,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 		if err := srv.runtime.Destroy(container); err != nil {
 			return fmt.Errorf("Error destroying container %s: %s", name, err)
 		}
+		srv.LogEvent("destroy", name)
 
 		if removeVolume {
 			// Retrieve all volumes from all remaining containers
@@ -903,6 +910,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 			return err
 		}
 		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
+		srv.LogEvent("delete", utils.TruncateID(id))
 		return nil
 	}
 	return nil
@@ -946,6 +954,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 	}
 	if tagDeleted {
 		imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
+		srv.LogEvent("untag", img.ShortID())
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
 		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
@@ -1018,6 +1027,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 		if err := container.Start(hostConfig); err != nil {
 			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
+		srv.LogEvent("start", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -1029,6 +1039,7 @@ func (srv *Server) ContainerStop(name string, t int) error {
 		if err := container.Stop(t); err != nil {
 			return fmt.Errorf("Error stopping container %s: %s", name, err)
 		}
+		srv.LogEvent("stop", name)
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -1162,9 +1173,23 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 		enableCors:  enableCors,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
+		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		listeners:   make(map[string]chan utils.JSONMessage),
 	}
 	runtime.srv = srv
 	return srv, nil
+}
+
+func (srv *Server) LogEvent(action, id string) {
+	now := time.Now().Unix()
+	jm := utils.JSONMessage{Status: action, ID: id, Time: now}
+	srv.events = append(srv.events, jm)
+	for _, c := range srv.listeners {
+		select { // non blocking channel
+		case c <- jm:
+		default:
+		}
+	}
 }
 
 type Server struct {
@@ -1173,4 +1198,6 @@ type Server struct {
 	enableCors  bool
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}
+	events      []utils.JSONMessage
+	listeners   map[string]chan utils.JSONMessage
 }
