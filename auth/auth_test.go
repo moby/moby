@@ -11,7 +11,9 @@ import (
 func TestEncodeAuth(t *testing.T) {
 	newAuthConfig := &AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
 	authStr := encodeAuth(newAuthConfig)
-	decAuthConfig, err := decodeAuth(authStr)
+	decAuthConfig := &AuthConfig{}
+	var err error
+	decAuthConfig.Username, decAuthConfig.Password, err = decodeAuth(authStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,8 +31,8 @@ func TestEncodeAuth(t *testing.T) {
 func TestLogin(t *testing.T) {
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
-	authConfig := NewAuthConfig("unittester", "surlautrerivejetattendrai", "noise+unittester@dotcloud.com", "/tmp")
-	status, err := Login(authConfig, false)
+	authConfig := &AuthConfig{Username: "unittester", Password: "surlautrerivejetattendrai", Email: "noise+unittester@dotcloud.com"}
+	status, err := Login(authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,8 +51,8 @@ func TestCreateAccount(t *testing.T) {
 	}
 	token := hex.EncodeToString(tokenBuffer)[:12]
 	username := "ut" + token
-	authConfig := NewAuthConfig(username, "test42", "docker-ut+"+token+"@example.com", "/tmp")
-	status, err := Login(authConfig, false)
+	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+"+token+"@example.com"}
+	status, err := Login(authConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +62,7 @@ func TestCreateAccount(t *testing.T) {
 		t.Fatalf("Expected status: \"%s\", found \"%s\" instead.", expectedStatus, status)
 	}
 
-	status, err = Login(authConfig, false)
+	status, err = Login(authConfig)
 	if err == nil {
 		t.Fatalf("Expected error but found nil instead")
 	}
