@@ -17,6 +17,7 @@ func CompareConfig(a, b *Config) bool {
 		a.Memory != b.Memory ||
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
+		a.CpusString != b.CpusString ||
 		a.OpenStdin != b.OpenStdin ||
 		a.Tty != b.Tty {
 		return false
@@ -25,8 +26,7 @@ func CompareConfig(a, b *Config) bool {
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
-		len(a.Entrypoint) != len(b.Entrypoint) ||
-		len(a.Cpus) != len(b.Cpus) {
+		len(a.Entrypoint) != len(b.Entrypoint) {
 		return false
 	}
 
@@ -55,11 +55,6 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
-	for i := 0; i < len(a.Cpus); i++ {
-		if a.Cpus[i] != b.Cpus[i] {
-			return false
-		}
-	}
 	return true
 }
 
@@ -76,8 +71,8 @@ func MergeConfig(userConf, imageConf *Config) {
 	if userConf.CpuShares == 0 {
 		userConf.CpuShares = imageConf.CpuShares
 	}
-	if userConf.Cpus == nil || len(userConf.Cpus) == 0 {
-		 userConf.Cpus = imageConf.Cpus
+	if userConf.CpusString == "" {
+		 userConf.CpusString = imageConf.CpusString
 	}
 	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
 		userConf.PortSpecs = imageConf.PortSpecs

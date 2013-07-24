@@ -63,7 +63,6 @@ type Config struct {
 	Memory          int64 // Memory limit (in bytes)
 	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
 	CpuShares       int64 // CPU shares (relative weight vs. other containers)
-	Cpus            []string
 	CpusString      string
 	AttachStdin     bool
 	AttachStdout    bool
@@ -188,8 +187,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		OpenStdin:       *flStdin,
 		Memory:          *flMemory,
 		CpuShares:       *flCpuShares,
-		Cpus:            flCpus,
-		CpusString:			 strings.Join(flCpus, ","),
+		CpusString:      strings.Join(flCpus, ","),
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
