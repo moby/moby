@@ -1,5 +1,6 @@
 import os
 import logging
+from shutil import rmtree
 
 import docker
 
@@ -82,7 +83,9 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
                 summary.add_exception(buildfile, (linecnt, line), e)
 
         f.close()
-    summary.print_summary()
+    if dst_folder != repository:
+        rmtree(dst_folder, True)
+    summary.print_summary(logger)
 
 
 def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
@@ -94,9 +97,9 @@ def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
         if not 'Dockerfile' in os.listdir(dst_folder):
             raise RuntimeError('Dockerfile not found in cloned repository')
         logger.info('Building using dockerfile...')
-        img_id, logs = client.build(path=dst_folder)
-
-    if not img_id:
+        img_id, logs = client.build(path=dst_folder, quiet=True)
+        rmtree(dst_folder, True)
+    else:
         img_id = processed['{0}@{1}'.format(repository, ref)]
     logger.info('Committing to {0}:{1}'.format(docker_repo,
         docker_tag or 'latest'))
