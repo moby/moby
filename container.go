@@ -309,14 +309,9 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 }
 
 func (container *Container) generateLXCConfig() error {
-	fo, err := os.Create(container.lxcConfigPath())
-	if err != nil {
-		return err
-	}
-	defer fo.Close()
-	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
-		return err
-	}
+	conf := getLxcConfig(container)
+	err := ioutil.WriteFile(container.lxcConfigPath(), []byte(conf), 0755)
+	if (err != nil) { panic(err) }
 	if (len(container.Config.LxcDump) > 0) {
 		exec.Command("cp", container.lxcConfigPath(), container.Config.LxcDump).Run()
 	}
