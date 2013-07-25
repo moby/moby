@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -51,7 +52,7 @@ func TestCreateAccount(t *testing.T) {
 	}
 	token := hex.EncodeToString(tokenBuffer)[:12]
 	username := "ut" + token
-	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+"+token+"@example.com"}
+	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+" + token + "@example.com"}
 	status, err := Login(authConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -71,5 +72,41 @@ func TestCreateAccount(t *testing.T) {
 
 	if !strings.Contains(err.Error(), expectedError) {
 		t.Fatalf("Expected message \"%s\" but found \"%s\" instead", expectedError, err)
+	}
+}
+
+func TestSameAuthDataPostSave(t *testing.T) {
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configFile := &ConfigFile{
+		rootPath: root,
+		Configs:  make(map[string]AuthConfig, 1),
+	}
+
+	configFile.Configs["testIndex"] = AuthConfig{
+		Username: "docker-user",
+		Password: "docker-pass",
+		Email:    "docker@docker.io",
+	}
+
+	err = SaveConfig(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	authConfig := configFile.Configs["testIndex"]
+	if authConfig.Username != "docker-user" {
+		t.Fail()
+	}
+	if authConfig.Password != "docker-pass" {
+		t.Fail()
+	}
+	if authConfig.Email != "docker@docker.io" {
+		t.Fail()
+	}
+	if authConfig.Auth != "" {
+		t.Fail()
 	}
 }
