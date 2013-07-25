@@ -116,14 +116,19 @@ func SaveConfig(configFile *ConfigFile) error {
 		os.Remove(confFile)
 		return nil
 	}
+
+	configs := make(map[string]AuthConfig, len(configFile.Configs))
 	for k, authConfig := range configFile.Configs {
-		authConfig.Auth = encodeAuth(&authConfig)
-		authConfig.Username = ""
-		authConfig.Password = ""
-		configFile.Configs[k] = authConfig
+		authCopy := authConfig
+
+		authCopy.Auth = encodeAuth(&authCopy)
+		authCopy.Username = ""
+		authCopy.Password = ""
+
+		configs[k] = authCopy
 	}
 
-	b, err := json.Marshal(configFile.Configs)
+	b, err := json.Marshal(configs)
 	if err != nil {
 		return err
 	}
