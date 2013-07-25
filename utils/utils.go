@@ -658,12 +658,14 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 			}
 			fmt.Fprintf(out, "%c[%dA", 27, diff)
 		}
-		jm.Display(out)
+		err := jm.Display(out)
 		if jm.ID != "" {
 			fmt.Fprintf(out, "%c[%dB", 27, diff)
 		}
+		if err != nil {
+			return err
+		}
 	}
-//	fmt.Fprintf(out, "\n")
 	return nil
 }
 
