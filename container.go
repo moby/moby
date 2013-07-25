@@ -63,6 +63,8 @@ type Config struct {
 	Memory          int64 // Memory limit (in bytes)
 	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
 	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	LxcOptions			map[string]string
+	LxcDump					string
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
@@ -115,7 +117,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
-
 	var flPorts ListOpts
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
@@ -127,6 +128,11 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
+
+	flLxcOpts := NewMapOpts()
+	cmd.Var(flLxcOpts, "lxc-conf", "Set low-level lxc config options (see man lxc.conf). May override options produced by Docker.")
+
+	flLxcDump := cmd.String("lxc-dump", "", "Dump the generated lxc config to a file for debugging.")
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
@@ -184,6 +190,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		OpenStdin:       *flStdin,
 		Memory:          *flMemory,
 		CpuShares:       *flCpuShares,
+		LxcOptions:			 flLxcOpts,
+		LxcDump:				 *flLxcDump,
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
@@ -308,6 +316,9 @@ func (container *Container) generateLXCConfig() error {
 	defer fo.Close()
 	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
 		return err
+	}
+	if (len(container.Config.LxcDump) > 0) {
+		exec.Command("cp", container.lxcConfigPath(), container.Config.LxcDump).Run()
 	}
 	return nil
 }

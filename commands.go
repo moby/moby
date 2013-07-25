@@ -1247,6 +1247,27 @@ func (opts *ListOpts) Set(value string) error {
 	return nil
 }
 
+// MapOpts type handles simple "string=string" arguments.
+type MapOpts map[string]string
+
+func NewMapOpts() MapOpts {
+	return make(MapOpts)
+}
+
+func (opts MapOpts) String() string {
+	return fmt.Sprintf("%v", map[string]string(opts))
+}
+
+func (opts MapOpts) Set(value string) error {
+	splitted := strings.SplitN(value, "=", 2)
+	if len(splitted) == 2 {
+		opts[splitted[0]] = splitted[1]
+	} else {
+		return fmt.Errorf("Malformed lxc option %s, should be formatted as -l key=value", value)
+	}
+	return nil
+}
+
 // AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
 type AttachOpts map[string]bool
 
