@@ -6,9 +6,11 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -88,7 +90,15 @@ func init() {
 	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
 	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
 	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
-	testHttpServer = httptest.NewServer(r)
+	testHttpServer = httptest.NewServer(handlerAccessLog(r))
+}
+
+func handlerAccessLog(handler http.Handler) http.Handler {
+	logHandler := func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(logHandler)
 }
 
 func makeURL(req string) string {
@@ -104,8 +114,6 @@ func writeHeaders(w http.ResponseWriter) {
 	h.Add("Cache-Control", "no-cache")
 	h.Add("X-Docker-Registry-Version", "0.0.0")
 	h.Add("X-Docker-Registry-Config", "mock")
-	u, _ := url.Parse(testHttpServer.URL)
-	h.Add("X-Docker-Endpoints", u.Host)
 }
 
 func writeResponse(w http.ResponseWriter, message interface{}, code int) {
@@ -181,6 +189,8 @@ func handlerGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeHeaders(w)
+	layer_size := len(layer["layer"])
+	w.Header().Add("X-Docker-Size", strconv.Itoa(layer_size))
 	io.WriteString(w, layer[vars["action"]])
 }
 
@@ -279,6 +289,8 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
+	u, _ := url.Parse(testHttpServer.URL)
+	w.Header().Add("X-Docker-Endpoints", u.Host)
 	if r.Method == "PUT" {
 		writeResponse(w, "", 200)
 		return
@@ -292,6 +304,7 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		image := make(map[string]string)
 		image["id"] = image_id
 		image["checksum"] = layer["checksum_tarsum"]
+		image["Tag"] = "latest"
 		images = append(images, image)
 	}
 	writeResponse(w, images, 200)
@@ -317,11 +330,11 @@ func TestPing(t *testing.T) {
 
 /* Uncomment this to test Mocked Registry locally with curl
  * WARNING: Don't push on the repos uncommented, it'll block the tests
- *
+ */
 func TestWait(t *testing.T) {
-	fmt.Println("Test HTTP server ready and waiting...")
-	fmt.Println(testHttpServer.URL)
+	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
 	c := make(chan int)
 	<-c
 }
+
 //*/
