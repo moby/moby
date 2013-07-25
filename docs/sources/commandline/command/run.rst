@@ -19,6 +19,8 @@
       -e=[]: Set environment variables
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
+      -lxc-conf=map[]: Set low-level lxc config options (see man lxc.conf). May override options produced by Docker.
+      -lxc-dump="": Dump the generated lxc config to a file for debugging.
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
