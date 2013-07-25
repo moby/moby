@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -69,7 +70,7 @@ var (
 		},
 	}
 	testRepositories = map[string]map[string]string{
-		"foo/bar": {
+		"foo42/bar": {
 			"latest": "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 		},
 	}
@@ -84,7 +85,7 @@ func init() {
 	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerGetTag).Methods("GET")
 	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerPutTag).Methods("PUT")
 	r.HandleFunc("/v1/users{null:.*}", handlerUsers).Methods("GET", "POST", "PUT")
-	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Method("GET", "PUT", "DELETE")
+	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
 	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
 	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
 	testHttpServer = httptest.NewServer(r)
@@ -103,6 +104,8 @@ func writeHeaders(w http.ResponseWriter) {
 	h.Add("Cache-Control", "no-cache")
 	h.Add("X-Docker-Registry-Version", "0.0.0")
 	h.Add("X-Docker-Registry-Config", "mock")
+	u, _ := url.Parse(testHttpServer.URL)
+	h.Add("X-Docker-Endpoints", u.Host)
 }
 
 func writeResponse(w http.ResponseWriter, message interface{}, code int) {
@@ -146,6 +149,9 @@ func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
 		value := fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano())
 		cookie := &http.Cookie{Name: "session", Value: value, MaxAge: 3600}
 		http.SetCookie(w, cookie)
+		//FIXME(sam): this should be sent only on Index routes
+		value = fmt.Sprintf("FAKE-TOKEN-%d", time.Now().UnixNano())
+		w.Header().Add("X-Docker-Token", value)
 	}
 	if len(r.Cookies()) > 0 {
 		writeCookie()
@@ -281,12 +287,12 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, "", 204)
 		return
 	}
-	images := make([]map[string]string)
+	images := []map[string]string{}
 	for image_id, layer := range testLayers {
 		image := make(map[string]string)
 		image["id"] = image_id
 		image["checksum"] = layer["checksum_tarsum"]
-		append(images, image)
+		images = append(images, image)
 	}
 	writeResponse(w, images, 200)
 }
