@@ -90,6 +90,27 @@ func TestCreateRm(t *testing.T) {
 
 }
 
+func TestCommit(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
