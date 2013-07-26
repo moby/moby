@@ -39,8 +39,6 @@ When you need to add images, try to make them as small as possible (e.g. as gif)
 
 Notes
 -----
-* The index.html and gettingstarted.html files are copied from the source dir to the output dir without modification.
-So changes to those pages should be made directly in html
 * For the template the css is compiled from less. When changes are needed they can be compiled using
 lessc ``lessc main.less`` or watched using watch-lessc ``watch-lessc -i main.less -o main.css``
 
@@ -75,3 +73,6 @@ Guides on using sphinx
 * Code examples
 
   Start without $, so it's easy to copy and paste.
+
+* To make the manpages, simply run 'make man'. Pleae note there is a bug in spinx 1.1.3 which makes this fail.
+Upgrade to the latest version of sphinx.
