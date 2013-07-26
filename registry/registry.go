@@ -109,7 +109,14 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	for _, cookie := range c.Jar.Cookies(req.URL) {
 		req.AddCookie(cookie)
 	}
-	return c.Do(req)
+	res, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Cookies()) > 0 {
+		c.Jar.SetCookies(req.URL, res.Cookies())
+	}
+	return res, err
 }
 
 // Set the user agent field in the header based on the versions provided
@@ -135,7 +142,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	r.setUserAgent(req)
-	res, err := r.client.Do(req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
 			return nil, fmt.Errorf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID)
@@ -182,7 +189,7 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	r.setUserAgent(req)
-	res, err := r.client.Do(req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
@@ -210,7 +217,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	r.setUserAgent(req)
-	res, err := r.client.Do(req)
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +238,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		}
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 		r.setUserAgent(req)
-		res, err := r.client.Do(req)
+		res, err := doWithCookies(r.client, req)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +333,7 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 // Push a local image to the registry
 func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
 	// FIXME: try json with UTF8
-	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", strings.NewReader(string(jsonRaw)))
+	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
 	if err != nil {
 		return err
 	}
@@ -341,9 +348,6 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
 	defer res.Body.Close()
-	if len(res.Cookies()) > 0 {
-		r.client.Jar.SetCookies(req.URL, res.Cookies())
-	}
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
