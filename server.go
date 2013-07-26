@@ -995,7 +995,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 			parsedRepo := strings.Split(repoAndTag, ":")[0]
 			if strings.Contains(img.ID, repoName) {
 				repoName = parsedRepo
-				if len(strings.Split(repoAndTag, ":")) > 1 {
+				if len(srv.runtime.repositories.ByID()[img.ID]) == 1 && len(strings.Split(repoAndTag, ":")) > 1 {
 					tag = strings.Split(repoAndTag, ":")[1]
 				}
 			} else if repoName != parsedRepo {
