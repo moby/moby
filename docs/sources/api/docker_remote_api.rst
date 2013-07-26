@@ -26,15 +26,15 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.3
+The current verson of the API is 1.4
 
 Calling /images/<name>/insert is the same as calling
-/v1.3/images/<name>/insert 
+/v1.4/images/<name>/insert 
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
 
-:doc:`docker_remote_api_v1.3`
+:doc:`docker_remote_api_v1.4`
 *****************************
 
 What's new
