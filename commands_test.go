@@ -27,11 +27,23 @@ func closeWrap(args ...io.Closer) error {
 }
 
 func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
-	c := make(chan bool)
+	finished := false
+	defer func() { finished = true }()
+
+	if int(d) < 1000*1000 {
+		panic("Minimum timeout is 1 millisecond")
+	}
+
+	c := make(chan bool, 1)
 
 	// Make sure we are not too long
 	go func() {
-		time.Sleep(d)
+		for i := 0; i < int(d)/1000/1000; i++ {
+			if finished {
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
 		c <- true
 	}()
 	go func() {
@@ -59,8 +71,11 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-// TestRunHostname checks that 'docker run -h' correctly sets a custom hostname
-func TestRunHostname(t *testing.T) {
+// TestCmdRunHostname checks that 'docker run -h' correctly sets a custom hostname
+func TestCmdRunHostname(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	stdout, stdoutPipe := io.Pipe()
 
 	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
@@ -90,7 +105,10 @@ func TestRunHostname(t *testing.T) {
 
 }
 
-func TestRunExit(t *testing.T) {
+func TestCmdRunExit(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
@@ -142,7 +160,9 @@ func TestRunExit(t *testing.T) {
 }
 
 // Expected behaviour: the process dies when the client disconnects
-func TestRunDisconnect(t *testing.T) {
+func TestCmdRunDisconnect(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
@@ -187,7 +207,9 @@ func TestRunDisconnect(t *testing.T) {
 }
 
 // Expected behaviour: the process dies when the client disconnects
-func TestRunDisconnectTty(t *testing.T) {
+func TestCmdRunDisconnectTty(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
@@ -241,10 +263,12 @@ func TestRunDisconnectTty(t *testing.T) {
 	}
 }
 
-// TestAttachStdin checks attaching to stdin without stdout and stderr.
+// TestCmdAttachStdin checks attaching to stdin without stdout and stderr.
 // 'docker run -i -a stdin' should sends the client's stdin to the command,
 // then detach from it and print the container id.
-func TestRunAttachStdin(t *testing.T) {
+func TestCmdRunAttachStdin(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
@@ -310,7 +334,10 @@ func TestRunAttachStdin(t *testing.T) {
 }
 
 // Expected behaviour, the process stays alive when the client disconnects
-func TestAttachDisconnect(t *testing.T) {
+func TestCmdAttachDisconnect(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 

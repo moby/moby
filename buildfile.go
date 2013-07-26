@@ -242,7 +242,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	} else if err := UntarPath(origPath, destPath); err != nil {
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
-		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
 		}
 		if err := CopyWithTar(origPath, destPath); err != nil {
