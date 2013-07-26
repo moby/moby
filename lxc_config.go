@@ -128,9 +128,9 @@ func getLxcConfig (container *Container) string {
   iappend(fmt.Sprintf("lxc.mount.entry = sysfs %s/sys sysfs nosuid,nodev,noexec 0 0", rootfsPath))
   iappend(fmt.Sprintf("lxc.mount.entry = devpts %s/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0", rootfsPath))
   
-  iappend("#lxc.mount.entry = varrun {{$ROOTFS}}/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0")
-  iappend("#lxc.mount.entry = varlock {{$ROOTFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0")
-  iappend("#lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0")
+  iappend(fmt.Sprintf("#lxc.mount.entry = varrun %s/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0", rootfsPath))
+  iappend(fmt.Sprintf("#lxc.mount.entry = varlock %s/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0", rootfsPath))
+  iappend(fmt.Sprintf("#lxc.mount.entry = shm %s/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0", rootfsPath))
 
   iappend("# Inject docker-init")
   iappend(fmt.Sprintf("lxc.mount.entry = %s %s/sbin/init none bind,ro 0 0", container.SysInitPath, rootfsPath)) 
