@@ -33,7 +33,8 @@ func getLxcConfig (container *Container) string {
     usedKeys[key] = true
     userVal, userOverride := container.Config.LxcOptions[key]
     if userOverride {
-      winningValue = fmt.Sprintf("%s # overridden by -lxc-conf option", userVal)
+      iappend(fmt.Sprintf("# %s overridden by -lxc-conf option", key))
+      winningValue = userVal
     } else {
       winningValue = val
     }
