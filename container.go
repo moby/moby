@@ -52,7 +52,7 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
-	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
 }
