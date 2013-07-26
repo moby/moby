@@ -895,6 +895,12 @@ func TestPostContainersAttach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	defer func() {
+		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+		container.Kill()
+	}()
+
 	// Attach to it
 	c1 := make(chan struct{})
 	go func() {
@@ -934,7 +940,7 @@ func TestPostContainersAttach(t *testing.T) {
 	}
 
 	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
-	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+	setTimeout(t, "Waiting for CmdAttach timed out", 10*time.Second, func() {
 		<-c1
 	})
 
