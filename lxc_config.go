@@ -166,7 +166,7 @@ func getLxcConfig (container *Container) string {
   iappend("# limits")
   if container.Config.Memory > 0 {
     override("lxc.cgroup.memory.limit_in_bytes", strconv.FormatInt(container.Config.Memory, 10))
-    override("lxc.cgroup.memory.soft_limit_in_bytes", strconv.FormatInt(container.Config.Memory, 19))
+    override("lxc.cgroup.memory.soft_limit_in_bytes", strconv.FormatInt(container.Config.Memory, 10))
     override("lxc.cgroup.memory.memsw.limit_in_bytes", strconv.FormatInt(getMemorySwap(container.Config), 10))
   }
   if container.Config.CpuShares > 0 {
