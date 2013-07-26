@@ -13,9 +13,13 @@ import (
 	"time"
 )
 
-func TestInit(t *testing.T) {
+func TestGraphInit(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	// Root should exist
 	if _, err := os.Stat(graph.Root); err != nil {
 		t.Fatal(err)
@@ -28,10 +32,14 @@ func TestInit(t *testing.T) {
 	}
 }
 
-// Test that Register can be interrupted cleanly without side effects
-func TestInterruptedRegister(t *testing.T) {
+// TestGraph that Register can be interrupted cleanly without side effects
+func TestGraphInterruptedRegister(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
 	image := &Image{
 		ID:      GenerateID(),
@@ -56,9 +64,13 @@ func TestInterruptedRegister(t *testing.T) {
 
 // FIXME: Do more extensive tests (ex: create multiple, delete, recreate;
 //       create multiple, check the amount of images and paths, etc..)
-func TestGraphCreate(t *testing.T) {
+func TestGraphGraphCreate(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -83,9 +95,13 @@ func TestGraphCreate(t *testing.T) {
 	}
 }
 
-func TestRegister(t *testing.T) {
+func TestGraphRegister(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -116,9 +132,13 @@ func TestRegister(t *testing.T) {
 	}
 }
 
-func TestMount(t *testing.T) {
+func TestGraphMount(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -151,10 +171,14 @@ func TestMount(t *testing.T) {
 	}()
 }
 
-// Test that an image can be deleted by its shorthand prefix
-func TestDeletePrefix(t *testing.T) {
+// TestGraph that an image can be deleted by its shorthand prefix
+func TestGraphDeletePrefix(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	img := createTestImage(graph, t)
 	if err := graph.Delete(utils.TruncateID(img.ID)); err != nil {
 		t.Fatal(err)
@@ -162,21 +186,13 @@ func TestDeletePrefix(t *testing.T) {
 	assertNImages(graph, t, 0)
 }
 
-func createTestImage(graph *Graph, t *testing.T) *Image {
-	archive, err := fakeTar()
-	if err != nil {
-		t.Fatal(err)
-	}
-	img, err := graph.Create(archive, nil, "Test image", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return img
-}
+func TestGraphDelete(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
 
-func TestDelete(t *testing.T) {
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -196,7 +212,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Test 2 create (same name) / 1 delete
+	// TestGraph 2 create (same name) / 1 delete
 	img1, err := graph.Create(archive, nil, "Testing", "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -214,7 +230,7 @@ func TestDelete(t *testing.T) {
 	}
 	assertNImages(graph, t, 1)
 
-	// Test delete wrong name
+	// TestGraph delete wrong name
 	if err := graph.Delete("Not_foo"); err == nil {
 		t.Fatalf("Deleting wrong ID should return an error")
 	}
@@ -234,6 +250,22 @@ func TestDelete(t *testing.T) {
 	assertNImages(graph, t, 1)
 }
 
+/*
+ * HELPER FUNCTIONS
+ */
+
+func createTestImage(graph *Graph, t *testing.T) *Image {
+	archive, err := fakeTar()
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := graph.Create(archive, nil, "Test image", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return img
+}
+
 func assertNImages(graph *Graph, t *testing.T, n int) {
 	if images, err := graph.All(); err != nil {
 		t.Fatal(err)
@@ -241,10 +273,6 @@ func assertNImages(graph *Graph, t *testing.T, n int) {
 		t.Fatalf("Expected %d images, found %d", n, actualN)
 	}
 }
-
-/*
- * HELPER FUNCTIONS
- */
 
 func tempGraph(t *testing.T) *Graph {
 	tmp, err := ioutil.TempDir("", "docker-graph-")

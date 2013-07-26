@@ -154,7 +154,6 @@ func mkTestingFileServer(files [][2]string) (*httptest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	s := httptest.NewUnstartedServer(mux)
 	s.Listener = listener
 	s.Start()
@@ -162,16 +161,16 @@ func mkTestingFileServer(files [][2]string) (*httptest.Server, error) {
 }
 
 func TestBuild(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	for _, ctx := range testContexts {
 		buildImage(ctx, t)
 	}
 }
 
 func buildImage(context testContextTemplate, t *testing.T) *Image {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
@@ -185,6 +184,7 @@ func buildImage(context testContextTemplate, t *testing.T) *Image {
 		t.Fatal(err)
 	}
 	defer httpServer.Close()
+	defer httpServer.CloseClientConnections()
 
 	idx := strings.LastIndex(httpServer.URL, ":")
 	if idx < 0 {
@@ -208,7 +208,10 @@ func buildImage(context testContextTemplate, t *testing.T) *Image {
 	return img
 }
 
-func TestVolume(t *testing.T) {
+func TestBuildVolume(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         volume /test
@@ -226,6 +229,9 @@ func TestVolume(t *testing.T) {
 }
 
 func TestBuildMaintainer(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
@@ -237,6 +243,9 @@ func TestBuildMaintainer(t *testing.T) {
 }
 
 func TestBuildEnv(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         env port 4243
@@ -249,6 +258,9 @@ func TestBuildEnv(t *testing.T) {
 }
 
 func TestBuildCmd(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         cmd ["/bin/echo", "Hello World"]
@@ -266,6 +278,9 @@ func TestBuildCmd(t *testing.T) {
 }
 
 func TestBuildExpose(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         expose 4243
@@ -278,6 +293,9 @@ func TestBuildExpose(t *testing.T) {
 }
 
 func TestBuildEntrypoint(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         entrypoint ["/bin/echo"]

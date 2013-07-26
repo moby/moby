@@ -16,7 +16,10 @@ import (
 	"time"
 )
 
-func TestGetBoolParam(t *testing.T) {
+func TestAPIGetBoolParam(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	if ret, err := getBoolParam("true"); err != nil || !ret {
 		t.Fatalf("true -> true, nil | got %t %s", ret, err)
 	}
@@ -40,21 +43,24 @@ func TestGetBoolParam(t *testing.T) {
 	}
 }
 
-func TestGetVersion(t *testing.T) {
-	var err error
+var Gt *testing.T
+
+func TestAPIGetVersion(t *testing.T) {
+	Gt = t
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-
 	srv := &Server{runtime: runtime}
 
 	r := httptest.NewRecorder()
-
 	if err := getVersion(srv, APIVERSION, r, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	v := &APIVersion{}
-	if err = json.Unmarshal(r.Body.Bytes(), v); err != nil {
+	if err := json.Unmarshal(r.Body.Bytes(), v); err != nil {
 		t.Fatal(err)
 	}
 	if v.Version != VERSION {
@@ -62,7 +68,10 @@ func TestGetVersion(t *testing.T) {
 	}
 }
 
-func TestGetInfo(t *testing.T) {
+func TestAPIGetInfo(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -89,8 +98,15 @@ func TestGetInfo(t *testing.T) {
 	}
 }
 
-func TestGetEvents(t *testing.T) {
+func TestAPIGetEvents(t *testing.T) {
+	Gt = t
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
+	//	defer panic("ok")
+	defer nuke(runtime)
+
 	srv := &Server{
 		runtime:   runtime,
 		events:    make([]utils.JSONMessage, 0, 64),
@@ -104,13 +120,18 @@ func TestGetEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	r := httptest.NewRecorder()
+	r := &HttpRecordCloser{ResponseRecorder: httptest.NewRecorder()}
 	setTimeout(t, "", 500*time.Millisecond, func() {
 		if err := getEvents(srv, APIVERSION, r, req, nil); err != nil {
-			t.Fatal(err)
+			if err != io.EOF {
+				t.Fatal(err)
+			}
 		}
 	})
+
+	// Close the recorder to make the event goroutine return
+	r.Close()
+	srv.LogEvent("fakeclose", "fakeid")
 
 	dec := json.NewDecoder(r.Body)
 	for i := 0; i < 2; i++ {
@@ -124,10 +145,12 @@ func TestGetEvents(t *testing.T) {
 			t.Fatalf("Event received it different than expected")
 		}
 	}
-
 }
 
-func TestGetImagesJSON(t *testing.T) {
+func TestAPIGetImagesJSON(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -249,7 +272,10 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 }
 
-func TestGetImagesViz(t *testing.T) {
+func TestAPIGetImagesViz(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -274,7 +300,10 @@ func TestGetImagesViz(t *testing.T) {
 	}
 }
 
-func TestGetImagesHistory(t *testing.T) {
+func TestAPIGetImagesHistory(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -295,7 +324,10 @@ func TestGetImagesHistory(t *testing.T) {
 	}
 }
 
-func TestGetImagesByName(t *testing.T) {
+func TestAPIGetImagesByName(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -315,12 +347,11 @@ func TestGetImagesByName(t *testing.T) {
 	}
 }
 
-func TestGetContainersJSON(t *testing.T) {
+func TestAPIGetContainersJSON(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
-
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "test"},
@@ -351,7 +382,10 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 }
 
-func TestGetContainersExport(t *testing.T) {
+func TestAPIGetContainersExport(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -403,7 +437,10 @@ func TestGetContainersExport(t *testing.T) {
 	}
 }
 
-func TestGetContainersChanges(t *testing.T) {
+func TestAPIGetContainersChanges(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -448,18 +485,15 @@ func TestGetContainersChanges(t *testing.T) {
 	}
 }
 
-func TestGetContainersTop(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestAPIGetContainersTop(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
-
-	builder := NewBuilder(runtime)
-
-	container, err := builder.Create(
+	container, err := NewBuilder(runtime).Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/sh", "-c", "sleep 2"},
@@ -470,9 +504,11 @@ func TestGetContainersTop(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 	hostConfig := &HostConfig{}
+
 	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
+	defer container.Kill()
 
 	// Give some time to the process to start
 	container.WaitTimeout(500 * time.Millisecond)
@@ -485,6 +521,7 @@ func TestGetContainersTop(t *testing.T) {
 	if err := getContainersTop(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
+
 	procs := []APITop{}
 	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
 		t.Fatal(err)
@@ -503,7 +540,10 @@ func TestGetContainersTop(t *testing.T) {
 	}
 }
 
-func TestGetContainersByName(t *testing.T) {
+func TestAPIGetContainersByName(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -536,7 +576,10 @@ func TestGetContainersByName(t *testing.T) {
 	}
 }
 
-func TestPostCommit(t *testing.T) {
+func TestAPIPostCommit(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -582,7 +625,10 @@ func TestPostCommit(t *testing.T) {
 	}
 }
 
-func TestPostContainersCreate(t *testing.T) {
+func TestAPIPostContainersCreate(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -633,7 +679,10 @@ func TestPostContainersCreate(t *testing.T) {
 	}
 }
 
-func TestPostContainersKill(t *testing.T) {
+func TestAPIPostContainersKill(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -675,7 +724,10 @@ func TestPostContainersKill(t *testing.T) {
 	}
 }
 
-func TestPostContainersRestart(t *testing.T) {
+func TestAPIPostContainersRestart(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -729,7 +781,10 @@ func TestPostContainersRestart(t *testing.T) {
 	}
 }
 
-func TestPostContainersStart(t *testing.T) {
+func TestAPIPostContainersStart(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -779,7 +834,10 @@ func TestPostContainersStart(t *testing.T) {
 	}
 }
 
-func TestPostContainersStop(t *testing.T) {
+func TestAPIPostContainersStop(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -826,7 +884,12 @@ func TestPostContainersStop(t *testing.T) {
 	}
 }
 
-func TestPostContainersWait(t *testing.T) {
+func TestAPIPostContainersWait(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
+	Gt = t
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -851,6 +914,7 @@ func TestPostContainersWait(t *testing.T) {
 
 	setTimeout(t, "Wait timed out", 3*time.Second, func() {
 		r := httptest.NewRecorder()
+
 		if err := postContainersWait(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 			t.Fatal(err)
 		}
@@ -868,7 +932,10 @@ func TestPostContainersWait(t *testing.T) {
 	}
 }
 
-func TestPostContainersAttach(t *testing.T) {
+func TestAPIPostContainersAttach(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -950,17 +1017,15 @@ func TestPostContainersAttach(t *testing.T) {
 	if err == nil || !container.State.Running {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
-
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
-	cStdin, _ := container.StdinPipe()
-	cStdin.Close()
-	container.Wait()
 }
 
-// FIXME: Test deleting running container
-// FIXME: Test deleting container with volume
-// FIXME: Test deleting volume in use by other container
-func TestDeleteContainers(t *testing.T) {
+// FIXME: TestAPI deleting running container
+// FIXME: TestAPI deleting container with volume
+// FIXME: TestAPI deleting volume in use by other container
+func TestAPIDeleteContainers(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -1000,7 +1065,10 @@ func TestDeleteContainers(t *testing.T) {
 	}
 }
 
-func TestOptionsRoute(t *testing.T) {
+func TestAPIOptionsRoute(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -1023,7 +1091,10 @@ func TestOptionsRoute(t *testing.T) {
 	}
 }
 
-func TestGetEnabledCors(t *testing.T) {
+func TestAPIGetEnabledCors(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -1061,7 +1132,10 @@ func TestGetEnabledCors(t *testing.T) {
 	}
 }
 
-func TestDeleteImages(t *testing.T) {
+func TestAPIDeleteImages(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -1158,4 +1232,21 @@ func (t *hijackTester) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		Writer:     t.out,
 	}
 	return conn, bufrw, nil
+}
+
+type HttpRecordCloser struct {
+	*httptest.ResponseRecorder
+	closed bool
+}
+
+func (t *HttpRecordCloser) Write(buf []byte) (int, error) {
+	if t.closed {
+		return 0, io.EOF
+	}
+	return t.ResponseRecorder.Write(buf)
+}
+
+func (t *HttpRecordCloser) Close() error {
+	t.closed = true
+	return nil
 }

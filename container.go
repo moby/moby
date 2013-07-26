@@ -967,7 +967,7 @@ func (container *Container) Export() (Archive, error) {
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		container.Wait()
 		done <- true

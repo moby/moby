@@ -15,9 +15,13 @@ import (
 	"time"
 )
 
-func TestIDFormat(t *testing.T) {
+func TestContainerIDFormat(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container1, err := NewBuilder(runtime).Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
@@ -36,9 +40,13 @@ func TestIDFormat(t *testing.T) {
 	}
 }
 
-func TestMultipleAttachRestart(t *testing.T) {
+func TestContainerMultipleAttachRestart(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, hostConfig, _ := mkContainer(
 		runtime,
 		[]string{"_", "/bin/sh", "-c", "i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
@@ -131,9 +139,13 @@ func TestMultipleAttachRestart(t *testing.T) {
 	container.Wait()
 }
 
-func TestDiff(t *testing.T) {
+func TestContainerDiff(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	// Create a container and remove a file
 	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
 	defer runtime.Destroy(container1)
@@ -210,9 +222,13 @@ func TestDiff(t *testing.T) {
 	}
 }
 
-func TestCommitAutoRun(t *testing.T) {
+func TestContainerCommitAutoRun(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
@@ -235,7 +251,7 @@ func TestCommitAutoRun(t *testing.T) {
 		t.Error(err)
 	}
 
-	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+	// FIXME: Make a TestContainerCommit that stops here and check docker.root/layers/img.id/world
 	container2, hostConfig, _ := mkContainer(runtime, []string{img.ID}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
@@ -269,7 +285,10 @@ func TestCommitAutoRun(t *testing.T) {
 	}
 }
 
-func TestCommitRun(t *testing.T) {
+func TestContainerCommitRun(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -295,7 +314,7 @@ func TestCommitRun(t *testing.T) {
 		t.Error(err)
 	}
 
-	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
+	// FIXME: Make a TestContainerCommit that stops here and check docker.root/layers/img.id/world
 	container2, hostConfig, _ := mkContainer(runtime, []string{img.ID, "cat", "/world"}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
@@ -329,9 +348,13 @@ func TestCommitRun(t *testing.T) {
 	}
 }
 
-func TestStart(t *testing.T) {
+func TestContainerStart(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, hostConfig, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
 	defer runtime.Destroy(container)
 
@@ -359,9 +382,13 @@ func TestStart(t *testing.T) {
 	container.WaitTimeout(2 * time.Second)
 }
 
-func TestRun(t *testing.T) {
+func TestContainerRun(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container)
 
@@ -376,9 +403,13 @@ func TestRun(t *testing.T) {
 	}
 }
 
-func TestOutput(t *testing.T) {
+func TestContainerOutput(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
@@ -398,9 +429,13 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-func TestKillDifferentUser(t *testing.T) {
+func TestContainerKillDifferentUser(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"tail", "-f", "/etc/resolv.conf"},
@@ -446,8 +481,11 @@ func TestKillDifferentUser(t *testing.T) {
 	}
 }
 
-// Test that creating a container with a volume doesn't crash. Regression test for #995.
-func TestCreateVolume(t *testing.T) {
+// TestContainer that creating a container with a volume doesn't crash. Regression test for #995.
+func TestContainerCreateVolume(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -467,9 +505,13 @@ func TestCreateVolume(t *testing.T) {
 	c.Wait()
 }
 
-func TestKill(t *testing.T) {
+func TestContainerKill(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
@@ -510,7 +552,10 @@ func TestKill(t *testing.T) {
 	}
 }
 
-func TestExitCode(t *testing.T) {
+func TestContainerExitCode(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -547,9 +592,13 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
-func TestRestart(t *testing.T) {
+func TestContainerRestart(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "-n", "foobar"},
@@ -577,9 +626,13 @@ func TestRestart(t *testing.T) {
 	}
 }
 
-func TestRestartStdin(t *testing.T) {
+func TestContainerRestartStdin(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
@@ -653,7 +706,10 @@ func TestRestartStdin(t *testing.T) {
 	}
 }
 
-func TestUser(t *testing.T) {
+func TestContainerUser(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -759,7 +815,7 @@ func TestUser(t *testing.T) {
 		t.Error(string(output))
 	}
 
-	// Test an wrong username
+	// TestContainer an wrong username
 	container, err = builder.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
@@ -777,7 +833,10 @@ func TestUser(t *testing.T) {
 	}
 }
 
-func TestMultipleContainers(t *testing.T) {
+func TestContainerMultipleContainers(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -834,7 +893,10 @@ func TestMultipleContainers(t *testing.T) {
 	}
 }
 
-func TestStdin(t *testing.T) {
+func TestContainerStdin(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
@@ -879,7 +941,10 @@ func TestStdin(t *testing.T) {
 	}
 }
 
-func TestTty(t *testing.T) {
+func TestContainerTty(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
@@ -924,7 +989,10 @@ func TestTty(t *testing.T) {
 	}
 }
 
-func TestEnv(t *testing.T) {
+func TestContainerEnv(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
@@ -972,7 +1040,10 @@ func TestEnv(t *testing.T) {
 	}
 }
 
-func TestEntrypoint(t *testing.T) {
+func TestContainerEntrypoint(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(
@@ -1015,7 +1086,10 @@ func grepFile(t *testing.T, path string, pattern string) {
 	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
 }
 
-func TestLXCConfig(t *testing.T) {
+func TestContainerLXCConfig(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	// Memory is allocated randomly for testing
@@ -1133,14 +1207,17 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
-func TestBindMounts(t *testing.T) {
+func TestContainerBindMounts(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	r := mkRuntime(t)
 	defer nuke(r)
 	tmpDir := tempDir(t)
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", t)
 
-	// Test reading from a read-only bind mount
+	// TestContainer reading from a read-only bind mount
 	stdout, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
 	if !strings.Contains(stdout, "touch-me") {
 		t.Fatal("Container failed to read from bind mount")
@@ -1156,8 +1233,11 @@ func TestBindMounts(t *testing.T) {
 	}
 }
 
-// Test that VolumesRW values are copied to the new container.  Regression test for #1201
-func TestVolumesFromReadonlyMount(t *testing.T) {
+// TestContainer that VolumesRW values are copied to the new container.  Regression test for #1201
+func TestContainerVolumesFromReadonlyMount(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(
@@ -1210,8 +1290,11 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 	}
 }
 
-// Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
-func TestRestartWithVolumes(t *testing.T) {
+// TestContainer that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
+func TestContainerRestartWithVolumes(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
@@ -1253,7 +1336,10 @@ func TestRestartWithVolumes(t *testing.T) {
 	}
 }
 
-func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
+func TestContainerOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 

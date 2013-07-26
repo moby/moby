@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-func TestCmdStreamLargeStderr(t *testing.T) {
+func TestArchiveCmdStreamLargeStderr(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
 	out, err := CmdStream(cmd)
 	if err != nil {
@@ -33,7 +36,10 @@ func TestCmdStreamLargeStderr(t *testing.T) {
 	}
 }
 
-func TestCmdStreamBad(t *testing.T) {
+func TestArchiveCmdStreamBad(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	badCmd := exec.Command("/bin/sh", "-c", "echo hello; echo >&2 error couldn\\'t reverse the phase pulser; exit 1")
 	out, err := CmdStream(badCmd)
 	if err != nil {
@@ -48,7 +54,10 @@ func TestCmdStreamBad(t *testing.T) {
 	}
 }
 
-func TestCmdStreamGood(t *testing.T) {
+func TestArchiveCmdStreamGood(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	cmd := exec.Command("/bin/sh", "-c", "echo hello; exit 0")
 	out, err := CmdStream(cmd)
 	if err != nil {
@@ -92,7 +101,10 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 	return nil
 }
 
-func TestTarUntar(t *testing.T) {
+func TestArchiveTarUntar(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
 		t.Fatal(err)

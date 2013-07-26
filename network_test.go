@@ -114,7 +114,7 @@ func TestParseNat(t *testing.T) {
 }
 
 func TestPortAllocation(t *testing.T) {
-	allocator, err := newPortAllocator()
+	allocator, _, err := newPortAllocator()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestIPAllocator(t *testing.T) {
 	}
 
 	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
-	alloc := newIPAllocator(&net.IPNet{IP: gwIP, Mask: n.Mask})
+	alloc, _ := newIPAllocator(&net.IPNet{IP: gwIP, Mask: n.Mask})
 	// Pool after initialisation (f = free, u = used)
 	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//  ↑

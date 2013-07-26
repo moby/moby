@@ -10,18 +10,21 @@ import (
 	"time"
 )
 
-var testBuf = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
-var testBufSize = len(testBuf)
+var (
+	testBuf     = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
+	testBufSize = len(testBuf)
+)
 
 type EchoServer interface {
 	Run()
-	Close()
+	Close() error
 	LocalAddr() net.Addr
 }
 
 type TCPEchoServer struct {
 	listener net.Listener
 	testCtx  *testing.T
+	stopped  bool
 }
 
 type UDPEchoServer struct {
@@ -31,6 +34,7 @@ type UDPEchoServer struct {
 
 func NewEchoServer(t *testing.T, proto, address string) EchoServer {
 	var server EchoServer
+
 	if strings.HasPrefix(proto, "tcp") {
 		listener, err := net.Listen(proto, address)
 		if err != nil {
@@ -44,21 +48,29 @@ func NewEchoServer(t *testing.T, proto, address string) EchoServer {
 		}
 		server = &UDPEchoServer{conn: socket, testCtx: t}
 	}
-	t.Logf("EchoServer listening on %v/%v\n", proto, server.LocalAddr().String())
+	//	t.Logf("EchoServer listening on %v/%v\n", proto, server.LocalAddr().String())
+	println("EchoServer listening on %v/%v\n", proto, server.LocalAddr().String())
+
 	return server
 }
 
 func (server *TCPEchoServer) Run() {
 	go func() {
-		for {
+		println("BEGIN OF RUN")
+		defer println("END OF RUN")
+		for !server.stopped {
+			println("PRE ACCEPT")
 			client, err := server.listener.Accept()
+			println("POST ACCEPT")
 			if err != nil {
 				return
 			}
-			go func(client net.Conn) {
-				server.testCtx.Logf("TCP client accepted on the EchoServer\n")
-				written, err := io.Copy(client, client)
-				server.testCtx.Logf("%v bytes echoed back to the client\n", written)
+			func(client net.Conn) {
+				println("Enter subroutine RUN")
+				defer println("Leaver subroutine RUN")
+				//				server.testCtx.Logf("TCP client accepted on the EchoServer\n")
+				_, err := io.Copy(client, client)
+				//				server.testCtx.Logf("%v bytes echoed back to the client\n", written)
 				if err != nil {
 					server.testCtx.Logf("can't echo to the client: %v\n", err.Error())
 				}
@@ -69,7 +81,7 @@ func (server *TCPEchoServer) Run() {
 }
 
 func (server *TCPEchoServer) LocalAddr() net.Addr { return server.listener.Addr() }
-func (server *TCPEchoServer) Close()              { server.listener.Addr() }
+func (server *TCPEchoServer) Close() error        { server.stopped = true; return server.listener.Close() }
 
 func (server *UDPEchoServer) Run() {
 	go func() {
@@ -92,16 +104,18 @@ func (server *UDPEchoServer) Run() {
 }
 
 func (server *UDPEchoServer) LocalAddr() net.Addr { return server.conn.LocalAddr() }
-func (server *UDPEchoServer) Close()              { server.conn.Close() }
+func (server *UDPEchoServer) Close() error        { return server.conn.Close() }
 
 func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string) {
-	defer proxy.Close()
 	go proxy.Run()
+	defer proxy.Close()
+
 	client, err := net.Dial(proto, addr)
 	if err != nil {
 		t.Fatalf("Can't connect to the proxy: %v", err)
 	}
 	defer client.Close()
+
 	client.SetDeadline(time.Now().Add(10 * time.Second))
 	if _, err = client.Write(testBuf); err != nil {
 		t.Fatal(err)
@@ -119,21 +133,37 @@ func testProxy(t *testing.T, proto string, proxy Proxy) {
 	testProxyAt(t, proto, proxy, proxy.FrontendAddr().String())
 }
 
-func TestTCP4Proxy(t *testing.T) {
+func TestNetProxyTCP4Proxy(t *testing.T) {
+	displayFdGoroutines(t)
+	defer panic("ok")
+	defer displayFdGoroutines(t)
+
 	backend := NewEchoServer(t, "tcp", "127.0.0.1:0")
-	defer backend.Close()
+
 	backend.Run()
-	frontendAddr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
-	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
-	if err != nil {
-		t.Fatal(err)
-	}
-	testProxy(t, "tcp", proxy)
+
+	c, _ := net.Dial("tcp", backend.LocalAddr().String())
+	c.Write([]byte("Hello world!"))
+	c.Close()
+
+	time.Sleep(3 * time.Second)
+	backend.Close()
+
+	// frontendAddr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
+	// proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// testProxy(t, "tcp", proxy)
 }
 
-func TestTCP6Proxy(t *testing.T) {
+func TestNetProxyTCP6Proxy(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	backend := NewEchoServer(t, "tcp", "[::1]:0")
 	defer backend.Close()
+
 	backend.Run()
 	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
 	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
@@ -143,11 +173,15 @@ func TestTCP6Proxy(t *testing.T) {
 	testProxy(t, "tcp", proxy)
 }
 
-func TestTCPDualStackProxy(t *testing.T) {
+func TestNetProxyTCPDualStackProxy(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	// If I understand `godoc -src net favoriteAddrFamily` (used by the
 	// net.Listen* functions) correctly this should work, but it doesn't.
 	t.Skip("No support for dual stack yet")
 	backend := NewEchoServer(t, "tcp", "[::1]:0")
+
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
@@ -162,9 +196,13 @@ func TestTCPDualStackProxy(t *testing.T) {
 	testProxyAt(t, "tcp", proxy, ipv4ProxyAddr.String())
 }
 
-func TestUDP4Proxy(t *testing.T) {
+func TestNetProxyUDP4Proxy(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	backend := NewEchoServer(t, "udp", "127.0.0.1:0")
 	defer backend.Close()
+
 	backend.Run()
 	frontendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
@@ -174,7 +212,10 @@ func TestUDP4Proxy(t *testing.T) {
 	testProxy(t, "udp", proxy)
 }
 
-func TestUDP6Proxy(t *testing.T) {
+func TestNetProxyUDP6Proxy(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	backend := NewEchoServer(t, "udp", "[::1]:0")
 	defer backend.Close()
 	backend.Run()
@@ -186,7 +227,10 @@ func TestUDP6Proxy(t *testing.T) {
 	testProxy(t, "udp", proxy)
 }
 
-func TestUDPWriteError(t *testing.T) {
+func TestNetProxyUDPWriteError(t *testing.T) {
+	displayFdGoroutines(t)
+	defer displayFdGoroutines(t)
+
 	frontendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	// Hopefully, this port will be free: */
 	backendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 25587}

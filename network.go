@@ -244,6 +244,7 @@ func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, d
 }
 
 func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
+	println("------------------------ MAP")
 	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
 		backendPort := backendAddr.(*net.TCPAddr).Port
 		backendIP := backendAddr.(*net.TCPAddr).IP
@@ -325,10 +326,16 @@ type PortAllocator struct {
 	fountain chan (int)
 }
 
-func (alloc *PortAllocator) runFountain() {
+func (alloc *PortAllocator) runFountain(b chan bool) {
 	for {
 		for port := portRangeStart; port < portRangeEnd; port++ {
-			alloc.fountain <- port
+			select {
+			case stop := <-b:
+				if stop {
+					return
+				}
+			case alloc.fountain <- port:
+			}
 		}
 	}
 }
@@ -362,13 +369,14 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 	return port, nil
 }
 
-func newPortAllocator() (*PortAllocator, error) {
+func newPortAllocator() (*PortAllocator, chan bool, error) {
 	allocator := &PortAllocator{
 		inUse:    make(map[int]struct{}),
 		fountain: make(chan int),
 	}
-	go allocator.runFountain()
-	return allocator, nil
+	b := make(chan bool)
+	go allocator.runFountain(b)
+	return allocator, b, nil
 }
 
 // IP allocator: Atomatically allocate and release networking ports
@@ -384,7 +392,7 @@ type allocatedIP struct {
 	err error
 }
 
-func (alloc *IPAllocator) run() {
+func (alloc *IPAllocator) run(c chan bool) {
 	firstIP, _ := networkRange(alloc.network)
 	ipNum := ipToInt(firstIP)
 	ownIP := ipToInt(alloc.network.IP)
@@ -421,6 +429,10 @@ func (alloc *IPAllocator) run() {
 		}
 
 		select {
+		case stop := <-c:
+			if stop {
+				return
+			}
 		case alloc.queueAlloc <- ip:
 			alloc.inUse[newNum] = struct{}{}
 		case released := <-alloc.queueReleased:
@@ -453,7 +465,7 @@ func (alloc *IPAllocator) Release(ip net.IP) {
 	alloc.queueReleased <- ip
 }
 
-func newIPAllocator(network *net.IPNet) *IPAllocator {
+func newIPAllocator(network *net.IPNet) (*IPAllocator, chan bool) {
 	alloc := &IPAllocator{
 		network:       network,
 		queueAlloc:    make(chan allocatedIP),
@@ -461,9 +473,10 @@ func newIPAllocator(network *net.IPNet) *IPAllocator {
 		inUse:         make(map[int32]struct{}),
 	}
 
-	go alloc.run()
+	c := make(chan bool)
+	go alloc.run(c)
 
-	return alloc
+	return alloc, c
 }
 
 // Network interface represents the networking stack of a container
@@ -611,6 +624,8 @@ type NetworkManager struct {
 	udpPortAllocator *PortAllocator
 	portMapper       *PortMapper
 
+	A, B, C chan bool
+
 	disabled bool
 }
 
@@ -655,13 +670,12 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 	network := addr.(*net.IPNet)
 
-	ipAllocator := newIPAllocator(network)
-
-	tcpPortAllocator, err := newPortAllocator()
+	ipAllocator, a := newIPAllocator(network)
+	tcpPortAllocator, b, err := newPortAllocator()
 	if err != nil {
 		return nil, err
 	}
-	udpPortAllocator, err := newPortAllocator()
+	udpPortAllocator, c, err := newPortAllocator()
 	if err != nil {
 		return nil, err
 	}
@@ -678,6 +692,9 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		tcpPortAllocator: tcpPortAllocator,
 		udpPortAllocator: udpPortAllocator,
 		portMapper:       portMapper,
+		A:                a,
+		B:                b,
+		C:                c,
 	}
 	return manager, nil
 }

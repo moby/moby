@@ -42,6 +42,11 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
+	runtime.networkManager.A <- true
+	runtime.networkManager.B <- true
+	runtime.networkManager.C <- true
+	//	runtime.networkManager.portMapper.Unmap()
+	time.Sleep(time.Second)
 	return os.RemoveAll(runtime.root)
 }
 
@@ -84,36 +89,40 @@ func init() {
 
 	NetworkBridgeIface = unitTestNetworkBridge
 
-	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
-		panic(err)
-	} else {
-		globalRuntime = runtime
-	}
-
-	// Create the "Server"
-	srv := &Server{
-		runtime:     globalRuntime,
-		enableCors:  false,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
-	// If the unit test is not found, try to download it.
-	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
-		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+	/*	Gt = &testing.T{}
+		// Make it our Store root
+		if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
 			panic(err)
+		} else {
+			globalRuntime = runtime
 		}
-	}
-	// Spawn a Daemon
-	go func() {
-		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
-			panic(err)
-		}
-	}()
 
-	// Give some time to ListenAndServer to actually start
-	time.Sleep(time.Second)
+		// Create the "Server"
+		srv := &Server{
+			runtime:     globalRuntime,
+			enableCors:  false,
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
+		// If the unit test is not found, try to download it.
+		if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
+			// Retrieve the Image
+			if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+				panic(err)
+			}
+		}
+		// Spawn a Daemon
+		go func() {
+			if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
+				panic(err)
+			}
+		}()
+
+		// Give some time to ListenAndServer to actually start
+		time.Sleep(time.Second)
+	*/
+	// Init the rand fds
+	GenerateID()
 
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
