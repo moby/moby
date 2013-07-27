@@ -167,7 +167,7 @@ Installing from source
 ----------------------
 
 1. Make sure you have a [Go language](http://golang.org/doc/install)
-compiler and [git](http://git-scm.com) installed.
+compiler >= 1.1 and [git](http://git-scm.com) installed.
 2. Checkout the source code
 
    ```bash
