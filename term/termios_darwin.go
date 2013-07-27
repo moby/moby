@@ -44,7 +44,7 @@ func MakeRaw(fd uintptr) (*State, error) {
 	newState.Iflag &^= (ISTRIP | INLCR | IGNCR | IXON | IXOFF)
 	newState.Iflag |= ICRNL
 	newState.Oflag |= ONLCR
-	newState.Lflag &^= (ECHO | ICANON | ISIG)
+	newState.Lflag &^= (ECHO | ICANON)
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return nil, err

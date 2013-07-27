@@ -333,13 +333,6 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		authconfig = auth.AuthConfig{}
 	}
 
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigchan
-		os.Exit(1)
-	}()
-
 	if *flUsername == "" {
 		promptDefault("Username", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
