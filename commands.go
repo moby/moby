@@ -314,7 +314,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
-	var promptDefault = func(stdout io.Writer, prompt string, configDefault string) {
+	var promptDefault = func(prompt string, configDefault string) {
 		if configDefault == "" {
 			fmt.Fprintf(cli.out, "%s: ", prompt)
 		} else {
@@ -328,7 +328,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	if *flUsername == "" {
-		promptDefault(cli.out, "Username", authconfig.Username)
+		promptDefault("Username", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
 		if username == "" {
 			username = authconfig.Username
@@ -348,7 +348,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if *flEmail == "" {
-			promptDefault(cli.out, "Email", authconfig.Email)
+			promptDefault("Email", authconfig.Email)
 			email = readAndEchoString(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
