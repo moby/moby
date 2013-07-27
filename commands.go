@@ -314,13 +314,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
+	var promptDefault = func(stdout io.Writer, prompt string, configDefault string) {
+		if configDefault == "" {
+			fmt.Fprintf(cli.out, "%s: ", prompt)
+		} else {
+			fmt.Fprintf(cli.out, "%s (%s): ", prompt, configDefault)
+		}
+	}
+
 	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
 	if !ok {
 		authconfig = auth.AuthConfig{}
 	}
 
 	if *flUsername == "" {
-		fmt.Fprintf(cli.out, "Username (%s): ", authconfig.Username)
+		promptDefault(cli.out, "Username", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
 		if username == "" {
 			username = authconfig.Username
@@ -340,7 +348,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if *flEmail == "" {
-			fmt.Fprintf(cli.out, "Email (%s): ", authconfig.Email)
+			promptDefault(cli.out, "Email", authconfig.Email)
 			email = readAndEchoString(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
