@@ -330,7 +330,7 @@ func TestPing(t *testing.T) {
 
 /* Uncomment this to test Mocked Registry locally with curl
  * WARNING: Don't push on the repos uncommented, it'll block the tests
- */
+ *
 func TestWait(t *testing.T) {
 	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
 	c := make(chan int)
