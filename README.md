@@ -444,51 +444,6 @@ With Standard Containers we can put an end to that embarrassment, by
 making INDUSTRIAL-GRADE DELIVERY of software a reality.
 
 
-
-
-Standard Container Specification
---------------------------------
-
-(TODO)
-
-### Image format
-
-
-### Standard operations
-
-* Copy
-* Run
-* Stop
-* Wait
-* Commit
-* Attach standard streams
-* List filesystem changes
-* ...
-
-### Execution environment
-
-#### Root filesystem
-
-#### Environment variables
-
-#### Process arguments
-
-#### Networking
-
-#### Process namespacing
-
-#### Resource limits
-
-#### Process monitoring
-
-#### Logging
-
-#### Signals
-
-#### Pseudo-terminal allocation
-
-#### Security
-
 ### Legal
 
 Transfers of Docker shall be in accordance with applicable export
