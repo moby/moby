@@ -1658,14 +1658,11 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	}
 	cli.resizeTty(id)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGWINCH)
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
-		for sig := range c {
-			if sig == syscall.SIGWINCH {
-				cli.resizeTty(id)
-			}
-		}
+		<-sigchan
+		cli.resizeTty(id)
 	}()
 	return nil
 }
