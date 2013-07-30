@@ -40,6 +40,10 @@ You can still call an old version of the api using
 What's new
 ----------
 
+.. http:post:: /images/create
+
+   **New!** When pull a repo, all images are now downloaded in parallel.
+
 .. http:get:: /containers/(id)/top
 
    **New!** You can now use ps args with docker top, like `docker top <container_id> aux`

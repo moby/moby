@@ -446,7 +446,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag, indexEp string, sf *utils.StreamFormatter) error {
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag, indexEp string, sf *utils.StreamFormatter, parallel bool) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
 	repoData, err := r.GetRepositoryData(indexEp, remoteName)
@@ -492,7 +492,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 
 	errors := make(chan error)
 	for _, image := range repoData.ImgList {
-		go func(img *registry.ImgData) {
+		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
 				utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
 				errors <- nil
@@ -518,12 +518,20 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
 			}
 			errors <- nil
-		}(image)
+		}
+
+		if parallel {
+			go downloadImage(image)
+		} else {
+			downloadImage(image)
+		}
 	}
 
-	for i := 0; i < len(repoData.ImgList); i++ {
-		if err := <-errors; err != nil {
-			return err
+	if parallel {
+		for i := 0; i < len(repoData.ImgList); i++ {
+			if err := <-errors; err != nil {
+				return err
+			}
 		}
 	}
 
@@ -577,7 +585,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, parallel bool) error {
 	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
 	if err != nil {
 		return err
@@ -599,7 +607,7 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 	}
 
 	out = utils.NewWriteFlusher(out)
-	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf)
+	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
 	if err != nil {
 		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
 			return err

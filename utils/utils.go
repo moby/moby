@@ -635,7 +635,6 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 	return nil
 }
 
-
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 	dec := json.NewDecoder(in)
 	jm := JSONMessage{}
@@ -670,8 +669,6 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 	return nil
 }
 
-=======
->>>>>>> master
 type StreamFormatter struct {
 	json bool
 	used bool
@@ -708,7 +705,7 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 func (sf *StreamFormatter) FormatProgress(id, action, progress string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID:id})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID: id})
 		if err != nil {
 			return nil
 		}
