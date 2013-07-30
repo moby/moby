@@ -17,6 +17,7 @@ var NetworkBridgeIface string
 
 const (
 	DefaultNetworkBridge = "docker0"
+	DisableNetworkBridge = "none"
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 )
@@ -111,10 +112,29 @@ func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
 	return nil
 }
 
+// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
+// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
+// If it can't find an address which doesn't conflict, it will return an error.
 func CreateBridgeIface(ifaceName string) error {
-	// FIXME: try more IP ranges
-	// FIXME: try bigger ranges! /24 is too small.
-	addrs := []string{"172.16.42.1/24", "10.0.42.1/24", "192.168.42.1/24"}
+	addrs := []string{
+		// Here we don't follow the convention of using the 1st IP of the range for the gateway.
+		// This is to use the same gateway IPs as the /24 ranges, which predate the /16 ranges.
+		// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
+		// on the internal addressing or other stupid things like that.
+		// The shouldn't, but hey, let's not break them unless we really have to.
+		"172.16.42.1/16",
+		"10.0.42.1/16", // Don't even try using the entire /8, that's too intrusive
+		"10.1.42.1/16",
+		"10.42.42.1/16",
+		"172.16.42.1/24",
+		"172.16.43.1/24",
+		"172.16.44.1/24",
+		"10.0.42.1/24",
+		"10.0.43.1/24",
+		"192.168.42.1/24",
+		"192.168.43.1/24",
+		"192.168.44.1/24",
+	}
 
 	var ifaceAddr string
 	for _, addr := range addrs {
@@ -453,10 +473,16 @@ type NetworkInterface struct {
 
 	manager  *NetworkManager
 	extPorts []*Nat
+	disabled bool
 }
 
 // Allocate an external TCP port and map it to the interface
 func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
+
+	if iface.disabled {
+		return nil, fmt.Errorf("Trying to allocate port for interface %v, which is disabled", iface) // FIXME
+	}
+
 	nat, err := parseNat(spec)
 	if err != nil {
 		return nil, err
@@ -552,6 +578,11 @@ func parseNat(spec string) (*Nat, error) {
 
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
+
+	if iface.disabled {
+		return
+	}
+
 	for _, nat := range iface.extPorts {
 		utils.Debugf("Unmaping %v/%v", nat.Proto, nat.Frontend)
 		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
@@ -579,10 +610,17 @@ type NetworkManager struct {
 	tcpPortAllocator *PortAllocator
 	udpPortAllocator *PortAllocator
 	portMapper       *PortMapper
+
+	disabled bool
 }
 
 // Allocate a network interface
 func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
+
+	if manager.disabled {
+		return &NetworkInterface{disabled: true}, nil
+	}
+
 	ip, err := manager.ipAllocator.Acquire()
 	if err != nil {
 		return nil, err
@@ -596,6 +634,14 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 }
 
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
+
+	if bridgeIface == DisableNetworkBridge {
+		manager := &NetworkManager{
+			disabled: true,
+		}
+		return manager, nil
+	}
+
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it

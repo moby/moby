@@ -38,7 +38,7 @@ func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
 		f()
 		c <- false
 	}()
-	if <-c {
+	if <-c && msg != "" {
 		t.Fatal(msg)
 	}
 }
@@ -73,7 +73,7 @@ func TestRunHostname(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	utils.Debugf("--")
+
 	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
 		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
 		if err != nil {
@@ -88,6 +88,157 @@ func TestRunHostname(t *testing.T) {
 		<-c
 	})
 
+}
+
+func TestRunExit(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c1 := make(chan struct{})
+	go func() {
+		cli.CmdRun("-i", unitTestImageID, "/bin/cat")
+		close(c1)
+	}()
+
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	// Closing /bin/cat stdin, expect it to exit
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// as the process exited, CmdRun must finish and unblock. Wait for it
+	setTimeout(t, "Waiting for CmdRun timed out", 10*time.Second, func() {
+		<-c1
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Make sure that the client has been disconnected
+	setTimeout(t, "The client should have been disconnected once the remote process exited.", 2*time.Second, func() {
+		// Expecting pipe i/o error, just check that read does not block
+		stdin.Read([]byte{})
+	})
+
+	// Cleanup pipes
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Expected behaviour: the process dies when the client disconnects
+func TestRunDisconnect(t *testing.T) {
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c1 := make(chan struct{})
+	go func() {
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdRun returns.
+		cli.CmdRun("-i", unitTestImageID, "/bin/cat")
+		close(c1)
+	}()
+
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (simulate disconnect)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// as the pipes are close, we expect the process to die,
+	// therefore CmdRun to unblock. Wait for CmdRun
+	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// Client disconnect after run -i should cause stdin to be closed, which should
+	// cause /bin/cat to exit.
+	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
+		container := globalRuntime.List()[0]
+		container.Wait()
+		if container.State.Running {
+			t.Fatalf("/bin/cat is still running after closing stdin")
+		}
+	})
+}
+
+// Expected behaviour: the process dies when the client disconnects
+func TestRunDisconnectTty(t *testing.T) {
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c1 := make(chan struct{})
+	go func() {
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdRun returns.
+		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
+			utils.Debugf("Error CmdRun: %s\n", err)
+		}
+
+		close(c1)
+	}()
+
+	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
+		for {
+			// Client disconnect after run -i should keep stdin out in TTY mode
+			l := globalRuntime.List()
+			if len(l) == 1 && l[0].State.Running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	// Client disconnect after run -i should keep stdin out in TTY mode
+	container := globalRuntime.List()[0]
+
+	setTimeout(t, "Read/Write assertion timed out", 2000*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (simulate disconnect)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// In tty mode, we expect the process to stay alive even after client's stdin closes.
+	// Do not wait for run to finish
+
+	// Give some time to monitor to do his thing
+	container.WaitTimeout(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
+	}
 }
 
 // TestAttachStdin checks attaching to stdin without stdout and stderr.
@@ -156,4 +307,74 @@ func TestRunAttachStdin(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Expected behaviour, the process stays alive when the client disconnects
+func TestAttachDisconnect(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	go func() {
+		// Start a process in daemon mode
+		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
+			utils.Debugf("Error CmdRun: %s\n", err)
+		}
+	}()
+
+	setTimeout(t, "Waiting for CmdRun timed out", 10*time.Second, func() {
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
+		for {
+			l := globalRuntime.List()
+			if len(l) == 1 && l[0].State.Running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	// Attach to it
+	c1 := make(chan struct{})
+	go func() {
+		// We're simulating a disconnect so the return value doesn't matter. What matters is the
+		// fact that CmdAttach returns.
+		cli.CmdAttach(container.ID)
+		close(c1)
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+		<-c1
+	})
+
+	// We closed stdin, expect /bin/cat to still be running
+	// Wait a little bit to make sure container.monitor() did his thing
+	err := container.WaitTimeout(500 * time.Millisecond)
+	if err == nil || !container.State.Running {
+		t.Fatalf("/bin/cat is not running after closing stdin")
+	}
+
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
+	container.Wait()
 }

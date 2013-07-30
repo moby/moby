@@ -68,7 +68,7 @@ func StoreImage(img *Image, layerData Archive, root string, store bool) error {
 	}
 	// Store the layer
 	layer := layerPath(root)
-	if err := os.MkdirAll(layer, 0700); err != nil {
+	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
 	}
 

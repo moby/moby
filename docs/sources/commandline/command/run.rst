@@ -15,11 +15,12 @@
       -a=map[]: Attach to stdin, stdout or stderr.
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
-      -d=false: Detached mode: leave the container running in the background
+      -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -m=0: Memory limit (in bytes)
+      -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID

@@ -56,6 +56,10 @@ What's new
 
    List the processes running inside a container.
 
+.. http:get:: /events:
+
+   **New!** Monitor docker's events via streaming or via polling
+
 Builder (/build):
 
 - Simplify the upload of the build context

@@ -611,6 +611,24 @@ type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Time     int64  `json:"time,omitempty"`
+}
+
+func (jm *JSONMessage) Display(out io.Writer) error {
+	if jm.Time != 0 {
+		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
+	}
+	if jm.Progress != "" {
+		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
+	} else if jm.Error != "" {
+		return fmt.Errorf(jm.Error)
+	} else if jm.ID != "" {
+		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
+	} else {
+		fmt.Fprintf(out, "%s\n", jm.Status)
+	}
+	return nil
 }
 
 type StreamFormatter struct {
