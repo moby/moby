@@ -427,9 +427,9 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
+			return "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
+		return "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
 	}
 	return tarsumLayer.Sum(jsonRaw), nil
 }

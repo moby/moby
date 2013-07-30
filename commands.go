@@ -31,7 +31,7 @@ const VERSION = "0.5.0-dev"
 
 var (
 	GITCOMMIT         string
-	AuthRequiredError error = fmt.Errorf("Authentication is required.")
+	AuthRequiredError = fmt.Errorf("Authentication is required.")
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {

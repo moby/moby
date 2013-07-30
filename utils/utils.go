@@ -625,6 +625,13 @@ func (e *JSONError) Error() string {
 	return e.Message
 }
 
+func NewHTTPRequestError(msg string, res *http.Response) error {
+	return &JSONError{
+		Message: msg,
+		Code:    res.StatusCode,
+	}
+}
+
 func (jm *JSONMessage) Display(out io.Writer) error {
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
@@ -666,7 +673,11 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error: &JSONError{Code: code, Message: err.Error()}, ErrorMessage: err.Error()}); err == nil {
+		jsonError, ok := err.(*JSONError)
+		if !ok {
+			jsonError = &JSONError{Message: err.Error()}
+		}
+		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
