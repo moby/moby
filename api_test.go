@@ -482,24 +482,33 @@ func TestGetContainersTop(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersTop(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	req, err := http.NewRequest("GET", "/"+container.ID+"/top?ps_args=u", bytes.NewReader([]byte{}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	procs := []APITop{}
+	if err := getContainersTop(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+	procs := APITop{}
 	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(procs) != 2 {
-		t.Fatalf("Expected 2 processes, found %d.", len(procs))
+	if len(procs.Titles) != 11 {
+		t.Fatalf("Expected 11 titles, found %d.", len(procs.Titles))
+	}
+	if procs.Titles[0] != "USER" || procs.Titles[10] != "COMMAND" {
+		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.Titles[0], procs.Titles[10])
 	}
 
-	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
+	if len(procs.Processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
 	}
-
-	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
+	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "sleep" {
+		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[0][10])
+	}
+	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "sleep" {
+		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[1][10])
 	}
 }
 
@@ -895,6 +904,12 @@ func TestPostContainersAttach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	defer func() {
+		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+		container.Kill()
+	}()
+
 	// Attach to it
 	c1 := make(chan struct{})
 	go func() {
@@ -934,7 +949,7 @@ func TestPostContainersAttach(t *testing.T) {
 	}
 
 	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
-	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+	setTimeout(t, "Waiting for CmdAttach timed out", 10*time.Second, func() {
 		<-c1
 	})
 

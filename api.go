@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.3
+const APIVERSION = 1.4
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -271,11 +271,18 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version < 1.4 {
+		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
+	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	procsStr, err := srv.ContainerTop(name)
+	ps_args := r.Form.Get("ps_args")
+	procsStr, err := srv.ContainerTop(name, ps_args)
 	if err != nil {
 		return err
 	}

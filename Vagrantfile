@@ -20,6 +20,8 @@ Vagrant::Config.run do |config|
     pkg_cmd = "apt-get update -qq; apt-get install -q -y python-software-properties; " \
       "add-apt-repository -y ppa:dotcloud/lxc-docker; apt-get update -qq; " \
       "apt-get install -q -y lxc-docker; "
+    # Listen on all interfaces so that the daemon is accessible from the host
+    pkg_cmd << "sed -i -E 's|    /usr/bin/docker -d|    /usr/bin/docker -d -H 0.0.0.0|' /etc/init/docker.conf;"
     # Add X.org Ubuntu backported 3.8 kernel
     pkg_cmd << "add-apt-repository -y ppa:ubuntu-x-swat/r-lts-backport; " \
       "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "

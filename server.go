@@ -252,6 +252,18 @@ func (srv *Server) DockerInfo() *APIInfo {
 	} else {
 		imgcount = len(images)
 	}
+	lxcVersion := ""
+	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
+		outputStr := string(output)
+		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
+			lxcVersion = strings.TrimSpace(strings.SplitN(string(output), ":", 2)[1])
+		}
+	}
+	kernelVersion := "<unknown>"
+	if kv, err := utils.GetKernelVersion(); err == nil {
+		kernelVersion = kv.String()
+	}
+
 	return &APIInfo{
 		Containers:      len(srv.runtime.List()),
 		Images:          imgcount,
@@ -260,7 +272,9 @@ func (srv *Server) DockerInfo() *APIInfo {
 		Debug:           os.Getenv("DEBUG") != "",
 		NFd:             utils.GetTotalUsedFds(),
 		NGoroutines:     runtime.NumGoroutine(),
+		LXCVersion:      lxcVersion,
 		NEventsListener: len(srv.events),
+		KernelVersion:   kernelVersion,
 	}
 }
 
@@ -295,35 +309,34 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerTop(name string) ([]APITop, error) {
+func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		output, err := exec.Command("lxc-ps", "--name", container.ID).CombinedOutput()
+		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", ps_args).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
 		}
-		var procs []APITop
+		procs := APITop{}
 		for i, line := range strings.Split(string(output), "\n") {
-			if i == 0 || len(line) == 0 {
+			if len(line) == 0 {
 				continue
 			}
-			proc := APITop{}
+			words := []string{}
 			scanner := bufio.NewScanner(strings.NewReader(line))
 			scanner.Split(bufio.ScanWords)
 			if !scanner.Scan() {
 				return nil, fmt.Errorf("Error trying to use lxc-ps")
 			}
 			// no scanner.Text because we skip container id
-			scanner.Scan()
-			proc.PID = scanner.Text()
-			scanner.Scan()
-			proc.Tty = scanner.Text()
-			scanner.Scan()
-			proc.Time = scanner.Text()
-			scanner.Scan()
-			proc.Cmd = scanner.Text()
-			procs = append(procs, proc)
+			for scanner.Scan() {
+				words = append(words, scanner.Text())
+			}
+			if i == 0 {
+				procs.Titles = words
+			} else {
+				procs.Processes = append(procs.Processes, words)
+			}
 		}
-		return procs, nil
+		return &procs, nil
 
 	}
 	return nil, fmt.Errorf("No such container: %s", name)
@@ -994,6 +1007,9 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 			parsedRepo := strings.Split(repoAndTag, ":")[0]
 			if strings.Contains(img.ID, repoName) {
 				repoName = parsedRepo
+				if len(srv.runtime.repositories.ByID()[img.ID]) == 1 && len(strings.Split(repoAndTag, ":")) > 1 {
+					tag = strings.Split(repoAndTag, ":")[1]
+				}
 			} else if repoName != parsedRepo {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict

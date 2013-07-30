@@ -609,11 +609,11 @@ type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
-	ID	 string `json:"id,omitempty"`
-	Time	 int64 `json:"time,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Time     int64  `json:"time,omitempty"`
 }
 
-func (jm *JSONMessage) Display(out io.Writer) (error) {
+func (jm *JSONMessage) Display(out io.Writer) error {
 	if jm.Error != "" {
 		return fmt.Errorf(jm.Error)
 	}
@@ -634,6 +634,7 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	}
 	return nil
 }
+
 
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 	dec := json.NewDecoder(in)
@@ -669,6 +670,8 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 	return nil
 }
 
+=======
+>>>>>>> master
 type StreamFormatter struct {
 	json bool
 	used bool

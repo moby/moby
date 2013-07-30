@@ -1,14 +1,9 @@
-.. use orphan to suppress "WARNING: document isn't included in any toctree"
-.. per http://sphinx-doc.org/markup/misc.html#file-wide-metadata
-
-:orphan:
-
-:title: Remote API v1.3
+:title: Remote API v1.4
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 ======================
-Docker Remote API v1.3
+Docker Remote API v1.4
 ======================
 
 .. contents:: Table of Contents
@@ -245,21 +240,27 @@ List processes running inside a container
 	   HTTP/1.1 200 OK
 	   Content-Type: application/json
 
-	   [
-		{
-		 "PID":"11935",
-		 "Tty":"pts/2",
-		 "Time":"00:00:00",
-		 "Cmd":"sh"
-		},
-		{
-		 "PID":"12140",
-		 "Tty":"pts/2",
-		 "Time":"00:00:00",
-		 "Cmd":"sleep"
-		}
-	   ]
+	   {
+		"Titles":[
+			"USER",
+			"PID",
+			"%CPU",
+			"%MEM",
+			"VSZ",
+			"RSS",
+			"TTY",
+			"STAT",
+			"START",
+			"TIME",
+			"COMMAND"
+			],
+		"Processes":[
+			["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
+			["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
+		]
+	   }
 
+	:query ps_args: ps arguments to use (eg. aux)
 	:statuscode 200: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
@@ -989,10 +990,7 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false,
-		"EventsListeners":"0",
-		"LXCVersion":"0.7.5",
-		"KernelVersion":"3.8.0-19-generic"
+		"SwapLimit":false
 	   }
 
         :statuscode 200: no error
@@ -1059,36 +1057,6 @@ Create a new image from a container's changes
 	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
         :statuscode 201: no error
 	:statuscode 404: no such container
-        :statuscode 500: server error
-
-
-Monitor Docker's events
-***********************
-
-.. http:get:: /events
-
-	Get events from docker, either in real time via streaming, or via polling (using `since`)
-
-	**Example request**:
-
-	.. sourcecode:: http
-
-           POST /events?since=1374067924
-
-        **Example response**:
-
-        .. sourcecode:: http
-
-           HTTP/1.1 200 OK
-	   Content-Type: application/json
-
-	   {"status":"create","id":"dfdf82bd3881","time":1374067924}
-	   {"status":"start","id":"dfdf82bd3881","time":1374067924}
-	   {"status":"stop","id":"dfdf82bd3881","time":1374067966}
-	   {"status":"destroy","id":"dfdf82bd3881","time":1374067970}
-
-	:query since: timestamp used for polling
-        :statuscode 200: no error
         :statuscode 500: server error
 
 

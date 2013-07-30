@@ -52,7 +52,7 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
-	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
 }
@@ -100,7 +100,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 	flAttach := NewAttachOpts()
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
@@ -379,14 +379,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdin\n")
 				defer utils.Debugf("[end] attach stdin\n")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-				if cStdout != nil {
-					defer cStdout.Close()
-				}
-				if cStderr != nil {
-					defer cStderr.Close()
-				}
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
+				} else {
+					if cStdout != nil {
+						defer cStdout.Close()
+					}
+					if cStderr != nil {
+						defer cStderr.Close()
+					}
 				}
 				if container.Config.Tty {
 					_, err = utils.CopyEscapable(cStdin, stdin)
