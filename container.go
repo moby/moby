@@ -100,7 +100,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 	flAttach := NewAttachOpts()
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
