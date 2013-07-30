@@ -736,6 +736,9 @@ func GetReleaseVersion() string {
 		return ""
 	}
 	defer resp.Body.Close()
+	if resp.ContentLength > 24 || resp.StatusCode != 200 {
+		return ""
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return ""
