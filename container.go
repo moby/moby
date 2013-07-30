@@ -52,35 +52,37 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
-	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
 }
 
 type Config struct {
-	Hostname     string
-	User         string
-	Memory       int64 // Memory limit (in bytes)
-	MemorySwap   int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares    int64 // CPU shares (relative weight vs. other containers)
-	AttachStdin  bool
-	AttachStdout bool
-	AttachStderr bool
-	PortSpecs    []string
-	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin    bool // Open stdin
-	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
-	Env          []string
-	Cmd          []string
-	Dns          []string
-	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes      map[string]struct{}
-	VolumesFrom  string
-	Entrypoint   []string
+	Hostname        string
+	User            string
+	Memory          int64 // Memory limit (in bytes)
+	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	AttachStdin     bool
+	AttachStdout    bool
+	AttachStderr    bool
+	PortSpecs       []string
+	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin       bool // Open stdin
+	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
+	Env             []string
+	Cmd             []string
+	Dns             []string
+	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Volumes         map[string]struct{}
+	VolumesFrom     string
+	Entrypoint      []string
+	NetworkDisabled bool
 }
 
 type HostConfig struct {
-	Binds []string
+	Binds           []string
+	ContainerIDFile string
 }
 
 type BindMap struct {
@@ -93,16 +95,19 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
+		cmd.Usage = nil
 	}
 
 	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 	flAttach := NewAttachOpts()
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
+	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -171,26 +176,28 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	config := &Config{
-		Hostname:     *flHostname,
-		PortSpecs:    flPorts,
-		User:         *flUser,
-		Tty:          *flTty,
-		OpenStdin:    *flStdin,
-		Memory:       *flMemory,
-		CpuShares:    *flCpuShares,
-		AttachStdin:  flAttach.Get("stdin"),
-		AttachStdout: flAttach.Get("stdout"),
-		AttachStderr: flAttach.Get("stderr"),
-		Env:          flEnv,
-		Cmd:          runCmd,
-		Dns:          flDns,
-		Image:        image,
-		Volumes:      flVolumes,
-		VolumesFrom:  *flVolumesFrom,
-		Entrypoint:   entrypoint,
+		Hostname:        *flHostname,
+		PortSpecs:       flPorts,
+		User:            *flUser,
+		Tty:             *flTty,
+		NetworkDisabled: !*flNetwork,
+		OpenStdin:       *flStdin,
+		Memory:          *flMemory,
+		CpuShares:       *flCpuShares,
+		AttachStdin:     flAttach.Get("stdin"),
+		AttachStdout:    flAttach.Get("stdout"),
+		AttachStderr:    flAttach.Get("stderr"),
+		Env:             flEnv,
+		Cmd:             runCmd,
+		Dns:             flDns,
+		Image:           image,
+		Volumes:         flVolumes,
+		VolumesFrom:     *flVolumesFrom,
+		Entrypoint:      entrypoint,
 	}
 	hostConfig := &HostConfig{
-		Binds: binds,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -372,14 +379,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdin\n")
 				defer utils.Debugf("[end] attach stdin\n")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-				if cStdout != nil {
-					defer cStdout.Close()
-				}
-				if cStderr != nil {
-					defer cStderr.Close()
-				}
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
+				} else {
+					if cStdout != nil {
+						defer cStdout.Close()
+					}
+					if cStderr != nil {
+						defer cStderr.Close()
+					}
 				}
 				if container.Config.Tty {
 					_, err = utils.CopyEscapable(cStdin, stdin)
@@ -507,8 +515,12 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
-	if err := container.allocateNetwork(); err != nil {
-		return err
+	if container.runtime.networkManager.disabled {
+		container.Config.NetworkDisabled = true
+	} else {
+		if err := container.allocateNetwork(); err != nil {
+			return err
+		}
 	}
 
 	// Make sure the config is compatible with the current kernel
@@ -520,8 +532,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
-	container.Volumes = make(map[string]string)
-	container.VolumesRW = make(map[string]bool)
 
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
@@ -561,30 +571,35 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
 	// Create the requested volumes volumes
-	for volPath := range container.Config.Volumes {
-		volPath = path.Clean(volPath)
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			container.Volumes[volPath] = bindMap.SrcPath
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				container.VolumesRW[volPath] = true
+	if container.Volumes == nil || len(container.Volumes) == 0 {
+		container.Volumes = make(map[string]string)
+		container.VolumesRW = make(map[string]bool)
+
+		for volPath := range container.Config.Volumes {
+			volPath = path.Clean(volPath)
+			// If an external bind is defined for this volume, use that as a source
+			if bindMap, exists := binds[volPath]; exists {
+				container.Volumes[volPath] = bindMap.SrcPath
+				if strings.ToLower(bindMap.Mode) == "rw" {
+					container.VolumesRW[volPath] = true
+				}
+				// Otherwise create an directory in $ROOT/volumes/ and use that
+			} else {
+				c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+				if err != nil {
+					return err
+				}
+				srcPath, err := c.layer()
+				if err != nil {
+					return err
+				}
+				container.Volumes[volPath] = srcPath
+				container.VolumesRW[volPath] = true // RW by default
 			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-			if err != nil {
-				return err
+			// Create the mountpoint
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
 			}
-			srcPath, err := c.layer()
-			if err != nil {
-				return err
-			}
-			container.Volumes[volPath] = srcPath
-			container.VolumesRW[volPath] = true // RW by default
-		}
-		// Create the mountpoint
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-			return nil
 		}
 	}
 
@@ -619,7 +634,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Networking
-	params = append(params, "-g", container.network.Gateway.String())
+	if !container.Config.NetworkDisabled {
+		params = append(params, "-g", container.network.Gateway.String())
+	}
 
 	// User
 	if container.Config.User != "" {
@@ -634,6 +651,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params,
 		"-e", "HOME=/",
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"-e", "container=lxc",
 	)
 
 	for _, elem := range container.Config.Env {
@@ -647,10 +665,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.cmd = exec.Command("lxc-start", params...)
 
 	// Setup logging of stdout and stderr to disk
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("stdout")); err != nil {
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
 	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("stderr")); err != nil {
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
 
@@ -709,17 +727,21 @@ func (container *Container) StdinPipe() (io.WriteCloser, error) {
 
 func (container *Container) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stdout.AddWriter(writer)
+	container.stdout.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
 func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stderr.AddWriter(writer)
+	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
 func (container *Container) allocateNetwork() error {
+	if container.Config.NetworkDisabled {
+		return nil
+	}
+
 	iface, err := container.runtime.networkManager.Allocate()
 	if err != nil {
 		return err
@@ -746,6 +768,9 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
+	if container.Config.NetworkDisabled {
+		return
+	}
 	container.network.Release()
 	container.network = nil
 	container.NetworkSettings = &NetworkSettings{}
@@ -781,7 +806,9 @@ func (container *Container) monitor() {
 		}
 	}
 	utils.Debugf("Process finished")
-
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ShortID())
+	}
 	exitCode := -1
 	if container.cmd != nil {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()

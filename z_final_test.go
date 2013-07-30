@@ -6,7 +6,12 @@ import (
 	"testing"
 )
 
+func displayFdGoroutines(t *testing.T) {
+	t.Logf("Fds: %d, Goroutines: %d", utils.GetTotalUsedFds(), runtime.NumGoroutine())
+}
+
 func TestFinal(t *testing.T) {
 	cleanup(globalRuntime)
-	t.Logf("Fds: %d, Goroutines: %d", utils.GetTotalUsedFds(), runtime.NumGoroutine())
+	t.Logf("Start Fds: %d, Start Goroutines: %d", startFds, startGoroutines)
+	displayFdGoroutines(t)
 }

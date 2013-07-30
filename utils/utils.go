@@ -248,30 +248,54 @@ func (r *bufReader) Close() error {
 
 type WriteBroadcaster struct {
 	sync.Mutex
-	writers map[io.WriteCloser]struct{}
+	buf     *bytes.Buffer
+	writers map[StreamWriter]bool
 }
 
-func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
+type StreamWriter struct {
+	wc     io.WriteCloser
+	stream string
+}
+
+func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
-	w.writers[writer] = struct{}{}
+	sw := StreamWriter{wc: writer, stream: stream}
+	w.writers[sw] = true
 	w.Unlock()
 }
 
-// FIXME: Is that function used?
-// FIXME: This relies on the concrete writer type used having equality operator
-func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.Lock()
-	delete(w.writers, writer)
-	w.Unlock()
+type JSONLog struct {
+	Log     string    `json:"log,omitempty"`
+	Stream  string    `json:"stream,omitempty"`
+	Created time.Time `json:"time"`
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		if n, err := writer.Write(p); err != nil || n != len(p) {
+	w.buf.Write(p)
+	for sw := range w.writers {
+		lp := p
+		if sw.stream != "" {
+			lp = nil
+			for {
+				line, err := w.buf.ReadString('\n')
+				if err != nil {
+					w.buf.Write([]byte(line))
+					break
+				}
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
+				if err != nil {
+					// On error, evict the writer
+					delete(w.writers, sw)
+					continue
+				}
+				lp = append(lp, b...)
+			}
+		}
+		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
 			// On error, evict the writer
-			delete(w.writers, writer)
+			delete(w.writers, sw)
 		}
 	}
 	return len(p), nil
@@ -280,15 +304,15 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		writer.Close()
+	for sw := range w.writers {
+		sw.wc.Close()
 	}
-	w.writers = make(map[io.WriteCloser]struct{})
+	w.writers = make(map[StreamWriter]bool)
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[io.WriteCloser]struct{})}
+	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
 }
 
 func GetTotalUsedFds() int {
@@ -587,6 +611,24 @@ type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Time     int64  `json:"time,omitempty"`
+}
+
+func (jm *JSONMessage) Display(out io.Writer) error {
+	if jm.Time != 0 {
+		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
+	}
+	if jm.Progress != "" {
+		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
+	} else if jm.Error != "" {
+		return fmt.Errorf(jm.Error)
+	} else if jm.ID != "" {
+		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
+	} else {
+		fmt.Fprintf(out, "%s\n", jm.Status)
+	}
+	return nil
 }
 
 type StreamFormatter struct {

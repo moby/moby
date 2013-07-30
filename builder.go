@@ -124,6 +124,10 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 func (builder *Builder) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
 	rwTar, err := container.ExportRw()
 	if err != nil {
 		return nil, err

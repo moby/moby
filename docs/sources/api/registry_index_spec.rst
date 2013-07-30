@@ -367,7 +367,8 @@ POST /v1/users
     {"email": "sam@dotcloud.com", "password": "toto42", "username": "foobar"'}
 
 **Validation**:
-    - **username** : min 4 character, max 30 characters, must match the regular expression [a-z0-9_].
+    - **username**: min 4 character, max 30 characters, must match the regular
+      expression [a-z0-9\_].
     - **password**: min 5 characters
 
 **Valid**: return HTTP 200

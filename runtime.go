@@ -167,12 +167,12 @@ func (runtime *Runtime) Register(container *Container) error {
 	return nil
 }
 
-func (runtime *Runtime) LogToDisk(src *utils.WriteBroadcaster, dst string) error {
+func (runtime *Runtime) LogToDisk(src *utils.WriteBroadcaster, dst, stream string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
-	src.AddWriter(log)
+	src.AddWriter(log, stream)
 	return nil
 }
 

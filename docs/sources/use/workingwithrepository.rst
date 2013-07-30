@@ -119,7 +119,7 @@ your container to an image within your username namespace.
 
 
 Pushing a container to its repository
-------------------------------------
+-------------------------------------
 
 In order to push an image to its repository you need to have committed
 your container to a named image (see above)

@@ -46,11 +46,13 @@ in a standard build environment.
 You can run an interactive session in the newly built container:
 
 ::
+
     docker run -i -t docker bash
 
 
 To extract the binaries from the container:
 
 ::
+
     docker run docker sh -c 'cat $(which docker)' > docker-build && chmod +x docker-build
 

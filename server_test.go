@@ -1,7 +1,10 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/utils"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestContainerTagImageDelete(t *testing.T) {
@@ -88,6 +91,27 @@ func TestCreateRm(t *testing.T) {
 
 }
 
+func TestCommit(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
@@ -162,4 +186,127 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
 
+}
+
+func TestLogEvent(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{
+		runtime:   runtime,
+		events:    make([]utils.JSONMessage, 0, 64),
+		listeners: make(map[string]chan utils.JSONMessage),
+	}
+
+	srv.LogEvent("fakeaction", "fakeid")
+
+	listener := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.listeners["test"] = listener
+	srv.Unlock()
+
+	srv.LogEvent("fakeaction2", "fakeid")
+
+	if len(srv.events) != 2 {
+		t.Fatalf("Expected 2 events, found %d", len(srv.events))
+	}
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		srv.LogEvent("fakeaction3", "fakeid")
+		time.Sleep(200 * time.Millisecond)
+		srv.LogEvent("fakeaction4", "fakeid")
+	}()
+
+	setTimeout(t, "Listening for events timed out", 2*time.Second, func() {
+		for i := 2; i < 4; i++ {
+			event := <-listener
+			if event != srv.events[i] {
+				t.Fatalf("Event received it different than expected")
+			}
+		}
+	})
+
+}
+
+func TestRmi(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	initialImages, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerTag(imageID, "test", "0.1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err = srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 2 {
+		t.Fatalf("Expected 2 new images, found %d.", len(images)-len(initialImages))
+	}
+
+	_, err = srv.ImageDelete(imageID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 1 {
+		t.Fatalf("Expected 1 new image, found %d.", len(images)-len(initialImages))
+	}
+
+	for _, image := range images {
+		if strings.Contains(unitTestImageID, image.ID) {
+			continue
+		}
+		if image.Repository == "" {
+			t.Fatalf("Expected tagged image, got untagged one.")
+		}
+	}
 }
