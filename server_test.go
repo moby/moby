@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,4 +203,89 @@ func TestLogEvent(t *testing.T) {
 		}
 	})
 
+}
+
+func TestRmi(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	initialImages, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerTag(imageID, "test", "0.1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err = srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 2 {
+		t.Fatalf("Expected 2 new images, found %d.", len(images)-len(initialImages))
+	}
+
+	_, err = srv.ImageDelete(imageID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 1 {
+		t.Fatalf("Expected 1 new image, found %d.", len(images)-len(initialImages))
+	}
+
+	for _, image := range images {
+		if strings.Contains(unitTestImageID, image.ID) {
+			continue
+		}
+		if image.Repository == "" {
+			t.Fatalf("Expected tagged image, got untagged one.")
+		}
+	}
 }
