@@ -38,7 +38,7 @@ func TestInterruptedRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	go graph.Register(badArchive, false, image)
+	go graph.Register(nil, badArchive, image)
 	time.Sleep(200 * time.Millisecond)
 	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
 	if _, err := graph.Get(image.ID); err == nil {
@@ -49,7 +49,7 @@ func TestInterruptedRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := graph.Register(goodArchive, false, image); err != nil {
+	if err := graph.Register(nil, goodArchive, image); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -95,7 +95,7 @@ func TestRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	err = graph.Register(archive, false, image)
+	err = graph.Register(nil, archive, image)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test delete twice (pull -> rm -> pull -> rm)
-	if err := graph.Register(archive, false, img1); err != nil {
+	if err := graph.Register(nil, archive, img1); err != nil {
 		t.Fatal(err)
 	}
 	if err := graph.Delete(img1.ID); err != nil {
