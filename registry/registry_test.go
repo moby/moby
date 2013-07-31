@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 )
+
 var (
 	IMAGE_ID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
-	TOKEN = []string{"fake-token"}
-	REPO = "foo42/bar"
+	TOKEN    = []string{"fake-token"}
+	REPO     = "foo42/bar"
 )
 
 type simpleVersionInfo struct {
@@ -52,7 +53,7 @@ func TestGetRemoteHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(hist), 2, "Expected 2 images in history")
-	assertEqual(t, hist[0], IMAGE_ID, "Expected " + IMAGE_ID + "as first ancestry")
+	assertEqual(t, hist[0], IMAGE_ID, "Expected "+IMAGE_ID+"as first ancestry")
 	assertEqual(t, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		"Unexpected second ancestry")
 }
@@ -105,7 +106,7 @@ func TestGetRemoteTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(tags), 1, "Expected one tag")
-	assertEqual(t, tags["latest"], IMAGE_ID, "Expected tag latest to map to " + IMAGE_ID)
+	assertEqual(t, tags["latest"], IMAGE_ID, "Expected tag latest to map to "+IMAGE_ID)
 
 	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", TOKEN)
 	if err == nil {
@@ -126,11 +127,11 @@ func TestGetRepositoryData(t *testing.T) {
 func TestPushImageJSONRegistry(t *testing.T) {
 	r := spawnTestRegistry(t)
 	imgData := &ImgData{
-		ID:	"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+		ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 	}
 
-	err := r.PushImageJSONRegistry(imgData, []byte{ 0x42, 0xdf, 0x0 }, makeURL("/v1/"), TOKEN)
+	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +158,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, "http://" + u + "/v1/", "Expected endpoint to be " + u)
+	assertEqual(t, ep, "http://"+u+"/v1/", "Expected endpoint to be "+u)
 	assertEqual(t, repo, "private/moonbase", "Expected endpoint to be private/moonbase")
 }
 
@@ -173,11 +174,11 @@ func TestPushImageJSONIndex(t *testing.T) {
 	r := spawnTestRegistry(t)
 	imgData := []*ImgData{
 		&ImgData{
-			ID:	"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+			ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 			Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 		},
 		&ImgData{
-			ID: "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
+			ID:       "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
 	}
