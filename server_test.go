@@ -21,7 +21,11 @@ func TestContainerTagImageDelete(t *testing.T) {
 	if err := srv.runtime.repositories.Set("utest", "tag1", unitTestImageName, false); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := srv.runtime.repositories.Set("utest/docker", "tag2", unitTestImageName, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.runtime.repositories.Set("utest:5000/docker", "tag3", unitTestImageName, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -30,11 +34,24 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+2 {
+	if len(images) != len(initialImages)+3 {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
 	}
 
 	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
+		t.Fatal(err)
+	}
+
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != len(initialImages)+2 {
+		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
+	}
+
+	if _, err := srv.ImageDelete("utest:5000/docker:tag3", true); err != nil {
 		t.Fatal(err)
 	}
 

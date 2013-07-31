@@ -793,12 +793,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
-	tag := ""
-	if strings.Contains(repoName, ":") {
-		remoteParts := strings.Split(repoName, ":")
-		tag = remoteParts[1]
-		repoName = remoteParts[0]
-	}
+	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
 

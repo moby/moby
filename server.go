@@ -977,13 +977,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		return nil, nil
 	}
 
-	var tag string
-	if strings.Contains(name, ":") {
-		nameParts := strings.Split(name, ":")
-		name = nameParts[0]
-		tag = nameParts[1]
-	}
-
+	name, tag := utils.ParseRepositoryTag(name)
 	return srv.deleteImage(img, name, tag)
 }
 
