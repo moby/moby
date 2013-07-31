@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.1 (2013-07-30)
+ + API: Docker client now sets useragent (RFC 2616)
+ + Runtime: Add `ps` args to `docker top`
+ + Runtime: Add support for container ID files (pidfile like)
+ + Runtime: Add container=lxc in default env
+ + Runtime: Support networkless containers with `docker run -n` and `docker -d -b=none`
+ + API: Add /events endpoint
+ + Builder: ADD command now understands URLs
+ + Builder: CmdAdd and CmdEnv now respect Dockerfile-set ENV variables
+ * Hack: Simplify unit tests with helpers
+ * Hack: Improve docker.upstart event
+ * Hack: Add coverage testing into docker-ci
+ * Runtime: Stdout/stderr logs are now stored in the same file as JSON
+ * Runtime: Allocate a /16 IP range by default, with fallback to /24. Try 12 ranges instead of 3.
+ * Runtime: Change .dockercfg format to json and support multiple auth remote
+ - Runtime: Do not override volumes from config
+ - Runtime: Fix issue with EXPOSE override
+ - Builder: Create directories with 755 instead of 700 within ADD instruction
+
 ## 0.5.0 (2013-07-17)
  + Runtime: List all processes running inside a container with 'docker top'
  + Runtime: Host directories can be mounted as volumes with 'docker run -v'
