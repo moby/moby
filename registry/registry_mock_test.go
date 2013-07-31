@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -291,7 +292,12 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 func handlerImages(w http.ResponseWriter, r *http.Request) {
 	u, _ := url.Parse(testHttpServer.URL)
 	w.Header().Add("X-Docker-Endpoints", u.Host)
+	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {
+		if strings.HasSuffix(r.URL.Path, "images") {
+			writeResponse(w, "", 204)
+			return
+		}
 		writeResponse(w, "", 200)
 		return
 	}
@@ -330,6 +336,7 @@ func TestPing(t *testing.T) {
 
 /* Uncomment this to test Mocked Registry locally with curl
  * WARNING: Don't push on the repos uncommented, it'll block the tests
+<<<<<<< HEAD
  *
 func TestWait(t *testing.T) {
 	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
@@ -338,3 +345,11 @@ func TestWait(t *testing.T) {
 }
 
 //*/
+=======
+ */
+// func TestWait(t *testing.T) {
+// 	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
+// 	c := make(chan int)
+// 	<-c
+// }
+>>>>>>> Mock registry: Fixed a bug where the index validation path would return a 200 status code instead of the expected 204
