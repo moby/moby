@@ -266,7 +266,8 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 	// Load container settings
-	if err := json.Unmarshal(data, container); err != nil {
+	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
+	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
 	return nil
