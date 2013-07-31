@@ -1,168 +1,211 @@
 package registry
 
-// import (
-// 	"crypto/rand"
-// 	"encoding/hex"
-// 	"github.com/dotcloud/docker"
-// 	"github.com/dotcloud/docker/auth"
-// 	"io/ioutil"
-// 	"os"
-// 	"path"
-// 	"testing"
-// )
+import (
+	"github.com/dotcloud/docker/auth"
+	"strings"
+	"testing"
+)
+var (
+	IMAGE_ID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
+	TOKEN = []string{"fake-token"}
+	REPO = "foo42/bar"
+)
 
-// func newTestRuntime() (*Runtime, error) {
-// 	root, err := ioutil.TempDir("", "docker-test")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if err := os.Remove(root); err != nil {
-// 		return nil, err
-// 	}
+type simpleVersionInfo struct {
+	name    string
+	version string
+}
 
-// 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
-// 		return nil, err
-// 	}
+func (v *simpleVersionInfo) Name() string {
+	return v.name
+}
 
-// 	return runtime, nil
-// }
+func (v *simpleVersionInfo) Version() string {
+	return v.version
+}
 
-// func TestPull(t *testing.T) {
-// 	os.Setenv("DOCKER_INDEX_URL", "")
-// 	runtime, err := newTestRuntime()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer nuke(runtime)
+func spawnTestRegistry(t *testing.T) *Registry {
+	versionInfo := make([]VersionInfo, 0, 4)
+	versionInfo = append(versionInfo, &simpleVersionInfo{"docker", "0.0.0test"})
+	versionInfo = append(versionInfo, &simpleVersionInfo{"go", "test"})
+	versionInfo = append(versionInfo, &simpleVersionInfo{"git-commit", "test"})
+	versionInfo = append(versionInfo, &simpleVersionInfo{"kernel", "test"})
+	authConfig := &auth.AuthConfig{}
+	r, err := NewRegistry("", authConfig, versionInfo...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
 
-// 	err = runtime.graph.PullRepository(ioutil.Discard, "busybox", "", runtime.repositories, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	img, err := runtime.repositories.LookupImage("busybox")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestPingRegistryEndpoint(t *testing.T) {
+	err := pingRegistryEndpoint(makeURL("/v1/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-// 	// Try to run something on this image to make sure the layer's been downloaded properly.
-// 	config, _, err := docker.ParseRun([]string{img.Id, "echo", "Hello World"}, runtime.capabilities)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestGetRemoteHistory(t *testing.T) {
+	r := spawnTestRegistry(t)
+	hist, err := r.GetRemoteHistory(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, len(hist), 2, "Expected 2 images in history")
+	assertEqual(t, hist[0], IMAGE_ID, "Expected " + IMAGE_ID + "as first ancestry")
+	assertEqual(t, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+		"Unexpected second ancestry")
+}
 
-// 	b := NewBuilder(runtime)
-// 	container, err := b.Create(config)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if err := container.Start(); err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestLookupRemoteImage(t *testing.T) {
+	r := spawnTestRegistry(t)
+	found := r.LookupRemoteImage(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	assertEqual(t, found, true, "Expected remote lookup to succeed")
+	found = r.LookupRemoteImage("abcdef", makeURL("/v1/"), TOKEN)
+	assertEqual(t, found, false, "Expected remote lookup to fail")
+}
 
-// 	if status := container.Wait(); status != 0 {
-// 		t.Fatalf("Expected status code 0, found %d instead", status)
-// 	}
-// }
+func TestGetRemoteImageJSON(t *testing.T) {
+	r := spawnTestRegistry(t)
+	json, size, err := r.GetRemoteImageJSON(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, size, 154, "Expected size 154")
+	if len(json) <= 0 {
+		t.Fatal("Expected non-empty json")
+	}
 
-// func TestPullTag(t *testing.T) {
-// 	os.Setenv("DOCKER_INDEX_URL", "")
-// 	runtime, err := newTestRuntime()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer nuke(runtime)
+	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), TOKEN)
+	if err == nil {
+		t.Fatal("Expected image not found error")
+	}
+}
 
-// 	err = runtime.graph.PullRepository(ioutil.Discard, "ubuntu", "12.04", runtime.repositories, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	_, err = runtime.repositories.LookupImage("ubuntu:12.04")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestGetRemoteImageLayer(t *testing.T) {
+	r := spawnTestRegistry(t)
+	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data == nil {
+		t.Fatal("Expected non-nil data result")
+	}
 
-// 	img2, err := runtime.repositories.LookupImage("ubuntu:12.10")
-// 	if img2 != nil {
-// 		t.Fatalf("Expected nil image but found %v instead", img2.Id)
-// 	}
-// }
+	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN)
+	if err == nil {
+		t.Fatal("Expected image not found error")
+	}
+}
 
-// func login(runtime *Runtime) error {
-// 	authConfig := auth.NewAuthConfig("unittester", "surlautrerivejetattendrai", "noise+unittester@dotcloud.com", runtime.root)
-// 	runtime.authConfig = authConfig
-// 	_, err := auth.Login(authConfig)
-// 	return err
-// }
+func TestGetRemoteTags(t *testing.T) {
+	r := spawnTestRegistry(t)
+	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, len(tags), 1, "Expected one tag")
+	assertEqual(t, tags["latest"], IMAGE_ID, "Expected tag latest to map to " + IMAGE_ID)
 
-// func TestPush(t *testing.T) {
-// 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
-// 	defer os.Setenv("DOCKER_INDEX_URL", "")
-// 	runtime, err := newTestRuntime()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer nuke(runtime)
+	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", TOKEN)
+	if err == nil {
+		t.Fatal("Expected error when fetching tags for bogus repo")
+	}
+}
 
-// 	err = login(runtime)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestGetRepositoryData(t *testing.T) {
+	r := spawnTestRegistry(t)
+	data, err := r.GetRepositoryData(makeURL("/v1/"), "foo42/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, len(data.ImgList), 2, "Expected 2 images in ImgList")
+	assertEqual(t, len(data.Endpoints), 1, "Expected one endpoint in Endpoints")
+}
 
-// 	err = runtime.graph.PullRepository(ioutil.Discard, "joffrey/busybox", "", runtime.repositories, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	tokenBuffer := make([]byte, 16)
-// 	_, err = rand.Read(tokenBuffer)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	token := hex.EncodeToString(tokenBuffer)[:29]
-// 	config, _, err := ParseRun([]string{"joffrey/busybox", "touch", "/" + token}, runtime.capabilities)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestPushImageJSONRegistry(t *testing.T) {
+	r := spawnTestRegistry(t)
+	imgData := &ImgData{
+		ID:	"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
+	}
 
-// 	b := NewBuilder(runtime)
-// 	container, err := b.Create(config)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if err := container.Start(); err != nil {
-// 		t.Fatal(err)
-// 	}
+	err := r.PushImageJSONRegistry(imgData, []byte{ 0x42, 0xdf, 0x0 }, makeURL("/v1/"), TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-// 	if status := container.Wait(); status != 0 {
-// 		t.Fatalf("Expected status code 0, found %d instead", status)
-// 	}
+func TestPushImageLayerRegistry(t *testing.T) {
+	r := spawnTestRegistry(t)
+	layer := strings.NewReader("FAKELAYER")
+	r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN)
+}
 
-// 	img, err := b.Commit(container, "unittester/"+token, "", "", "", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestResolveRepositoryName(t *testing.T) {
+	_, _, err := ResolveRepositoryName("https://github.com/dotcloud/docker")
+	assertEqual(t, err, ErrInvalidRepositoryName, "Expected error invalid repo name")
+	ep, repo, err := ResolveRepositoryName("fooo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, auth.IndexServerAddress(), "Expected endpoint to be index server address")
+	assertEqual(t, repo, "fooo/bar", "Expected resolved repo to be foo/bar")
 
-// 	repo := runtime.repositories.Repositories["unittester/"+token]
-// 	err = runtime.graph.PushRepository(ioutil.Discard, "unittester/"+token, repo, runtime.authConfig)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	u := makeURL("")[7:]
+	ep, repo, err = ResolveRepositoryName(u + "/private/moonbase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, "http://" + u + "/v1/", "Expected endpoint to be " + u)
+	assertEqual(t, repo, "private/moonbase", "Expected endpoint to be private/moonbase")
+}
 
-// 	// Remove image so we can pull it again
-// 	if err := runtime.graph.Delete(img.Id); err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestPushRegistryTag(t *testing.T) {
+	r := spawnTestRegistry(t)
+	err := r.PushRegistryTag("foo42/bar", IMAGE_ID, "stable", makeURL("/v1/"), TOKEN)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-// 	err = runtime.graph.PullRepository(ioutil.Discard, "unittester/"+token, "", runtime.repositories, runtime.authConfig)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestPushImageJSONIndex(t *testing.T) {
+	r := spawnTestRegistry(t)
+	imgData := []*ImgData{
+		&ImgData{
+			ID:	"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+			Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
+		},
+		&ImgData{
+			ID: "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
+			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
+		},
+	}
+	ep := makeURL("/v1/")
+	repoData, err := r.PushImageJSONIndex(ep, "foo42/bar", imgData, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repoData == nil {
+		t.Fatal("Expected RepositoryData object")
+	}
+	repoData, err = r.PushImageJSONIndex(ep, "foo42/bar", imgData, true, []string{ep})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repoData == nil {
+		t.Fatal("Expected RepositoryData object")
+	}
+}
 
-// 	layerPath, err := img.layer()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	if _, err := os.Stat(path.Join(layerPath, token)); err != nil {
-// 		t.Fatalf("Error while trying to retrieve token file: %v", err)
-// 	}
-// }
+func TestSearchRepositories(t *testing.T) {
+	r := spawnTestRegistry(t)
+	results, err := r.SearchRepositories("supercalifragilisticepsialidocious")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results == nil {
+		t.Fatal("Expected non-nil SearchResults object")
+	}
+	assertEqual(t, results.NumResults, 0, "Expected 0 search results")
+}
