@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,15 +18,19 @@ import (
 )
 
 const (
-	unitTestImageName	= "docker-test-image"
-	unitTestImageID		= "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestNetworkBridge	= "testdockbr0"
-	unitTestStoreBase	= "/var/lib/docker/unit-tests"
-	testDaemonAddr		= "127.0.0.1:4270"
-	testDaemonProto		= "tcp"
+	unitTestImageName     = "docker-test-image"
+	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestNetworkBridge = "testdockbr0"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	testDaemonAddr        = "127.0.0.1:4270"
+	testDaemonProto       = "tcp"
 )
 
-var globalRuntime *Runtime
+var (
+	globalRuntime   *Runtime
+	startFds        int
+	startGoroutines int
+)
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -81,21 +85,21 @@ func init() {
 	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
-	if err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
 		panic(err)
+	} else {
+		globalRuntime = runtime
 	}
-	globalRuntime = runtime
 
 	// Create the "Server"
 	srv := &Server{
-		runtime:     runtime,
+		runtime:     globalRuntime,
 		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
 	// If the unit test is not found, try to download it.
-	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
+	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
 		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
 			panic(err)
@@ -110,29 +114,11 @@ func init() {
 
 	// Give some time to ListenAndServer to actually start
 	time.Sleep(time.Second)
+
+	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
-
-func newTestRuntime() (*Runtime, error) {
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		return nil, err
-	}
-	if err := os.Remove(root); err != nil {
-		return nil, err
-	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		return nil, err
-	}
-
-	runtime, err := NewRuntimeFromDirectory(root, false)
-	if err != nil {
-		return nil, err
-	}
-	runtime.UpdateCapabilities(true)
-	return runtime, nil
-}
 
 func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.All()
@@ -148,10 +134,7 @@ func GetTestImage(runtime *Runtime) *Image {
 }
 
 func TestRuntimeCreate(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	// Make sure we start we 0 containers
@@ -223,10 +206,7 @@ func TestRuntimeCreate(t *testing.T) {
 }
 
 func TestDestroy(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
@@ -270,42 +250,16 @@ func TestDestroy(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	builder := NewBuilder(runtime)
-
-	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container1)
 
-	container2, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container2)
 
-	container3, err := builder.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container3, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container3)
 
 	if runtime.Get(container1.ID) != container1 {
@@ -323,11 +277,8 @@ func TestGet(t *testing.T) {
 }
 
 func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container, string) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	var err error
+	runtime := mkRuntime(t)
 	port := 5554
 	var container *Container
 	var strPort string
@@ -383,31 +334,50 @@ func TestAllocateTCPPortLocalhost(t *testing.T) {
 	defer nuke(runtime)
 	defer container.Kill()
 
-	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
+	for i := 0; i != 10; i++ {
+		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
 
-	input := bytes.NewBufferString("well hello there\n")
-	_, err = conn.Write(input.Bytes())
-	if err != nil {
-		t.Fatal(err)
+		input := bytes.NewBufferString("well hello there\n")
+		_, err = conn.Write(input.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]byte, 16)
+		read := 0
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		read, err = conn.Read(buf)
+		if err != nil {
+			if err, ok := err.(*net.OpError); ok {
+				if err.Err == syscall.ECONNRESET {
+					t.Logf("Connection reset by the proxy, socat is probably not listening yet, trying again in a sec")
+					conn.Close()
+					time.Sleep(time.Second)
+					continue
+				}
+				if err.Timeout() {
+					t.Log("Timeout, trying again")
+					conn.Close()
+					continue
+				}
+			}
+			t.Fatal(err)
+		}
+		output := string(buf[:read])
+		if !strings.Contains(output, "well hello there") {
+			t.Fatal(fmt.Errorf("[%v] doesn't contain [well hello there]", output))
+		} else {
+			return
+		}
 	}
-	buf := make([]byte, 16)
-	read := 0
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	read, err = conn.Read(buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	output := string(buf[:read])
-	if !strings.Contains(output, "well hello there") {
-		t.Fatal(fmt.Errorf("[%v] doesn't contain [well hello there]", output))
-	}
+
+	t.Fatal("No reply from the container")
 }
 
-// Run a container with a TCP port allocated, and test that it can receive connections on localhost
+// Run a container with an UDP port allocated, and test that it can receive connections on localhost
 func TestAllocateUDPPortLocalhost(t *testing.T) {
 	runtime, container, port := startEchoServerContainer(t, "udp")
 	defer nuke(runtime)
@@ -421,12 +391,16 @@ func TestAllocateUDPPortLocalhost(t *testing.T) {
 
 	input := bytes.NewBufferString("well hello there\n")
 	buf := make([]byte, 16)
-	for i := 0; i != 10; i++ {
+	// Try for a minute, for some reason the select in socat may take ages
+	// to return even though everything on the path seems fine (i.e: the
+	// UDPProxy forwards the traffic correctly and you can see the packets
+	// on the interface from within the container).
+	for i := 0; i != 120; i++ {
 		_, err := conn.Write(input.Bytes())
 		if err != nil {
 			t.Fatal(err)
 		}
-		conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 		read, err := conn.Read(buf)
 		if err == nil {
 			output := string(buf[:read])
@@ -440,46 +414,14 @@ func TestAllocateUDPPortLocalhost(t *testing.T) {
 }
 
 func TestRestore(t *testing.T) {
-
-	root, err := ioutil.TempDir("", "docker-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(root); err != nil {
-		t.Fatal(err)
-	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime1, err := NewRuntimeFromDirectory(root, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	builder := NewBuilder(runtime1)
-
+	runtime1 := mkRuntime(t)
+	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, err := builder.Create(&Config{
-		Image: GetTestImage(runtime1).ID,
-		Cmd:   []string{"ls", "-al"},
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, err := builder.Create(&Config{
-		Image:     GetTestImage(runtime1).ID,
-		Cmd:       []string{"/bin/cat"},
-		OpenStdin: true,
-	},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
@@ -514,7 +456,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(root, false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
 	if err != nil {
 		t.Fatal(err)
 	}

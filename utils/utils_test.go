@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -59,9 +60,9 @@ func TestWriteBroadcaster(t *testing.T) {
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
 	bufferA := &dummyWriter{}
-	writer.AddWriter(bufferA)
+	writer.AddWriter(bufferA, "")
 	bufferB := &dummyWriter{}
-	writer.AddWriter(bufferB)
+	writer.AddWriter(bufferB, "")
 	writer.Write([]byte("foo"))
 
 	if bufferA.String() != "foo" {
@@ -75,7 +76,7 @@ func TestWriteBroadcaster(t *testing.T) {
 	// Test2: bufferA and bufferB should contain "foobar",
 	// while bufferC should only contain "bar"
 	bufferC := &dummyWriter{}
-	writer.AddWriter(bufferC)
+	writer.AddWriter(bufferC, "")
 	writer.Write([]byte("bar"))
 
 	if bufferA.String() != "foobar" {
@@ -90,35 +91,22 @@ func TestWriteBroadcaster(t *testing.T) {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
-	// Test3: Test removal
-	writer.RemoveWriter(bufferB)
-	writer.Write([]byte("42"))
-	if bufferA.String() != "foobar42" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
-	if bufferB.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferB.String())
-	}
-	if bufferC.String() != "bar42" {
-		t.Errorf("Buffer contains %v", bufferC.String())
-	}
-
-	// Test4: Test eviction on failure
+	// Test3: Test eviction on failure
 	bufferA.failOnWrite = true
 	writer.Write([]byte("fail"))
-	if bufferA.String() != "foobar42" {
+	if bufferA.String() != "foobar" {
 		t.Errorf("Buffer contains %v", bufferA.String())
 	}
-	if bufferC.String() != "bar42fail" {
+	if bufferC.String() != "barfail" {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 	// Even though we reset the flag, no more writes should go in there
 	bufferA.failOnWrite = false
 	writer.Write([]byte("test"))
-	if bufferA.String() != "foobar42" {
+	if bufferA.String() != "foobar" {
 		t.Errorf("Buffer contains %v", bufferA.String())
 	}
-	if bufferC.String() != "bar42failtest" {
+	if bufferC.String() != "barfailtest" {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
@@ -140,7 +128,7 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 	writer := NewWriteBroadcaster()
 	c := make(chan bool)
 	go func() {
-		writer.AddWriter(devNullCloser(0))
+		writer.AddWriter(devNullCloser(0), "")
 		c <- true
 	}()
 	writer.Write([]byte("hello"))
@@ -264,14 +252,16 @@ func TestCompareKernelVersion(t *testing.T) {
 
 func TestHumanSize(t *testing.T) {
 
-	size1000 := HumanSize(1000)
-	if size1000 != "    1 kB" {
-		t.Errorf("1000 -> expected     1 kB, got %s", size1000)
+	size := strings.Trim(HumanSize(1000), " \t")
+	expect := "1 kB"
+	if size != expect {
+		t.Errorf("1000 -> expected '%s', got '%s'", expect, size)
 	}
 
-	size1024 := HumanSize(1024)
-	if size1024 != "1.024 kB" {
-		t.Errorf("1024 -> expected 1.024 kB, got %s", size1024)
+	size = strings.Trim(HumanSize(1024), " \t")
+	expect = "1.024 kB"
+	if size != expect {
+		t.Errorf("1024 -> expected '%s', got '%s'", expect, size)
 	}
 }
 
@@ -290,5 +280,26 @@ func TestParseHost(t *testing.T) {
 	}
 	if addr := ParseHost("127.0.0.1", 4243, "unix:///var/run/docker.sock"); addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
+	}
+}
+
+func TestParseRepositoryTag(t *testing.T) {
+	if repo, tag := ParseRepositoryTag("root"); repo != "root" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("root:tag"); repo != "root" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "tag", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("user/repo"); repo != "user/repo" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("user/repo:tag"); repo != "user/repo" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "tag", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("url:5000/repo"); repo != "url:5000/repo" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("url:5000/repo:tag"); repo != "url:5000/repo" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
 	}
 }

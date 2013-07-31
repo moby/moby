@@ -5,53 +5,54 @@
 Setting Up a Dev Environment
 ============================
 
-Instructions that have been verified to work on Ubuntu Precise 12.04 (LTS) (64-bit),
+To make it easier to contribute to Docker, we provide a standard development environment. It is important that
+the same environment be used for all tests, builds and releases. The standard development environment defines
+all build dependencies: system libraries and binaries, go environment, go dependencies, etc.
 
 
-Dependencies
-------------
+Step 1: install docker
+----------------------
 
-**Linux kernel 3.8**
+Docker's build environment itself is a docker container, so the first step is to install docker on your system.
 
-Due to a bug in LXC docker works best on the 3.8 kernel. Precise comes with a 3.2 kernel, so we need to upgrade it. The kernel we install comes with AUFS built in.
-
-
-.. code-block:: bash
-
-   # install the backported kernel
-   sudo apt-get update && sudo apt-get install linux-image-generic-lts-raring
-
-   # reboot
-   sudo reboot
+You can follow the `install instructions most relevant to your system <https://docs.docker.io/en/latest/installation/>`.
+Make sure you have a working, up-to-date docker installation, then continue to the next step.
 
 
-Installation
-------------
+Step 2: check out the source
+----------------------------
 
-.. code-block:: bash
-		
-    sudo apt-get install python-software-properties
-    sudo add-apt-repository ppa:gophers/go
-    sudo apt-get update
-    sudo apt-get -y install lxc xz-utils curl golang-stable git aufs-tools
+::
 
-    export GOPATH=~/go/
-    export PATH=$GOPATH/bin:$PATH
-
-    mkdir -p $GOPATH/src/github.com/dotcloud
-    cd $GOPATH/src/github.com/dotcloud
-    git clone git://github.com/dotcloud/docker.git
+    git clone http://git@github.com/dotcloud/docker
     cd docker
 
-    go get -v github.com/dotcloud/docker/...
-    go install -v github.com/dotcloud/docker/...
+
+Step 3: build
+-------------
+
+When you are ready to build docker, run this command:
+
+::
+
+    docker build -t docker .
+
+This will build the revision currently checked out in the repository. Feel free to check out the version
+of your choice.
+
+If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated
+in a standard build environment.
+
+You can run an interactive session in the newly built container:
+
+::
+
+    docker run -i -t docker bash
 
 
-Then run the docker daemon,
+To extract the binaries from the container:
 
-.. code-block:: bash
+::
 
-    sudo $GOPATH/bin/docker -d
+    docker run docker sh -c 'cat $(which docker)' > docker-build && chmod +x docker-build
 
-
-Run the ``go install`` command (above) to recompile docker.

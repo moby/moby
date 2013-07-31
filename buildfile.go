@@ -7,9 +7,11 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -28,8 +30,8 @@ type buildFile struct {
 	maintainer string
 	config     *Config
 	context    string
+	verbose    bool
 
-	lastContainer *Container
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
@@ -66,6 +68,9 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	b.image = image.ID
 	b.config = &Config{}
+	if b.config.Env == nil || len(b.config.Env) == 0 {
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	}
 	return nil
 }
 
@@ -111,6 +116,40 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
+func (b *buildFile) FindEnvKey(key string) int {
+	for k, envVar := range b.config.Env {
+		envParts := strings.SplitN(envVar, "=", 2)
+		if key == envParts[0] {
+			return k
+		}
+	}
+	return -1
+}
+
+func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
+	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+	if err != nil {
+		return value, err
+	}
+	matches := exp.FindAllString(value, -1)
+	for _, match := range matches {
+		match = match[strings.Index(match, "$"):]
+		matchKey := strings.Trim(match, "${}")
+
+		for _, envVar := range b.config.Env {
+			envParts := strings.SplitN(envVar, "=", 2)
+			envKey := envParts[0]
+			envValue := envParts[1]
+
+			if envKey == matchKey {
+				value = strings.Replace(value, match, envValue, -1)
+				break
+			}
+		}
+	}
+	return value, nil
+}
+
 func (b *buildFile) CmdEnv(args string) error {
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
@@ -119,14 +158,19 @@ func (b *buildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	for i, elem := range b.config.Env {
-		if strings.HasPrefix(elem, key+"=") {
-			b.config.Env[i] = key + "=" + value
-			return nil
-		}
+	envKey := b.FindEnvKey(key)
+	replacedValue, err := b.ReplaceEnvMatches(value)
+	if err != nil {
+		return err
 	}
-	b.config.Env = append(b.config.Env, key+"="+value)
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
+	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+
+	if envKey >= 0 {
+		b.config.Env[envKey] = replacedVar
+		return nil
+	}
+	b.config.Env = append(b.config.Env, replacedVar)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
 func (b *buildFile) CmdCmd(args string) error {
@@ -173,12 +217,51 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdVolume(args string) error {
+	if args == "" {
+		return fmt.Errorf("Volume cannot be empty")
+	}
+
+	var volume []string
+	if err := json.Unmarshal([]byte(args), &volume); err != nil {
+		volume = []string{args}
+	}
+	if b.config.Volumes == nil {
+		b.config.Volumes = NewPathOpts()
+	}
+	for _, v := range volume {
+		b.config.Volumes[v] = struct{}{}
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	file, err := utils.Download(orig, ioutil.Discard)
 	if err != nil {
 		return err
 	}
 	defer file.Body.Close()
+
+	// If the destination is a directory, figure out the filename.
+	if strings.HasSuffix(dest, "/") {
+		u, err := url.Parse(orig)
+		if err != nil {
+			return err
+		}
+		path := u.Path
+		if strings.HasSuffix(path, "/") {
+			path = path[:len(path)-1]
+		}
+		parts := strings.Split(path, "/")
+		filename := parts[len(parts)-1]
+		if filename == "" {
+			return fmt.Errorf("cannot determine filename from url: %s", u)
+		}
+		dest = dest + filename
+	}
 
 	return container.Inject(file.Body, dest)
 }
@@ -187,7 +270,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	origPath := path.Join(b.context, orig)
 	destPath := path.Join(container.RootfsPath(), dest)
 	// Preserve the trailing '/'
-	if dest[len(dest)-1] == '/' {
+	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
 	}
 	fi, err := os.Stat(origPath)
@@ -202,7 +285,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	} else if err := UntarPath(origPath, destPath); err != nil {
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
-		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
 		}
 		if err := CopyWithTar(origPath, destPath); err != nil {
@@ -220,8 +303,16 @@ func (b *buildFile) CmdAdd(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ADD format")
 	}
-	orig := strings.Trim(tmp[0], " \t")
-	dest := strings.Trim(tmp[1], " \t")
+
+	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	if err != nil {
+		return err
+	}
+
+	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	if err != nil {
+		return err
+	}
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
@@ -233,7 +324,6 @@ func (b *buildFile) CmdAdd(args string) error {
 		return err
 	}
 	b.tmpContainers[container.ID] = struct{}{}
-	b.lastContainer = container
 
 	if err := container.EnsureMounted(); err != nil {
 		return err
@@ -269,7 +359,6 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
-	b.lastContainer = c
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
@@ -280,6 +369,13 @@ func (b *buildFile) run() (string, error) {
 	hostConfig := &HostConfig{}
 	if err := c.Start(hostConfig); err != nil {
 		return "", err
+	}
+
+	if b.verbose {
+		err = <-c.Attach(nil, nil, b.out, b.out)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Wait for it to finish
@@ -316,7 +412,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		b.tmpContainers[container.ID] = struct{}{}
-		b.lastContainer = container
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 		if err := container.EnsureMounted(); err != nil {
@@ -344,29 +439,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	defer func() {
-		// If we have an error and a container, the display the logs
-		if b.lastContainer != nil {
-			fmt.Fprintf(b.out, "******** Logs from last container (%s) *******\n", b.lastContainer.ShortID())
-
-			cLog, err := b.lastContainer.ReadLog("stdout")
-			if err != nil {
-				utils.Debugf("Error reading logs (stdout): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stdout): %s", err)
-			}
-			cLog, err = b.lastContainer.ReadLog("stderr")
-			if err != nil {
-				utils.Debugf("Error reading logs (stderr): %s", err)
-			}
-			if _, err := io.Copy(b.out, cLog); err != nil {
-				utils.Debugf("Error streaming logs (stderr): %s", err)
-			}
-			fmt.Fprintf(b.out, "************* End of logs for %s *************\n", b.lastContainer.ShortID())
-		}
-	}()
-
 	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("/tmp", "docker-build")
@@ -419,7 +491,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			return "", ret.(error)
 		}
 
-		b.lastContainer = nil
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
@@ -429,7 +500,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -438,5 +509,6 @@ func NewBuildFile(srv *Server, out io.Writer) BuildFile {
 		out:           out,
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
+		verbose:       verbose,
 	}
 }

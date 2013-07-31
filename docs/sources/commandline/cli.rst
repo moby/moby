@@ -52,5 +52,6 @@ Available Commands
    command/start
    command/stop
    command/tag
+   command/top
    command/version
    command/wait

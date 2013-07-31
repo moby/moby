@@ -1,3 +1,8 @@
+.. use orphan to suppress "WARNING: document isn't included in any toctree"
+.. per http://sphinx-doc.org/markup/misc.html#file-wide-metadata
+
+:orphan:
+
 :title: Remote API v1.3
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
@@ -214,6 +219,46 @@ Inspect a container
 			"ResolvConfPath": "/etc/resolv.conf",
 			"Volumes": {}
 	   }
+
+	:statuscode 200: no error
+	:statuscode 404: no such container
+	:statuscode 500: server error
+
+
+List processes running inside a container
+*****************************************
+
+.. http:get:: /containers/(id)/top
+
+	List processes running inside the container ``id``
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+	   GET /containers/4fa6e0f0c678/top HTTP/1.1
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   [
+		{
+		 "PID":"11935",
+		 "Tty":"pts/2",
+		 "Time":"00:00:00",
+		 "Cmd":"sh"
+		},
+		{
+		 "PID":"12140",
+		 "Tty":"pts/2",
+		 "Time":"00:00:00",
+		 "Cmd":"sleep"
+		}
+	   ]
 
 	:statuscode 200: no error
 	:statuscode 404: no such container
@@ -880,7 +925,8 @@ Build an image from Dockerfile via stdin
 
         The Content-type header should be set to "application/tar".
 
-	:query t: repository name to be applied to the resulting image in case of success
+	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
+	:query q: suppress verbose build output
 	:statuscode 200: no error
         :statuscode 500: server error
 
@@ -943,7 +989,10 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false
+		"SwapLimit":false,
+		"EventsListeners":"0",
+		"LXCVersion":"0.7.5",
+		"KernelVersion":"3.8.0-19-generic"
 	   }
 
         :statuscode 200: no error
@@ -1010,6 +1059,36 @@ Create a new image from a container's changes
 	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
         :statuscode 201: no error
 	:statuscode 404: no such container
+        :statuscode 500: server error
+
+
+Monitor Docker's events
+***********************
+
+.. http:get:: /events
+
+	Get events from docker, either in real time via streaming, or via polling (using `since`)
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+           POST /events?since=1374067924
+
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {"status":"create","id":"dfdf82bd3881","time":1374067924}
+	   {"status":"start","id":"dfdf82bd3881","time":1374067924}
+	   {"status":"stop","id":"dfdf82bd3881","time":1374067966}
+	   {"status":"destroy","id":"dfdf82bd3881","time":1374067970}
+
+	:query since: timestamp used for polling
+        :statuscode 200: no error
         :statuscode 500: server error
 
 

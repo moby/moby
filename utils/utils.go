@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -87,7 +88,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	}
 	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
 		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
+			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
 		} else {
 			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
 		}
@@ -106,7 +107,7 @@ func (r *progressReader) Close() error {
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
 	tpl := string(template)
 	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
+		tpl = string(sf.FormatProgress("", "%8v/%v (%v)"))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
@@ -147,7 +148,7 @@ func HumanSize(size int64) string {
 		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%5.4g %s", sizef, units[i])
+	return fmt.Sprintf("%.4g %s", sizef, units[i])
 }
 
 func Trunc(s string, maxlen int) string {
@@ -247,30 +248,54 @@ func (r *bufReader) Close() error {
 
 type WriteBroadcaster struct {
 	sync.Mutex
-	writers map[io.WriteCloser]struct{}
+	buf     *bytes.Buffer
+	writers map[StreamWriter]bool
 }
 
-func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
+type StreamWriter struct {
+	wc     io.WriteCloser
+	stream string
+}
+
+func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
-	w.writers[writer] = struct{}{}
+	sw := StreamWriter{wc: writer, stream: stream}
+	w.writers[sw] = true
 	w.Unlock()
 }
 
-// FIXME: Is that function used?
-// FIXME: This relies on the concrete writer type used having equality operator
-func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.Lock()
-	delete(w.writers, writer)
-	w.Unlock()
+type JSONLog struct {
+	Log     string    `json:"log,omitempty"`
+	Stream  string    `json:"stream,omitempty"`
+	Created time.Time `json:"time"`
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		if n, err := writer.Write(p); err != nil || n != len(p) {
+	w.buf.Write(p)
+	for sw := range w.writers {
+		lp := p
+		if sw.stream != "" {
+			lp = nil
+			for {
+				line, err := w.buf.ReadString('\n')
+				if err != nil {
+					w.buf.Write([]byte(line))
+					break
+				}
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
+				if err != nil {
+					// On error, evict the writer
+					delete(w.writers, sw)
+					continue
+				}
+				lp = append(lp, b...)
+			}
+		}
+		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
 			// On error, evict the writer
-			delete(w.writers, writer)
+			delete(w.writers, sw)
 		}
 	}
 	return len(p), nil
@@ -279,15 +304,15 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
-	for writer := range w.writers {
-		writer.Close()
+	for sw := range w.writers {
+		sw.wc.Close()
 	}
-	w.writers = make(map[io.WriteCloser]struct{})
+	w.writers = make(map[StreamWriter]bool)
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[io.WriteCloser]struct{})}
+	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
 }
 
 func GetTotalUsedFds() int {
@@ -586,6 +611,24 @@ type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Time     int64  `json:"time,omitempty"`
+}
+
+func (jm *JSONMessage) Display(out io.Writer) error {
+	if jm.Time != 0 {
+		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
+	}
+	if jm.Progress != "" {
+		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
+	} else if jm.Error != "" {
+		return fmt.Errorf(jm.Error)
+	} else if jm.ID != "" {
+		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
+	} else {
+		fmt.Fprintf(out, "%s\n", jm.Status)
+	}
+	return nil
 }
 
 type StreamFormatter struct {
@@ -699,4 +742,27 @@ func ParseRepositoryTag(repos string) (string, string) {
 		return repos[:n], tag
 	}
 	return repos, ""
+}
+
+// UserLookup check if the given username or uid is present in /etc/passwd
+// and returns the user struct.
+// If the username is not found, an error is returned.
+func UserLookup(uid string) (*user.User, error) {
+	file, err := ioutil.ReadFile("/etc/passwd")
+	if err != nil {
+		return nil, err
+	}
+	for _, line := range strings.Split(string(file), "\n") {
+		data := strings.Split(line, ":")
+		if len(data) > 5 && (data[0] == uid || data[2] == uid) {
+			return &user.User{
+				Uid:      data[2],
+				Gid:      data[3],
+				Username: data[0],
+				Name:     data[4],
+				HomeDir:  data[5],
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("User not found in /etc/passwd")
 }

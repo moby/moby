@@ -10,4 +10,4 @@
 
     Usage: docker rm [OPTIONS] CONTAINER
 
-    Remove a container
+    Remove one or more containers

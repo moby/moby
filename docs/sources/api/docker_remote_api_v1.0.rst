@@ -1,3 +1,8 @@
+.. use orphan to suppress "WARNING: document isn't included in any toctree"
+.. per http://sphinx-doc.org/markup/misc.html#file-wide-metadata
+
+:orphan:
+
 :title: Remote API v1.0
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
@@ -300,8 +305,8 @@ Start a container
 	:statuscode 500: server error
 
 
-Stop a contaier
-***************
+Stop a container
+****************
 
 .. http:post:: /containers/(id)/stop
 

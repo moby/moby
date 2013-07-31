@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.3
+const APIVERSION = 1.4
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -47,21 +47,22 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	statusCode := http.StatusInternalServerError
 	if strings.HasPrefix(err.Error(), "No such") {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		statusCode = http.StatusNotFound
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		statusCode = http.StatusBadRequest
 	} else if strings.HasPrefix(err.Error(), "Conflict") {
-		http.Error(w, err.Error(), http.StatusConflict)
+		statusCode = http.StatusConflict
 	} else if strings.HasPrefix(err.Error(), "Impossible") {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		statusCode = http.StatusNotAcceptable
 	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
-		http.Error(w, err.Error(), http.StatusForbidden)
-	} else {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		statusCode = http.StatusForbidden
 	}
+	utils.Debugf("[error %d] %s", statusCode, err)
+	http.Error(w, err.Error(), statusCode)
 }
 
 func writeJSON(w http.ResponseWriter, b []byte) {
@@ -80,54 +81,15 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
-func getAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version > 1.1 {
-		w.WriteHeader(http.StatusNotFound)
-		return nil
-	}
-	authConfig, err := auth.LoadConfig(srv.runtime.root)
-	if err != nil {
-		if err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = &auth.AuthConfig{}
-	}
-	b, err := json.Marshal(&auth.AuthConfig{Username: authConfig.Username, Email: authConfig.Email})
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
-}
-
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
 	err := json.NewDecoder(r.Body).Decode(authConfig)
 	if err != nil {
 		return err
 	}
-	status := ""
-	if version > 1.1 {
-		status, err = auth.Login(authConfig, false)
-		if err != nil {
-			return err
-		}
-	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
-		if err != nil {
-			if err != auth.ErrConfigFileMissing {
-				return err
-			}
-		}
-		if authConfig.Username == localAuthConfig.Username {
-			authConfig.Password = localAuthConfig.Password
-		}
-
-		newAuthConfig := auth.NewAuthConfig(authConfig.Username, authConfig.Password, authConfig.Email, srv.runtime.root)
-		status, err = auth.Login(newAuthConfig, true)
-		if err != nil {
-			return err
-		}
+	status, err := auth.Login(authConfig)
+	if err != nil {
+		return err
 	}
 	if status != "" {
 		b, err := json.Marshal(&APIAuth{Status: status})
@@ -216,6 +178,64 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
+func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) error {
+		b, err := json.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("JSON error")
+		}
+		_, err = wf.Write(b)
+		if err != nil {
+			// On error, evict the listener
+			utils.Debugf("%s", err)
+			srv.Lock()
+			delete(srv.listeners, r.RemoteAddr)
+			srv.Unlock()
+			return err
+		}
+		return nil
+	}
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	listener := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.listeners[r.RemoteAddr] = listener
+	srv.Unlock()
+	since, err := strconv.ParseInt(r.Form.Get("since"), 10, 0)
+	if err != nil {
+		since = 0
+	}
+	w.Header().Set("Content-Type", "application/json")
+	wf := utils.NewWriteFlusher(w)
+	if since != 0 {
+		// If since, send previous events that happened after the timestamp
+		for _, event := range srv.events {
+			if event.Time >= since {
+				err := sendEvent(wf, &event)
+				if err != nil && err.Error() == "JSON error" {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for {
+		event := <-listener
+		err := sendEvent(wf, &event)
+		if err != nil && err.Error() == "JSON error" {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -243,6 +263,30 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 	b, err := json.Marshal(changesStr)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, b)
+	return nil
+}
+
+func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version < 1.4 {
+		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	name := vars["name"]
+	ps_args := r.Form.Get("ps_args")
+	procsStr, err := srv.ContainerTop(name, ps_args)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(procsStr)
 	if err != nil {
 		return err
 	}
@@ -411,16 +455,8 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
-	if version > 1.1 {
-		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return err
-		}
-	} else {
-		localAuthConfig, err := auth.LoadConfig(srv.runtime.root)
-		if err != nil && err != auth.ErrConfigFileMissing {
-			return err
-		}
-		authConfig = localAuthConfig
+	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+		return err
 	}
 	if err := parseForm(r); err != nil {
 		return err
@@ -756,12 +792,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
-	tag := ""
-	if strings.Contains(repoName, ":") {
-		remoteParts := strings.Split(repoName, ":")
-		tag = remoteParts[1]
-		repoName = remoteParts[0]
-	}
+	rawSuppressOutput := r.FormValue("q")
+	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
 
@@ -802,7 +834,13 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	}
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w))
+
+	suppressOutput, err := getBoolParam(rawSuppressOutput)
+	if err != nil {
+		return err
+	}
+
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
@@ -829,9 +867,9 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 
 	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
 		"GET": {
-			"/auth":                         getAuth,
-			"/version":                      getVersion,
+			"/events":                       getEvents,
 			"/info":                         getInfo,
+			"/version":                      getVersion,
 			"/images/json":                  getImagesJSON,
 			"/images/viz":                   getImagesViz,
 			"/images/search":                getImagesSearch,
@@ -842,6 +880,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/export":  getContainersExport,
 			"/containers/{name:.*}/changes": getContainersChanges,
 			"/containers/{name:.*}/json":    getContainersByName,
+			"/containers/{name:.*}/top":     getContainersTop,
 		},
 		"POST": {
 			"/auth":                         postAuth,
