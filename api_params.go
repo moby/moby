@@ -30,10 +30,8 @@ type APIInfo struct {
 }
 
 type APITop struct {
-	PID  string
-	Tty  string
-	Time string
-	Cmd  string
+	Titles    []string
+	Processes [][]string
 }
 
 type APIRmi struct {

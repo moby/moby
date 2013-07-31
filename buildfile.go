@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -67,6 +68,9 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	b.image = image.ID
 	b.config = &Config{}
+	if b.config.Env == nil || len(b.config.Env) == 0 {
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	}
 	return nil
 }
 
@@ -112,6 +116,40 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
+func (b *buildFile) FindEnvKey(key string) int {
+	for k, envVar := range b.config.Env {
+		envParts := strings.SplitN(envVar, "=", 2)
+		if key == envParts[0] {
+			return k
+		}
+	}
+	return -1
+}
+
+func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
+	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+	if err != nil {
+		return value, err
+	}
+	matches := exp.FindAllString(value, -1)
+	for _, match := range matches {
+		match = match[strings.Index(match, "$"):]
+		matchKey := strings.Trim(match, "${}")
+
+		for _, envVar := range b.config.Env {
+			envParts := strings.SplitN(envVar, "=", 2)
+			envKey := envParts[0]
+			envValue := envParts[1]
+
+			if envKey == matchKey {
+				value = strings.Replace(value, match, envValue, -1)
+				break
+			}
+		}
+	}
+	return value, nil
+}
+
 func (b *buildFile) CmdEnv(args string) error {
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
@@ -120,14 +158,19 @@ func (b *buildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	for i, elem := range b.config.Env {
-		if strings.HasPrefix(elem, key+"=") {
-			b.config.Env[i] = key + "=" + value
-			return nil
-		}
+	envKey := b.FindEnvKey(key)
+	replacedValue, err := b.ReplaceEnvMatches(value)
+	if err != nil {
+		return err
 	}
-	b.config.Env = append(b.config.Env, key+"="+value)
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
+	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+
+	if envKey >= 0 {
+		b.config.Env[envKey] = replacedVar
+		return nil
+	}
+	b.config.Env = append(b.config.Env, replacedVar)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
 func (b *buildFile) CmdCmd(args string) error {
@@ -242,7 +285,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	} else if err := UntarPath(origPath, destPath); err != nil {
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
-		if err := os.MkdirAll(path.Dir(destPath), 0700); err != nil {
+		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
 		}
 		if err := CopyWithTar(origPath, destPath); err != nil {
@@ -260,8 +303,16 @@ func (b *buildFile) CmdAdd(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ADD format")
 	}
-	orig := strings.Trim(tmp[0], " \t")
-	dest := strings.Trim(tmp[1], " \t")
+
+	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	if err != nil {
+		return err
+	}
+
+	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	if err != nil {
+		return err
+	}
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}

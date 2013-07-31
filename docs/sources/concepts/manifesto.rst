@@ -4,10 +4,6 @@
 
 .. _dockermanifesto:
 
-*(This was our original Welcome page, but it is a bit forward-looking
-for docs, and maybe not enough vision for a true manifesto. We'll
-reveal more vision in the future to make it more Manifesto-y.)*
-
 Docker Manifesto
 ----------------
 
@@ -131,60 +127,3 @@ sitting 10 miles away.
 
 With Standard Containers we can put an end to that embarrassment, by
 making INDUSTRIAL-GRADE DELIVERY of software a reality.
-
-Standard Container Specification
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-(TODO)
-
-Image format
-~~~~~~~~~~~~
-
-Standard operations
-~~~~~~~~~~~~~~~~~~~
-
--  Copy
--  Run
--  Stop
--  Wait
--  Commit
--  Attach standard streams
--  List filesystem changes
--  ...
-
-Execution environment
-~~~~~~~~~~~~~~~~~~~~~
-
-Root filesystem
-^^^^^^^^^^^^^^^
-
-Environment variables
-^^^^^^^^^^^^^^^^^^^^^
-
-Process arguments
-^^^^^^^^^^^^^^^^^
-
-Networking
-^^^^^^^^^^
-
-Process namespacing
-^^^^^^^^^^^^^^^^^^^
-
-Resource limits
-^^^^^^^^^^^^^^^
-
-Process monitoring
-^^^^^^^^^^^^^^^^^^
-
-Logging
-^^^^^^^
-
-Signals
-^^^^^^^
-
-Pseudo-terminal allocation
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Security
-^^^^^^^^
-

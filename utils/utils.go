@@ -611,11 +611,11 @@ type JSONMessage struct {
 	Status   string `json:"status,omitempty"`
 	Progress string `json:"progress,omitempty"`
 	Error    string `json:"error,omitempty"`
-	ID	 string `json:"id,omitempty"`
-	Time	 int64 `json:"time,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Time     int64  `json:"time,omitempty"`
 }
 
-func (jm *JSONMessage) Display(out io.Writer) (error) {
+func (jm *JSONMessage) Display(out io.Writer) error {
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
@@ -630,7 +630,6 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	}
 	return nil
 }
-
 
 type StreamFormatter struct {
 	json bool

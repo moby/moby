@@ -282,3 +282,24 @@ func TestParseHost(t *testing.T) {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
 }
+
+func TestParseRepositoryTag(t *testing.T) {
+	if repo, tag := ParseRepositoryTag("root"); repo != "root" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("root:tag"); repo != "root" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "tag", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("user/repo"); repo != "user/repo" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("user/repo:tag"); repo != "user/repo" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "tag", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("url:5000/repo"); repo != "url:5000/repo" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("url:5000/repo:tag"); repo != "url:5000/repo" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
+	}
+}

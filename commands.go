@@ -314,13 +314,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
+	var promptDefault = func(prompt string, configDefault string) {
+		if configDefault == "" {
+			fmt.Fprintf(cli.out, "%s: ", prompt)
+		} else {
+			fmt.Fprintf(cli.out, "%s (%s): ", prompt, configDefault)
+		}
+	}
+
 	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
 	if !ok {
 		authconfig = auth.AuthConfig{}
 	}
 
 	if *flUsername == "" {
-		fmt.Fprintf(cli.out, "Username (%s): ", authconfig.Username)
+		promptDefault("Username", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
 		if username == "" {
 			username = authconfig.Username
@@ -340,7 +348,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if *flEmail == "" {
-			fmt.Fprintf(cli.out, "Email (%s): ", authconfig.Email)
+			promptDefault("Email", authconfig.Email)
 			email = readAndEchoString(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
@@ -596,23 +604,28 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if cmd.NArg() == 0 {
 		cmd.Usage()
 		return nil
 	}
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
+	val := url.Values{}
+	if cmd.NArg() > 1 {
+		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
+	}
+
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil)
 	if err != nil {
 		return err
 	}
-	var procs []APITop
+	procs := APITop{}
 	err = json.Unmarshal(body, &procs)
 	if err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "PID\tTTY\tTIME\tCMD")
-	for _, proc := range procs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", proc.PID, proc.Tty, proc.Time, proc.Cmd)
+	fmt.Fprintln(w, strings.Join(procs.Titles, "\t"))
+	for _, proc := range procs.Processes {
+		fmt.Fprintln(w, strings.Join(proc, "\t"))
 	}
 	w.Flush()
 	return nil
@@ -1679,13 +1692,12 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	}
 	cli.resizeTty(id)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGWINCH)
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
-		for sig := range c {
-			if sig == syscall.SIGWINCH {
-				cli.resizeTty(id)
-			}
+		for {
+			<-sigchan
+			cli.resizeTty(id)
 		}
 	}()
 	return nil
