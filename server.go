@@ -134,10 +134,11 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	}
 	defer file.Body.Close()
 
-	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
+	runConfig, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
 	if err != nil {
 		return "", err
 	}
+	config := runConfig.Configuration
 
 	b := NewBuilder(srv.runtime)
 	c, err := b.Create(config)
@@ -859,30 +860,30 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(config *Config) (string, error) {
+func (srv *Server) ContainerCreate(config *Config, runtime *Runtime) (string, error) {
 
 	if config.Memory != 0 && config.Memory < 524288 {
 		return "", fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
 	}
 
-	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
+	if config.Memory > 0 && !runtime.capabilities.MemoryLimit {
 		config.Memory = 0
 	}
 
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
+	if config.Memory > 0 && !runtime.capabilities.SwapLimit {
 		config.MemorySwap = -1
 	}
-	b := NewBuilder(srv.runtime)
+	b := NewBuilder(runtime)
 	container, err := b.Create(config)
 	if err != nil {
-		if srv.runtime.graph.IsNotExist(err) {
+		if runtime.graph.IsNotExist(err) {
 
 			_, tag := utils.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = DEFAULTTAG
 			}
 
-			return "", fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return "", fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)	
 		}
 		return "", err
 	}
@@ -1091,8 +1092,16 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	return nil, nil
 }
 
+func (srv *Server) SetConfigLxcTemplate(runtime *Runtime) {
+	// Allow for ability to override the template from the client
+	if runtime.LxcTemplate == "" && srv.runtime.LxcTemplate != "" {
+		runtime.LxcTemplate = srv.runtime.LxcTemplate
+	}
+}
+
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if container := srv.runtime.Get(name); container != nil {
+		srv.SetConfigLxcTemplate(container.runtime)
 		if err := container.Start(hostConfig); err != nil {
 			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
@@ -1246,11 +1255,11 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 
 }
 
-func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
+func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts, templateFile string) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime(flGraphPath, autoRestart, dns)
+	runtime, err := NewRuntime(flGraphPath, autoRestart, dns, templateFile)
 	if err != nil {
 		return nil, err
 	}

@@ -132,6 +132,23 @@ const LxcHostConfigTemplate = `
 var LxcTemplateCompiled *template.Template
 var LxcHostConfigTemplateCompiled *template.Template
 
+func GetLxcTemplateCompiled(runtime *Runtime) (*template.Template, error) {
+	funcMap := template.FuncMap{
+		"getMemorySwap": getMemorySwap,
+	}
+
+	templateText := LxcTemplate
+
+	if runtime.LxcTemplate != "" {
+		templateText = runtime.LxcTemplate
+	}
+
+	funcMap := template.FuncMap{
+		"getMemorySwap": getMemorySwap,
+	}
+	return template.New("lxc").Funcs(funcMap).Parse(templateText)
+}
+
 func getMemorySwap(config *Config) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.

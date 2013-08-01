@@ -36,6 +36,8 @@ func main() {
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
+	flTemplate := flag.String("T", "", "Set custom LXC template filename")
+
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flag.Parse()
 	if *flVersion {
@@ -64,7 +66,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, *flTemplate); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -112,7 +114,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string, templateFile string) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -130,7 +132,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns, templateFile)
 	if err != nil {
 		return err
 	}

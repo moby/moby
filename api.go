@@ -27,6 +27,11 @@ const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 
 type HttpApiFunc func(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
+type CreateContainerRequest struct {
+	ContainerConfig Config
+	LxcTemplate     string
+}
+
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
@@ -494,10 +499,10 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	config := &Config{}
+	request := &CreateContainerRequest{}
 	out := &APIRun{}
 
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
 		return err
 	}
 
@@ -506,12 +511,18 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
+	config := &request.ContainerConfig
 	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
 
-	id, err := srv.ContainerCreate(config)
+	runtime := *srv.runtime
+	if request.LxcTemplate != "" {
+		runtime.LxcTemplate = request.LxcTemplate
+	}
+	id, err := srv.ContainerCreate(config, &runtime)
+
 	if err != nil {
 		return err
 	}

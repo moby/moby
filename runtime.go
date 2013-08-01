@@ -34,6 +34,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	Dns            []string
+	LxcTemplate    string
 }
 
 var sysInitPath string
@@ -250,8 +251,16 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 }
 
+func ReadTemplateFile(filename string) (string, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
+func NewRuntime(flGraphPath string, autoRestart bool, dns []string, templateFile string) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
 	if err != nil {
 		return nil, err
@@ -267,6 +276,12 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 		}
 	}
 	runtime.UpdateCapabilities(false)
+	if templateFile != "" {
+		runtime.LxcTemplate, err = ReadTemplateFile(templateFile)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return runtime, nil
 }
 

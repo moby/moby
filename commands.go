@@ -1391,10 +1391,13 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRun(args ...string) error {
-	config, hostConfig, cmd, err := ParseRun(args, nil)
+	runConfig, err := ParseRun(args, nil)
 	if err != nil {
 		return err
 	}
+
+	config, hostConfig, cmd := runConfig.Configuration, runConfig.HostConfiguration, runConfig.Flags
+
 	if config.Image == "" {
 		cmd.Usage()
 		return nil
@@ -1413,7 +1416,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//create the container
-	body, statusCode, err := cli.call("POST", "/containers/create", config)
+	body, statusCode, err := cli.call("POST", "/containers/create", CreateContainerRequest{*config, runConfig.LxcTemplateText})
 	//if image not found try to pull it
 	if statusCode == 404 {
 		_, tag := utils.ParseRepositoryTag(config.Image)

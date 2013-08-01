@@ -83,13 +83,13 @@ func TestCreateRm(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
-
-	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	runConfig, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config := runConfig.Configuration
 
-	id, err := srv.ContainerCreate(config)
+	id, err := srv.ContainerCreate(config, runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,12 +114,13 @@ func TestCommit(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	runConfig, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config := runConfig.Configuration
 
-	id, err := srv.ContainerCreate(config)
+	id, err := srv.ContainerCreate(config, runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,12 +136,13 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	runConfig, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config, hostConfig := runConfig.Configuration, runConfig.HostConfiguration
 
-	id, err := srv.ContainerCreate(config)
+	id, err := srv.ContainerCreate(config, runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +200,7 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 			CpuShares: 1000,
 			Cmd:       []string{"/bin/cat"},
 		},
+		runtime,
 	)
 	if err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
@@ -357,12 +360,13 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	runConfig, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	containerID, err := srv.ContainerCreate(config)
+	config, hostConfig := runConfig.Configuration, runConfig.HostConfiguration
+	containerID, err := srv.ContainerCreate(config, runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +387,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, err = srv.ContainerCreate(config)
+	containerID, err = srv.ContainerCreate(config, runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
