@@ -26,11 +26,12 @@ type buildFile struct {
 	builder *Builder
 	srv     *Server
 
-	image      string
-	maintainer string
-	config     *Config
-	context    string
-	verbose    bool
+	image        string
+	maintainer   string
+	config       *Config
+	context      string
+	verbose      bool
+	utilizeCache bool
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -94,15 +95,17 @@ func (b *buildFile) CmdRun(args string) error {
 
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
-	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-		return err
-	} else if cache != nil {
-		fmt.Fprintf(b.out, " ---> Using cache\n")
-		utils.Debugf("[BUILDER] Use cached version")
-		b.image = cache.ID
-		return nil
-	} else {
-		utils.Debugf("[BUILDER] Cache miss")
+	if b.utilizeCache {
+		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+			return err
+		} else if cache != nil {
+			fmt.Fprintf(b.out, " ---> Using cache\n")
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.ID
+			return nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
 	}
 
 	cid, err := b.run()
@@ -397,16 +400,19 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
 		defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
-		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-			return err
-		} else if cache != nil {
-			fmt.Fprintf(b.out, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return nil
-		} else {
-			utils.Debugf("[BUILDER] Cache miss")
+		if b.utilizeCache {
+			if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+				return err
+			} else if cache != nil {
+				fmt.Fprintf(b.out, " ---> Using cache\n")
+				utils.Debugf("[BUILDER] Use cached version")
+				b.image = cache.ID
+				return nil
+			} else {
+				utils.Debugf("[BUILDER] Cache miss")
+			}
 		}
+
 		container, err := b.builder.Create(b.config)
 		if err != nil {
 			return err
@@ -500,7 +506,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -510,5 +516,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
 		verbose:       verbose,
+		utilizeCache:  utilizeCache,
 	}
 }
