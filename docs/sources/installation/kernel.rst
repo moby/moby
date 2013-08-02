@@ -15,12 +15,11 @@ In short, Docker has the following kernel requirements:
 
 - Cgroups and namespaces must be enabled.
 
-
-  The officially supported kernel is the one recommended by the
-  :ref:`ubuntu_linux` installation path. It is the one that most developers
-  will use, and the one that receives the most attention from the core
-  contributors. If you decide to go with a different kernel and hit a bug,
-  please try to reproduce it with the official kernels first.
+The officially supported kernel is the one recommended by the
+:ref:`ubuntu_linux` installation path. It is the one that most developers
+will use, and the one that receives the most attention from the core
+contributors. If you decide to go with a different kernel and hit a bug,
+please try to reproduce it with the official kernels first.
 
 If you cannot or do not want to use the "official" kernels,
 here is some technical background about the features (both optional and
