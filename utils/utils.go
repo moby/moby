@@ -688,17 +688,29 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
 }
 
-func CheckLocalDns() bool {
+// GetResolvConf opens and read the content of /etc/resolv.conf.
+// It returns it as byte slice.
+func GetResolvConf() ([]byte, error) {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		Debugf("Error openning resolv.conf: %s", err)
-		return false
+		return nil, err
 	}
-	for _, ip := range []string{
-		"127.0.0.1",
-		"127.0.1.1",
+	return resolv, nil
+}
+
+// CheckLocalDns looks into the /etc/resolv.conf,
+// it returns true if there is a local nameserver or if there is no nameserver.
+func CheckLocalDns(resolvConf []byte) bool {
+	if !bytes.Contains(resolvConf, []byte("nameserver")) {
+		return true
+	}
+
+	for _, ip := range [][]byte{
+		[]byte("127.0.0.1"),
+		[]byte("127.0.1.1"),
 	} {
-		if strings.Contains(string(resolv), ip) {
+		if bytes.Contains(resolvConf, ip) {
 			return true
 		}
 	}
