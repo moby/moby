@@ -100,13 +100,6 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return endpoint, reposName, err
 }
 
-// VersionInfo is used to model entities which has a version.
-// It is basically a tupple with name and version.
-type VersionInfo interface {
-	Name() string
-	Version() string
-}
-
 func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	for _, cookie := range c.Jar.Cookies(req.URL) {
 		req.AddCookie(cookie)
@@ -121,29 +114,14 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	return res, err
 }
 
-// Set the user agent field in the header based on the versions provided
-// in NewRegistry() and extra.
-func (r *Registry) setUserAgent(req *http.Request, extra ...VersionInfo) {
-	if len(r.baseVersions)+len(extra) == 0 {
-		return
-	}
-	if len(extra) == 0 {
-		req.Header.Set("User-Agent", r.baseVersionsStr)
-	} else {
-		req.Header.Set("User-Agent", appendVersions(r.baseVersionsStr, extra...))
-	}
-	return
-}
-
 // Retrieve the history of a given image from the Registry.
 // Return a list of the parent's json (requested image included)
 func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]string, error) {
-	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/ancestry", nil)
+	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/ancestry", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	r.setUserAgent(req)
 	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
 		if res != nil {
@@ -170,7 +148,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
 
-	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
+	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return false
 	}
@@ -185,12 +163,11 @@ func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) boo
 // Retrieve an image from the Registry.
 func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([]byte, int, error) {
 	// Get the JSON
-	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
+	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	r.setUserAgent(req)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
@@ -213,12 +190,11 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 }
 
 func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (io.ReadCloser, error) {
-	req, err := http.NewRequest("GET", registry+"images/"+imgID+"/layer", nil)
+	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/layer", nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-	r.setUserAgent(req)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, err
@@ -239,7 +215,6 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 			return nil, err
 		}
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
-		r.setUserAgent(req)
 		res, err := doWithCookies(r.client, req)
 		if err != nil {
 			return nil, err
@@ -281,7 +256,6 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	}
 	req.Header.Set("X-Docker-Token", "true")
-	r.setUserAgent(req)
 
 	res, err := r.client.Do(req)
 	if err != nil {
@@ -339,7 +313,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
 
-	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/checksum", nil)
+	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/checksum", nil)
 	if err != nil {
 		return err
 	}
@@ -375,13 +349,12 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
 
-	req, err := http.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
+	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
 	if err != nil {
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	r.setUserAgent(req)
 
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
@@ -410,14 +383,13 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 
 	tarsumLayer := &utils.TarSum{Reader: layer}
 
-	req, err := http.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
+	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
 	if err != nil {
 		return "", err
 	}
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	r.setUserAgent(req)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return "", fmt.Errorf("Failed to upload layer: %s", err)
@@ -435,7 +407,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 }
 
 func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, urlStr, body)
+	req, err := r.reqFactory.NewRequest(method, urlStr, body)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +427,6 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-	r.setUserAgent(req)
 	req.ContentLength = int64(len(revision))
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
@@ -500,7 +471,6 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	req.ContentLength = int64(len(imgListJSON))
 	req.Header.Set("X-Docker-Token", "true")
-	r.setUserAgent(req)
 	if validate {
 		req.Header["X-Docker-Endpoints"] = regs
 	}
@@ -521,7 +491,6 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 		req.ContentLength = int64(len(imgListJSON))
 		req.Header.Set("X-Docker-Token", "true")
-		r.setUserAgent(req)
 		if validate {
 			req.Header["X-Docker-Endpoints"] = regs
 		}
@@ -576,7 +545,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	u := auth.IndexServerAddress() + "search?q=" + url.QueryEscape(term)
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -628,52 +597,12 @@ type ImgData struct {
 }
 
 type Registry struct {
-	client          *http.Client
-	authConfig      *auth.AuthConfig
-	baseVersions    []VersionInfo
-	baseVersionsStr string
+	client     *http.Client
+	authConfig *auth.AuthConfig
+	reqFactory *utils.HTTPRequestFactory
 }
 
-func validVersion(version VersionInfo) bool {
-	stopChars := " \t\r\n/"
-	if strings.ContainsAny(version.Name(), stopChars) {
-		return false
-	}
-	if strings.ContainsAny(version.Version(), stopChars) {
-		return false
-	}
-	return true
-}
-
-// Convert versions to a string and append the string to the string base.
-//
-// Each VersionInfo will be converted to a string in the format of
-// "product/version", where the "product" is get from the Name() method, while
-// version is get from the Version() method. Several pieces of verson information
-// will be concatinated and separated by space.
-func appendVersions(base string, versions ...VersionInfo) string {
-	if len(versions) == 0 {
-		return base
-	}
-
-	var buf bytes.Buffer
-	if len(base) > 0 {
-		buf.Write([]byte(base))
-	}
-
-	for _, v := range versions {
-		if !validVersion(v) {
-			continue
-		}
-		buf.Write([]byte(v.Name()))
-		buf.Write([]byte("/"))
-		buf.Write([]byte(v.Version()))
-		buf.Write([]byte(" "))
-	}
-	return buf.String()
-}
-
-func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...VersionInfo) (r *Registry, err error) {
+func NewRegistry(root string, authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
@@ -689,7 +618,7 @@ func NewRegistry(root string, authConfig *auth.AuthConfig, baseVersions ...Versi
 	if err != nil {
 		return nil, err
 	}
-	r.baseVersions = baseVersions
-	r.baseVersionsStr = appendVersions("", baseVersions...)
+
+	r.reqFactory = factory
 	return r, nil
 }
