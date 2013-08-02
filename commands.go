@@ -448,6 +448,15 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if out.GoVersion != "" {
 		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
 	}
+
+	release := utils.GetReleaseVersion()
+	if release != "" {
+		fmt.Fprintf(cli.out, "Last stable version: %s", release)
+		if strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release {
+			fmt.Fprintf(cli.out, ", please update docker")
+		}
+		fmt.Fprintf(cli.out, "\n")
+	}
 	return nil
 }
 
