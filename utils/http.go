@@ -113,6 +113,11 @@ func (self *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader
 	if err != nil {
 		return nil, err
 	}
+
+	// By default, a nil factory should work.
+	if self == nil {
+		return req, nil
+	}
 	for _, dec := range self.decorators {
 		req, err = dec.ChangeRequest(req)
 		if err != nil {
