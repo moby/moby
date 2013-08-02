@@ -104,7 +104,11 @@ func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
 			continue
 		}
 		if _, network, err := net.ParseCIDR(strings.Split(line, " ")[0]); err != nil {
-			return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
+			// is this a mask-less IP address?
+			if ip := net.ParseIP(strings.Split(line, " ")[0]); ip == nil {
+				// fail only if it's neither a network nor a mask-less IP address
+				return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
+			}
 		} else if networkOverlaps(dockerNetwork, network) {
 			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork.String(), line)
 		}
