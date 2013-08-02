@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -140,7 +141,7 @@ func SaveConfig(configFile *ConfigFile) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig *AuthConfig) (string, error) {
+func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
 	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
@@ -171,7 +172,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 			"Please check your e-mail for a confirmation link.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := http.NewRequest("GET", IndexServerAddress()+"users/", nil)
+			req, err := factory.NewRequest("GET", IndexServerAddress()+"users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {

@@ -1173,6 +1173,15 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 	return srv, nil
 }
 
+func (srv *Server) HTTPRequestFactory() *utils.HTTPRequestFactory {
+	if srv.reqFactory == nil {
+		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
+		factory := utils.NewHTTPRequestFactory(ud)
+		srv.reqFactory = factory
+	}
+	return srv.reqFactory
+}
+
 func (srv *Server) LogEvent(action, id string) {
 	now := time.Now().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, Time: now}
