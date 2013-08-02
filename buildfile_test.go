@@ -227,7 +227,7 @@ func buildImage(context testContextTemplate, t *testing.T) *Image {
 	ip := runtime.networkManager.bridgeNetwork.IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)

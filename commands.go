@@ -160,6 +160,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
+	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -207,6 +208,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if isRemote {
 		v.Set("remote", cmd.Arg(0))
+	}
+	if *noCache {
+		v.Set("nocache", "1")
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
