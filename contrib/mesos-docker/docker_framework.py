@@ -125,6 +125,7 @@ def monitor(sched):
                 sched.driver.killTask(task)
                 #TODO Don't assume success, try and try again
                 sched.redis.hincrby('docker_apps_%s' % app['name'], 'running_instances', -1)
+                #assuming LILO here, may not always be the case
                 sched.redis.rpop('frontend:%s' % app['frontend'])
 
 if __name__ == "__main__":
@@ -141,7 +142,7 @@ if __name__ == "__main__":
 
     r = redis.ConnectionPool(host=socket.gethostname(), port=6379, db=0)
     sched = DockerScheduler(execInfo, r)
-    #threading.Thread(target = monitor, args=[sched]).start()
+    threading.Thread(target = monitor, args=[sched]).start()
     framework = mesos_pb2.FrameworkInfo()
     framework.user = "mesos" 
     framework.name = "Docker Framework"
