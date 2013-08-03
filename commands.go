@@ -30,7 +30,8 @@ import (
 const VERSION = "0.5.0-dev"
 
 var (
-	GITCOMMIT string
+	GITCOMMIT         string
+	AuthRequiredError = fmt.Errorf("Authentication is required.")
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -827,10 +828,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	if err := cli.checkIfLogged("push"); err != nil {
-		return err
-	}
-
 	// If we're not using a custom registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
@@ -839,13 +836,22 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.configFile.Configs[auth.IndexServerAddress()].Username, name)
 	}
 
-	buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
-	if err != nil {
-		return err
+	v := url.Values{}
+	push := func() error {
+		buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
+		if err != nil {
+			return err
+		}
+
+		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out)
 	}
 
-	v := url.Values{}
-	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out); err != nil {
+	if err := push(); err != nil {
+		if err == AuthRequiredError {
+			if err = cli.checkIfLogged("push"); err == nil {
+				return push()
+			}
+		}
 		return err
 	}
 	return nil
@@ -1571,6 +1577,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 				break
 			} else if err != nil {
 				return err
+			}
+			if jm.Error != nil && jm.Error.Code == 401 {
+				return AuthRequiredError
 			}
 			jm.Display(out)
 		}
