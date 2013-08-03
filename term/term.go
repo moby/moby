@@ -1,6 +1,8 @@
 package term
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -43,17 +45,43 @@ func RestoreTerminal(fd uintptr, state *State) error {
 	return err
 }
 
-func SetRawTerminal(fd uintptr) (*State, error) {
+func SaveState(fd uintptr) (*State, error) {
+	var oldState State
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+		return nil, err
+	}
+
+	return &oldState, nil
+}
+
+func DisableEcho(fd uintptr, out io.Writer, state *State) error {
+	newState := state.termios
+	newState.Lflag &^= syscall.ECHO
+
+	HandleInterrupt(fd, out, state)
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
+		return err
+	}
+	return nil
+}
+
+func HandleInterrupt(fd uintptr, out io.Writer, state *State) {
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
+
+	go func() {
+		_ = <-sigchan
+		fmt.Fprintf(out, "\n")
+		RestoreTerminal(fd, state)
+		os.Exit(0)
+	}()
+}
+
+func SetRawTerminal(fd uintptr, out io.Writer) (*State, error) {
 	oldState, err := MakeRaw(fd)
 	if err != nil {
 		return nil, err
 	}
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		_ = <-c
-		RestoreTerminal(fd, oldState)
-		os.Exit(0)
-	}()
+	HandleInterrupt(fd, out, oldState)
 	return oldState, err
 }
