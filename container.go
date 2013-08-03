@@ -534,6 +534,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		container.Config.MemorySwap = -1
 	}
 
+	if !container.runtime.capabilities.IPv4Forwarding {
+		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+	}
+
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
 	// Define illegal container destinations

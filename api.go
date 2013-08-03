@@ -522,6 +522,11 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 
+	if srv.runtime.capabilities.IPv4Forwarding {
+		log.Println("Warning: IPv4 forwarding is disabled.")
+		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
+	}
+
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err

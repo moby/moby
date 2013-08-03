@@ -1025,7 +1025,8 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false
+		"SwapLimit":false,
+		"IPv4Forwarding":true
 	   }
 
         :statuscode 200: no error
