@@ -303,3 +303,37 @@ func TestParseRepositoryTag(t *testing.T) {
 		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
 	}
 }
+
+func TestGetResolvConf(t *testing.T) {
+	resolvConfUtils, err := GetResolvConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(resolvConfUtils) != string(resolvConfSystem) {
+		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
+	}
+}
+
+func TestCheclLocalDns(t *testing.T) {
+	for resolv, result := range map[string]bool{`# Dynamic
+nameserver 10.0.2.3
+search dotcloud.net`: false,
+		`# Dynamic
+nameserver 127.0.0.1
+search dotcloud.net`: true,
+		`# Dynamic
+nameserver 127.0.1.1
+search dotcloud.net`: true,
+		`# Dynamic
+`: true,
+		``: true,
+	} {
+		if CheckLocalDns([]byte(resolv)) != result {
+			t.Fatalf("Wrong local dns detection: {%s} should be %v", resolv, result)
+		}
+	}
+}
