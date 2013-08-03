@@ -607,22 +607,39 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-type JSONMessage struct {
-	Status   string `json:"status,omitempty"`
-	Progress string `json:"progress,omitempty"`
-	Error    string `json:"error,omitempty"`
-	ID	 string `json:"id,omitempty"`
-	Time	 int64 `json:"time,omitempty"`
+type JSONError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
-func (jm *JSONMessage) Display(out io.Writer) (error) {
+type JSONMessage struct {
+	Status       string     `json:"status,omitempty"`
+	Progress     string     `json:"progress,omitempty"`
+	ErrorMessage string     `json:"error,omitempty"` //deprecated
+	ID           string     `json:"id,omitempty"`
+	Time         int64      `json:"time,omitempty"`
+	Error        *JSONError `json:"errorDetail,omitempty"`
+}
+
+func (e *JSONError) Error() string {
+	return e.Message
+}
+
+func NewHTTPRequestError(msg string, res *http.Response) error {
+	return &JSONError{
+		Message: msg,
+		Code:    res.StatusCode,
+	}
+}
+
+func (jm *JSONMessage) Display(out io.Writer) error {
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
 	if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
-	} else if jm.Error != "" {
-		return fmt.Errorf(jm.Error)
+	} else if jm.Error != nil {
+		return jm.Error
 	} else if jm.ID != "" {
 		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
 	} else {
@@ -630,7 +647,6 @@ func (jm *JSONMessage) Display(out io.Writer) (error) {
 	}
 	return nil
 }
-
 
 type StreamFormatter struct {
 	json bool
@@ -657,7 +673,11 @@ func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	sf.used = true
 	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error: err.Error()}); err == nil {
+		jsonError, ok := err.(*JSONError)
+		if !ok {
+			jsonError = &JSONError{Message: err.Error()}
+		}
+		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 			return b
 		}
 		return []byte("{\"error\":\"format error\"}")
@@ -729,6 +749,22 @@ func ParseHost(host string, port int, addr string) string {
 		host = addr
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, port)
+}
+
+func GetReleaseVersion() string {
+	resp, err := http.Get("http://get.docker.io/latest")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.ContentLength > 24 || resp.StatusCode != 200 {
+		return ""
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(body))
 }
 
 // Get a repos name and returns the right reposName + tag

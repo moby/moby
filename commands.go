@@ -30,7 +30,8 @@ import (
 const VERSION = "0.5.0-dev"
 
 var (
-	GITCOMMIT string
+	GITCOMMIT         string
+	AuthRequiredError = fmt.Errorf("Authentication is required.")
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -160,6 +161,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
+	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -207,6 +209,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if isRemote {
 		v.Set("remote", cmd.Arg(0))
+	}
+	if *noCache {
+		v.Set("nocache", "1")
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
@@ -314,13 +319,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		email    string
 	)
 
+	var promptDefault = func(prompt string, configDefault string) {
+		if configDefault == "" {
+			fmt.Fprintf(cli.out, "%s: ", prompt)
+		} else {
+			fmt.Fprintf(cli.out, "%s (%s): ", prompt, configDefault)
+		}
+	}
+
 	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
 	if !ok {
 		authconfig = auth.AuthConfig{}
 	}
 
 	if *flUsername == "" {
-		fmt.Fprintf(cli.out, "Username (%s): ", authconfig.Username)
+		promptDefault("Username", authconfig.Username)
 		username = readAndEchoString(cli.in, cli.out)
 		if username == "" {
 			username = authconfig.Username
@@ -340,7 +353,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if *flEmail == "" {
-			fmt.Fprintf(cli.out, "Email (%s): ", authconfig.Email)
+			promptDefault("Email", authconfig.Email)
 			email = readAndEchoString(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
@@ -439,6 +452,15 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	if out.GoVersion != "" {
 		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
+	}
+
+	release := utils.GetReleaseVersion()
+	if release != "" {
+		fmt.Fprintf(cli.out, "Last stable version: %s", release)
+		if strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release {
+			fmt.Fprintf(cli.out, ", please update docker")
+		}
+		fmt.Fprintf(cli.out, "\n")
 	}
 	return nil
 }
@@ -596,23 +618,28 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if cmd.NArg() == 0 {
 		cmd.Usage()
 		return nil
 	}
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top", nil)
+	val := url.Values{}
+	if cmd.NArg() > 1 {
+		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
+	}
+
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil)
 	if err != nil {
 		return err
 	}
-	var procs []APITop
+	procs := APITop{}
 	err = json.Unmarshal(body, &procs)
 	if err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "PID\tTTY\tTIME\tCMD")
-	for _, proc := range procs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", proc.PID, proc.Tty, proc.Time, proc.Cmd)
+	fmt.Fprintln(w, strings.Join(procs.Titles, "\t"))
+	for _, proc := range procs.Processes {
+		fmt.Fprintln(w, strings.Join(proc, "\t"))
 	}
 	w.Flush()
 	return nil
@@ -801,10 +828,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	if err := cli.checkIfLogged("push"); err != nil {
-		return err
-	}
-
 	// If we're not using a custom registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
@@ -813,13 +836,22 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.configFile.Configs[auth.IndexServerAddress()].Username, name)
 	}
 
-	buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
-	if err != nil {
-		return err
+	v := url.Values{}
+	push := func() error {
+		buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
+		if err != nil {
+			return err
+		}
+
+		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out)
 	}
 
-	v := url.Values{}
-	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out); err != nil {
+	if err := push(); err != nil {
+		if err == AuthRequiredError {
+			if err = cli.checkIfLogged("push"); err == nil {
+				return push()
+			}
+		}
 		return err
 	}
 	return nil
@@ -1546,6 +1578,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 			} else if err != nil {
 				return err
 			}
+			if jm.Error != nil && jm.Error.Code == 401 {
+				return AuthRequiredError
+			}
 			jm.Display(out)
 		}
 	} else {
@@ -1658,13 +1693,12 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	}
 	cli.resizeTty(id)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGWINCH)
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
-		for sig := range c {
-			if sig == syscall.SIGWINCH {
-				cli.resizeTty(id)
-			}
+		for {
+			<-sigchan
+			cli.resizeTty(id)
 		}
 	}()
 	return nil

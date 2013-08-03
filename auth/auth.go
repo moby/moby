@@ -18,7 +18,7 @@ const CONFIGFILE = ".dockercfg"
 // Only used for user auth + account creation
 const INDEXSERVER = "https://index.docker.io/v1/"
 
-//const INDEXSERVER = "http://indexstaging-docker.dotcloud.com/"
+//const INDEXSERVER = "https://indexstaging-docker.dotcloud.com/v1/"
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")

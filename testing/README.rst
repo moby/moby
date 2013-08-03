@@ -40,6 +40,10 @@ Deployment
   export SMTP_USER=xxxxxxxxxxxx
   export SMTP_PWD=xxxxxxxxxxxx
 
+  # Define docker registry functional test credentials
+  export REGISTRY_USER=xxxxxxxxxxxx
+  export REGISTRY_PWD=xxxxxxxxxxxx
+
   # Checkout docker
   git clone git://github.com/dotcloud/docker.git
 

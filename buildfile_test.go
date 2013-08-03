@@ -129,6 +129,38 @@ CMD Hello world
 		nil,
 		nil,
 	},
+
+	{
+		`
+from {IMAGE}
+env    FOO /foo/baz
+env    BAR /bar
+env    BAZ $BAR
+env    FOOPATH $PATH:$FOO
+run    [ "$BAR" = "$BAZ" ]
+run    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+`,
+		nil,
+		nil,
+	},
+
+	{
+		`
+from {IMAGE}
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -163,21 +195,23 @@ func mkTestingFileServer(files [][2]string) (*httptest.Server, error) {
 
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
-		buildImage(ctx, t)
+		buildImage(ctx, t, nil, true)
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T) *Image {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
+func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache bool) *Image {
+	if srv == nil {
+		runtime, err := newTestRuntime()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
+		srv = &Server{
+			runtime:     runtime,
+			pullingPool: make(map[string]struct{}),
+			pushingPool: make(map[string]struct{}),
+		}
 	}
 
 	httpServer, err := mkTestingFileServer(context.remoteFiles)
@@ -192,10 +226,10 @@ func buildImage(context testContextTemplate, t *testing.T) *Image {
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := runtime.networkManager.bridgeNetwork.IP
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, useCache)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +247,7 @@ func TestVolume(t *testing.T) {
         from {IMAGE}
         volume /test
         cmd Hello world
-    `, nil, nil}, t)
+    `, nil, nil}, t, nil, true)
 
 	if len(img.Config.Volumes) == 0 {
 		t.Fail()
@@ -229,7 +263,7 @@ func TestBuildMaintainer(t *testing.T) {
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
-    `, nil, nil}, t)
+    `, nil, nil}, t, nil, true)
 
 	if img.Author != "dockerio" {
 		t.Fail()
@@ -241,9 +275,15 @@ func TestBuildEnv(t *testing.T) {
         from {IMAGE}
         env port 4243
         `,
-		nil, nil}, t)
-
-	if img.Config.Env[0] != "port=4243" {
+		nil, nil}, t, nil, true)
+	hasEnv := false
+	for _, envVar := range img.Config.Env {
+		if envVar == "port=4243" {
+			hasEnv = true
+			break
+		}
+	}
+	if !hasEnv {
 		t.Fail()
 	}
 }
@@ -253,7 +293,7 @@ func TestBuildCmd(t *testing.T) {
         from {IMAGE}
         cmd ["/bin/echo", "Hello World"]
         `,
-		nil, nil}, t)
+		nil, nil}, t, nil, true)
 
 	if img.Config.Cmd[0] != "/bin/echo" {
 		t.Log(img.Config.Cmd[0])
@@ -270,7 +310,7 @@ func TestBuildExpose(t *testing.T) {
         from {IMAGE}
         expose 4243
         `,
-		nil, nil}, t)
+		nil, nil}, t, nil, true)
 
 	if img.Config.PortSpecs[0] != "4243" {
 		t.Fail()
@@ -282,8 +322,70 @@ func TestBuildEntrypoint(t *testing.T) {
         from {IMAGE}
         entrypoint ["/bin/echo"]
         `,
-		nil, nil}, t)
+		nil, nil}, t, nil, true)
 
 	if img.Config.Entrypoint[0] != "/bin/echo" {
+	}
+}
+
+func TestBuildImageWithCache(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        `,
+		nil, nil}
+
+	img := buildImage(template, t, srv, true)
+	imageId := img.ID
+
+	img = nil
+	img = buildImage(template, t, srv, true)
+
+	if imageId != img.ID {
+		t.Logf("Image ids should match: %s != %s", imageId, img.ID)
+		t.Fail()
+	}
+}
+
+func TestBuildImageWithoutCache(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        `,
+		nil, nil}
+
+	img := buildImage(template, t, srv, true)
+	imageId := img.ID
+
+	img = nil
+	img = buildImage(template, t, srv, false)
+
+	if imageId == img.ID {
+		t.Logf("Image ids should not match: %s == %s", imageId, img.ID)
+		t.Fail()
 	}
 }

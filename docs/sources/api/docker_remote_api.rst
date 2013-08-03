@@ -26,15 +26,15 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.3 
+The current verson of the API is 1.4
 
 Calling /images/<name>/insert is the same as calling
-/v1.3/images/<name>/insert 
+/v1.4/images/<name>/insert 
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
 
-:doc:`docker_remote_api_v1.3`
+:doc:`docker_remote_api_v1.4`
 *****************************
 
 What's new
@@ -42,7 +42,19 @@ What's new
 
 .. http:get:: /containers/(id)/top
 
-   **New!** List the processes running inside a container.
+   **New!** You can now use ps args with docker top, like `docker top <container_id> aux`
+
+:doc:`docker_remote_api_v1.3`
+*****************************
+
+docker v0.5.0 51f6c4a_
+
+What's new
+----------
+
+.. http:get:: /containers/(id)/top
+
+   List the processes running inside a container.
 
 .. http:get:: /events:
 
@@ -138,6 +150,7 @@ Initial version
 .. _a8ae398: https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
 .. _2e7649b: https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168
+.. _51f6c4a: https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909
 
 ==================================
 Docker Remote API Client Libraries

@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.3
+const APIVERSION = 1.4
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -271,11 +271,18 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version < 1.4 {
+		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
+	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	procsStr, err := srv.ContainerTop(name)
+	ps_args := r.Form.Get("ps_args")
+	procsStr, err := srv.ContainerTop(name, ps_args)
 	if err != nil {
 		return err
 	}
@@ -786,12 +793,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
-	tag := ""
-	if strings.Contains(repoName, ":") {
-		remoteParts := strings.Split(repoName, ":")
-		tag = remoteParts[1]
-		repoName = remoteParts[0]
-	}
+	rawNoCache := r.FormValue("nocache")
+	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
 
@@ -837,8 +840,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
+	noCache, err := getBoolParam(rawNoCache)
+	if err != nil {
+		return err
+	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
