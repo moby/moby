@@ -302,6 +302,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 			term.DisableEcho(cli.terminalFd, cli.out, oldState)
 			password = readInput(cli.in, cli.out)
+			fmt.Fprint(cli.out, "\n")
 
 			term.RestoreTerminal(cli.terminalFd, oldState)
 
@@ -311,7 +312,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if email == "" {
-			promptDefault("\nEmail", authconfig.Email)
+			promptDefault("Email", authconfig.Email)
 			email = readInput(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
