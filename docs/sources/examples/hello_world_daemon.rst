@@ -11,20 +11,20 @@ Hello World Daemon
 
 The most boring daemon ever written.
 
-This example assumes you have Docker installed and with the base image already imported ``docker pull base``.
-We will use the base image to run a simple hello world daemon that will just print hello world to standard
+This example assumes you have Docker installed and with the ubuntu image already imported ``docker pull ubuntu``.
+We will use the ubuntu image to run a simple hello world daemon that will just print hello world to standard
 out every second. It will continue to do this until we stop it.
 
 **Steps:**
 
 .. code-block:: bash
 
-    CONTAINER_ID=$(docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    CONTAINER_ID=$(docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
-We are going to run a simple hello world daemon in a new container made from the base image.
+We are going to run a simple hello world daemon in a new container made from the ubuntu image.
 
 - **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
-- **"base"** is the image we want to run the command inside of.
+- **"ubuntu"** is the image we want to run the command inside of.
 - **"/bin/sh -c"** is the command we want to run in the container
 - **"while true; do echo hello world; sleep 1; done"** is the mini script we want to run, that will just print hello world once a second until we stop it.
 - **$CONTAINER_ID** the output of the run command will return a container id, we can use in future commands to see what is going on with this process.

@@ -34,12 +34,12 @@ The password is 'screencast'
 .. code-block:: bash
 
 	 # Hello! We are going to try and install openssh on a container and run it as a servic 
-	 # let's pull base to get a base ubuntu image. 
-	 $ docker pull base
+	 # let's pull ubuntu to get a base ubuntu image. 
+	 $ docker pull ubuntu
 	 # I had it so it was quick
 	 # now let's connect using -i for interactive and with -t for terminal 
 	 # we execute /bin/bash to get a prompt.
-	 $ docker run -i -t base /bin/bash
+	 $ docker run -i -t ubuntu /bin/bash
 	 # now let's commit it 
 	 # which container was it?
 	 $ docker ps -a |more
