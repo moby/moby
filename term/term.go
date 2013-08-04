@@ -71,7 +71,7 @@ func HandleInterrupt(fd uintptr, out io.Writer, state *State) {
 
 	go func() {
 		_ = <-sigchan
-		fmt.Fprintf(out, "\n")
+		fmt.Fprint(out, "\n")
 		RestoreTerminal(fd, state)
 		os.Exit(0)
 	}()
