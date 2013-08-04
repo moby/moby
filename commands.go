@@ -271,13 +271,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 	}
 
-	readInput := func(in io.Reader) (string, error) {
+	readInput := func(in io.Reader, out io.Writer) string {
 		reader := bufio.NewReader(in)
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return "", err
+			fmt.Fprintln(out, err.Error())
+			os.Exit(1)
 		}
-		return line, nil
+		return line
 	}
 
 	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
@@ -287,7 +288,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	if username == "" {
 		promptDefault("Username", authconfig.Username)
-		username, _ = readInput(cli.in)
+		username = readInput(cli.in, cli.out)
 		if username == "" {
 			username = authconfig.Username
 		}
@@ -299,7 +300,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			fmt.Fprintf(cli.out, "Password: ")
 
 			term.DisableEcho(cli.terminalFd, cli.out, oldState)
-			password, _ = readInput(cli.in)
+			password = readInput(cli.in, cli.out)
 
 			term.RestoreTerminal(cli.terminalFd, oldState)
 
@@ -310,7 +311,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 		if email == "" {
 			promptDefault("\nEmail", authconfig.Email)
-			email, _ = readInput(cli.in)
+			email = readInput(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
 			}
