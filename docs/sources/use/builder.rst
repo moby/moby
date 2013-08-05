@@ -107,8 +107,8 @@ the image.  This is functionally equivalent to running ``docker commit
 -run '{"Cmd": <command>}'`` outside the builder.
 
 .. note::
-    Don't confuse `RUN` with `CMD`. `RUN` actually runs a
-    command and commits the result; `CMD` does not execute anything at
+    Don't confuse ``RUN`` with ``CMD``. ``RUN`` actually runs a
+    command and commits the result; ``CMD`` does not execute anything at
     build time, but specifies the intended command for the image.
 
 3.5 EXPOSE
