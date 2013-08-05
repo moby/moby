@@ -9,12 +9,14 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -28,7 +30,19 @@ func pingRegistryEndpoint(endpoint string) error {
 		// (and we never want to fallback to http in case of error)
 		return nil
 	}
-	resp, err := http.Get(endpoint + "_ping")
+	httpDial := func(proto string, addr string) (net.Conn, error) {
+		// Set the connect timeout to 5 seconds
+		conn, err := net.DialTimeout(proto, addr, time.Duration(5)*time.Second)
+		if err != nil {
+			return nil, err
+		}
+		// Set the recv timeout to 10 seconds
+		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
+		return conn, nil
+	}
+	httpTransport := &http.Transport{Dial: httpDial}
+	client := &http.Client{Transport: httpTransport}
+	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
 		return err
 	}
