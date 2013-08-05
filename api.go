@@ -386,7 +386,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
-		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, version > 1.3); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil

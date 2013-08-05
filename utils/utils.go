@@ -94,11 +94,6 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 		}
 		r.lastUpdate = r.readProgress
 	}
-	// Send newline when complete
-	if err != nil {
-		r.output.Write(r.sf.FormatStatus(""))
-	}
-
 	return read, err
 }
 func (r *progressReader) Close() error {
@@ -107,7 +102,7 @@ func (r *progressReader) Close() error {
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
 	tpl := string(template)
 	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%8v/%v (%v)"))
+		tpl = string(sf.FormatProgress("", "%8v/%v (%v)", ""))
 	}
 	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
@@ -587,11 +582,14 @@ type NopFlusher struct{}
 func (f *NopFlusher) Flush() {}
 
 type WriteFlusher struct {
+	sync.Mutex
 	w       io.Writer
 	flusher http.Flusher
 }
 
 func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	wf.Lock()
+	defer wf.Unlock()
 	n, err = wf.w.Write(b)
 	wf.flusher.Flush()
 	return n, err
@@ -633,17 +631,60 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 }
 
 func (jm *JSONMessage) Display(out io.Writer) error {
+	if jm.Error != nil {
+		if jm.Error.Code == 401 {
+			return fmt.Errorf("Authentication is required.")
+		}
+		return jm.Error
+	}
+	fmt.Fprintf(out, "%c[2K", 27)
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
+	if jm.ID != "" {
+		fmt.Fprintf(out, "%s: ", jm.ID)
+	}
 	if jm.Progress != "" {
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
-	} else if jm.Error != nil {
-		return jm.Error
-	} else if jm.ID != "" {
-		fmt.Fprintf(out, "%s: %s\n", jm.ID, jm.Status)
 	} else {
-		fmt.Fprintf(out, "%s\n", jm.Status)
+		fmt.Fprintf(out, "%s\r", jm.Status)
+	}
+	if jm.ID == "" {
+		fmt.Fprintf(out, "\n")
+	}
+	return nil
+}
+
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
+	dec := json.NewDecoder(in)
+	jm := JSONMessage{}
+	ids := make(map[string]int)
+	diff := 0
+	for {
+		if err := dec.Decode(&jm); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		if jm.ID != "" {
+			line, ok := ids[jm.ID]
+			if !ok {
+				line = len(ids)
+				ids[jm.ID] = line
+				fmt.Fprintf(out, "\n")
+				diff = 0
+			} else {
+				diff = len(ids) - line
+			}
+			fmt.Fprintf(out, "%c[%dA", 27, diff)
+		}
+		err := jm.Display(out)
+		if jm.ID != "" {
+			fmt.Fprintf(out, "%c[%dB", 27, diff)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -657,11 +698,11 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 	return &StreamFormatter{json, false}
 }
 
-func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte {
+func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: str})
+		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -685,16 +726,16 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 	return []byte("Error: " + err.Error() + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
+func (sf *StreamFormatter) FormatProgress(id, action, progress string) []byte {
 	sf.used = true
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
+		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID: id})
 		if err != nil {
 			return nil
 		}
 		return b
 	}
-	return []byte(action + " " + str + "\r")
+	return []byte(action + " " + progress + "\r")
 }
 
 func (sf *StreamFormatter) Used() bool {
