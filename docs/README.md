@@ -23,7 +23,7 @@ Usage
 * Change the `.rst` files with your favorite editor to your liking.
 * Run `make docs` to clean up old files and generate new ones.
 * Your static website can now be found in the `_build` directory.
-* To preview what you have generated run `make server` and open <http://localhost:8000/> in your favorite browser.
+* To preview what you have generated run `make server` and open http://localhost:8000/ in your favorite browser.
 
 Working using GitHub's file editor
 ----------------------------------
