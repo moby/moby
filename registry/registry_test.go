@@ -2,6 +2,7 @@ package registry
 
 import (
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
 )
@@ -12,27 +13,9 @@ var (
 	REPO     = "foo42/bar"
 )
 
-type simpleVersionInfo struct {
-	name    string
-	version string
-}
-
-func (v *simpleVersionInfo) Name() string {
-	return v.name
-}
-
-func (v *simpleVersionInfo) Version() string {
-	return v.version
-}
-
 func spawnTestRegistry(t *testing.T) *Registry {
-	versionInfo := make([]VersionInfo, 0, 4)
-	versionInfo = append(versionInfo, &simpleVersionInfo{"docker", "0.0.0test"})
-	versionInfo = append(versionInfo, &simpleVersionInfo{"go", "test"})
-	versionInfo = append(versionInfo, &simpleVersionInfo{"git-commit", "test"})
-	versionInfo = append(versionInfo, &simpleVersionInfo{"kernel", "test"})
 	authConfig := &auth.AuthConfig{}
-	r, err := NewRegistry("", authConfig, versionInfo...)
+	r, err := NewRegistry("", authConfig, utils.NewHTTPRequestFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,8 +122,11 @@ func TestPushImageJSONRegistry(t *testing.T) {
 
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistry(t)
-	layer := strings.NewReader("FAKELAYER")
-	r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN)
+	layer := strings.NewReader("")
+	_, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestResolveRepositoryName(t *testing.T) {
