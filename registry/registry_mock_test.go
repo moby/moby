@@ -3,10 +3,10 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -96,7 +96,7 @@ func init() {
 
 func handlerAccessLog(handler http.Handler) http.Handler {
 	logHandler := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
+		utils.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
 		handler.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(logHandler)
