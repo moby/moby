@@ -158,9 +158,9 @@ func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
-	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
+	tag := cmd.String("t", "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
-
+	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -207,6 +207,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if isRemote {
 		v.Set("remote", cmd.Arg(0))
+	}
+	if *noCache {
+		v.Set("nocache", "1")
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
@@ -447,6 +450,15 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	if out.GoVersion != "" {
 		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
+	}
+
+	release := utils.GetReleaseVersion()
+	if release != "" {
+		fmt.Fprintf(cli.out, "Last stable version: %s", release)
+		if strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release {
+			fmt.Fprintf(cli.out, ", please update docker")
+		}
+		fmt.Fprintf(cli.out, "\n")
 	}
 	return nil
 }
@@ -814,10 +826,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
-	if err := cli.checkIfLogged("push"); err != nil {
-		return err
-	}
-
 	// If we're not using a custom registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
@@ -826,13 +834,22 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.configFile.Configs[auth.IndexServerAddress()].Username, name)
 	}
 
-	buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
-	if err != nil {
-		return err
+	v := url.Values{}
+	push := func() error {
+		buf, err := json.Marshal(cli.configFile.Configs[auth.IndexServerAddress()])
+		if err != nil {
+			return err
+		}
+
+		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out)
 	}
 
-	v := url.Values{}
-	if err := cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), bytes.NewBuffer(buf), cli.out); err != nil {
+	if err := push(); err != nil {
+		if err == fmt.Errorf("Authentication is required.") {
+			if err = cli.checkIfLogged("push"); err == nil {
+				return push()
+			}
+		}
 		return err
 	}
 	return nil

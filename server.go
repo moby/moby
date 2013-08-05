@@ -52,9 +52,9 @@ func (v *simpleVersionInfo) Version() string {
 // docker, go, git-commit (of the docker) and the host's kernel.
 //
 // Such information will be used on call to NewRegistry().
-func (srv *Server) versionInfos() []registry.VersionInfo {
+func (srv *Server) versionInfos() []utils.VersionInfo {
 	v := srv.DockerVersion()
-	ret := make([]registry.VersionInfo, 0, 4)
+	ret := make([]utils.VersionInfo, 0, 4)
 	ret = append(ret, &simpleVersionInfo{"docker", v.Version})
 
 	if len(v.GoVersion) > 0 {
@@ -102,7 +102,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.versionInfos()...)
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.HTTPRequestFactory())
 	if err != nil {
 		return nil, err
 	}
@@ -580,7 +580,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory())
 	if err != nil {
 		return err
 	}
@@ -740,7 +740,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.versionInfos()...)
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory())
 	if err2 != nil {
 		return err2
 	}
@@ -997,13 +997,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		return nil, nil
 	}
 
-	var tag string
-	if strings.Contains(name, ":") {
-		nameParts := strings.Split(name, ":")
-		name = nameParts[0]
-		tag = nameParts[1]
-	}
-
+	name, tag := utils.ParseRepositoryTag(name)
 	return srv.deleteImage(img, name, tag)
 }
 
@@ -1190,9 +1184,19 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 		pushingPool: make(map[string]struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
+		reqFactory:  nil,
 	}
 	runtime.srv = srv
 	return srv, nil
+}
+
+func (srv *Server) HTTPRequestFactory() *utils.HTTPRequestFactory {
+	if srv.reqFactory == nil {
+		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
+		factory := utils.NewHTTPRequestFactory(ud)
+		srv.reqFactory = factory
+	}
+	return srv.reqFactory
 }
 
 func (srv *Server) LogEvent(action, id string) {
@@ -1215,4 +1219,5 @@ type Server struct {
 	pushingPool map[string]struct{}
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
+	reqFactory  *utils.HTTPRequestFactory
 }

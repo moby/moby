@@ -960,6 +960,7 @@ func TestEnv(t *testing.T) {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
 		"container=lxc",
+		"HOSTNAME=" + container.ShortID(),
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -991,6 +992,28 @@ func TestEntrypoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(output) != "foobar" {
+		t.Error(string(output))
+	}
+}
+
+func TestEntrypointNoCmd(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(string(output), "\r\n") != "foobar" {
 		t.Error(string(output))
 	}
 }

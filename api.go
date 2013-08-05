@@ -87,7 +87,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	status, err := auth.Login(authConfig)
+	status, err := auth.Login(authConfig, srv.HTTPRequestFactory())
 	if err != nil {
 		return err
 	}
@@ -488,7 +488,12 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return err
+	}
+
+	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
@@ -793,12 +798,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
-	tag := ""
-	if strings.Contains(repoName, ":") {
-		remoteParts := strings.Split(repoName, ":")
-		tag = remoteParts[1]
-		repoName = remoteParts[0]
-	}
+	rawNoCache := r.FormValue("nocache")
+	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
 
@@ -844,8 +845,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
+	noCache, err := getBoolParam(rawNoCache)
+	if err != nil {
+		return err
+	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
