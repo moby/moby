@@ -69,7 +69,8 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		return "", "", ErrInvalidRepositoryName
 	}
 	nameParts := strings.SplitN(reposName, "/", 2)
-	if !strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") {
+	if !strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
+		nameParts[0] != "localhost" {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
 		return auth.IndexServerAddress(), reposName, err
