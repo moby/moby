@@ -631,7 +631,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
-		"/sbin/init",
+		"/.dockerinit",
 	}
 
 	// Networking
