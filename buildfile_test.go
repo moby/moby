@@ -328,6 +328,40 @@ func TestBuildEntrypoint(t *testing.T) {
 	}
 }
 
+// testing #1405 - config.Cmd does not get cleaned up if
+// utilizing cache
+func TestBuildEntrypointRunCleanup(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        run echo "hello"
+        `,
+		nil, nil}, t, srv, true)
+
+	img = buildImage(testContextTemplate{`
+        from {IMAGE}
+        run echo "hello"
+        add foo /foo
+        entrypoint ["/bin/echo"]
+        `,
+		[][2]string{{"foo", "HEYO"}}, nil}, t, srv, true)
+
+	if len(img.Config.Cmd) != 0 {
+		t.Fail()
+	}
+}
+
 func TestBuildImageWithCache(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
