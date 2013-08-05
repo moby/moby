@@ -40,7 +40,17 @@ The password is 'screencast'
 	 # now let's connect using -i for interactive and with -t for terminal 
 	 # we execute /bin/bash to get a prompt.
 	 $ docker run -i -t base /bin/bash
-	 # now let's commit it 
+	 # yes! we are in!
+     # now lets install openssh
+     $ apt-get update
+     $ apt-get install openssh-server
+     # ok. lets see if we can run it.
+     $ which sshd
+     # we need to create priviledge separation directory
+     $ mkdir /var/run/sshd
+     $ /usr/sbin/sshd
+     $ exit
+     # now let's commit it 
 	 # which container was it?
 	 $ docker ps -a |more
 	 $ docker commit a30a3a2f2b130749995f5902f079dc6ad31ea0621fac595128ec59c6da07feea dhrp/sshd 
