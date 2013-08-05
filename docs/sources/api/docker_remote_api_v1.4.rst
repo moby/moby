@@ -2,6 +2,8 @@
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
+:orphan:
+
 ======================
 Docker Remote API v1.4
 ======================
@@ -12,7 +14,7 @@ Docker Remote API v1.4
 =====================
 
 - The Remote API is replacing rcli
-- Default port in the docker deamon is 4243 
+- Default port in the docker daemon is 4243
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
 
 2. Endpoints
@@ -765,29 +767,29 @@ Push an image on the registry
 
 .. http:post:: /images/(name)/push
 
-	Push the image ``name`` on the registry
+   Push the image ``name`` on the registry
 
-	 **Example request**:
+   **Example request**:
 
-	 .. sourcecode:: http
+   .. sourcecode:: http
 
-	    POST /images/test/push HTTP/1.1
-	    {{ authConfig }}
+      POST /images/test/push HTTP/1.1
+      {{ authConfig }}
 
-	 **Example response**:
+   **Example response**:
 
-        .. sourcecode:: http
+   .. sourcecode:: http
 
-           HTTP/1.1 200 OK
-	   Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-	   {"status":"Pushing..."}
-	   {"status":"Pushing", "progress":"1/? (n/a)"}
-	   {"error":"Invalid..."}
-	   ...
+   {"status":"Pushing..."}
+   {"status":"Pushing", "progress":"1/? (n/a)"}
+   {"error":"Invalid..."}
+   ...
 
-	:query registry: the registry you wan to push, optional
-	:statuscode 200: no error
+   :query registry: the registry you wan to push, optional
+   :statuscode 200: no error
         :statuscode 404: no such image
         :statuscode 500: server error
 
@@ -900,37 +902,37 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-	Build an image from Dockerfile via stdin
+   Build an image from Dockerfile via stdin
 
-	**Example request**:
+   **Example request**:
 
-        .. sourcecode:: http
+   .. sourcecode:: http
 
-           POST /build HTTP/1.1
-	   
-	   {{ STREAM }}
+      POST /build HTTP/1.1
 
-	**Example response**:
+      {{ STREAM }}
 
-        .. sourcecode:: http
+   **Example response**:
 
-           HTTP/1.1 200 OK
-	   
-	   {{ STREAM }}
+   .. sourcecode:: http
+
+      HTTP/1.1 200 OK
+
+      {{ STREAM }}
 
 
-        The stream must be a tar archive compressed with one of the following algorithms:
-        identity (no compression), gzip, bzip2, xz. The archive must include a file called
-        `Dockerfile` at its root. It may include any number of other files, which will be
-        accessible in the build context (See the ADD build command).
+       The stream must be a tar archive compressed with one of the following algorithms:
+       identity (no compression), gzip, bzip2, xz. The archive must include a file called
+       `Dockerfile` at its root. It may include any number of other files, which will be
+       accessible in the build context (See the ADD build command).
 
-        The Content-type header should be set to "application/tar".
+       The Content-type header should be set to "application/tar".
 
 	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
 	:query q: suppress verbose build output
     :query nocache: do not use the cache when building the image
 	:statuscode 200: no error
-        :statuscode 500: server error
+    :statuscode 500: server error
 
 
 Check auth configuration
@@ -1033,22 +1035,22 @@ Create a new image from a container's changes
 
 .. http:post:: /commit
 
-	Create a new image from a container's changes
+    Create a new image from a container's changes
 
-	**Example request**:
+    **Example request**:
 
-        .. sourcecode:: http
+    .. sourcecode:: http
 
-           POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
 
         **Example response**:
 
-        .. sourcecode:: http
+    .. sourcecode:: http
 
-           HTTP/1.1 201 OK
-	   Content-Type: application/vnd.docker.raw-stream
+        HTTP/1.1 201 OK
+	    Content-Type: application/vnd.docker.raw-stream
 
-           {"Id":"596069db4bf5"}
+        {"Id":"596069db4bf5"}
 
 	:query container: source container
 	:query repo: repository
@@ -1059,7 +1061,6 @@ Create a new image from a container's changes
         :statuscode 201: no error
 	:statuscode 404: no such container
         :statuscode 500: server error
-
 
 3. Going further
 ================
@@ -1089,6 +1090,8 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 -----------------
 
 To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
-    
-    docker -d -H="192.168.1.9:4243" -api-enable-cors
+
+.. code-block:: bash
+
+   docker -d -H="192.168.1.9:4243" -api-enable-cors
 

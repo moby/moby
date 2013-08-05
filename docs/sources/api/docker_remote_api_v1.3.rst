@@ -17,7 +17,7 @@ Docker Remote API v1.3
 =====================
 
 - The Remote API is replacing rcli
-- Default port in the docker deamon is 4243 
+- Default port in the docker daemon is 4243
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
 
 2. Endpoints
