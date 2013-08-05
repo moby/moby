@@ -383,3 +383,22 @@ func TestNetworkOverlaps(t *testing.T) {
 	//netX starts and ends before netY
 	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
 }
+
+func TestCheckRouteOverlaps(t *testing.T) {
+	routes := `default via 10.0.2.2 dev eth0
+10.0.2.0 dev eth0  proto kernel  scope link  src 10.0.2.15
+10.0.3.0/24 dev lxcbr0  proto kernel  scope link  src 10.0.3.1
+10.0.42.0/24 dev testdockbr0  proto kernel  scope link  src 10.0.42.1
+172.16.42.0/24 dev docker0  proto kernel  scope link  src 172.16.42.1
+192.168.142.0/24 dev eth1  proto kernel  scope link  src 192.168.142.142`
+
+	_, netX, _ := net.ParseCIDR("172.16.0.1/24")
+	if err := checkRouteOverlaps(routes, netX); err != nil {
+		t.Fatal(err)
+	}
+
+	_, netX, _ = net.ParseCIDR("10.0.2.0/24")
+	if err := checkRouteOverlaps(routes, netX); err == nil {
+		t.Fatalf("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
+	}
+}

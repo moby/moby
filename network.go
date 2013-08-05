@@ -93,20 +93,29 @@ func iptables(args ...string) error {
 	return nil
 }
 
-func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
-	output, err := ip("route")
-	if err != nil {
-		return err
-	}
-	utils.Debugf("Routes:\n\n%s", output)
-	for _, line := range strings.Split(output, "\n") {
+func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
+	utils.Debugf("Routes:\n\n%s", routes)
+	for _, line := range strings.Split(routes, "\n") {
 		if strings.Trim(line, "\r\n\t ") == "" || strings.Contains(line, "default") {
 			continue
 		}
-		if _, network, err := net.ParseCIDR(strings.Split(line, " ")[0]); err != nil {
-			return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
-		} else if networkOverlaps(dockerNetwork, network) {
-			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork.String(), line)
+		_, network, err := net.ParseCIDR(strings.Split(line, " ")[0])
+		if err != nil {
+			// is this a mask-less IP address?
+			if ip := net.ParseIP(strings.Split(line, " ")[0]); ip == nil {
+				// fail only if it's neither a network nor a mask-less IP address
+				return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
+			} else {
+				_, network, err = net.ParseCIDR(ip.String() + "/32")
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if err == nil && network != nil {
+			if networkOverlaps(dockerNetwork, network) {
+				return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, line)
+			}
 		}
 	}
 	return nil
@@ -142,7 +151,11 @@ func CreateBridgeIface(ifaceName string) error {
 		if err != nil {
 			return err
 		}
-		if err := checkRouteOverlaps(dockerNetwork); err == nil {
+		routes, err := ip("route")
+		if err != nil {
+			return err
+		}
+		if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
 			ifaceAddr = addr
 			break
 		} else {
