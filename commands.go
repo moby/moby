@@ -27,7 +27,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.5.0-dev"
+const VERSION = "0.5.1"
 
 var (
 	GITCOMMIT string
