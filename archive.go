@@ -173,7 +173,7 @@ func CopyWithTar(src, dst string) error {
 	}
 	// Create dst, copy src's content into it
 	utils.Debugf("Creating dest directory: %s", dst)
-	if err := os.MkdirAll(dst, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
