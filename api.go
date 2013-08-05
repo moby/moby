@@ -87,7 +87,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	status, err := auth.Login(authConfig)
+	status, err := auth.Login(authConfig, srv.HTTPRequestFactory())
 	if err != nil {
 		return err
 	}
