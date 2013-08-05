@@ -163,7 +163,7 @@ Then reload UFW:
 
 
 UFW's default set of rules denied all `incoming`, so if you want to be able to reach your containers from another host,
-you should allow incoming connexions on the docker port (default 4243):
+you should allow incoming connections on the docker port (default 4243):
 
 .. code-block:: bash
 
