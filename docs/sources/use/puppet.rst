@@ -53,13 +53,13 @@ defined type which can be used like so:
 
 .. code-block:: ruby
 
-  docker::image { 'base': }
+  docker::image { 'ubuntu': }
 
 This is equivalent to running:
 
 .. code-block:: bash
 
-  docker pull base
+  docker pull ubuntu
 
 Note that it will only if the image of that name does not already exist.
 This is downloading a large binary so on first run can take a while.
@@ -68,7 +68,7 @@ for exec. Note that you can also remove images you no longer need with:
 
 .. code-block:: ruby
 
-  docker::image { 'base':
+  docker::image { 'ubuntu':
     ensure => 'absent',
   }
 
@@ -81,7 +81,7 @@ docker.
 .. code-block:: ruby
 
   docker::run { 'helloworld':
-    image   => 'base',
+    image   => 'ubuntu',
     command => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
   }
 
@@ -89,14 +89,14 @@ This is equivalent to running the following command, but under upstart:
 
 .. code-block:: bash
 
-  docker run -d base /bin/sh -c "while true; do echo hello world; sleep 1; done"
+  docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
 
 Run also contains a number of optional parameters:
 
 .. code-block:: ruby
 
   docker::run { 'helloworld':
-    image        => 'base',
+    image        => 'ubuntu',
     command      => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
     ports        => ['4444', '4555'],
     volumes      => ['/var/lib/counchdb', '/var/log'],

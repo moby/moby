@@ -26,12 +26,12 @@ Running an interactive shell
 
 .. code-block:: bash
 
-  # Download a base image
-  docker pull base
+  # Download an ubuntu image
+  docker pull ubuntu
 
-  # Run an interactive shell in the base image,
+  # Run an interactive shell in the ubuntu image,
   # allocate a tty, attach stdin and stdout
-  docker run -i -t base /bin/bash
+  docker run -i -t ubuntu /bin/bash
 
 Bind Docker to another host/port or a unix socket
 -------------------------------------------------
@@ -52,8 +52,8 @@ For example:
 
    # Run docker in daemon mode
    sudo <path to>/docker -H 0.0.0.0:5555 -d &
-   # Download a base image
-   docker -H :5555 pull base
+   # Download an ubuntu image
+   docker -H :5555 pull ubuntu
 
 You can use multiple -H, for example, if you want to listen
 on both tcp and a unix socket
@@ -62,10 +62,10 @@ on both tcp and a unix socket
 
    # Run docker in daemon mode
    sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &
-   # Download a base image
-   docker pull base
+   # Download an ubuntu image
+   docker pull ubuntu
    # OR
-   docker -H unix:///var/run/docker.sock pull base
+   docker -H unix:///var/run/docker.sock pull ubuntu
 
 Starting a long-running worker process
 --------------------------------------
@@ -73,7 +73,7 @@ Starting a long-running worker process
 .. code-block:: bash
 
   # Start a very useful long-running process
-  JOB=$(docker run -d base /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+  JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
   # Collect the output of the job so far
   docker logs $JOB
@@ -95,7 +95,7 @@ Expose a service on a TCP port
 .. code-block:: bash
 
   # Expose port 4444 of this container, and tell netcat to listen on it
-  JOB=$(docker run -d -p 4444 base /bin/nc -l -p 4444)
+  JOB=$(docker run -d -p 4444 ubuntu /bin/nc -l -p 4444)
 
   # Which public port is NATed to my container?
   PORT=$(docker port $JOB 4444)
