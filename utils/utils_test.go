@@ -318,7 +318,7 @@ func TestGetResolvConf(t *testing.T) {
 	}
 }
 
-func TestCheclLocalDns(t *testing.T) {
+func TestCheckLocalDns(t *testing.T) {
 	for resolv, result := range map[string]bool{`# Dynamic
 nameserver 10.0.2.3
 search dotcloud.net`: false,
