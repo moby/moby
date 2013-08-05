@@ -159,10 +159,9 @@ func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
-	tag := cmd.String("t", "", "Tag to be applied to the resulting image in case of success")
+	tag := cmd.String("t", "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
-
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
