@@ -1,9 +1,9 @@
-:title: Installation on Amazon EC2 
+:title: Installation on Amazon EC2
 :description: Docker installation on Amazon EC2 with a single vagrant command. Vagrant 1.1 or higher is required.
 :keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
 
-Amazon EC2
-==========
+Using Vagrant (Amazon EC2)
+==========================
 
   Please note this is a community contributed installation path. The only 'official' installation is using the
   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
