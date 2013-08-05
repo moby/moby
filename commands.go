@@ -30,8 +30,7 @@ import (
 const VERSION = "0.5.0-dev"
 
 var (
-	GITCOMMIT         string
-	AuthRequiredError = fmt.Errorf("Authentication is required.")
+	GITCOMMIT string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -197,7 +196,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// FIXME: ProgressReader shouldn't be this annoyning to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf.FormatProgress("Uploading context", "%v bytes%0.0s%0.0s"), sf)
+		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf.FormatProgress("", "Uploading context", "%v bytes%0.0s%0.0s"), sf)
 	}
 	// Upload the build context
 	v := &url.Values{}
@@ -846,7 +845,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	if err := push(); err != nil {
-		if err == AuthRequiredError {
+		if err == fmt.Errorf("Authentication is required.") {
 			if err = cli.checkIfLogged("push"); err == nil {
 				return push()
 			}
@@ -1569,19 +1568,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
-		dec := json.NewDecoder(resp.Body)
-		for {
-			var jm utils.JSONMessage
-			if err := dec.Decode(&jm); err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-			if jm.Error != nil && jm.Error.Code == 401 {
-				return AuthRequiredError
-			}
-			jm.Display(out)
-		}
+		return utils.DisplayJSONMessagesStream(resp.Body, out)
 	} else {
 		if _, err := io.Copy(out, resp.Body); err != nil {
 			return err
