@@ -177,8 +177,39 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return tmp.imageRoot(id), nil
 }
 
+// getDockerInitLayer returns the path of a layer containing a mountpoint suitable
+// for bind-mounting dockerinit into the container. The mountpoint is simply an
+// empty file at /.dockerinit
+//
+// This extra layer is used by all containers as the top-most ro layer. It protects
+// the container from unwanted side-effects on the rw layer.
+func (graph *Graph) getDockerInitLayer() (string, error) {
+	tmp, err := graph.tmp()
+	if err != nil {
+		return "", err
+	}
+	initLayer := tmp.imageRoot("_dockerinit")
+	if err := os.Mkdir(initLayer, 0755); err != nil && !os.IsExist(err) {
+		// If directory already existed, keep going.
+		// For all other errors, abort.
+		return "", err
+	}
+	// FIXME: how the hell do I break down this line in a way
+	// that is idiomatic and not ugly as hell?
+	if f, err := os.OpenFile(path.Join(initLayer, ".dockerinit"), os.O_CREATE|os.O_TRUNC, 0700); err != nil && !os.IsExist(err) {
+		// If file already existed, keep going.
+		// For all other errors, abort.
+		return "", err
+	} else {
+		f.Close()
+	}
+	// Layer is ready to use, if it wasn't before.
+	return initLayer, nil
+}
+
 func (graph *Graph) tmp() (*Graph, error) {
-	return NewGraph(path.Join(graph.Root, ":tmp:"))
+	// Changed to _tmp from :tmp:, because it messed with ":" separators in aufs branch syntax...
+	return NewGraph(path.Join(graph.Root, "_tmp"))
 }
 
 // Check if given error is "not empty".
