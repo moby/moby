@@ -5,10 +5,14 @@
 Using Vagrant (Amazon EC2)
 ==========================
 
+This page explains how to setup and run an Amazon EC2 instance from your local machine. 
+Vagrant is not necessary to run Docker on EC2. You can follow the :ref:`ubuntu_linux` instructions
+installing Docker on any EC2 instance running Ubuntu
+
   Please note this is a community contributed installation path. The only 'official' installation is using the
   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
-
-
+  
+  
 Installation
 ------------
 
