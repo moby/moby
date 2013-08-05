@@ -996,6 +996,28 @@ func TestEntrypoint(t *testing.T) {
 	}
 }
 
+func TestEntrypointNoCmd(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(string(output), "\r\n") != "foobar" {
+		t.Error(string(output))
+	}
+}
+
 func grepFile(t *testing.T, path string, pattern string) {
 	f, err := os.Open(path)
 	if err != nil {

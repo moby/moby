@@ -93,6 +93,8 @@ func (b *buildFile) CmdRun(args string) error {
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
+	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
+
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
 	if b.utilizeCache {
@@ -115,7 +117,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if err := b.commit(cid, cmd, "run"); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
+
 	return nil
 }
 
