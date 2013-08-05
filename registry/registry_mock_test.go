@@ -336,7 +336,6 @@ func TestPing(t *testing.T) {
 
 /* Uncomment this to test Mocked Registry locally with curl
  * WARNING: Don't push on the repos uncommented, it'll block the tests
-<<<<<<< HEAD
  *
 func TestWait(t *testing.T) {
 	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
@@ -345,11 +344,3 @@ func TestWait(t *testing.T) {
 }
 
 //*/
-=======
- */
-// func TestWait(t *testing.T) {
-// 	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
-// 	c := make(chan int)
-// 	<-c
-// }
->>>>>>> Mock registry: Fixed a bug where the index validation path would return a 200 status code instead of the expected 204
