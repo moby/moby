@@ -73,6 +73,7 @@ type progressReader struct {
 	lastUpdate   int           // How many bytes read at least update
 	template     string        // Template to print. Default "%v/%v (%v)"
 	sf           *StreamFormatter
+	newLine      bool
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
@@ -94,17 +95,24 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 		}
 		r.lastUpdate = r.readProgress
 	}
+	// Send newline when complete
+	if r.newLine && err != nil {
+		r.output.Write(r.sf.FormatStatus("", ""))
+	}
 	return read, err
 }
 func (r *progressReader) Close() error {
 	return io.ReadCloser(r.reader).Close()
 }
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
-	tpl := string(template)
-	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%8v/%v (%v)", ""))
+func ProgressReader(r io.ReadCloser, size int, output io.Writer, tpl []byte, sf *StreamFormatter, newline bool) *progressReader {
+	return &progressReader{
+		reader:    r,
+		output:    NewWriteFlusher(output),
+		readTotal: size,
+		template:  string(tpl),
+		sf:        sf,
+		newLine:   newline,
 	}
-	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
