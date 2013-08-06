@@ -86,3 +86,8 @@ type APIImageConfig struct {
 	ID string `json:"Id"`
 	*Config
 }
+
+type APICopy struct {
+	Resource string
+	HostPath string
+}
