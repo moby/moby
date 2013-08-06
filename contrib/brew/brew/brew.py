@@ -17,7 +17,7 @@ processed = {}
 
 
 def build_library(repository=None, branch=None, namespace=None, push=False,
-        debug=False, prefill=True):
+        debug=False, prefill=True, registry=None):
     dst_folder = None
     summary = Summary()
     if repository is None:
@@ -75,7 +75,8 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
                     logger.debug('Pulling {0} from official repository (cache '
                         'fill)'.format(buildfile))
                     client.pull(buildfile)
-                img = build_repo(url, ref, buildfile, tag, namespace, push)
+                img = build_repo(url, ref, buildfile, tag, namespace, push,
+                    registry)
                 summary.add_success(buildfile, (linecnt, line), img)
                 processed['{0}@{1}'.format(url, ref)] = img
             except Exception as e:
@@ -88,7 +89,7 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
     summary.print_summary(logger)
 
 
-def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
+def build_repo(repository, ref, docker_repo, docker_tag, namespace, push, registry):
     docker_repo = '{0}/{1}'.format(namespace or 'library', docker_repo)
     img_id = None
     if '{0}@{1}'.format(repository, ref) not in processed.keys():
@@ -105,7 +106,12 @@ def build_repo(repository, ref, docker_repo, docker_tag, namespace, push):
         docker_tag or 'latest'))
     client.tag(img_id, docker_repo, docker_tag)
     if push:
-        logger.info('Pushing result to the main registry')
+        logger.info('Pushing result to registry {0}'.format(
+            registry or "default"))
+        if registry is not None:
+            docker_repo = '{0}/{1}'.format(registry, docker_repo)
+            logger.info('Also tagging {0}'.format(docker_repo))
+            client.tag(img_id, docker_repo, docker_tag)
         client.push(docker_repo)
     return img_id
 

@@ -1,2 +1,2 @@
 dulwich==0.9.0
-docker-py==0.1.2
+docker-py==0.1.3
