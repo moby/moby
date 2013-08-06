@@ -1,0 +1,3 @@
+The code inside the directory /tar is temporarily forked from the golang repository to fixa bug in the tar implementation.
+
+It is on its way to be published back.
