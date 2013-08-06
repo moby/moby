@@ -1169,6 +1169,23 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
+func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) error {
+	if container := srv.runtime.Get(name); container != nil {
+
+		data, err := container.Copy(resource)
+		if err != nil {
+			return err
+		}
+
+		if _, err := io.Copy(out, data); err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("No such container: %s", name)
+
+}
+
 func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)

@@ -1089,3 +1089,24 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 	return sizeRw, sizeRootfs
 }
+
+func (container *Container) Copy(resource string) (Archive, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	var filter []string
+	basePath := path.Join(container.RootfsPath(), resource)
+	stat, err := os.Stat(basePath)
+	if err != nil {
+		return nil, err
+	}
+	if !stat.IsDir() {
+		d, f := path.Split(basePath)
+		basePath = d
+		filter = []string{f}
+	} else {
+		filter = []string{path.Base(basePath)}
+		basePath = path.Dir(basePath)
+	}
+	return TarFilter(basePath, Uncompressed, filter)
+}
