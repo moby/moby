@@ -32,7 +32,7 @@ ubuntu:
 	# Retrieve docker project and its go structure from internet
 	rm -rf ${BUILD_SRC}
 	git clone $(shell git rev-parse --show-toplevel) ${BUILD_SRC}/${GITHUB_PATH}
-	cd ${BUILD_SRC}/${GITHUB_PATH}; git checkout v${VERSION} && GOPATH=${BUILD_SRC} go get -d
+	cd ${BUILD_SRC}/${GITHUB_PATH}; git checkout v${VERSION} && GOPATH=${BUILD_SRC} go get -d && cd ${BUILD_SRC}/src/${GITHUB_PATH} && git checkout v${VERSION}
 	# Add debianization
 	mkdir ${BUILD_SRC}/debian
 	cp Makefile ${BUILD_SRC}
