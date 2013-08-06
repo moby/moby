@@ -253,6 +253,7 @@ func (mapper *PortMapper) setup() error {
 
 func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, dest_addr string, dest_port int) error {
 	return iptables("-t", "nat", rule, "DOCKER", "-p", proto, "--dport", strconv.Itoa(port),
+		"!", "-i", NetworkBridgeIface,
 		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
 }
 
@@ -264,7 +265,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			return err
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "tcp")
 			return err
@@ -278,7 +279,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			return err
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "udp")
 			return err
