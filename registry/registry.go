@@ -161,13 +161,14 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 
 // Check if an image exists in the Registry
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
-	rt := &http.Transport{Proxy: http.ProxyFromEnvironment}
+
 
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return false
 	}
-	res, err := rt.RoundTrip(req)
+	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
+	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return false
 	}
@@ -213,6 +214,10 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
+			res.StatusCode, imgID)
 	}
 	return res.Body, nil
 }
