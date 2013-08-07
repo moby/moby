@@ -2,7 +2,7 @@ Source: lxc-docker
 Section: admin
 Priority: optional
 Maintainer: Daniel Mizyrycki <daniel@dotcloud.com>
-Build-Depends: debhelper (>=9), autotools-dev, golang
+Build-Depends: debhelper (>=9), autotools-dev
 Standards-Version: 3.9.4
 Vcs-Git: git://git.debian.org/git/collab-maint/lxc-docker.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/lxc-docker.git;a=summary
