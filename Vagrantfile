@@ -25,7 +25,8 @@ Vagrant::Config.run do |config|
       "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "
     # Add guest additions if local vbox VM
     is_vbox = true
-    ARGV.each do |arg| is_vbox &&= !arg.downcase.start_with?("--provider") end
+    # The logic here makes a few assumptions (i.e. no one uses --provider=virtualbox)
+    ARGV.each do |arg| is_vbox &&= ( !arg.downcase.start_with?("--provider") && !ENV['VAGRANT_DEFAULT_PROVIDER'] )end
     if is_vbox
       pkg_cmd << "apt-get install -q -y linux-headers-3.8.0-19-generic dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
