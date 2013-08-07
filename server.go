@@ -265,16 +265,17 @@ func (srv *Server) DockerInfo() *APIInfo {
 	}
 
 	return &APIInfo{
-		Containers:      len(srv.runtime.List()),
-		Images:          imgcount,
-		MemoryLimit:     srv.runtime.capabilities.MemoryLimit,
-		SwapLimit:       srv.runtime.capabilities.SwapLimit,
-		Debug:           os.Getenv("DEBUG") != "",
-		NFd:             utils.GetTotalUsedFds(),
-		NGoroutines:     runtime.NumGoroutine(),
-		LXCVersion:      lxcVersion,
-		NEventsListener: len(srv.events),
-		KernelVersion:   kernelVersion,
+		Containers:         len(srv.runtime.List()),
+		Images:             imgcount,
+		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
+		SwapLimit:          srv.runtime.capabilities.SwapLimit,
+		Debug:              os.Getenv("DEBUG") != "",
+		NFd:                utils.GetTotalUsedFds(),
+		NGoroutines:        runtime.NumGoroutine(),
+		LXCVersion:         lxcVersion,
+		NEventsListener:    len(srv.events),
+		KernelVersion:      kernelVersion,
+		IndexServerAddress: auth.IndexServerAddress(),
 	}
 }
 

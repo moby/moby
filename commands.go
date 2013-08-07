@@ -496,6 +496,14 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", out.KernelVersion)
 	}
+
+	if len(out.IndexServerAddress) != 0 {
+		u := cli.configFile.Configs[out.IndexServerAddress].Username
+		if len(u) > 0 {
+			fmt.Fprintf(cli.out, "Username: %v\n", u)
+			fmt.Fprintf(cli.out, "Registry: %v\n", out.IndexServerAddress)
+		}
+	}
 	if !out.MemoryLimit {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
 	}
