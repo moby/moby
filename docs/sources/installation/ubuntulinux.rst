@@ -34,13 +34,20 @@ Dependencies
 
 **Linux kernel 3.8**
 
-Due to a bug in LXC docker works best on the 3.8 kernel. Precise comes with a 3.2 kernel, so we need to upgrade it. The kernel we install comes with AUFS built in.
+Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
+comes with a 3.2 kernel, so we need to upgrade it. The kernel we
+install comes with AUFS built in. We also include the generic headers
+to enable packages that depend on them, like ZFS and the VirtualBox
+guest additions. If you didn't install the headers for your "precise"
+kernel, then you can skip these headers for the "raring" kernel. But
+it is safer to include them if you're not sure.
 
 
 .. code-block:: bash
 
    # install the backported kernel
-   sudo apt-get update && sudo apt-get install linux-image-generic-lts-raring
+   sudo apt-get update
+   sudo apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
 
    # reboot
    sudo reboot
