@@ -14,7 +14,11 @@ Assuming you have a wheezy system up and running
 
 # Get building dependencies
 sudo apt-get update
-sudo apt-get install -y debhelper build-essential autotools-dev golang
+sudo apt-get install -y debhelper build-essential autotools-dev
+curl -s -o /tmp/go.tar.gz https://go.googlecode.com/files/go1.1.1.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+sudo ln -s /usr/local/go/bin/go /usr/local/bin/go
+
 
 # Make the debian package
 git clone https://github.com/dotcloud/docker.git
