@@ -1306,10 +1306,10 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 
 	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(string(output), -1)
 	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [1: lo], got [%s]", interfaces)
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
 	}
-	if interfaces[0] != "1: lo" {
-		t.Fatalf("Wrong interface in test container: expected [1: lo], got [%s]", interfaces)
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
 	}
 
 }
