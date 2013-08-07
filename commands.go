@@ -1433,7 +1433,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		return nil, -1, err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
-    req.Host = cli.addr
+	req.Host = cli.addr
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
@@ -1475,7 +1475,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
-    req.Host = cli.addr
+	req.Host = cli.addr
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
@@ -1538,7 +1538,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
 	req.Header.Set("Content-Type", "plain/text")
-    req.Host = cli.addr
+	req.Host = cli.addr
 
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
