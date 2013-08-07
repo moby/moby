@@ -510,6 +510,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if !out.SwapLimit {
 		fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 	}
+	if !out.IPv4Forwarding {
+		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
+	}
 	return nil
 }
 

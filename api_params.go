@@ -24,6 +24,7 @@ type APIInfo struct {
 	NGoroutines        int    `json:",omitempty"`
 	MemoryLimit        bool   `json:",omitempty"`
 	SwapLimit          bool   `json:",omitempty"`
+	IPv4Forwarding     bool   `json:",omitempty"`
 	LXCVersion         string `json:",omitempty"`
 	NEventsListener    int    `json:",omitempty"`
 	KernelVersion      string `json:",omitempty"`
