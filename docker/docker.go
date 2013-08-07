@@ -16,6 +16,7 @@ import (
 
 var (
 	GITCOMMIT string
+	VERSION string
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 	docker.GITCOMMIT = GITCOMMIT
+	docker.VERSION = VERSION
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
