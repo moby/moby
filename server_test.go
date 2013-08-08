@@ -210,7 +210,7 @@ func TestContainerTop(t *testing.T) {
 	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
 
-	c, hostConfig := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
 	defer runtime.Destroy(c)
 	if err := c.Start(hostConfig); err != nil {
 		t.Fatal(err)
@@ -222,21 +222,33 @@ func TestContainerTop(t *testing.T) {
 	if !c.State.Running {
 		t.Errorf("Container should be running")
 	}
-	procs, err := srv.ContainerTop(c.ID)
+	procs, err := srv.ContainerTop(c.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(procs) != 2 {
-		t.Fatalf("Expected 2 processes, found %d.", len(procs))
+	if len(procs.Processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
 	}
 
-	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
+	pos := -1
+	for i := 0; i < len(procs.Titles); i++ {
+		if procs.Titles[i] == "CMD" {
+			pos = i
+			break
+		}
 	}
 
-	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
+	if pos == -1 {
+		t.Fatalf("Expected CMD, not found.")
+	}
+
+	if procs.Processes[0][pos] != "sh" && procs.Processes[0][pos] != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs.Processes[0][pos])
+	}
+
+	if procs.Processes[1][pos] != "sh" && procs.Processes[1][pos] != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs.Processes[1][pos])
 	}
 }
 
