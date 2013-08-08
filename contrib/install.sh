@@ -45,7 +45,13 @@ then
   echo "Upstart script already exists."
 else
   echo "Creating /etc/init/dockerd.conf..."
-  echo "exec env LANG=\"en_US.UTF-8\" /usr/local/bin/docker -d" > /etc/init/dockerd.conf
+  cat >/etc/init/dockerd.conf <<EOF
+description "Docker daemon"
+start on filesystem or runlevel [2345]
+stop on runlevel [!2345]
+respawn
+exec env LANG="en_US.UTF-8" /usr/local/bin/docker -d
+EOF
 fi
 
 echo "Starting dockerd..."
