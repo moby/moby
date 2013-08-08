@@ -177,10 +177,6 @@ func CreateBridgeIface(ifaceName string) error {
 	if output, err := ip("link", "set", ifaceName, "up"); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
 	}
-	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
-		"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
-		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
-	}
 	return nil
 }
 
@@ -221,8 +217,16 @@ type PortMapper struct {
 	udpProxies map[int]Proxy
 }
 
-func (mapper *PortMapper) cleanup() error {
+func (mapper *PortMapper) cleanup(bridgeIface string) error {
+	ifaceAddr, err := getIfaceAddr(bridgeIface)
+	if err != nil {
+		return err
+	}
+
 	// Ignore errors - This could mean the chains were never set up
+	iptables("-D", "FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j", "DROP")
+	iptables("-t", "nat", "-D", "POSTROUTING", "-s", ifaceAddr.String(), "!", "-d", ifaceAddr.String(), "-j", "MASQUERADE")
+
 	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
 	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
 	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
@@ -238,7 +242,20 @@ func (mapper *PortMapper) cleanup() error {
 	return nil
 }
 
-func (mapper *PortMapper) setup() error {
+func (mapper *PortMapper) setup(bridgeIface string) error {
+	ifaceAddr, err := getIfaceAddr(bridgeIface)
+	if err != nil {
+		return err
+	}
+	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr.String(),
+		"!", "-d", ifaceAddr.String(), "-j", "MASQUERADE"); err != nil {
+		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+	}
+	// Prevent direct intercontainer communications
+	if err := iptables("-A", "FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j", "DROP"); err != nil {
+		return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+	}
+
 	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
 		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
 	}
@@ -321,12 +338,12 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 	return nil
 }
 
-func newPortMapper() (*PortMapper, error) {
+func newPortMapper(bridgeIface string) (*PortMapper, error) {
 	mapper := &PortMapper{}
-	if err := mapper.cleanup(); err != nil {
+	if err := mapper.cleanup(bridgeIface); err != nil {
 		return nil, err
 	}
-	if err := mapper.setup(); err != nil {
+	if err := mapper.setup(bridgeIface); err != nil {
 		return nil, err
 	}
 	return mapper, nil
@@ -680,7 +697,7 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		return nil, err
 	}
 
-	portMapper, err := newPortMapper()
+	portMapper, err := newPortMapper(bridgeIface)
 	if err != nil {
 		return nil, err
 	}
