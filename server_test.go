@@ -211,6 +211,11 @@ func TestContainerTop(t *testing.T) {
 	defer nuke(runtime)
 
 	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer runtime.Destroy(c)
 	if err := c.Start(hostConfig); err != nil {
 		t.Fatal(err)
