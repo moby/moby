@@ -1,0 +1,7 @@
+latest	git://github.com/dotcloud/ubuntu-quantal
+quantal	git://github.com/dotcloud/ubuntu-quantal
+12.10	git://github.com/dotcloud/ubuntu-quantal
+precise	git://github.com/shin-/ubuntu				B:precise
+12.04	git://github.com/shin-/ubuntu				B:precise
+raring	git://github.com/shin-/ubuntu				B:raring
+13.04	git://github.com/shin-/ubuntu				B:raring
