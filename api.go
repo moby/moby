@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -17,7 +18,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.3
+const APIVERSION = 1.4
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
@@ -81,13 +82,21 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
+func matchesContentType(contentType, expectedType string) bool {
+	mimetype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		utils.Debugf("Error parsing media type: %s error: %s", contentType, err.Error())
+	}
+	return err == nil && mimetype == expectedType
+}
+
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
 	err := json.NewDecoder(r.Body).Decode(authConfig)
 	if err != nil {
 		return err
 	}
-	status, err := auth.Login(authConfig)
+	status, err := auth.Login(authConfig, srv.HTTPRequestFactory())
 	if err != nil {
 		return err
 	}
@@ -271,11 +280,18 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version < 1.4 {
+		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
+	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	procsStr, err := srv.ContainerTop(name)
+	ps_args := r.Form.Get("ps_args")
+	procsStr, err := srv.ContainerTop(name, ps_args)
 	if err != nil {
 		return err
 	}
@@ -379,7 +395,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
-		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, version > 1.3); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -481,7 +497,12 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns() {
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return err
+	}
+
+	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
@@ -499,6 +520,11 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
+	}
+
+	if !srv.runtime.capabilities.IPv4Forwarding {
+		log.Println("Warning: IPv4 forwarding is disabled.")
+		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
 
 	b, err := json.Marshal(out)
@@ -582,7 +608,7 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
-		if r.Header.Get("Content-Type") == "application/json" {
+		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
 			if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
 				return err
 			}
@@ -786,12 +812,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
-	tag := ""
-	if strings.Contains(repoName, ":") {
-		remoteParts := strings.Split(repoName, ":")
-		tag = remoteParts[1]
-		repoName = remoteParts[0]
-	}
+	rawNoCache := r.FormValue("nocache")
+	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
 
@@ -837,8 +859,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
+	noCache, err := getBoolParam(rawNoCache)
+	if err != nil {
+		return err
+	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
@@ -846,6 +872,36 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
+	}
+	return nil
+}
+
+func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	copyData := &APICopy{}
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		if err := json.NewDecoder(r.Body).Decode(copyData); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	if copyData.Resource == "" {
+		return fmt.Errorf("Resource cannot be empty")
+	}
+	if copyData.Resource[0] == '/' {
+		copyData.Resource = copyData.Resource[1:]
+	}
+
+	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
+		utils.Debugf("%s", err.Error())
+		return err
 	}
 	return nil
 }
@@ -897,6 +953,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/wait":    postContainersWait,
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
+			"/containers/{name:.*}/copy":    postContainersCopy,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

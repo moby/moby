@@ -52,7 +52,7 @@ type Container struct {
 
 	waitLock chan struct{}
 	Volumes  map[string]string
-	// Store rw/ro in a separate structure to preserve reserve-compatibility on-disk.
+	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
 }
@@ -100,7 +100,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flHostname := cmd.String("h", "", "Container host name")
 	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: leave the container running in the background")
+	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 	flAttach := NewAttachOpts()
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
@@ -266,7 +266,8 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 	// Load container settings
-	if err := json.Unmarshal(data, container); err != nil {
+	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
+	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
 	return nil
@@ -379,14 +380,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdin\n")
 				defer utils.Debugf("[end] attach stdin\n")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-				if cStdout != nil {
-					defer cStdout.Close()
-				}
-				if cStderr != nil {
-					defer cStderr.Close()
-				}
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
+				} else {
+					if cStdout != nil {
+						defer cStdout.Close()
+					}
+					if cStderr != nil {
+						defer cStderr.Close()
+					}
 				}
 				if container.Config.Tty {
 					_, err = utils.CopyEscapable(cStdin, stdin)
@@ -532,6 +534,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		container.Config.MemorySwap = -1
 	}
 
+	if !container.runtime.capabilities.IPv4Forwarding {
+		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+	}
+
 	// Create the requested bind mounts
 	binds := make(map[string]BindMap)
 	// Define illegal container destinations
@@ -629,7 +635,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
-		"/sbin/init",
+		"/.dockerinit",
 	}
 
 	// Networking
@@ -651,6 +657,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-e", "HOME=/",
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"-e", "container=lxc",
+		"-e", "HOSTNAME="+container.Config.Hostname,
 	)
 
 	for _, elem := range container.Config.Env {
@@ -1085,4 +1092,25 @@ func (container *Container) GetSize() (int64, int64) {
 		})
 	}
 	return sizeRw, sizeRootfs
+}
+
+func (container *Container) Copy(resource string) (Archive, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+	var filter []string
+	basePath := path.Join(container.RootfsPath(), resource)
+	stat, err := os.Stat(basePath)
+	if err != nil {
+		return nil, err
+	}
+	if !stat.IsDir() {
+		d, f := path.Split(basePath)
+		basePath = d
+		filter = []string{f}
+	} else {
+		filter = []string{path.Base(basePath)}
+		basePath = path.Dir(basePath)
+	}
+	return TarFilter(basePath, Uncompressed, filter)
 }

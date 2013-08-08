@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +26,11 @@ const (
 	testDaemonProto       = "tcp"
 )
 
-var globalRuntime *Runtime
+var (
+	globalRuntime   *Runtime
+	startFds        int
+	startGoroutines int
+)
 
 func nuke(runtime *Runtime) error {
 	var wg sync.WaitGroup
@@ -68,7 +73,7 @@ func layerArchive(tarfile string) (io.Reader, error) {
 
 func init() {
 	// Hack to run sys init during unit testing
-	if utils.SelfPath() == "/sbin/init" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		SysInit()
 		return
 	}
@@ -80,23 +85,23 @@ func init() {
 	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
-	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
-	if err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
 		panic(err)
+	} else {
+		globalRuntime = runtime
 	}
-	globalRuntime = runtime
 
 	// Create the "Server"
 	srv := &Server{
-		runtime:     runtime,
+		runtime:     globalRuntime,
 		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
 	// If the unit test is not found, try to download it.
-	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
+	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, true); err != nil {
 			panic(err)
 		}
 	}
@@ -109,6 +114,8 @@ func init() {
 
 	// Give some time to ListenAndServer to actually start
 	time.Sleep(time.Second)
+
+	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output

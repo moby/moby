@@ -8,14 +8,14 @@
 
 ::
 
-    Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
+    Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
     Run a command in a new container
 
       -a=map[]: Attach to stdin, stdout or stderr.
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
-      -d=false: Detached mode: leave the container running in the background
+      -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
       -h="": Container host name
       -i=false: Keep stdin open even if not attached

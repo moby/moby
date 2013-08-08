@@ -1,9 +1,7 @@
 package docker
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -11,17 +9,13 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root         string
-	idIndex      *utils.TruncIndex
-	checksumLock map[string]*sync.Mutex
-	lockSumFile  *sync.Mutex
-	lockSumMap   *sync.Mutex
+	Root    string
+	idIndex *utils.TruncIndex
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -36,11 +30,8 @@ func NewGraph(root string) (*Graph, error) {
 		return nil, err
 	}
 	graph := &Graph{
-		Root:         abspath,
-		idIndex:      utils.NewTruncIndex(),
-		checksumLock: make(map[string]*sync.Mutex),
-		lockSumFile:  &sync.Mutex{},
-		lockSumMap:   &sync.Mutex{},
+		Root:    abspath,
+		idIndex: utils.NewTruncIndex(),
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -99,11 +90,6 @@ func (graph *Graph) Get(name string) (*Image, error) {
 			return nil, err
 		}
 	}
-	graph.lockSumMap.Lock()
-	defer graph.lockSumMap.Unlock()
-	if _, exists := graph.checksumLock[img.ID]; !exists {
-		graph.checksumLock[img.ID] = &sync.Mutex{}
-	}
 	return img, nil
 }
 
@@ -123,16 +109,15 @@ func (graph *Graph) Create(layerData Archive, container *Container, comment, aut
 		img.Container = container.ID
 		img.ContainerConfig = *container.Config
 	}
-	if err := graph.Register(layerData, layerData != nil, img); err != nil {
+	if err := graph.Register(nil, layerData, img); err != nil {
 		return nil, err
 	}
-	go img.Checksum()
 	return img, nil
 }
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
+func (graph *Graph) Register(jsonData []byte, layerData Archive, img *Image) error {
 	if err := ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -145,7 +130,7 @@ func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
 	}
-	if err := StoreImage(img, layerData, tmp, store); err != nil {
+	if err := StoreImage(img, jsonData, layerData, tmp); err != nil {
 		return err
 	}
 	// Commit
@@ -154,7 +139,6 @@ func (graph *Graph) Register(layerData Archive, store bool, img *Image) error {
 	}
 	img.graph = graph
 	graph.idIndex.Add(img.ID)
-	graph.checksumLock[img.ID] = &sync.Mutex{}
 	return nil
 }
 
@@ -175,7 +159,7 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, sf *uti
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("", "Buffering to disk", "%v/%v (%v)"), sf, true), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
@@ -193,8 +177,39 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return tmp.imageRoot(id), nil
 }
 
+// getDockerInitLayer returns the path of a layer containing a mountpoint suitable
+// for bind-mounting dockerinit into the container. The mountpoint is simply an
+// empty file at /.dockerinit
+//
+// This extra layer is used by all containers as the top-most ro layer. It protects
+// the container from unwanted side-effects on the rw layer.
+func (graph *Graph) getDockerInitLayer() (string, error) {
+	tmp, err := graph.tmp()
+	if err != nil {
+		return "", err
+	}
+	initLayer := tmp.imageRoot("_dockerinit")
+	if err := os.Mkdir(initLayer, 0755); err != nil && !os.IsExist(err) {
+		// If directory already existed, keep going.
+		// For all other errors, abort.
+		return "", err
+	}
+	// FIXME: how the hell do I break down this line in a way
+	// that is idiomatic and not ugly as hell?
+	if f, err := os.OpenFile(path.Join(initLayer, ".dockerinit"), os.O_CREATE|os.O_TRUNC, 0700); err != nil && !os.IsExist(err) {
+		// If file already existed, keep going.
+		// For all other errors, abort.
+		return "", err
+	} else {
+		f.Close()
+	}
+	// Layer is ready to use, if it wasn't before.
+	return initLayer, nil
+}
+
 func (graph *Graph) tmp() (*Graph, error) {
-	return NewGraph(path.Join(graph.Root, ":tmp:"))
+	// Changed to _tmp from :tmp:, because it messed with ":" separators in aufs branch syntax...
+	return NewGraph(path.Join(graph.Root, "_tmp"))
 }
 
 // Check if given error is "not empty".
@@ -310,41 +325,4 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
-}
-
-func (graph *Graph) getStoredChecksums() (map[string]string, error) {
-	checksums := make(map[string]string)
-	// FIXME: Store the checksum in memory
-
-	if checksumDict, err := ioutil.ReadFile(path.Join(graph.Root, "checksums")); err == nil {
-		if err := json.Unmarshal(checksumDict, &checksums); err != nil {
-			return nil, err
-		}
-	}
-	return checksums, nil
-}
-
-func (graph *Graph) storeChecksums(checksums map[string]string) error {
-	checksumJSON, err := json.Marshal(checksums)
-	if err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(path.Join(graph.Root, "checksums"), checksumJSON, 0600); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (graph *Graph) UpdateChecksums(newChecksums map[string]*registry.ImgData) error {
-	graph.lockSumFile.Lock()
-	defer graph.lockSumFile.Unlock()
-
-	localChecksums, err := graph.getStoredChecksums()
-	if err != nil {
-		return err
-	}
-	for id, elem := range newChecksums {
-		localChecksums[id] = elem.Checksum
-	}
-	return graph.storeChecksums(localChecksums)
 }

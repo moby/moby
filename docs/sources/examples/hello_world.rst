@@ -15,8 +15,8 @@ Download the base container
 
 .. code-block:: bash
 
-    # Download a base image
-    docker pull base
+    # Download an ubuntu image
+    docker pull ubuntu
 
 The *base* image is a minimal *ubuntu* based container, alternatively you can select *busybox*, a bare
 minimal linux system. The images are retrieved from the docker repository.

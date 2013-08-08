@@ -19,6 +19,8 @@ Docker has the following dependencies
 * Linux kernel 3.8 (read more about :ref:`kernel`)
 * AUFS file system support (we are working on BTRFS support as an alternative)
 
+Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated Firewall) <https://help.ubuntu.com/community/UFW>`_
+
 .. _ubuntu_precise:
 
 Ubuntu Precise 12.04 (LTS) (64-bit)
@@ -32,13 +34,20 @@ Dependencies
 
 **Linux kernel 3.8**
 
-Due to a bug in LXC docker works best on the 3.8 kernel. Precise comes with a 3.2 kernel, so we need to upgrade it. The kernel we install comes with AUFS built in.
+Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
+comes with a 3.2 kernel, so we need to upgrade it. The kernel we
+install comes with AUFS built in. We also include the generic headers
+to enable packages that depend on them, like ZFS and the VirtualBox
+guest additions. If you didn't install the headers for your "precise"
+kernel, then you can skip these headers for the "raring" kernel. But
+it is safer to include them if you're not sure.
 
 
 .. code-block:: bash
 
    # install the backported kernel
-   sudo apt-get update && sudo apt-get install linux-image-generic-lts-raring
+   sudo apt-get update
+   sudo apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
 
    # reboot
    sudo reboot
@@ -135,3 +144,35 @@ Verify it worked
 
 
 **Done!**, now continue with the :ref:`hello_world` example.
+
+
+.. _ufw:
+
+Docker and UFW
+^^^^^^^^^^^^^^
+
+Docker uses a bridge to manage containers networking, by default UFW drop all `forwarding`, a first step is to enable forwarding:
+
+.. code-block:: bash
+
+   sudo nano /etc/default/ufw
+   ----
+   # Change:
+   # DEFAULT_FORWARD_POLICY="DROP"
+   # to
+   DEFAULT_FORWARD_POLICY="ACCEPT"
+
+Then reload UFW:
+
+.. code-block:: bash
+
+   sudo ufw reload
+
+
+UFW's default set of rules denied all `incoming`, so if you want to be able to reach your containers from another host,
+you should allow incoming connections on the docker port (default 4243):
+
+.. code-block:: bash
+
+   sudo ufw allow 4243/tcp
+

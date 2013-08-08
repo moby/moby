@@ -482,24 +482,33 @@ func TestGetContainersTop(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersTop(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	req, err := http.NewRequest("GET", "/"+container.ID+"/top?ps_args=u", bytes.NewReader([]byte{}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	procs := []APITop{}
+	if err := getContainersTop(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+	procs := APITop{}
 	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(procs) != 2 {
-		t.Fatalf("Expected 2 processes, found %d.", len(procs))
+	if len(procs.Titles) != 11 {
+		t.Fatalf("Expected 11 titles, found %d.", len(procs.Titles))
+	}
+	if procs.Titles[0] != "USER" || procs.Titles[10] != "COMMAND" {
+		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.Titles[0], procs.Titles[10])
 	}
 
-	if procs[0].Cmd != "sh" && procs[0].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[0].Cmd)
+	if len(procs.Processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
 	}
-
-	if procs[1].Cmd != "sh" && procs[1].Cmd != "busybox" {
-		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs[1].Cmd)
+	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "sleep" {
+		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[0][10])
+	}
+	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "sleep" {
+		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[1][10])
 	}
 }
 
@@ -895,6 +904,12 @@ func TestPostContainersAttach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
+	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	defer func() {
+		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+		container.Kill()
+	}()
+
 	// Attach to it
 	c1 := make(chan struct{})
 	go func() {
@@ -934,7 +949,7 @@ func TestPostContainersAttach(t *testing.T) {
 	}
 
 	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
-	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
+	setTimeout(t, "Waiting for CmdAttach timed out", 10*time.Second, func() {
 		<-c1
 	})
 
@@ -1125,6 +1140,84 @@ func TestDeleteImages(t *testing.T) {
 		if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
 			t.Fatalf("The test file has not been deleted")
 		} */
+}
+
+func TestJsonContentType(t *testing.T) {
+	if !matchesContentType("application/json", "application/json") {
+		t.Fail()
+	}
+
+	if !matchesContentType("application/json; charset=utf-8", "application/json") {
+		t.Fail()
+	}
+
+	if matchesContentType("dockerapplication/json", "application/json") {
+		t.Fail()
+	}
+}
+
+func TestPostContainersCopy(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"touch", "/test.txt"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	copyData := APICopy{HostPath: ".", Resource: "/test.txt"}
+
+	jsonData, err := json.Marshal(copyData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/"+container.ID+"/copy", bytes.NewReader(jsonData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err = postContainersCopy(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	found := false
+	for tarReader := tar.NewReader(r.Body); ; {
+		h, err := tarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if h.Name == "test.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("The created test file has not been found in the copied output")
+	}
 }
 
 // Mocked types for tests

@@ -39,7 +39,7 @@ This time, we're requesting shared access to $COUCH1's volumes.
 
 .. code-block:: bash
 
-    COUCH2=$(docker run -d -volumes-from $COUCH1) shykes/couchdb:2013-05-03)
+    COUCH2=$(docker run -d -volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 
 Browse data on the second database
 ----------------------------------
@@ -48,6 +48,6 @@ Browse data on the second database
 
     HOST=localhost
     URL="http://$HOST:$(docker port $COUCH2 5984)/_utils/"
-    echo "Navigate to $URL in your browser. You should see the same data as in the first database!"
+    echo "Navigate to $URL in your browser. You should see the same data as in the first database"'!'
 
 Congratulations, you are running 2 Couchdb containers, completely isolated from each other *except* for their data.

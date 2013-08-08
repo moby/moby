@@ -17,7 +17,7 @@ Docker Remote API v1.3
 =====================
 
 - The Remote API is replacing rcli
-- Default port in the docker deamon is 4243 
+- Default port in the docker daemon is 4243
 - The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
 
 2. Endpoints
@@ -925,7 +925,7 @@ Build an image from Dockerfile via stdin
 
         The Content-type header should be set to "application/tar".
 
-	:query t: tag to be applied to the resulting image in case of success
+	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
 	:query q: suppress verbose build output
 	:statuscode 200: no error
         :statuscode 500: server error
@@ -989,7 +989,10 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false
+		"SwapLimit":false,
+		"EventsListeners":"0",
+		"LXCVersion":"0.7.5",
+		"KernelVersion":"3.8.0-19-generic"
 	   }
 
         :statuscode 200: no error

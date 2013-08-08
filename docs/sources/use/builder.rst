@@ -107,8 +107,8 @@ the image.  This is functionally equivalent to running ``docker commit
 -run '{"Cmd": <command>}'`` outside the builder.
 
 .. note::
-    Don't confuse `RUN` with `CMD`. `RUN` actually runs a
-    command and commits the result; `CMD` does not execute anything at
+    Don't confuse ``RUN`` with ``CMD``. ``RUN`` actually runs a
+    command and commits the result; ``CMD`` does not execute anything at
     build time, but specifies the intended command for the image.
 
 3.5 EXPOSE
@@ -182,7 +182,7 @@ The copy obeys the following rules:
   written at ``<dst>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
   directories in its path. All new files and directories are created
-  with mode 0700, uid and gid 0.
+  with mode 0755, uid and gid 0.
 
 3.8 ENTRYPOINT
 --------------

@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -32,7 +33,7 @@ func TestLogin(t *testing.T) {
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	authConfig := &AuthConfig{Username: "unittester", Password: "surlautrerivejetattendrai", Email: "noise+unittester@dotcloud.com"}
-	status, err := Login(authConfig)
+	status, err := Login(authConfig, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,8 +52,8 @@ func TestCreateAccount(t *testing.T) {
 	}
 	token := hex.EncodeToString(tokenBuffer)[:12]
 	username := "ut" + token
-	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+"+token+"@example.com"}
-	status, err := Login(authConfig)
+	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+" + token + "@example.com"}
+	status, err := Login(authConfig, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestCreateAccount(t *testing.T) {
 		t.Fatalf("Expected status: \"%s\", found \"%s\" instead.", expectedStatus, status)
 	}
 
-	status, err = Login(authConfig)
+	status, err = Login(authConfig, nil)
 	if err == nil {
 		t.Fatalf("Expected error but found nil instead")
 	}
@@ -71,5 +72,41 @@ func TestCreateAccount(t *testing.T) {
 
 	if !strings.Contains(err.Error(), expectedError) {
 		t.Fatalf("Expected message \"%s\" but found \"%s\" instead", expectedError, err)
+	}
+}
+
+func TestSameAuthDataPostSave(t *testing.T) {
+	root, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configFile := &ConfigFile{
+		rootPath: root,
+		Configs:  make(map[string]AuthConfig, 1),
+	}
+
+	configFile.Configs["testIndex"] = AuthConfig{
+		Username: "docker-user",
+		Password: "docker-pass",
+		Email:    "docker@docker.io",
+	}
+
+	err = SaveConfig(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	authConfig := configFile.Configs["testIndex"]
+	if authConfig.Username != "docker-user" {
+		t.Fail()
+	}
+	if authConfig.Password != "docker-pass" {
+		t.Fail()
+	}
+	if authConfig.Email != "docker@docker.io" {
+		t.Fail()
+	}
+	if authConfig.Auth != "" {
+		t.Fail()
 	}
 }

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
+	"strings"
 	"testing"
 	"time"
 )
@@ -20,7 +21,11 @@ func TestContainerTagImageDelete(t *testing.T) {
 	if err := srv.runtime.repositories.Set("utest", "tag1", unitTestImageName, false); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := srv.runtime.repositories.Set("utest/docker", "tag2", unitTestImageName, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.runtime.repositories.Set("utest:5000/docker", "tag3", unitTestImageName, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -29,11 +34,24 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+2 {
+	if len(images) != len(initialImages)+3 {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
 	}
 
 	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
+		t.Fatal(err)
+	}
+
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != len(initialImages)+2 {
+		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
+	}
+
+	if _, err := srv.ImageDelete("utest:5000/docker:tag3", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,6 +106,27 @@ func TestCreateRm(t *testing.T) {
 		t.Errorf("Expected 0 container, %v found", len(runtime.List()))
 	}
 
+}
+
+func TestCommit(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
@@ -288,4 +327,89 @@ func TestLogEvent(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestRmi(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	initialImages, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerTag(imageID, "test", "0.1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerID, err = srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//To remove
+	err = srv.ContainerStart(containerID, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err := srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 2 {
+		t.Fatalf("Expected 2 new images, found %d.", len(images)-len(initialImages))
+	}
+
+	_, err = srv.ImageDelete(imageID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	images, err = srv.Images(false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images)-len(initialImages) != 1 {
+		t.Fatalf("Expected 1 new image, found %d.", len(images)-len(initialImages))
+	}
+
+	for _, image := range images {
+		if strings.Contains(unitTestImageID, image.ID) {
+			continue
+		}
+		if image.Repository == "" {
+			t.Fatalf("Expected tagged image, got untagged one.")
+		}
+	}
 }

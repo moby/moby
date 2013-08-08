@@ -4,3 +4,4 @@ buildbot==0.8.7p1
 buildbot_slave==0.8.7p1
 nose==1.2.1
 requests==1.1.0
+flask==0.10.1

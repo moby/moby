@@ -960,6 +960,7 @@ func TestEnv(t *testing.T) {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
 		"container=lxc",
+		"HOSTNAME=" + container.ShortID(),
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -991,6 +992,28 @@ func TestEntrypoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(output) != "foobar" {
+		t.Error(string(output))
+	}
+}
+
+func TestEntrypointNoCmd(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(string(output), "\r\n") != "foobar" {
 		t.Error(string(output))
 	}
 }
@@ -1283,10 +1306,10 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 
 	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(string(output), -1)
 	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [1: lo], got [%s]", interfaces)
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
 	}
-	if interfaces[0] != "1: lo" {
-		t.Fatalf("Wrong interface in test container: expected [1: lo], got [%s]", interfaces)
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
 	}
 
 }

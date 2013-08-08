@@ -30,6 +30,7 @@ Available Commands
    command/attach
    command/build
    command/commit
+   command/cp
    command/diff
    command/export
    command/history

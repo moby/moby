@@ -249,7 +249,7 @@ func TestMergeConfig(t *testing.T) {
 	if len(configUser.Volumes) != 3 {
 		t.Fatalf("Expected 3 volumes, /test1, /test2 and /test3, found %d", len(configUser.Volumes))
 	}
-	for v, _ := range configUser.Volumes {
+	for v := range configUser.Volumes {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
