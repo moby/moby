@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+import argparse
+
+import brew
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Build the docker standard library')
+    parser.add_argument('--push', action='store_true', default=False,
+        help='Push generated repositories')
+    parser.add_argument('--debug', default=False, action='store_true',
+        help='Enable debugging output')
+    parser.add_argument('--noprefill', default=True, action='store_false',
+        dest='prefill', help='Disable cache prefill')
+    parser.add_argument('-n', metavar='NAMESPACE', default='library',
+        help='Namespace used for generated repositories.'
+        ' Default is library')
+    parser.add_argument('-b', metavar='BRANCH', default=brew.DEFAULT_BRANCH,
+        help='Branch in the repository where the library definition'
+        ' files will be fetched. Default is ' + brew.DEFAULT_BRANCH)
+    parser.add_argument('repository', default=brew.DEFAULT_REPOSITORY,
+        nargs='?', help='git repository containing the library definition'
+        ' files. Default is ' + brew.DEFAULT_REPOSITORY)
+    parser.add_argument('--reg', default=None, help='Registry address to'
+        ' push build results to. Also sets push to true.')
+    args = parser.parse_args()
+    brew.build_library(args.repository, args.b, args.n,
+        args.push or args.reg is not None, args.debug, args.prefill, args.reg)
