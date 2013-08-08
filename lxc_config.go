@@ -70,14 +70,14 @@ func getLxcConfig (container *Container) string {
 
   // Configure root filesystem
   rootfsPath := container.RootfsPath()
-  spacer()
-  iappend("#root filesystem")
+  iappend(`
+#root filesystem`)
   override("lxc.rootfs", rootfsPath)
 
   // Configure tty etc.
-  spacer()
-  iappend("# use a dedicated pts for the container (and limit the number of pseudo terminal")
-  iappend("# available")
+  iappend(`
+# use a dedicated pts for the container (and limit the number of pseudo terminal
+# available`)
   override("lxc.pts", "1024")
   iappend("# disable the main console")
   override("lxc.console", "none")
@@ -85,45 +85,48 @@ func getLxcConfig (container *Container) string {
   override("lxc.tty", "1")
 
   // Configure device access. Note, we don't allow these to be overridden.
-  spacer()
-  iappend("# no implicit access to devices")
-  iappend("lxc.cgroup.devices.deny = a")
-  iappend("# /dev/null and zero")
-  iappend("lxc.cgroup.devices.allow = c 1:3 rwm")
-  iappend("lxc.cgroup.devices.allow = c 1:5 rwm")
+iappend(`
+# no implicit access to devices
+lxc.cgroup.devices.deny = a
+# /dev/null and zero
+lxc.cgroup.devices.allow = c 1:3 rwm
+lxc.cgroup.devices.allow = c 1:5 rwm
 
-  iappend("# consoles")
-  iappend("lxc.cgroup.devices.allow = c 5:1 rwm")
-  iappend("lxc.cgroup.devices.allow = c 5:0 rwm")
-  iappend("lxc.cgroup.devices.allow = c 4:0 rwm")
-  iappend("lxc.cgroup.devices.allow = c 4:1 rwm")
+# consoles
+lxc.cgroup.devices.allow = c 5:1 rwm
+lxc.cgroup.devices.allow = c 5:0 rwm
+lxc.cgroup.devices.allow = c 4:0 rwm
+lxc.cgroup.devices.allow = c 4:1 rwm
 
-  iappend("# /dev/urandom, /dev/random")
-  iappend("lxc.cgroup.devices.allow = c 1:9 rwm")
-  iappend("lxc.cgroup.devices.allow = c 1:8 rwm")
+# /dev/urandom, /dev/random
+lxc.cgroup.devices.allow = c 1:9 rwm
+lxc.cgroup.devices.allow = c 1:8 rwm
 
-  iappend("# /dev/pts/* - pts namespaces are \"coming soon\"")
-  iappend("lxc.cgroup.devices.allow = c 136:* rwm")
-  iappend("lxc.cgroup.devices.allow = c 5:2 rwm")
+# /dev/pts/* - pts namespaces are "coming soon"
+lxc.cgroup.devices.allow = c 136:* rwm
+lxc.cgroup.devices.allow = c 5:2 rwm
 
-  iappend("# tuntap")
-  iappend("lxc.cgroup.devices.allow = c 10:200 rwm")
+# tuntap
+lxc.cgroup.devices.allow = c 10:200 rwm
 
-  iappend("# fuse")
-  iappend("# lxc.cgroup.devices.allow = c 10:229 rwm")
-  iappend("# rtc")
-  iappend("# lxc.cgroup.devices.allow = c 254:0 rwm")
+# fuse
+# lxc.cgroup.devices.allow = c 10:229 rwm
+# rtc
+# lxc.cgroup.devices.allow = c 254:0 rwm
+`)
 
   // Mounts. We don't allow these to be overridden either.
-  spacer()
-  iappend("# standard mount point")
-  iappend("#  WARNING: procfs is a known attack vector and should probably be disabled")
-  iappend("#           if your userspace allows it. eg. see http://blog.zx2c4.com/749")
+
+  iappend(`
+# standard mount point
+#  WARNING: procfs is a known attack vector and should probably be disabled
+#           if your userspace allows it. eg. see http://blog.zx2c4.com/749`)
   
   iappend(fmt.Sprintf("lxc.mount.entry = proc %s/proc proc nosuid,nodev,noexec 0 0", rootfsPath))
   
-  iappend("#  WARNING: sysfs is a known attack vector and should probably be disabled")
-  iappend("#           if your userspace allows it. eg. see http://bit.ly/T9CkqJ")
+  iappend(`
+#  WARNING: sysfs is a known attack vector and should probably be disabled
+#           if your userspace allows it. eg. see http://bit.ly/T9CkqJ`)
   
   iappend(fmt.Sprintf("lxc.mount.entry = sysfs %s/sys sysfs nosuid,nodev,noexec 0 0", rootfsPath))
   iappend(fmt.Sprintf("lxc.mount.entry = devpts %s/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0", rootfsPath))
@@ -154,16 +157,16 @@ func getLxcConfig (container *Container) string {
   }
 
   // Drop unsecure capabilities
-  spacer()
-  iappend("# drop linux capabilities (apply mainly to the user root in the container)")
-  iappend("#  (Note: 'lxc.cap.keep' is coming soon and should replace this under the")
-  iappend("#         security principle 'deny all unless explicitly permitted', see")
-  iappend("#         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )")
+  iappend(`
+# drop linux capabilities (apply mainly to the user root in the container)
+#  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
+#         security principle 'deny all unless explicitly permitted', see
+#         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )`)
   override("lxc.cap.drop", "audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config")
 
   // Limit resources available to container
-  spacer()
-  iappend("# limits")
+  iappend(`
+# limits`)
   if container.Config.Memory > 0 {
     override("lxc.cgroup.memory.limit_in_bytes", strconv.FormatInt(container.Config.Memory, 10))
     override("lxc.cgroup.memory.soft_limit_in_bytes", strconv.FormatInt(container.Config.Memory, 10))
@@ -174,8 +177,9 @@ func getLxcConfig (container *Container) string {
   }
   
   // Append all the user-defined options that haven't already been used.
-  spacer()
-  iappend("\n\n# User-defined config options")
+  iappend(`
+
+# User-defined config options`)
   for key, val := range(container.Config.LxcOptions) {
     if _, ok := usedKeys[key]; !ok {
       iappend(fmt.Sprintf("%s = %s", key, val))
