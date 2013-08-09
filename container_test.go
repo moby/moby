@@ -1174,7 +1174,7 @@ func TestBindMounts(t *testing.T) {
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
+	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
 }
