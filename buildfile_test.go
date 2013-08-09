@@ -226,7 +226,7 @@ func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	ip := srv.runtime.networkManager.networks[0].IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
 	buildfile := NewBuildFile(srv, ioutil.Discard, false, useCache)
@@ -456,7 +456,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	ip := srv.runtime.networkManager.networks[0].IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
 	buildfile := NewBuildFile(srv, ioutil.Discard, false, true)
