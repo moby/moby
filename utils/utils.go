@@ -79,7 +79,6 @@ type progressReader struct {
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := io.ReadCloser(r.reader).Read(p)
 	r.readProgress += read
-
 	updateEvery := 1024 * 512 //512kB
 	if r.readTotal > 0 {
 		// Update progress for every 1% read if 1% < 512kB
@@ -645,7 +644,6 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 		}
 		return jm.Error
 	}
-	fmt.Fprintf(out, "%c[2K", 27)
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
@@ -653,28 +651,26 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 		fmt.Fprintf(out, "%s: ", jm.ID)
 	}
 	if jm.Progress != "" {
+		fmt.Fprintf(out, "%c[2K", 27)
 		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
 	} else {
-		fmt.Fprintf(out, "%s\r", jm.Status)
-	}
-	if jm.ID == "" {
-		fmt.Fprintf(out, "\n")
+		fmt.Fprintf(out, "%s\r\n", jm.Status)
 	}
 	return nil
 }
 
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 	dec := json.NewDecoder(in)
-	jm := JSONMessage{}
 	ids := make(map[string]int)
 	diff := 0
 	for {
+		jm := JSONMessage{}
 		if err := dec.Decode(&jm); err == io.EOF {
 			break
 		} else if err != nil {
 			return err
 		}
-		if jm.ID != "" {
+		if jm.Progress != "" && jm.ID != "" {
 			line, ok := ids[jm.ID]
 			if !ok {
 				line = len(ids)

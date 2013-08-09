@@ -422,7 +422,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	// FIXME: Launch the getRemoteImage() in goroutines
 	for _, id := range history {
 		if !srv.runtime.graph.Exists(id) {
-			out.Write(sf.FormatStatus(utils.TruncateID(id), "Pulling metadata"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
 			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
 				// FIXME: Keep goging in case of error?
@@ -434,7 +434,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 			}
 
 			// Get the layer
-			out.Write(sf.FormatStatus(utils.TruncateID(id), "Pulling fs layer"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "fs layer"))
 			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
 				return err
@@ -500,7 +500,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				errors <- nil
 				return
 			}
-			out.Write(sf.FormatStatus(utils.TruncateID(img.ID), "Pulling image (%s) from %s", img.Tag, localName))
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s", img.Tag, localName)))
 			success := false
 			for _, ep := range repoData.Endpoints {
 				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
@@ -716,11 +716,12 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	}
 
 	// Send the layer
-	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, true), ep, token, jsonRaw); err != nil {
+	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw); err != nil {
 		return "", err
 	} else {
 		imgData.Checksum = checksum
 	}
+	out.Write(sf.FormatStatus("", ""))
 
 	// Send the checksum
 	if err := r.PushImageChecksumRegistry(imgData, ep, token); err != nil {
