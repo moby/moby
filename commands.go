@@ -1396,13 +1396,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		signals := make(chan os.Signal, 1)
 		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
-			for {
-				sig := <-signals
-				if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-					fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
-					if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
-						fmt.Printf("failed to stop container:", err)
-					}
+			for sig := range signals {
+				fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
+				if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
+					fmt.Printf("failed to stop container:", err)
 				}
 			}
 		}()
