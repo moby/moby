@@ -78,6 +78,7 @@ type Config struct {
 	VolumesFrom     string
 	Entrypoint      []string
 	NetworkDisabled bool
+	Privileged      bool
 }
 
 type HostConfig struct {
@@ -108,6 +109,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
+	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -194,6 +196,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Volumes:         flVolumes,
 		VolumesFrom:     *flVolumesFrom,
 		Entrypoint:      entrypoint,
+		Privileged:      *flPrivileged,
 	}
 	hostConfig := &HostConfig{
 		Binds:           binds,

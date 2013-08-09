@@ -40,6 +40,9 @@ lxc.console = none
 # no controlling tty at all
 lxc.tty = 1
 
+{{if .Config.Privileged}}
+lxc.cgroup.devices.allow = a 
+{{else}}
 # no implicit access to devices
 lxc.cgroup.devices.deny = a
 
@@ -69,7 +72,7 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 
 # rtc
 #lxc.cgroup.devices.allow = c 254:0 rwm
-
+{{end}}
 
 # standard mount point
 #  WARNING: procfs is a known attack vector and should probably be disabled
@@ -95,11 +98,15 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 {{end}}
 
+{{if .Config.Privileged}}
+# retain all capabilities; no lxc.cap.drop line
+{{else}}
 # drop linux capabilities (apply mainly to the user root in the container)
 #  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
 #         security principle 'deny all unless explicitly permitted', see
 #         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
+{{end}}
 
 # limits
 {{if .Config.Memory}}
