@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.2 (2013-08-08)
+ * Builder: Forbid certain paths within docker build ADD
+ - Runtime: Change network range to avoid conflict with EC2 DNS
+ * API: Change daemon to listen on unix socket by default
+
 ## 0.5.1 (2013-07-30)
  + API: Docker client now sets useragent (RFC 2616)
  + Runtime: Add `ps` args to `docker top`

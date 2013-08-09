@@ -18,8 +18,9 @@ import (
 )
 
 const APIVERSION = 1.4
-const DEFAULTHTTPHOST string = "127.0.0.1"
-const DEFAULTHTTPPORT int = 4243
+const DEFAULTHTTPHOST = "127.0.0.1"
+const DEFAULTHTTPPORT = 4243
+const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -972,9 +973,8 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 	if e != nil {
 		return e
 	}
-	//as the daemon is launched as root, change to permission of the socket to allow non-root to connect
 	if proto == "unix" {
-		os.Chmod(addr, 0777)
+		os.Chmod(addr, 0700)
 	}
 	httpSrv := http.Server{Addr: addr, Handler: r}
 	return httpSrv.Serve(l)
