@@ -36,6 +36,8 @@ type buildFile struct {
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
+	savedContainer *Container
+
 	out io.Writer
 }
 
@@ -80,6 +82,37 @@ func (b *buildFile) CmdMaintainer(name string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
 
+func (b *buildFile) CmdStart() error {
+	cmd := b.config.Cmd
+	b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) START"}
+
+	b.config.Image = b.image
+
+	// Create the container and start it
+	container, err := b.builder.Create(b.config)
+	if err != nil {
+		return err
+	}
+
+	b.tmpContainers[container.ID] = struct{}{}
+
+	if err := container.EnsureMounted(); err != nil {
+		return err
+	}
+
+	defer container.Unmount()
+
+	if err := b.commit(container.ID, cmd, "START"); err != nil {
+		return err
+	}
+
+	b.config.Cmd = cmd
+
+	b.savedContainer = container
+
+	return nil
+}
+
 func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -114,6 +147,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := b.commit(cid, cmd, "run"); err != nil {
 		return err
 	}
@@ -326,11 +360,17 @@ func (b *buildFile) CmdAdd(args string) error {
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 
 	b.config.Image = b.image
-	// Create the container and start it
-	container, err := b.builder.Create(b.config)
-	if err != nil {
-		return err
+
+	container := b.savedContainer
+
+	if container == nil {
+		// Create the container and start it
+		container, err = b.builder.Create(b.config)
+		if err != nil {
+			return err
+		}
 	}
+
 	b.tmpContainers[container.ID] = struct{}{}
 
 	if err := container.EnsureMounted(); err != nil {
@@ -361,11 +401,17 @@ func (b *buildFile) run() (string, error) {
 	}
 	b.config.Image = b.image
 
-	// Create the container and start it
-	c, err := b.builder.Create(b.config)
-	if err != nil {
-		return "", err
+	var err error
+	c := b.savedContainer
+
+	if c == nil {
+		// Create the container and start it
+		c, err = b.builder.Create(b.config)
+		if err != nil {
+			return "", err
+		}
 	}
+
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
@@ -380,7 +426,7 @@ func (b *buildFile) run() (string, error) {
 	}
 
 	if b.verbose {
-		err = <-c.Attach(nil, nil, b.out, b.out)
+		err := <-c.Attach(nil, nil, b.out, b.out)
 		if err != nil {
 			return "", err
 		}
@@ -418,10 +464,16 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, err := b.builder.Create(b.config)
-		if err != nil {
-			return err
+		container := b.savedContainer
+		var err error
+
+		if container == nil {
+			container, err = b.builder.Create(b.config)
+			if err != nil {
+				return err
+			}
 		}
+
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
@@ -482,24 +534,32 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
-		}
-		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-		arguments := strings.Trim(tmp[1], " ")
-		stepN += 1
-		// FIXME: only count known instructions as build steps
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
-		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-		if !exists {
-			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-			continue
-		}
-		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-		if ret != nil {
-			return "", ret.(error)
+		if strings.ToLower(line) == "start" {
+			ret := b.CmdStart()
+			if ret != nil {
+				return "", ret
+			}
+		} else {
+			tmp := strings.SplitN(line, " ", 2)
+			if len(tmp) != 2 {
+				return "", fmt.Errorf("Invalid Dockerfile format")
+			}
+			instruction := strings.ToLower(strings.Trim(tmp[0], " "))
+			arguments := strings.Trim(tmp[1], " ")
+			stepN += 1
+			// FIXME: only count known instructions as build steps
+			fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+
+			method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
+			if !exists {
+				fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+				continue
+			}
+			ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
+			if ret != nil {
+				return "", ret.(error)
+			}
 		}
 
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))

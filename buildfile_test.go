@@ -161,6 +161,25 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	{
+		`
+from {IMAGE}
+start
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -470,5 +489,120 @@ func TestForbiddenContextPath(t *testing.T) {
 	if err.Error() != "Forbidden path: /" {
 		t.Logf("Error message is not expected: %s", err.Error())
 		t.Fail()
+	}
+}
+
+func TestIndividualCommandContainers(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	var context = testContextTemplate{
+		`
+from {IMAGE}
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	}
+
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, false)
+	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 7 {
+		t.Errorf("Incorrect number of containers created: %d", len(runtime.List()))
+	}
+}
+
+func TestStartSupressIndividualCommandContainers(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	var context = testContextTemplate{
+		`
+from {IMAGE}
+start
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	}
+
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, false)
+	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 1 {
+		t.Errorf("More than one container was created: %d", len(runtime.List()))
 	}
 }
