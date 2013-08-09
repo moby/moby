@@ -233,7 +233,6 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return err
 		}
 	}
-	return nil
 }
 
 func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
