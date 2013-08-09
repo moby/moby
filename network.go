@@ -251,6 +251,7 @@ func getIfaceNetworks(name string) ([]NetworkInterfaceIP, error) {
 				warnMultipleIpv6 = true
 			}
 		}
+<<<<<<< HEAD
 	}
 
 	if bestNet6 == nil {
@@ -268,6 +269,25 @@ func getIfaceNetworks(name string) ([]NetworkInterfaceIP, error) {
 		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet4, Gateway: bestNet4.IP})
 	}
 
+=======
+	}
+
+	if bestNet6 == nil {
+		fmt.Printf("Interface %v has no (suitable) IPv6 address. Won't use IPv6.\n",
+			name)
+	} else if warnMultipleIpv6 {
+		fmt.Printf("Interface %v has more than 1 IPv6 address. Defaulting to using %v\n",
+			name, bestNet6.IP)
+	}
+
+	networks := []NetworkInterfaceIP{}
+
+	if bestNet4 != nil {
+		utils.Debugf("Chose IPv4: %s", bestNet4)
+		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet4, Gateway: bestNet4.IP})
+	}
+
+>>>>>>> 44cb610f26072b9edf9ab4c04f7ce12b0a3892cc
 	if bestNet6 != nil {
 		utils.Debugf("Chose IPv6: %s", bestNet6)
 		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet6, Gateway: bestNet6.IP})
@@ -734,7 +754,6 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 }
 
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
-
 	if bridgeIface == DisableNetworkBridge {
 		manager := &NetworkManager{
 			disabled: true,
