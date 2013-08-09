@@ -1403,7 +1403,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 					if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
 						fmt.Printf("failed to stop container:", err)
 					}
-					return
 				}
 			}
 		}()
