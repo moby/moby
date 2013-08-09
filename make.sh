@@ -13,7 +13,7 @@ set -x
 
 VERSION=`cat ./VERSION`
 GIT_COMMIT=$(git rev-parse --short HEAD)
-GIT_CHANGES=$(test -n "`git status --porcelain`" && echo "+CHANGES")
+GIT_CHANGES=$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 
 # "bundles" indicate the different types of build artifacts: static binary, ubuntu package, etc.
 
