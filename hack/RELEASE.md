@@ -50,7 +50,7 @@ up-to-date.
 		 - Remote API: fix a bug in the optional unix socket transport
 		 ```
 
-### 3. Change VERSION in commands.go
+### 3. Change the contents of the VERSION file
 
 ### 4. Run all tests
 
