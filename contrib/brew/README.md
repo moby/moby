@@ -8,7 +8,7 @@ docker-brew is a command-line tool used to build the docker standard library.
 1. Install the easy_install tool (`sudo apt-get install python-setuptools`
 for Debian)
 1. Install the python package manager, `pip` (`easy_install pip`)
-1. Run the following command: `pip install -r requirements.txt`
+1. Run the following command: `sudo pip install -r requirements.txt`
 1. You should now be able to use the `docker-brew` script as such.
 
 ## Basics

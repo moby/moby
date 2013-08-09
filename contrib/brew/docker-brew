@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import sys
 
-import brew
-
+try:
+    import brew
+except ImportError as e:
+    print str(e)
+    print 'Please install the required dependencies first'
+    print 'sudo pip install -r requirements.txt'
+    sys.exit(1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Build the docker standard library')

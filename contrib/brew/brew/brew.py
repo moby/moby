@@ -7,7 +7,7 @@ import docker
 import git
 
 DEFAULT_REPOSITORY = 'git://github.com/dotcloud/docker'
-DEFAULT_BRANCH = 'library'
+DEFAULT_BRANCH = 'master'
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
@@ -36,7 +36,13 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
     if not dst_folder:
         logger.info('Cloning docker repo from {0}, branch: {1}'.format(
             repository, branch))
-        dst_folder = git.clone_branch(repository, branch)
+        try:
+            dst_folder = git.clone_branch(repository, branch)
+        except Exception as e:
+            logger.exception(e)
+            logger.error('Source repository could not be fetched. Check '
+                'that the address is correct and the branch exists.')
+            return
     for buildfile in os.listdir(os.path.join(dst_folder, 'library')):
         if buildfile == 'MAINTAINERS':
             continue
