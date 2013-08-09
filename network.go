@@ -122,8 +122,8 @@ func CreateBridgeIface(ifaceName string) error {
 		// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
 		// on the internal addressing or other stupid things like that.
 		// The shouldn't, but hey, let's not break them unless we really have to.
-		"172.16.42.1/16",
-		"10.0.42.1/16", // Don't even try using the entire /8, that's too intrusive
+		"172.17.42.1/16", // Don't use 172.16.0.0/16, it conflicts with EC2 DNS 172.16.0.23
+		"10.0.42.1/16",   // Don't even try using the entire /8, that's too intrusive
 		"10.1.42.1/16",
 		"10.42.42.1/16",
 		"172.16.42.1/24",
