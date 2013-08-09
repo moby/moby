@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"code.google.com/p/go.net/websocket"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -22,6 +23,8 @@ const APIVERSION = 1.4
 const DEFAULTHTTPHOST = "127.0.0.1"
 const DEFAULTHTTPPORT = 4243
 const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+
+type HttpApiFunc func(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -747,6 +750,53 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	return nil
 }
 
+func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	logs, err := getBoolParam(r.Form.Get("logs"))
+	if err != nil {
+		return err
+	}
+	stream, err := getBoolParam(r.Form.Get("stream"))
+	if err != nil {
+		return err
+	}
+	stdin, err := getBoolParam(r.Form.Get("stdin"))
+	if err != nil {
+		return err
+	}
+	stdout, err := getBoolParam(r.Form.Get("stdout"))
+	if err != nil {
+		return err
+	}
+	stderr, err := getBoolParam(r.Form.Get("stderr"))
+	if err != nil {
+		return err
+	}
+
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	if _, err := srv.ContainerInspect(name); err != nil {
+		return err
+	}
+
+	h := websocket.Handler(func(ws *websocket.Conn) {
+		defer ws.Close()
+
+		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws); err != nil {
+			utils.Debugf("Error: %s", err)
+		}
+	})
+	h.ServeHTTP(w, r)
+
+	return nil
+}
+
 func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -917,25 +967,61 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
+func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// log the request
+		utils.Debugf("Calling %s %s", localMethod, localRoute)
+
+		if logging {
+			log.Println(r.Method, r.RequestURI)
+		}
+
+		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
+			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+			if len(userAgent) == 2 && userAgent[1] != VERSION {
+				utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
+			}
+		}
+		version, err := strconv.ParseFloat(mux.Vars(r)["version"], 64)
+		if err != nil {
+			version = APIVERSION
+		}
+		if srv.enableCors {
+			writeCorsHeaders(w, r)
+		}
+
+		if version == 0 || version > APIVERSION {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if err := handlerFunc(srv, version, w, r, mux.Vars(r)); err != nil {
+			utils.Debugf("Error: %s", err)
+			httpError(w, err)
+		}
+	}
+}
+
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
-	m := map[string]map[string]func(*Server, float64, http.ResponseWriter, *http.Request, map[string]string) error{
+	m := map[string]map[string]HttpApiFunc{
 		"GET": {
-			"/events":                       getEvents,
-			"/info":                         getInfo,
-			"/version":                      getVersion,
-			"/images/json":                  getImagesJSON,
-			"/images/viz":                   getImagesViz,
-			"/images/search":                getImagesSearch,
-			"/images/{name:.*}/history":     getImagesHistory,
-			"/images/{name:.*}/json":        getImagesByName,
-			"/containers/ps":                getContainersJSON,
-			"/containers/json":              getContainersJSON,
-			"/containers/{name:.*}/export":  getContainersExport,
-			"/containers/{name:.*}/changes": getContainersChanges,
-			"/containers/{name:.*}/json":    getContainersByName,
-			"/containers/{name:.*}/top":     getContainersTop,
+			"/events":                         getEvents,
+			"/info":                           getInfo,
+			"/version":                        getVersion,
+			"/images/json":                    getImagesJSON,
+			"/images/viz":                     getImagesViz,
+			"/images/search":                  getImagesSearch,
+			"/images/{name:.*}/history":       getImagesHistory,
+			"/images/{name:.*}/json":          getImagesByName,
+			"/containers/ps":                  getContainersJSON,
+			"/containers/json":                getContainersJSON,
+			"/containers/{name:.*}/export":    getContainersExport,
+			"/containers/{name:.*}/changes":   getContainersChanges,
+			"/containers/{name:.*}/json":      getContainersByName,
+			"/containers/{name:.*}/top":       getContainersTop,
+			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -970,37 +1056,13 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			utils.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
-			localMethod := method
 			localFct := fct
-			f := func(w http.ResponseWriter, r *http.Request) {
-				utils.Debugf("Calling %s %s from %s", localMethod, localRoute, r.RemoteAddr)
+			localMethod := method
 
-				if logging {
-					log.Println(r.Method, r.RequestURI)
-				}
-				if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
-					userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
-					if len(userAgent) == 2 && userAgent[1] != VERSION {
-						utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
-					}
-				}
-				version, err := strconv.ParseFloat(mux.Vars(r)["version"], 64)
-				if err != nil {
-					version = APIVERSION
-				}
-				if srv.enableCors {
-					writeCorsHeaders(w, r)
-				}
-				if version == 0 || version > APIVERSION {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
+			// build the handler function
+			f := makeHttpHandler(srv, logging, localMethod, localRoute, localFct)
 
-				if err := localFct(srv, version, w, r, mux.Vars(r)); err != nil {
-					httpError(w, err)
-				}
-			}
-
+			// add the new route
 			if localRoute == "" {
 				r.Methods(localMethod).HandlerFunc(f)
 			} else {
@@ -1009,6 +1071,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			}
 		}
 	}
+
 	return r, nil
 }
 
