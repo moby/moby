@@ -7,6 +7,7 @@ run	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt
 run	apt-get update
 run	apt-get install -y -q curl
 run	apt-get install -y -q git
+run	apt-get install -y -q mercurial
 # Install Go
 run	curl -s https://go.googlecode.com/files/go1.1.1.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
@@ -28,7 +29,7 @@ run	PKG=github.com/gorilla/mux/ REV=9b36453141c;	 git clone http://$PKG /go/src/
 run	PKG=github.com/dotcloud/tar/ REV=d06045a6d9;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 # Docker requires code.google.com/p/go.net/websocket
 run	apt-get install -y -q mercurial
-run	PKG=code.google.com/p/go.net REV=78ad7f42aa2e;	 hg clone https://$PKG /go/src/$PKG && cd /go/src/$PKG && hg checkout -r $REV
+run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker
 # Build the binary
