@@ -488,15 +488,16 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
-		stepN += 1
-		// FIXME: only count known instructions as build steps
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
 			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 			continue
 		}
+
+		stepN += 1
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
 			return "", ret.(error)
