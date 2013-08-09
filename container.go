@@ -220,6 +220,10 @@ type NetworkSettings struct {
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]PortMapping
+
+	IPV6Address   string
+	IPV6PrefixLen int
+	GatewayV6     string
 }
 
 // String returns a human-readable description of the port mapping defined in the settings
@@ -640,7 +644,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// Networking
 	if !container.Config.NetworkDisabled {
-		params = append(params, "-g", container.network.Gateway.String())
+		params = append(params, "-g", container.network.IPs[0].Gateway.String())
 	}
 
 	// User
@@ -767,9 +771,17 @@ func (container *Container) allocateNetwork() error {
 	}
 	container.network = iface
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
-	container.NetworkSettings.IPAddress = iface.IPNet.IP.String()
-	container.NetworkSettings.IPPrefixLen, _ = iface.IPNet.Mask.Size()
-	container.NetworkSettings.Gateway = iface.Gateway.String()
+
+	container.NetworkSettings.IPAddress = iface.IPs[0].IPNet.IP.String()
+	container.NetworkSettings.IPPrefixLen, _ = iface.IPs[0].IPNet.Mask.Size()
+	container.NetworkSettings.Gateway = iface.IPs[0].Gateway.String()
+
+	if len(iface.IPs) >= 2 {
+		container.NetworkSettings.IPV6Address = iface.IPs[1].IPNet.IP.String()
+		container.NetworkSettings.IPV6PrefixLen, _ = iface.IPs[1].IPNet.Mask.Size()
+		container.NetworkSettings.GatewayV6 = iface.IPs[1].Gateway.String()
+	}
+
 	return nil
 }
 

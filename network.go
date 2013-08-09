@@ -24,10 +24,10 @@ const (
 
 // Calculates the first and last IP addresses in an IPNet
 func networkRange(network *net.IPNet) (net.IP, net.IP) {
-	netIP := network.IP.To4()
+	netIP := network.IP
 	firstIP := netIP.Mask(network.Mask)
-	lastIP := net.IPv4(0, 0, 0, 0).To4()
-	for i := 0; i < len(lastIP); i++ {
+	lastIP := make(net.IP, len(firstIP))
+	for i := 0; i < len(firstIP); i++ {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
 	}
 	return firstIP, lastIP
@@ -56,6 +56,24 @@ func intToIP(n int32) net.IP {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
 	return net.IP(b)
+}
+
+// Finds the n-th IP address after addr
+func addIp(addr net.IP, n int32) net.IP {
+	// TODO: This is incredibly inefficient
+	var i int32
+	for i = 0; i < n; i++ {
+		for j := len(addr) - 1; j >= 0; j-- {
+			if addr[j] != 255 {
+				addr[j]++
+				break
+			} else {
+				addr[j] = 0
+			}
+		}
+	}
+
+	return addr
 }
 
 // Given a netmask, calculates the number of available hosts
@@ -184,8 +202,9 @@ func CreateBridgeIface(ifaceName string) error {
 	return nil
 }
 
-// Return the IPv4 address of a network interface
-func getIfaceAddr(name string) (net.Addr, error) {
+// Finds the IPv4 & IPv6 networks bound to a network interface
+// The first is guaranteed to be IPv4 (or this will return error)
+func getIfaceNetworks(name string) ([]NetworkInterfaceIP, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, err
@@ -194,21 +213,89 @@ func getIfaceAddr(name string) (net.Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	var addrs4 []net.Addr
+
+	utils.Debugf("Iface addresses on %s: %s", name, addrs)
+
+	var nets4 []*net.IPNet
+	var nets6 []*net.IPNet
 	for _, addr := range addrs {
-		ip := (addr.(*net.IPNet)).IP
+		network := (addr.(*net.IPNet))
+		ip := network.IP
 		if ip4 := ip.To4(); len(ip4) == net.IPv4len {
-			addrs4 = append(addrs4, addr)
+			nets4 = append(nets4, network)
+		} else if ip6 := ip.To16(); len(ip6) == net.IPv6len {
+			nets6 = append(nets6, network)
 		}
 	}
+
+	var bestNet4 *net.IPNet
 	switch {
-	case len(addrs4) == 0:
-		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
-	case len(addrs4) > 1:
+	case len(nets4) == 0:
+		return nil, fmt.Errorf("Interface %v has no IPv4 addresses", name)
+	case len(nets4) == 1:
+		bestNet4 = nets4[0]
+	case len(nets4) > 1:
+		bestNet4 = nets4[0]
 		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
-			name, (addrs4[0].(*net.IPNet)).IP)
+			name, bestNet4.IP)
 	}
-	return addrs4[0], nil
+
+	var bestNet6 *net.IPNet
+	warnMultipleIpv6 := false
+	for _, net6 := range nets6 {
+		ip := net6.IP
+		if ip.IsGlobalUnicast() {
+			if bestNet6 == nil {
+				bestNet6 = net6
+			} else {
+				warnMultipleIpv6 = true
+			}
+		}
+<<<<<<< HEAD
+	}
+
+	if bestNet6 == nil {
+		fmt.Printf("Interface %v has no (suitable) IPv6 address. Won't use IPv6.\n",
+			name)
+	} else if warnMultipleIpv6 {
+		fmt.Printf("Interface %v has more than 1 IPv6 address. Defaulting to using %v\n",
+			name, bestNet6.IP)
+	}
+
+	networks := []NetworkInterfaceIP{}
+
+	if bestNet4 != nil {
+		utils.Debugf("Chose IPv4: %s", bestNet4)
+		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet4, Gateway: bestNet4.IP})
+	}
+
+=======
+	}
+
+	if bestNet6 == nil {
+		fmt.Printf("Interface %v has no (suitable) IPv6 address. Won't use IPv6.\n",
+			name)
+	} else if warnMultipleIpv6 {
+		fmt.Printf("Interface %v has more than 1 IPv6 address. Defaulting to using %v\n",
+			name, bestNet6.IP)
+	}
+
+	networks := []NetworkInterfaceIP{}
+
+	if bestNet4 != nil {
+		utils.Debugf("Chose IPv4: %s", bestNet4)
+		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet4, Gateway: bestNet4.IP})
+	}
+
+>>>>>>> 44cb610f26072b9edf9ab4c04f7ce12b0a3892cc
+	if bestNet6 != nil {
+		utils.Debugf("Chose IPv6: %s", bestNet6)
+		networks = append(networks, NetworkInterfaceIP{IPNet: *bestNet6, Gateway: bestNet6.IP})
+	}
+
+	utils.Debugf("Networks: %s", networks)
+
+	return networks, nil
 }
 
 // Port mapper takes care of mapping external ports to containers by setting
@@ -387,22 +474,24 @@ func newPortAllocator() (*PortAllocator, error) {
 
 // IP allocator: Atomatically allocate and release networking ports
 type IPAllocator struct {
-	network       *net.IPNet
+	networks      []NetworkInterfaceIP
 	queueAlloc    chan allocatedIP
 	queueReleased chan net.IP
 	inUse         map[int32]struct{}
 }
 
 type allocatedIP struct {
-	ip  net.IP
+	ips []NetworkInterfaceIP
 	err error
 }
 
 func (alloc *IPAllocator) run() {
-	firstIP, _ := networkRange(alloc.network)
+	primaryNetwork := alloc.networks[0]
+
+	firstIP, _ := networkRange(&primaryNetwork.IPNet)
 	ipNum := ipToInt(firstIP)
-	ownIP := ipToInt(alloc.network.IP)
-	size := networkSize(alloc.network.Mask)
+	ownIP := ipToInt(primaryNetwork.IPNet.IP)
+	size := networkSize(primaryNetwork.IPNet.Mask)
 
 	pos := int32(1)
 	max := size - 2 // -1 for the broadcast address, -1 for the gateway address
@@ -429,13 +518,24 @@ func (alloc *IPAllocator) run() {
 			}
 		}
 
-		ip := allocatedIP{ip: intToIP(newNum)}
+		allocated := allocatedIP{}
 		if inUse {
-			ip.err = errors.New("No unallocated IP available")
+			allocated.err = errors.New("No unallocated IP available")
+		} else {
+			ips := []NetworkInterfaceIP{}
+
+			for i := 0; i < len(alloc.networks); i++ {
+				netFirstIp, _ := networkRange(&alloc.networks[i].IPNet)
+				addr := addIp(netFirstIp, newNum-ipNum)
+				ipnet := net.IPNet{IP: net.IP(addr), Mask: alloc.networks[i].IPNet.Mask}
+				ips = append(ips, NetworkInterfaceIP{IPNet: ipnet, Gateway: alloc.networks[i].Gateway})
+			}
+
+			allocated.ips = ips
 		}
 
 		select {
-		case alloc.queueAlloc <- ip:
+		case alloc.queueAlloc <- allocated:
 			alloc.inUse[newNum] = struct{}{}
 		case released := <-alloc.queueReleased:
 			r := ipToInt(released)
@@ -458,18 +558,18 @@ func (alloc *IPAllocator) run() {
 	}
 }
 
-func (alloc *IPAllocator) Acquire() (net.IP, error) {
+func (alloc *IPAllocator) Acquire() ([]NetworkInterfaceIP, error) {
 	ip := <-alloc.queueAlloc
-	return ip.ip, ip.err
+	return ip.ips, ip.err
 }
 
 func (alloc *IPAllocator) Release(ip net.IP) {
 	alloc.queueReleased <- ip
 }
 
-func newIPAllocator(network *net.IPNet) *IPAllocator {
+func newIPAllocator(networks []NetworkInterfaceIP) *IPAllocator {
 	alloc := &IPAllocator{
-		network:       network,
+		networks:      networks,
 		queueAlloc:    make(chan allocatedIP),
 		queueReleased: make(chan net.IP),
 		inUse:         make(map[int32]struct{}),
@@ -481,10 +581,13 @@ func newIPAllocator(network *net.IPNet) *IPAllocator {
 }
 
 // Network interface represents the networking stack of a container
-type NetworkInterface struct {
+type NetworkInterfaceIP struct {
 	IPNet   net.IPNet
 	Gateway net.IP
+}
 
+type NetworkInterface struct {
+	IPs      []NetworkInterfaceIP
 	manager  *NetworkManager
 	extPorts []*Nat
 	disabled bool
@@ -507,7 +610,7 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 		if err != nil {
 			return nil, err
 		}
-		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		backend := &net.TCPAddr{IP: iface.IPs[0].IPNet.IP, Port: nat.Backend}
 		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
 			iface.manager.tcpPortAllocator.Release(extPort)
 			return nil, err
@@ -518,7 +621,7 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 		if err != nil {
 			return nil, err
 		}
-		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
+		backend := &net.UDPAddr{IP: iface.IPs[0].IPNet.IP, Port: nat.Backend}
 		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
 			iface.manager.udpPortAllocator.Release(extPort)
 			return nil, err
@@ -611,14 +714,13 @@ func (iface *NetworkInterface) Release() {
 		}
 	}
 
-	iface.manager.ipAllocator.Release(iface.IPNet.IP)
+	iface.manager.ipAllocator.Release(iface.IPs[0].IPNet.IP)
 }
 
 // Network Manager manages a set of network interfaces
 // Only *one* manager per host machine should be used
 type NetworkManager struct {
 	bridgeIface   string
-	bridgeNetwork *net.IPNet
 
 	ipAllocator      *IPAllocator
 	tcpPortAllocator *PortAllocator
@@ -626,29 +728,32 @@ type NetworkManager struct {
 	portMapper       *PortMapper
 
 	disabled bool
+
+	networks      []NetworkInterfaceIP
 }
 
 // Allocate a network interface
 func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
-
 	if manager.disabled {
 		return &NetworkInterface{disabled: true}, nil
 	}
 
-	ip, err := manager.ipAllocator.Acquire()
+	ips, err := manager.ipAllocator.Acquire()
 	if err != nil {
 		return nil, err
 	}
+
 	iface := &NetworkInterface{
-		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
-		Gateway: manager.bridgeNetwork.IP,
+		IPs:     ips,
 		manager: manager,
 	}
+
+	utils.Debugf("Allocated IPs: %s", iface.IPs)
+
 	return iface, nil
 }
 
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
-
 	if bridgeIface == DisableNetworkBridge {
 		manager := &NetworkManager{
 			disabled: true,
@@ -656,20 +761,18 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		return manager, nil
 	}
 
-	addr, err := getIfaceAddr(bridgeIface)
+	networks, err := getIfaceNetworks(bridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
 		if err := CreateBridgeIface(bridgeIface); err != nil {
 			return nil, err
 		}
-		addr, err = getIfaceAddr(bridgeIface)
+		networks, err = getIfaceNetworks(bridgeIface)
 		if err != nil {
 			return nil, err
 		}
 	}
-	network := addr.(*net.IPNet)
-
-	ipAllocator := newIPAllocator(network)
+	ipAllocator := newIPAllocator(networks)
 
 	tcpPortAllocator, err := newPortAllocator()
 	if err != nil {
@@ -687,11 +790,12 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 
 	manager := &NetworkManager{
 		bridgeIface:      bridgeIface,
-		bridgeNetwork:    network,
 		ipAllocator:      ipAllocator,
 		tcpPortAllocator: tcpPortAllocator,
 		udpPortAllocator: udpPortAllocator,
 		portMapper:       portMapper,
+
+		networks:      networks,
 	}
 	return manager, nil
 }
