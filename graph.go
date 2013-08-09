@@ -194,15 +194,41 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 		// For all other errors, abort.
 		return "", err
 	}
-	// FIXME: how the hell do I break down this line in a way
-	// that is idiomatic and not ugly as hell?
-	if f, err := os.OpenFile(path.Join(initLayer, ".dockerinit"), os.O_CREATE|os.O_TRUNC, 0700); err != nil && !os.IsExist(err) {
-		// If file already existed, keep going.
-		// For all other errors, abort.
-		return "", err
-	} else {
-		f.Close()
+
+	for pth, typ := range map[string]string{
+		"/dev/pts":         "dir",
+		"/dev/shm":         "dir",
+		"/proc":            "dir",
+		"/sys":             "dir",
+		"/.dockerinit":     "file",
+		"/etc/resolv.conf": "file",
+		// "var/run": "dir",
+		// "var/lock": "dir",
+	} {
+		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
+			if os.IsNotExist(err) {
+				switch typ {
+				case "dir":
+					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
+						return "", err
+					}
+				case "file":
+					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+						return "", err
+					}
+
+					if f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755); err != nil {
+						return "", err
+					} else {
+						f.Close()
+					}
+				}
+			} else {
+				return "", err
+			}
+		}
 	}
+
 	// Layer is ready to use, if it wasn't before.
 	return initLayer, nil
 }
