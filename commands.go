@@ -1399,7 +1399,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			for sig := range signals {
 				fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
 				if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
-					fmt.Printf("failed to stop container:", err)
+					fmt.Printf("failed to stop container: %v", err)
 				}
 			}
 		}()
