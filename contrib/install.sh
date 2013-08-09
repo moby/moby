@@ -3,7 +3,7 @@
 # Original version by Jeff Lindsay <progrium@gmail.com>
 # Revamped by Jerome Petazzoni <jerome@dotcloud.com>
 #
-# This script canonical location is http://get.docker.io/; to update it, run:
+# This script canonical location is https://get.docker.io/; to update it, run:
 # s3cmd put -m text/x-shellscript -P install.sh s3://get.docker.io/index
 
 echo "Ensuring basic dependencies are installed..."
@@ -36,7 +36,7 @@ else
 fi
 
 echo "Downloading docker binary and uncompressing into /usr/local/bin..."
-curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz |
+curl -s https://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz |
 tar -C /usr/local/bin --strip-components=1 -zxf- \
 docker-latest/docker
 
