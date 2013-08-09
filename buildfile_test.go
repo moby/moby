@@ -161,6 +161,25 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	{
+		`
+from {IMAGE}
+start
+env    FOO /bar
+env    TEST testdir
+env    BAZ /foobar
+add    testfile $BAZ/
+add    $TEST $FOO
+run    [ "$(cat /foobar/testfile)" = "test1" ]
+run    [ "$(cat /bar/withfile)" = "test2" ]
+`,
+		[][2]string{
+			{"testfile", "test1"},
+			{"testdir/withfile", "test2"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
