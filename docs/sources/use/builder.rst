@@ -75,7 +75,18 @@ first instruction.
 to create multiple images. Simply make a note of the last image id
 output by the commit before each new ``FROM`` command.
 
-3.2 MAINTAINER
+
+3.2 START
+---------
+
+    ``START``
+
+The ``START`` instruction creates a container that will be used for all later
+commands in the Dockerfile. If ``START`` is not used, 2N intermediate containers
+will be created, where N is the number of commands in the file.
+
+
+3.3 MAINTAINER
 --------------
 
     ``MAINTAINER <name>``
@@ -83,7 +94,7 @@ output by the commit before each new ``FROM`` command.
 The ``MAINTAINER`` instruction allows you to set the *Author* field of
 the generated images.
 
-3.3 RUN
+3.4 RUN
 -------
 
     ``RUN <command>``
@@ -97,7 +108,7 @@ core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
 
-3.4 CMD
+3.5 CMD
 -------
 
     ``CMD <command>``
@@ -111,7 +122,7 @@ the image.  This is functionally equivalent to running ``docker commit
     command and commits the result; ``CMD`` does not execute anything at
     build time, but specifies the intended command for the image.
 
-3.5 EXPOSE
+3.6 EXPOSE
 ----------
 
     ``EXPOSE <port> [<port>...]``
@@ -121,7 +132,7 @@ running the image. This is functionally equivalent to running ``docker
 commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`` outside the
 builder.
 
-3.6 ENV
+3.7 ENV
 -------
 
     ``ENV <key> <value>``
@@ -135,7 +146,7 @@ with ``<key>=<value>``
     The environment variables will persist when a container is run
     from the resulting image.
 
-3.7 ADD
+3.8 ADD
 -------
 
     ``ADD <src> <dest>``
@@ -184,7 +195,7 @@ The copy obeys the following rules:
   directories in its path. All new files and directories are created
   with mode 0755, uid and gid 0.
 
-3.8 ENTRYPOINT
+3.9 ENTRYPOINT
 --------------
 
     ``ENTRYPOINT ["/bin/echo"]``
@@ -195,7 +206,7 @@ behavior of ``CMD``.  This allows arguments to be passed to the
 entrypoint.  i.e. ``docker run <image> -d`` will pass the "-d" argument
 to the entrypoint.
 
-3.9 VOLUME
+3.10 VOLUME
 ----------
 
     ``VOLUME ["/data"]``
@@ -228,6 +239,7 @@ container created from the image.
     # VERSION               0.3
 
     FROM ubuntu
+    START
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     RUN apt-get update
@@ -250,6 +262,7 @@ container created from the image.
     # VERSION               0.1
 
     FROM ubuntu
+    START
     RUN echo foo > bar
     # Will output something like ===> 907ad6c2736f
 
