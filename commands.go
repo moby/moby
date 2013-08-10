@@ -27,10 +27,9 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.5.2-dev"
-
 var (
 	GITCOMMIT string
+	VERSION string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
