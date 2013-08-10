@@ -1,4 +1,23 @@
 #!bash
+#
+# bash completion file for core docker commands
+#
+# This script provides supports completion of:
+#  - commands and their options
+#  - container ids
+#  - image repos and tags
+#  - filepaths
+#
+# To enable the completions either:
+#  - place this file in /etc/bash_completion.d
+#  or
+#  - copy this file and add the line below to your .bashrc after
+#    bash completion features are loaded
+#     . docker.bash
+#
+# Note:
+# If the docker daemon is using a unix socket for communication your user
+# must have access to the socket for the completions to function correctly
 
 have docker && {
 __docker_containers()
