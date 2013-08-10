@@ -1,41 +1,54 @@
 #!/bin/sh
 
-# This script builds various binary artifacts from a checkout of the docker source code.
+# This script builds various binary artifacts from a checkout of the docker
+# source code.
 #
 # Requirements:
-# - The current directory should be a checkout of the docker source code (http://github.com/dotcloud/docker). Whatever version is checked out will be built.
-# - The script is intented to be run as part of a docker build, as defined in the Dockerfile at the root of the source.
-# - If you don't call this script from the official Dockerfile, or a container built by the official Dockerfile, you're probably doing it wrong.
+# - The current directory should be a checkout of the docker source code
+#   (http://github.com/dotcloud/docker). Whatever version is checked out
+#   will be built.
+# - The VERSION file, at the root of the repository, should exist, and
+#   will be used as Docker binary version and package version.
+# - The hash of the git commit will also be included in the Docker binary,
+#   with the suffix +CHANGES if the repository isn't clean.
+# - The script is intented to be run as part of a docker build, as defined
+#   in the Dockerfile at the root of the source. In other words:
+#   DO NOT CALL THIS SCRIPT DIRECTLY.
+# - The right way to call this script is to invoke "docker build ." from
+#   your checkout of the Docker repository.
 # 
 
 set -e
 set -x
 
-VERSION=`cat ./VERSION`
+VERSION=$(cat ./VERSION)
 GIT_COMMIT=$(git rev-parse --short HEAD)
-GIT_CHANGES=$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)
+GIT_CHANGES=$(test -n "$(git status --porcelain)" && echo "+CHANGES" || true)
 
-# "bundles" indicate the different types of build artifacts: static binary, ubuntu package, etc.
+# Each "bundle" is a different type of build artefact: static binary, Ubuntu
+# package, etc.
 
-# Build docker as a static binary file
+# Build Docker as a static binary file
 bundle_binary() {
 	mkdir -p bundles/$VERSION/binary
-	go build -o bundles/$VERSION/binary/docker-$VERSION -ldflags "-X main.GITCOMMIT $GIT_COMMIT$GIT_CHANGES -X main.VERSION $VERSION -d -w" ./docker
+	go build -o bundles/$VERSION/binary/docker-$VERSION \
+		-ldflags "-X main.GITCOMMIT $GIT_COMMIT$GIT_CHANGES -X main.VERSION $VERSION -d -w" \
+		./docker
 }
 
 
-# Build docker's test suite as a collection of binary files (one per sub-package to test)
+# Build Docker's test suite as a collection of binary files (one per
+# sub-package to test)
 bundle_test() {
 	mkdir -p bundles/$VERSION/test
-	for test_dir in `find_test_dirs`; do
-		test_binary=`
+	for test_dir in $(find_test_dirs); do
+		test_binary=$(
 			cd $test_dir
 			go test -c -v -ldflags "-X main.GITCOMMIT $GIT_COMMIT$GIT_CHANGES -X main.VERSION $VERSION -d -w" >&2
 			find . -maxdepth 1 -type f -name '*.test' -executable
-		`
+		)
 		cp $test_dir/$test_binary bundles/$VERSION/test/
 	done
-
 }
 
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
@@ -84,10 +97,13 @@ EOF
 }
 
 
-# This helper function walks the current directory looking for directories holding Go test files,
-# and prints their paths on standard output, one per line.
+# This helper function walks the current directory looking for directories
+# holding Go test files, and prints their paths on standard output, one per
+# line.
 find_test_dirs() {
-	find . -name '*_test.go' | { while read f; do dirname $f; done; } | sort -u
+	find . -name '*_test.go' | 
+		{ while read f; do dirname $f; done; } | 
+		sort -u
 }
 
 

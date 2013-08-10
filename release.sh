@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# This script looks for bundles built by make.sh, and releases them on a public S3 bucket.
+# This script looks for bundles built by make.sh, and releases them on a
+# public S3 bucket.
 #
 # Bundles should be available for the VERSION string passed as argument.
 #
-# The correct way to call this script is inside a container built by the official Dockerfile
-# at the root of the docker source code. The Dockerfile, make.sh and release.sh should all
-# be from the same source code revision.
+# The correct way to call this script is inside a container built by the
+# official Dockerfile at the root of the Docker source code. The Dockerfile,
+# make.sh and release.sh should all be from the same source code revision.
 
 set -x
 set -e
@@ -48,9 +49,9 @@ release_ubuntu() {
 	s3cmd --acl-public --verbose --delete-removed --follow-symlinks sync bundles/$VERSION/ubuntu/apt/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/info
 # Add the following to /etc/apt/sources.list
-deb `s3_url $BUCKET`/ubuntu docker main
+deb $(s3_url $BUCKET)/ubuntu docker main
 EOF
-	echo "APT repository uploaded to http:. Instructions available at `s3_url $BUCKET`/ubuntu/info"
+	echo "APT repository uploaded to http:. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
 }
 
 # Upload a static binary to S3
