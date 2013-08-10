@@ -21,6 +21,16 @@
 set -e
 set -x
 
+# We're a nice, sexy, little shell script, and people might try to run us;
+# but really, they shouldn't. We want to be in a container!
+RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
+grep -q "$RESOLVCONF" /proc/mounts || {
+	echo "# I will only run within a container."
+	echo "# Try this instead:"
+	echo "docker build ."
+	exit 1
+}
+
 VERSION=$(cat ./VERSION)
 GIT_COMMIT=$(git rev-parse --short HEAD)
 GIT_CHANGES=$(test -n "$(git status --porcelain)" && echo "+CHANGES" || true)
