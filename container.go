@@ -587,7 +587,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 		for volPath, id := range c.Volumes {
 			if _, exists := container.Volumes[volPath]; exists {
-				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.ID)
+				continue
 			}
 			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
 				return nil
@@ -602,10 +602,12 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
 		volPath = path.Clean(volPath)
-		// If an external bind is defined for this volume, use that as a source
+		// Skip existing volumes
 		if _, exists := container.Volumes[volPath]; exists {
-			// Skip existing mounts
-		} else if bindMap, exists := binds[volPath]; exists {
+			continue
+		}
+		// If an external bind is defined for this volume, use that as a source
+		if bindMap, exists := binds[volPath]; exists {
 			container.Volumes[volPath] = bindMap.SrcPath
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				container.VolumesRW[volPath] = true

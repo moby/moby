@@ -1333,6 +1333,12 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	if container.Volumes["/test"] != container2.Volumes["/test"] {
 		t.Fail()
 	}
+
+	// Ensure it restarts successfully
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
