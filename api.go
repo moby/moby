@@ -223,8 +223,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			}
 		}
 	}
-	for {
-		event := <-listener
+	for event := range listener {
 		err := sendEvent(wf, &event)
 		if err != nil && err.Error() == "JSON error" {
 			continue
