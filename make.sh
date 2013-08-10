@@ -121,6 +121,17 @@ main() {
 	bundle_binary
 	bundle_ubuntu
 	#bundle_test
+	cat <<EOF
+###############################################################################
+Now run the resulting image, making sure that you set AWS_S3_BUCKET,
+AWS_ACCESS_KEY, and AWS_SECRET_KEY environment variables:
+
+docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
+              AWS_ACCESS_KEY=AKI1234... \\
+              AWS_SECRET_KEY=sEs3mE... \\
+              image_id_or_name
+###############################################################################
+EOF
 }
 
 main

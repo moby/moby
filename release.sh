@@ -74,7 +74,7 @@ release_ubuntu() {
 # Add the following to /etc/apt/sources.list
 deb $(s3_url $BUCKET)/ubuntu docker main
 EOF
-	echo "APT repository uploaded to http:. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
+	echo "APT repository uploaded. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
 }
 
 # Upload a static binary to S3
