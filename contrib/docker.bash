@@ -293,7 +293,7 @@ _docker_run()
 		-volumes-from)
 			__docker_containers
 			;;
-		-a|-c|-dns|-e|-h|-m|-p|-u|-v)
+		-a|-c|-dns|-e|-entrypoint|-h|-m|-p|-u|-v)
 			return
 			;;
 		*)
