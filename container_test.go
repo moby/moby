@@ -1276,6 +1276,65 @@ func TestRestartWithVolumes(t *testing.T) {
 	}
 }
 
+// Test for #1351
+func TestVolumesFromWithVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+
+	container2, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"cat", "/test/foo"},
+			VolumesFrom: container.ID,
+			Volumes:     map[string]struct{}{"/test": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	output, err := container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(output) != "bar" {
+		t.Fail()
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Fail()
+	}
+}
+
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
