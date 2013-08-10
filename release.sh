@@ -40,11 +40,16 @@ EOF
 cd /go/src/github.com/dotcloud/docker/ 
 
 VERSION=$(cat VERSION)
-BUCKET=s3://$AWS_S3_BUCKET
+BUCKET=$AWS_S3_BUCKET
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
 	s3cmd --acl-public mb $BUCKET 2>/dev/null || true
+	# Check access to the bucket.
+	# s3cmd has no useful exit status, so we cannot check that.
+	# Instead, we check if it outputs anything on standard output.
+	# (When there are problems, it uses standard error instead.)
+	s3cmd info s3://$BUCKET | grep -q .
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
