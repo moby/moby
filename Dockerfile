@@ -21,7 +21,7 @@ run	apt-get install -y -q reprepro
 # Install s3cmd 1.0.1 (earlier versions don't support env variables in the config)
 run	apt-get install -y -q python-pip
 run	pip install s3cmd
-run	/bin/echo -e '[default]\naccess_key=$AWS_ID\nsecret_key=$AWS_KEY\n' > /.s3cfg
+run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY\n' > /.s3cfg
 # Download dependencies
 run	PKG=github.com/kr/pty REV=27435c699;		 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/gorilla/context/ REV=708054d61e5; git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
