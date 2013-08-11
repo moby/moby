@@ -653,16 +653,15 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Setup environment
-	params = append(params,
-		"-e", "HOME=/",
-		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"-e", "container=lxc",
-		"-e", "HOSTNAME="+container.Config.Hostname,
-	)
-
 	for _, elem := range container.Config.Env {
 		params = append(params, "-e", elem)
 	}
+
+	// Add defaults, if the env vars were not defined by the user.
+	params = addParamIfNotDefined(params, "HOME", "/")
+	params = addParamIfNotDefined(params, "PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	params = addParamIfNotDefined(params, "container", "lxc")
+	params = addParamIfNotDefined(params, "HOSTNAME", container.Config.Hostname)
 
 	// Program
 	params = append(params, "--", container.Path)
@@ -741,6 +740,17 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
+}
+
+func addParamIfNotDefined(params []string, envKey string, envValue string) []string {
+	envKeyMatch := envKey + "="
+	envKeyMatchLength := len(envKeyMatch)
+	for i, currentParam := range params {
+		if i >= 1 && params[i-1] == "-e" && len(currentParam) > envKeyMatchLength && currentParam[0:envKeyMatchLength] == envKeyMatch {
+			return params
+		}
+	}
+	return append(params, "-e", (envKey + "=" + envValue))
 }
 
 func (container *Container) allocateNetwork() error {
