@@ -16,6 +16,8 @@
 #     . docker.bash
 #
 # Note:
+# Currently, the completions will not work if the docker daemon is not
+# bound to the default communication port/socket
 # If the docker daemon is using a unix socket for communication your user
 # must have access to the socket for the completions to function correctly
 
