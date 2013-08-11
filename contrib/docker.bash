@@ -315,7 +315,7 @@ _docker_run()
 					local counter=$cpos
 					while [ $counter -le $cword ]; do
 						case "${words[$counter]}" in
-							-a|-c|-cidfile|-dns|-e|-h|-m|-p|-u|-v|-volumes-from)
+							-a|-c|-cidfile|-dns|-e|-entrypoint|-h|-m|-p|-u|-v|-volumes-from)
 								(( counter++ ))
 								;;
 							-*)
