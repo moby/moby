@@ -241,12 +241,12 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 		if !runtime.capabilities.SwapLimit && !quiet {
 			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
 		}
+	}
 
-		content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-		runtime.capabilities.IPv4Forwarding = err3 == nil && len(content) > 0 && content[0] == '1'
-		if !runtime.capabilities.IPv4Forwarding && !quiet {
-			log.Printf("WARNING: IPv4 forwarding is disabled.")
-		}
+	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
+	runtime.capabilities.IPv4Forwarding = err3 == nil && len(content) > 0 && content[0] == '1'
+	if !runtime.capabilities.IPv4Forwarding && !quiet {
+		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
 }
 
