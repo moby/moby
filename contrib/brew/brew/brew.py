@@ -14,6 +14,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                     level='INFO')
 client = docker.Client()
 processed = {}
+processed_folders = []
 
 
 def build_library(repository=None, branch=None, namespace=None, push=False,
@@ -92,20 +93,27 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         f.close()
     if dst_folder != repository:
         rmtree(dst_folder, True)
+    for d in processed_folders:
+        rmtree(d, True)
     summary.print_summary(logger)
 
 
 def build_repo(repository, ref, docker_repo, docker_tag, namespace, push, registry):
     docker_repo = '{0}/{1}'.format(namespace or 'library', docker_repo)
     img_id = None
+    dst_folder = None
     if '{0}@{1}'.format(repository, ref) not in processed.keys():
         logger.info('Cloning {0} (ref: {1})'.format(repository, ref))
-        dst_folder = git.clone(repository, ref)
+        if repository not in processed:
+            rep, dst_folder = git.clone(repository, ref)
+            processed[repository] = rep
+            processed_folders.append(dst_folder)
+        else:
+            dst_folder = git.checkout(processed[repository], ref)
         if not 'Dockerfile' in os.listdir(dst_folder):
             raise RuntimeError('Dockerfile not found in cloned repository')
         logger.info('Building using dockerfile...')
         img_id, logs = client.build(path=dst_folder, quiet=True)
-        rmtree(dst_folder, True)
     else:
         img_id = processed['{0}@{1}'.format(repository, ref)]
     logger.info('Committing to {0}:{1}'.format(docker_repo,
