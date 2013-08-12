@@ -24,7 +24,7 @@
       -p=[]: Map a network port to the container
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
-      -d=[]: Set custom dns servers for the container
+      -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "host-dir" is missing, then docker creates a new volume.
       -volumes-from="": Mount all volumes from the given container.
       -entrypoint="": Overwrite the default entrypoint set by the image.
