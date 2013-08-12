@@ -28,7 +28,7 @@ Usage
 Working using GitHub's file editor
 ----------------------------------
 Alternatively, for small changes and typo's you might want to use GitHub's built in file editor. It allows
-you to preview your changes right online. Just be carefull not to create many commits.
+you to preview your changes right online. Just be careful not to create many commits.
 
 Images
 ------

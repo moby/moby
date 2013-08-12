@@ -26,7 +26,7 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.4
+The current version of the API is 1.4
 
 Calling /images/<name>/insert is the same as calling
 /v1.4/images/<name>/insert 
@@ -107,7 +107,7 @@ The client should send it's authConfig as POST on each call of
   Only checks the configuration but doesn't store it on the server
 
   Deleting an image is now improved, will only untag the image if it
-  has chidren and remove all the untagged parents if has any.
+  has children and remove all the untagged parents if has any.
 
 .. http:post:: /images/<name>/delete 
 

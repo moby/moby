@@ -154,7 +154,7 @@ API (pulling repository foo/bar):
 
 .. note::
 
-    **It’s possible not to use the Index at all!** In this case, a deployed version of the Registry is deployed to store and serve images. Those images are not authentified and the security is not guaranteed.
+    **It’s possible not to use the Index at all!** In this case, a deployed version of the Registry is deployed to store and serve images. Those images are not authenticated and the security is not guaranteed.
 
 .. note::
 

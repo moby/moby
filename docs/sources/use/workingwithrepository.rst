@@ -1,6 +1,6 @@
 :title: Working With Repositories
 :description: Repositories allow users to share images.
-:keywords: repo, repositiores, usage, pull image, push image, image, documentation
+:keywords: repo, repositories, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
@@ -71,7 +71,7 @@ function completely independently from the Central Index.
 Find public images available on the Central Index
 -------------------------------------------------
 
-Seach by name, namespace or description
+Search by name, namespace or description
 
 .. code-block:: bash
 

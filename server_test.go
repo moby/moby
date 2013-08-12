@@ -283,8 +283,8 @@ func TestPools(t *testing.T) {
 		t.Fatalf("Expected `pull test1 is already in progress`")
 	}
 	err = srv.poolAdd("wait", "test3")
-	if err == nil || err.Error() != "Unkown pool type" {
-		t.Fatalf("Expected `Unkown pool type`")
+	if err == nil || err.Error() != "Unknown pool type" {
+		t.Fatalf("Expected `Unknown pool type`")
 	}
 
 	err = srv.poolRemove("pull", "test2")
@@ -304,8 +304,8 @@ func TestPools(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = srv.poolRemove("wait", "test3")
-	if err == nil || err.Error() != "Unkown pool type" {
-		t.Fatalf("Expected `Unkown pool type`")
+	if err == nil || err.Error() != "Unknown pool type" {
+		t.Fatalf("Expected `Unknown pool type`")
 	}
 }
 

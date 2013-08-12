@@ -365,8 +365,8 @@ Start a container
         :statuscode 500: server error
 
 
-Stop a contaier
-***************
+Stop a container
+****************
 
 .. http:post:: /containers/(id)/stop
 
