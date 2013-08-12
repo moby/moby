@@ -425,7 +425,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
 			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
-				// FIXME: Keep goging in case of error?
+				// FIXME: Keep going in case of error?
 				return err
 			}
 			img, err := NewImgJSON(imgJSON)
@@ -565,7 +565,7 @@ func (srv *Server) poolAdd(kind, key string) error {
 		srv.pushingPool[key] = struct{}{}
 		break
 	default:
-		return fmt.Errorf("Unkown pool type")
+		return fmt.Errorf("Unknown pool type")
 	}
 	return nil
 }
@@ -579,7 +579,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 		delete(srv.pushingPool, key)
 		break
 	default:
-		return fmt.Errorf("Unkown pool type")
+		return fmt.Errorf("Unknown pool type")
 	}
 	return nil
 }
@@ -693,7 +693,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgID, "json"))
 	if err != nil {
-		return "", fmt.Errorf("Error while retreiving the path for {%s}: %s", imgID, err)
+		return "", fmt.Errorf("Error while retrieving the path for {%s}: %s", imgID, err)
 	}
 	out.Write(sf.FormatStatus("", "Pushing %s", imgID))
 
@@ -731,7 +731,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	return imgData.Checksum, nil
 }
 
-// FIXME: Allow to interupt current push when new push of same image is done.
+// FIXME: Allow to interrupt current push when new push of same image is done.
 func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
 	if err := srv.poolAdd("push", localName); err != nil {
 		return err
