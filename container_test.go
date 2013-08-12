@@ -401,22 +401,24 @@ func TestOutput(t *testing.T) {
 func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"tail", "-f", "/etc/resolv.conf"},
-		User:  "daemon",
+		Image:     GetTestImage(runtime).ID,
+		Cmd:       []string{"cat"},
+		OpenStdin: true,
+		User:      "daemon",
 	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+	defer container.stdin.Close()
 
 	if container.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -426,8 +428,13 @@ func TestKillDifferentUser(t *testing.T) {
 		}
 	})
 
-	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.WaitTimeout(500 * time.Millisecond)
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		out, _ := container.StdoutPipe()
+		in, _ := container.StdinPipe()
+		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
