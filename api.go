@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -1086,7 +1087,25 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 		return e
 	}
 	if proto == "unix" {
-		os.Chmod(addr, 0700)
+		if err := os.Chmod(addr, 0660); err != nil {
+			return err
+		}
+
+		groups, err := ioutil.ReadFile("/etc/group")
+		if err != nil {
+			return err
+		}
+		re := regexp.MustCompile("(^|\n)docker:.*?:([0-9]+)")
+		if gidMatch := re.FindStringSubmatch(string(groups)); gidMatch != nil {
+			gid, err := strconv.Atoi(gidMatch[2])
+			if err != nil {
+				return err
+			}
+			utils.Debugf("docker group found. gid: %d", gid)
+			if err := os.Chown(addr, 0, gid); err != nil {
+				return err
+			}
+		}
 	}
 	httpSrv := http.Server{Addr: addr, Handler: r}
 	return httpSrv.Serve(l)
