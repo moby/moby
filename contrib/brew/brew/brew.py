@@ -32,6 +32,15 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         logger.info('Repository provided assumed to be a local path')
         dst_folder = repository
 
+    try:
+        client.version()
+    except Exception as e:
+        logger.error('Could not reach the docker daemon. Please make sure it '
+            'is running.')
+        logger.warning('Also make sure you have access to the docker UNIX '
+            'socket (use sudo)')
+        return
+
     #FIXME: set destination folder and only pull latest changes instead of
     # cloning the whole repo everytime
     if not dst_folder:
