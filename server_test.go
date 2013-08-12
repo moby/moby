@@ -205,6 +205,110 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 
 }
 
+func TestContainerTop(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{runtime: runtime}
+	defer nuke(runtime)
+
+	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer runtime.Destroy(c)
+	if err := c.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	c.WaitTimeout(500 * time.Millisecond)
+
+	if !c.State.Running {
+		t.Errorf("Container should be running")
+	}
+	procs, err := srv.ContainerTop(c.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(procs.Processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
+	}
+
+	pos := -1
+	for i := 0; i < len(procs.Titles); i++ {
+		if procs.Titles[i] == "CMD" {
+			pos = i
+			break
+		}
+	}
+
+	if pos == -1 {
+		t.Fatalf("Expected CMD, not found.")
+	}
+
+	if procs.Processes[0][pos] != "sh" && procs.Processes[0][pos] != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs.Processes[0][pos])
+	}
+
+	if procs.Processes[1][pos] != "sh" && procs.Processes[1][pos] != "busybox" {
+		t.Fatalf("Expected `busybox` or `sh`, found %s.", procs.Processes[1][pos])
+	}
+}
+
+func TestPools(t *testing.T) {
+	runtime := mkRuntime(t)
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+	defer nuke(runtime)
+
+	err := srv.poolAdd("pull", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolAdd("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolAdd("push", "test1")
+	if err == nil || err.Error() != "pull test1 is already in progress" {
+		t.Fatalf("Expected `pull test1 is already in progress`")
+	}
+	err = srv.poolAdd("pull", "test1")
+	if err == nil || err.Error() != "pull test1 is already in progress" {
+		t.Fatalf("Expected `pull test1 is already in progress`")
+	}
+	err = srv.poolAdd("wait", "test3")
+	if err == nil || err.Error() != "Unkown pool type" {
+		t.Fatalf("Expected `Unkown pool type`")
+	}
+
+	err = srv.poolRemove("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("pull", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("pull", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("push", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = srv.poolRemove("wait", "test3")
+	if err == nil || err.Error() != "Unkown pool type" {
+		t.Fatalf("Expected `Unkown pool type`")
+	}
+}
+
 func TestLogEvent(t *testing.T) {
 	runtime := mkRuntime(t)
 	srv := &Server{
@@ -240,7 +344,6 @@ func TestLogEvent(t *testing.T) {
 			}
 		}
 	})
-
 }
 
 func TestRmi(t *testing.T) {

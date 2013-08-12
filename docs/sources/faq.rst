@@ -47,7 +47,7 @@ Most frequently asked questions.
     .. _IRC, docker on freenode: irc://chat.freenode.net#docker
     .. _Github: http://www.github.com/dotcloud/docker
     .. _Ask questions on Stackoverflow: http://stackoverflow.com/search?q=docker
-    .. _Join the conversation on Twitter: http://twitter.com/getdocker
+    .. _Join the conversation on Twitter: http://twitter.com/docker
 
 
 Looking for something else to read? Checkout the :ref:`hello_world` example.

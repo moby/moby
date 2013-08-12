@@ -996,6 +996,28 @@ func TestEntrypoint(t *testing.T) {
 	}
 }
 
+func TestEntrypointNoCmd(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(string(output), "\r\n") != "foobar" {
+		t.Error(string(output))
+	}
+}
+
 func grepFile(t *testing.T, path string, pattern string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -1152,7 +1174,7 @@ func TestBindMounts(t *testing.T) {
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
+	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
 }
@@ -1284,10 +1306,10 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 
 	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(string(output), -1)
 	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [1: lo], got [%s]", interfaces)
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
 	}
-	if interfaces[0] != "1: lo" {
-		t.Fatalf("Wrong interface in test container: expected [1: lo], got [%s]", interfaces)
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
 	}
 
 }

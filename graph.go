@@ -159,7 +159,7 @@ func (graph *Graph) TempLayerArchive(id string, compression Compression, sf *uti
 	if err != nil {
 		return nil, err
 	}
-	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("Buffering to disk", "%v/%v (%v)"), sf), tmp.Root)
+	return NewTempArchive(utils.ProgressReader(ioutil.NopCloser(archive), 0, output, sf.FormatProgress("", "Buffering to disk", "%v/%v (%v)"), sf, true), tmp.Root)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
@@ -177,8 +177,65 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return tmp.imageRoot(id), nil
 }
 
+// getDockerInitLayer returns the path of a layer containing a mountpoint suitable
+// for bind-mounting dockerinit into the container. The mountpoint is simply an
+// empty file at /.dockerinit
+//
+// This extra layer is used by all containers as the top-most ro layer. It protects
+// the container from unwanted side-effects on the rw layer.
+func (graph *Graph) getDockerInitLayer() (string, error) {
+	tmp, err := graph.tmp()
+	if err != nil {
+		return "", err
+	}
+	initLayer := tmp.imageRoot("_dockerinit")
+	if err := os.Mkdir(initLayer, 0755); err != nil && !os.IsExist(err) {
+		// If directory already existed, keep going.
+		// For all other errors, abort.
+		return "", err
+	}
+
+	for pth, typ := range map[string]string{
+		"/dev/pts":         "dir",
+		"/dev/shm":         "dir",
+		"/proc":            "dir",
+		"/sys":             "dir",
+		"/.dockerinit":     "file",
+		"/etc/resolv.conf": "file",
+		// "var/run": "dir",
+		// "var/lock": "dir",
+	} {
+		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
+			if os.IsNotExist(err) {
+				switch typ {
+				case "dir":
+					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
+						return "", err
+					}
+				case "file":
+					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+						return "", err
+					}
+
+					if f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755); err != nil {
+						return "", err
+					} else {
+						f.Close()
+					}
+				}
+			} else {
+				return "", err
+			}
+		}
+	}
+
+	// Layer is ready to use, if it wasn't before.
+	return initLayer, nil
+}
+
 func (graph *Graph) tmp() (*Graph, error) {
-	return NewGraph(path.Join(graph.Root, ":tmp:"))
+	// Changed to _tmp from :tmp:, because it messed with ":" separators in aufs branch syntax...
+	return NewGraph(path.Join(graph.Root, "_tmp"))
 }
 
 // Check if given error is "not empty".

@@ -461,25 +461,47 @@ func TestGetContainersTop(t *testing.T) {
 
 	container, err := builder.Create(
 		&Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"/bin/sh", "-c", "sleep 2"},
+			Image:     GetTestImage(runtime).ID,
+			Cmd:       []string{"/bin/sh", "-c", "cat"},
+			OpenStdin: true,
 		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+	defer func() {
+		// Make sure the process dies before destorying runtime
+		container.stdin.Close()
+		container.WaitTimeout(2 * time.Second)
+	}()
+
 	hostConfig := &HostConfig{}
 	if err := container.Start(hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
-	// Give some time to the process to start
-	container.WaitTimeout(500 * time.Millisecond)
+	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
+		for {
+			if container.State.Running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
 
 	if !container.State.Running {
-		t.Errorf("Container should be running")
+		t.Fatalf("Container should be running")
 	}
+
+	// Make sure sh spawn up cat
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		in, _ := container.StdinPipe()
+		out, _ := container.StdoutPipe()
+		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	r := httptest.NewRecorder()
 	req, err := http.NewRequest("GET", "/"+container.ID+"/top?ps_args=u", bytes.NewReader([]byte{}))
@@ -504,11 +526,11 @@ func TestGetContainersTop(t *testing.T) {
 	if len(procs.Processes) != 2 {
 		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
 	}
-	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "sleep" {
-		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[0][10])
+	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "cat" {
+		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[0][10])
 	}
-	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "sleep" {
-		t.Fatalf("Expected `sleep` or `/bin/sh`, found %s.", procs.Processes[1][10])
+	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "cat" {
+		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[1][10])
 	}
 }
 
@@ -1140,6 +1162,84 @@ func TestDeleteImages(t *testing.T) {
 		if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
 			t.Fatalf("The test file has not been deleted")
 		} */
+}
+
+func TestJsonContentType(t *testing.T) {
+	if !matchesContentType("application/json", "application/json") {
+		t.Fail()
+	}
+
+	if !matchesContentType("application/json; charset=utf-8", "application/json") {
+		t.Fail()
+	}
+
+	if matchesContentType("dockerapplication/json", "application/json") {
+		t.Fail()
+	}
+}
+
+func TestPostContainersCopy(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	builder := NewBuilder(runtime)
+
+	// Create a container and remove a file
+	container, err := builder.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"touch", "/test.txt"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	copyData := APICopy{HostPath: ".", Resource: "/test.txt"}
+
+	jsonData, err := json.Marshal(copyData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/"+container.ID+"/copy", bytes.NewReader(jsonData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err = postContainersCopy(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	found := false
+	for tarReader := tar.NewReader(r.Body); ; {
+		h, err := tarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if h.Name == "test.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("The created test file has not been found in the copied output")
+	}
 }
 
 // Mocked types for tests

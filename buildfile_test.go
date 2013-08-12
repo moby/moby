@@ -328,6 +328,40 @@ func TestBuildEntrypoint(t *testing.T) {
 	}
 }
 
+// testing #1405 - config.Cmd does not get cleaned up if
+// utilizing cache
+func TestBuildEntrypointRunCleanup(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        run echo "hello"
+        `,
+		nil, nil}, t, srv, true)
+
+	img = buildImage(testContextTemplate{`
+        from {IMAGE}
+        run echo "hello"
+        add foo /foo
+        entrypoint ["/bin/echo"]
+        `,
+		[][2]string{{"foo", "HEYO"}}, nil}, t, srv, true)
+
+	if len(img.Config.Cmd) != 0 {
+		t.Fail()
+	}
+}
+
 func TestBuildImageWithCache(t *testing.T) {
 	runtime, err := newTestRuntime()
 	if err != nil {
@@ -386,6 +420,55 @@ func TestBuildImageWithoutCache(t *testing.T) {
 
 	if imageId == img.ID {
 		t.Logf("Image ids should not match: %s == %s", imageId, img.ID)
+		t.Fail()
+	}
+}
+
+func TestForbiddenContextPath(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	context := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        add ../../ test/
+        `,
+		[][2]string{{"test.txt", "test1"}, {"other.txt", "other"}}, nil}
+
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true)
+	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+
+	if err == nil {
+		t.Log("Error should not be nil")
+		t.Fail()
+	}
+
+	if err.Error() != "Forbidden path: /" {
+		t.Logf("Error message is not expected: %s", err.Error())
 		t.Fail()
 	}
 }

@@ -1,4 +1,4 @@
-# Generate AUTHORS: git log --all --format='%aN <%aE>' | sort -uf | grep -v vagrant-ubuntu-12
+# Generate AUTHORS: git log --format='%aN <%aE>' | sort -uf | grep -v vagrant-ubuntu-12
 <charles.hooper@dotcloud.com> <chooper@plumata.com> 
 <daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
 <daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
@@ -25,3 +25,4 @@ Walter Stanish <walter@pratyeka.org>
 Roberto Hashioka <roberto_hashioka@hotmail.com>
 Konstantin Pelykh <kpelykh@zettaset.com>
 David Sissitka <me@dsissitka.com>
+Nolan Darilek <nolan@thewordnerd.info>

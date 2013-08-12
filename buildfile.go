@@ -56,7 +56,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil); err != nil {
+			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil, true); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -93,6 +93,8 @@ func (b *buildFile) CmdRun(args string) error {
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
+	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
+
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
 	if b.utilizeCache {
@@ -115,7 +117,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if err := b.commit(cid, cmd, "run"); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
+
 	return nil
 }
 
@@ -170,9 +172,9 @@ func (b *buildFile) CmdEnv(args string) error {
 
 	if envKey >= 0 {
 		b.config.Env[envKey] = replacedVar
-		return nil
+	} else {
+		b.config.Env = append(b.config.Env, replacedVar)
 	}
-	b.config.Env = append(b.config.Env, replacedVar)
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
@@ -275,6 +277,9 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	// Preserve the trailing '/'
 	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
+	}
+	if !strings.HasPrefix(origPath, b.context) {
+		return fmt.Errorf("Forbidden path: %s", origPath)
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
@@ -483,15 +488,16 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
-		stepN += 1
-		// FIXME: only count known instructions as build steps
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
 			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 			continue
 		}
+
+		stepN += 1
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
 			return "", ret.(error)

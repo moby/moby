@@ -93,20 +93,29 @@ func iptables(args ...string) error {
 	return nil
 }
 
-func checkRouteOverlaps(dockerNetwork *net.IPNet) error {
-	output, err := ip("route")
-	if err != nil {
-		return err
-	}
-	utils.Debugf("Routes:\n\n%s", output)
-	for _, line := range strings.Split(output, "\n") {
+func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
+	utils.Debugf("Routes:\n\n%s", routes)
+	for _, line := range strings.Split(routes, "\n") {
 		if strings.Trim(line, "\r\n\t ") == "" || strings.Contains(line, "default") {
 			continue
 		}
-		if _, network, err := net.ParseCIDR(strings.Split(line, " ")[0]); err != nil {
-			return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
-		} else if networkOverlaps(dockerNetwork, network) {
-			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork.String(), line)
+		_, network, err := net.ParseCIDR(strings.Split(line, " ")[0])
+		if err != nil {
+			// is this a mask-less IP address?
+			if ip := net.ParseIP(strings.Split(line, " ")[0]); ip == nil {
+				// fail only if it's neither a network nor a mask-less IP address
+				return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
+			} else {
+				_, network, err = net.ParseCIDR(ip.String() + "/32")
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if err == nil && network != nil {
+			if networkOverlaps(dockerNetwork, network) {
+				return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, line)
+			}
 		}
 	}
 	return nil
@@ -122,8 +131,8 @@ func CreateBridgeIface(ifaceName string) error {
 		// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
 		// on the internal addressing or other stupid things like that.
 		// The shouldn't, but hey, let's not break them unless we really have to.
-		"172.16.42.1/16",
-		"10.0.42.1/16", // Don't even try using the entire /8, that's too intrusive
+		"172.17.42.1/16", // Don't use 172.16.0.0/16, it conflicts with EC2 DNS 172.16.0.23
+		"10.0.42.1/16",   // Don't even try using the entire /8, that's too intrusive
 		"10.1.42.1/16",
 		"10.42.42.1/16",
 		"172.16.42.1/24",
@@ -142,7 +151,11 @@ func CreateBridgeIface(ifaceName string) error {
 		if err != nil {
 			return err
 		}
-		if err := checkRouteOverlaps(dockerNetwork); err == nil {
+		routes, err := ip("route")
+		if err != nil {
+			return err
+		}
+		if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
 			ifaceAddr = addr
 			break
 		} else {
@@ -240,6 +253,7 @@ func (mapper *PortMapper) setup() error {
 
 func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, dest_addr string, dest_port int) error {
 	return iptables("-t", "nat", rule, "DOCKER", "-p", proto, "--dport", strconv.Itoa(port),
+		"!", "-i", NetworkBridgeIface,
 		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
 }
 
@@ -251,7 +265,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			return err
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "tcp")
 			return err
@@ -265,7 +279,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			return err
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, backendAddr)
+		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "udp")
 			return err
