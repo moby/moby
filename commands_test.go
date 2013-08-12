@@ -373,7 +373,7 @@ func TestAttachDisconnect(t *testing.T) {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
 
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
 	container.Wait()

@@ -186,7 +186,7 @@ func TestDiff(t *testing.T) {
 		}
 	}
 
-	// Create a new containere
+	// Create a new container
 	container3, _, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
 	defer runtime.Destroy(container3)
 
@@ -351,10 +351,10 @@ func TestStart(t *testing.T) {
 		t.Errorf("Container should be running")
 	}
 	if err := container.Start(hostConfig); err == nil {
-		t.Fatalf("A running containter should be able to be started")
+		t.Fatalf("A running container should be able to be started")
 	}
 
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin.Close()
 	container.WaitTimeout(2 * time.Second)
 }
@@ -771,7 +771,7 @@ func TestUser(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
-		User: "unkownuser",
+		User: "unknownuser",
 	},
 	)
 	if err != nil {

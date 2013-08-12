@@ -219,7 +219,7 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 
 func assertKernelVersion(t *testing.T, a, b *KernelVersionInfo, result int) {
 	if r := CompareKernelVersion(a, b); r != result {
-		t.Fatalf("Unepected kernel version comparaison result. Found %d, expected %d", r, result)
+		t.Fatalf("Unexpected kernel version comparison result. Found %d, expected %d", r, result)
 	}
 }
 
