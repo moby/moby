@@ -1,3 +1,4 @@
+GO := go
 DOCKER_PACKAGE := github.com/dotcloud/docker
 RELEASE_VERSION := $(shell git tag | grep -E "v[0-9\.]+$$" | sort -nr | head -n 1)
 SRCRELEASE := docker-$(RELEASE_VERSION)
@@ -35,13 +36,13 @@ all: $(DOCKER_BIN)
 
 $(DOCKER_BIN): $(DOCKER_DIR)
 	@mkdir -p  $(dir $@)
-	@(cd $(DOCKER_MAIN); CGO_ENABLED=0 go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
+	@(cd $(DOCKER_MAIN); CGO_ENABLED=0 $(GO) build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(DOCKER_BIN_RELATIVE) is created.
 
 $(DOCKER_DIR):
 	@mkdir -p $(dir $@)
 	@if [ -h $@ ]; then rm -f $@; fi; ln -sf $(CURDIR)/ $@
-	@(cd $(DOCKER_MAIN); go get -d $(GO_OPTIONS))
+	@(cd $(DOCKER_MAIN); $(GO) get -d $(GO_OPTIONS))
 
 whichrelease:
 	echo $(RELEASE_VERSION)
@@ -78,12 +79,12 @@ test:
 	# Copy docker source and dependencies for testing
 	rm -rf ${BUILD_SRC}; mkdir -p ${BUILD_PATH}
 	tar --exclude=${BUILD_SRC} -cz . | tar -xz -C ${BUILD_PATH}
-	GOPATH=${CURDIR}/${BUILD_SRC} go get -d
+	GOPATH=${CURDIR}/${BUILD_SRC} $(GO) get -d
 	# Do the test
-	sudo -E GOPATH=${CURDIR}/${BUILD_SRC} CGO_ENABLED=0 go test ${GO_OPTIONS}
+	sudo -E GOPATH=${CURDIR}/${BUILD_SRC} CGO_ENABLED=0 $(GO) test ${GO_OPTIONS}
 
 testall: all
-	@(cd $(DOCKER_DIR); CGO_ENABLED=0 sudo -E go test ./... $(GO_OPTIONS))
+	@(cd $(DOCKER_DIR); CGO_ENABLED=0 sudo -E $(GO) test ./... $(GO_OPTIONS))
 
 fmt:
 	@gofmt -s -l -w .
