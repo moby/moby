@@ -11,18 +11,27 @@ PostgreSQL Service
 
     A shorter version of `this blog post`_.
 
+.. note::
+
+    As of version 0.5.2, docker requires root privileges to run.
+    You have to either manually adjust your system configuration (permissions on
+    /var/run/docker.sock or sudo config), or prefix `docker` with `sudo`. Check
+    `this thread`_ for details.
+
 .. _this blog post: http://zaiste.net/2013/08/docker_postgresql_how_to/
+.. _this thread: https://groups.google.com/forum/?fromgroups#!topic/docker-club/P3xDLqmLp0E
 
 Installing PostgreSQL on Docker
 -------------------------------
 
 For clarity I won't be showing commands output.
 
+
 Run an interactive shell in Docker container.
 
 .. code-block:: bash
 
-    docker run -i -t base /bin/bash
+    docker run -i -t ubuntu /bin/bash
 
 Update its dependencies.
 
