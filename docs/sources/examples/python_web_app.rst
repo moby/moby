@@ -36,7 +36,13 @@ Inside of the "shykes/pybuilder" image there is a command called buildapp, we ar
     docker attach $BUILD_JOB
     [...]
 
-We attach to the new container to see what is going on. Ctrl-C to disconnect
+While this container is running, we can attach to the new container to see what is going on. Ctrl-C to disconnect.
+
+.. code-block:: bash
+
+    docker ps -a
+    
+List all docker containers. If this container has already finished running, it will still be listed here.
 
 .. code-block:: bash
 
