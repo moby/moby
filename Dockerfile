@@ -22,9 +22,11 @@ run	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt
 run	apt-get update
 run	apt-get install -y lxc
 run	apt-get install -y aufs-tools
+run     apt-get install -y mercurial
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker
 # Build the binary
+run     cd  /go/src/github.com/dotcloud/docker/docker && go get code.google.com/p/go.net/websocket
 run	cd /go/src/github.com/dotcloud/docker/docker && go install -ldflags "-X main.GITCOMMIT '??' -d -w"
 env	PATH	/usr/local/go/bin:/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 cmd	["docker"]
