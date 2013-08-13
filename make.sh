@@ -35,6 +35,16 @@ VERSION=$(cat ./VERSION)
 GIT_COMMIT=$(git rev-parse --short HEAD)
 GIT_CHANGES=$(test -n "$(git status --porcelain)" && echo "+CHANGES" || true)
 
+PACKAGE_URL="http://www.docker.io/"
+PACKAGE_MAINTAINER="docker@dotcloud.com"
+PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
+Docker complements LXC with a high-level API which operates at the process
+level. It runs unix processes with strong guarantees of isolation and
+repeatability across servers.
+Docker is a great building block for automating distributed systems:
+large-scale web deployments, database clusters, continuous deployment systems,
+private PaaS, service-oriented architectures, etc."
+
 # Each "bundle" is a different type of build artefact: static binary, Ubuntu
 # package, etc.
 
@@ -66,7 +76,7 @@ bundle_test() {
 bundle_ubuntu() {
 	mkdir -p bundles/$VERSION/ubuntu
 
-	DIR=$(mktemp -d)
+	DIR=$(pwd)/bundles/$VERSION/ubuntu/build
 
 	# Generate an upstart config file (ubuntu-specific)
 	mkdir -p $DIR/etc/init
@@ -87,23 +97,30 @@ EOF
 
 	(
 		cd bundles/$VERSION/ubuntu
-		fpm -s dir -t deb -n lxc-docker -v $VERSION -a all --prefix / -C $DIR .
+		fpm -s dir -C $DIR \
+		    --name lxc-docker-$VERSION --version $VERSION \
+		    --architecture $(dpkg-architecture -qDEB_HOST_ARCH) \
+		    --prefix / \
+		    --depends lxc --depends aufs-tools \
+		    --description "$PACKAGE_DESCRIPTION" \
+		    --maintainer "$PACKAGE_MAINTAINER" \
+		    --conflicts lxc-docker-virtual-package \
+		    --provides lxc-docker-virtual-package \
+		    --replaces lxc-docker-virtual-package \
+		    --url "$PACKAGE_URL" \
+		    --vendor "$PACKAGE_VENDOR" \
+		    -t deb .
+		mkdir empty
+		fpm -s dir -C empty \
+		    --name lxc-docker --version $VERSION \
+		    --architecture all \
+		    --depends lxc-docker-$VERSION \
+		    --description "$PACKAGE_DESCRIPTION" \
+		    --maintainer "$PACKAGE_MAINTAINER" \
+		    --url "$PACKAGE_URL" \
+		    --vendor "$PACKAGE_VENDOR" \
+		    -t deb .
 	)
-	rm -fr $DIR
-
-
-	# Setup the APT repo
-	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p $APTDIR/conf
-	cat > $APTDIR/conf/distributions <<EOF
-Codename: docker
-Components: main
-Architectures: amd64
-EOF
-
-	# Add the DEB package to the APT repo
-	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
-	reprepro -b $APTDIR includedeb docker $DEBFILE
 }
 
 

@@ -44,7 +44,7 @@ BUCKET=$AWS_S3_BUCKET
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd --acl-public mb $BUCKET 2>/dev/null || true
+	s3cmd --acl-public mb s3://$BUCKET 2>/dev/null || true
 	# Check access to the bucket.
 	# s3cmd has no useful exit status, so we cannot check that.
 	# Instead, we check if it outputs anything on standard output.
@@ -69,7 +69,22 @@ s3_url() {
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/info
 release_ubuntu() {
-	s3cmd --acl-public --verbose --delete-removed --follow-symlinks sync bundles/$VERSION/ubuntu/apt/ s3://$BUCKET/ubuntu/
+	# Setup the APT repo
+	APTDIR=bundles/$VERSION/ubuntu/apt
+	mkdir -p $APTDIR/conf $APTDIR/db
+	s3cmd sync s3://$BUCKET/ubuntu/db/ $APTDIR/db/ || true
+	cat > $APTDIR/conf/distributions <<EOF
+Codename: docker
+Components: main
+Architectures: amd64
+EOF
+
+	# Add the DEB package to the APT repo
+	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
+	reprepro -b $APTDIR includedeb docker $DEBFILE
+
+	# Upload
+	s3cmd --acl-public --verbose --follow-symlinks sync bundles/$VERSION/ubuntu/apt/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/info
 # Add the following to /etc/apt/sources.list
 deb $(s3_url $BUCKET)/ubuntu docker main
