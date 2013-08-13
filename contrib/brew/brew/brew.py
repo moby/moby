@@ -53,7 +53,13 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
             logger.error('Source repository could not be fetched. Check '
                 'that the address is correct and the branch exists.')
             return
-    for buildfile in os.listdir(os.path.join(dst_folder, 'library')):
+    try:
+        dirlist = os.listdir(os.path.join(dst_folder, 'library'))
+    except OSError as e:
+        logger.error('The path provided ({0}) could not be found or didn\'t'
+            'contain a library/ folder.'.format(dst_folder))
+        return
+    for buildfile in dirlist:
         if buildfile == 'MAINTAINERS':
             continue
         f = open(os.path.join(dst_folder, 'library', buildfile))
