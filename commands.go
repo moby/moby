@@ -858,9 +858,11 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	if err := push(); err != nil {
 		if err.Error() == "Authentication is required." {
-			if err = cli.checkIfLogged("push"); err == nil {
-				return push()
+			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+			if err := cli.CmdLogin(""); err != nil {
+				return err
 			}
+			return push()
 		}
 		return err
 	}
@@ -1507,19 +1509,6 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		r := bytes.NewReader(data)
 		if err := Untar(r, copyData.HostPath); err != nil {
 			return err
-		}
-	}
-	return nil
-}
-
-func (cli *DockerCli) checkIfLogged(action string) error {
-	// If condition AND the login failed
-	if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-		if err := cli.CmdLogin(""); err != nil {
-			return err
-		}
-		if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-			return fmt.Errorf("Please login prior to %s. ('docker login')", action)
 		}
 	}
 	return nil
