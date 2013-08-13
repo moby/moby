@@ -18,7 +18,7 @@ import sys, os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 
-# -- General configuration -----------------------------------------------------
+# -- General configuratiofn -----------------------------------------------------
 
 
 
@@ -52,8 +52,7 @@ source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
 
 #disable the parmalinks on headers, I find them really annoying
-html_add_permalinks = None
-
+html_add_permalinks = u'¶'
 
 # The master toctree document.
 master_doc = 'toctree'
