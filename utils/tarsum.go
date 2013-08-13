@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"archive/tar"
+	"github.com/dotcloud/docker/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
