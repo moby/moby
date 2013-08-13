@@ -431,6 +431,20 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
+func (container *Container) generateEnvConfig(env []string) error {
+	fo, err := os.Create(container.EnvConfigPath())
+	if err != nil {
+		return err
+	}
+	defer fo.Close()
+	for _, item := range env {
+		if _, err := fo.WriteString(item + "\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
 	fo, err := os.Create(container.lxcConfigPath())
 	if err != nil {
@@ -841,17 +855,17 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		params = append(params, "-u", container.Config.User)
 	}
 
-	if container.Config.Tty {
-		params = append(params, "-e", "TERM=xterm")
+	// Setup environment
+	env := []string{
+		"HOME=/",
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"container=lxc",
+		"HOSTNAME=" + container.Config.Hostname,
 	}
 
-	// Setup environment
-	params = append(params,
-		"-e", "HOME=/",
-		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"-e", "container=lxc",
-		"-e", "HOSTNAME="+container.Config.Hostname,
-	)
+	if container.Config.Tty {
+		env = append(env, "TERM=xterm")
+	}
 
 	// Init any links between the parent and children
 	runtime := container.runtime
@@ -887,9 +901,17 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 			}
 
 			for _, envVar := range link.ToEnv() {
-				params = append(params, "-e", envVar)
+				env = append(env, envVar)
 			}
 		}
+	}
+
+	for _, elem := range container.Config.Env {
+		env = append(env, elem)
+	}
+
+	if err := container.generateEnvConfig(env); err != nil {
+		return err
 	}
 
 	if container.Config.WorkingDir != "" {
@@ -903,10 +925,6 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		params = append(params,
 			"-w", workingDir,
 		)
-	}
-
-	for _, elem := range container.Config.Env {
-		params = append(params, "-e", elem)
 	}
 
 	// Program
@@ -1414,6 +1432,10 @@ func (container *Container) hostConfigPath() string {
 
 func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
+}
+
+func (container *Container) EnvConfigPath() string {
+	return path.Join(container.root, "config.env")
 }
 
 func (container *Container) lxcConfigPath() string {

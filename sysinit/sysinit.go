@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -69,9 +70,14 @@ func changeUser(u string) {
 }
 
 // Clear environment pollution introduced by lxc-start
-func cleanupEnv(env utils.ListOpts) {
+func cleanupEnv() {
 	os.Clearenv()
-	for _, kv := range env {
+	content, err := ioutil.ReadFile("/.dockerenv")
+	if err != nil {
+		log.Fatalf("Unable to load environment variables: %v", err)
+	}
+	lines := strings.Split(string(content), "\n")
+	for _, kv := range lines {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) == 1 {
 			parts = append(parts, "")
@@ -104,12 +110,9 @@ func SysInit() {
 	var gw = flag.String("g", "", "gateway address")
 	var workdir = flag.String("w", "", "workdir")
 
-	var flEnv utils.ListOpts
-	flag.Var(&flEnv, "e", "Set environment variables")
-
 	flag.Parse()
 
-	cleanupEnv(flEnv)
+	cleanupEnv()
 	setupNetworking(*gw)
 	setupWorkingDirectory(*workdir)
 	changeUser(*u)
