@@ -203,6 +203,14 @@ to the entrypoint.
 The ``VOLUME`` instruction will add one or more new volumes to any
 container created from the image.
 
+3.10 USER
+---------
+
+    ``USER daemon``
+
+The ``USER`` instruction sets the username or UID to use when running
+the image.
+
 4. Dockerfile Examples
 ======================
 

@@ -197,6 +197,11 @@ func (b *buildFile) CmdExpose(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
+func (b *buildFile) CmdUser(args string) error {
+	b.config.User = args
+	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
+}
+
 func (b *buildFile) CmdInsert(args string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }

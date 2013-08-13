@@ -270,6 +270,17 @@ func TestBuildMaintainer(t *testing.T) {
 	}
 }
 
+func TestBuildUser(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        user dockerio
+    `, nil, nil}, t, nil, true)
+
+	if img.Config.User != "dockerio" {
+		t.Fail()
+	}
+}
+
 func TestBuildEnv(t *testing.T) {
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
