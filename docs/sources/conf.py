@@ -51,7 +51,6 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-#disable the parmalinks on headers, I find them really annoying
 html_add_permalinks = u'¶'
 
 # The master toctree document.
