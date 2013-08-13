@@ -22,6 +22,9 @@ run	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt
 run	apt-get update
 run	apt-get install -y lxc
 run	apt-get install -y aufs-tools
+# Docker requires code.google.com/p/go.net/websocket
+run	apt-get install -y -q mercurial
+run	PKG=code.google.com/p/go.net REV=78ad7f42aa2e;	 hg clone https://$PKG /go/src/$PKG && cd /go/src/$PKG && hg checkout -r $REV
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker
 # Build the binary
