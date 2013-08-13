@@ -960,6 +960,7 @@ func TestEnv(t *testing.T) {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
 		"container=lxc",
+		"HOSTNAME=" + container.ShortID(),
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
