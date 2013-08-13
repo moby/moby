@@ -1460,15 +1460,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v := url.Values{}
 		v.Set("logs", "1")
 		v.Set("stream", "1")
+		var out io.Writer
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
 		}
 		if config.AttachStdout {
 			v.Set("stdout", "1")
+			out = cli.out
 		}
 		if config.AttachStderr {
 			v.Set("stderr", "1")
+			out = cli.out
 		}
 
 		signals := make(chan os.Signal, 1)
@@ -1482,7 +1485,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}()
 
-		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
+		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
@@ -1645,11 +1648,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
 
-	receiveStdout := utils.Go(func() error {
-		_, err := io.Copy(out, br)
-		utils.Debugf("[hijack] End of stdout")
-		return err
-	})
+	var receiveStdout (chan error)
+	if out != nil {
+		receiveStdout = utils.Go(func() error {
+			_, err := io.Copy(out, br)
+			utils.Debugf("[hijack] End of stdout")
+			return err
+		})
+	}
 
 	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
 		oldState, err := term.SetRawTerminal(cli.terminalFd)
@@ -1677,9 +1683,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		return nil
 	})
 
-	if err := <-receiveStdout; err != nil {
-		utils.Debugf("Error receiveStdout: %s", err)
-		return err
+	if out != nil {
+		if err := <-receiveStdout; err != nil {
+			utils.Debugf("Error receiveStdout: %s", err)
+			return err
+		}
 	}
 
 	if !cli.isTerminal {

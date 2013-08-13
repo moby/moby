@@ -255,7 +255,7 @@ func TestRunAttachStdin(t *testing.T) {
 	ch := make(chan struct{})
 	go func() {
 		defer close(ch)
-		cli.CmdRun("-i", "-a", "stdin", unitTestImageID, "sh", "-c", "echo hello && cat")
+		cli.CmdRun("-i", "-a", "stdin", unitTestImageID, "sh", "-c", "echo hello && cat && sleep 5")
 	}()
 
 	// Send input to the command, close stdin
@@ -283,12 +283,10 @@ func TestRunAttachStdin(t *testing.T) {
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdRun timed out", 5*time.Second, func() {
-		// Unblock hijack end
-		stdout.Read([]byte{})
 		<-ch
 	})
 
-	setTimeout(t, "Waiting for command to exit timed out", 5*time.Second, func() {
+	setTimeout(t, "Waiting for command to exit timed out", 10*time.Second, func() {
 		container.Wait()
 	})
 
