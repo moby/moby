@@ -857,7 +857,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	if err := push(); err != nil {
-		if err == fmt.Errorf("Authentication is required.") {
+		if err.Error() == "Authentication is required." {
 			if err = cli.checkIfLogged("push"); err == nil {
 				return push()
 			}
