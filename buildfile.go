@@ -167,9 +167,9 @@ func (b *buildFile) CmdEnv(args string) error {
 
 	if envKey >= 0 {
 		b.config.Env[envKey] = replacedVar
-		return nil
+	} else {
+		b.config.Env = append(b.config.Env, replacedVar)
 	}
-	b.config.Env = append(b.config.Env, replacedVar)
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
