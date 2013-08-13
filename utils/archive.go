@@ -1,10 +1,9 @@
-package docker
+package utils
 
 import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -33,7 +32,7 @@ func DetectCompression(source []byte) Compression {
 	} {
 		fail := false
 		if len(m) > sourceLen {
-			utils.Debugf("Len too short")
+			Debugf("Len too short")
 			continue
 		}
 		i := 0
@@ -116,12 +115,12 @@ func Untar(archive io.Reader, path string) error {
 			return err
 		} else {
 			totalN += n
-			utils.Debugf("[tar autodetect] n: %d", n)
+			Debugf("[tar autodetect] n: %d", n)
 		}
 	}
 	compression := DetectCompression(buf)
 
-	utils.Debugf("Archive compression detected: %s", compression.Extension())
+	Debugf("Archive compression detected: %s", compression.Extension())
 
 	cmd := exec.Command("tar", "--numeric-owner", "-f", "-", "-C", path, "-x"+compression.Flag())
 	cmd.Stdin = io.MultiReader(bytes.NewReader(buf), archive)
@@ -139,7 +138,7 @@ func Untar(archive io.Reader, path string) error {
 // the output of one piped into the other. If either Tar or Untar fails,
 // TarUntar aborts and returns the error.
 func TarUntar(src string, filter []string, dst string) error {
-	utils.Debugf("TarUntar(%s %s %s)", src, filter, dst)
+	Debugf("TarUntar(%s %s %s)", src, filter, dst)
 	archive, err := TarFilter(src, Uncompressed, filter)
 	if err != nil {
 		return err
@@ -172,11 +171,11 @@ func CopyWithTar(src, dst string) error {
 		return CopyFileWithTar(src, dst)
 	}
 	// Create dst, copy src's content into it
-	utils.Debugf("Creating dest directory: %s", dst)
+	Debugf("Creating dest directory: %s", dst)
 	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
+	Debugf("Calling TarUntar(%s, %s)", src, dst)
 	return TarUntar(src, nil, dst)
 }
 
@@ -187,7 +186,7 @@ func CopyWithTar(src, dst string) error {
 // If `dst` ends with a trailing slash '/', the final destination path
 // will be `dst/base(src)`.
 func CopyFileWithTar(src, dst string) error {
-	utils.Debugf("CopyFileWithTar(%s, %s)", src, dst)
+	Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err

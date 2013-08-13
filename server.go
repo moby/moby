@@ -710,7 +710,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 		return "", err
 	}
 
-	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, Uncompressed, sf, out)
+	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, utils.Uncompressed, sf, out)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
