@@ -33,7 +33,7 @@ The password is 'screencast'
 
 .. code-block:: bash
 
-         # Hello! We are going to try and install openssh on a container and run it as a servic 
+         # Hello! We are going to try and install openssh on a container and run it as a service
          # let's pull ubuntu to get a base ubuntu image. 
          $ docker pull ubuntu
          # I had it so it was quick
@@ -46,7 +46,7 @@ The password is 'screencast'
          $ apt-get install openssh-server
          # ok. lets see if we can run it.
          $ which sshd
-         # we need to create priviledge separation directory
+         # we need to create privilege separation directory
          $ mkdir /var/run/sshd
          $ /usr/sbin/sshd
          $ exit

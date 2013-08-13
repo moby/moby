@@ -14,7 +14,7 @@ switches the whole rootfs volume to read-write mode.
 Layer
 .....
 
-When Docker mounts the rootfs, it starts read-only, as in a tradtional
+When Docker mounts the rootfs, it starts read-only, as in a traditional
 Linux boot, but then, instead of changing the file system to
 read-write mode, it takes advantage of a `union mount
 <http://en.wikipedia.org/wiki/Union_mount>`_ to add a read-write file

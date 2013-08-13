@@ -509,7 +509,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
 		return b.image, nil
 	}
-	return "", fmt.Errorf("An error occured during the build\n")
+	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {

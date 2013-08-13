@@ -471,7 +471,7 @@ func TestGetContainersTop(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 	defer func() {
-		// Make sure the process dies before destorying runtime
+		// Make sure the process dies before destroying runtime
 		container.stdin.Close()
 		container.WaitTimeout(2 * time.Second)
 	}()
@@ -563,7 +563,7 @@ func TestGetContainersByName(t *testing.T) {
 		t.Fatal(err)
 	}
 	if outContainer.ID != container.ID {
-		t.Fatalf("Wrong containers retrieved. Expected %s, recieved %s", container.ID, outContainer.ID)
+		t.Fatalf("Wrong containers retrieved. Expected %s, received %s", container.ID, outContainer.ID)
 	}
 }
 
@@ -802,7 +802,7 @@ func TestPostContainersStart(t *testing.T) {
 
 	r = httptest.NewRecorder()
 	if err = postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err == nil {
-		t.Fatalf("A running containter should be able to be started")
+		t.Fatalf("A running container should be able to be started")
 	}
 
 	if err := container.Kill(); err != nil {
@@ -926,7 +926,7 @@ func TestPostContainersAttach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	// Try to avoid the timeout in destroy. Best effort, don't check error
 	defer func() {
 		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 		container.Kill()
@@ -982,7 +982,7 @@ func TestPostContainersAttach(t *testing.T) {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
 
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
 	container.Wait()

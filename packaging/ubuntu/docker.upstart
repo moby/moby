@@ -5,4 +5,6 @@ stop on runlevel [!2345]
 
 respawn
 
-exec /usr/bin/docker -d
+script
+    /usr/bin/docker -d
+end script

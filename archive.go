@@ -98,7 +98,7 @@ func TarFilter(path string, compression Compression, filter []string) (io.Reader
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `path`.
-// The archive may be compressed with one of the following algorithgms:
+// The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {

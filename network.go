@@ -332,7 +332,7 @@ func newPortMapper() (*PortMapper, error) {
 	return mapper, nil
 }
 
-// Port allocator: Atomatically allocate and release networking ports
+// Port allocator: Automatically allocate and release networking ports
 type PortAllocator struct {
 	sync.Mutex
 	inUse    map[int]struct{}
@@ -385,7 +385,7 @@ func newPortAllocator() (*PortAllocator, error) {
 	return allocator, nil
 }
 
-// IP allocator: Atomatically allocate and release networking ports
+// IP allocator: Automatically allocate and release networking ports
 type IPAllocator struct {
 	network       *net.IPNet
 	queueAlloc    chan allocatedIP
