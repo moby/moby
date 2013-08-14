@@ -13,7 +13,7 @@ Docker Usage
 To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
 
-  $ docker
+  $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
       -H=[tcp://127.0.0.1:4243]: tcp://host:port to bind/connect to or unix://path/to/socket to use
 

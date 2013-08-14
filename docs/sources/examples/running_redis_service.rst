@@ -16,12 +16,13 @@ Open a docker container
 
 .. code-block:: bash
 
-    docker run -i -t base /bin/bash
+    sudo docker run -i -t ubuntu /bin/bash
 
 Building your image
 -------------------
 
-Update your docker container, install the redis server.  Once installed, exit out of docker.
+Update your Docker container, install the Redis server.  Once
+installed, exit out of the Docker container.
 
 .. code-block:: bash
 
@@ -45,7 +46,7 @@ container running in the background. Use your snapshot.
 
 .. code-block:: bash
 
-    docker run -d -p 6379 <your username>/redis /usr/bin/redis-server
+    sudo docker run -d -p 6379 <your username>/redis /usr/bin/redis-server
 
 Test 1
 ++++++
@@ -54,8 +55,8 @@ Connect to the container with the redis-cli.
 
 .. code-block:: bash
 
-    docker ps  # grab the new container id
-    docker inspect <container_id>    # grab the ipaddress of the container
+    sudo docker ps  # grab the new container id
+    sudo docker inspect <container_id>    # grab the ipaddress of the container
     redis-cli -h <ipaddress> -p 6379
     redis 10.0.3.32:6379> set docker awesome
     OK
@@ -70,8 +71,8 @@ Connect to the host os with the redis-cli.
 
 .. code-block:: bash
 
-    docker ps  # grab the new container id
-    docker port <container_id> 6379  # grab the external port
+    sudo docker ps  # grab the new container id
+    sudo docker port <container_id> 6379  # grab the external port
     ip addr show   # grab the host ip address
     redis-cli -h <host ipaddress> -p <external port>
     redis 192.168.0.1:49153> set docker awesome

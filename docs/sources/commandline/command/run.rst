@@ -36,18 +36,29 @@ Examples
 
 .. code-block:: bash
 
-    docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
+    sudo docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
 
-| This will create a container and print "test" to the console. The cidfile flag makes docker attempt to create a new file and write the container ID to it. If the file exists already, docker will return an error. Docker will close this file when docker run exits.
+This will create a container and print "test" to the console. The
+``cidfile`` flag makes docker attempt to create a new file and write the
+container ID to it. If the file exists already, docker will return an
+error. Docker will close this file when docker run exits.
 
 .. code-block:: bash
 
    docker run mount -t tmpfs none /var/spool/squid
 
-| This will *not* work, because by default, most potentially dangerous kernel capabilities are dropped; including  ``cap_sys_admin`` (which is required to mount filesystems). However, the ``-privileged`` flag will allow it to run:
+This will *not* work, because by default, most potentially dangerous
+kernel capabilities are dropped; including ``cap_sys_admin`` (which is
+required to mount filesystems). However, the ``-privileged`` flag will
+allow it to run:
 
 .. code-block:: bash
 
    docker run -privileged mount -t tmpfs none /var/spool/squid
 
-| The ``-privileged`` flag gives *all* capabilities to the container, and it also lifts all the limitations enforced by the ``device`` cgroup controller. In other words, the container can then do almost everything that the host can do. This flag exists to allow special use-cases, like running Docker within Docker.
+The ``-privileged`` flag gives *all* capabilities to the container,
+and it also lifts all the limitations enforced by the ``device``
+cgroup controller. In other words, the container can then do almost
+everything that the host can do. This flag exists to allow special
+use-cases, like running Docker within Docker.
+

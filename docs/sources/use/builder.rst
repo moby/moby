@@ -25,12 +25,12 @@ describe the steps to assemble the image.
 Then call ``docker build`` with the path of your source repository as
 argument:
 
-    ``docker build .``
+    ``sudo docker build .``
 
 You can specify a repository and tag at which to save the new image if the
 build succeeds:
 
-    ``docker build -t shykes/myapp .``
+    ``sudo docker build -t shykes/myapp .``
 
 Docker will run your steps one-by-one, committing the result if necessary,
 before finally outputting the ID of your new image.

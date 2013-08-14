@@ -90,7 +90,7 @@ Docker can now be installed on Amazon EC2 with a single vagrant command. Vagrant
 
    .. code-block:: bash
 
-      docker
+      sudo docker
 
 
 Continue with the :ref:`hello_world` example.
