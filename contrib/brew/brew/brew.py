@@ -47,7 +47,7 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         logger.info('Cloning docker repo from {0}, branch: {1}'.format(
             repository, branch))
         try:
-            dst_folder = git.clone_branch(repository, branch)
+            rep, dst_folder = git.clone_branch(repository, branch)
         except Exception as e:
             logger.exception(e)
             logger.error('Source repository could not be fetched. Check '
