@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/dotcloud/tar"
 	"hash"
 	"io"
 	"sort"
