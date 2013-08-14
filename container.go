@@ -577,40 +577,12 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		binds[path.Clean(dst)] = bindMap
 	}
 
-	// FIXME: evaluate volumes-from before individual volumes, so that the latter can override the former.
-	// Create the requested volumes volumes
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
-
-		for volPath := range container.Config.Volumes {
-			volPath = path.Clean(volPath)
-			// If an external bind is defined for this volume, use that as a source
-			if bindMap, exists := binds[volPath]; exists {
-				container.Volumes[volPath] = bindMap.SrcPath
-				if strings.ToLower(bindMap.Mode) == "rw" {
-					container.VolumesRW[volPath] = true
-				}
-				// Otherwise create an directory in $ROOT/volumes/ and use that
-			} else {
-				c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-				if err != nil {
-					return err
-				}
-				srcPath, err := c.layer()
-				if err != nil {
-					return err
-				}
-				container.Volumes[volPath] = srcPath
-				container.VolumesRW[volPath] = true // RW by default
-			}
-			// Create the mountpoint
-			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return nil
-			}
-		}
 	}
 
+	// Apply volumes from another container if requested
 	if container.Config.VolumesFrom != "" {
 		c := container.runtime.Get(container.Config.VolumesFrom)
 		if c == nil {
@@ -618,7 +590,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 		for volPath, id := range c.Volumes {
 			if _, exists := container.Volumes[volPath]; exists {
-				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.ID)
+				continue
 			}
 			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
 				return nil
@@ -627,6 +599,38 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			if isRW, exists := c.VolumesRW[volPath]; exists {
 				container.VolumesRW[volPath] = isRW
 			}
+		}
+	}
+
+	// Create the requested volumes if they don't exist
+	for volPath := range container.Config.Volumes {
+		volPath = path.Clean(volPath)
+		// Skip existing volumes
+		if _, exists := container.Volumes[volPath]; exists {
+			continue
+		}
+		// If an external bind is defined for this volume, use that as a source
+		if bindMap, exists := binds[volPath]; exists {
+			container.Volumes[volPath] = bindMap.SrcPath
+			if strings.ToLower(bindMap.Mode) == "rw" {
+				container.VolumesRW[volPath] = true
+			}
+			// Otherwise create an directory in $ROOT/volumes/ and use that
+		} else {
+			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+			if err != nil {
+				return err
+			}
+			srcPath, err := c.layer()
+			if err != nil {
+				return err
+			}
+			container.Volumes[volPath] = srcPath
+			container.VolumesRW[volPath] = true // RW by default
+		}
+		// Create the mountpoint
+		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+			return nil
 		}
 	}
 
