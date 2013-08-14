@@ -16,6 +16,7 @@ Docker Remote API
 
 - The Remote API is replacing rcli
 - By default the Docker daemon listens on unix:///var/run/docker.sock and the client must have root access to interact with the daemon
+- If a group named *docker* exists on your system, docker will apply ownership of the socket to the group
 - The API tends to be REST, but for some complex commands, like attach
   or pull, the HTTP connection is hijacked to transport stdout stdin
   and stderr
