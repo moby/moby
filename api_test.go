@@ -97,8 +97,8 @@ func TestGetEvents(t *testing.T) {
 		listeners: make(map[string]chan utils.JSONMessage),
 	}
 
-	srv.LogEvent("fakeaction", "fakeid")
-	srv.LogEvent("fakeaction2", "fakeid")
+	srv.LogEvent("fakeaction", "fakeid", "fakeimage")
+	srv.LogEvent("fakeaction2", "fakeid", "fakeimage")
 
 	req, err := http.NewRequest("GET", "/events?since=1", nil)
 	if err != nil {
