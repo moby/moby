@@ -49,6 +49,10 @@ What's new
 
    **New!** You can now use ps args with docker top, like `docker top <container_id> aux`
 
+.. http:get:: /events:
+
+   **New!** Image's name added in the events
+
 :doc:`docker_remote_api_v1.3`
 *****************************
 
