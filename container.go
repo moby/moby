@@ -226,6 +226,18 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
+	envs := []string{}
+
+	for _, env := range flEnv {
+		arr := strings.Split(env, "=")
+		if len(arr) > 1 {
+			envs = append(envs, env)
+		} else {
+			v := os.Getenv(env)
+			envs = append(envs, env+"="+v)
+		}
+	}
+
 	var binds []string
 
 	// add any bind targets to the list of container volumes
@@ -298,7 +310,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv,
+		Env:             envs,
 		Cmd:             runCmd,
 		Dns:             flDns,
 		Image:           image,
