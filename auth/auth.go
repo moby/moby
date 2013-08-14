@@ -80,7 +80,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 	}
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {
-		return nil, err
+		return &configFile, err
 	}
 
 	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
