@@ -16,6 +16,21 @@ def clone_tag(repo_url, tag, folder=None):
     return clone(repo_url, 'refs/tags/' + tag, folder)
 
 
+def checkout(rep, ref=None):
+    is_commit = False
+    if ref is None:
+        ref = 'refs/heads/master'
+    elif not ref.startswith('refs/'):
+        is_commit = True
+    if is_commit:
+        rep['HEAD'] = rep.commit(ref)
+    else:
+        rep['HEAD'] = rep.refs[ref]
+    indexfile = rep.index_path()
+    tree = rep["HEAD"].tree
+    index.build_index_from_tree(rep.path, indexfile, rep.object_store, tree)
+    return rep.path
+
 def clone(repo_url, ref=None, folder=None):
     is_commit = False
     if ref is None:
@@ -45,4 +60,4 @@ def clone(repo_url, ref=None, folder=None):
     tree = rep["HEAD"].tree
     index.build_index_from_tree(rep.path, indexfile, rep.object_store, tree)
     logger.debug("done")
-    return folder
+    return rep, folder
