@@ -76,7 +76,7 @@ Verify it worked
 .. code-block:: bash
 
    # download the base 'ubuntu' container and run bash inside it while setting up an interactive shell
-   docker run -i -t ubuntu /bin/bash
+   sudo docker run -i -t ubuntu /bin/bash
 
    # type 'exit' to exit
 
@@ -138,7 +138,7 @@ Verify it worked
 .. code-block:: bash
 
    # download the base 'ubuntu' container and run bash inside it while setting up an interactive shell
-   docker run -i -t ubuntu /bin/bash
+   sudo docker run -i -t ubuntu /bin/bash
 
    # type exit to exit
 

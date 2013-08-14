@@ -11,26 +11,28 @@ Hello World
 
 This is the most basic example available for using Docker.
 
-Download the base container
+Download the base image (named "ubuntu"):
 
 .. code-block:: bash
 
     # Download an ubuntu image
-    docker pull ubuntu
+    sudo docker pull ubuntu
 
-The *base* image is a minimal *ubuntu* based container, alternatively you can select *busybox*, a bare
-minimal linux system. The images are retrieved from the docker repository.
+Alternatively to the *ubuntu* image, you can select *busybox*, a bare
+minimal Linux system. The images are retrieved from the Docker
+repository.
 
 
 .. code-block:: bash
 
     #run a simple echo command, that will echo hello world back to the console over standard out.
-    docker run base /bin/echo hello world
+    sudo docker run ubuntu /bin/echo hello world
 
 **Explanation:**
 
+- **"sudo"** execute the following commands as user *root* 
 - **"docker run"** run a command in a new container 
-- **"base"** is the image we want to run the command inside of.
+- **"ubuntu"** is the image we want to run the command inside of.
 - **"/bin/echo"** is the command we want to run in the container
 - **"hello world"** is the input for the echo command
 

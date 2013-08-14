@@ -14,7 +14,8 @@
 
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      -run="": Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      -run="": Config automatically applied when the image is
+       run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 Full -run example::
 
