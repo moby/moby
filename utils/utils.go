@@ -658,18 +658,11 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 	}
 	return nil
 }
-
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
-	dec := json.NewDecoder(in)
+func JSONMessageStreamFormatter(out io.Writer) func(*JSONMessage) error {
 	ids := make(map[string]int)
 	diff := 0
-	for {
-		jm := JSONMessage{}
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
+
+    return func(jm *JSONMessage) error {
 		if jm.Progress != "" && jm.ID != "" {
 			line, ok := ids[jm.ID]
 			if !ok {
@@ -689,8 +682,9 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}
-	return nil
+
+        return nil
+    }
 }
 
 type StreamFormatter struct {
