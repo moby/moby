@@ -955,11 +955,11 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 	//If delete by id, see if the id belong only to one repository
 	if strings.Contains(img.ID, repoName) && tag == "" {
 		for _, repoAndTag := range srv.runtime.repositories.ByID()[img.ID] {
-			parsedRepo := strings.Split(repoAndTag, ":")[0]
+			parsedRepo, parsedTag := utils.ParseRepositoryTag(repoAndTag)
 			if strings.Contains(img.ID, repoName) {
 				repoName = parsedRepo
-				if len(srv.runtime.repositories.ByID()[img.ID]) == 1 && len(strings.Split(repoAndTag, ":")) > 1 {
-					tag = strings.Split(repoAndTag, ":")[1]
+				if len(srv.runtime.repositories.ByID()[img.ID]) == 1 && len(parsedTag) > 1 {
+					tag = parsedTag
 				}
 			} else if repoName != parsedRepo {
 				// the id belongs to multiple repos, like base:latest and user:test,
