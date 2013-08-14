@@ -9,28 +9,32 @@ Using Puppet
 
 .. note::
 
-   Please note this is a community contributed installation path. The only 'official' installation is using the
-   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
+   Please note this is a community contributed installation path. The
+   only 'official' installation is using the :ref:`ubuntu_linux`
+   installation path. This version may sometimes be out of date.
 
 Requirements
 ------------
 
-To use this guide you'll need a working installation of Puppet from `Puppetlabs <https://www.puppetlabs.com>`_ .
+To use this guide you'll need a working installation of Puppet from
+`Puppetlabs <https://www.puppetlabs.com>`_ .
 
 The module also currently uses the official PPA so only works with Ubuntu.
 
 Installation
 ------------
 
-The module is available on the `Puppet Forge <https://forge.puppetlabs.com/garethr/docker/>`_
-and can be installed using the built-in module tool.
+The module is available on the `Puppet Forge
+<https://forge.puppetlabs.com/garethr/docker/>`_ and can be installed
+using the built-in module tool.
 
 .. code-block:: bash
 
    puppet module install garethr/docker
 
-It can also be found on `GitHub <https://www.github.com/garethr/garethr-docker>`_ 
-if you would rather download the source.
+It can also be found on `GitHub
+<https://www.github.com/garethr/garethr-docker>`_ if you would rather
+download the source.
 
 Usage
 -----

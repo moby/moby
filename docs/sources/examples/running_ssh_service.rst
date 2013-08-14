@@ -12,8 +12,16 @@ SSH Daemon Service
 
 **Video:**
 
-I've create a little screencast to show how to create a sshd service and connect to it. It is something like 11
-minutes and not entirely smooth, but gives you a good idea.
+I've create a little screencast to show how to create a sshd service
+and connect to it. It is something like 11 minutes and not entirely
+smooth, but gives you a good idea.
+
+.. note::
+   This screencast was created before ``docker`` version 0.5.2, so the
+   daemon is unprotected and available via a TCP port. When you run
+   through the same steps in a newer version of ``docker``, you will
+   need to add ``sudo`` in front of each ``docker`` command in order
+   to reach the daemon over its protected Unix socket.
 
 .. raw:: html
 
@@ -24,7 +32,7 @@ minutes and not entirely smooth, but gives you a good idea.
 You can also get this sshd container by using
 ::
 
-    docker pull dhrp/sshd
+    sudo docker pull dhrp/sshd
 
 
 The password is 'screencast'
