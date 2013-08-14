@@ -1320,3 +1320,35 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	}
 
 }
+
+func TestPrivilegedCanMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mknod into privileged container")
+	}
+}
+
+func TestPrivilegedCanMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mount into privileged container")
+	}
+}
+
+func TestPrivilegedCannotMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mknod into secure container")
+	}
+}
+
+func TestPrivilegedCannotMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mount into secure container")
+	}
+}
