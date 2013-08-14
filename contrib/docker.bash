@@ -22,10 +22,24 @@
 # must have access to the socket for the completions to function correctly
 
 have docker && {
-__docker_containers()
+__docker_containers_all()
 {
 	local containers
 	containers="$( docker ps -a -q )"
+	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
+}
+
+__docker_containers_running()
+{
+	local containers
+	containers="$( docker ps -q )"
+	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
+}
+
+__docker_containers_stopped()
+{
+	local containers
+	containers="$( comm -13 <(docker ps -q | sort -u) <(docker ps -a -q | sort -u) )"
 	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
 }
 
@@ -85,7 +99,7 @@ _docker_docker()
 _docker_attach()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_running
 	fi
 }
 
@@ -124,7 +138,7 @@ _docker_commit()
 			COMPREPLY=( $( compgen -W "-author -m -run" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers
+			__docker_containers_all
 			;;
 	esac
 }
@@ -132,7 +146,7 @@ _docker_commit()
 _docker_diff()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_all
 	fi
 }
 
@@ -144,7 +158,7 @@ _docker_events()
 _docker_export()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_all
 	fi
 }
 
@@ -212,7 +226,7 @@ _docker_inspect()
 
 _docker_kill()
 {
-	__docker_containers
+	__docker_containers_running
 }
 
 _docker_login()
@@ -223,14 +237,14 @@ _docker_login()
 _docker_logs()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_all
 	fi
 }
 
 _docker_port()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_all
 	fi
 }
 
@@ -264,7 +278,7 @@ _docker_restart()
 			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers
+			__docker_containers_all
 			;;
 	esac
 }
@@ -276,7 +290,7 @@ _docker_rm()
 			COMPREPLY=( $( compgen -W "-v" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers
+			__docker_containers_stopped
 			;;
 	esac
 }
@@ -293,7 +307,7 @@ _docker_run()
 			_filedir
 			;;
 		-volumes-from)
-			__docker_containers
+			__docker_containers_all
 			;;
 		-a|-c|-dns|-e|-entrypoint|-h|-m|-p|-u|-v)
 			return
@@ -343,7 +357,7 @@ _docker_search()
 
 _docker_start()
 {
-	__docker_containers
+	__docker_containers_stopped
 }
 
 _docker_stop()
@@ -361,7 +375,7 @@ _docker_stop()
 			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers
+			__docker_containers_running
 			;;
 	esac
 }
@@ -374,7 +388,7 @@ _docker_tag()
 _docker_top()
 {
 	if [ $cpos -eq $cword ]; then
-		__docker_containers
+		__docker_containers_running
 	fi
 }
 
@@ -385,7 +399,7 @@ _docker_version()
 
 _docker_wait()
 {
-	__docker_containers
+	__docker_containers_all
 }
 
 _docker()
