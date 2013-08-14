@@ -35,6 +35,7 @@ VERSION=$(cat ./VERSION)
 GIT_COMMIT=$(git rev-parse --short HEAD)
 GIT_CHANGES=$(test -n "$(git status --porcelain)" && echo "+CHANGES" || true)
 
+PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.io/"
 PACKAGE_MAINTAINER="docker@dotcloud.com"
 PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
@@ -99,7 +100,7 @@ EOF
 		cd bundles/$VERSION/ubuntu
 		fpm -s dir -C $DIR \
 		    --name lxc-docker-$VERSION --version $VERSION \
-		    --architecture $(dpkg-architecture -qDEB_HOST_ARCH) \
+		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
 		    --depends lxc --depends aufs-tools \
 		    --description "$PACKAGE_DESCRIPTION" \
@@ -113,7 +114,7 @@ EOF
 		mkdir empty
 		fpm -s dir -C empty \
 		    --name lxc-docker --version $VERSION \
-		    --architecture all \
+		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --depends lxc-docker-$VERSION \
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \

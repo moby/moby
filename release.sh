@@ -76,7 +76,7 @@ release_ubuntu() {
 	cat > $APTDIR/conf/distributions <<EOF
 Codename: docker
 Components: main
-Architectures: amd64
+Architectures: amd64 i386
 EOF
 
 	# Add the DEB package to the APT repo
