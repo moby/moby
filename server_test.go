@@ -317,23 +317,23 @@ func TestLogEvent(t *testing.T) {
 		listeners: make(map[string]chan utils.JSONMessage),
 	}
 
-	srv.LogEvent("fakeaction", "fakeid")
+	srv.LogEvent("fakeaction", "fakeid", "fakeimage")
 
 	listener := make(chan utils.JSONMessage)
 	srv.Lock()
 	srv.listeners["test"] = listener
 	srv.Unlock()
 
-	srv.LogEvent("fakeaction2", "fakeid")
+	srv.LogEvent("fakeaction2", "fakeid", "fakeimage")
 
 	if len(srv.events) != 2 {
 		t.Fatalf("Expected 2 events, found %d", len(srv.events))
 	}
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		srv.LogEvent("fakeaction3", "fakeid")
+		srv.LogEvent("fakeaction3", "fakeid", "fakeimage")
 		time.Sleep(200 * time.Millisecond)
-		srv.LogEvent("fakeaction4", "fakeid")
+		srv.LogEvent("fakeaction4", "fakeid", "fakeimage")
 	}()
 
 	setTimeout(t, "Listening for events timed out", 2*time.Second, func() {
