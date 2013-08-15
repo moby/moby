@@ -162,7 +162,6 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 // Check if an image exists in the Registry
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 
-
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return false
