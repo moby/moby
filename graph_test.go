@@ -234,6 +234,45 @@ func TestDelete(t *testing.T) {
 	assertNImages(graph, t, 1)
 }
 
+func TestByParent(t *testing.T) {
+	archive1, _ := fakeTar()
+	archive2, _ := fakeTar()
+	archive3, _ := fakeTar()
+
+	graph := tempGraph(t)
+	defer os.RemoveAll(graph.Root)
+	parentImage := &Image{
+		ID:      GenerateID(),
+		Comment: "parent",
+		Created: time.Now(),
+		Parent:  "",
+	}
+	childImage1 := &Image{
+		ID:      GenerateID(),
+		Comment: "child1",
+		Created: time.Now(),
+		Parent:  parentImage.ID,
+	}
+	childImage2 := &Image{
+		ID:      GenerateID(),
+		Comment: "child2",
+		Created: time.Now(),
+		Parent:  parentImage.ID,
+	}
+	_ = graph.Register(nil, archive1, parentImage)
+	_ = graph.Register(nil, archive2, childImage1)
+	_ = graph.Register(nil, archive3, childImage2)
+
+	byParent, err := graph.ByParent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	numChildren := len(byParent[parentImage.ID])
+	if numChildren != 2 {
+		t.Fatalf("Expected 2 children, found %d", numChildren)
+	}
+}
+
 func assertNImages(graph *Graph, t *testing.T, n int) {
 	if images, err := graph.All(); err != nil {
 		t.Fatal(err)
