@@ -129,7 +129,9 @@ Create a container
 		"Dns":null,
 		"Image":"base",
 		"Volumes":{},
-		"VolumesFrom":""
+		"VolumesFrom":"",
+		"WorkingDir":""
+
 	   }
 	   
 	**Example response**:
@@ -195,7 +197,9 @@ Inspect a container
 				"Dns": null,
 				"Image": "base",
 				"Volumes": {},
-				"VolumesFrom": ""
+				"VolumesFrom": "",
+				"WorkingDir":""
+
 			},
 			"State": {
 				"Running": false,
@@ -746,7 +750,8 @@ Inspect an image
 				,"Dns":null,
 				"Image":"base",
 				"Volumes":null,
-				"VolumesFrom":""
+				"VolumesFrom":"",
+				"WorkingDir":""
 			},
 		"Size": 6824592
 	   }

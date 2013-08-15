@@ -90,6 +90,69 @@ func TestRunHostname(t *testing.T) {
 
 }
 
+// TestRunWorkdir checks that 'docker run -w' correctly sets a custom working directory
+func TestRunWorkdir(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("-w", "/foo/bar", unitTestImageID, "pwd"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmdOutput != "/foo/bar\n" {
+			t.Fatalf("'pwd' should display '%s', not '%s'", "/foo/bar\n", cmdOutput)
+		}
+	})
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
+
+}
+
+// TestRunWorkdirExists checks that 'docker run -w' correctly sets a custom working directory, even if it exists
+func TestRunWorkdirExists(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("-w", "/proc", unitTestImageID, "pwd"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmdOutput != "/proc\n" {
+			t.Fatalf("'pwd' should display '%s', not '%s'", "/proc\n", cmdOutput)
+		}
+	})
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
+
+}
+
+
 func TestRunExit(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()

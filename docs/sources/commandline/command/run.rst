@@ -29,6 +29,7 @@
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "host-dir" is missing, then docker creates a new volume.
       -volumes-from="": Mount all volumes from the given container.
       -entrypoint="": Overwrite the default entrypoint set by the image.
+      -w="": Working directory inside the container
 
 
 Examples
@@ -61,4 +62,23 @@ and it also lifts all the limitations enforced by the ``device``
 cgroup controller. In other words, the container can then do almost
 everything that the host can do. This flag exists to allow special
 use-cases, like running Docker within Docker.
+
+.. code-block:: bash
+
+   docker  run -w /path/to/dir/ -i -t  ubuntu pwd
+
+The ``-w`` lets the command beeing executed inside directory given, 
+here /path/to/dir/. If the path does not exists it is created inside the 
+container.
+
+.. code-block:: bash
+
+   docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
+
+The ``-v`` flag mounts the current working directory into the container. 
+The ``-w`` lets the command beeing executed inside the current 
+working directory, by changeing into the directory to the value
+returned by ``pwd``. So this combination executes the command
+using the container, but inside the current working directory.
+
 
