@@ -974,9 +974,10 @@ func TestTty(t *testing.T) {
 
 func TestEnv(t *testing.T) {
 	os.Setenv("TRUE", "false")
+	os.Setenv("TRICKY", "tri\ncky\n")
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	config, _, _, err := ParseRun([]string{"-e=FALSE=true", "-e=TRUE", GetTestImage(runtime).ID, "env"}, nil)
+	config, _, _, err := ParseRun([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(runtime).ID, "env"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1012,6 +1013,9 @@ func TestEnv(t *testing.T) {
 		"HOSTNAME=" + container.ShortID(),
 		"FALSE=true",
 		"TRUE=false",
+		"TRICKY=tri",
+		"cky",
+		"",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {

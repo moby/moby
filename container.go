@@ -444,16 +444,11 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 }
 
 func (container *Container) generateEnvConfig(env []string) error {
-	fo, err := os.Create(container.EnvConfigPath())
+	data, err := json.Marshal(env)
 	if err != nil {
 		return err
 	}
-	defer fo.Close()
-	for _, item := range env {
-		if _, err := fo.WriteString(item + "\n"); err != nil {
-			return err
-		}
-	}
+	ioutil.WriteFile(container.EnvConfigPath(), data, 0600)
 	return nil
 }
 

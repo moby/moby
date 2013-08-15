@@ -1,6 +1,7 @@
 package sysinit
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/netlink"
@@ -72,11 +73,15 @@ func changeUser(u string) {
 // Clear environment pollution introduced by lxc-start
 func cleanupEnv() {
 	os.Clearenv()
+	var lines []string
 	content, err := ioutil.ReadFile("/.dockerenv")
 	if err != nil {
 		log.Fatalf("Unable to load environment variables: %v", err)
 	}
-	lines := strings.Split(string(content), "\n")
+	err = json.Unmarshal(content, &lines)
+	if err != nil {
+		log.Fatalf("Unable to unmarshal environment variables: %v", err)
+	}
 	for _, kv := range lines {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) == 1 {
