@@ -22,12 +22,15 @@ To run, I need:
   AWS_S3_BUCKET;
 - to be provided with AWS credentials for this S3 bucket, in environment
   variables AWS_ACCESS_KEY and AWS_SECRET_KEY;
+- the passphrase to unlock the GPG key which will sign the deb packages
+  (passed as environment variable GPG_PASSPHRASE);
 - a generous amount of good will and nice manners.
 The canonical way to run me is to run the image produced by the Dockerfile: e.g.:"
 
 docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
               AWS_ACCESS_KEY=AKI1234... \\
-              AWS_SECRET_KEY=sEs3mE... \\
+              AWS_SECRET_KEY=sEs4mE... \\
+              GPG_PASSPHRASE=m0resEs4mE... \\
               f0058411
 EOF
 	exit 1
@@ -36,6 +39,7 @@ EOF
 [ "$AWS_S3_BUCKET" ] || usage
 [ "$AWS_ACCESS_KEY" ] || usage
 [ "$AWS_SECRET_KEY" ] || usage
+[ "$GPG_PASSPHRASE" ] || usage
 [ -d /go/src/github.com/dotcloud/docker/ ] || usage
 cd /go/src/github.com/dotcloud/docker/ 
 
@@ -69,6 +73,26 @@ s3_url() {
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/info
 release_ubuntu() {
+	# Make sure that we have our keys
+	mkdir -p /.gnupg/
+	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
+	gpg --list-keys releasedocker >/dev/null || {
+		gpg --gen-key --batch <<EOF   
+Key-Type: RSA
+Key-Length: 2048
+Passphrase: $GPG_PASSPHRASE
+Name-Real: Docker Release Tool
+Name-Email: docker@dotcloud.com
+Name-Comment: releasedocker
+Expire-Date: 0
+%commit
+EOF
+	}
+
+	# Sign our packages
+	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker \
+		 --sign builder bundles/$VERSION/ubuntu/*.deb
+
 	# Setup the APT repo
 	APTDIR=bundles/$VERSION/ubuntu/apt
 	mkdir -p $APTDIR/conf $APTDIR/db
@@ -83,11 +107,28 @@ EOF
 	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
 	reprepro -b $APTDIR includedeb docker $DEBFILE
 
-	# Upload
-	s3cmd --acl-public --verbose --follow-symlinks sync bundles/$VERSION/ubuntu/apt/ s3://$BUCKET/ubuntu/
+	# Sign
+	for F in $(find $APTDIR -name Release)
+	do
+		gpg -u releasedocker --passphrase $GPG_PASSPHRASE \
+			--armor --sign --detach-sign \
+			--output $F.gpg $F
+	done
+
+	# Upload keys
+	s3cmd sync /.gnupg/ s3://$BUCKET/ubuntu/.gnupg/
+	gpg --armor --export releasedocker > bundles/$VERSION/ubuntu/gpg
+	s3cmd --acl-public put bundles/$VERSION/ubuntu/gpg s3://$BUCKET/gpg
+
+	# Upload repo
+	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/info
-# Add the following to /etc/apt/sources.list
-deb $(s3_url $BUCKET)/ubuntu docker main
+# Add the repository to your APT sources
+echo deb $(s3_url $BUCKET)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
+# Then import the repository key
+curl $(s3_url $BUCKET)/gpg | apt-key add -
+# Install docker
+apt-get update ; apt-get install lxc-docker
 EOF
 	echo "APT repository uploaded. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
 }

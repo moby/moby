@@ -106,7 +106,9 @@ EOF
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --conflicts lxc-docker-virtual-package \
+		    --provides lxc-docker \
 		    --provides lxc-docker-virtual-package \
+		    --replaces lxc-docker \
 		    --replaces lxc-docker-virtual-package \
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
@@ -147,6 +149,7 @@ AWS_ACCESS_KEY, and AWS_SECRET_KEY environment variables:
 docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
               AWS_ACCESS_KEY=AKI1234... \\
               AWS_SECRET_KEY=sEs3mE... \\
+              GPG_PASSPHRASE=sesame... \\
               image_id_or_name
 ###############################################################################
 EOF
