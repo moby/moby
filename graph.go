@@ -323,9 +323,9 @@ func (graph *Graph) ByParent() (map[string][]*Image, error) {
 			return
 		}
 		if children, exists := byParent[parent.ID]; exists {
-			byParent[parent.ID] = []*Image{image}
-		} else {
 			byParent[parent.ID] = append(children, image)
+		} else {
+			byParent[parent.ID] = []*Image{image}
 		}
 	})
 	return byParent, err
