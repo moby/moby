@@ -94,9 +94,6 @@ func (b *buildFile) CmdRun(args string) error {
 	cmd := b.config.Cmd
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
-	if b.lxcTemplateText != "" {
-		b.runtime.LxcTemplate = b.lxcTemplateText
-	}
 
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
@@ -481,12 +478,18 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	// if there's an lxc template in the post, use it
 	templatePath := path.Join(name, "DockerLxcTemplate")
 	_, err = os.Stat(templatePath)
+	runtime := b.srv.runtime
 	if err == nil {
+		newRuntime := *runtime
+		runtime = &newRuntime
 		b.lxcTemplateText, err = ReadTemplateFile(templatePath)
 		if err != nil {
 			return "", err
 		}
+
+		runtime.LxcTemplate = b.lxcTemplateText
 	}
+	b.builder = NewBuilder(runtime)
 	dockerfile, err := os.Open(path.Join(name, "Dockerfile"))
 	if err != nil {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
@@ -540,7 +543,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
-		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},
