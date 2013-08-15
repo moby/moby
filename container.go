@@ -86,6 +86,7 @@ type Config struct {
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
+	LxcConf         []KeyValuePair
 }
 
 type BindMap struct {
@@ -97,6 +98,11 @@ type BindMap struct {
 var (
 	ErrInvaidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
 )
+
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
 
 func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
@@ -139,6 +145,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
+
+	var flLxcOpts ListOpts
+	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -187,6 +196,12 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		entrypoint = []string{*flEntrypoint}
 	}
 
+	var lxcConf []KeyValuePair
+	lxcConf, err := parseLxcConfOpts(flLxcOpts)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
 	config := &Config{
 		Hostname:        *flHostname,
 		PortSpecs:       flPorts,
@@ -212,6 +227,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
+		LxcConf:         lxcConf,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -315,7 +331,7 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
-func (container *Container) generateLXCConfig() error {
+func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
 	fo, err := os.Create(container.lxcConfigPath())
 	if err != nil {
 		return err
@@ -323,6 +339,11 @@ func (container *Container) generateLXCConfig() error {
 	defer fo.Close()
 	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
 		return err
+	}
+	if hostConfig != nil {
+		if err := LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -520,7 +541,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
-	if len(hostConfig.Binds) == 0 {
+	if len(hostConfig.Binds) == 0 && len(hostConfig.LxcConf) == 0 {
 		hostConfig, _ = container.ReadHostConfig()
 	}
 
@@ -645,7 +666,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 	}
 
-	if err := container.generateLXCConfig(); err != nil {
+	if err := container.generateLXCConfig(hostConfig); err != nil {
 		return err
 	}
 
