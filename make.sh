@@ -51,6 +51,16 @@ Docker is a great building block for automating distributed systems:
 large-scale web deployments, database clusters, continuous deployment systems,
 private PaaS, service-oriented architectures, etc."
 
+UPSTART_SCRIPT='description     "Docker daemon"
+
+start on filesystem or runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+exec docker -d
+'
+
 # Each "bundle" is a different type of build artefact: static binary, Ubuntu
 # package, etc.
 
@@ -86,16 +96,7 @@ bundle_ubuntu() {
 
 	# Generate an upstart config file (ubuntu-specific)
 	mkdir -p $DIR/etc/init
-	cat > $DIR/etc/init/docker.conf <<EOF
-description     "Run docker"
-
-start on filesystem or runlevel [2345]
-stop on runlevel [!2345]
-
-respawn
-
-exec docker -d
-EOF
+	echo "$UPSTART_SCRIPT" > $DIR/etc/init/docker.conf
 
 	# Copy the binary
 	mkdir -p $DIR/usr/bin

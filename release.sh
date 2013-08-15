@@ -48,12 +48,14 @@ BUCKET=$AWS_S3_BUCKET
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd --acl-public mb s3://$BUCKET 2>/dev/null || true
+	s3cmd mb s3://$BUCKET 2>/dev/null || true
 	# Check access to the bucket.
 	# s3cmd has no useful exit status, so we cannot check that.
 	# Instead, we check if it outputs anything on standard output.
 	# (When there are problems, it uses standard error instead.)
 	s3cmd info s3://$BUCKET | grep -q .
+	# Make the bucket accessible through website endpoints.
+	s3cmd ws-create --ws-index index --ws-error error s3://$BUCKET
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
@@ -152,10 +154,23 @@ EOF
 	fi
 }
 
+# Upload the index script
+release_index() {
+	(
+	if [ "$BUCKET" != "get.docker.io" ]
+	then
+		sed s,https://get.docker.io/,http://$BUCKET.s3.amazonaws.com/, contrib/install.sh
+	else
+		cat contrib/install.sh
+	fi
+	) | write_to_s3 s3://$BUCKET/index
+}
+
 main() {
 	setup_s3
 	release_binary
 	release_ubuntu
+	release_index
 }
 
 main
