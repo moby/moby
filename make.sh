@@ -32,8 +32,13 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 }
 
 VERSION=$(cat ./VERSION)
-GIT_COMMIT=$(git rev-parse --short HEAD)
-GIT_CHANGES=$(test -n "$(git status --porcelain)" && echo "+CHANGES" || true)
+PKGVERSION="$VERSION"
+GITCOMMIT=$(git rev-parse --short HEAD)
+if test -n "$(git status --porcelain)"
+then
+	GITCOMMIT="$GITCOMMIT+CHANGES"
+	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
+fi
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.io/"
@@ -53,7 +58,7 @@ private PaaS, service-oriented architectures, etc."
 bundle_binary() {
 	mkdir -p bundles/$VERSION/binary
 	go build -o bundles/$VERSION/binary/docker-$VERSION \
-		-ldflags "-X main.GITCOMMIT $GIT_COMMIT$GIT_CHANGES -X main.VERSION $VERSION -d -w" \
+		-ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" \
 		./docker
 }
 
@@ -65,7 +70,7 @@ bundle_test() {
 	for test_dir in $(find_test_dirs); do
 		test_binary=$(
 			cd $test_dir
-			go test -c -v -ldflags "-X main.GITCOMMIT $GIT_COMMIT$GIT_CHANGES -X main.VERSION $VERSION -d -w" >&2
+			go test -c -v -ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" >&2
 			find . -maxdepth 1 -type f -name '*.test' -executable
 		)
 		cp $test_dir/$test_binary bundles/$VERSION/test/
@@ -99,7 +104,7 @@ EOF
 	(
 		cd bundles/$VERSION/ubuntu
 		fpm -s dir -C $DIR \
-		    --name lxc-docker-$VERSION --version $VERSION \
+		    --name lxc-docker-$VERSION --version $PKGVERSION \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
 		    --depends lxc --depends aufs-tools \
@@ -115,7 +120,7 @@ EOF
 		    -t deb .
 		mkdir empty
 		fpm -s dir -C empty \
-		    --name lxc-docker --version $VERSION \
+		    --name lxc-docker --version $PKGVERSION \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --depends lxc-docker-$VERSION \
 		    --description "$PACKAGE_DESCRIPTION" \
