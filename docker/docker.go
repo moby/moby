@@ -67,7 +67,7 @@ func main() {
 			return
 		}
 		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
-		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+		if err := ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}

@@ -238,6 +238,16 @@ func (settings *NetworkSettings) PortMappingHuman() string {
 	return strings.Join(mapping, ", ")
 }
 
+func Subcmd(name, signature, description string) *flag.FlagSet {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.Usage = func() {
+		// FIXME: use custom stdout or return error
+		fmt.Fprintf(os.Stdout, "\nUsage: docker %s %s\n\n%s\n\n", name, signature, description)
+		flags.PrintDefaults()
+	}
+	return flags
+}
+
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
 	// Make sure the directory exists
@@ -960,23 +970,23 @@ func (container *Container) Resize(h, w int) error {
 	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (container *Container) ExportRw() (Archive, error) {
-	return Tar(container.rwPath(), Uncompressed)
+func (container *Container) ExportRw() (utils.Archive, error) {
+	return utils.Tar(container.rwPath(), utils.Uncompressed)
 }
 
 func (container *Container) RwChecksum() (string, error) {
-	rwData, err := Tar(container.rwPath(), Xz)
+	rwData, err := utils.Tar(container.rwPath(), utils.Xz)
 	if err != nil {
 		return "", err
 	}
 	return utils.HashData(rwData)
 }
 
-func (container *Container) Export() (Archive, error) {
+func (container *Container) Export() (utils.Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err
 	}
-	return Tar(container.RootfsPath(), Uncompressed)
+	return utils.Tar(container.RootfsPath(), utils.Uncompressed)
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1101,7 +1111,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (Archive, error) {
+func (container *Container) Copy(resource string) (utils.Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err
 	}
@@ -1119,5 +1129,75 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return TarFilter(basePath, Uncompressed, filter)
+	return utils.TarFilter(basePath, utils.Uncompressed, filter)
+}
+
+type AttachOpts map[string]bool
+
+func NewAttachOpts() AttachOpts {
+	return make(AttachOpts)
+}
+
+func (opts AttachOpts) String() string {
+	// Cast to underlying map type to avoid infinite recursion
+	return fmt.Sprintf("%v", map[string]bool(opts))
+}
+
+func (opts AttachOpts) Set(val string) error {
+	if val != "stdin" && val != "stdout" && val != "stderr" {
+		return fmt.Errorf("Unsupported stream name: %s", val)
+	}
+	opts[val] = true
+	return nil
+}
+
+func (opts AttachOpts) Get(val string) bool {
+	if res, exists := opts[val]; exists {
+		return res
+	}
+	return false
+}
+
+// ListOpts type
+type ListOpts []string
+
+func (opts *ListOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *ListOpts) Set(value string) error {
+	*opts = append(*opts, value)
+	return nil
+}
+
+// AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
+// PathOpts stores a unique set of absolute paths
+type PathOpts map[string]struct{}
+
+func NewPathOpts() PathOpts {
+	return make(PathOpts)
+}
+
+func (opts PathOpts) String() string {
+	return fmt.Sprintf("%v", map[string]struct{}(opts))
+}
+
+func (opts PathOpts) Set(val string) error {
+	var containerPath string
+
+	splited := strings.SplitN(val, ":", 2)
+	if len(splited) == 1 {
+		containerPath = splited[0]
+		val = filepath.Clean(splited[0])
+	} else {
+		containerPath = splited[1]
+		val = fmt.Sprintf("%s:%s", splited[0], filepath.Clean(splited[1]))
+	}
+
+	if !filepath.IsAbs(containerPath) {
+		utils.Debugf("%s is not an absolute path", containerPath)
+		return fmt.Errorf("%s is not an absolute path", containerPath)
+	}
+	opts[val] = struct{}{}
+	return nil
 }

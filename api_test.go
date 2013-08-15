@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -12,9 +13,58 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
+
+func closeWrap(args ...io.Closer) error {
+	e := false
+	ret := fmt.Errorf("Error closing elements")
+	for _, c := range args {
+		if err := c.Close(); err != nil {
+			e = true
+			ret = fmt.Errorf("%s\n%s", ret, err)
+		}
+	}
+	if e {
+		return ret
+	}
+	return nil
+}
+
+func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
+	c := make(chan bool)
+
+	// Make sure we are not too long
+	go func() {
+		time.Sleep(d)
+		c <- true
+	}()
+	go func() {
+		f()
+		c <- false
+	}()
+	if <-c && msg != "" {
+		t.Fatal(msg)
+	}
+}
+
+func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error {
+	for i := 0; i < count; i++ {
+		if _, err := w.Write([]byte(input)); err != nil {
+			return err
+		}
+		o, err := bufio.NewReader(r).ReadString('\n')
+		if err != nil {
+			return err
+		}
+		if strings.Trim(o, " \r\n") != output {
+			return fmt.Errorf("Unexpected output. Expected [%s], received [%s]", output, o)
+		}
+	}
+	return nil
+}
 
 func TestGetBoolParam(t *testing.T) {
 	if ret, err := getBoolParam("true"); err != nil || !ret {
@@ -1203,7 +1253,7 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	copyData := APICopy{HostPath: ".", Resource: "/test.txt"}
+	copyData := APICopy{Resource: "/test.txt"}
 
 	jsonData, err := json.Marshal(copyData)
 	if err != nil {
