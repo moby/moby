@@ -301,8 +301,7 @@ Contributing to Docker
 ======================
 
 Want to hack on Docker? Awesome! There are instructions to get you
-started on the website:
-http://docs.docker.io/en/latest/contributing/contributing/
+started [here](CONTRIBUTING.md).
 
 They are probably not perfect, please let us know if anything feels
 wrong or incomplete.
