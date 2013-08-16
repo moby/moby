@@ -10,7 +10,7 @@
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
 # - The hash of the git commit will also be included in the Docker binary,
-#   with the suffix +CHANGES if the repository isn't clean.
+#   with the suffix -dirty if the repository isn't clean.
 # - The script is intented to be run as part of a docker build, as defined
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
@@ -36,7 +36,7 @@ PKGVERSION="$VERSION"
 GITCOMMIT=$(git rev-parse --short HEAD)
 if test -n "$(git status --porcelain)"
 then
-	GITCOMMIT="$GITCOMMIT+CHANGES"
+	GITCOMMIT="$GITCOMMIT-dirty"
 	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
 fi
 
@@ -102,10 +102,24 @@ bundle_ubuntu() {
 	mkdir -p $DIR/usr/bin
 	cp bundles/$VERSION/binary/docker-$VERSION $DIR/usr/bin/docker
 
+	# Generate postinstall/prerm scripts
+	cat >/tmp/postinstall <<EOF
+#!/bin/sh
+/sbin/stop docker || true
+/sbin/start docker
+EOF
+	cat >/tmp/prerm <<EOF
+#!/bin/sh
+/sbin/stop docker || true
+EOF
+	chmod +x /tmp/postinstall /tmp/prerm
+
 	(
 		cd bundles/$VERSION/ubuntu
 		fpm -s dir -C $DIR \
 		    --name lxc-docker-$VERSION --version $PKGVERSION \
+		    --after-install /tmp/postinstall \
+		    --before-remove /tmp/prerm \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
 		    --depends lxc --depends aufs-tools \

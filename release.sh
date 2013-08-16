@@ -130,7 +130,7 @@ echo deb $(s3_url $BUCKET)/ubuntu docker main > /etc/apt/sources.list.d/docker.l
 # Then import the repository key
 curl $(s3_url $BUCKET)/gpg | apt-key add -
 # Install docker
-apt-get update ; apt-get install lxc-docker
+apt-get update ; apt-get install -y lxc-docker
 EOF
 	echo "APT repository uploaded. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
 }
