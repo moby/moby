@@ -594,6 +594,10 @@ type WriteFlusher struct {
 	flusher http.Flusher
 }
 
+func (wf *WriteFlusher) Close() {
+	wf.Lock()
+}
+
 func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
 	wf.Lock()
 	defer wf.Unlock()

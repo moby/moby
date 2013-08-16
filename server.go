@@ -122,7 +122,9 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 }
 
 func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
-	out = utils.NewWriteFlusher(out)
+	wf := utils.NewWriteFlusher(out)
+	defer wf.Close()
+	out = wf
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return "", err
@@ -608,7 +610,9 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		localName = remoteName
 	}
 
-	out = utils.NewWriteFlusher(out)
+	wf := utils.NewWriteFlusher(out)
+	defer wf.Close()
+	out = wf
 	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
 	if err != nil {
 		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
@@ -711,14 +715,10 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 				}
 			}
 
-			var e error
 			for i := 0; i < len(imgList); i++ {
 				if err := <-errors; err != nil {
-					e = err
+					return err
 				}
-			}
-			if e != nil {
-				return e
 			}
 
 		} else {
@@ -833,7 +833,9 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 		return err
 	}
 
-	out = utils.NewWriteFlusher(out)
+	wf := utils.NewWriteFlusher(out)
+	defer wf.Close()
+	out = wf
 	img, err := srv.runtime.graph.Get(localName)
 	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory())
 	if err2 != nil {
