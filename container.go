@@ -660,15 +660,23 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Setup environment
-	params = append(params,
-		"-e", "HOME=/",
-		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"-e", "container=lxc",
-		"-e", "HOSTNAME="+container.Config.Hostname,
-	)
-
+	envIdxs := make(map[string]int)
 	for _, elem := range container.Config.Env {
+		envIdxs[getEnvKey(elem)] = 1
 		params = append(params, "-e", elem)
+	}
+
+	if (envIdxs["HOME"] == 0) {
+		params = append(params, "-e",  "HOME=/")
+	}
+	if (envIdxs["PATH"] == 0) {
+		params = append(params, "-e",  "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	}
+	if (envIdxs["container"] == 0) {
+		params = append(params, "-e",  "container=lxc")
+	}
+	if (envIdxs["HOSTNAME"] == 0) {
+		params = append(params, "-e",  "HOSTNAME=" + container.Config.Hostname)
 	}
 
 	// Program
@@ -748,6 +756,16 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
+}
+
+func getEnvKey(env string) string {
+	for i := 0; i < len(env); i++ {
+		if env[i]== '=' {
+			return env[:i]
+		}
+	}
+
+	return ""
 }
 
 func (container *Container) allocateNetwork() error {

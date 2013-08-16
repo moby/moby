@@ -936,6 +936,7 @@ func TestEnv(t *testing.T) {
 	defer nuke(runtime)
 	container, err := NewBuilder(runtime).Create(&Config{
 		Image: GetTestImage(runtime).ID,
+		Env:   []string{"ANSWER=42"},
 		Cmd:   []string{"env"},
 	},
 	)
@@ -964,6 +965,7 @@ func TestEnv(t *testing.T) {
 	}
 	sort.Strings(actualEnv)
 	goodEnv := []string{
+		"ANSWER=42",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
 		"container=lxc",
@@ -977,6 +979,104 @@ func TestEnv(t *testing.T) {
 		if actualEnv[i] != goodEnv[i] {
 			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
 		}
+	}
+}
+
+func TestEnvHomeNotOverwritenDuringRun(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Env:   []string{"HOME=/tmp"},
+		Cmd:   []string{"env"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	envLines := strings.Split(string(output), "\n")
+
+	// Find home env
+	homeKeyLen := len("HOME=")
+	homeLine := ""
+	for _, line := range envLines {
+		if (len(line) > homeKeyLen) && (line[0:homeKeyLen] == "HOME=") {
+			homeLine = line
+		}
+	}
+
+	if homeLine == "" {
+		t.Fatal("HOME env var not present!")
+	}
+
+	if (homeLine != "HOME=/tmp") {
+		t.Fatalf("HOME should be 'HOME=/tmp', but is: '%s'", homeLine)
+	}
+}
+
+func TestEnvDoNotOverrideVars(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Env:   []string{"HOMER=/wants/a/donut"},
+		Cmd:   []string{"env"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	stdout, err := container.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	container.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	envLines := strings.Split(string(output), "\n")
+
+	// Find home env
+	homeKeyLen := len("HOME=")
+	homeLine := ""
+	for _, line := range envLines {
+		if (len(line) > homeKeyLen) && (line[0:homeKeyLen] == "HOME=") {
+			homeLine = line
+		}
+	}
+
+	if homeLine == "" {
+		t.Fatalf("HOME env var not present!. Env: %s", output)
+	}
+
+	if (homeLine != "HOME=/") {
+		t.Fatalf("HOME should be 'HOME=/', but is: '%s'", homeLine)
 	}
 }
 
