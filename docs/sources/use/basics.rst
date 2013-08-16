@@ -57,13 +57,9 @@ you don't need to add ``sudo`` to all the client commands.
 
   # Add the ubuntu user to the docker group
   sudo gpasswd -a ubuntu docker
-  
-  # Have the docker group own the docker.sock file
-  sudo chown root:docker /var/run/docker.sock
-  
+
   # Restart the docker daemon
   sudo service docker restart
-  
 
 Bind Docker to another host/port or a Unix socket
 -------------------------------------------------
