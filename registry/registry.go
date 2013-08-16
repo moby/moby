@@ -440,6 +440,8 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
 
+	utils.Debugf("[registry] Calling PUT %s", registry+"repositories/"+remote+"/tags/"+tag)
+
 	req, err := r.opaqueRequest("PUT", registry+"repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
 	if err != nil {
 		return err

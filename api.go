@@ -483,7 +483,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, w, sf, authConfig); err != nil {
+	if err := srv.ImagePush(name, w, sf, authConfig, version > 1.3); err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil
