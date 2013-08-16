@@ -35,5 +35,5 @@ run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/s
 add	.       /go/src/github.com/dotcloud/docker
 run	ln -s	/go/src/github.com/dotcloud/docker /src
 # Build the binary
-run	cd /go/src/github.com/dotcloud/docker && ./make.sh
-cmd	cd /go/src/github.com/dotcloud/docker && ./release.sh
+run	cd /go/src/github.com/dotcloud/docker && hack/release/make.sh
+cmd	cd /go/src/github.com/dotcloud/docker && hack/release/release.sh
