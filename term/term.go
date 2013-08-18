@@ -1,8 +1,6 @@
 package term
 
 import (
-	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
