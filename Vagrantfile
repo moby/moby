@@ -22,11 +22,8 @@ Vagrant::Config.run do |config|
     # Add Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
     # Add guest additions if local vbox VM
-    is_vbox = true
-    # The logic here makes a few assumptions (i.e. no one uses --provider=virtualbox)
-    ARGV.each do |arg| is_vbox &&= ( !arg.downcase.start_with?("--provider") && !ENV['VAGRANT_DEFAULT_PROVIDER'] )end
-    if is_vbox
-      pkg_cmd << "apt-get install -q -y linux-headers-generic-lts-raring dkms; " \
+    if ENV["VAGRANT_DEFAULT_PROVIDER"].nil? && ARGV.none? { |arg| arg.downcase.start_with?("--provider") }
+      pkg_cmd << "apt-get install -q -y linux-headers-3.8.0-19-generic dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
         "wget -q http://dlc.sun.com.edgesuite.net/virtualbox/4.2.12/VBoxGuestAdditions_4.2.12.iso; "
       # Prepare the VM to add guest additions after reboot
