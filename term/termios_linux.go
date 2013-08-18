@@ -33,7 +33,7 @@ func MakeRaw(fd uintptr) (*State, error) {
 
 	newState.Iflag &^= (syscall.IGNBRK | syscall.BRKINT | syscall.PARMRK | syscall.ISTRIP | syscall.INLCR | syscall.IGNCR | syscall.ICRNL | syscall.IXON)
 	newState.Oflag &^= syscall.OPOST
-	newState.Lflag &^= (syscall.ECHO | syscall.ECHONL | syscall.ICANON | syscall.ISIG | syscall.EXTEN)
+	newState.Lflag &^= (syscall.ECHO | syscall.ECHONL | syscall.ICANON | syscall.ISIG | syscall.IEXTEN)
 	newState.Cflag &^= (syscall.CSIZE | syscall.PARENB)
 	newState.Cflag |= syscall.CS8
 
