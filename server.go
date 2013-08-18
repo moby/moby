@@ -242,7 +242,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 		}
 	}
 
-	sortImagesByCreation(outs)
+	sortImagesByCreationAndTag(outs)
 	return outs, nil
 }
 

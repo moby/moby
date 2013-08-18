@@ -22,15 +22,15 @@ func (s *imageSorter) Less(i, j int) bool {
 	return s.by(&s.images[i], &s.images[j])
 }
 
-// Sort []ApiImages by most recent creation date.
-func sortImagesByCreation(images []APIImages) {
-	creation := func(i1, i2 *APIImages) bool {
-		return i1.Created > i2.Created
+// Sort []ApiImages by most recent creation date and tag name.
+func sortImagesByCreationAndTag(images []APIImages) {
+	creationAndTag := func(i1, i2 *APIImages) bool {
+		return i1.Created > i2.Created || (i1.Created == i2.Created && i2.Tag > i1.Tag)
 	}
 
 	sorter := &imageSorter{
 		images: images,
-		by:     creation}
+		by:     creationAndTag}
 
 	sort.Sort(sorter)
 }
