@@ -1402,6 +1402,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	body, statusCode, err := cli.call("POST", "/containers/create", config)
 	//if image not found try to pull it
 	if statusCode == 404 {
+		_, tag := utils.ParseRepositoryTag(config.Image)
+		if tag == "" {
+			tag = DEFAULTTAG
+		}
+
+		fmt.Printf("Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
+
 		v := url.Values{}
 		repos, tag := utils.ParseRepositoryTag(config.Image)
 		v.Set("fromImage", repos)
