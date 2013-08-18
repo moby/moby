@@ -828,7 +828,13 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 	container, err := b.Create(config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
-			return "", fmt.Errorf("No such image: %s", config.Image)
+
+			_, tag := utils.ParseRepositoryTag(config.Image)
+			if tag == "" {
+				tag = DEFAULTTAG
+			}
+
+			return "", fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
 		return "", err
 	}
