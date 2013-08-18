@@ -299,7 +299,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			oldState, _ := term.SaveState(cli.terminalFd)
 			fmt.Fprintf(cli.out, "Password: ")
 
-			term.DisableEcho(cli.terminalFd, cli.out, oldState)
+			term.DisableEcho(cli.terminalFd, oldState)
+
 			password = readInput(cli.in, cli.out)
 			fmt.Fprint(cli.out, "\n")
 
@@ -1647,7 +1648,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	}
 
 	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err := term.SetRawTerminal(cli.terminalFd, cli.out)
+		oldState, err := term.SetRawTerminal(cli.terminalFd)
 		if err != nil {
 			return err
 		}

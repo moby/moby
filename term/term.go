@@ -54,34 +54,33 @@ func SaveState(fd uintptr) (*State, error) {
 	return &oldState, nil
 }
 
-func DisableEcho(fd uintptr, out io.Writer, state *State) error {
+func DisableEcho(fd uintptr, state *State) error {
 	newState := state.termios
 	newState.Lflag &^= syscall.ECHO
 
-	HandleInterrupt(fd, out, state)
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return err
 	}
+	handleInterrupt(fd, state)
 	return nil
 }
 
-func HandleInterrupt(fd uintptr, out io.Writer, state *State) {
+func SetRawTerminal(fd uintptr) (*State, error) {
+	oldState, err := MakeRaw(fd)
+	if err != nil {
+		return nil, err
+	}
+	handleInterrupt(fd, oldState)
+	return oldState, err
+}
+
+func handleInterrupt(fd uintptr, state *State) {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt)
 
 	go func() {
 		_ = <-sigchan
-		fmt.Fprint(out, "\n")
 		RestoreTerminal(fd, state)
 		os.Exit(0)
 	}()
-}
-
-func SetRawTerminal(fd uintptr, out io.Writer) (*State, error) {
-	oldState, err := MakeRaw(fd)
-	if err != nil {
-		return nil, err
-	}
-	HandleInterrupt(fd, out, oldState)
-	return oldState, err
 }
