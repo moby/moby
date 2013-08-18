@@ -701,7 +701,25 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		return nil
 	}
 
-	for _, name := range cmd.Args() {
+	input := cmd.Args()
+
+	for c, name := range input {
+		if name == "-" {
+			input = append(input[:c], input[c+1:]...)
+			buff, err := ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				break
+			}
+			lines := strings.Split(string(buff), "\n")
+			if len(lines[len(lines)-1]) == 0 {
+				lines = lines[:len(lines)-1]
+			}
+			input = append(input, lines...)
+			break
+		}
+	}
+
+	for _, name := range input {
 		body, _, err := cli.call("DELETE", "/images/"+name, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s", err)
@@ -770,7 +788,26 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *v {
 		val.Set("v", "1")
 	}
-	for _, name := range cmd.Args() {
+
+	input := cmd.Args()
+
+	for c, name := range input {
+		if name == "-" {
+			input = append(input[:c], input[c+1:]...)
+			buff, err := ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				break
+			}
+			lines := strings.Split(string(buff), "\n")
+			if len(lines[len(lines)-1]) == 0 {
+				lines = lines[:len(lines)-1]
+			}
+			input = append(input, lines...)
+			break
+		}
+	}
+
+	for _, name := range input {
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
