@@ -255,9 +255,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := Subcmd("login", "[OPTIONS]", "Register or Login to the docker registry server")
 
-	username := *cmd.String("u", "", "username")
-	password := *cmd.String("p", "", "password")
-	email := *cmd.String("e", "", "email")
+	var username, password, email string
+
+	cmd.StringVar(&username, "u", "", "username")
+	cmd.StringVar(&password, "p", "", "password")
+	cmd.StringVar(&email, "e", "", "email")
 	err := cmd.Parse(args)
 
 	if err != nil {
