@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -433,6 +434,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return nil
 	}
 
+	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+	if GITCOMMIT != "" {
+		fmt.Fprintf(cli.out, "Git commit (client): %s\n", GITCOMMIT)
+	}
+
 	body, _, err := cli.call("GET", "/version", nil)
 	if err != nil {
 		return err
@@ -444,13 +451,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
 	fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
 	if out.GitCommit != "" {
-		fmt.Fprintf(cli.out, "Git commit: %s\n", out.GitCommit)
+		fmt.Fprintf(cli.out, "Git commit (version): %s\n", out.GitCommit)
 	}
 	if out.GoVersion != "" {
-		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
+		fmt.Fprintf(cli.out, "Go version (server): %s\n", out.GoVersion)
 	}
 
 	release := utils.GetReleaseVersion()
