@@ -222,6 +222,11 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdWorkdir(workdir string) error {
+	b.config.WorkingDir = workdir
+	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+}
+
 func (b *buildFile) CmdVolume(args string) error {
 	if args == "" {
 		return fmt.Errorf("Volume cannot be empty")
