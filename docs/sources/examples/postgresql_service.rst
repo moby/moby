@@ -84,11 +84,11 @@ database are possible. Make sure that inside
     host    all             all             0.0.0.0/0               md5
 
 Additionaly, inside ``/etc/postgresql/9.2/main/postgresql.conf``
-uncomment ``listen_address`` so it is as follows:
+uncomment ``listen_addresses`` so it is as follows:
 
 .. code-block:: bash
 
-    listen_address='*'
+    listen_addresses='*'
 
 *Note:* this PostgreSQL setup is for development only purposes. Refer
 to PostgreSQL documentation how to fine-tune these settings so that it
