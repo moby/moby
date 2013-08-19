@@ -548,7 +548,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		container.Config.MemorySwap = -1
 	}
 
-	if !container.runtime.capabilities.IPv4Forwarding {
+	if container.runtime.capabilities.IPv4ForwardingDisabled {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
 
