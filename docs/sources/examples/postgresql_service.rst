@@ -88,7 +88,7 @@ uncomment ``listen_address`` so it is as follows:
 
 .. code-block:: bash
 
-    listen_address='*'
+    listen_addresses='*'
 
 *Note:* this PostgreSQL setup is for development only purposes. Refer
 to PostgreSQL documentation how to fine-tune these settings so that it
