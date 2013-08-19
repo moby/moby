@@ -241,6 +241,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			outs = append(outs, out)
 		}
 	}
+
+	sortImagesByCreationAndTag(outs)
 	return outs, nil
 }
 
