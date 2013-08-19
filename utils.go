@@ -132,6 +132,9 @@ func MergeConfig(userConf, imageConf *Config) {
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
+	if userConf.WorkingDir == "" {
+		userConf.WorkingDir = imageConf.WorkingDir
+	}
 	if userConf.VolumesFrom == "" {
 		userConf.VolumesFrom = imageConf.VolumesFrom
 	}
