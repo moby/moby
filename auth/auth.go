@@ -86,13 +86,13 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
 		arr := strings.Split(string(b), "\n")
 		if len(arr) < 2 {
-			return nil, fmt.Errorf("The Auth config file is empty")
+			return &configFile, fmt.Errorf("The Auth config file is empty")
 		}
 		authConfig := AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
 		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
-			return nil, err
+			return &configFile, err
 		}
 		origEmail := strings.Split(arr[1], " = ")
 		authConfig.Email = origEmail[1]
@@ -101,7 +101,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		for k, authConfig := range configFile.Configs {
 			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
-				return nil, err
+				return &configFile, err
 			}
 			authConfig.Auth = ""
 			configFile.Configs[k] = authConfig
