@@ -1555,6 +1555,9 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return nil, -1, err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
@@ -1595,6 +1598,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
@@ -1641,6 +1647,9 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
