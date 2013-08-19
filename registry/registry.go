@@ -229,7 +229,8 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repository)
-		req, err := r.opaqueRequest("GET", endpoint, nil)
+		req, err := r.reqFactory.NewRequest("GET", endpoint, nil)
+
 		if err != nil {
 			return nil, err
 		}
@@ -262,12 +263,11 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 }
 
 func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, error) {
-
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
 
 	utils.Debugf("[registry] Calling GET %s", repositoryTarget)
 
-	req, err := r.opaqueRequest("GET", repositoryTarget, nil)
+	req, err := r.reqFactory.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -425,24 +425,16 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	return tarsumLayer.Sum(jsonRaw), nil
 }
 
-func (r *Registry) opaqueRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
-	req, err := r.reqFactory.NewRequest(method, urlStr, body)
-	if err != nil {
-		return nil, err
-	}
-	req.URL.Opaque = strings.Replace(urlStr, req.URL.Scheme+":", "", 1)
-	return req, err
-}
-
 // push a tag on the registry.
 // Remote has the format '<user>/<repo>
 func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token []string) error {
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
+	path := fmt.Sprintf("repositories/%s/tags/%s", remote, tag)
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"repositories/"+remote+"/tags/"+tag)
 
-	req, err := r.opaqueRequest("PUT", registry+"repositories/"+remote+"/tags/"+tag, strings.NewReader(revision))
+	req, err := r.reqFactory.NewRequest("PUT", registry+path, strings.NewReader(revision))
 	if err != nil {
 		return err
 	}
@@ -481,11 +473,10 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	if validate {
 		suffix = "images"
 	}
-
 	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
 	utils.Debugf("[registry] PUT %s", u)
 	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
-	req, err := r.opaqueRequest("PUT", u, bytes.NewReader(imgListJSON))
+	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +496,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		utils.Debugf("Redirected to %s\n", res.Header.Get("Location"))
-		req, err = r.opaqueRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
+		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err
 		}

@@ -50,6 +50,17 @@ the daemon starts. The ``docker`` daemon must always run as root, but
 if you run the ``docker`` client as a user in the *docker* group then
 you don't need to add ``sudo`` to all the client commands.
 
+.. code-block:: bash
+
+  # Add the docker group
+  sudo groupadd docker
+
+  # Add the ubuntu user to the docker group
+  sudo gpasswd -a ubuntu docker
+
+  # Restart the docker daemon
+  sudo service docker restart
+
 Bind Docker to another host/port or a Unix socket
 -------------------------------------------------
 
