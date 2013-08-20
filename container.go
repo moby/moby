@@ -165,7 +165,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*RunConfig, error) {
 		return &RunConfig{nil, nil, "", cmd}, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvaidWorikingDirectory
+		return &RunConfig{nil, nil, "", cmd}, ErrInvaidWorikingDirectory
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
