@@ -56,10 +56,10 @@ Run your first container!
 .. code-block:: bash
 
     # check your docker version
-    ./docker version
+    sudo ./docker version
 
     # run a container and open an interactive shell in the container
-    ./docker run -i -t ubuntu /bin/bash
+    sudo ./docker run -i -t ubuntu /bin/bash
 
 
 

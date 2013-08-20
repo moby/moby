@@ -2,6 +2,8 @@
 :description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 :keywords: builder, docker, Dockerfile, automation, image creation
 
+.. _dockerbuilder:
+
 ==================
 Dockerfile Builder
 ==================
@@ -23,12 +25,12 @@ describe the steps to assemble the image.
 Then call ``docker build`` with the path of your source repository as
 argument:
 
-    ``docker build .``
+    ``sudo docker build .``
 
 You can specify a repository and tag at which to save the new image if the
 build succeeds:
 
-    ``docker build -t shykes/myapp .``
+    ``sudo docker build -t shykes/myapp .``
 
 Docker will run your steps one-by-one, committing the result if necessary,
 before finally outputting the ID of your new image.
@@ -210,6 +212,15 @@ container created from the image.
 
 The ``USER`` instruction sets the username or UID to use when running
 the image.
+
+3.11 WORKDIR
+------------
+
+    ``WORKDIR /path/to/workdir``
+
+The ``WORKDIR`` instruction sets the working directory in which
+the command given by ``CMD`` is executed.
+
 
 4. Dockerfile Examples
 ======================

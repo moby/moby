@@ -2,9 +2,10 @@
 :description: Documentation for docker Registry and Registry API
 :keywords: docker, registry, api, index
 
+.. _registryindexspec:
 
 =====================
-Registry & index Spec
+Registry & Index Spec
 =====================
 
 .. contents:: Table of Contents

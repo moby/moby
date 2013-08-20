@@ -129,7 +129,9 @@ Create a container
 		"Dns":null,
 		"Image":"base",
 		"Volumes":{},
-		"VolumesFrom":""
+		"VolumesFrom":"",
+		"WorkingDir":""
+
 	   }
 	   
 	**Example response**:
@@ -195,7 +197,9 @@ Inspect a container
 				"Dns": null,
 				"Image": "base",
 				"Volumes": {},
-				"VolumesFrom": ""
+				"VolumesFrom": "",
+				"WorkingDir":""
+
 			},
 			"State": {
 				"Running": false,
@@ -746,7 +750,8 @@ Inspect an image
 				,"Dns":null,
 				"Image":"base",
 				"Volumes":null,
-				"VolumesFrom":""
+				"VolumesFrom":"",
+				"WorkingDir":""
 			},
 		"Size": 6824592
 	   }
@@ -1094,6 +1099,37 @@ Create a new image from a container's changes
         :statuscode 201: no error
 	:statuscode 404: no such container
         :statuscode 500: server error
+
+
+Monitor Docker's events
+***********************
+
+.. http:get:: /events
+
+	Get events from docker, either in real time via streaming, or via polling (using `since`)
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+           POST /events?since=1374067924
+
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+	   {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+	   {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
+	   {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
+
+	:query since: timestamp used for polling
+        :statuscode 200: no error
+        :statuscode 500: server error
+
 
 3. Going further
 ================

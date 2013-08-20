@@ -11,27 +11,35 @@ Hello World Daemon
 
 The most boring daemon ever written.
 
-This example assumes you have Docker installed and with the ubuntu image already imported ``docker pull ubuntu``.
-We will use the ubuntu image to run a simple hello world daemon that will just print hello world to standard
-out every second. It will continue to do this until we stop it.
+This example assumes you have Docker installed and with the Ubuntu
+image already imported ``docker pull ubuntu``.  We will use the Ubuntu
+image to run a simple hello world daemon that will just print hello
+world to standard out every second. It will continue to do this until
+we stop it.
 
 **Steps:**
 
 .. code-block:: bash
 
-    CONTAINER_ID=$(docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
-We are going to run a simple hello world daemon in a new container made from the ubuntu image.
+We are going to run a simple hello world daemon in a new container
+made from the *ubuntu* image.
 
-- **"docker run -d "** run a command in a new container. We pass "-d" so it runs as a daemon.
+- **"docker run -d "** run a command in a new container. We pass "-d"
+  so it runs as a daemon.
 - **"ubuntu"** is the image we want to run the command inside of.
 - **"/bin/sh -c"** is the command we want to run in the container
-- **"while true; do echo hello world; sleep 1; done"** is the mini script we want to run, that will just print hello world once a second until we stop it.
-- **$CONTAINER_ID** the output of the run command will return a container id, we can use in future commands to see what is going on with this process.
+- **"while true; do echo hello world; sleep 1; done"** is the mini
+  script we want to run, that will just print hello world once a
+  second until we stop it.
+- **$CONTAINER_ID** the output of the run command will return a
+  container id, we can use in future commands to see what is going on
+  with this process.
 
 .. code-block:: bash
 
-    docker logs $CONTAINER_ID
+    sudo docker logs $CONTAINER_ID
 
 Check the logs make sure it is working correctly.
 
@@ -40,16 +48,17 @@ Check the logs make sure it is working correctly.
 
 .. code-block:: bash
 
-    docker attach $CONTAINER_ID
+    sudo docker attach $CONTAINER_ID
 
 Attach to the container to see the results in realtime.
 
-- **"docker attach**" This will allow us to attach to a background process to see what is going on.
+- **"docker attach**" This will allow us to attach to a background
+  process to see what is going on.
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
 .. code-block:: bash
 
-    docker ps
+    sudo docker ps
 
 Check the process list to make sure it is running.
 
@@ -57,7 +66,7 @@ Check the process list to make sure it is running.
 
 .. code-block:: bash
 
-    docker stop $CONTAINER_ID
+    sudo docker stop $CONTAINER_ID
 
 Stop the container, since we don't need it anymore.
 
@@ -66,7 +75,7 @@ Stop the container, since we don't need it anymore.
 
 .. code-block:: bash
 
-    docker ps
+    sudo docker ps
 
 Make sure it is really stopped.
 

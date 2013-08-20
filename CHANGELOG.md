@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 (2013-08-13)
+* Runtime: Use docker group for socket permissions
+- Runtime: Spawn shell within upstart script
+- Builder: Make sure ENV instruction within build perform a commit each time
+- Runtime: Handle ip route showing mask-less IP addresses
+- Runtime: Add hostname to environment
+
 ## 0.5.2 (2013-08-08)
  * Builder: Forbid certain paths within docker build ADD
  - Runtime: Change network range to avoid conflict with EC2 DNS

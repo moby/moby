@@ -14,6 +14,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                     level='INFO')
 client = docker.Client()
 processed = {}
+processed_folders = []
 
 
 def build_library(repository=None, branch=None, namespace=None, push=False,
@@ -31,19 +32,34 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         logger.info('Repository provided assumed to be a local path')
         dst_folder = repository
 
+    try:
+        client.version()
+    except Exception as e:
+        logger.error('Could not reach the docker daemon. Please make sure it '
+            'is running.')
+        logger.warning('Also make sure you have access to the docker UNIX '
+            'socket (use sudo)')
+        return
+
     #FIXME: set destination folder and only pull latest changes instead of
     # cloning the whole repo everytime
     if not dst_folder:
         logger.info('Cloning docker repo from {0}, branch: {1}'.format(
             repository, branch))
         try:
-            dst_folder = git.clone_branch(repository, branch)
+            rep, dst_folder = git.clone_branch(repository, branch)
         except Exception as e:
             logger.exception(e)
             logger.error('Source repository could not be fetched. Check '
                 'that the address is correct and the branch exists.')
             return
-    for buildfile in os.listdir(os.path.join(dst_folder, 'library')):
+    try:
+        dirlist = os.listdir(os.path.join(dst_folder, 'library'))
+    except OSError as e:
+        logger.error('The path provided ({0}) could not be found or didn\'t'
+            'contain a library/ folder.'.format(dst_folder))
+        return
+    for buildfile in dirlist:
         if buildfile == 'MAINTAINERS':
             continue
         f = open(os.path.join(dst_folder, 'library', buildfile))
@@ -92,20 +108,27 @@ def build_library(repository=None, branch=None, namespace=None, push=False,
         f.close()
     if dst_folder != repository:
         rmtree(dst_folder, True)
+    for d in processed_folders:
+        rmtree(d, True)
     summary.print_summary(logger)
 
 
 def build_repo(repository, ref, docker_repo, docker_tag, namespace, push, registry):
     docker_repo = '{0}/{1}'.format(namespace or 'library', docker_repo)
     img_id = None
+    dst_folder = None
     if '{0}@{1}'.format(repository, ref) not in processed.keys():
         logger.info('Cloning {0} (ref: {1})'.format(repository, ref))
-        dst_folder = git.clone(repository, ref)
+        if repository not in processed:
+            rep, dst_folder = git.clone(repository, ref)
+            processed[repository] = rep
+            processed_folders.append(dst_folder)
+        else:
+            dst_folder = git.checkout(processed[repository], ref)
         if not 'Dockerfile' in os.listdir(dst_folder):
             raise RuntimeError('Dockerfile not found in cloned repository')
         logger.info('Building using dockerfile...')
         img_id, logs = client.build(path=dst_folder, quiet=True)
-        rmtree(dst_folder, True)
     else:
         img_id = processed['{0}@{1}'.format(repository, ref)]
     logger.info('Committing to {0}:{1}'.format(docker_repo,

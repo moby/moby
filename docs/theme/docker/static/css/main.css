@@ -375,3 +375,19 @@ section.header {
 table th {
   text-align: left;
 }
+h1:hover > a.headerlink,
+h2:hover > a.headerlink,
+h3:hover > a.headerlink,
+h4:hover > a.headerlink,
+h5:hover > a.headerlink,
+h6:hover > a.headerlink,
+dt:hover > a.headerlink {
+  visibility: visible;
+}
+.headerlink {
+  font-size: smaller;
+  color: #666;
+  font-weight: bold;
+  float: right;
+  visibility: hidden;
+}

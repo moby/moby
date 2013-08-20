@@ -27,7 +27,7 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.5.2-dev"
+const VERSION = "0.5.3-dev"
 
 var (
 	GITCOMMIT string
@@ -857,10 +857,12 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	if err := push(); err != nil {
-		if err == fmt.Errorf("Authentication is required.") {
-			if err = cli.checkIfLogged("push"); err == nil {
-				return push()
+		if err.Error() == "Authentication is required." {
+			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+			if err := cli.CmdLogin(""); err != nil {
+				return err
 			}
+			return push()
 		}
 		return err
 	}
@@ -1400,6 +1402,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	body, statusCode, err := cli.call("POST", "/containers/create", config)
 	//if image not found try to pull it
 	if statusCode == 404 {
+		_, tag := utils.ParseRepositoryTag(config.Image)
+		if tag == "" {
+			tag = DEFAULTTAG
+		}
+
+		fmt.Printf("Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
+
 		v := url.Values{}
 		repos, tag := utils.ParseRepositoryTag(config.Image)
 		v.Set("fromImage", repos)
@@ -1469,6 +1478,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			v.Set("stderr", "1")
 		}
 
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			for sig := range signals {
+				fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
+				if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
+					fmt.Printf("failed to stop container: %v", err)
+				}
+			}
+		}()
+
 		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
@@ -1512,19 +1532,6 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) checkIfLogged(action string) error {
-	// If condition AND the login failed
-	if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-		if err := cli.CmdLogin(""); err != nil {
-			return err
-		}
-		if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-			return fmt.Errorf("Please login prior to %s. ('docker login')", action)
-		}
-	}
-	return nil
-}
-
 func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, error) {
 	var params io.Reader
 	if data != nil {
@@ -1548,6 +1555,9 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return nil, -1, err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
@@ -1588,6 +1598,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer) e
 	}
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
@@ -1634,6 +1647,9 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+		}
 		return err
 	}
 	clientconn := httputil.NewClientConn(dial, nil)
@@ -1762,7 +1778,10 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 		err = out
 	}
 
-	configFile, _ := auth.LoadConfig(os.Getenv("HOME"))
+	configFile, e := auth.LoadConfig(os.Getenv("HOME"))
+	if e != nil {
+		fmt.Fprintf(err, "WARNING: %s\n", e)
+	}
 	return &DockerCli{
 		proto:      proto,
 		addr:       addr,

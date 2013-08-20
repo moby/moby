@@ -22,6 +22,15 @@ func setupNetworking(gw string) {
 	}
 }
 
+// Setup working directory
+func setupWorkingDirectory(workdir string) {
+	if workdir == "" {
+		return
+	}
+    syscall.Chdir(workdir)
+}
+
+
 // Takes care of dropping privileges to the desired user
 func changeUser(u string) {
 	if u == "" {
@@ -83,6 +92,7 @@ func SysInit() {
 	}
 	var u = flag.String("u", "", "username or uid")
 	var gw = flag.String("g", "", "gateway address")
+	var workdir = flag.String("w", "", "workdir")
 
 	var flEnv ListOpts
 	flag.Var(&flEnv, "e", "Set environment variables")
@@ -91,6 +101,7 @@ func SysInit() {
 
 	cleanupEnv(flEnv)
 	setupNetworking(*gw)
+	setupWorkingDirectory(*workdir)
 	changeUser(*u)
 	executeProgram(flag.Arg(0), flag.Args())
 }

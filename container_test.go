@@ -1283,6 +1283,71 @@ func TestRestartWithVolumes(t *testing.T) {
 	}
 }
 
+// Test for #1351
+func TestVolumesFromWithVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+
+	container2, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"cat", "/test/foo"},
+			VolumesFrom: container.ID,
+			Volumes:     map[string]struct{}{"/test": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	output, err := container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(output) != "bar" {
+		t.Fail()
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Fail()
+	}
+
+	// Ensure it restarts successfully
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
@@ -1319,4 +1384,36 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
 	}
 
+}
+
+func TestPrivilegedCanMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mknod into privileged container")
+	}
+}
+
+func TestPrivilegedCanMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mount into privileged container")
+	}
+}
+
+func TestPrivilegedCannotMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mknod into secure container")
+	}
+}
+
+func TestPrivilegedCannotMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mount into secure container")
+	}
 }
