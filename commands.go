@@ -453,7 +453,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
 	if out.GitCommit != "" {
-		fmt.Fprintf(cli.out, "Git commit (version): %s\n", out.GitCommit)
+		fmt.Fprintf(cli.out, "Git commit (server): %s\n", out.GitCommit)
 	}
 	if out.GoVersion != "" {
 		fmt.Fprintf(cli.out, "Go version (server): %s\n", out.GoVersion)
