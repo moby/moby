@@ -205,13 +205,22 @@ to the entrypoint.
 The ``VOLUME`` instruction will add one or more new volumes to any
 container created from the image.
 
-3.10 WORKDIR
---------------
+3.10 USER
+---------
+
+    ``USER daemon``
+
+The ``USER`` instruction sets the username or UID to use when running
+the image.
+
+3.11 WORKDIR
+------------
 
     ``WORKDIR /path/to/workdir``
 
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
+
 
 4. Dockerfile Examples
 ======================
