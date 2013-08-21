@@ -20,6 +20,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"net"
 )
 
 type Container struct {
@@ -778,10 +779,28 @@ func (container *Container) allocateNetwork() error {
 		return nil
 	}
 
-	iface, err := container.runtime.networkManager.Allocate()
-	if err != nil {
-		return err
+	var iface *NetworkInterface
+	var err error
+	if !container.State.Ghost {
+		iface, err = container.runtime.networkManager.Allocate()
+		if err != nil {
+			return err
+		}
+	} else {
+		manager := container.runtime.networkManager
+		if manager.disabled {
+			iface = &NetworkInterface{disabled: true}
+		} else {
+			iface = &NetworkInterface{
+				IPNet: net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				Gateway: manager.bridgeNetwork.IP,
+				manager: manager,
+				}
+			ipNum := ipToInt(iface.IPNet.IP)
+			manager.ipAllocator.inUse[ipNum] = struct{}{}
+		}
 	}
+
 	container.NetworkSettings.PortMapping = make(map[string]PortMapping)
 	container.NetworkSettings.PortMapping["Tcp"] = make(PortMapping)
 	container.NetworkSettings.PortMapping["Udp"] = make(PortMapping)
