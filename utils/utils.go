@@ -772,7 +772,7 @@ func GetResolvConf() ([]byte, error) {
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
-	var parsedResolvConf = ParseResolvConf(resolvConf)
+	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	if !bytes.Contains(parsedResolvConf, []byte("nameserver")) {
 		return true
 	}
@@ -787,20 +787,20 @@ func CheckLocalDns(resolvConf []byte) bool {
 	return false
 }
 
-// ParseResolvConf parses the resolv.conf file into lines and strips away comments.
-func ParseResolvConf(resolvConf []byte) []byte {
-	lines := bytes.Split(resolvConf, []byte("\n"))
-	var noCommentsResolvConf []byte
+// StripComments parses input into lines and strips away comments.
+func StripComments(input []byte, commentMarker []byte) []byte {
+	lines := bytes.Split(input, []byte("\n"))
+	var output []byte
 	for _, currentLine := range lines {
-		var cleanLine = bytes.TrimLeft(currentLine, " \t")
-		var commentIndex = bytes.Index(cleanLine, []byte("#"))
+		var commentIndex = bytes.Index(currentLine, commentMarker)
 		if ( commentIndex == -1 ) {
-			noCommentsResolvConf = append(noCommentsResolvConf, cleanLine...)
+			output = append(output, currentLine...)
 		} else {
-			noCommentsResolvConf = append(noCommentsResolvConf, cleanLine[:commentIndex]...)
+			output = append(output, currentLine[:commentIndex]...)
 		}
+		output = append(output, []byte("\n")...)
 	}
-	return noCommentsResolvConf
+	return output
 }
 
 func ParseHost(host string, port int, addr string) string {
