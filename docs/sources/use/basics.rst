@@ -41,7 +41,7 @@ Why ``sudo``?
 The ``docker`` daemon always runs as root, and since ``docker``
 version 0.5.2, ``docker`` binds to a Unix socket instead of a TCP
 port. By default that Unix socket is owned by the user *root*, and so,
-by default, you can access it with ``sudo``. 
+by default, you can access it with ``sudo``.
 
 Starting in version 0.5.3, if you create a Unix group called *docker*
 and add users to it, then the ``docker`` daemon will make the
@@ -56,6 +56,8 @@ you don't need to add ``sudo`` to all the client commands.
   sudo groupadd docker
 
   # Add the ubuntu user to the docker group
+  # You may have to logout and log back in again for
+  # this to take effect
   sudo gpasswd -a ubuntu docker
 
   # Restart the docker daemon
