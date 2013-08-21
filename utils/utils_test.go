@@ -323,6 +323,16 @@ func TestCheckLocalDns(t *testing.T) {
 nameserver 10.0.2.3
 search dotcloud.net`: false,
 		`# Dynamic
+#nameserver 127.0.0.1
+nameserver 10.0.2.3
+search dotcloud.net`: false,
+		`# Dynamic
+nameserver 10.0.2.3 #not used 127.0.1.1
+search dotcloud.net`: false,
+		`# Dynamic
+#nameserver 10.0.2.3
+#search dotcloud.net`: true,
+		`# Dynamic
 nameserver 127.0.0.1
 search dotcloud.net`: true,
 		`# Dynamic
