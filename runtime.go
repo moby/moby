@@ -15,9 +15,9 @@ import (
 )
 
 type Capabilities struct {
-	MemoryLimit    bool
-	SwapLimit      bool
-	IPv4Forwarding bool
+	MemoryLimit            bool
+	SwapLimit              bool
+	IPv4ForwardingDisabled bool
 }
 
 type Runtime struct {
@@ -244,8 +244,8 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 
 	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	runtime.capabilities.IPv4Forwarding = err3 == nil && len(content) > 0 && content[0] == '1'
-	if !runtime.capabilities.IPv4Forwarding && !quiet {
+	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
+	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
 }
