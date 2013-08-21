@@ -35,4 +35,16 @@ upper image.
 Base Image
 ..........
 
-An image that has no parent is a **base image**.
+An image that has no parent is a **base image**.  This usually gets
+created using a special process to include only the most essential
+files, and this process can vary depending on the *nix distribution
+you're interested in.
+
+We include three example scripts for creating base images in the
+Docker Github Repo:
+
+* `BusyBox <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh>`_
+* `CentOS
+  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-centos.sh>`_
+* `Debian
+  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debian.sh>`_

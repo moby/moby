@@ -68,7 +68,9 @@ building images.
 
 The ``FROM`` instruction sets the :ref:`base_image_def` for subsequent
 instructions. As such, a valid Dockerfile must have ``FROM`` as its
-first instruction.
+first instruction. **If you would like to build a base image** then
+please see the :ref:`base_image_def` section for links to example base
+image builder scripts.
 
 ``FROM`` must be the first non-comment instruction in the
 ``Dockerfile``.
