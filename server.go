@@ -271,7 +271,7 @@ func (srv *Server) DockerInfo() *APIInfo {
 		Images:             imgcount,
 		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
 		SwapLimit:          srv.runtime.capabilities.SwapLimit,
-		IPv4Forwarding:     srv.runtime.capabilities.IPv4Forwarding,
+		IPv4Forwarding:     !srv.runtime.capabilities.IPv4ForwardingDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                utils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
