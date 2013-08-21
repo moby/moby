@@ -114,7 +114,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdGetlxctemplate(args ...string) error {
-	cmd := Subcmd("info", "", "Display system-wide information")
+	cmd := Subcmd("getlxctemplate", "", "Get the default LXC template")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
