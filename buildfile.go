@@ -248,6 +248,12 @@ func (b *buildFile) CmdVolume(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdTag(repoName string) error {
+	repoName, tag := utils.ParseRepositoryTag(repoName)
+	err := b.srv.runtime.repositories.Set(repoName, tag, b.image, false)
+	return err
+}
+
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
 	file, err := utils.Download(orig, ioutil.Discard)
 	if err != nil {
