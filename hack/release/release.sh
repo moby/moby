@@ -9,7 +9,6 @@
 # official Dockerfile at the root of the Docker source code. The Dockerfile,
 # make.sh and release.sh should all be from the same source code revision.
 
-set -x
 set -e
 
 # Print a usage message and exit.

@@ -19,7 +19,6 @@
 # 
 
 set -e
-set -x
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
