@@ -63,7 +63,7 @@ Now you are in the VM, run docker
 
 .. code-block:: bash
 
-   docker
+   sudo docker
 
 
 Continue with the :ref:`hello_world` example.

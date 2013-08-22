@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -18,14 +19,16 @@ func CompareConfig(a, b *Config) bool {
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty {
+		a.Tty != b.Tty ||
+		a.VolumesFrom != b.VolumesFrom {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
-		len(a.Entrypoint) != len(b.Entrypoint) {
+		len(a.Entrypoint) != len(b.Entrypoint) ||
+		len(a.Volumes) != len(b.Volumes) {
 		return false
 	}
 
@@ -51,6 +54,11 @@ func CompareConfig(a, b *Config) bool {
 	}
 	for i := 0; i < len(a.Entrypoint); i++ {
 		if a.Entrypoint[i] != b.Entrypoint[i] {
+			return false
+		}
+	}
+	for key := range a.Volumes {
+		if _, exists := b.Volumes[key]; !exists {
 			return false
 		}
 	}
@@ -125,6 +133,12 @@ func MergeConfig(userConf, imageConf *Config) {
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
+	if userConf.WorkingDir == "" {
+		userConf.WorkingDir = imageConf.WorkingDir
+	}
+	if userConf.VolumesFrom == "" {
+		userConf.VolumesFrom = imageConf.VolumesFrom
+	}
 	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
 	} else {
@@ -132,4 +146,24 @@ func MergeConfig(userConf, imageConf *Config) {
 			userConf.Volumes[k] = v
 		}
 	}
+}
+
+func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+	out := make([]KeyValuePair, len(opts))
+	for i, o := range opts {
+		k, v, err := parseLxcOpt(o)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = KeyValuePair{Key: k, Value: v}
+	}
+	return out, nil
+}
+
+func parseLxcOpt(opt string) (string, string, error) {
+	parts := strings.SplitN(opt, "=", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Unable to parse lxc conf option: %s", opt)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }

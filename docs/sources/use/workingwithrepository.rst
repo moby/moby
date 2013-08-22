@@ -1,6 +1,6 @@
 :title: Working With Repositories
 :description: Repositories allow users to share images.
-:keywords: repo, repositiores, usage, pull image, push image, image, documentation
+:keywords: repo, repositories, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
@@ -57,10 +57,10 @@ address of the registry's host, like this:
     # Tag to create a repository with the full registry location.
     # The location (e.g. localhost.localdomain:5000) becomes
     # a permanent part of the repository name
-    docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
+    sudo docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
 
     # Push the new repository to its home location on localhost
-    docker push localhost.localdomain:5000/repo_name
+    sudo docker push localhost.localdomain:5000/repo_name
 
 Once a repository has your registry's host name as part of the tag,
 you can push and pull it like any other repository, but it will
@@ -71,18 +71,18 @@ function completely independently from the Central Index.
 Find public images available on the Central Index
 -------------------------------------------------
 
-Seach by name, namespace or description
+Search by name, namespace or description
 
 .. code-block:: bash
 
-    docker search <value>
+    sudo docker search <value>
 
 
 Download them simply by their name
 
 .. code-block:: bash
 
-    docker pull <value>
+    sudo docker pull <value>
 
 
 Very similarly you can search for and browse the index online on
@@ -96,7 +96,7 @@ You can create a user on the central Docker Index online, or by running
 
 .. code-block:: bash
 
-    docker login
+    sudo docker login
 
 This will prompt you for a username, which will become a public
 namespace for your public repositories.
@@ -115,7 +115,7 @@ your container to an image within your username namespace.
 .. code-block:: bash
 
     # for example docker commit $CONTAINER_ID dhrp/kickassapp
-    docker commit <container_id> <username>/<repo_name>
+    sudo docker commit <container_id> <username>/<repo_name>
 
 
 Pushing a container to its repository
@@ -129,4 +129,4 @@ Now you can commit this image to the repository
 .. code-block:: bash
 
     # for example docker push dhrp/kickassapp
-    docker push <username>/<repo_name>
+    sudo docker push <username>/<repo_name>

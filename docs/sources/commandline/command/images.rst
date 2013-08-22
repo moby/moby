@@ -21,6 +21,6 @@ Displaying images visually
 
 ::
 
-    docker images -viz | dot -Tpng -o docker.png
+    sudo docker images -viz | dot -Tpng -o docker.png
 
 .. image:: images/docker_images.gif

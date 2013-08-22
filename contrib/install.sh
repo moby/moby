@@ -3,7 +3,7 @@
 # Original version by Jeff Lindsay <progrium@gmail.com>
 # Revamped by Jerome Petazzoni <jerome@dotcloud.com>
 #
-# This script canonical location is http://get.docker.io/; to update it, run:
+# This script canonical location is https://get.docker.io/; to update it, run:
 # s3cmd put -m text/x-shellscript -P install.sh s3://get.docker.io/index
 
 echo "Ensuring basic dependencies are installed..."
@@ -35,17 +35,23 @@ else
     fi
 fi
 
-echo "Downloading docker binary and uncompressing into /usr/local/bin..."
-curl -s http://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest.tgz |
-tar -C /usr/local/bin --strip-components=1 -zxf- \
-docker-latest/docker
+echo "Downloading docker binary to /usr/local/bin..."
+curl -s https://get.docker.io/builds/$(uname -s)/$(uname -m)/docker-latest \
+    > /usr/local/bin/docker
+chmod +x /usr/local/bin/docker
 
 if [ -f /etc/init/dockerd.conf ]
 then
   echo "Upstart script already exists."
 else
   echo "Creating /etc/init/dockerd.conf..."
-  echo "exec env LANG=\"en_US.UTF-8\" /usr/local/bin/docker -d" > /etc/init/dockerd.conf
+  cat >/etc/init/dockerd.conf <<EOF
+description "Docker daemon"
+start on filesystem or runlevel [2345]
+stop on runlevel [!2345]
+respawn
+exec /usr/local/bin/docker -d
+EOF
 fi
 
 echo "Starting dockerd..."

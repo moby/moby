@@ -10,7 +10,7 @@ Rackspace Cloud
   :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
 
 
-Installing Docker on Ubuntu proviced by Rackspace is pretty straightforward, and you should mostly be able to follow the
+Installing Docker on Ubuntu provided by Rackspace is pretty straightforward, and you should mostly be able to follow the
 :ref:`ubuntu_linux` installation guide.
 
 **However, there is one caveat:**

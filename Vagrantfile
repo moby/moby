@@ -20,8 +20,6 @@ Vagrant::Config.run do |config|
     pkg_cmd = "apt-get update -qq; apt-get install -q -y python-software-properties; " \
       "add-apt-repository -y ppa:dotcloud/lxc-docker; apt-get update -qq; " \
       "apt-get install -q -y lxc-docker; "
-    # Listen on all interfaces so that the daemon is accessible from the host
-    pkg_cmd << "sed -i -E 's|    /usr/bin/docker -d|    /usr/bin/docker -d -H 0.0.0.0|' /etc/init/docker.conf;"
     # Add X.org Ubuntu backported 3.8 kernel
     pkg_cmd << "add-apt-repository -y ppa:ubuntu-x-swat/r-lts-backport; " \
       "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "
@@ -84,15 +82,15 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
 end
 
 if !FORWARD_DOCKER_PORTS.nil?
-    Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
-        (49000..49900).each do |port|
-            config.vm.forward_port port, port
-        end
+  Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
+    (49000..49900).each do |port|
+      config.vm.forward_port port, port
     end
+  end
 
-    Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
-        (49000..49900).each do |port|
-            config.vm.network :forwarded_port, :host => port, :guest => port
-        end
+  Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
+    (49000..49900).each do |port|
+      config.vm.network :forwarded_port, :host => port, :guest => port
     end
+  end
 end

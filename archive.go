@@ -98,7 +98,7 @@ func TarFilter(path string, compression Compression, filter []string) (io.Reader
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `path`.
-// The archive may be compressed with one of the following algorithgms:
+// The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, path string) error {
@@ -173,7 +173,7 @@ func CopyWithTar(src, dst string) error {
 	}
 	// Create dst, copy src's content into it
 	utils.Debugf("Creating dest directory: %s", dst)
-	if err := os.MkdirAll(dst, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)

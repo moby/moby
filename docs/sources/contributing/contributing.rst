@@ -1,5 +1,5 @@
 :title: Contribution Guidelines
-:description: Contribution guidelines: create issues, convetions, pull requests
+:description: Contribution guidelines: create issues, conventions, pull requests
 :keywords: contributing, docker, documentation, help, guideline
 
 Contributing to Docker

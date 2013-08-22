@@ -15,6 +15,7 @@ Contents:
   attach  <command/attach>
   build   <command/build>
   commit  <command/commit>
+  cp      <command/cp>
   diff    <command/diff>
   export  <command/export>
   history <command/history>

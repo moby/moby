@@ -40,6 +40,9 @@ lxc.console = none
 # no controlling tty at all
 lxc.tty = 1
 
+{{if .Config.Privileged}}
+lxc.cgroup.devices.allow = a 
+{{else}}
 # no implicit access to devices
 lxc.cgroup.devices.deny = a
 
@@ -69,7 +72,7 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 
 # rtc
 #lxc.cgroup.devices.allow = c 254:0 rwm
-
+{{end}}
 
 # standard mount point
 #  WARNING: procfs is a known attack vector and should probably be disabled
@@ -81,10 +84,10 @@ lxc.mount.entry = sysfs {{$ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
 #lxc.mount.entry = varrun {{$ROOTFS}}/var/run tmpfs mode=755,size=4096k,nosuid,nodev,noexec 0 0
 #lxc.mount.entry = varlock {{$ROOTFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
-#lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
+lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
 # Inject docker-init
-lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/sbin/init none bind,ro 0 0
+lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/.dockerinit none bind,ro 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
 lxc.mount.entry = {{.ResolvConfPath}} {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
@@ -95,11 +98,15 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 {{end}}
 
+{{if .Config.Privileged}}
+# retain all capabilities; no lxc.cap.drop line
+{{else}}
 # drop linux capabilities (apply mainly to the user root in the container)
 #  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
 #         security principle 'deny all unless explicitly permitted', see
 #         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
+{{end}}
 
 # limits
 {{if .Config.Memory}}
@@ -114,7 +121,16 @@ lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
 {{end}}
 `
 
+const LxcHostConfigTemplate = `
+{{if .LxcConf}}
+{{range $pair := .LxcConf}}
+{{$pair.Key}} = {{$pair.Value}}
+{{end}}
+{{end}}
+`
+
 var LxcTemplateCompiled *template.Template
+var LxcHostConfigTemplateCompiled *template.Template
 
 func getMemorySwap(config *Config) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
@@ -131,6 +147,10 @@ func init() {
 		"getMemorySwap": getMemorySwap,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
+	if err != nil {
+		panic(err)
+	}
+	LxcHostConfigTemplateCompiled, err = template.New("lxc-hostconfig").Funcs(funcMap).Parse(LxcHostConfigTemplate)
 	if err != nil {
 		panic(err)
 	}

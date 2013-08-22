@@ -146,7 +146,7 @@ cd docker\-master
 .sp
 .nf
 .ft C
-sudo ./docker run \-i \-t base /bin/bash
+sudo ./docker run \-i \-t ubuntu /bin/bash
 .ft P
 .fi
 .sp
@@ -496,22 +496,22 @@ This is the most basic example available for using docker
 .sp
 This example assumes you have Docker installed.
 .sp
-Download the base container
+Download the ubuntu container
 .sp
 .nf
 .ft C
-# Download a base image
-docker pull base
+# Download an ubuntu image
+docker pull ubuntu
 .ft P
 .fi
 .sp
-The \fIbase\fP image is a minimal \fIubuntu\fP based container, alternatively you can select \fIbusybox\fP, a bare
-minimal linux system. The images are retrieved from the docker repository.
+Alternatively you can select \fIbusybox\fP, a bare minimal linux system. The
+images are retrieved from the docker repository.
 .sp
 .nf
 .ft C
 #run a simple echo command, that will echo hello world back to the console over standard out.
-docker run base /bin/echo hello world
+docker run ubuntu /bin/echo hello world
 .ft P
 .fi
 .sp
@@ -520,7 +520,7 @@ docker run base /bin/echo hello world
 .IP \(bu 2
 \fB"docker run"\fP run a command in a new container
 .IP \(bu 2
-\fB"base"\fP is the image we want to run the command inside of.
+\fB"ubuntu"\fP is the image we want to run the command inside of.
 .IP \(bu 2
 \fB"/bin/echo"\fP is the command we want to run in the container
 .IP \(bu 2
@@ -536,15 +536,15 @@ Continue to the \fIhello_world_daemon\fP example.
 .sp
 The most boring daemon ever written.
 .sp
-This example assumes you have Docker installed and with the base image already imported \fBdocker pull base\fP.
-We will use the base image to run a simple hello world daemon that will just print hello world to standard
+This example assumes you have Docker installed and with the ubuntu image already imported \fBdocker pull ubuntu\fP.
+We will use the ubuntu image to run a simple hello world daemon that will just print hello world to standard
 out every second. It will continue to do this until we stop it.
 .sp
 \fBSteps:\fP
 .sp
 .nf
 .ft C
-$ CONTAINER_ID=$(docker run \-d base /bin/sh \-c "while true; do echo hello world; sleep 1; done")
+$ CONTAINER_ID=$(docker run \-d ubuntu /bin/sh \-c "while true; do echo hello world; sleep 1; done")
 .ft P
 .fi
 .sp
@@ -553,7 +553,7 @@ We are going to run a simple hello world daemon in a new container made from the
 .IP \(bu 2
 \fB"docker run \-d "\fP run a command in a new container. We pass "\-d" so it runs as a daemon.
 .IP \(bu 2
-\fB"base"\fP is the image we want to run the command inside of.
+\fB"ubuntu"\fP is the image we want to run the command inside of.
 .IP \(bu 2
 \fB"/bin/sh \-c"\fP is the command we want to run in the container
 .IP \(bu 2
@@ -766,12 +766,12 @@ Contents:
 .sp
 .nf
 .ft C
-# Download a base image
-docker import base
+# Download an ubuntu image
+docker import ubuntu
 
-# Run an interactive shell in the base image,
+# Run an interactive shell in the ubuntu image,
 # allocate a tty, attach stdin and stdout
-docker run \-a \-i \-t base /bin/bash
+docker run \-a \-i \-t ubuntu /bin/bash
 .ft P
 .fi
 .SS Starting a long\-running worker process
@@ -782,7 +782,7 @@ docker run \-a \-i \-t base /bin/bash
 (docker \-d || echo "Docker daemon already running") &
 
 # Start a very useful long\-running process
-JOB=$(docker run base /bin/sh \-c "while true; do echo Hello world!; sleep 1; done")
+JOB=$(docker run ubuntu /bin/sh \-c "while true; do echo Hello world!; sleep 1; done")
 
 # Collect the output of the job so far
 docker logs $JOB
@@ -803,7 +803,7 @@ docker ps
 .nf
 .ft C
 # Expose port 4444 of this container, and tell netcat to listen on it
-JOB=$(docker run \-p 4444 base /bin/nc \-l \-p 4444)
+JOB=$(docker run \-p 4444 ubuntu /bin/nc \-l \-p 4444)
 
 # Which public port is NATed to my container?
 PORT=$(docker port $JOB 4444)

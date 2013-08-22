@@ -22,18 +22,23 @@ Vagrant::Config.run do |config|
 
   # Deploy buildbot and its dependencies if it was not done
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
-    pkg_cmd = "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
+    # Add memory limitation capabilities
+    pkg_cmd = 'sed -Ei \'s/^(GRUB_CMDLINE_LINUX_DEFAULT)=.+/\\1="cgroup_enable=memory swapaccount=1 quiet"/\' /etc/default/grub; '
+    # Install new kernel
+    pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
     # Deploy buildbot CI
     pkg_cmd << "apt-get install -q -y python-dev python-pip supervisor; " \
       "pip install -r #{CFG_PATH}/requirements.txt; " \
       "chown #{USER}.#{USER} /data; cd /data; " \
       "#{CFG_PATH}/setup.sh #{USER} #{CFG_PATH} #{ENV['BUILDBOT_PWD']} " \
         "#{ENV['IRC_PWD']} #{ENV['IRC_CHANNEL']} #{ENV['SMTP_USER']} " \
-        "#{ENV['SMTP_PWD']} #{ENV['EMAIL_RCP']}; "
+        "#{ENV['SMTP_PWD']} #{ENV['EMAIL_RCP']}; " \
+      "#{CFG_PATH}/setup_credentials.sh #{USER} " \
+        "#{ENV['REGISTRY_USER']} #{ENV['REGISTRY_PWD']}; "
     # Install docker dependencies
     pkg_cmd << "apt-get install -q -y python-software-properties; " \
       "add-apt-repository -y ppa:dotcloud/docker-golang/ubuntu; apt-get update -qq; " \
-      "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc git golang-stable aufs-tools make; "
+      "DEBIAN_FRONTEND=noninteractive apt-get install -q -y lxc git mercurial golang-stable aufs-tools make; "
     # Activate new kernel
     pkg_cmd << "shutdown -r +1; "
     config.vm.provision :shell, :inline => pkg_cmd
