@@ -432,6 +432,8 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	revision = "\"" + revision + "\""
 	path := fmt.Sprintf("repositories/%s/tags/%s", remote, tag)
 
+	utils.Debugf("[registry] Calling PUT %s", registry+"repositories/"+remote+"/tags/"+tag)
+
 	req, err := r.reqFactory.NewRequest("PUT", registry+path, strings.NewReader(revision))
 	if err != nil {
 		return err
