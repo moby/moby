@@ -1779,7 +1779,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 	}
 
 	configFile, e := auth.LoadConfig(os.Getenv("HOME"))
-	if e != nil {
+	if e != nil && e != auth.ErrConfigFileMissing {
 		fmt.Fprintf(err, "WARNING: %s\n", e)
 	}
 	return &DockerCli{
