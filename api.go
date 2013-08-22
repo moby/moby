@@ -101,7 +101,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	status, err := auth.Login(authConfig, srv.HTTPRequestFactory())
+	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,13 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
-		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, version > 1.3); err != nil {
+		metaHeaders := map[string][]string{}
+		for k, v := range r.Header {
+			if strings.HasPrefix(k, "X-Meta-") {
+				metaHeaders[k] = v
+			}
+		}
+		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, metaHeaders, version > 1.3); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -468,6 +474,12 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	authConfig := &auth.AuthConfig{}
+	metaHeaders := map[string][]string{}
+	for k, v := range r.Header {
+		if strings.HasPrefix(k, "X-Meta-") {
+			metaHeaders[k] = v
+		}
+	}
 	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
 		return err
 	}
@@ -483,7 +495,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, w, sf, authConfig); err != nil {
+	if err := srv.ImagePush(name, w, sf, authConfig, metaHeaders); err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil

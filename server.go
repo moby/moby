@@ -102,7 +102,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.HTTPRequestFactory())
+	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return nil, err
 	}
@@ -632,8 +632,8 @@ func (srv *Server) poolRemove(kind, key string) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory())
+func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
+	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err != nil {
 		return err
 	}
@@ -780,7 +780,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
-func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig) error {
+func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string) error {
 	if err := srv.poolAdd("push", localName); err != nil {
 		return err
 	}
@@ -794,7 +794,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory())
+	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err2 != nil {
 		return err2
 	}
@@ -1267,10 +1267,13 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (
 	return srv, nil
 }
 
-func (srv *Server) HTTPRequestFactory() *utils.HTTPRequestFactory {
+func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	if srv.reqFactory == nil {
 		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
-		factory := utils.NewHTTPRequestFactory(ud)
+		md := &utils.HTTPMetaHeadersDecorator{
+			Headers: metaHeaders,
+		}
+		factory := utils.NewHTTPRequestFactory(ud, md)
 		srv.reqFactory = factory
 	}
 	return srv.reqFactory
