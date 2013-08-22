@@ -4,6 +4,7 @@ SRCRELEASE := docker-$(RELEASE_VERSION)
 BINRELEASE := docker-$(RELEASE_VERSION).tgz
 BUILD_SRC := build_src
 BUILD_PATH := ${BUILD_SRC}/src/${DOCKER_PACKAGE}
+VENDOR_DIR := vendor
 
 GIT_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(CURDIR)/.gopath
@@ -43,6 +44,9 @@ $(DOCKER_DIR):
 	@if [ -h $@ ]; then rm -f $@; fi; ln -sf $(CURDIR)/ $@
 	@(cd $(DOCKER_MAIN); go get -d $(GO_OPTIONS))
 
+$(VENDOR_DIR):
+	@./vendor.sh
+
 whichrelease:
 	echo $(RELEASE_VERSION)
 
@@ -53,7 +57,7 @@ release: $(BINRELEASE)
 	echo $(RELEASE_VERSION) > latest ; s3cmd -P put latest s3://get.docker.io/latest ; rm latest
 
 srcrelease: $(SRCRELEASE)
-deps: $(DOCKER_DIR)
+deps: $(DOCKER_DIR) $(VENDOR_DIR)
 
 # A clean checkout of $RELEASE_VERSION, with vendored dependencies
 $(SRCRELEASE):
@@ -68,6 +72,7 @@ $(BINRELEASE): $(SRCRELEASE)
 	cd $(SRCRELEASE); cp -R bin docker-latest; tar -f ../docker-latest.tgz -zv -c docker-latest
 clean:
 	@rm -rf $(dir $(DOCKER_BIN))
+	@rm -rf $(VENDOR_DIR)
 ifeq ($(GOPATH), $(BUILD_DIR))
 	@rm -rf $(BUILD_DIR)
 else ifneq ($(DOCKER_DIR), $(realpath $(DOCKER_DIR)))
