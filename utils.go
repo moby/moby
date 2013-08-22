@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -145,4 +146,24 @@ func MergeConfig(userConf, imageConf *Config) {
 			userConf.Volumes[k] = v
 		}
 	}
+}
+
+func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+	out := make([]KeyValuePair, len(opts))
+	for i, o := range opts {
+		k, v, err := parseLxcOpt(o)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = KeyValuePair{Key: k, Value: v}
+	}
+	return out, nil
+}
+
+func parseLxcOpt(opt string) (string, string, error) {
+	parts := strings.SplitN(opt, "=", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Unable to parse lxc conf option: %s", opt)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
