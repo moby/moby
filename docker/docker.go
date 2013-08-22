@@ -16,6 +16,7 @@ import (
 
 var (
 	GITCOMMIT string
+	VERSION string
 )
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 		return
 	}
 	// FIXME: Switch d and D ? (to be more sshd like)
+	flVersion := flag.Bool("v", false, "Print version information and quit")
 	flDaemon := flag.Bool("d", false, "Daemon mode")
 	flDebug := flag.Bool("D", false, "Debug mode")
 	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
@@ -36,6 +38,10 @@ func main() {
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flag.Parse()
+	if *flVersion {
+		showVersion()
+		return
+	}
 	if len(flHosts) > 1 {
 		flHosts = flHosts[1:] //trick to display a nice default value in the usage
 	}
@@ -52,6 +58,7 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 	docker.GITCOMMIT = GITCOMMIT
+	docker.VERSION = VERSION
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
@@ -72,6 +79,10 @@ func main() {
 			os.Exit(-1)
 		}
 	}
+}
+
+func showVersion() {
+	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
 }
 
 func createPidFile(pidfile string) error {
