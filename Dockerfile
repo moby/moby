@@ -15,7 +15,7 @@ env	GOPATH	/go
 env	CGO_ENABLED 0
 run	cd /tmp && echo 'package main' > t.go && go test -a -i -v
 # Ubuntu stuff
-run	apt-get install -y -q ruby1.9.3 rubygems
+run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
 run	gem install fpm
 run	apt-get install -y -q reprepro dpkg-sig
 # Install s3cmd 1.0.1 (earlier versions don't support env variables in the config)
