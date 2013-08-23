@@ -93,6 +93,20 @@ func (self *HTTPUserAgentDecorator) ChangeRequest(req *http.Request) (newReq *ht
 	return req, nil
 }
 
+type HTTPMetaHeadersDecorator struct {
+	Headers map[string][]string
+}
+
+func (self *HTTPMetaHeadersDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
+	if self.Headers == nil {
+		return req, nil
+	}
+	for k, v := range self.Headers {
+		req.Header[k] = v
+	}
+	return req, nil
+}
+
 // HTTPRequestFactory creates an HTTP request
 // and applies a list of decorators on the request.
 type HTTPRequestFactory struct {
