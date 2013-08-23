@@ -2,8 +2,8 @@ package docker
 
 import (
 	"code.google.com/p/go.net/websocket"
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
@@ -491,11 +491,26 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 			metaHeaders[k] = v
 		}
 	}
-	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-		return err
-	}
 	if err := parseForm(r); err != nil {
 		return err
+	}
+	authConfig := &auth.AuthConfig{}
+
+	authEncoded := r.Form.Get("authConfig")
+	if authEncoded != "" {
+		// the new format is to handle the authConfg as a parameter
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibilit to existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	} else {
+		// the old format is supported for compatibility if there was no authConfig parameter
+		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+			return err
+		}
+
 	}
 
 	if vars == nil {
