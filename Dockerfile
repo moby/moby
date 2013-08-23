@@ -15,7 +15,7 @@ env	GOPATH	/go
 env	CGO_ENABLED 0
 run	cd /tmp && echo 'package main' > t.go && go test -a -i -v
 # Ubuntu stuff
-run	apt-get install -y -q ruby1.9.3 rubygems
+run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
 run	gem install fpm
 run	apt-get install -y -q reprepro dpkg-sig
 # Install s3cmd 1.0.1 (earlier versions don't support env variables in the config)
@@ -28,8 +28,6 @@ run	PKG=github.com/kr/pty REV=27435c699;		 git clone http://$PKG /go/src/$PKG &&
 run	PKG=github.com/gorilla/context/ REV=708054d61e5; git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/gorilla/mux/ REV=9b36453141c;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/dotcloud/tar/ REV=d06045a6d9;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
-# Docker requires code.google.com/p/go.net/websocket
-run	apt-get install -y -q mercurial
 run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker

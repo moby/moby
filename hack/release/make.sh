@@ -57,7 +57,9 @@ stop on runlevel [!2345]
 
 respawn
 
-exec docker -d
+script
+    /usr/bin/docker -d
+end script
 '
 
 # Each "bundle" is a different type of build artefact: static binary, Ubuntu
