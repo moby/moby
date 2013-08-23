@@ -355,15 +355,15 @@ func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
 		return err
 	}
 	defer fo.Close()
-	compiledTemplate, err := GetLxcTemplateCompiled(container.runtime)
+	compiledTemplates, err := GetLxcTemplateCompiled(container.runtime)
 	if err != nil {
 		return err
 	}
-	if err := compiledTemplate.Execute(fo, container); err != nil {
+	if err := compiledTemplates.LxcTemplateCompiled.Execute(fo, container); err != nil {
 		return err
 	}
 	if hostConfig != nil {
-		if err := LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
+		if err := compiledTemplates.LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
 			return err
 		}
 	}
