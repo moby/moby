@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 (2013-08-23)
+* Registry: Pass "meta" headers in API calls to the registry
+- Packaging: Use correct upstart script with new build tool
+- Packaging: Use libffi-dev, don't build it from sources
+- Packaging: Removed duplicate mercurial install command
+
 ## 0.6.0 (2013-08-22)
 - Runtime: Load authConfig only when needed and fix useless WARNING
 + Runtime: Add lxc-conf flag to allow custom lxc options
