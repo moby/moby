@@ -1432,6 +1432,25 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		repos, tag := utils.ParseRepositoryTag(config.Image)
 		v.Set("fromImage", repos)
 		v.Set("tag", tag)
+
+		// Resolve the Repository name from fqn to endpoint + name
+		var endpoint string
+		endpoint, _, err = registry.ResolveRepositoryName(repos)
+		if err != nil {
+			return err
+		}
+
+		// Load the auth config file, to be able to pull the image
+		cli.LoadConfigFile()
+
+		// Resolve the Auth config relevant for this server
+		authConfig := cli.configFile.ResolveAuthConfig(endpoint)
+		buf, err := json.Marshal(authConfig)
+		if err != nil {
+			return err
+		}
+		v.Set("authConfig", base64.URLEncoding.EncodeToString(buf))
+
 		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err)
 		if err != nil {
 			return err
