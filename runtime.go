@@ -207,18 +207,28 @@ func (runtime *Runtime) Destroy(container *Container) error {
 }
 
 func (runtime *Runtime) restore() error {
+	wheel := "-\\|/"
+	if os.Getenv("DEBUG") == "" {
+		fmt.Printf("Loading containers:  ")
+	}
 	dir, err := ioutil.ReadDir(runtime.repository)
 	if err != nil {
 		return err
 	}
-	for _, v := range dir {
+	for i, v := range dir {
 		id := v.Name()
 		container, err := runtime.Load(id)
+		if i%21 == 0 && os.Getenv("DEBUG") == "" {
+			fmt.Printf("\b%c", wheel[i%4])
+		}
 		if err != nil {
 			utils.Debugf("Failed to load container %v: %v", id, err)
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
+	}
+	if os.Getenv("DEBUG") == "" {
+		fmt.Printf("\bdone.\n")
 	}
 	return nil
 }
