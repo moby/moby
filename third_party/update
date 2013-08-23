@@ -1,0 +1,37 @@
+#!/bin/sh
+
+. ./deps
+
+export GOPATH=${PWD}
+
+for p in $packages; do
+	# this is the target directory
+	mkdir -p $p
+
+	# This will checkout the project into src
+	go get -u -d $p
+
+	# The go get path
+	gp=src/$p
+
+	# Attempt to find the commit hash of the repo
+	HEAD=
+	if [ -d $gp/.git ]; then
+		# Grab the head if it is git
+		HEAD=$(git --git-dir=$gp/.git rev-parse HEAD)
+	fi
+
+	# Grab the head if it is mercurial
+	if [ -d $gp/.hg ]; then
+		cd $gp
+		HEAD=$(hg id -i)
+		cd -
+	fi
+
+	# Copy the code into the final directory
+	rsync -a -z -r --exclude '.git/' --exclude '.hg/' src/$p/ $p
+
+	# Make a nice commit about what everything bumped to
+	git add $p
+	git commit -m "bump($p): $HEAD"
+done
