@@ -537,7 +537,7 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	release = release[:bytes.IndexByte(release, 0)]
 
 	tmp := strings.SplitN(string(release), "-", 2)
-	tmp2 := strings.SplitN(tmp[0], ".", 3)
+	tmp2 := strings.Split(tmp[0], ".")
 
 	if len(tmp2) > 0 {
 		kernel, err = strconv.Atoi(tmp2[0])
