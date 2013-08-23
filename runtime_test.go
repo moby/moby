@@ -73,7 +73,7 @@ func layerArchive(tarfile string) (io.Reader, error) {
 
 func init() {
 	// Hack to run sys init during unit testing
-	if utils.SelfPath() == "/sbin/init" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		SysInit()
 		return
 	}
@@ -101,7 +101,7 @@ func init() {
 	// If the unit test is not found, try to download it.
 	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil); err != nil {
+		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, true); err != nil {
 			panic(err)
 		}
 	}

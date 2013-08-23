@@ -16,6 +16,7 @@ Docker Remote API
 
 - The Remote API is replacing rcli
 - By default the Docker daemon listens on unix:///var/run/docker.sock and the client must have root access to interact with the daemon
+- If a group named *docker* exists on your system, docker will apply ownership of the socket to the group
 - The API tends to be REST, but for some complex commands, like attach
   or pull, the HTTP connection is hijacked to transport stdout stdin
   and stderr
@@ -26,7 +27,7 @@ Docker Remote API
 2. Versions
 ===========
 
-The current verson of the API is 1.4
+The current version of the API is 1.4
 
 Calling /images/<name>/insert is the same as calling
 /v1.4/images/<name>/insert 
@@ -40,9 +41,17 @@ You can still call an old version of the api using
 What's new
 ----------
 
+.. http:post:: /images/create
+
+   **New!** When pull a repo, all images are now downloaded in parallel.
+
 .. http:get:: /containers/(id)/top
 
    **New!** You can now use ps args with docker top, like `docker top <container_id> aux`
+
+.. http:get:: /events:
+
+   **New!** Image's name added in the events
 
 :doc:`docker_remote_api_v1.3`
 *****************************
@@ -103,7 +112,7 @@ The client should send it's authConfig as POST on each call of
   Only checks the configuration but doesn't store it on the server
 
   Deleting an image is now improved, will only untag the image if it
-  has chidren and remove all the untagged parents if has any.
+  has children and remove all the untagged parents if has any.
 
 .. http:post:: /images/<name>/delete 
 

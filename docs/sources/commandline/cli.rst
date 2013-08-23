@@ -13,9 +13,9 @@ Docker Usage
 To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
 
-  $ docker
+  $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[tcp://127.0.0.1:4243]: tcp://host:port to bind/connect to or unix://path/to/socket to use
+      -H=[unix:///var/run/docker.sock]: tcp://host:port to bind/connect to or unix://path/to/socket to use
 
     A self-sufficient runtime for linux containers.
 
@@ -30,6 +30,7 @@ Available Commands
    command/attach
    command/build
    command/commit
+   command/cp
    command/diff
    command/export
    command/history

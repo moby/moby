@@ -10,5 +10,5 @@
 
     Usage: docker search TERM
 
-    Searches for the TERM parameter on the Docker index and prints out a list of repositories
-    that match.
+    Searches for the TERM parameter on the Docker index and prints out
+    a list of repositories that match.

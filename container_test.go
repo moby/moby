@@ -186,7 +186,7 @@ func TestDiff(t *testing.T) {
 		}
 	}
 
-	// Create a new containere
+	// Create a new container
 	container3, _, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
 	defer runtime.Destroy(container3)
 
@@ -351,10 +351,10 @@ func TestStart(t *testing.T) {
 		t.Errorf("Container should be running")
 	}
 	if err := container.Start(hostConfig); err == nil {
-		t.Fatalf("A running containter should be able to be started")
+		t.Fatalf("A running container should be able to be started")
 	}
 
-	// Try to avoid the timeoout in destroy. Best effort, don't check error
+	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin.Close()
 	container.WaitTimeout(2 * time.Second)
 }
@@ -401,22 +401,24 @@ func TestOutput(t *testing.T) {
 func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := NewBuilder(runtime).Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"tail", "-f", "/etc/resolv.conf"},
-		User:  "daemon",
+		Image:     GetTestImage(runtime).ID,
+		Cmd:       []string{"cat"},
+		OpenStdin: true,
+		User:      "daemon",
 	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
+	defer container.stdin.Close()
 
 	if container.State.Running {
 		t.Errorf("Container shouldn't be running")
 	}
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -426,8 +428,13 @@ func TestKillDifferentUser(t *testing.T) {
 		}
 	})
 
-	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.WaitTimeout(500 * time.Millisecond)
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		out, _ := container.StdoutPipe()
+		in, _ := container.StdinPipe()
+		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
@@ -764,7 +771,7 @@ func TestUser(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
-		User: "unkownuser",
+		User: "unknownuser",
 	},
 	)
 	if err != nil {
@@ -996,6 +1003,28 @@ func TestEntrypoint(t *testing.T) {
 	}
 }
 
+func TestEntrypointNoCmd(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:      GetTestImage(runtime).ID,
+			Entrypoint: []string{"/bin/echo", "foobar"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	output, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Trim(string(output), "\r\n") != "foobar" {
+		t.Error(string(output))
+	}
+}
+
 func grepFile(t *testing.T, path string, pattern string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -1041,12 +1070,42 @@ func TestLXCConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	container.generateLXCConfig()
+	container.generateLXCConfig(nil)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
+}
+
+func TestCustomLxcConfig(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"/bin/true"},
+
+		Hostname: "foobar",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	hostConfig := &HostConfig{LxcConf: []KeyValuePair{
+		{
+			Key:   "lxc.utsname",
+			Value: "docker",
+		},
+		{
+			Key:   "lxc.cgroup.cpuset.cpus",
+			Value: "0,1",
+		},
+	}}
+
+	container.generateLXCConfig(hostConfig)
+	grepFile(t, container.lxcConfigPath(), "lxc.utsname = docker")
+	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpuset.cpus = 0,1")
 }
 
 func BenchmarkRunSequencial(b *testing.B) {
@@ -1152,7 +1211,7 @@ func TestBindMounts(t *testing.T) {
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "ls", "."}, nil); err == nil {
+	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
 }
@@ -1254,6 +1313,71 @@ func TestRestartWithVolumes(t *testing.T) {
 	}
 }
 
+// Test for #1351
+func TestVolumesFromWithVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+
+	container2, err := NewBuilder(runtime).Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"cat", "/test/foo"},
+			VolumesFrom: container.ID,
+			Volumes:     map[string]struct{}{"/test": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	output, err := container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(output) != "bar" {
+		t.Fail()
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Fail()
+	}
+
+	// Ensure it restarts successfully
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
@@ -1284,10 +1408,42 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 
 	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(string(output), -1)
 	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [1: lo], got [%s]", interfaces)
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
 	}
-	if interfaces[0] != "1: lo" {
-		t.Fatalf("Wrong interface in test container: expected [1: lo], got [%s]", interfaces)
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
 	}
 
+}
+
+func TestPrivilegedCanMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mknod into privileged container")
+	}
+}
+
+func TestPrivilegedCanMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mount into privileged container")
+	}
+}
+
+func TestPrivilegedCannotMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mknod into secure container")
+	}
+}
+
+func TestPrivilegedCannotMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could mount into secure container")
+	}
 }

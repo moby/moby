@@ -38,7 +38,9 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		MergeConfig(config, img.Config)
 	}
 
-	if config.Cmd == nil || len(config.Cmd) == 0 {
+	if len(config.Entrypoint) != 0 && config.Cmd == nil {
+		config.Cmd = []string{}
+	} else if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
 
@@ -80,7 +82,12 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 		return nil, err
 	}
 
-	if len(config.Dns) == 0 && len(builder.runtime.Dns) == 0 && utils.CheckLocalDns() {
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(config.Dns) == 0 && len(builder.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
 		builder.runtime.Dns = defaultDns
 	}

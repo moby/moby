@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -18,7 +19,7 @@ const CONFIGFILE = ".dockercfg"
 // Only used for user auth + account creation
 const INDEXSERVER = "https://index.docker.io/v1/"
 
-//const INDEXSERVER = "http://indexstaging-docker.dotcloud.com/"
+//const INDEXSERVER = "https://indexstaging-docker.dotcloud.com/v1/"
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
@@ -75,23 +76,23 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
 	confFile := path.Join(rootPath, CONFIGFILE)
 	if _, err := os.Stat(confFile); err != nil {
-		return &configFile, ErrConfigFileMissing
+		return &configFile, nil //missing file is not an error
 	}
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {
-		return nil, err
+		return &configFile, err
 	}
 
 	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
 		arr := strings.Split(string(b), "\n")
 		if len(arr) < 2 {
-			return nil, fmt.Errorf("The Auth config file is empty")
+			return &configFile, fmt.Errorf("The Auth config file is empty")
 		}
 		authConfig := AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
 		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
-			return nil, err
+			return &configFile, err
 		}
 		origEmail := strings.Split(arr[1], " = ")
 		authConfig.Email = origEmail[1]
@@ -100,7 +101,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		for k, authConfig := range configFile.Configs {
 			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
-				return nil, err
+				return &configFile, err
 			}
 			authConfig.Auth = ""
 			configFile.Configs[k] = authConfig
@@ -140,7 +141,7 @@ func SaveConfig(configFile *ConfigFile) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig *AuthConfig) (string, error) {
+func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
 	client := &http.Client{}
 	reqStatusCode := 0
 	var status string
@@ -171,7 +172,7 @@ func Login(authConfig *AuthConfig) (string, error) {
 			"Please check your e-mail for a confirmation link.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := http.NewRequest("GET", IndexServerAddress()+"users/", nil)
+			req, err := factory.NewRequest("GET", IndexServerAddress()+"users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := client.Do(req)
 			if err != nil {

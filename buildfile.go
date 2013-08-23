@@ -26,11 +26,12 @@ type buildFile struct {
 	builder *Builder
 	srv     *Server
 
-	image      string
-	maintainer string
-	config     *Config
-	context    string
-	verbose    bool
+	image        string
+	maintainer   string
+	config       *Config
+	context      string
+	verbose      bool
+	utilizeCache bool
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -55,7 +56,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil); err != nil {
+			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil, true); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -92,17 +93,21 @@ func (b *buildFile) CmdRun(args string) error {
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
 
+	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
+
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
-	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-		return err
-	} else if cache != nil {
-		fmt.Fprintf(b.out, " ---> Using cache\n")
-		utils.Debugf("[BUILDER] Use cached version")
-		b.image = cache.ID
-		return nil
-	} else {
-		utils.Debugf("[BUILDER] Cache miss")
+	if b.utilizeCache {
+		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+			return err
+		} else if cache != nil {
+			fmt.Fprintf(b.out, " ---> Using cache\n")
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.ID
+			return nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
 	}
 
 	cid, err := b.run()
@@ -112,7 +117,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if err := b.commit(cid, cmd, "run"); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
+
 	return nil
 }
 
@@ -192,6 +197,11 @@ func (b *buildFile) CmdExpose(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
+func (b *buildFile) CmdUser(args string) error {
+	b.config.User = args
+	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
+}
+
 func (b *buildFile) CmdInsert(args string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }
@@ -215,6 +225,11 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 		return err
 	}
 	return nil
+}
+
+func (b *buildFile) CmdWorkdir(workdir string) error {
+	b.config.WorkingDir = workdir
+	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
 func (b *buildFile) CmdVolume(args string) error {
@@ -400,16 +415,19 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
 		defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
-		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-			return err
-		} else if cache != nil {
-			fmt.Fprintf(b.out, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return nil
-		} else {
-			utils.Debugf("[BUILDER] Cache miss")
+		if b.utilizeCache {
+			if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+				return err
+			} else if cache != nil {
+				fmt.Fprintf(b.out, " ---> Using cache\n")
+				utils.Debugf("[BUILDER] Use cached version")
+				b.image = cache.ID
+				return nil
+			} else {
+				utils.Debugf("[BUILDER] Cache miss")
+			}
 		}
+
 		container, err := b.builder.Create(b.config)
 		if err != nil {
 			return err
@@ -480,15 +498,16 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
-		stepN += 1
-		// FIXME: only count known instructions as build steps
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
 			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 			continue
 		}
+
+		stepN += 1
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
 			return "", ret.(error)
@@ -500,10 +519,10 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
 		return b.image, nil
 	}
-	return "", fmt.Errorf("An error occured during the build\n")
+	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -513,5 +532,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose bool) BuildFile {
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
 		verbose:       verbose,
+		utilizeCache:  utilizeCache,
 	}
 }

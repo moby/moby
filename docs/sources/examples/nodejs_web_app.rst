@@ -9,10 +9,11 @@ Node.js Web App
 
 .. include:: example_header.inc
 
-The goal of this example is to show you how you can build your own docker images
-from a parent image using a ``Dockerfile`` . We will do that by making a simple
-Node.js hello world web application running on CentOS. You can get the full
-source code at https://github.com/gasi/docker-node-hello.
+The goal of this example is to show you how you can build your own
+docker images from a parent image using a ``Dockerfile`` . We will do
+that by making a simple Node.js hello world web application running on
+CentOS. You can get the full source code at
+https://github.com/gasi/docker-node-hello.
 
 Create Node.js app
 ++++++++++++++++++
@@ -109,16 +110,17 @@ Install your app dependencies using npm:
     # Install app dependencies
     RUN cd /src; npm install
 
-Your app binds to port ``8080`` so you’ll use the ``EXPOSE`` command to have it
-mapped by the docker daemon:
+Your app binds to port ``8080`` so you’ll use the ``EXPOSE`` command
+to have it mapped by the docker daemon:
 
 .. code-block:: bash
 
     EXPOSE  8080
 
-Last but not least, define the command to run your app using ``CMD`` which
-defines your runtime, i.e. ``node``, and the path to our app, i.e.
-``src/index.js`` (see the step where we added the source to the container):
+Last but not least, define the command to run your app using ``CMD``
+which defines your runtime, i.e. ``node``, and the path to our app,
+i.e.  ``src/index.js`` (see the step where we added the source to the
+container):
 
 .. code-block:: bash
 
@@ -149,19 +151,20 @@ Your ``Dockerfile`` should now look like this:
 Building your image
 +++++++++++++++++++
 
-Go to the directory that has your ``Dockerfile`` and run the following command
-to build a docker image. The ``-t`` flag let’s you tag your image so it’s easier
-to find later using the ``docker images`` command:
+Go to the directory that has your ``Dockerfile`` and run the following
+command to build a docker image. The ``-t`` flag let’s you tag your
+image so it’s easier to find later using the ``docker images``
+command:
 
 .. code-block:: bash
 
-    docker build -t <your username>/centos-node-hello .
+    sudo docker build -t <your username>/centos-node-hello .
 
 Your image will now be listed by docker:
 
 .. code-block:: bash
 
-    docker images
+    sudo docker images
 
     > # Example
     > REPOSITORY                 TAG       ID              CREATED
@@ -177,17 +180,17 @@ container running in the background. Run the image you previously built:
 
 .. code-block:: bash
 
-    docker run -d <your username>/centos-node-hello
+    sudo docker run -d <your username>/centos-node-hello
 
 Print the output of your app:
 
 .. code-block:: bash
 
     # Get container ID
-    docker ps
+    sudo docker ps
 
     # Print app output
-    docker logs <container id>
+    sudo docker logs <container id>
 
     > # Example
     > Running on http://localhost:8080
@@ -225,8 +228,8 @@ Now you can call your app using ``curl`` (install if needed via:
     >
     > Hello World
 
-We hope this tutorial helped you get up and running with Node.js and CentOS on
-docker. You can get the full source code at
+We hope this tutorial helped you get up and running with Node.js and
+CentOS on docker. You can get the full source code at
 https://github.com/gasi/docker-node-hello.
 
 Continue to :ref:`running_redis_service`.
