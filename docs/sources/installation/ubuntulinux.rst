@@ -4,10 +4,13 @@
 
 .. _ubuntu_linux:
 
+**These instructions have changed for 0.6. If you are upgrading from an earlier version, you will need to follow them again.**
+
 Ubuntu Linux
 ============
 
-  **Please note this project is currently under heavy development. It should not be used in production.**
+   **Please note this project is currently under heavy development. It should not be used in production.**
+
 
 Right now, the officially supported distribution are:
 
