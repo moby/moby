@@ -883,7 +883,7 @@ func (srv *Server) ContainerCreate(config *Config, runtime *Runtime) (string, er
 				tag = DEFAULTTAG
 			}
 
-			return "", fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)	
+			return "", fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
 		return "", err
 	}

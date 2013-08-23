@@ -133,15 +133,11 @@ var LxcTemplateCompiled *template.Template
 var LxcHostConfigTemplateCompiled *template.Template
 
 type CompiledTemplates struct {
-	LxcTemplateCompiled *template.Template
+	LxcTemplateCompiled           *template.Template
 	LxcHostConfigTemplateCompiled *template.Template
 }
-	
-func GetLxcTemplateCompiled(runtime *Runtime) (*CompiledTemplates, error) {
-	funcMap := template.FuncMap{
-		"getMemorySwap": getMemorySwap,
-	}
 
+func GetLxcTemplateCompiled(runtime *Runtime) (*CompiledTemplates, error) {
 	templateText := LxcTemplate
 
 	if runtime.LxcTemplate != "" {
@@ -151,11 +147,13 @@ func GetLxcTemplateCompiled(runtime *Runtime) (*CompiledTemplates, error) {
 	funcMap := template.FuncMap{
 		"getMemorySwap": getMemorySwap,
 	}
+
 	lxcTemplateCompiled, err := template.New("lxc").Funcs(funcMap).Parse(templateText)
 	if err != nil {
 		return nil, err
 	}
-	lxcHostConfigTemplateCompiled := template.New("lxc-hostconfig").Funcs(funcMap).Parse(LxcHostConfigTemplate)
+
+	lxcHostConfigTemplateCompiled, err := template.New("lxc-hostconfig").Funcs(funcMap).Parse(LxcHostConfigTemplate)
 	if err != nil {
 		return nil, err
 	}

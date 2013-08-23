@@ -208,7 +208,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*RunConfig, error) {
 	var lxcConf []KeyValuePair
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
-		return nil, nil, cmd, err
+		return &RunConfig{nil, nil, "", cmd}, err
+	}
 
 	templateText := ""
 	if *flTemplate != "" {
