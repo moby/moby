@@ -35,8 +35,8 @@ Dependencies
 **Linux kernel 3.8**
 
 Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
-comes with a 3.2 kernel, so we need to upgrade it. The kernel we
-install comes with AUFS built in. We also include the generic headers
+comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll install when following these steps
+comes with AUFS built in. We also include the generic headers
 to enable packages that depend on them, like ZFS and the VirtualBox
 guest additions. If you didn't install the headers for your "precise"
 kernel, then you can skip these headers for the "raring" kernel. But
@@ -56,14 +56,15 @@ it is safer to include them if you're not sure.
 Installation
 ------------
 
-Docker is available as a Ubuntu PPA (Personal Package Archive),
-`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
-which makes installing Docker on Ubuntu very easy.
+Docker is available as a Debian package, which makes installation easy.
+
+*Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
+to follow them again.*
 
 .. code-block:: bash
 
-   # Add the PPA sources to your apt sources list.
-   sudo apt-get install python-software-properties && sudo add-apt-repository ppa:dotcloud/lxc-docker
+   # Add the Docker repository to your apt sources list.
+   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # Update your sources
    sudo apt-get update
@@ -101,30 +102,19 @@ have AUFS filesystem support enabled, so we need to install it.
    sudo apt-get update
    sudo apt-get install linux-image-extra-`uname -r`
 
-**add-apt-repository support**
-
-Some installations of Ubuntu 13.04 require ``software-properties-common`` to be
-installed before being able to use add-apt-repository.
-
-.. code-block:: bash
-
-  sudo apt-get install software-properties-common
-
 
 Installation
 ------------
 
-Docker is available as a Ubuntu PPA (Personal Package Archive),
-`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
-which makes installing Docker on Ubuntu very easy.
+Docker is available as a Debian package, which makes installation easy.
 
-
-Add the custom package sources to your apt sources list.
+*Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
+to follow them again.*
 
 .. code-block:: bash
 
-   # add the sources to your apt
-   sudo add-apt-repository ppa:dotcloud/lxc-docker
+   # Add the Docker repository to your apt sources list.
+   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # update
    sudo apt-get update
