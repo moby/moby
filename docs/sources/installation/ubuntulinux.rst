@@ -4,10 +4,13 @@
 
 .. _ubuntu_linux:
 
+**These instructions have changed for 0.6. If you are upgrading from an earlier version, you will need to follow them again.**
+
 Ubuntu Linux
 ============
 
-  **Please note this project is currently under heavy development. It should not be used in production.**
+   **Please note this project is currently under heavy development. It should not be used in production.**
+
 
 Right now, the officially supported distribution are:
 
@@ -63,6 +66,9 @@ to follow them again.*
 
 .. code-block:: bash
 
+   # Add the Docker repository key to your local keychain
+   sudo sh -c "curl http://get.docker.io/gpg | apt-key add -"
+
    # Add the Docker repository to your apt sources list.
    sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
@@ -112,6 +118,9 @@ Docker is available as a Debian package, which makes installation easy.
 to follow them again.*
 
 .. code-block:: bash
+
+   # Add the Docker repository key to your local keychain
+   sudo sh -c "curl http://get.docker.io/gpg | apt-key add -"
 
    # Add the Docker repository to your apt sources list.
    sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
