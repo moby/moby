@@ -165,7 +165,7 @@ Initial version
 Docker Remote API Client Libraries
 ==================================
 
-These libraries have been not tested by the Docker Maintainers for
+These libraries have not been tested by the Docker Maintainers for
 compatibility. Please file issues with the library owners.  If you
 find more library implementations, please list them in Docker doc bugs
 and we will add the libraries here.
