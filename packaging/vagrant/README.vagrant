@@ -24,7 +24,6 @@ or remove the --only option to build all the targets.
 TODO
 ----
 
-* Add cgroup swap limit
 * Check why aufs is not loaded on start
 * Check why the vagrant user doesn't have access to the docker socket
 
