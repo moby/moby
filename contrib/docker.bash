@@ -115,7 +115,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-no-cache -t -q" -- "$cur" ) )
 			;;
 		*)
 			_filedir
@@ -138,9 +138,35 @@ _docker_commit()
 			COMPREPLY=( $( compgen -W "-author -m -run" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers_all
+			local counter=$cpos
+			while [ $counter -le $cword ]; do
+				case "${words[$counter]}" in
+					-author|-m|-run)
+						(( counter++ ))
+						;;
+					-*)
+						;;
+					*)
+						break
+						;;
+				esac
+				(( counter++ ))
+			done
+
+			if [ $counter -eq $cword ]; then
+				__docker_containers_all
+			fi
 			;;
 	esac
+}
+
+_docker_cp()
+{
+	if [ $cpos -eq $cword ]; then
+		__docker_containers_all
+	else
+		_filedir
+	fi
 }
 
 _docker_diff()
@@ -152,7 +178,21 @@ _docker_diff()
 
 _docker_events()
 {
-	COMPREPLY=( $( compgen -W "-since" -- "$cur" ) )
+	case "$prev" in
+		-since)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-since" -- "$cur" ) )
+			;;
+		*)
+			;;
+	esac
 }
 
 _docker_export()
@@ -231,7 +271,21 @@ _docker_kill()
 
 _docker_login()
 {
-	COMPREPLY=( $( compgen -W "-e -p -u" -- "$cur" ) )
+	case "$prev" in
+		-e|-p|-u)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-e -p -u" -- "$cur" ) )
+			;;
+		*)
+			;;
+	esac
 }
 
 _docker_logs()
@@ -250,12 +304,40 @@ _docker_port()
 
 _docker_ps()
 {
-	COMPREPLY=( $( compgen -W "-a -beforeId -l -n -notrunc -q -s -sinceId" -- "$cur" ) )
+	case "$prev" in
+		-beforeId|-n|-sinceId)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-a -beforeId -l -n -notrunc -q -s -sinceId" -- "$cur" ) )
+			;;
+		*)
+			;;
+	esac
 }
 
 _docker_pull()
 {
-	COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+	case "$prev" in
+		-t)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			;;
+		*)
+			;;
+	esac
 }
 
 _docker_push()
@@ -309,7 +391,7 @@ _docker_run()
 		-volumes-from)
 			__docker_containers_all
 			;;
-		-a|-c|-dns|-e|-entrypoint|-h|-m|-p|-u|-v)
+		-a|-c|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-w)
 			return
 			;;
 		*)
@@ -318,34 +400,27 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -c -cidfile -d -dns -e -entrypoint -h -i -m -n -p -t -u -v -volumes-from" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a -c -cidfile -d -dns -e -entrypoint -h -i -lxc-conf -m -n -p -privileged -t -u -v -volumes-from -w" -- "$cur" ) )
 			;;
 		*)
-			case "$cur" in
-				-*)
-					COMPREPLY=( $( compgen -W "-a -notrunc -q -viz" -- "$cur" ) )
-					;;
-				*)
-					local counter=$cpos
-					while [ $counter -le $cword ]; do
-						case "${words[$counter]}" in
-							-a|-c|-cidfile|-dns|-e|-entrypoint|-h|-m|-p|-u|-v|-volumes-from)
-								(( counter++ ))
-								;;
-							-*)
-								;;
-							*)
-								break
-								;;
-						esac
+			local counter=$cpos
+			while [ $counter -le $cword ]; do
+				case "${words[$counter]}" in
+					-a|-c|-cidfile|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-volumes-from|-w)
 						(( counter++ ))
-					done
+						;;
+					-*)
+						;;
+					*)
+						break
+						;;
+				esac
+				(( counter++ ))
+			done
 
-					if [ $counter -eq $cword ]; then
-						__docker_image_repos_and_tags
-					fi
-					;;
-			esac
+			if [ $counter -eq $cword ]; then
+				__docker_image_repos_and_tags
+			fi
 			;;
 	esac
 }
@@ -409,6 +484,7 @@ _docker()
 			attach
 			build
 			commit
+			cp
 			diff
 			events
 			export
