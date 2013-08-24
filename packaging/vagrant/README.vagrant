@@ -1,0 +1,30 @@
+Vagrant boxes of Docker
+=======================
+
+Provides pre-built system images for various vagrant targets.
+
+For now we provide the following images:
+
+* VirtualBox
+* VMWare Fusion (FIXME: Needs to be tested)
+
+How to build
+------------
+
+The build relies on an external tool called packer. To install head to
+<http://packer.io> and follow the instructions there.
+
+Once installed, make sure to be in the same directory as this file and
+execute:
+
+`package build --only=virtualbox template.json`
+
+or remove the --only option to build all the targets.
+
+TODO
+----
+
+* Add cgroup swap limit
+* Check why aufs is not loaded on start
+* Check why the vagrant user doesn't have access to the docker socket
+
