@@ -1,0 +1,24 @@
+#!/bin/bash
+
+DOCKER_PACKAGE=github.com/dotcloud/docker
+export GOPATH="${PWD}"
+SRC_DIR="$GOPATH/src"
+DOCKER_DIR="$SRC_DIR/$DOCKER_PACKAGE"
+
+DOCKER_BASE=$(dirname "${DOCKER_DIR}")
+if [ ! -d "${DOCKER_BASE}" ]; then
+	mkdir -p "${DOCKER_BASE}"
+fi
+
+if [ ! -h "${DOCKER_DIR}" ]; then
+	ln -s ../../../ "${DOCKER_DIR}"
+fi
+
+for i in third_party/*; do
+	if [ "$i" = "third_party/src" ]; then
+		continue
+	fi
+	cp -R "$i" src/
+done
+
+go build -o bin/docker "${DOCKER_PACKAGE}/docker"

@@ -182,8 +182,7 @@ Installing from source
 
    ```bash
    cd docker
-   make VERBOSE=1
-   sudo cp ./bin/docker /usr/local/bin/docker
+   ./build
    ```
 
 Usage examples
