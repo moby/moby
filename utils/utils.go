@@ -515,9 +515,7 @@ func FindCgroupMountpoint(cgroupType string) (string, error) {
 
 func GetKernelVersion() (*KernelVersionInfo, error) {
 	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
+		err error
 	)
 
 	uts, err := uname()
@@ -536,7 +534,17 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	// Remove the \x00 from the release for Atoi to parse correctly
 	release = release[:bytes.IndexByte(release, 0)]
 
-	tmp := strings.SplitN(string(release), "-", 2)
+	return ParseRelease(string(release))
+}
+
+func ParseRelease(release string) (*KernelVersionInfo, error) {
+	var (
+		flavor               string
+		kernel, major, minor int
+		err                  error
+	)
+
+	tmp := strings.SplitN(release, "-", 2)
 	tmp2 := strings.Split(tmp[0], ".")
 
 	if len(tmp2) > 0 {
