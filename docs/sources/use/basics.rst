@@ -33,6 +33,8 @@ Running an interactive shell
 
   # Run an interactive shell in the ubuntu image,
   # allocate a tty, attach stdin and stdout
+  # To detach the tty without exiting the shell,
+  # use the escape sequence Ctrl-p + Ctrl-q
   sudo docker run -i -t ubuntu /bin/bash
 
 Why ``sudo``?
