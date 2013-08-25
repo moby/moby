@@ -66,7 +66,8 @@ to follow them again.*
 
 .. code-block:: bash
 
-   # Add the Docker repository key to your local keychain
+   # Add the Docker repository key to your local keychain.
+   # The imported key fingerprint is 36A1D7869245C8950F966E92D8576A8BA88D21E9
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
 
    # Add the Docker repository to your apt sources list.
@@ -119,7 +120,8 @@ to follow them again.*
 
 .. code-block:: bash
 
-   # Add the Docker repository key to your local keychain
+   # Add the Docker repository key to your local keychain.
+   # The imported key fingerprint is 36A1D7869245C8950F966E92D8576A8BA88D21E9
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
 
    # Add the Docker repository to your apt sources list.
