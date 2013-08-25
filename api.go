@@ -874,6 +874,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	remoteURL := r.FormValue("remote")
 	repoName := r.FormValue("t")
+	overrideFrom := r.FormValue("b")
 	rawSuppressOutput := r.FormValue("q")
 	rawNoCache := r.FormValue("nocache")
 	repoName, tag := utils.ParseRepositoryTag(repoName)
@@ -927,7 +928,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, overrideFrom)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
