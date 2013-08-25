@@ -37,6 +37,8 @@ type buildFile struct {
 	tmpImages     map[string]struct{}
 
 	out io.Writer
+
+	overrideFrom string
 }
 
 func (b *buildFile) clearTmp(containers, images map[string]struct{}) {
@@ -52,6 +54,11 @@ func (b *buildFile) clearTmp(containers, images map[string]struct{}) {
 }
 
 func (b *buildFile) CmdFrom(name string) error {
+
+	if b.overrideFrom!= "" {
+		name = b.overrideFrom
+	}
+
 	image, err := b.runtime.repositories.LookupImage(name)
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
@@ -522,7 +529,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool, overrideFrom string) BuildFile {
 	return &buildFile{
 		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
@@ -533,5 +540,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildF
 		tmpImages:     make(map[string]struct{}),
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
+		overrideFrom: overrideFrom,
 	}
 }
