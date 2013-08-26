@@ -81,6 +81,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
+		{"getlxctemplate", "get the default LXC template"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
@@ -109,6 +110,30 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
 	fmt.Fprintf(cli.err, "%s\n", help)
+	return nil
+}
+
+func (cli *DockerCli) CmdGetlxctemplate(args ...string) error {
+	cmd := Subcmd("getlxctemplate", "", "Get the default LXC template")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() > 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	body, _, err := cli.call("GET", "/get_lxc_template", nil)
+	if err != nil {
+		return err
+	}
+
+	var out string
+	if err := json.Unmarshal(body, &out); err != nil {
+		return err
+	}
+	fmt.Fprintf(cli.out, "%s\n", out);
+
 	return nil
 }
 

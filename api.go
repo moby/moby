@@ -192,6 +192,16 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
+func getLxcTemplate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	out := LxcTemplate
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, b)
+	return nil
+}
+
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) error {
 		b, err := json.Marshal(event)
@@ -1020,6 +1030,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
 			"/events":                         getEvents,
+			"/get_lxc_template":               getLxcTemplate,
 			"/info":                           getInfo,
 			"/version":                        getVersion,
 			"/images/json":                    getImagesJSON,
