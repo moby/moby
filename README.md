@@ -163,29 +163,6 @@ supported.
 * [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
 * [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
-Installing from source
-----------------------
-
-1. Install Dependencies
-    * [Go language 1.1.x](http://golang.org/doc/install)
-    * [git](http://git-scm.com)
-    * [lxc](http://lxc.sourceforge.net)
-    * [aufs-tools](http://aufs.sourceforge.net)
-
-2. Checkout the source code
-
-   ```bash
-   git clone http://github.com/dotcloud/docker
-   ```
-
-3. Build the ``docker`` binary
-
-   ```bash
-   cd docker
-   make VERBOSE=1
-   sudo cp ./bin/docker /usr/local/bin/docker
-   ```
-
 Usage examples
 ==============
 
