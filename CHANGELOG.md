@@ -1,12 +1,14 @@
 # Changelog
 
 ## 0.6.1 (2013-08-23)
+
 * Registry: Pass "meta" headers in API calls to the registry
 - Packaging: Use correct upstart script with new build tool
 - Packaging: Use libffi-dev, don't build it from sources
 - Packaging: Removed duplicate mercurial install command
 
 ## 0.6.0 (2013-08-22)
+
 - Runtime: Load authConfig only when needed and fix useless WARNING
 + Runtime: Add lxc-conf flag to allow custom lxc options
 - Runtime: Fix race conditions in parallel pull
@@ -101,6 +103,7 @@
 * Don't read from stdout when only attached to stdin
 
 ## 0.5.3 (2013-08-13)
+
 * Runtime: Use docker group for socket permissions
 - Runtime: Spawn shell within upstart script
 - Builder: Make sure ENV instruction within build perform a commit each time
@@ -108,11 +111,13 @@
 - Runtime: Add hostname to environment
 
 ## 0.5.2 (2013-08-08)
+
  * Builder: Forbid certain paths within docker build ADD
  - Runtime: Change network range to avoid conflict with EC2 DNS
  * API: Change daemon to listen on unix socket by default
 
 ## 0.5.1 (2013-07-30)
+
  + API: Docker client now sets useragent (RFC 2616)
  + Runtime: Add `ps` args to `docker top`
  + Runtime: Add support for container ID files (pidfile like)
@@ -132,6 +137,7 @@
  - Builder: Create directories with 755 instead of 700 within ADD instruction
 
 ## 0.5.0 (2013-07-17)
+
  + Runtime: List all processes running inside a container with 'docker top'
  + Runtime: Host directories can be mounted as volumes with 'docker run -v'
  + Runtime: Containers can expose public UDP ports (eg, '-p 123/udp')
@@ -145,11 +151,13 @@
  - Registry: Fix issues when uploading images to a private registry
 
 ## 0.4.8 (2013-07-01)
+
  + Builder: New build operation ENTRYPOINT adds an executable entry point to the container.
  - Runtime: Fix a bug which caused 'docker run -d' to no longer print the container ID.
  - Tests: Fix issues in the test suite
 
 ## 0.4.7 (2013-06-28)
+
  * Registry: easier push/pull to a custom registry
  * Remote API: the progress bar updates faster when downloading and uploading large files
  - Remote API: fix a bug in the optional unix socket transport
@@ -162,9 +170,11 @@
  + Documentation: add terminology section
 
 ## 0.4.6 (2013-06-22)
+
  - Runtime: fix a bug which caused creation of empty images (and volumes) to crash.
 
 ## 0.4.5 (2013-06-21)
+
  + Builder: 'docker build git://URL' fetches and builds a remote git repository
  * Runtime: 'docker ps -s' optionally prints container size
  * Tests: Improved and simplified
@@ -172,9 +182,11 @@
  - Builder: fix a regression when using ADD with single regular file.
 
 ## 0.4.4 (2013-06-19)
+
  - Builder: fix a regression introduced in 0.4.3 which caused builds to fail on new clients.
 
 ## 0.4.3 (2013-06-19)
+
  + Builder: ADD of a local file will detect tar archives and unpack them
  * Runtime: Remove bsdtar dependency
  * Runtime: Add unix socket and multiple -H support
@@ -195,9 +207,11 @@
  - Documentation: fix missing command in irc bouncer example
 
 ## 0.4.2 (2013-06-17)
+
  - Packaging: Bumped version to work around an Ubuntu bug
 
 ## 0.4.1 (2013-06-17)
+
  + Remote Api: Add flag to enable cross domain requests
  + Remote Api/Client: Add images and containers sizes in docker ps and docker images
  + Runtime: Configure dns configuration host-wide with 'docker -d -dns'
@@ -215,11 +229,13 @@
  - Registry: Remove login check on pull
 
 ## 0.4.0 (2013-06-03)
+
  + Introducing Builder: 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
  + Introducing Remote API: control Docker programmatically using a simple HTTP/json API
  * Runtime: various reliability and usability improvements
 
 ## 0.3.4 (2013-05-30)
+
  + Builder: 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
  + Builder: 'docker build -t FOO' applies the tag FOO to the newly built container.
  + Runtime: interactive TTYs correctly handle window resize
@@ -229,10 +245,12 @@
  * Documentation: improved install instructions.
 
 ## 0.3.3 (2013-05-23)
+
  - Registry: Fix push regression
  - Various bugfixes
 
 ## 0.3.2 (2013-05-09)
+
  * Runtime: Store the actual archive on commit
  * Registry: Improve the checksum process
  * Registry: Use the size to have a good progress bar while pushing
@@ -240,6 +258,7 @@
  - Registry: Fix error 400 on push
 
 ## 0.3.1 (2013-05-08)
+
  + Builder: Implement the autorun capability within docker builder
  + Builder: Add caching to docker builder
  + Builder: Add support for docker builder with native API as top level command
@@ -265,6 +284,7 @@
  * Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
 
 ## 0.3.0 (2013-05-06)
+
  + Registry: Implement the new registry
  + Documentation: new example: sharing data between 2 couchdb databases
  - Runtime: Fix the command existance check
@@ -274,6 +294,7 @@
  * Vagrant: Use only one deb line in /etc/apt
 
 ## 0.2.2 (2013-05-03)
+
  + Support for data volumes ('docker run -v=PATH')
  + Share data volumes between containers ('docker run -volumes-from')
  + Improved documentation
@@ -281,6 +302,7 @@
  * Various upgrades to the dev environment for contributors
 
 ## 0.2.1 (2013-05-01)
+
  + 'docker commit -run' bundles a layer with default runtime options: command, ports etc.
  * Improve install process on Vagrant
  + New Dockerfile operation: "maintainer"
@@ -291,6 +313,7 @@
  * Runtime: improve test coverage
 
 ## 0.2.0 (2013-04-23)
+
  - Runtime: ghost containers can be killed and waited for
  * Documentation: update install intructions
  - Packaging: fix Vagrantfile
@@ -299,6 +322,7 @@
  - Various bugfixes
 
 ## 0.1.8 (2013-04-22)
+
  - Dynamically detect cgroup capabilities
  - Issue stability warning on kernels <3.8
  - 'docker push' buffers on disk instead of memory
@@ -308,6 +332,7 @@
  - Various bugfixes and stability improvements
 
 ## 0.1.7 (2013-04-18)
+
  - Container ports are available on localhost
  - 'docker ps' shows allocated TCP ports
  - Contributors can run 'make hack' to start a continuous integration VM
@@ -315,9 +340,11 @@
  - Various bugfixes and stability improvements
 
 ## 0.1.6 (2013-04-17)
+
  - Record the author an image with 'docker commit -author'
 
 ## 0.1.5 (2013-04-17)
+
  - Disable standalone mode
  - Use a custom DNS resolver with 'docker -d -dns'
  - Detect ghost containers
@@ -331,6 +358,7 @@
  - Various bugfixes and stability improvements
 
 ## 0.1.4 (2013-04-09)
+
  - Full support for TTY emulation
  - Detach from a TTY session with the escape sequence `C-p C-q`
  - Various bugfixes and stability improvements
@@ -338,12 +366,14 @@
  - Automatically create our own bridge interface 'docker0'
 
 ## 0.1.3 (2013-04-04)
+
  - Choose TCP frontend port with '-p :PORT'
  - Layer format is versioned
  - Major reliability improvements to the process manager
  - Various bugfixes and stability improvements
 
 ## 0.1.2 (2013-04-03)
+
  - Set container hostname with 'docker run -h'
  - Selective attach at run with 'docker run -a [stdin[,stdout[,stderr]]]'
  - Various bugfixes and stability improvements
@@ -353,6 +383,7 @@
  - Make IP allocator lazy
 
 ## 0.1.1 (2013-03-31)
+
  - Display shorthand IDs for convenience
  - Stabilize process management
  - Layers can include a commit message
@@ -364,6 +395,7 @@
  - Beefed up documentation
 
 ## 0.1.0 (2013-03-23)
+
  - First release
  - Implement registry in order to push/pull images
  - TCP port allocation
