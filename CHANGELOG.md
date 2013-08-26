@@ -4,7 +4,7 @@
 
 * Registry: Pass "meta" headers in API calls to the registry
 - Packaging: Use correct upstart script with new build tool
-- Packaging: Use libffi-dev, don't build it from sources
+- Packaging: Use libffi-dev, don`t build it from sources
 - Packaging: Removed duplicate mercurial install command
 
 ## 0.6.0 (2013-08-22)
@@ -88,7 +88,7 @@
 * Documentation: fix a typo in the ubuntu installation guide
 - Builder: Repository name (and optionally a tag) in build usage
 * Documentation: Move note about officially supported kernel
-* Packaging: Revert "Bind daemon to 0.0.0.0 in Vagrant.
+* Packaging: Revert Bind daemon to 0.0.0.0 in Vagrant.
 * Builder: Add no cache for docker build
 * Runtime: Add hostname to environment
 * Runtime: Add last stable version in `docker version`
@@ -99,8 +99,8 @@
 - Runtime: Use utils.ParseRepositoryTag instead of strings.Split(name, ":") in server.ImageDelete
 * Runtime: Refactor checksum
 - Runtime: Improve connect message with socket error
-* Documentation: Added information about Docker's high level tools over LXC.
-* Don't read from stdout when only attached to stdin
+* Documentation: Added information about Docker`s high level tools over LXC.
+* Don`t read from stdout when only attached to stdin
 
 ## 0.5.3 (2013-08-13)
 
@@ -147,7 +147,7 @@
 + Builder: VOLUME instruction marks a part of the container as persistent data
 * Builder: 'docker build' displays the full output of a build by default
 * Runtime: 'docker login' supports additional options
-- Runtime: Dont save a container's hostname when committing an image.
+- Runtime: Dont save a container`s hostname when committing an image.
 - Registry: Fix issues when uploading images to a private registry
 
 ## 0.4.8 (2013-07-01)
@@ -197,7 +197,7 @@
 * Builder: nicer output for 'docker build'
 * Builder: fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
 * Client: HumanReadable ProgressBar sizes in pull
-* Client: Fix docker version's git commit output
+* Client: Fix docker version`s git commit output
 * API: Send all tags on History API call
 * API: Add tag lookup to history command. Fixes #882
 - Runtime: Fix issue detaching from running TTY container
@@ -220,12 +220,12 @@
 + Runtime: you can now specify public port (ex: -p 80:4500)
 * Client: allow multiple params in inspect
 * Client: Print the container id before the hijack in `docker run`
-* Registry: add regexp check on repo's name
+* Registry: add regexp check on repo`s name
 * Registry: Move auth to the client
 * Runtime: improved image removal to garbage-collect unreferenced parents
-* Vagrantfile: Add the rest api port to vagrantfile's port_forward
+* Vagrantfile: Add the rest api port to vagrantfile`s port_forward
 * Upgrade to Go 1.1
-- Builder: don't ignore last line in Dockerfile when it doesn't end with \n
+- Builder: don`t ignore last line in Dockerfile when it doesn`t end with \n
 - Registry: Remove login check on pull
 
 ## 0.4.0 (2013-06-03)
@@ -278,7 +278,7 @@
 - Documentation: Fixed CouchDB example page header mistake
 - Documentation: fixed README formatting
 * Registry: Improve checksum - async calculation
-* Runtime: kernel version - don't show the dash if flavor is empty
+* Runtime: kernel version - don`t show the dash if flavor is empty
 * Documentation: updated www.docker.io website.
 * Builder: use any whitespaces instead of tabs
 * Packaging: packaging ubuntu; issue #510: Use goland-stable PPA package to build docker
@@ -396,7 +396,8 @@
 
 ## 0.1.0 (2013-03-23)
 
-- First release
+Initial public release
+
 - Implement registry in order to push/pull images
 - TCP port allocation
 - Fix termcaps on Linux
