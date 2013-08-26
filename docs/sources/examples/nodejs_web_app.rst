@@ -93,7 +93,7 @@ To install the right package for CentOS, we’ll use the instructions from the
     # Enable EPEL for Node.js
     RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
     # Install Node.js and npm
-    RUN     yum install -y npm-1.2.17-5.el6
+    RUN     yum install -y npm
 
 To bundle your app’s source code inside the docker image, use the ``ADD``
 command:
@@ -137,7 +137,7 @@ Your ``Dockerfile`` should now look like this:
     # Enable EPEL for Node.js
     RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
     # Install Node.js and npm
-    RUN     yum install -y npm-1.2.17-5.el6
+    RUN     yum install -y npm
 
     # Bundle app source
     ADD . /src
