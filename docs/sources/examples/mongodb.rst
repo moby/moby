@@ -66,13 +66,12 @@ run without needing to provide a special configuration file)
     RUN mkdir -p /data/db
 
 Finally, we'll expose the standard port that MongoDB runs on (27107) as well as
-add an entrypoint that runs the standard --help command by default.
+define an ENTRYPOINT for the container.
 
 .. code-block:: bash
 
     EXPOSE 27017
-    ENTRYPOINT [ "/usr/bin/mongod" ]
-    CMD [ "--help" ]
+    ENTRYPOINT ["usr/bin/mongod"]
 
 Now, lets build the image which will go through the ``Dockerfile`` we made and
 run all of the commands.
@@ -87,10 +86,10 @@ the local port!
 .. code-block:: bash
 
     # Regular style
-    MONGO_ID=$(docker run -d <yourname>/mongodb mongod)
+    MONGO_ID=$(docker run -d <yourname>/mongodb)
 
     # Lean and mean
-    MONGO_ID=$(docker run -d <yourname>/mongodb mongod --noprealloc --smallfiles)
+    MONGO_ID=$(docker run -d <yourname>/mongodb --noprealloc --smallfiles)
 
     # Check the logs out
     docker logs $MONGO_ID
