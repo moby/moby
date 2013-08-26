@@ -24,7 +24,7 @@ Create an empty file called ``Dockerfile``:
     touch Dockerfile
 
 Next, define the parent image you want to use to build your own image on top of.
-Here, we’ll use `CentOS <https://index.docker.io/_/ubuntu/>`_ (tag: ``latest``)
+Here, we’ll use `Ubuntu <https://index.docker.io/_/ubuntu/>`_ (tag: ``latest``)
 available on the `docker index`_:
 
 .. code-block:: bash
@@ -65,11 +65,13 @@ run without needing to provide a special configuration file)
     # Create the MongoDB data directory
     RUN mkdir -p /data/db
 
-Finally, we'll expose the standard port that MongoDB runs on (27107)
+Finally, we'll expose the standard port that MongoDB runs on (27107) as well as
+define an ENTRYPOINT for the container.
 
 .. code-block:: bash
 
     EXPOSE 27017
+    ENTRYPOINT ["usr/bin/mongod"]
 
 Now, lets build the image which will go through the ``Dockerfile`` we made and
 run all of the commands.
@@ -84,10 +86,10 @@ the local port!
 .. code-block:: bash
 
     # Regular style
-    MONGO_ID=$(docker run -d <yourname>/mongodb mongod)
+    MONGO_ID=$(docker run -d <yourname>/mongodb)
 
     # Lean and mean
-    MONGO_ID=$(docker run -d <yourname>/mongodb mongod --noprealloc --smallfiles)
+    MONGO_ID=$(docker run -d <yourname>/mongodb --noprealloc --smallfiles)
 
     # Check the logs out
     docker logs $MONGO_ID
