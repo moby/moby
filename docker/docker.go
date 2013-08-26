@@ -14,9 +14,25 @@ import (
 	"syscall"
 )
 
+const LOGO = `
+    _____         ___          ___          ___          ___          ___     
+   /  /::\       /  /\        /  /\        /__/|        /  /\        /  /\    
+  /  /:/\:\     /  /::\      /  /:/       |  |:|       /  /:/_      /  /::\   
+ /  /:/  \:\   /  /:/\:\    /  /:/        |  |:|      /  /:/ /\    /  /:/\:\  
+/__/:/ \__\:| /  /:/  \:\  /  /:/  ___  __|  |:|     /  /:/ /:/_  /  /:/~/:/  
+\  \:\ /  /://__/:/ \__\:\/__/:/  /  /\/__/\_|:|____/__/:/ /:/ /\/__/:/ /:/___
+ \  \:\  /:/ \  \:\ /  /:/\  \:\ /  /:/\  \:\/:::::/\  \:\/:/ /:/\  \:\/:::::/
+  \  \:\/:/   \  \:\  /:/  \  \:\  /:/  \  \::/~~~~  \  \::/ /:/  \  \::/~~~~ 
+   \  \::/     \  \:\/:/    \  \:\/:/    \  \:\       \  \:\/:/    \  \:\     
+    \__\/       \  \::/      \  \::/      \  \:\       \  \::/      \  \:\    
+                 \__\/        \__\/        \__\/        \__\/        \__\/    
+
+the open-source application container engine %s
+`
+
 var (
 	GITCOMMIT string
-	VERSION string
+	VERSION   string
 )
 
 func main() {
@@ -113,6 +129,7 @@ func removePidFile(pidfile string) {
 }
 
 func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
+	fmt.Printf(LOGO, VERSION)
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
