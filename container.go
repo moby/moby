@@ -87,6 +87,7 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
+	LxcTemplate     string
 }
 
 type BindMap struct {
@@ -104,7 +105,14 @@ type KeyValuePair struct {
 	Value string
 }
 
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+type RunConfig struct {
+	Configuration     *Config
+	HostConfiguration *HostConfig
+	LxcTemplateText   string
+	Flags             *flag.FlagSet
+}
+
+func ParseRun(args []string, capabilities *Capabilities) (*RunConfig, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if len(args) > 0 && args[0] != "--help" {
 		cmd.SetOutput(ioutil.Discard)
@@ -148,15 +156,16 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	var flLxcOpts ListOpts
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	flTemplate := cmd.String("T", "", "Set custom LXC template filename")
 
 	if err := cmd.Parse(args); err != nil {
-		return nil, nil, cmd, err
+		return &RunConfig{nil, nil, "", cmd}, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return &RunConfig{nil, nil, "", cmd}, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvaidWorikingDirectory
+		return &RunConfig{nil, nil, "", cmd}, ErrInvaidWorikingDirectory
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -199,7 +208,16 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	var lxcConf []KeyValuePair
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
-		return nil, nil, cmd, err
+		return &RunConfig{nil, nil, "", cmd}, err
+	}
+
+	templateText := ""
+	if *flTemplate != "" {
+		var err error
+		templateText, err = ReadTemplateFile(*flTemplate)
+		if err != nil {
+			return &RunConfig{nil, nil, "", cmd}, err
+		}
 	}
 
 	config := &Config{
@@ -239,7 +257,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, hostConfig, cmd, nil
+
+	return &RunConfig{config, hostConfig, templateText, cmd}, nil
 }
 
 type PortMapping map[string]string
@@ -337,11 +356,15 @@ func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
 		return err
 	}
 	defer fo.Close()
-	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
+	compiledTemplates, err := GetLxcTemplateCompiled(container.runtime)
+	if err != nil {
+		return err
+	}
+	if err := compiledTemplates.LxcTemplateCompiled.Execute(fo, container); err != nil {
 		return err
 	}
 	if hostConfig != nil {
-		if err := LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
+		if err := compiledTemplates.LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
 			return err
 		}
 	}

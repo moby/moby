@@ -619,10 +619,13 @@ func TestPostContainersCreate(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	configJSON, err := json.Marshal(&Config{
-		Image:  GetTestImage(runtime).ID,
-		Memory: 33554432,
-		Cmd:    []string{"touch", "/test"},
+	configJSON, err := json.Marshal(&CreateContainerRequest{
+		Config{
+			Image:  GetTestImage(runtime).ID,
+			Memory: 33554432,
+			Cmd:    []string{"touch", "/test"},
+		},
+		"",
 	})
 	if err != nil {
 		t.Fatal(err)

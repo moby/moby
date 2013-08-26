@@ -458,10 +458,11 @@ func TestCreateVolume(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
+	runConfig, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config, hc := runConfig.Configuration, runConfig.HostConfiguration
 	c, err := NewBuilder(runtime).Create(config)
 	if err != nil {
 		t.Fatal(err)
@@ -1382,10 +1383,11 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	runConfig, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config, hc := runConfig.Configuration, runConfig.HostConfiguration
 	c, err := NewBuilder(runtime).Create(config)
 	if err != nil {
 		t.Fatal(err)

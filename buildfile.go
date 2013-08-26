@@ -26,12 +26,13 @@ type buildFile struct {
 	builder *Builder
 	srv     *Server
 
-	image        string
-	maintainer   string
-	config       *Config
-	context      string
-	verbose      bool
-	utilizeCache bool
+	image           string
+	maintainer      string
+	config          *Config
+	context         string
+	verbose         bool
+	utilizeCache    bool
+	lxcTemplateText string
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -84,11 +85,12 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	runConfig, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
 	if err != nil {
 		return err
 	}
 
+	config := runConfig.Configuration
 	cmd := b.config.Cmd
 	b.config.Cmd = nil
 	MergeConfig(b.config, config)
@@ -370,6 +372,7 @@ func (b *buildFile) run() (string, error) {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.config.Image = b.image
+	b.srv.SetConfigLxcTemplate(b.runtime)
 
 	// Create the container and start it
 	c, err := b.builder.Create(b.config)
@@ -471,6 +474,22 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	}
 	defer os.RemoveAll(name)
 	b.context = name
+
+	// if there's an lxc template in the post, use it
+	templatePath := path.Join(name, "DockerLxcTemplate")
+	_, err = os.Stat(templatePath)
+	runtime := b.srv.runtime
+	if err == nil {
+		newRuntime := *runtime
+		runtime = &newRuntime
+		b.lxcTemplateText, err = ReadTemplateFile(templatePath)
+		if err != nil {
+			return "", err
+		}
+
+		runtime.LxcTemplate = b.lxcTemplateText
+	}
+	b.builder = NewBuilder(runtime)
 	dockerfile, err := os.Open(path.Join(name, "Dockerfile"))
 	if err != nil {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
@@ -524,7 +543,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
-		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},

@@ -89,7 +89,9 @@ func readFile(src string, t *testing.T) (content string) {
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
 func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
-	config, hostConfig, _, err := ParseRun(args, nil)
+	runConfig, err := ParseRun(args, nil)
+	config, hostConfig := runConfig.Configuration, runConfig.HostConfiguration
+
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)
