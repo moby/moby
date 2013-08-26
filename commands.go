@@ -1532,6 +1532,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	var copyData APICopy
 	info := strings.Split(cmd.Arg(0), ":")
 
+	if len(info) != 2 {
+		return fmt.Errorf("Error: Resource not specified")
+	}
+
 	copyData.Resource = info[1]
 	copyData.HostPath = cmd.Arg(1)
 
