@@ -16,7 +16,7 @@ import (
 
 var (
 	GITCOMMIT string
-	VERSION string
+	VERSION   string
 )
 
 func main() {

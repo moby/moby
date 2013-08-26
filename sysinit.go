@@ -27,9 +27,8 @@ func setupWorkingDirectory(workdir string) {
 	if workdir == "" {
 		return
 	}
-    syscall.Chdir(workdir)
+	syscall.Chdir(workdir)
 }
-
 
 // Takes care of dropping privileges to the desired user
 func changeUser(u string) {
