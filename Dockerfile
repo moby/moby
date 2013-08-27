@@ -12,7 +12,6 @@ run	apt-get install -y -q mercurial
 run	curl -s https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 env	GOPATH	/go:/vendor
-env	CGO_ENABLED 0
 run	cd /tmp && echo 'package main' > t.go && go test -a -i -v
 # Ubuntu stuff
 run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
@@ -24,9 +23,11 @@ run	pip install s3cmd
 run	pip install python-magic
 run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY\n' > /.s3cfg
 # Upload docker source
-add 	vendor	/vendor
 add	.       /go/src/github.com/dotcloud/docker
 run	ln -s	/go/src/github.com/dotcloud/docker /src
+# Setup vendor
+run     cd /go/src/github.com/dotcloud/docker && ./vendor.sh
+run    ln -s   /go/src/github.com/dotcloud/docker/vendor /vendor
 # Build the binary
 run	cd /go/src/github.com/dotcloud/docker && hack/release/make.sh
 cmd	cd /go/src/github.com/dotcloud/docker && hack/release/release.sh
