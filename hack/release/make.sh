@@ -30,14 +30,9 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 	exit 1
 }
 
-VERSION=$(cat ./VERSION)
-PKGVERSION="$VERSION"
-GITCOMMIT=$(git rev-parse --short HEAD)
-if test -n "$(git status --porcelain)"
-then
-	GITCOMMIT="$GITCOMMIT-dirty"
-	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
-fi
+
+SCRIPT_DIR=`dirname "$0"`
+source $SCRIPT_DIR/common.sh
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.io/"
@@ -69,8 +64,7 @@ end script
 bundle_binary() {
 	mkdir -p bundles/$VERSION/binary
 	go build -o bundles/$VERSION/binary/docker-$VERSION \
-		-ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" \
-		./docker
+		-ldflags "$LDFLAGS" ./docker
 }
 
 

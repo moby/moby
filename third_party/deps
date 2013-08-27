@@ -1,0 +1,7 @@
+packages="
+	github.com/kr/pty
+	github.com/gorilla/context
+	github.com/gorilla/mux
+	github.com/dotcloud/tar
+	code.google.com/p/go.net
+"
