@@ -635,10 +635,25 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return &NetworkInterface{disabled: true}, nil
 	}
 
-	ip, err := manager.ipAllocator.Acquire()
+	var ip net.IP
+	var err error
+
+	ip, err = manager.ipAllocator.Acquire()
 	if err != nil {
 		return nil, err
 	}
+	// avoid duplicate IP 
+	ipNum := ipToInt(ip)
+	firstIP := manager.ipAllocator.network.IP.To4().Mask(manager.ipAllocator.network.Mask)
+	firstIPNum := ipToInt(firstIP) + 1
+
+	if firstIPNum == ipNum {
+		ip, err = manager.ipAllocator.Acquire()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	iface := &NetworkInterface{
 		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
 		Gateway: manager.bridgeNetwork.IP,
