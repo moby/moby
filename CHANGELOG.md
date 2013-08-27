@@ -10,83 +10,83 @@
 
 - Use correct upstart script with new build tool
 - Use libffi-dev, don`t build it from sources
-- Removed duplicate mercurial install command
+- Remove duplicate mercurial install command
 
 ## 0.6.0 (2013-08-22)
 
 #### Runtime
 
-- Load authConfig only when needed and fix useless WARNING
 + Add lxc-conf flag to allow custom lxc options
-- Fix race conditions in parallel pull
-- Improve CMD, ENTRYPOINT, and attach docs.
 + Add an option to set the working directory
-- Show tag used when image is missing
-- Fix Graph ByParent() to generate list of child images per parent image.
 * Add Image name to LogEvent tests
++ Add -privileged flag and relevant tests, docs, and examples
+* Add websocket support to /container/<name>/attach/ws
+* Add warning when net.ipv4.ip_forwarding = 0
+* Add hostname to environment
+* Add last stable version in `docker version`
+- Fix race conditions in parallel pull
+- Fix Graph ByParent() to generate list of child images per parent image.
+- Fix typo: fmt.Sprint -> fmt.Sprintf
+- Fix small \n error un docker build
+* Fix to "Inject dockerinit at /.dockerinit"
+* Fix #910. print user name to docker info output
+* Use Go 1.1.2 for dockerbuilder
+* Use ranged for loop on channels
+- Use utils.ParseRepositoryTag instead of strings.Split(name, ":") in server.ImageDelete
+- Improve CMD, ENTRYPOINT, and attach docs.
+- Improve connect message with socket error
+- Load authConfig only when needed and fix useless WARNING
+- Show tag used when image is missing
 * Apply volumes-from before creating volumes
 - Make docker run handle SIGINT/SIGTERM
 - Prevent crash when .dockercfg not readable
-+ Add -privileged flag and relevant tests, docs, and examples
 - Install script should be fetched over https, not http.
-* Use Go 1.1.2 for dockerbuilder
 * API, issue 1471: Use groups for socket permissions
 - Correctly detect IPv4 forwarding
-* Use ranged for loop on channels
-- Fix typo: fmt.Sprint -> fmt.Sprintf
-* add websocket support to /container/<name>/attach/ws
 * Mount /dev/shm as a tmpfs
-- switch from http to https for get.docker.io
-- fix small \n error un docker build
+- Switch from http to https for get.docker.io
 * Let userland proxy handle container-bound traffic
 * Updated the Docker CLI to specify a value for the "Host" header.
-* Add warning when net.ipv4.ip_forwarding = 0
-* fixed #910. print user name to docker info output
-- change network range to avoid conflict with EC2 DNS
+- Change network range to avoid conflict with EC2 DNS
 - Reduce connect and read timeout when pinging the registry
 * Parallel pull
 - Handle ip route showing mask-less IP addresses
-* Fix to "Inject dockerinit at /.dockerinit"
 * Allow ENTRYPOINT without CMD
 - Always consider localhost as a domain name when parsing the FQN repos name
-* Add hostname to environment
-* Add last stable version in `docker version`
-- Use utils.ParseRepositoryTag instead of strings.Split(name, ":") in server.ImageDelete
 * Refactor checksum
-- Improve connect message with socket error
 
 #### Documentation
 
-* Small fix to docs regarding adding docker groups
 * Add MongoDB image example
-* updated default -H docs
-* Update readme with dependencies for building
 * Add instructions for creating and using the docker group
 * Add sudo to examples and installation to documentation
-* PostgreSQL service example in documentation
+* Add ufw doc
+* Add a reference to ps -a
+* Add information about Docker`s high level tools over LXC.
 * Fix typo in docs for docker run -dns
-* Adding a reference to ps -a
+* Fix a typo in the ubuntu installation guide
+* Fix to docs regarding adding docker groups
+* Update default -H docs
+* Update readme with dependencies for building
+* Update amazon.rst to explain that Vagrant is not necessary for running Docker on ec2
+* PostgreSQL service example in documentation
 * Suggest installing linux-headers by default.
 * Change the twitter handle
-* Update amazon.rst to explain that Vagrant is not necessary for running Docker on ec2
 * Clarify Amazon EC2 installation
 * 'Base' image is deprecated and should no longer be referenced in the docs.
-* fix a typo in the ubuntu installation guide
 * Move note about officially supported kernel
-* Add ufw doc
 - Solved the logo being squished in Safari
-* Added information about Docker`s high level tools over LXC.
 
 #### Builder
 
 + Add USER instruction do Dockerfile
 + Add workdir support for the Buildfile
-- Only count known instructions as build steps
+* Add no cache for docker build
 - Fix docker build and docker events output
+- Only count known instructions as build steps
 - Make sure ENV instruction within build perform a commit each time
 - Forbid certain paths within docker build ADD
 - Repository name (and optionally a tag) in build usage
-* Add no cache for docker build
 - Make sure ADD will create everything in 0755
 
 #### Remote API
@@ -215,20 +215,20 @@
 
 #### Remote API
 
-* the progress bar updates faster when downloading and uploading large files
-- fix a bug in the optional unix socket transport
+* The progress bar updates faster when downloading and uploading large files
+- Fix a bug in the optional unix socket transport
 
 #### Runtime
 
-* improve detection of kernel version
-+ host directories can be mounted as volumes with 'docker run -b'
+* Improve detection of kernel version
++ Host directories can be mounted as volumes with 'docker run -b'
 - fix an issue when only attaching to stdin
-* use 'tar --numeric-owner' to avoid uid mismatch across multiple hosts
+* Use 'tar --numeric-owner' to avoid uid mismatch across multiple hosts
 
 #### Hack
 
-* improve test suite and dev environment
-* remove dependency on unit tests on 'os/user'
+* Improve test suite and dev environment
+* Remove dependency on unit tests on 'os/user'
 
 #### Other
 
@@ -258,9 +258,9 @@
 + ADD of a local file will detect tar archives and unpack them
 * ADD improvements: use tar for copy + automatically unpack local archives
 * ADD uses tar/untar for copies instead of calling 'cp -ar'
-* nicer output for 'docker build'
-* fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
-- fix a bug which caused builds to fail if ADD was the first command
+* Fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
+- Fix a bug which caused builds to fail if ADD was the first command
+* Nicer output for 'docker build'
 
 #### Runtime
 
@@ -284,7 +284,7 @@
 
 #### Documentation
 
-- fix missing command in irc bouncer example
+- Fix missing command in irc bouncer example
 
 ## 0.4.2 (2013-06-17)
 
@@ -301,18 +301,18 @@
 
 + Configure dns configuration host-wide with 'docker -d -dns'
 + Detect faulty DNS configuration and replace it with a public default
-+ allow docker run <name>:<id>
-+ you can now specify public port (ex: -p 80:4500)
-* improved image removal to garbage-collect unreferenced parents
++ Allow docker run <name>:<id>
++ You can now specify public port (ex: -p 80:4500)
+* Improved image removal to garbage-collect unreferenced parents
 
 #### Client
 
-* allow multiple params in inspect
+* Allow multiple params in inspect
 * Print the container id before the hijack in `docker run`
 
 #### Registery
 
-* add regexp check on repo`s name
+* Add regexp check on repo`s name
 * Move auth to the client
 - Remove login check on pull
 
@@ -336,7 +336,7 @@
 
 #### Runtime
 
-* various reliability and usability improvements
+* Various reliability and usability improvements
 
 ## 0.3.4 (2013-05-30)
 
@@ -345,19 +345,19 @@
 + 'docker build' builds a container, layer by layer, from a source repository containing a Dockerfile
 + 'docker build -t FOO' applies the tag FOO to the newly built container.
 
-#### Runtim
+#### Runtime
 
-+ interactive TTYs correctly handle window resize
-* fix how configuration is merged between layers
++ Interactive TTYs correctly handle window resize
+* Fix how configuration is merged between layers
 
 #### Remote API
 
-+ split stdout and stderr on 'docker run'
-+ optionally listen on a different IP and port (use at your own risk)
++ Split stdout and stderr on 'docker run'
++ Optionally listen on a different IP and port (use at your own risk)
 
 #### Documentation
 
-* improved install instructions.
+* Improved install instructions.
 
 ## 0.3.3 (2013-05-23)
 
@@ -391,7 +391,7 @@
 #### Runtime
 
 + Add go version to debug infos
-* kernel version - don`t show the dash if flavor is empty
+* Kernel version - don`t show the dash if flavor is empty
 
 #### Registry
 
@@ -402,17 +402,17 @@
 
 #### Images
 
-+ output graph of images to dot (graphviz)
-- fix ByParent function
++ Output graph of images to dot (graphviz)
+- Fix ByParent function
 
 #### Documentation
 
-+ new introduction and high-level overview
++ New introduction and high-level overview
 + Add the documentation for docker builder
 - CSS fix for docker documentation to make REST API docs look better.
-- Fixed CouchDB example page header mistake
-- fixed README formatting
-* updated www.docker.io website.
+- Fix CouchDB example page header mistake
+- Fix README formatting
+* Update www.docker.io website.
 
 #### Other
 
@@ -431,7 +431,7 @@
 #### Documentation
 
 * Various improvments
-+ new example: sharing data between 2 couchdb databases
++ New example: sharing data between 2 couchdb databases
 
 #### Other
 
