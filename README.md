@@ -163,6 +163,17 @@ supported.
 * [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
 * [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
+Source build for packaging
+--------------------------
+
+This process should only be used by people creating Linux distro packages.
+Everyone else should use the instructions above.
+
+```
+./vendor.sh
+./hack/release/make.sh
+```
+
 Usage examples
 ==============
 

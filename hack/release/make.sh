@@ -20,16 +20,6 @@
 
 set -e
 
-# We're a nice, sexy, little shell script, and people might try to run us;
-# but really, they shouldn't. We want to be in a container!
-RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
-grep -q "$RESOLVCONF" /proc/mounts || {
-	echo "# I will only run within a container."
-	echo "# Try this instead:"
-	echo "docker build ."
-	exit 1
-}
-
 VERSION=$(cat ./VERSION)
 PKGVERSION="$VERSION"
 GITCOMMIT=$(git rev-parse --short HEAD)
@@ -39,40 +29,59 @@ then
 	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
 fi
 
-PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
-PACKAGE_URL="http://www.docker.io/"
-PACKAGE_MAINTAINER="docker@dotcloud.com"
-PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
-Docker complements LXC with a high-level API which operates at the process
-level. It runs unix processes with strong guarantees of isolation and
-repeatability across servers.
-Docker is a great building block for automating distributed systems:
-large-scale web deployments, database clusters, continuous deployment systems,
-private PaaS, service-oriented architectures, etc."
+LDFLAGS="-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -w"
 
-UPSTART_SCRIPT='description     "Docker daemon"
+export CGO_ENABLED="0"
 
-start on filesystem or runlevel [2345]
-stop on runlevel [!2345]
+prepare_gopath() {
+	DOCKER_VENDOR=$PWD/vendor/src/github.com/dotcloud/docker
+	if [ -h $DOCKER_VENDOR ]; then
+		rm -f $DOCKER_VENDOR;
+	fi
 
-respawn
-
-script
-    /usr/bin/docker -d
-end script
-'
+	ln -sf $PWD $DOCKER_VENDOR
+}
 
 # Each "bundle" is a different type of build artefact: static binary, Ubuntu
 # package, etc.
 
 # Build Docker as a static binary file
 bundle_binary() {
-	mkdir -p bundles/$VERSION/binary
-	go build -o bundles/$VERSION/binary/docker-$VERSION \
-		-ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" \
-		./docker
+	TARGET=bundles/$VERSION/binary/docker-$VERSION
+
+	# Unofficial builds will pass in a different target
+	if [ $# -eq 1 ]; then
+		TARGET=$1
+	else
+		# TODO: For some reason binary versions of golang from golang.org don't like
+		# this flag. Add it into the official build as it had it originally and it
+		# seems to work. This keeps developers who use make-without-docker.sh from
+		# being confused by default.
+
+		# Setup LDFLAGS for the official build
+		LDFLAGS="$LDFLAGS -d"
+	fi
+
+	mkdir -p $(dirname $TARGET)
+
+	go build -o $TARGET -ldflags "$LDFLAGS" ./docker
 }
 
+# Build an unofficial static binary file
+bundle_unofficial_binary() {
+        cat <<EOF
+###############################################################################
+
+ This version of the build is unsupported. It is your responsibility to ensure
+ all dependencies are met and that the right version of go is used.
+
+###############################################################################
+EOF
+	prepare_gopath
+	BIN_TARGET=bin/docker
+	GOPATH="$PWD/vendor" bundle_binary $BIN_TARGET
+	echo $BIN_TARGET is created.
+}
 
 # Build Docker's test suite as a collection of binary files (one per
 # sub-package to test)
@@ -81,7 +90,7 @@ bundle_test() {
 	for test_dir in $(find_test_dirs); do
 		test_binary=$(
 			cd $test_dir
-			go test -c -v -ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" >&2
+			go test -c -v -ldflags "$LDFLAGS" >&2
 			find . -maxdepth 1 -type f -name '*.test' -executable
 		)
 		cp $test_dir/$test_binary bundles/$VERSION/test/
@@ -91,6 +100,7 @@ bundle_test() {
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
 bundle_ubuntu() {
+	. hack/release/ubuntu.sh
 	mkdir -p bundles/$VERSION/ubuntu
 
 	DIR=$(pwd)/bundles/$VERSION/ubuntu/build
@@ -159,9 +169,21 @@ find_test_dirs() {
 
 
 main() {
-	bundle_binary
-	bundle_ubuntu
-	#bundle_test
+	TARGETS=unofficial_binary
+
+	if [ $# -ne 0 ]; then
+		TARGETS=$@
+	fi
+
+	prepare_gopath
+	for i in $TARGETS; do
+		bundle_$i
+	done
+
+	if [ "$TARGETS" = "unofficial_binary" ]; then
+		return
+	fi
+
 	cat <<EOF
 ###############################################################################
 Now run the resulting image, making sure that you set AWS_S3_BUCKET,
@@ -176,4 +198,4 @@ docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
 EOF
 }
 
-main
+main $@
