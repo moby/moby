@@ -10,7 +10,7 @@ This documentation has the following resources:
 .. toctree::
    :titlesonly:
 
-   concepts/index
+   Introduction <index>
    installation/index
    use/index
    examples/index
@@ -19,6 +19,3 @@ This documentation has the following resources:
    api/index
    terms/index
    faq
-
-
-

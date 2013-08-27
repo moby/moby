@@ -13,8 +13,8 @@ Contents:
    :maxdepth: 1
 
    basics
+   builder
    workingwithrepository
    port_redirection
-   builder
    puppet
 

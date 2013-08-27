@@ -2,9 +2,9 @@
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 
-.. _ubuntu_linux:
-
 **These instructions have changed for 0.6. If you are upgrading from an earlier version, you will need to follow them again.**
+
+.. _ubuntu_linux:
 
 Ubuntu Linux
 ============
