@@ -25,7 +25,7 @@ Create an empty file called ``Dockerfile``:
 
 Next, define the parent image you want to use to build your own image on top of.
 Here, we’ll use `Ubuntu <https://index.docker.io/_/ubuntu/>`_ (tag: ``latest``)
-available on the `docker index`_:
+available on the `docker index <http://index.docker.io>`_:
 
 .. code-block:: bash
 

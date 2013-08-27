@@ -2,9 +2,9 @@
 :description: Docker's tutorial to run docker on Windows
 :keywords: Docker, Docker documentation, Windows, requirements, virtualbox, vagrant, git, ssh, putty, cygwin
 
-.. _windows:
-
 **Vagrant installation is temporarily out of date, it will be updated for 0.6 soon.**
+
+.. _windows:
 
 Using Vagrant (Windows)
 =======================
