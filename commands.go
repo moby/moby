@@ -793,21 +793,45 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
-	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
+	cmd := Subcmd("kill", "[OPTIONS] CONTAINER [CONTAINER...]", "Kill a running container")
+	all := cmd.Bool("a", false, "Kill all containers")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+
+	if cmd.NArg() < 1 && !*all {
 		cmd.Usage()
 		return nil
 	}
 
-	for _, name := range args {
+	var containers []string
+
+	if *all {
+		body, _, err := cli.call("GET", "/containers/json", nil)
+		if err != nil {
+			return err
+		}
+
+		var outs []APIContainers
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		for _, out := range outs {
+			containers = append(containers, out.ID)
+		}
+	} else {
+		containers = args
+	}
+
+	for _, name := range containers {
 		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
-			fmt.Fprintf(cli.out, "%s\n", name)
+			fmt.Fprintf(cli.out, "%s\n", utils.TruncateID(name))
 		}
 	}
 	return nil
