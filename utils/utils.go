@@ -293,6 +293,7 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 					continue
 				}
 				lp = append(lp, b...)
+				lp = append(lp, '\n')
 			}
 		}
 		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
