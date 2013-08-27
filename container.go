@@ -801,10 +801,22 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 
+	var portSpecs []string
+	if !container.State.Ghost {
+		portSpecs = container.Config.PortSpecs
+	} else {
+		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp",frontend, backend))
+		}
+		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp",frontend, backend))
+		}
+	}
+
 	container.NetworkSettings.PortMapping = make(map[string]PortMapping)
 	container.NetworkSettings.PortMapping["Tcp"] = make(PortMapping)
 	container.NetworkSettings.PortMapping["Udp"] = make(PortMapping)
-	for _, spec := range container.Config.PortSpecs {
+	for _, spec := range portSpecs {
 		nat, err := iface.AllocatePort(spec)
 		if err != nil {
 			iface.Release()
