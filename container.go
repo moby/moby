@@ -20,6 +20,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"net"
 )
 
 type Container struct {
@@ -799,14 +800,44 @@ func (container *Container) allocateNetwork() error {
 		return nil
 	}
 
-	iface, err := container.runtime.networkManager.Allocate()
-	if err != nil {
-		return err
+	var iface *NetworkInterface
+	var err error
+	if !container.State.Ghost {
+		iface, err = container.runtime.networkManager.Allocate()
+		if err != nil {
+			return err
+		}
+	} else {
+		manager := container.runtime.networkManager
+		if manager.disabled {
+			iface = &NetworkInterface{disabled: true}
+		} else {
+			iface = &NetworkInterface{
+				IPNet: net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				Gateway: manager.bridgeNetwork.IP,
+				manager: manager,
+				}
+			ipNum := ipToInt(iface.IPNet.IP)
+			manager.ipAllocator.inUse[ipNum] = struct{}{}
+		}
 	}
+
+	var portSpecs []string
+	if !container.State.Ghost {
+		portSpecs = container.Config.PortSpecs
+	} else {
+		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp",frontend, backend))
+		}
+		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp",frontend, backend))
+		}
+	}
+
 	container.NetworkSettings.PortMapping = make(map[string]PortMapping)
 	container.NetworkSettings.PortMapping["Tcp"] = make(PortMapping)
 	container.NetworkSettings.PortMapping["Udp"] = make(PortMapping)
-	for _, spec := range container.Config.PortSpecs {
+	for _, spec := range portSpecs {
 		nat, err := iface.AllocatePort(spec)
 		if err != nil {
 			iface.Release()
