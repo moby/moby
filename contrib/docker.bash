@@ -21,7 +21,6 @@
 # If the docker daemon is using a unix socket for communication your user
 # must have access to the socket for the completions to function correctly
 
-have docker && {
 __docker_containers_all()
 {
 	local containers
@@ -542,4 +541,3 @@ _docker()
 }
 
 complete -F _docker docker
-}
