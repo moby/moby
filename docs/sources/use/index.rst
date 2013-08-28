@@ -15,6 +15,6 @@ Contents:
    basics
    builder
    workingwithrepository
+   baseimages
    port_redirection
    puppet
-
