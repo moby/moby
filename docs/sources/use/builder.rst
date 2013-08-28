@@ -4,13 +4,13 @@
 
 .. _dockerbuilder:
 
-==================
-Dockerfile Builder
-==================
+======================
+Dockerfiles for Images
+======================
 
 **Docker can act as a builder** and read instructions from a text
-Dockerfile to automate the steps you would otherwise make manually to
-create an image. Executing ``docker build`` will run your steps and
+``Dockerfile`` to automate the steps you would otherwise take manually
+to create an image. Executing ``docker build`` will run your steps and
 commit them along the way, giving you a final image.
 
 .. contents:: Table of Contents
@@ -35,6 +35,8 @@ build succeeds:
 Docker will run your steps one-by-one, committing the result if necessary,
 before finally outputting the ID of your new image.
 
+When you're done with your build, you're ready to look into :ref:`image_push`.
+
 2. Format
 =========
 
@@ -48,9 +50,9 @@ The Dockerfile format is quite simple:
 The Instruction is not case-sensitive, however convention is for them to be
 UPPERCASE in order to distinguish them from arguments more easily.
 
-Docker evaluates the instructions in a Dockerfile in order. **The first
-instruction must be `FROM`** in order to specify the base image from
-which you are building.
+Docker evaluates the instructions in a Dockerfile in order. **The
+first instruction must be `FROM`** in order to specify the
+:ref:`base_image_def` from which you are building.
 
 Docker will ignore **comment lines** *beginning* with ``#``. A comment
 marker anywhere in the rest of the line will be treated as an argument.
@@ -68,7 +70,9 @@ building images.
 
 The ``FROM`` instruction sets the :ref:`base_image_def` for subsequent
 instructions. As such, a valid Dockerfile must have ``FROM`` as its
-first instruction.
+first instruction. The image can be any valid image -- it is
+especially easy to start with an image from the
+:ref:`using_public_repositories`
 
 ``FROM`` must be the first non-comment instruction in the
 ``Dockerfile``.
@@ -160,7 +164,7 @@ override the default specified in CMD.
 The ``EXPOSE`` instruction sets ports to be publicly exposed when
 running the image. This is functionally equivalent to running ``docker
 commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`` outside the
-builder.
+builder. Take a look at :ref:`port_redirection` for more information.
 
 3.6 ENV
 -------
