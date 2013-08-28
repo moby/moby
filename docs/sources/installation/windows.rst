@@ -2,6 +2,8 @@
 :description: Docker's tutorial to run docker on Windows
 :keywords: Docker, Docker documentation, Windows, requirements, virtualbox, vagrant, git, ssh, putty, cygwin
 
+**Vagrant installation is temporarily out of date, it will be updated for 0.6 soon.**
+
 .. _windows:
 
 Using Vagrant (Windows)
@@ -46,6 +48,8 @@ This should open a cmd prompt window.
    :align: center
 
 Alternatively, you can also use a Cygwin terminal, or Git Bash (or any other command line program you are usually using). The next steps would be the same.
+
+.. _launch_ubuntu:
 
 Launch an Ubuntu virtual server
 -------------------------------
@@ -166,3 +170,27 @@ You are now ready for the docker’s “hello world” example. Run
 All done!
 
 Now you can continue with the :ref:`hello_world` example.
+
+Troubleshooting
+---------------
+
+VM does not boot
+````````````````
+
+.. image:: images/win/ts_go_bios.JPG
+
+If you run into this error message "The VM failed to remain in the 'running'
+state while attempting to boot", please check that your computer has virtualization
+technology available and activated by going to the BIOS. Here's an example for an HP
+computer (System configuration / Device configuration)
+
+.. image:: images/win/hp_bios_vm.JPG
+
+
+Docker is not installed
+```````````````````````
+
+.. image:: images/win/ts_no_docker.JPG
+
+If you run into this error message "The program 'docker' is currently not installed",
+try deleting the docker folder and restart from :ref:`launch_ubuntu`

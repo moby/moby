@@ -30,7 +30,7 @@
       -volumes-from="": Mount all volumes from the given container.
       -entrypoint="": Overwrite the default entrypoint set by the image.
       -w="": Working directory inside the container
-
+      -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 Examples
 --------

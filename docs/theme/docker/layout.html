@@ -213,7 +213,9 @@
         }
 
         // attached handler on click
-        $('.sidebar > ul > li > a').not(':last').click(function(){
+        // Do not attach to first element or last (intro, faq) so that
+        // first and last link directly instead of accordian
+        $('.sidebar > ul > li > a').not(':last').not(':first').click(function(){
 
             var index = $.inArray(this.href, openmenus)
 

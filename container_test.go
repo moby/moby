@@ -1070,12 +1070,42 @@ func TestLXCConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	container.generateLXCConfig()
+	container.generateLXCConfig(nil)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
+}
+
+func TestCustomLxcConfig(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := NewBuilder(runtime).Create(&Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"/bin/true"},
+
+		Hostname: "foobar",
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	hostConfig := &HostConfig{LxcConf: []KeyValuePair{
+		{
+			Key:   "lxc.utsname",
+			Value: "docker",
+		},
+		{
+			Key:   "lxc.cgroup.cpuset.cpus",
+			Value: "0,1",
+		},
+	}}
+
+	container.generateLXCConfig(hostConfig)
+	grepFile(t, container.lxcConfigPath(), "lxc.utsname = docker")
+	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpuset.cpus = 0,1")
 }
 
 func BenchmarkRunSequencial(b *testing.B) {

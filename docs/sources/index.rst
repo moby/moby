@@ -1,11 +1,11 @@
-:title: Welcome to the Docker Documentation
+:title: Docker Documentation
 :description: An overview of the Docker Documentation
 :keywords: containers, lxc, concepts, explanation
 
-Welcome
-=======
+.. image:: static_files/dockerlogo-h.png
 
-.. image:: concepts/images/dockerlogo-h.png
+Introduction
+------------
 
 ``docker``, the Linux Container Runtime, runs Unix processes with
 strong guarantees of isolation across servers. Your software runs

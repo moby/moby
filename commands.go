@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -27,10 +28,9 @@ import (
 	"unicode"
 )
 
-const VERSION = "0.5.3-dev"
-
 var (
 	GITCOMMIT string
+	VERSION string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -72,7 +72,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n  -H=[tcp://%s:%d]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTHTTPHOST, DEFAULTHTTPPORT)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTUNIXSOCKET)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -303,6 +303,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return nil
 	}
 
+	cli.LoadConfigFile()
+
 	var oldState *term.State
 	if *flUsername == "" || *flPassword == "" || *flEmail == "" {
 		oldState, err = term.SetRawTerminal(cli.terminalFd)
@@ -433,6 +435,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return nil
 	}
 
+	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+	if GITCOMMIT != "" {
+		fmt.Fprintf(cli.out, "Git commit (client): %s\n", GITCOMMIT)
+	}
+
 	body, _, err := cli.call("GET", "/version", nil)
 	if err != nil {
 		return err
@@ -444,13 +452,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
 	fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
 	if out.GitCommit != "" {
-		fmt.Fprintf(cli.out, "Git commit: %s\n", out.GitCommit)
+		fmt.Fprintf(cli.out, "Git commit (server): %s\n", out.GitCommit)
 	}
 	if out.GoVersion != "" {
-		fmt.Fprintf(cli.out, "Go version: %s\n", out.GoVersion)
+		fmt.Fprintf(cli.out, "Go version (server): %s\n", out.GoVersion)
 	}
 
 	release := utils.GetReleaseVersion()
@@ -498,6 +505,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	if len(out.IndexServerAddress) != 0 {
+		cli.LoadConfigFile()
 		u := cli.configFile.Configs[out.IndexServerAddress].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
@@ -576,15 +584,17 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		return nil
 	}
 
+	var encounteredError error
 	for _, name := range args {
 		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
@@ -838,12 +848,18 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
+	cli.LoadConfigFile()
+
 	// If we're not using a custom registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", cli.configFile.Configs[auth.IndexServerAddress()].Username, name)
+		username := cli.configFile.Configs[auth.IndexServerAddress()].Username
+		if username == "" {
+			username = "<user>"
+		}
+		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	v := url.Values{}
@@ -1467,15 +1483,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v := url.Values{}
 		v.Set("logs", "1")
 		v.Set("stream", "1")
+		var out io.Writer
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
 		}
 		if config.AttachStdout {
 			v.Set("stdout", "1")
+			out = cli.out
 		}
 		if config.AttachStderr {
 			v.Set("stderr", "1")
+			out = cli.out
 		}
 
 		signals := make(chan os.Signal, 1)
@@ -1489,7 +1508,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}()
 
-		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, cli.out); err != nil {
+		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
@@ -1514,6 +1533,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	var copyData APICopy
 	info := strings.Split(cmd.Arg(0), ":")
+
+	if len(info) != 2 {
+		return fmt.Errorf("Error: Resource not specified")
+	}
 
 	copyData.Resource = info[1]
 	copyData.HostPath = cmd.Arg(1)
@@ -1661,11 +1684,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
 
-	receiveStdout := utils.Go(func() error {
-		_, err := io.Copy(out, br)
-		utils.Debugf("[hijack] End of stdout")
-		return err
-	})
+	var receiveStdout (chan error)
+	if out != nil {
+		receiveStdout = utils.Go(func() error {
+			_, err := io.Copy(out, br)
+			utils.Debugf("[hijack] End of stdout")
+			return err
+		})
+	}
 
 	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
 		oldState, err := term.SetRawTerminal(cli.terminalFd)
@@ -1693,9 +1719,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		return nil
 	})
 
-	if err := <-receiveStdout; err != nil {
-		utils.Debugf("Error receiveStdout: %s", err)
-		return err
+	if out != nil {
+		if err := <-receiveStdout; err != nil {
+			utils.Debugf("Error receiveStdout: %s", err)
+			return err
+		}
 	}
 
 	if !cli.isTerminal {
@@ -1761,6 +1789,14 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	return flags
 }
 
+func (cli *DockerCli) LoadConfigFile() (err error) {
+	cli.configFile, err = auth.LoadConfig(os.Getenv("HOME"))
+	if err != nil {
+		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
+	}
+	return err
+}
+
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
 	var (
 		isTerminal = false
@@ -1777,15 +1813,9 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 	if err == nil {
 		err = out
 	}
-
-	configFile, e := auth.LoadConfig(os.Getenv("HOME"))
-	if e != nil {
-		fmt.Fprintf(err, "WARNING: %s\n", e)
-	}
 	return &DockerCli{
 		proto:      proto,
 		addr:       addr,
-		configFile: configFile,
 		in:         in,
 		out:        out,
 		err:        err,

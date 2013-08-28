@@ -337,3 +337,21 @@ search dotcloud.net`: true,
 		}
 	}
 }
+
+func assertParseRelease(t *testing.T, release string, b *KernelVersionInfo, result int) {
+	var (
+		a *KernelVersionInfo
+	)
+	a, _ = ParseRelease(release)
+
+	if r := CompareKernelVersion(a, b); r != result {
+		t.Fatalf("Unexpected kernel version comparison result. Found %d, expected %d", r, result)
+	}
+}
+
+func TestParseRelease(t *testing.T) {
+	assertParseRelease(t, "3.8.0", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}, 0)
+	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54}, 0)
+	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: "1"}, 0)
+	assertParseRelease(t, "3.8.0-19-generic", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "19-generic"}, 0)
+}

@@ -28,12 +28,18 @@ repositories. You can host your own Registry too! Docker acts as a
 client for these services via ``docker search, pull, login`` and
 ``push``.
 
-Top-level, User, and Your Own Repositories
-------------------------------------------
+.. _using_public_repositories:
+
+Public Repositories
+-------------------
 
 There are two types of public repositories: *top-level* repositories
 which are controlled by the Docker team, and *user* repositories
-created by individual contributors.
+created by individual contributors. Anyone can read from these
+repositories -- they really help people get started quickly! You could
+also use :ref:`using_private_repositories` if you need to keep control
+of who accesses your images, but we will only refer to public
+repositories in these examples.
 
 * Top-level repositories can easily be recognized by **not** having a
   ``/`` (slash) in their name. These repositories can generally be
@@ -45,28 +51,6 @@ created by individual contributors.
   on the Central Registry.
 * User images are not checked, it is therefore up to you whether or
   not you trust the creator of this image.
-
-Right now (version 0.5), private repositories are only possible by
-hosting `your own registry
-<https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
-repository on your own registry, you must prefix the tag with the
-address of the registry's host, like this:
-
-.. code-block:: bash
-
-    # Tag to create a repository with the full registry location.
-    # The location (e.g. localhost.localdomain:5000) becomes
-    # a permanent part of the repository name
-    sudo docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
-
-    # Push the new repository to its home location on localhost
-    sudo docker push localhost.localdomain:5000/repo_name
-
-Once a repository has your registry's host name as part of the tag,
-you can push and pull it like any other repository, but it will
-**not** be searchable (or indexed at all) in the Central Index, and
-there will be no user name checking performed. Your registry will
-function completely independently from the Central Index.
 
 Find public images available on the Central Index
 -------------------------------------------------
@@ -105,6 +89,7 @@ If your username does not exist it will prompt you to also enter a
 password and your e-mail address. It will then automatically log you
 in.
 
+.. _container_commit:
 
 Committing a container to a named image
 ---------------------------------------
@@ -117,16 +102,45 @@ your container to an image within your username namespace.
     # for example docker commit $CONTAINER_ID dhrp/kickassapp
     sudo docker commit <container_id> <username>/<repo_name>
 
+.. _image_push:
 
-Pushing a container to its repository
--------------------------------------
+Pushing an image to its repository
+----------------------------------
 
 In order to push an image to its repository you need to have committed
 your container to a named image (see above)
 
-Now you can commit this image to the repository
+Now you can commit this image to the repository designated by its name
+or tag.
 
 .. code-block:: bash
 
     # for example docker push dhrp/kickassapp
     sudo docker push <username>/<repo_name>
+
+.. _using_private_repositories:
+
+Private Repositories
+--------------------
+
+Right now (version 0.5), private repositories are only possible by
+hosting `your own registry
+<https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
+repository on your own registry, you must prefix the tag with the
+address of the registry's host, like this:
+
+.. code-block:: bash
+
+    # Tag to create a repository with the full registry location.
+    # The location (e.g. localhost.localdomain:5000) becomes
+    # a permanent part of the repository name
+    sudo docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
+
+    # Push the new repository to its home location on localhost
+    sudo docker push localhost.localdomain:5000/repo_name
+
+Once a repository has your registry's host name as part of the tag,
+you can push and pull it like any other repository, but it will
+**not** be searchable (or indexed at all) in the Central Index, and
+there will be no user name checking performed. Your registry will
+function completely independently from the Central Index.
