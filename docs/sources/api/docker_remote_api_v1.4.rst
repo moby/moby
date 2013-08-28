@@ -679,7 +679,7 @@ Create an image
         :statuscode 500: server error
 
 
-Insert a file in a image
+Insert a file in an image
 ************************
 
 .. http:post:: /images/(name)/insert
