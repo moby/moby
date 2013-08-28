@@ -66,6 +66,9 @@ to follow them again.*
 
 .. code-block:: bash
 
+   # Ubuntu Precise does not support https-repositories by default, so let's add that
+   sudo apt-get install -y apt-transport-https
+
    # Add the Docker repository key to your local keychain
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
 
