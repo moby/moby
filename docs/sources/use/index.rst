@@ -17,4 +17,5 @@ Contents:
    port_redirection
    builder
    puppet
+   baseimages
 
