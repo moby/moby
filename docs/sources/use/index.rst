@@ -17,4 +17,5 @@ Contents:
    workingwithrepository
    port_redirection
    puppet
+   baseimages
 

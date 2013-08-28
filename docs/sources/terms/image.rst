@@ -17,6 +17,11 @@ system is mounted read-write. But all the changes go to the top-most
 writeable layer, and underneath, the original file in the read-only
 image is unchanged. Since images don't change, images do not have state.
 
+You can **create an image** from a container by :doc:`committing
+</commandline/command/commit>` a container or with a :ref:`Dockerfile
+<dockerbuilder>`. But it is a lot easier to **pull an image** from a
+:ref:`repository <working_with_the_repository>`.
+
 .. image:: images/docker-filesystems-debianrw.png
 
 .. _parent_image_def:
@@ -35,16 +40,8 @@ upper image.
 Base Image
 ..........
 
-An image that has no parent is a **base image**.  This usually gets
-created using a special process to include only the most essential
-files, and this process can vary depending on the *nix distribution
-you're interested in.
+An image that has no parent is a **base image**. You can :ref:`create
+your own <base_image_creation>` or use one of the public images in the
+`central Index <http://index.docker.io>`_ where you can search for
+your favorite distro by name.
 
-We include three example scripts for creating base images in the
-Docker Github Repo:
-
-* `BusyBox <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh>`_
-* `CentOS
-  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-centos.sh>`_
-* `Debian
-  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debian.sh>`_
