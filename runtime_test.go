@@ -42,7 +42,7 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
-	return os.RemoveAll(runtime.root)
+	return os.RemoveAll(runtime.config.GraphPath)
 }
 
 func cleanup(runtime *Runtime) error {
@@ -84,10 +84,13 @@ func init() {
 		log.Fatal("docker tests need to be run as root")
 	}
 
-	NetworkBridgeIface = unitTestNetworkBridge
-
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
+	config := &DaemonConfig{
+		GraphPath:   unitTestStoreBase,
+		AutoRestart: false,
+		BridgeIface: unitTestNetworkBridge,
+	}
+	if runtime, err := NewRuntimeFromDirectory(config); err != nil {
 		panic(err)
 	} else {
 		globalRuntime = runtime
@@ -96,7 +99,6 @@ func init() {
 	// Create the "Server"
 	srv := &Server{
 		runtime:     globalRuntime,
-		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -456,7 +458,8 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
+	runtime1.config.AutoRestart = false
+	runtime2, err := NewRuntimeFromDirectory(runtime1.config)
 	if err != nil {
 		t.Fatal(err)
 	}
