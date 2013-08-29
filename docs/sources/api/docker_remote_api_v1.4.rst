@@ -1091,15 +1091,15 @@ Create a new image from a container's changes
 
         {"Id":"596069db4bf5"}
 
-	:query container: source container
-	:query repo: repository
-	:query tag: tag
-	:query m: commit message
-	:query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
-	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
-        :statuscode 201: no error
-	:statuscode 404: no such container
-        :statuscode 500: server error
+    :query container: source container
+    :query repo: repository
+    :query tag: tag
+    :query m: commit message
+    :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
+    :statuscode 201: no error
+    :statuscode 404: no such container
+    :statuscode 500: server error
 
 
 Monitor Docker's events
