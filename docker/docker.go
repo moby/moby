@@ -37,6 +37,7 @@ func main() {
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
+	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
 	flag.Parse()
 	if *flVersion {
 		showVersion()
@@ -49,10 +50,9 @@ func main() {
 		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
 	}
 
+	bridge := docker.DefaultNetworkBridge
 	if *bridgeName != "" {
-		docker.NetworkBridgeIface = *bridgeName
-	} else {
-		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
+		bridge = *bridgeName
 	}
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
@@ -64,7 +64,22 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		var dns []string
+		if *flDns != "" {
+			dns = []string{*flDns}
+		}
+
+		config := &docker.DaemonConfig{
+			Pidfile:        *pidfile,
+			GraphPath:      *flGraphPath,
+			AutoRestart:    *flAutoRestart,
+			EnableCors:     *flEnableCors,
+			Dns:            dns,
+			EnableIptables: *flEnableIptables,
+			BridgeIface:    bridge,
+			ProtoAddresses: flHosts,
+		}
+		if err := daemon(config); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -115,30 +130,26 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
-	if err := createPidFile(pidfile); err != nil {
+func daemon(config *docker.DaemonConfig) error {
+	if err := createPidFile(config.Pidfile); err != nil {
 		log.Fatal(err)
 	}
-	defer removePidFile(pidfile)
+	defer removePidFile(config.Pidfile)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
-		removePidFile(pidfile)
+		removePidFile(config.Pidfile)
 		os.Exit(0)
 	}()
-	var dns []string
-	if flDns != "" {
-		dns = []string{flDns}
-	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
+	server, err := docker.NewServer(config)
 	if err != nil {
 		return err
 	}
-	chErrors := make(chan error, len(protoAddrs))
-	for _, protoAddr := range protoAddrs {
+	chErrors := make(chan error, len(config.ProtoAddresses))
+	for _, protoAddr := range config.ProtoAddresses {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if protoAddrParts[0] == "unix" {
 			syscall.Unlink(protoAddrParts[1])
@@ -154,7 +165,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
 		}()
 	}
-	for i := 0; i < len(protoAddrs); i += 1 {
+	for i := 0; i < len(config.ProtoAddresses); i += 1 {
 		err := <-chErrors
 		if err != nil {
 			return err

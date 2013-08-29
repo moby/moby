@@ -42,7 +42,11 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root, false)
+	config := &DaemonConfig{
+		GraphPath:   root,
+		AutoRestart: false,
+	}
+	runtime, err := NewRuntimeFromDirectory(config)
 	if err != nil {
 		return nil, err
 	}
