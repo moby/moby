@@ -2,21 +2,8 @@ package docker
 
 import (
 	"net"
-	"os"
 	"testing"
 )
-
-func TestIptables(t *testing.T) {
-	if err := iptables("-L"); err != nil {
-		t.Fatal(err)
-	}
-	path := os.Getenv("PATH")
-	os.Setenv("PATH", "")
-	defer os.Setenv("PATH", path)
-	if err := iptables("-L"); err == nil {
-		t.Fatal("Not finding iptables in the PATH should cause an error")
-	}
-}
 
 func TestParseNat(t *testing.T) {
 	if nat, err := parseNat("4500"); err == nil {
