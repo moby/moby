@@ -37,6 +37,8 @@ Running an interactive shell
   # use the escape sequence Ctrl-p + Ctrl-q
   sudo docker run -i -t ubuntu /bin/bash
 
+.. _dockergroup:
+
 Why ``sudo``?
 -------------
 
