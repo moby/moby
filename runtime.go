@@ -24,7 +24,6 @@ type Capabilities struct {
 }
 
 type Runtime struct {
-	root           string
 	repository     string
 	containers     *list.List
 	networkManager *NetworkManager
@@ -33,10 +32,9 @@ type Runtime struct {
 	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
 	kernelVersion  *utils.KernelVersionInfo
-	autoRestart    bool
 	volumes        *Graph
 	srv            *Server
-	Dns            []string
+	config         *DaemonConfig
 }
 
 var sysInitPath string
@@ -149,7 +147,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		}
 		if !strings.Contains(string(output), "RUNNING") {
 			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
-			if runtime.autoRestart {
+			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
@@ -334,18 +332,18 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		return nil, err
 	}
 
-	if len(config.Dns) == 0 && len(runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.Dns = defaultDns
+		runtime.config.Dns = defaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(runtime.Dns) > 0 {
+	if len(config.Dns) > 0 || len(runtime.config.Dns) > 0 {
 		var dns []string
 		if len(config.Dns) > 0 {
 			dns = config.Dns
 		} else {
-			dns = runtime.Dns
+			dns = runtime.config.Dns
 		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
 		f, err := os.Create(container.ResolvConfPath)
@@ -427,12 +425,11 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
+func NewRuntime(config *DaemonConfig) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(config)
 	if err != nil {
 		return nil, err
 	}
-	runtime.Dns = dns
 
 	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
@@ -446,34 +443,33 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
-	runtimeRepo := path.Join(root, "containers")
+func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+	runtimeRepo := path.Join(config.GraphPath, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(root, "graph"))
+	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(root, "volumes"))
+	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(config.GraphPath, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
-	if NetworkBridgeIface == "" {
-		NetworkBridgeIface = DefaultNetworkBridge
+	if config.BridgeIface == "" {
+		config.BridgeIface = DefaultNetworkBridge
 	}
-	netManager, err := newNetworkManager(NetworkBridgeIface)
+	netManager, err := newNetworkManager(config)
 	if err != nil {
 		return nil, err
 	}
 	runtime := &Runtime{
-		root:           root,
 		repository:     runtimeRepo,
 		containers:     list.New(),
 		networkManager: netManager,
@@ -481,8 +477,8 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
-		autoRestart:    autoRestart,
 		volumes:        volumes,
+		config:         config,
 	}
 
 	if err := runtime.restore(); err != nil {

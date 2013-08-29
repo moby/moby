@@ -102,7 +102,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.root, nil, srv.HTTPRequestFactory(nil))
+	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +634,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err != nil {
 		return err
 	}
@@ -843,7 +843,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.root, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err2 := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err2 != nil {
 		return err2
 	}
@@ -1294,17 +1294,16 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 
 }
 
-func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
+func NewServer(config *DaemonConfig) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
-	runtime, err := NewRuntime(flGraphPath, autoRestart, dns)
+	runtime, err := NewRuntime(config)
 	if err != nil {
 		return nil, err
 	}
 	srv := &Server{
 		runtime:     runtime,
-		enableCors:  enableCors,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
@@ -1342,7 +1341,6 @@ func (srv *Server) LogEvent(action, id, from string) {
 type Server struct {
 	sync.Mutex
 	runtime     *Runtime
-	enableCors  bool
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}
 	events      []utils.JSONMessage
