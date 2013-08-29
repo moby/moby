@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/iptables"
 	"github.com/dotcloud/docker/utils"
 	"log"
 	"net"
@@ -79,18 +80,6 @@ func ip(args ...string) (string, error) {
 		return "", fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
 	}
 	return string(output), nil
-}
-
-// Wrapper around the iptables command
-func iptables(args ...string) error {
-	path, err := exec.LookPath("iptables")
-	if err != nil {
-		return fmt.Errorf("command not found: iptables")
-	}
-	if err := exec.Command(path, args...).Run(); err != nil {
-		return fmt.Errorf("iptables failed: iptables %v", strings.Join(args, " "))
-	}
-	return nil
 }
 
 func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
@@ -177,7 +166,7 @@ func CreateBridgeIface(ifaceName string) error {
 	if output, err := ip("link", "set", ifaceName, "up"); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
 	}
-	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+	if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 		"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 	}
@@ -219,50 +208,18 @@ type PortMapper struct {
 	tcpProxies map[int]Proxy
 	udpMapping map[int]*net.UDPAddr
 	udpProxies map[int]Proxy
-}
 
-func (mapper *PortMapper) cleanup() error {
-	// Ignore errors - This could mean the chains were never set up
-	iptables("-t", "nat", "-D", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER") // Created in versions <= 0.1.6
-	// Also cleanup rules created by older versions, or -X might fail.
-	iptables("-t", "nat", "-D", "PREROUTING", "-j", "DOCKER")
-	iptables("-t", "nat", "-D", "OUTPUT", "-j", "DOCKER")
-	iptables("-t", "nat", "-F", "DOCKER")
-	iptables("-t", "nat", "-X", "DOCKER")
-	mapper.tcpMapping = make(map[int]*net.TCPAddr)
-	mapper.tcpProxies = make(map[int]Proxy)
-	mapper.udpMapping = make(map[int]*net.UDPAddr)
-	mapper.udpProxies = make(map[int]Proxy)
-	return nil
-}
-
-func (mapper *PortMapper) setup() error {
-	if err := iptables("-t", "nat", "-N", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to create DOCKER chain: %s", err)
-	}
-	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
-	}
-	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "DOCKER"); err != nil {
-		return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
-	}
-	return nil
-}
-
-func (mapper *PortMapper) iptablesForward(rule string, port int, proto string, dest_addr string, dest_port int) error {
-	return iptables("-t", "nat", rule, "DOCKER", "-p", proto, "--dport", strconv.Itoa(port),
-		"!", "-i", NetworkBridgeIface,
-		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
+	iptables *iptables.Chain
 }
 
 func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
 		backendPort := backendAddr.(*net.TCPAddr).Port
 		backendIP := backendAddr.(*net.TCPAddr).IP
-		if err := mapper.iptablesForward("-A", port, "tcp", backendIP.String(), backendPort); err != nil {
-			return err
+		if mapper.iptables != nil {
+			if err := mapper.iptables.Forward(iptables.Add, port, "tcp", backendIP.String(), backendPort); err != nil {
+				return err
+			}
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
 		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
@@ -275,8 +232,10 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 	} else {
 		backendPort := backendAddr.(*net.UDPAddr).Port
 		backendIP := backendAddr.(*net.UDPAddr).IP
-		if err := mapper.iptablesForward("-A", port, "udp", backendIP.String(), backendPort); err != nil {
-			return err
+		if mapper.iptables != nil {
+			if err := mapper.iptables.Forward(iptables.Add, port, "udp", backendIP.String(), backendPort); err != nil {
+				return err
+			}
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
 		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
@@ -300,8 +259,10 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 			proxy.Close()
 			delete(mapper.tcpProxies, port)
 		}
-		if err := mapper.iptablesForward("-D", port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
-			return err
+		if mapper.iptables != nil {
+			if err := mapper.iptables.Forward(iptables.Delete, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
+				return err
+			}
 		}
 		delete(mapper.tcpMapping, port)
 	} else {
@@ -313,8 +274,10 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 			proxy.Close()
 			delete(mapper.udpProxies, port)
 		}
-		if err := mapper.iptablesForward("-D", port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
-			return err
+		if mapper.iptables != nil {
+			if err := mapper.iptables.Forward(iptables.Delete, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
+				return err
+			}
 		}
 		delete(mapper.udpMapping, port)
 	}
@@ -322,12 +285,20 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 }
 
 func newPortMapper() (*PortMapper, error) {
-	mapper := &PortMapper{}
-	if err := mapper.cleanup(); err != nil {
+	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
 		return nil, err
 	}
-	if err := mapper.setup(); err != nil {
-		return nil, err
+	chain, err := iptables.NewChain("DOCKER", NetworkBridgeIface)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create DOCKER chain: %s", err)
+	}
+
+	mapper := &PortMapper{
+		tcpMapping: make(map[int]*net.TCPAddr),
+		tcpProxies: make(map[int]Proxy),
+		udpMapping: make(map[int]*net.UDPAddr),
+		udpProxies: make(map[int]Proxy),
+		iptables:   chain,
 	}
 	return mapper, nil
 }
