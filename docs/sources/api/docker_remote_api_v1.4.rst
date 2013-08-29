@@ -1082,7 +1082,7 @@ Create a new image from a container's changes
 
         POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
 
-        **Example response**:
+    **Example response**:
 
     .. sourcecode:: http
 
