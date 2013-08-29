@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -92,7 +93,8 @@ func SysInit() {
 	var u = flag.String("u", "", "username or uid")
 	var gw = flag.String("g", "", "gateway address")
 	var workdir = flag.String("w", "", "workdir")
-
+	var hostname = flag.String("h", "", "hostname")
+	var domainname = flag.String("d", "", "domainname")
 	var flEnv ListOpts
 	flag.Var(&flEnv, "e", "Set environment variables")
 
@@ -101,6 +103,7 @@ func SysInit() {
 	cleanupEnv(flEnv)
 	setupNetworking(*gw)
 	setupWorkingDirectory(*workdir)
+	setupHostname(*hostname, *domainname)
 	changeUser(*u)
 	executeProgram(flag.Arg(0), flag.Args())
 }

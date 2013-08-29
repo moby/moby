@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -20,7 +21,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"net"
 )
 
 type Container struct {
@@ -61,6 +61,7 @@ type Container struct {
 
 type Config struct {
 	Hostname        string
+	Domainname      string
 	User            string
 	Memory          int64 // Memory limit (in bytes)
 	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
@@ -203,8 +204,17 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		return nil, nil, cmd, err
 	}
 
+	hostname := *flHostname
+	domainname := ""
+
+	parts := strings.SplitN(hostname, ".", 2)
+	if len(parts) > 1 {
+		hostname = parts[0]
+		domainname = parts[1]
+	}
 	config := &Config{
-		Hostname:        *flHostname,
+		Hostname:        hostname,
+		Domainname:      domainname,
 		PortSpecs:       flPorts,
 		User:            *flUser,
 		Tty:             *flTty,
@@ -692,6 +702,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		params = append(params, "-e", "TERM=xterm")
 	}
 
+	params = append(params, "-h", container.Config.Hostname)
+	params = append(params, "-d", container.Config.Domainname)
+
 	// Setup environment
 	params = append(params,
 		"-e", "HOME=/",
@@ -813,10 +826,10 @@ func (container *Container) allocateNetwork() error {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
-				IPNet: net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
 				Gateway: manager.bridgeNetwork.IP,
 				manager: manager,
-				}
+			}
 			ipNum := ipToInt(iface.IPNet.IP)
 			manager.ipAllocator.inUse[ipNum] = struct{}{}
 		}
@@ -827,10 +840,10 @@ func (container *Container) allocateNetwork() error {
 		portSpecs = container.Config.PortSpecs
 	} else {
 		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp", frontend, backend))
 		}
 		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp", frontend, backend))
 		}
 	}
 
