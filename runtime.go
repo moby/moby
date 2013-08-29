@@ -208,7 +208,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 func (runtime *Runtime) restore() error {
 	wheel := "-\\|/"
-	if os.Getenv("DEBUG") == "" {
+	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("Loading containers:  ")
 	}
 	dir, err := ioutil.ReadDir(runtime.repository)
@@ -218,7 +218,7 @@ func (runtime *Runtime) restore() error {
 	for i, v := range dir {
 		id := v.Name()
 		container, err := runtime.Load(id)
-		if i%21 == 0 && os.Getenv("DEBUG") == "" {
+		if i%21 == 0 && os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
 		if err != nil {
@@ -227,7 +227,7 @@ func (runtime *Runtime) restore() error {
 		}
 		utils.Debugf("Loaded container %v", container.ID)
 	}
-	if os.Getenv("DEBUG") == "" {
+	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
 	return nil
