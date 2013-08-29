@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,14 +24,14 @@ const (
 	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
 	unitTestNetworkBridge = "testdockbr0"
 	unitTestStoreBase     = "/var/lib/docker/unit-tests"
-	testDaemonAddr        = "127.0.0.1:4270"
-	testDaemonProto       = "tcp"
+	testDaemonProto       = "unix"
 )
 
 var (
 	globalRuntime   *Runtime
 	startFds        int
 	startGoroutines int
+	testDaemonAddr  string
 )
 
 func nuke(runtime *Runtime) error {
@@ -72,6 +74,11 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 func init() {
+	defer func() {
+		if msg := recover(); msg != nil {
+			log.Fatalf("Init test error: %v\n", msg)
+		}
+	}()
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		SysInit()
@@ -79,7 +86,7 @@ func init() {
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {
-		log.Fatal("docker tests need to be run as root")
+		panic("docker tests need to be run as root")
 	}
 
 	NetworkBridgeIface = unitTestNetworkBridge
@@ -105,6 +112,12 @@ func init() {
 			panic(err)
 		}
 	}
+
+	tmpDir, err := ioutil.TempDir("", "docker-test-sock")
+	if err != nil {
+		panic(err)
+	}
+	testDaemonAddr = path.Join(tmpDir, "docker-test.sock")
 	// Spawn a Daemon
 	go func() {
 		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
