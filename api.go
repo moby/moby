@@ -547,8 +547,9 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, b)
+	w.Write(b)
 	return nil
 }
 
