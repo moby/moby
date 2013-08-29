@@ -512,7 +512,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
@@ -973,7 +973,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		if err != nil {
 			version = APIVERSION
 		}
-		if srv.enableCors {
+		if srv.runtime.config.EnableCors {
 			writeCorsHeaders(w, r)
 		}
 

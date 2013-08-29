@@ -14,8 +14,6 @@ import (
 	"sync"
 )
 
-var NetworkBridgeIface string
-
 const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
@@ -113,7 +111,7 @@ func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
 // CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
 // and attempts to configure it with an address which doesn't conflict with any other interface on the host.
 // If it can't find an address which doesn't conflict, it will return an error.
-func CreateBridgeIface(ifaceName string) error {
+func CreateBridgeIface(config *DaemonConfig) error {
 	addrs := []string{
 		// Here we don't follow the convention of using the 1st IP of the range for the gateway.
 		// This is to use the same gateway IPs as the /24 ranges, which predate the /16 ranges.
@@ -152,23 +150,25 @@ func CreateBridgeIface(ifaceName string) error {
 		}
 	}
 	if ifaceAddr == "" {
-		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", ifaceName, ifaceName)
+		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", config.BridgeIface, config.BridgeIface)
 	}
-	utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
+	utils.Debugf("Creating bridge %s with network %s", config.BridgeIface, ifaceAddr)
 
-	if output, err := ip("link", "add", ifaceName, "type", "bridge"); err != nil {
+	if output, err := ip("link", "add", config.BridgeIface, "type", "bridge"); err != nil {
 		return fmt.Errorf("Error creating bridge: %s (output: %s)", err, output)
 	}
 
-	if output, err := ip("addr", "add", ifaceAddr, "dev", ifaceName); err != nil {
+	if output, err := ip("addr", "add", ifaceAddr, "dev", config.BridgeIface); err != nil {
 		return fmt.Errorf("Unable to add private network: %s (%s)", err, output)
 	}
-	if output, err := ip("link", "set", ifaceName, "up"); err != nil {
+	if output, err := ip("link", "set", config.BridgeIface, "up"); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
 	}
-	if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
-		"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
-		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+	if config.EnableIptables {
+		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
+			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		}
 	}
 	return nil
 }
@@ -284,13 +284,18 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 	return nil
 }
 
-func newPortMapper() (*PortMapper, error) {
+func newPortMapper(config *DaemonConfig) (*PortMapper, error) {
+	// We can always try removing the iptables
 	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
 		return nil, err
 	}
-	chain, err := iptables.NewChain("DOCKER", NetworkBridgeIface)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create DOCKER chain: %s", err)
+	var chain *iptables.Chain
+	if config.EnableIptables {
+		var err error
+		chain, err = iptables.NewChain("DOCKER", config.BridgeIface)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create DOCKER chain: %s", err)
+		}
 	}
 
 	mapper := &PortMapper{
@@ -633,22 +638,22 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 	return iface, nil
 }
 
-func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
+func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 
-	if bridgeIface == DisableNetworkBridge {
+	if config.BridgeIface == DisableNetworkBridge {
 		manager := &NetworkManager{
 			disabled: true,
 		}
 		return manager, nil
 	}
 
-	addr, err := getIfaceAddr(bridgeIface)
+	addr, err := getIfaceAddr(config.BridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
-		if err := CreateBridgeIface(bridgeIface); err != nil {
+		if err := CreateBridgeIface(config); err != nil {
 			return nil, err
 		}
-		addr, err = getIfaceAddr(bridgeIface)
+		addr, err = getIfaceAddr(config.BridgeIface)
 		if err != nil {
 			return nil, err
 		}
@@ -666,13 +671,13 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		return nil, err
 	}
 
-	portMapper, err := newPortMapper()
+	portMapper, err := newPortMapper(config)
 	if err != nil {
 		return nil, err
 	}
 
 	manager := &NetworkManager{
-		bridgeIface:      bridgeIface,
+		bridgeIface:      config.BridgeIface,
 		bridgeNetwork:    network,
 		ipAllocator:      ipAllocator,
 		tcpPortAllocator: tcpPortAllocator,
