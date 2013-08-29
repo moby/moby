@@ -610,6 +610,10 @@ func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+func (wf *WriteFlusher) Close() {
+	wf.Lock()
+}
+
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var flusher http.Flusher
 	if f, ok := w.(http.Flusher); ok {
