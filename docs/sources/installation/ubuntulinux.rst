@@ -2,15 +2,17 @@
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 
-**These instructions have changed for 0.6. If you are upgrading from an earlier version, you will need to follow them again.**
-
 .. _ubuntu_linux:
 
 Ubuntu Linux
 ============
 
-   **Please note this project is currently under heavy development. It should not be used in production.**
+.. warning::
 
+   These instructions have changed for 0.6. If you are upgrading from
+   an earlier version, you will need to follow them again.
+
+.. include:: install_header.inc
 
 Right now, the officially supported distribution are:
 
@@ -22,7 +24,8 @@ Docker has the following dependencies
 * Linux kernel 3.8 (read more about :ref:`kernel`)
 * AUFS file system support (we are working on BTRFS support as an alternative)
 
-Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated Firewall) <https://help.ubuntu.com/community/UFW>`_
+Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated
+Firewall) <https://help.ubuntu.com/community/UFW>`_
 
 .. _ubuntu_precise:
 
@@ -38,12 +41,13 @@ Dependencies
 **Linux kernel 3.8**
 
 Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
-comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll install when following these steps
-comes with AUFS built in. We also include the generic headers
-to enable packages that depend on them, like ZFS and the VirtualBox
-guest additions. If you didn't install the headers for your "precise"
-kernel, then you can skip these headers for the "raring" kernel. But
-it is safer to include them if you're not sure.
+comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll
+install when following these steps comes with AUFS built in. We also
+include the generic headers to enable packages that depend on them,
+like ZFS and the VirtualBox guest additions. If you didn't install the
+headers for your "precise" kernel, then you can skip these headers for
+the "raring" kernel. But it is safer to include them if you're not
+sure.
 
 
 .. code-block:: bash
@@ -59,10 +63,13 @@ it is safer to include them if you're not sure.
 Installation
 ------------
 
+.. warning::
+
+   These instructions have changed for 0.6. If you are upgrading from
+   an earlier version, you will need to follow them again.
+
 Docker is available as a Debian package, which makes installation easy.
 
-*Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
-to follow them again.*
 
 .. code-block:: bash
 
@@ -136,7 +143,8 @@ Verify it worked
 
 .. code-block:: bash
 
-   # download the base 'ubuntu' container and run bash inside it while setting up an interactive shell
+   # download the base 'ubuntu' container
+   # and run bash inside it while setting up an interactive shell
    sudo docker run -i -t ubuntu /bin/bash
 
    # type exit to exit
@@ -150,7 +158,8 @@ Verify it worked
 Docker and UFW
 ^^^^^^^^^^^^^^
 
-Docker uses a bridge to manage containers networking, by default UFW drop all `forwarding`, a first step is to enable forwarding:
+Docker uses a bridge to manage containers networking, by default UFW
+drop all `forwarding`, a first step is to enable forwarding:
 
 .. code-block:: bash
 
@@ -168,8 +177,9 @@ Then reload UFW:
    sudo ufw reload
 
 
-UFW's default set of rules denied all `incoming`, so if you want to be able to reach your containers from another host,
-you should allow incoming connections on the docker port (default 4243):
+UFW's default set of rules denied all `incoming`, so if you want to be
+able to reach your containers from another host, you should allow
+incoming connections on the docker port (default 4243):
 
 .. code-block:: bash
 
