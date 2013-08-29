@@ -1423,7 +1423,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			tag = DEFAULTTAG
 		}
 
-		fmt.Printf("Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
+		fmt.Fprintf(cli.err, "Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
 
 		v := url.Values{}
 		repos, tag := utils.ParseRepositoryTag(config.Image)
