@@ -680,7 +680,7 @@ Create an image
 
 
 Insert a file in an image
-************************
+*************************
 
 .. http:post:: /images/(name)/insert
 
