@@ -434,8 +434,9 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	if VERSION != "" {
+		fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	}
 	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
 	if GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", GITCOMMIT)
@@ -452,7 +453,9 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
+	if out.Version != "" {
+		fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
+	}
 	if out.GitCommit != "" {
 		fmt.Fprintf(cli.out, "Git commit (server): %s\n", out.GitCommit)
 	}
@@ -463,7 +466,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	release := utils.GetReleaseVersion()
 	if release != "" {
 		fmt.Fprintf(cli.out, "Last stable version: %s", release)
-		if strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release {
+		if (VERSION != "" || out.Version != "") && (strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release) {
 			fmt.Fprintf(cli.out, ", please update docker")
 		}
 		fmt.Fprintf(cli.out, "\n")
