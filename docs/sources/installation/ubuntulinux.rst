@@ -73,6 +73,9 @@ Docker is available as a Debian package, which makes installation easy.
 
 .. code-block:: bash
 
+   # Install https for apt-get
+   sudo apt-get install apt-transport-https
+
    # Add the Docker repository key to your local keychain
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
 
