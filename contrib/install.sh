@@ -47,7 +47,7 @@ else
   echo "Creating /etc/init/dockerd.conf..."
   cat >/etc/init/dockerd.conf <<EOF
 description "Docker daemon"
-start on filesystem or runlevel [2345]
+start on filesystem and started lxc-net
 stop on runlevel [!2345]
 respawn
 exec /usr/local/bin/docker -d
