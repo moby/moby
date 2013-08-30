@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -20,7 +21,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"net"
 )
 
 type Container struct {
@@ -813,10 +813,10 @@ func (container *Container) allocateNetwork() error {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
-				IPNet: net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
 				Gateway: manager.bridgeNetwork.IP,
 				manager: manager,
-				}
+			}
 			ipNum := ipToInt(iface.IPNet.IP)
 			manager.ipAllocator.inUse[ipNum] = struct{}{}
 		}
@@ -827,10 +827,10 @@ func (container *Container) allocateNetwork() error {
 		portSpecs = container.Config.PortSpecs
 	} else {
 		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp", frontend, backend))
 		}
 		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp",frontend, backend))
+			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp", frontend, backend))
 		}
 	}
 
