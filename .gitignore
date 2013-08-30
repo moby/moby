@@ -14,3 +14,5 @@ docs/_templates
 .gopath/
 .dotcloud
 *.test
+vendor/
+bundles/
