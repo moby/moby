@@ -1193,6 +1193,60 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
+// Test for #1582
+func TestCopyVolumeContent(t *testing.T) {
+	r := mkRuntime(t)
+	defer nuke(r)
+
+	// Put some content in a directory of a container and commit it
+	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
+	defer r.Destroy(container1)
+
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := r.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Test that the content is copied from the image to the volume
+	tmpDir1 := tempDir(t)
+	defer os.RemoveAll(tmpDir1)
+	stdout1, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello", tmpDir1), img.ID, "find", "/hello"}, t)
+	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
+		t.Fatal("Container failed to transfer content to volume")
+	}
+
+	// Test that the content is not copied when the volume is readonly
+	tmpDir2 := tempDir(t)
+	defer os.RemoveAll(tmpDir2)
+	stdout2, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:ro", tmpDir2), img.ID, "find", "/hello"}, t)
+	if strings.Contains(stdout2, "/hello/local/world") || strings.Contains(stdout2, "/hello/local") {
+		t.Fatal("Container transfered content to readonly volume")
+	}
+
+	// Test that the content is not copied when the volume is non-empty
+	tmpDir3 := tempDir(t)
+	defer os.RemoveAll(tmpDir3)
+	writeFile(path.Join(tmpDir3, "touch-me"), "", t)
+	stdout3, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:rw", tmpDir3), img.ID, "find", "/hello"}, t)
+	if strings.Contains(stdout3, "/hello/local/world") || strings.Contains(stdout3, "/hello/local") || !strings.Contains(stdout3, "/hello/touch-me") {
+		t.Fatal("Container transfered content to non-empty volume")
+	}
+}
+
 func TestBindMounts(t *testing.T) {
 	r := mkRuntime(t)
 	defer nuke(r)

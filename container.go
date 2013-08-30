@@ -642,11 +642,13 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		if _, exists := container.Volumes[volPath]; exists {
 			continue
 		}
+		var srcPath string
+		srcRW := false
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
-			container.Volumes[volPath] = bindMap.SrcPath
+			srcPath = bindMap.SrcPath
 			if strings.ToLower(bindMap.Mode) == "rw" {
-				container.VolumesRW[volPath] = true
+				srcRW = true
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
@@ -654,16 +656,35 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			if err != nil {
 				return err
 			}
-			srcPath, err := c.layer()
+			srcPath, err = c.layer()
 			if err != nil {
 				return err
 			}
-			container.Volumes[volPath] = srcPath
-			container.VolumesRW[volPath] = true // RW by default
+			srcRW = true // RW by default
 		}
+		container.Volumes[volPath] = srcPath
+		container.VolumesRW[volPath] = srcRW
 		// Create the mountpoint
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+		rootVolPath := path.Join(container.RootfsPath(), volPath)
+		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 			return nil
+		}
+		if srcRW {
+			volList, err := ioutil.ReadDir(rootVolPath)
+			if err != nil {
+				return err
+			}
+			if len(volList) > 0 {
+				srcList, err := ioutil.ReadDir(srcPath)
+				if err != nil {
+					return err
+				}
+				if len(srcList) == 0 {
+					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 
