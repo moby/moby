@@ -2,6 +2,7 @@ package docker
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -394,10 +395,11 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
 
-	authJson := r.Header.Get("X-Registry-Auth")
+	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &auth.AuthConfig{}
-	if authJson != "" {
-		if err := json.NewDecoder(strings.NewReader(authJson)).Decode(authConfig); err != nil {
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
 			authConfig = &auth.AuthConfig{}
@@ -493,10 +495,12 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	}
 	authConfig := &auth.AuthConfig{}
 
-	authJson := r.Header.Get("X-Registry-Auth")
-	if authJson != "" {
-		if err := json.NewDecoder(strings.NewReader(authJson)).Decode(authConfig); err != nil {
-			// to increase compatibility with the existing api it is defaulting to be empty
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	if authEncoded != "" {
+		// the new format is to handle the authConfig as a header
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// to increase compatibility to existing api it is defaulting to be empty
 			authConfig = &auth.AuthConfig{}
 		}
 	} else {

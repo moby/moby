@@ -842,7 +842,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 			return err
 		}
 		registryAuthHeader := []string{
-			string(buf),
+			base64.URLEncoding.EncodeToString(buf),
 		}
 
 		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, cli.out, map[string][]string{
@@ -901,7 +901,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 			return err
 		}
 		registryAuthHeader := []string{
-			string(buf),
+			base64.URLEncoding.EncodeToString(buf),
 		}
 
 		return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{
