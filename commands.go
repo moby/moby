@@ -1457,9 +1457,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err != nil {
 			return err
 		}
-		v.Set("authConfig", base64.URLEncoding.EncodeToString(buf))
 
-		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, nil)
+		registryAuthHeader := []string{
+			base64.URLEncoding.EncodeToString(buf),
+		}
+		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{
+			"X-Registry-Auth": registryAuthHeader,
+		})
 		if err != nil {
 			return err
 		}
