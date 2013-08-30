@@ -52,7 +52,7 @@ private PaaS, service-oriented architectures, etc."
 
 UPSTART_SCRIPT='description     "Docker daemon"
 
-start on filesystem or runlevel [2345]
+start on filesystem and started lxc-net
 stop on runlevel [!2345]
 
 respawn
