@@ -1196,6 +1196,51 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
+// Test for #1737
+func TestCopyVolumeUidGid(t *testing.T) {
+	r := mkRuntime(t)
+	defer nuke(r)
+
+	// Add directory not owned by root
+	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && chown daemon.daemon /hello"}, t)
+	defer r.Destroy(container1)
+
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+	if err := container1.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container1.State.Running {
+		t.Errorf("Container shouldn't be running")
+	}
+
+	rwTar, err := container1.ExportRw()
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := r.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Test that the uid and gid is copied from the image to the volume
+	tmpDir1 := tempDir(t)
+	defer os.RemoveAll(tmpDir1)
+	stdout1, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello", tmpDir1), img.ID, "stat", "-c", "%U %G", "/hello"}, t)
+	if !strings.Contains(stdout1, "daemon daemon") {
+		t.Fatal("Container failed to transfer uid and gid to volume")
+	}
+
+	// Test that the uid and gid is not copied from the image when the volume is read only
+	tmpDir2 := tempDir(t)
+	defer os.RemoveAll(tmpDir1)
+	stdout2, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:ro", tmpDir2), img.ID, "stat", "-c", "%U %G", "/hello"}, t)
+	if strings.Contains(stdout2, "daemon daemon") {
+		t.Fatal("Container transfered uid and gid to volume")
+	}
+}
+
 // Test for #1582
 func TestCopyVolumeContent(t *testing.T) {
 	r := mkRuntime(t)
