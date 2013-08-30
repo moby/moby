@@ -152,7 +152,6 @@ func TestRunWorkdirExists(t *testing.T) {
 
 }
 
-
 func TestRunExit(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
