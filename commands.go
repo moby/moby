@@ -30,7 +30,7 @@ import (
 
 var (
 	GITCOMMIT string
-	VERSION string
+	VERSION   string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
