@@ -20,17 +20,19 @@ Vagrant::Config.run do |config|
     pkg_cmd = "wget -q -O - http://get.docker.io/gpg | apt-key add -;" \
       "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
-    # Add Ubuntu raring backported kernel
+    # Install Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
+    # Remove old kernel packages
+    pkg_cmd << "apt-get purge -q -y linux-headers-3.2.0-* linux-image-3.2.0-* ; "
     # Add guest additions if local vbox VM
     is_vbox = true
     ARGV.each do |arg| is_vbox &&= !arg.downcase.start_with?("--provider") end
     if is_vbox
       pkg_cmd << "apt-get install -q -y linux-headers-generic-lts-raring dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
-        "wget -q http://dlc.sun.com.edgesuite.net/virtualbox/4.2.12/VBoxGuestAdditions_4.2.12.iso; "
+        "wget -q http://dlc.sun.com.edgesuite.net/virtualbox/4.2.16/VBoxGuestAdditions_4.2.16.iso; "
       # Prepare the VM to add guest additions after reboot
-      pkg_cmd << "echo -e 'mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.2.12.iso /mnt\n" \
+      pkg_cmd << "echo -e 'mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.2.16.iso /mnt\n" \
         "echo yes | /mnt/VBoxLinuxAdditions.run\numount /mnt\n" \
           "rm /root/guest_additions.sh; ' > /root/guest_additions.sh; " \
         "chmod 700 /root/guest_additions.sh; " \
