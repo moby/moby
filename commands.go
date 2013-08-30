@@ -187,8 +187,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {
-		if _, err := os.Stat(cmd.Arg(0)); err != nil {
+		if fi, err := os.Stat(cmd.Arg(0)); err != nil {
 			return err
+		} else if !fi.IsDir() {
+			return fmt.Errorf("\"%s\" is not a path or URL. Please provide a path to a directory containing a Dockerfile.", cmd.Arg(0))
 		}
 		context, err = Tar(cmd.Arg(0), Uncompressed)
 	}
