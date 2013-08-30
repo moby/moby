@@ -138,12 +138,21 @@ func TestDiff(t *testing.T) {
 	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
 	defer runtime.Destroy(container1)
 
+	// The changelog should be empty and not fail before run. See #1705
+	c, err := container1.Changes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c) != 0 {
+		t.Fatalf("Changelog should be empty before run")
+	}
+
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Check the changelog
-	c, err := container1.Changes()
+	c, err = container1.Changes()
 	if err != nil {
 		t.Fatal(err)
 	}
