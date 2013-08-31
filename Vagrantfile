@@ -17,7 +17,8 @@ Vagrant::Config.run do |config|
   # Provision docker and new kernel if deployment was not done
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
     # Add lxc-docker package
-    pkg_cmd = "wget -q -O - http://get.docker.io/gpg | apt-key add -;" \
+    pkg_cmd = "apt-get update -qq; apt-get install -q -y apt-transport-https;" \
+      "wget -q -O - http://get.docker.io/gpg | apt-key add -;" \
       "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
     # Add Ubuntu raring backported kernel
