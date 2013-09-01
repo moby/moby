@@ -7,10 +7,6 @@
 Arch Linux
 ==========
 
-  Please note this is a community contributed installation path. The only 'official' installation is using the
-  :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
-
-
 Installing on Arch Linux is not officially supported but can be handled via 
 either of the following AUR packages:
 
@@ -35,6 +31,10 @@ either AUR package.
 
 Installation
 ------------
+
+.. include:: install_header.inc
+
+.. include:: install_unofficial.inc
 
 The instructions here assume **yaourt** is installed.  See 
 `Arch User Repository <https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages>`_

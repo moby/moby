@@ -30,7 +30,7 @@ import (
 
 var (
 	GITCOMMIT string
-	VERSION string
+	VERSION   string
 )
 
 func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
@@ -187,8 +187,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {
-		if _, err := os.Stat(cmd.Arg(0)); err != nil {
+		if fi, err := os.Stat(cmd.Arg(0)); err != nil {
 			return err
+		} else if !fi.IsDir() {
+			return fmt.Errorf("\"%s\" is not a path or URL. Please provide a path to a directory containing a Dockerfile.", cmd.Arg(0))
 		}
 		context, err = Tar(cmd.Arg(0), Uncompressed)
 	}
@@ -390,8 +392,9 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	if VERSION != "" {
+		fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	}
 	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
 	if GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", GITCOMMIT)
@@ -408,7 +411,9 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
-	fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
+	if out.Version != "" {
+		fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
+	}
 	if out.GitCommit != "" {
 		fmt.Fprintf(cli.out, "Git commit (server): %s\n", out.GitCommit)
 	}
@@ -419,7 +424,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	release := utils.GetReleaseVersion()
 	if release != "" {
 		fmt.Fprintf(cli.out, "Last stable version: %s", release)
-		if strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release {
+		if (VERSION != "" || out.Version != "") && (strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release) {
 			fmt.Fprintf(cli.out, ", please update docker")
 		}
 		fmt.Fprintf(cli.out, "\n")
@@ -1379,7 +1384,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			tag = DEFAULTTAG
 		}
 
-		fmt.Printf("Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
+		fmt.Fprintf(cli.err, "Unable to find image '%s' (tag: %s) locally\n", config.Image, tag)
 
 		v := url.Values{}
 		repos, tag := utils.ParseRepositoryTag(config.Image)

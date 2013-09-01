@@ -5,17 +5,31 @@
 .. _upgrading:
 
 Upgrading
-============
+=========
 
-**These instructions are for upgrading Docker**
+The technique for upgrading ``docker`` to a newer version depends on
+how you installed ``docker``.
+
+.. versionadded:: 0.5.3
+   You may wish to add a ``docker`` group to your system to avoid using sudo with ``docker``. (see :ref:`dockergroup`)
 
 
-After normal installation
--------------------------
+After ``apt-get``
+-----------------
 
-If you installed Docker normally using apt-get or used Vagrant, use apt-get to upgrade.
+If you installed Docker using ``apt-get`` or Vagrant, then you should
+use ``apt-get`` to upgrade.
+
+.. versionadded:: 0.6
+   Add Docker repository information to your system first.
 
 .. code-block:: bash
+
+   # Add the Docker repository key to your local keychain
+   sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
+
+   # Add the Docker repository to your apt sources list.
+   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # update your sources list
    sudo apt-get update
@@ -27,7 +41,7 @@ If you installed Docker normally using apt-get or used Vagrant, use apt-get to u
 After manual installation
 -------------------------
 
-If you installed the Docker binary
+If you installed the Docker :ref:`binaries` then follow these steps:
 
 
 .. code-block:: bash
@@ -48,8 +62,10 @@ If you installed the Docker binary
    tar -xf docker-latest.tgz
 
 
-Start docker in daemon mode (-d) and disconnect (&) starting ./docker will start the version in your current dir rather than a version which
-might reside in your path.
+Start docker in daemon mode (``-d``) and disconnect, running the
+daemon in the background (``&``). Starting as ``./docker`` guarantees
+to run the version in your current directory rather than a version
+which might reside in your path.
 
 .. code-block:: bash
 
