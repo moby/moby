@@ -277,14 +277,15 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	readInput := func(in io.Reader, out io.Writer) string {
 		reader := bufio.NewReader(in)
-		line, err := reader.ReadString('\n')
+		line, _, err := reader.ReadLine()
 		if err != nil {
 			fmt.Fprintln(out, err.Error())
 			os.Exit(1)
 		}
-		return line
+		return string(line)
 	}
 
+	cli.LoadConfigFile()
 	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
 	if !ok {
 		authconfig = auth.AuthConfig{}
