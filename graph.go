@@ -272,25 +272,14 @@ func (graph *Graph) Delete(name string) error {
 
 // Map returns a list of all images in the graph, addressable by ID.
 func (graph *Graph) Map() (map[string]*Image, error) {
-	// FIXME: this should replace All()
-	all, err := graph.All()
+	images := make(map[string]*Image)
+	err := graph.WalkAll(func(image *Image) {
+		images[image.ID] = image
+	})
 	if err != nil {
 		return nil, err
 	}
-	images := make(map[string]*Image, len(all))
-	for _, image := range all {
-		images[image.ID] = image
-	}
 	return images, nil
-}
-
-// All returns a list of all images in the graph.
-func (graph *Graph) All() ([]*Image, error) {
-	var images []*Image
-	err := graph.WalkAll(func(image *Image) {
-		images = append(images, image)
-	})
-	return images, err
 }
 
 // WalkAll iterates over each image in the graph, and passes it to a handler.

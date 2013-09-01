@@ -68,7 +68,7 @@ func TestGetInfo(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	initialImages, err := srv.runtime.graph.All()
+	initialImages, err := srv.runtime.graph.Map()
 	if err != nil {
 		t.Fatal(err)
 	}

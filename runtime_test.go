@@ -50,7 +50,7 @@ func cleanup(runtime *Runtime) error {
 		container.Kill()
 		runtime.Destroy(container)
 	}
-	images, err := runtime.graph.All()
+	images, err := runtime.graph.Map()
 	if err != nil {
 		return err
 	}
@@ -123,13 +123,13 @@ func init() {
 // FIXME: test that ImagePull(json=true) send correct json output
 
 func GetTestImage(runtime *Runtime) *Image {
-	imgs, err := runtime.graph.All()
+	imgs, err := runtime.graph.Map()
 	if err != nil {
 		panic(err)
 	}
-	for i := range imgs {
-		if imgs[i].ID == unitTestImageID {
-			return imgs[i]
+	for _, image := range imgs {
+		if image.ID == unitTestImageID {
+			return image
 		}
 	}
 	panic(fmt.Errorf("Test image %v not found", unitTestImageID))
