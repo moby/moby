@@ -559,6 +559,17 @@ Known Issues (kill)
 * :issue:`197` indicates that ``docker kill`` may leave directories
   behind and make it difficult to remove the container.
 
+.. _cli_load:
+
+``load``
+--------
+
+::
+    Usage: docker load < repository.tar
+
+    Loads a tarred repository from the standard input stream.
+    Restores both images and tags.
+
 .. _cli_login:
 
 ``login``
@@ -851,6 +862,17 @@ Known Issues (run -volumes-from)
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
   could indicate a permissions problem with AppArmor. Please see the
   issue for a workaround.
+
+.. _cli_save:
+
+``save``
+
+::
+
+    Usage: docker save image > repository.tar
+
+    Streams a tarred repository to the standard output stream.
+    Contains all parent layers, and all tags + versions.
 
 .. _cli_search:
 

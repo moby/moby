@@ -92,6 +92,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
+		{"load", "Load an image from a tar archive"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
@@ -102,6 +103,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"rm", "Remove one or more containers"},
 		{"rmi", "Remove one or more images"},
 		{"run", "Run a command in a new container"},
+		{"save", "Save an image to a tar archive"},
 		{"search", "Search for an image in the docker index"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
@@ -1958,6 +1960,42 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdSave(args ...string) error {
+	cmd := Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
+	if err := cmd.Parse(args); err != nil {
+		cmd.Usage()
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	image := cmd.Arg(0)
+
+	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cli *DockerCli) CmdLoad(args ...string) error {
+	cmd := Subcmd("load", "SOURCE", "Load an image from a tar archive")
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	err := cli.stream("POST", "/images/load", cli.in, cli.out, nil)
+	if err != nil {
+		fmt.Println("Send failed", err)
+	}
+
 	return nil
 }
 
