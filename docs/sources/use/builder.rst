@@ -171,7 +171,9 @@ override the default specified in CMD.
 The ``EXPOSE`` instruction sets ports to be publicly exposed when
 running the image. This is functionally equivalent to running ``docker
 commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`` outside the
-builder. Take a look at :ref:`port_redirection` for more information.
+builder. Specifying ``EXPOSE public:private`` e.g. ``EXPOSE 8080:8080`` 
+will directly map port 8080 on the host to port 8080 in the container.
+Take a look at :ref:`port_redirection` for more information.
 
 3.6 ENV
 -------
