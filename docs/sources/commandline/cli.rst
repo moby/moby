@@ -486,6 +486,17 @@ Known Issues (kill)
 * :issue:`197` indicates that ``docker kill`` may leave directories
   behind and make it difficult to remove the container.
 
+.. _cli_load:
+
+``load``
+--------
+
+::
+    Usage: docker load < repository.tar
+
+    Loads a tarred repository from the standard input stream.
+    Restores both images and tags.
+
 .. _cli_login:
 
 ``login``
@@ -771,6 +782,17 @@ list or by repetitions of the ``-volumes-from`` argument. The container
 id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (rw or ro) as the reference container.
+
+.. _cli_save:
+
+``save``
+--------
+
+::
+    Usage: docker save image > repository.tar
+
+    Streams a tarred repository to the standard output stream.
+    Contains all parent layers, and all tags + versions.
 
 .. _cli_search:
 
