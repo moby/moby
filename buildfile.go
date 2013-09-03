@@ -354,6 +354,9 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	} else {
 		if err := b.addContext(container, orig, dest); err != nil {
+			if pos := strings.Index ( err.Error(), orig ); pos != -1 {
+				return fmt.Errorf ( "ADD origin (%s) not found %s", orig,  err.Error()[pos+len(orig):] )
+			}
 			return err
 		}
 	}
