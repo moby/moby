@@ -700,10 +700,10 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		return err
 	}
 	if err != nil {
-		//		if err := srv.pullImage(r, wf, remoteName, endpoint, nil, sf, parallel); err != nil {
-		return err
-		//		}
-		//		return nil
+		if err := srv.pullImage(r, wf, remoteName, endpoint, nil, sf, parallel); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return nil
