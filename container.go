@@ -1,9 +1,9 @@
 package docker
 
 import (
+	"code.google.com/p/getopt"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
@@ -107,56 +107,56 @@ type KeyValuePair struct {
 	Value string
 }
 
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *getopt.Set, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if os.Getenv("TEST") != "" {
-		cmd.SetOutput(ioutil.Discard)
-		cmd.Usage = nil
+		//		cmd.SetOutput(ioutil.Discard)
+		//		cmd.Usage = nil
 	}
 
-	flHostname := cmd.String("h", "", "Container host name")
-	flWorkingDir := cmd.String("w", "", "Working directory inside the container")
-	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
+	flHostname := cmd.StringLong("host", 'h', "", "Container host name")
+	flWorkingDir := cmd.StringLong("workdir", 'w', "", "Working directory inside the container")
+	flUser := cmd.StringLong("user", 'u', "", "Username or UID")
+	flDetach := cmd.BoolLong("detached", 'd', "Detached mode: Run container in the background, print new container id")
 	flAttach := NewAttachOpts()
-	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
-	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
-	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
-	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
-	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
-	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
+	cmd.VarLong(&flAttach, "attach", 'a', "Attach to stdin, stdout or stderr.")
+	flStdin := cmd.BoolLong("interactive", 'i', "Keep stdin open even if not attached")
+	flTty := cmd.BoolLong("tty", 't', "Allocate a pseudo-tty")
+	flMemory := cmd.Int64Long("memory", 'm', 0, "Memory limit (in bytes)")
+	flContainerIDFile := cmd.StringLong("cidfile", 0, "", "Write the container ID to the file")
+	flNetwork := cmd.BoolLong("networking", 'n', "Enable networking for this container")
+	flPrivileged := cmd.BoolLong("privileged", 0, "Give extended privileges to this container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		*flMemory = 0
 	}
 
-	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
+	flCpuShares := cmd.Int64Long("cpu", 'c', 0, "CPU shares (relative weight)")
 
-	var flPorts ListOpts
-	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
+	flPorts := []string{}
+	cmd.ListVarLong(&flPorts, "port", 'p', "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
-	var flEnv ListOpts
-	cmd.Var(&flEnv, "e", "Set environment variables")
+	flEnv := []string{}
+	cmd.ListVarLong(&flEnv, "env", 'e', "Set environment variables")
 
-	var flDns ListOpts
-	cmd.Var(&flDns, "dns", "Set custom dns servers")
+	flDns := []string{}
+	cmd.ListVarLong(&flDns, "dns", 0, "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
-	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
+	cmd.VarLong(flVolumes, "volume", 'v', "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	var flVolumesFrom ListOpts
-	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+	flVolumesFrom := []string{}
+	cmd.ListVarLong(&flVolumesFrom, "volumes-from", 0, "", "Mount volumes from the specified container")
 
-	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
+	flEntrypoint := cmd.StringLong("entrypoint", 0, "", "Overwrite the default entrypoint of the image")
 
-	var flLxcOpts ListOpts
-	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	flLxcOpts := []string{}
+	cmd.ListVarLong(&flLxcOpts, "lxc-conf", 0, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
-	if err := cmd.Parse(args); err != nil {
-		return nil, nil, cmd, err
-	}
+	cmd.Parse(args)
+	*flNetwork = !*flNetwork
+
 	if *flDetach && len(flAttach) > 0 {
 		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
@@ -166,10 +166,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
 		if !*flDetach {
-			flAttach.Set("stdout")
-			flAttach.Set("stderr")
+			flAttach.Set("stdout", nil)
+			flAttach.Set("stderr", nil)
 			if *flStdin {
-				flAttach.Set("stdin")
+				flAttach.Set("stdin", nil)
 			}
 		}
 	}
