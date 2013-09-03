@@ -991,7 +991,8 @@ Check auth configuration
 	   {
 		"username":"hannibal",
 		"password:"xxxx",
-		"email":"hannibal@a-team.com"
+		"email":"hannibal@a-team.com",
+		"serveraddress":"https://index.docker.io/v1/"
 	   }
 
         **Example response**:

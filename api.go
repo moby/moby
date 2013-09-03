@@ -3,6 +3,7 @@ package docker
 import (
 	"code.google.com/p/go.net/websocket"
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
@@ -394,6 +395,16 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
 
+	authEncoded := r.Form.Get("authConfig")
+	authConfig := &auth.AuthConfig{}
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibilit to existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	}
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/json")
 	}
@@ -405,7 +416,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 				metaHeaders[k] = v
 			}
 		}
-		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, metaHeaders, version > 1.3); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, authConfig, metaHeaders, version > 1.3); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
