@@ -181,6 +181,9 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
 +----------------------+----------------+--------------------------------------------+
+| Javascript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  |
+|                      |                | Install via NPM: `npm install docker.io`   |
++----------------------+----------------+--------------------------------------------+
 | Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
 +----------------------+----------------+--------------------------------------------+
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
