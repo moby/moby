@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
+   Usage: docker kill [-h] CONTAINER [CONTAINER...]
 
-    Kill a running container
+   Kill a running container
+
+    -h, --help  Display this help
+

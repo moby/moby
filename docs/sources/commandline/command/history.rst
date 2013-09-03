@@ -8,6 +8,8 @@
 
 ::
 
-    Usage: docker history [OPTIONS] IMAGE
+   Usage: docker history [-h] IMAGE
 
-    Show the history of an image
+   Show the history of an image
+
+    -h, --help  Display this help

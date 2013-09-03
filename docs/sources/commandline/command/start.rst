@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker start [OPTIONS] NAME
+   Usage: docker start [-h] CONTAINER [CONTAINER...]
 
-    Start a stopped container
+   Restart a stopped container
+
+    -h, --help  Display this help
+

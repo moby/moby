@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker info
+   Usage: docker info [-h]
 
-    Display system-wide information.
+   Display system-wide information
+
+    -h, --help  Display this help
+

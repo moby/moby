@@ -8,8 +8,10 @@
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY [TAG]
+   Usage: docker tag [-fh] IMAGE REPOSITORY [TAG]
 
-    Tag an image into a repository
+   Tag an image into a repository
 
-      -f=false: Force
+    -f, --force  Force
+    -h, --help   Display this help
+

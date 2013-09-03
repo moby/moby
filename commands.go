@@ -538,7 +538,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 }
 
 func (cli *DockerCli) CmdStart(args ...string) error {
-	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
+	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Start a stopped container")
 	cli.Parse(&cmd, args)
 
 	if cmd.NArgs() < 1 {
@@ -1249,7 +1249,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	cmd := Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.BoolLong("no-trunc", 0, "Don't truncate output")
 	cli.Parse(&cmd, args)
 

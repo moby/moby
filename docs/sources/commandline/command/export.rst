@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker export CONTAINER
+   Usage: docker export [-h] CONTAINER
 
-    Export the contents of a filesystem as a tar archive
+   Export the contents of a filesystem as a tar archive
+
+    -h, --help  Display this help
+

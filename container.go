@@ -126,10 +126,13 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flContainerIDFile := cmd.StringLong("cidfile", 0, "", "Write the container ID to the file")
 	flNetwork := cmd.BoolLong("networking", 'n', "Enable networking for this container")
 	flPrivileged := cmd.BoolLong("privileged", 0, "Give extended privileges to this container")
-
+	help := cmd.BoolLong("help", 0, "Display this help")
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		*flMemory = 0
+	}
+	if *help {
+		return nil, nil, nil, nil
 	}
 
 	flCpuShares := cmd.Int64Long("cpu", 'c', 0, "CPU shares (relative weight)")

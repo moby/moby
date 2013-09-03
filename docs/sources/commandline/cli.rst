@@ -14,8 +14,9 @@ To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
 
   $ sudo docker
-    Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[unix:///var/run/docker.sock]: tcp://host:port to bind/connect to or unix://path/to/socket to use
+    Usage: docker [-D] [-H value] COMMAND [parameters...]
+      -D, --debug       Debug mode
+      -H, --host=value  tcp://host:port to bind/connect to or unix://path/to/socket to use
 
     A self-sufficient runtime for linux containers.
 

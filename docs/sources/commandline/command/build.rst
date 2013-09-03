@@ -8,13 +8,18 @@
 
 ::
 
-    Usage: docker build [OPTIONS] PATH | URL | -
-    Build a new container image from the source code at PATH
-      -t="": Repository name (and optionally a tag) to be applied to the resulting image in case of success.
-      -q=false: Suppress verbose build output.
-      -no-cache: Do not use the cache when building the image.
-      -rm: Remove intermediate containers after a successful build
-    When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
+   Usage: docker build [-hq] [--no-cache] [-t value] PATH | URL | -
+  
+   Build a new container image from the source code at PATH
+
+    -h, --help       Display this help
+        --no-cache   Do not use cache when building the image
+	--rm	     Remove intermediate containers after a successful build
+    -q, --quiet      Suppress verbose build output
+    -t, --tag=value  Repository name (and optionally a tag) to be applied to the
+                     resulting image in case of success
+
+   When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
 
 
 Examples

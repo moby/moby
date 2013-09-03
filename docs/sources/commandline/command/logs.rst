@@ -8,6 +8,8 @@
 
 ::
 
-    Usage: docker logs [OPTIONS] CONTAINER
+   Usage: docker logs [-h] CONTAINER
 
-    Fetch the logs of a container
+   Fetch the logs of a container
+
+    -h, --help  Display this help
