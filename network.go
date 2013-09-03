@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/iptables"
+	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
 	"log"
 	"net"
@@ -205,9 +206,9 @@ func getIfaceAddr(name string) (net.Addr, error) {
 // It keeps track of all mappings and is able to unmap at will
 type PortMapper struct {
 	tcpMapping map[int]*net.TCPAddr
-	tcpProxies map[int]Proxy
+	tcpProxies map[int]proxy.Proxy
 	udpMapping map[int]*net.UDPAddr
-	udpProxies map[int]Proxy
+	udpProxies map[int]proxy.Proxy
 
 	iptables *iptables.Chain
 }
@@ -222,7 +223,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "tcp")
 			return err
@@ -238,7 +239,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "udp")
 			return err
@@ -300,9 +301,9 @@ func newPortMapper(config *DaemonConfig) (*PortMapper, error) {
 
 	mapper := &PortMapper{
 		tcpMapping: make(map[int]*net.TCPAddr),
-		tcpProxies: make(map[int]Proxy),
+		tcpProxies: make(map[int]proxy.Proxy),
 		udpMapping: make(map[int]*net.UDPAddr),
-		udpProxies: make(map[int]Proxy),
+		udpProxies: make(map[int]proxy.Proxy),
 		iptables:   chain,
 	}
 	return mapper, nil
