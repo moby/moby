@@ -210,7 +210,8 @@ type PortMapper struct {
 	udpMapping map[int]*net.UDPAddr
 	udpProxies map[int]proxy.Proxy
 
-	iptables *iptables.Chain
+	iptables  *iptables.Chain
+	defaultIp net.IP
 }
 
 func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
@@ -223,7 +224,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: mapper.defaultIp, Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "tcp")
 			return err
@@ -239,7 +240,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: mapper.defaultIp, Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "udp")
 			return err
@@ -305,6 +306,7 @@ func newPortMapper(config *DaemonConfig) (*PortMapper, error) {
 		udpMapping: make(map[int]*net.UDPAddr),
 		udpProxies: make(map[int]proxy.Proxy),
 		iptables:   chain,
+		defaultIp:  config.DefaultIp,
 	}
 	return mapper, nil
 }
