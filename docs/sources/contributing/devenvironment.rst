@@ -5,59 +5,34 @@
 Setting Up a Dev Environment
 ============================
 
-To make it easier to contribute to Docker, we provide a standard
-development environment. It is important that the same environment be
-used for all tests, builds and releases. The standard development
-environment defines all build dependencies: system libraries and
-binaries, go environment, go dependencies, etc.
+The following instructions have been tested on Ubuntu 13.04 64-bit.
+
+.. code-block:: console
 
 
-Step 1: install docker
-----------------------
+   $ # Install Go 1.1.2 or later.
+   $ cd
+   $ export GOPATH=~/docker
+   $ export GOROOT=~/go
+   $ export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+   $ wget -O - -q http://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | tar xz
 
-Docker's build environment itself is a Docker container, so the first
-step is to install docker on your system.
+   $ # Install Docker and the rest of its dependencies.
+   $ sudo apt-get -y install git lxc mercurial > /dev/null
+   $ git clone https://github.com/dotcloud/docker.git ~/docker/github.com/dotcloud/docker
+   $ go get github.com/dotcloud/docker/...
+   $ go install github.com/dotcloud/docker/...
+   $ sudo ln -s ~/docker/bin/docker /usr/local/bin/docker
 
-You can follow the `install instructions most relevant to your system
-<https://docs.docker.io/en/latest/installation/>`_.  Make sure you have
-a working, up-to-date docker installation, then continue to the next
-step.
-
-
-Step 2: check out the source
-----------------------------
-
-::
-
-    git clone http://git@github.com/dotcloud/docker
-    cd docker
-
-
-Step 3: build
--------------
-
-When you are ready to build docker, run this command:
-
-::
-
-    sudo docker build -t docker .
-
-This will build the revision currently checked out in the
-repository. Feel free to check out the version of your choice.
-
-If the build is successful, congratulations! You have produced a clean
-build of docker, neatly encapsulated in a standard build environment.
-
-You can run an interactive session in the newly built container:
-
-::
-
-    sudo docker run -i -t docker bash
-
-
-To extract the binaries from the container:
-
-::
-
-    sudo docker run docker sh -c 'cat $(which docker)' > docker-build && chmod +x docker-build
+   $ # To...
+   $ # ...run the tests (don't forget to replace "david" with your user):
+   $ sudo su - root
+   $ export GOPATH=~david/docker
+   $ export GOROOT=~david/go
+   $ export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+   $ go test -v github.com/dotcloud/docker
+   ...
+   ok   github.com/dotcloud/docker  45.570s
+   $ # ...start Docker:
+   $ sudo docker -d > /dev/null 2>&1 &
 
