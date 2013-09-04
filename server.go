@@ -655,6 +655,9 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 
 	out = utils.NewWriteFlusher(out)
 	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
+	if err == registry.ErrLoginRequired {
+		return err
+	}
 	if err != nil {
 		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
 			return err
