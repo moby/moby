@@ -214,7 +214,7 @@ type PortMapper struct {
 	defaultIp net.IP
 }
 
-func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
+func (mapper *PortMapper) Map(port int, backendAddr net.Addr, proxyIp net.IP) error {
 	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
 		backendPort := backendAddr.(*net.TCPAddr).Port
 		backendIP := backendAddr.(*net.TCPAddr).IP
@@ -224,7 +224,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: mapper.defaultIp, Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: proxyIp, Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "tcp")
 			return err
@@ -240,7 +240,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr) error {
 			}
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: mapper.defaultIp, Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: proxyIp, Port: port}, backendAddr)
 		if err != nil {
 			mapper.Unmap(port, "udp")
 			return err
@@ -469,40 +469,56 @@ type NetworkInterface struct {
 	disabled bool
 }
 
-// Allocate an external TCP port and map it to the interface
-func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
+// Allocate an external port and map it to the interface
+func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Nat, error) {
 
 	if iface.disabled {
 		return nil, fmt.Errorf("Trying to allocate port for interface %v, which is disabled", iface) // FIXME
 	}
 
-	nat, err := parseNat(spec)
+	ip := iface.manager.portMapper.defaultIp
+
+	if binding.HostIp != "" {
+		ip = net.ParseIP(binding.HostIp)
+	} else {
+		binding.HostIp = ip.String()
+	}
+
+	nat := &Nat{
+		Port:    port,
+		Binding: binding,
+	}
+
+	containerPort, err := parsePort(port.Port())
 	if err != nil {
 		return nil, err
 	}
 
-	if nat.Proto == "tcp" {
-		extPort, err := iface.manager.tcpPortAllocator.Acquire(nat.Frontend)
+	hostPort, _ := parsePort(nat.Binding.HostPort)
+
+	if nat.Port.Proto() == "tcp" {
+		extPort, err := iface.manager.tcpPortAllocator.Acquire(hostPort)
 		if err != nil {
 			return nil, err
 		}
-		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
-		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
+
+		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: containerPort}
+		if err := iface.manager.portMapper.Map(extPort, backend, ip); err != nil {
 			iface.manager.tcpPortAllocator.Release(extPort)
 			return nil, err
 		}
-		nat.Frontend = extPort
+		nat.Binding.HostPort = strconv.Itoa(extPort)
 	} else {
-		extPort, err := iface.manager.udpPortAllocator.Acquire(nat.Frontend)
+		extPort, err := iface.manager.udpPortAllocator.Acquire(hostPort)
 		if err != nil {
 			return nil, err
 		}
-		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: nat.Backend}
-		if err := iface.manager.portMapper.Map(extPort, backend); err != nil {
+		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: containerPort}
+		if err := iface.manager.portMapper.Map(extPort, backend, ip); err != nil {
 			iface.manager.udpPortAllocator.Release(extPort)
 			return nil, err
 		}
-		nat.Frontend = extPort
+		nat.Binding.HostPort = strconv.Itoa(extPort)
 	}
 	iface.extPorts = append(iface.extPorts, nat)
 
@@ -510,83 +526,36 @@ func (iface *NetworkInterface) AllocatePort(spec string) (*Nat, error) {
 }
 
 type Nat struct {
-	Proto    string
-	Frontend int
-	Backend  int
+	Port    Port
+	Binding PortBinding
 }
 
-func parseNat(spec string) (*Nat, error) {
-	var nat Nat
-
-	if strings.Contains(spec, "/") {
-		specParts := strings.Split(spec, "/")
-		if len(specParts) != 2 {
-			return nil, fmt.Errorf("Invalid port format.")
-		}
-		proto := specParts[1]
-		spec = specParts[0]
-		if proto != "tcp" && proto != "udp" {
-			return nil, fmt.Errorf("Invalid port format: unknown protocol %v.", proto)
-		}
-		nat.Proto = proto
-	} else {
-		nat.Proto = "tcp"
-	}
-
-	if strings.Contains(spec, ":") {
-		specParts := strings.Split(spec, ":")
-		if len(specParts) != 2 {
-			return nil, fmt.Errorf("Invalid port format.")
-		}
-		// If spec starts with ':', external and internal ports must be the same.
-		// This might fail if the requested external port is not available.
-		var sameFrontend bool
-		if len(specParts[0]) == 0 {
-			sameFrontend = true
-		} else {
-			front, err := strconv.ParseUint(specParts[0], 10, 16)
-			if err != nil {
-				return nil, err
-			}
-			nat.Frontend = int(front)
-		}
-		back, err := strconv.ParseUint(specParts[1], 10, 16)
-		if err != nil {
-			return nil, err
-		}
-		nat.Backend = int(back)
-		if sameFrontend {
-			nat.Frontend = nat.Backend
-		}
-	} else {
-		port, err := strconv.ParseUint(spec, 10, 16)
-		if err != nil {
-			return nil, err
-		}
-		nat.Backend = int(port)
-	}
-
-	return &nat, nil
+func (n *Nat) String() string {
+	return fmt.Sprintf("%s:%d:%d/%s", n.Binding.HostIp, n.Binding.HostPort, n.Port.Port(), n.Port.Proto())
 }
 
 // Release: Network cleanup - release all resources
 func (iface *NetworkInterface) Release() {
-
 	if iface.disabled {
 		return
 	}
 
 	for _, nat := range iface.extPorts {
-		utils.Debugf("Unmaping %v/%v", nat.Proto, nat.Frontend)
-		if err := iface.manager.portMapper.Unmap(nat.Frontend, nat.Proto); err != nil {
-			log.Printf("Unable to unmap port %v/%v: %v", nat.Proto, nat.Frontend, err)
+		hostPort, err := parsePort(nat.Binding.HostPort)
+		if err != nil {
+			log.Printf("Unable to get host port: %s", err)
+			continue
 		}
-		if nat.Proto == "tcp" {
-			if err := iface.manager.tcpPortAllocator.Release(nat.Frontend); err != nil {
-				log.Printf("Unable to release port tcp/%v: %v", nat.Frontend, err)
+		utils.Debugf("Unmaping %s/%s", nat.Port.Proto, nat.Binding.HostPort)
+		if err := iface.manager.portMapper.Unmap(hostPort, nat.Port.Proto()); err != nil {
+			log.Printf("Unable to unmap port %s: %s", nat, err)
+		}
+		if nat.Port.Proto() == "tcp" {
+			if err := iface.manager.tcpPortAllocator.Release(hostPort); err != nil {
+				log.Printf("Unable to release port %s", nat)
 			}
-		} else if err := iface.manager.udpPortAllocator.Release(nat.Frontend); err != nil {
-			log.Printf("Unable to release port udp/%v: %v", nat.Frontend, err)
+		} else if err := iface.manager.udpPortAllocator.Release(hostPort); err != nil {
+			log.Printf("Unable to release port %s: %s", nat, err)
 		}
 	}
 

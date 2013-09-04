@@ -171,7 +171,8 @@ func (runtime *Runtime) Register(container *Container) error {
 	if !container.State.Running {
 		close(container.waitLock)
 	} else if !nomonitor {
-		container.allocateNetwork()
+		hostConfig, _ := container.ReadHostConfig()
+		container.allocateNetwork(hostConfig)
 		go container.monitor()
 	}
 	return nil
