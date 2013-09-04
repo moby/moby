@@ -170,7 +170,7 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 	return Tar(layerPath, compression)
 }
 
-func (image *Image) Mount(root, rw string) error {
+func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	if mounted, err := Mounted(root); err != nil {
 		return err
 	} else if mounted {
