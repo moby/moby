@@ -54,6 +54,30 @@ type APIContainers struct {
 	SizeRootFs int64
 }
 
+func (self *APIContainers) ToLegacy() APIContainersOld {
+	return APIContainersOld{
+		ID: self.ID,
+		Image: self.Image,
+		Command: self.Command,
+		Created: self.Created,
+		Status: self.Status,
+		Ports: displayablePorts(self.Ports),
+		SizeRw: self.SizeRw,
+		SizeRootFs: self.SizeRootFs,
+	}
+}
+
+type APIContainersOld struct {
+	ID         string `json:"Id"`
+	Image      string
+	Command    string
+	Created    int64
+	Status     string
+	Ports      string
+	SizeRw     int64
+	SizeRootFs int64
+}
+
 type APISearch struct {
 	Name        string
 	Description string

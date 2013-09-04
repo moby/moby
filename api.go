@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.4
+const APIVERSION = 1.5
 const DEFAULTHTTPHOST = "127.0.0.1"
 const DEFAULTHTTPPORT = 4243
 const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
@@ -327,8 +327,18 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 		n = -1
 	}
 
+	var b []byte
 	outs := srv.Containers(all, size, n, since, before)
-	b, err := json.Marshal(outs)
+	if version < 1.5 {
+		outs2 := []APIContainersOld{}
+		for _, ctnr := range outs {
+			outs2 = append(outs2, ctnr.ToLegacy())
+		}
+		b, err = json.Marshal(outs2)
+	} else {
+		b, err = json.Marshal(outs)
+	}
+
 	if err != nil {
 		return err
 	}
