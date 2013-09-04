@@ -250,17 +250,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		return nil, nil, cmd, err
 	}
 
-	// Merge in exposed ports to the map of published ports
-	for _, e := range flExpose {
-		if strings.Contains(e, ":") {
-			return nil, nil, cmd, fmt.Errorf("Invalid port format for -expose: %s", e)
-		}
-		p := NewPort(splitProtoPort(e))
-		if _, exists := ports[p]; !exists {
-			ports[p] = struct{}{}
-		}
-	}
-
 	config := &Config{
 		Hostname:        *flHostname,
 		Domainname:      domainname,
@@ -328,6 +317,7 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 			continue
 		}
 		for _, binding := range bindings {
+			p, _ := parsePort(port.Port())
 			h, _ := parsePort(binding.HostPort)
 			mapping = append(mapping, APIPort{
 				PrivatePort: int64(p),
