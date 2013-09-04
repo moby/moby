@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -38,7 +39,10 @@ func main() {
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
+	flDefaultIp := flag.String("ip", "0.0.0.0", "Default ip address to use when binding a containers ports")
+
 	flag.Parse()
+
 	if *flVersion {
 		showVersion()
 		return
@@ -69,6 +73,8 @@ func main() {
 			dns = []string{*flDns}
 		}
 
+		ip := net.ParseIP(*flDefaultIp)
+
 		config := &docker.DaemonConfig{
 			Pidfile:        *pidfile,
 			GraphPath:      *flGraphPath,
@@ -78,6 +84,7 @@ func main() {
 			EnableIptables: *flEnableIptables,
 			BridgeIface:    bridge,
 			ProtoAddresses: flHosts,
+			DefaultIp:      ip,
 		}
 		if err := daemon(config); err != nil {
 			log.Fatal(err)

@@ -1,5 +1,9 @@
 package docker
 
+import (
+	"net"
+)
+
 type DaemonConfig struct {
 	Pidfile        string
 	GraphPath      string
@@ -9,4 +13,5 @@ type DaemonConfig struct {
 	Dns            []string
 	EnableIptables bool
 	BridgeIface    string
+	DefaultIp      net.IP
 }
