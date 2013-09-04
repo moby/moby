@@ -1181,7 +1181,12 @@ func (container *Container) Mounted() (bool, error) {
 }
 
 func (container *Container) Unmount() error {
-	return Unmount(container.RootfsPath())
+	image, err := container.GetImage()
+	if err != nil {
+		return err
+	}
+	err = image.Unmount(container.runtime, container.RootfsPath(), container.ID)
+	return err
 }
 
 // ShortID returns a shorthand version of the container's id for convenience.
