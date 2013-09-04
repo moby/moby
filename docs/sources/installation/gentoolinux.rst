@@ -36,7 +36,7 @@ Once that completes, the ``app-emulation/lxc-docker`` package will be available 
 
 If you prefer to use the official binaries, or just do not wish to compile docker, emerge ``app-emulation/lxc-docker-bin`` instead.  It is important to remember that Gentoo is still an unsupported platform, even when using the official binaries.
 
-The package should already include all the necessary dependencies.  For the simplest installation experiece, use ``sys-kernel/aufs-sources`` directly as your kernel sources.  If you prefer not to use ``sys-kernel/aufs-sources``, the portage tree also contains ``sys-fs/aufs3``, which contains the patches necessary for adding AUFS support to other kernel source packages (and a ``kernel-patch`` use flag to perform the patching automatically).
+The package should already include all the necessary dependencies.  For the simplest installation experience, use ``sys-kernel/aufs-sources`` directly as your kernel sources.  If you prefer not to use ``sys-kernel/aufs-sources``, the portage tree also contains ``sys-fs/aufs3``, which contains the patches necessary for adding AUFS support to other kernel source packages (and a ``kernel-patch`` use flag to perform the patching automatically).
 
 Between ``app-emulation/lxc`` and ``app-emulation/lxc-docker``, all the necessary kernel configuration flags should be checked for and warned about in the standard manner.
 
