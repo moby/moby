@@ -13,7 +13,8 @@ Vagrant::Config.run do |config|
   config.vm.box = BOX_NAME
   config.vm.box_url = BOX_URI
 
-  # Provision docker and new kernel if deployment was not done
+  # Provision docker and new kernel if deployment was not done.
+  # It is assumed Vagrant can successfully launch the provider instance.
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
     # Add lxc-docker package
     pkg_cmd = "wget -q -O - https://get.docker.io/gpg | apt-key add -;" \
@@ -21,9 +22,10 @@ Vagrant::Config.run do |config|
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
     # Add Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
-    # Add guest additions if local vbox VM
+    # Add guest additions if local vbox VM. As virtualbox is the default provider,
+    # it is assumed it won't be explicitly stated.
     if ENV["VAGRANT_DEFAULT_PROVIDER"].nil? && ARGV.none? { |arg| arg.downcase.start_with?("--provider") }
-      pkg_cmd << "apt-get install -q -y linux-headers-3.8.0-19-generic dkms; " \
+      pkg_cmd << "apt-get install -q -y linux-headers-generic-lts-raring dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
         "wget -q http://dlc.sun.com.edgesuite.net/virtualbox/4.2.12/VBoxGuestAdditions_4.2.12.iso; "
       # Prepare the VM to add guest additions after reboot
