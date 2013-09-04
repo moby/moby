@@ -386,7 +386,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 		c.Created = container.Created.Unix()
 		c.Status = container.State.String()
-		c.Ports = container.NetworkSettings.PortMappingHuman()
+		c.Ports = container.NetworkSettings.PortMappingAPI()
 		if size {
 			c.SizeRw, c.SizeRootFs = container.GetSize()
 		}
