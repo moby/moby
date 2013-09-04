@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -136,6 +137,10 @@ func jsonPath(root string) string {
 	return path.Join(root, "json")
 }
 
+func mountPath(root string) string {
+	return path.Join(root, "mount")
+}
+
 func MountAUFS(ro []string, rw string, target string) error {
 	// FIXME: Now mount the layers
 	rwBranch := fmt.Sprintf("%v=rw", rw)
@@ -170,25 +175,271 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 	return Tar(layerPath, compression)
 }
 
+func (image *Image) applyLayer(layer, target string) error {
+	oldmask := syscall.Umask(0)
+	defer syscall.Umask(oldmask)
+	err := filepath.Walk(layer, func(srcPath string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip root
+		if srcPath == layer {
+			return nil
+		}
+
+		var srcStat syscall.Stat_t
+		err = syscall.Lstat(srcPath, &srcStat)
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(layer, srcPath)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(target, relPath)
+
+		// Skip AUFS metadata
+		if matched, err := filepath.Match(".wh..wh.*", relPath); err != nil || matched {
+			if err != nil || !f.IsDir() {
+				return err
+			}
+			return filepath.SkipDir
+		}
+
+		// Find out what kind of modification happened
+		file := filepath.Base(srcPath)
+
+		// If there is a whiteout, then the file was removed
+		if strings.HasPrefix(file, ".wh.") {
+			originalFile := file[len(".wh."):]
+			deletePath := filepath.Join(filepath.Dir(targetPath), originalFile)
+
+			err = os.RemoveAll(deletePath)
+			if err != nil {
+				return err
+			}
+		} else {
+			var targetStat = &syscall.Stat_t{}
+			err := syscall.Lstat(targetPath, targetStat)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return err
+				}
+				targetStat = nil
+			}
+
+			if targetStat != nil && !(targetStat.Mode&syscall.S_IFDIR == syscall.S_IFDIR && srcStat.Mode&syscall.S_IFDIR == syscall.S_IFDIR) {
+				// Unless both src and dest are directories we remove the target and recreate it
+				// This is a bit wasteful in the case of only a mode change, but that is unlikely
+				// to matter much
+				err = os.RemoveAll(targetPath)
+				if err != nil {
+					return err
+				}
+				targetStat = nil
+			}
+
+			if f.IsDir() {
+				// Source is a directory
+				if targetStat == nil {
+					err = syscall.Mkdir(targetPath, srcStat.Mode&07777)
+					if err != nil {
+						return err
+					}
+				} else if srcStat.Mode&07777 != targetStat.Mode&07777 {
+					err = syscall.Chmod(targetPath, srcStat.Mode&07777)
+					if err != nil {
+						return err
+					}
+				}
+			} else if srcStat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
+				// Source is symlink
+				link, err := os.Readlink(srcPath)
+				if err != nil {
+					return err
+				}
+
+				err = os.Symlink(link, targetPath)
+				if err != nil {
+					return err
+				}
+			} else if srcStat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
+				srcStat.Mode&syscall.S_IFCHR == syscall.S_IFCHR ||
+				srcStat.Mode&syscall.S_IFIFO == syscall.S_IFIFO ||
+				srcStat.Mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
+				// Source is special file
+				err = syscall.Mknod(targetPath, srcStat.Mode, int(srcStat.Rdev))
+				if err != nil {
+					return err
+				}
+			} else if srcStat.Mode&syscall.S_IFREG == syscall.S_IFREG {
+				// Source is regular file
+				fd, err := syscall.Open(targetPath, syscall.O_CREAT|syscall.O_WRONLY, srcStat.Mode&07777)
+				if err != nil {
+					return err
+				}
+				dstFile := os.NewFile(uintptr(fd), targetPath)
+				srcFile, err := os.Open(srcPath)
+				_, err = io.Copy(dstFile, srcFile)
+				if err != nil {
+					return err
+				}
+				_ = srcFile.Close()
+				_ = dstFile.Close()
+			} else {
+				return fmt.Errorf("Unknown type for file %s", srcPath)
+			}
+
+			if srcStat.Mode&syscall.S_IFLNK != syscall.S_IFLNK {
+				err = syscall.Chown(targetPath, int(srcStat.Uid), int(srcStat.Gid))
+				if err != nil {
+					return err
+				}
+				ts := []syscall.Timeval{
+					syscall.NsecToTimeval(srcStat.Atim.Nano()),
+					syscall.NsecToTimeval(srcStat.Mtim.Nano()),
+				}
+				syscall.Utimes(targetPath, ts)
+			}
+
+		}
+		return nil
+	})
+	return err
+}
+
+func (image *Image) ensureImageDevice(devices DeviceSet) error {
+	if devices.HasInitializedDevice(image.ID) {
+		return nil
+	}
+
+	if image.Parent != "" && !devices.HasInitializedDevice(image.Parent) {
+		parentImg, err := image.GetParent()
+		if err != nil {
+			return fmt.Errorf("Error while getting parent image: %v", err)
+		}
+		err = parentImg.ensureImageDevice(devices)
+		if err != nil {
+			return err
+		}
+	}
+
+	root, err := image.root()
+	if err != nil {
+		return err
+	}
+
+	mountDir := mountPath(root)
+	if err := os.Mkdir(mountDir, 0600); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	mounted, err := Mounted(mountDir)
+	if err == nil && mounted {
+		log.Printf("Image %s is unexpectedly mounted, unmounting...", image.ID)
+		err = syscall.Unmount(mountDir, 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	if devices.HasDevice(image.ID) {
+		log.Printf("Found non-initialized demove-mapper device for image %s, removing", image.ID)
+		err = devices.RemoveDevice(image.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Printf("Creating device-mapper device for image id %s", image.ID)
+
+	err = devices.AddDevice(image.ID, image.Parent)
+	if err != nil {
+		return err
+	}
+
+	utils.Debugf("Mounting device %s at %s for image setup", image.ID, mountDir)
+	err = devices.MountDevice(image.ID, mountDir)
+	if err != nil {
+		_ = devices.RemoveDevice(image.ID)
+		return err
+	}
+
+	utils.Debugf("Applying layer %s at %s", image.ID, mountDir)
+	err = image.applyLayer(layerPath(root), mountDir)
+	if err != nil {
+		_ = devices.RemoveDevice(image.ID)
+		return err
+	}
+
+	utils.Debugf("Unmounting %s", mountDir)
+	err = syscall.Unmount(mountDir, 0)
+	if err != nil {
+		_ = devices.RemoveDevice(image.ID)
+		return err
+	}
+
+	devices.SetInitialized(image.ID)
+
+	// No need to the device-mapper device to hang around once we've written
+	// the image, it can be enabled on-demand when needed
+	devices.DeactivateDevice(image.ID)
+
+	return nil
+}
+
 func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	if mounted, err := Mounted(root); err != nil {
 		return err
 	} else if mounted {
 		return fmt.Errorf("%s is already mounted", root)
 	}
-	layers, err := image.layers()
-	if err != nil {
-		return err
-	}
 	// Create the target directories if they don't exist
 	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := MountAUFS(layers, rw, root); err != nil {
-		return err
+	switch runtime.GetMountMethod() {
+	case MountMethodNone:
+		return fmt.Errorf("No supported Mount implementation")
+
+	case MountMethodAUFS:
+		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
+		layers, err := image.layers()
+		if err != nil {
+			return err
+		}
+		if err := MountAUFS(layers, rw, root); err != nil {
+			return err
+		}
+
+	case MountMethodDeviceMapper:
+		devices, err := runtime.GetDeviceSet()
+		if err != nil {
+			return err
+		}
+		err = image.ensureImageDevice(devices)
+		if err != nil {
+			return err
+		}
+
+		if !devices.HasDevice(id) {
+			utils.Debugf("Creating device %s for container based on image %s", id, image.ID)
+			err = devices.AddDevice(id, image.ID)
+			if err != nil {
+				return err
+			}
+		}
+
+		utils.Debugf("Mounting container %s at %s for container", id, root)
+		err = devices.MountDevice(id, root)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
