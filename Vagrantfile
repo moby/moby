@@ -24,7 +24,8 @@ Vagrant::Config.run do |config|
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
     # Add guest additions if local vbox VM
     is_vbox = true
-    ARGV.each do |arg| is_vbox &&= !arg.downcase.start_with?("--provider") end
+    # The logic here makes a few assumptions (i.e. no one uses --provider=virtualbox)
+    ARGV.each do |arg| is_vbox &&= ( !arg.downcase.start_with?("--provider") && !ENV['VAGRANT_DEFAULT_PROVIDER'] )end
     if is_vbox
       pkg_cmd << "apt-get install -q -y linux-headers-generic-lts-raring dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
