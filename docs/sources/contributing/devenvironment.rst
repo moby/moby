@@ -9,7 +9,6 @@ The following instructions have been tested on Ubuntu 13.04 64-bit.
 
 .. code-block:: console
 
-
    $ # Install Go 1.1.2 or later.
    $ cd
    $ export GOPATH=~/docker
@@ -35,4 +34,3 @@ The following instructions have been tested on Ubuntu 13.04 64-bit.
    ok   github.com/dotcloud/docker  45.570s
    $ # ...start Docker:
    $ sudo docker -d > /dev/null 2>&1 &
-
