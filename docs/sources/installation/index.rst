@@ -24,5 +24,6 @@ Contents:
    amazon
    rackspace
    archlinux
+   gentoolinux
    upgrading
    kernel
