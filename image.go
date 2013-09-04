@@ -444,6 +444,30 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	return nil
 }
 
+func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
+	switch runtime.GetMountMethod() {
+	case MountMethodNone:
+		return fmt.Errorf("No supported Unmount implementation")
+
+	case MountMethodAUFS:
+		return Unmount(root)
+
+	case MountMethodDeviceMapper:
+		err := syscall.Unmount(root, 0)
+		if err != nil {
+			return err
+		}
+
+		// Try to deactivate the device as generally there is no use for it anymore
+		devices, err := runtime.GetDeviceSet()
+		if err != nil {
+			return err;
+		}
+		return devices.DeactivateDevice(id)
+	}
+	return nil
+}
+
 func (image *Image) Changes(rw string) ([]Change, error) {
 	layers, err := image.layers()
 	if err != nil {
