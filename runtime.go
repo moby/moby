@@ -38,6 +38,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	Dns            []string
+	deviceSet      DeviceSet
 }
 
 var sysInitPath string
@@ -73,6 +74,13 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 		}
 	}
 	return nil
+}
+
+func (runtime *Runtime) GetDeviceSet() (DeviceSet, error) {
+	if runtime.deviceSet == nil {
+		return nil, fmt.Errorf("No device set available")
+	}
+	return runtime.deviceSet, nil
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
@@ -439,8 +447,8 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
+func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns []string) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(flGraphPath, deviceSet, autoRestart)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +466,7 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -495,6 +503,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
 		volumes:        volumes,
+		deviceSet:      deviceSet,
 	}
 
 	if err := runtime.restore(); err != nil {

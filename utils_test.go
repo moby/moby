@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/devmapper"
 	"io"
 	"io/ioutil"
 	"os"
@@ -42,7 +43,7 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root, false)
+	runtime, err := NewRuntimeFromDirectory(root, devmapper.NewDeviceSetDM(root), false)
 	if err != nil {
 		return nil, err
 	}
