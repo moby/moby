@@ -918,9 +918,6 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 		config.Memory = 0
 	}
 
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
-		config.MemorySwap = -1
-	}
 	container, err := srv.runtime.Create(config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {

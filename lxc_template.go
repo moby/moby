@@ -118,7 +118,7 @@ lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap se
 {{if .Container.Config.Memory}}
 lxc.cgroup.memory.limit_in_bytes = {{.Container.Config.Memory}}
 lxc.cgroup.memory.soft_limit_in_bytes = {{.Container.Config.Memory}}
-{{with $memSwap := getMemorySwap .Container.Config}}
+{{with $memSwap := getMemorySwap .Container.Config .HostConfig}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
@@ -134,10 +134,10 @@ lxc.cgroup.cpu.shares = {{.HostConfig.CpuShares}}
 
 var LxcTemplateCompiled *template.Template
 
-func getMemorySwap(config *Config) int64 {
+func getMemorySwap(config *Config, hostConfig *HostConfig) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
-	if config.MemorySwap < 0 {
+	if hostConfig.MemorySwap < 0 {
 		return 0
 	}
 	return config.Memory * 2

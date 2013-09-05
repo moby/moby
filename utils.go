@@ -12,14 +12,10 @@ func CompareConfig(a, b *Config) bool {
 		a.OpenStdin || b.OpenStdin {
 		return false
 	}
-	if a.AttachStdout != b.AttachStdout ||
-		a.AttachStderr != b.AttachStderr ||
-		a.User != b.User ||
+	if a.User != b.User ||
 		a.Memory != b.Memory ||
-		a.MemorySwap != b.MemorySwap ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty ||
-		a.VolumesFrom != b.VolumesFrom {
+		a.Tty != b.Tty {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
@@ -65,9 +61,6 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.Memory == 0 {
 		userConf.Memory = imageConf.Memory
-	}
-	if userConf.MemorySwap == 0 {
-		userConf.MemorySwap = imageConf.MemorySwap
 	}
 	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
 		userConf.PortSpecs = imageConf.PortSpecs
@@ -120,9 +113,6 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir
-	}
-	if userConf.VolumesFrom == "" {
-		userConf.VolumesFrom = imageConf.VolumesFrom
 	}
 	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
