@@ -64,7 +64,7 @@ The password is 'screencast'
          $ docker commit a30a3a2f2b130749995f5902f079dc6ad31ea0621fac595128ec59c6da07feea dhrp/sshd 
          # I gave the name dhrp/sshd for the container
          # now we can run it again 
-         $ docker run -d dhrp/sshd /usr/sbin/sshd -D # D for daemon mode 
+         $ docker run -d dhrp/sshd /usr/sbin/sshd -D # -d for daemon mode 
          # is it running?
          $ docker ps
          # yes!
