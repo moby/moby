@@ -224,6 +224,7 @@ Inspect a container
 
 	:statuscode 200: no error
 	:statuscode 404: no such container
+	:statuscode 409: conflict between containers and images
 	:statuscode 500: server error
 
 
@@ -760,6 +761,7 @@ Inspect an image
 
 	:statuscode 200: no error
 	:statuscode 404: no such image
+	:statuscode 409: conflict between containers and images
         :statuscode 500: server error
 
 

@@ -577,7 +577,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
+				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
 				continue
 			}
 		}
