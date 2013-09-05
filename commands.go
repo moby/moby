@@ -57,7 +57,7 @@ func ParseCommands(proto, addr string, args ...string) error {
 		}
 		ret := method.Func.CallSlice([]reflect.Value{
 			reflect.ValueOf(cli),
-			reflect.ValueOf(args),
+			reflect.ValueOf(args[1:]),
 		})[0].Interface()
 		if ret == nil {
 			return nil
@@ -1007,7 +1007,7 @@ func displayablePorts(ports []APIPort) string {
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
-	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
+	cmd := Subcmd("ps", "", "List containers")
 	quiet := cmd.BoolLong("quiet", 'q', "Only display numeric IDs")
 	size := cmd.BoolLong("size", 's', "Display sizes")
 	all := cmd.BoolLong("all", 'a', "Show all containers. Only running containers are shown by default.")
@@ -1131,7 +1131,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 }
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
-	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
+	cmd := Subcmd("events", "", "Get real time events from the server")
 	since := cmd.StringLong("since", 0, "", "Show events previously created (used for polling).", "timestamp")
 	cli.Parse(&cmd, args)
 
@@ -1809,7 +1809,7 @@ func Subcmd(name, signature, description string) *getopt.Set {
 
 func (cli *DockerCli) Parse(opts **getopt.Set, args []string) {
 	help := opts.BoolLong("help", 'h', "Display this help")
-	opts.Parse(args)
+	opts.Parse(append([]string{"docker"}, args...))
 	if *help {
 		opts.PrintUsage(cli.err)
 		os.Exit(-1)

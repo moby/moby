@@ -110,8 +110,7 @@ type KeyValuePair struct {
 func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *getopt.Set, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if os.Getenv("TEST") != "" {
-		//		cmd.SetOutput(ioutil.Discard)
-		//		cmd.Usage = nil
+		cmd.SetUsage(func(){})
 	}
 
 	flHostname := cmd.StringLong("host", 'h', "", "Container host name")
@@ -157,7 +156,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flLxcOpts := []string{}
 	cmd.ListVarLong(&flLxcOpts, "lxc-conf", 0, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
-	cmd.Parse(args)
+	cmd.Parse(append([]string{"docker"}, args...))
 	*flNetwork = !*flNetwork
 
 	if *flDetach && len(flAttach) > 0 {
