@@ -37,7 +37,13 @@ Spin it up
 
       git clone https://github.com/dotcloud/docker.git
 
-2. Run vagrant from the sources directory
+2. Change directory to docker
+
+   .. code-block:: bash
+
+      cd docker
+
+3. Run vagrant from the sources directory
 
    .. code-block:: bash
 
