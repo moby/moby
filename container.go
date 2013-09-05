@@ -335,7 +335,29 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
+	if strings.Contains(string(data), "Dns") {
+		return container.BackPortHostConfig(data)
+	}
 	return nil
+}
+
+// In 0.7 some fields moved from config to hostconfig.
+func (container *Container) BackPortHostConfig(data []byte) error {
+	hostConfig, err := container.ReadHostConfig()
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	type Mock struct {
+		Config *HostConfig
+	}
+	mock := &Mock{}
+	if err := json.Unmarshal(data, mock); err != nil {
+		return err
+	}
+	mock.Config.Binds = hostConfig.Binds
+	mock.Config.LxcConf = hostConfig.LxcConf
+	mock.Config.DockerVersion = VERSION
+	return container.SaveHostConfig(mock.Config)
 }
 
 func (container *Container) ToDisk() (err error) {
