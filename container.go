@@ -1110,7 +1110,15 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (Archive, error) {
-	return Tar(container.rwPath(), Uncompressed)
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
+	image, err := container.GetImage()
+	if err != nil {
+		return nil, err
+	}
+	return image.ExportChanges(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
 }
 
 func (container *Container) RwChecksum() (string, error) {
