@@ -90,8 +90,9 @@ func TarFilter(path string, compression Compression, filter []string) (io.Reader
 	if filter == nil {
 		filter = []string{"."}
 	}
+	args = append(args, "-c"+compression.Flag())
 	for _, f := range filter {
-		args = append(args, "-c"+compression.Flag(), f)
+		args = append(args, f)
 	}
 	return CmdStream(exec.Command(args[0], args[1:]...))
 }
