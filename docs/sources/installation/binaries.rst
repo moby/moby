@@ -34,8 +34,8 @@ Get the docker binary:
 
 .. code-block:: bash
 
-    wget http://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
-    tar -xf docker-latest.tgz
+    wget --output-document=docker https://get.docker.io/builds/Linux/x86_64/docker-latest
+    chmod +x docker
 
 
 Run the docker daemon
