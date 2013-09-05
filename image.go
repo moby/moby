@@ -486,12 +486,41 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 	return nil
 }
 
-func (image *Image) Changes(rw string) ([]Change, error) {
-	layers, err := image.layers()
-	if err != nil {
-		return nil, err
+func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, error) {
+	switch runtime.GetMountMethod() {
+	case MountMethodAUFS:
+		layers, err := image.layers()
+		if err != nil {
+			return nil, err
+		}
+		return ChangesAUFS(layers, rw)
+
+	case MountMethodDeviceMapper:
+		devices, err := runtime.GetDeviceSet()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
+		// We re-use rw for the temporary mount of the base image as its
+		// not used by device-mapper otherwise
+		err = devices.MountDevice(image.ID, rw)
+		if err != nil {
+			return nil, err
+		}
+
+		changes, err := ChangesDirs(root, rw)
+		_ = syscall.Unmount(rw, 0)
+		if err != nil {
+			return nil, err
+		}
+		return changes, nil
 	}
-	return Changes(layers, rw)
+
+	return nil, fmt.Errorf("No supported Changes implementation")
 }
 
 func (image *Image) ShortID() string {
