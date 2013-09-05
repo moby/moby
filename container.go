@@ -1162,11 +1162,15 @@ func (container *Container) Mount() error {
 }
 
 func (container *Container) Changes() ([]Change, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
 	image, err := container.GetImage()
 	if err != nil {
 		return nil, err
 	}
-	return image.Changes(container.rwPath())
+	return image.Changes(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
 }
 
 func (container *Container) GetImage() (*Image, error) {

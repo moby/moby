@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 type ChangeType int
@@ -33,7 +34,7 @@ func (change *Change) String() string {
 	return fmt.Sprintf("%s %s", kind, change.Path)
 }
 
-func Changes(layers []string, rw string) ([]Change, error) {
+func ChangesAUFS(layers []string, rw string) ([]Change, error) {
 	var changes []Change
 	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -100,6 +101,107 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		return nil
 	})
 	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	return changes, nil
+}
+
+func ChangesDirs(newDir, oldDir string) ([]Change, error) {
+	var changes []Change
+	err := filepath.Walk(newDir, func(newPath string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		var newStat syscall.Stat_t
+		err = syscall.Lstat(newPath, &newStat)
+		if err != nil {
+			return err
+		}
+
+		// Rebase path
+		relPath, err := filepath.Rel(newDir, newPath)
+		if err != nil {
+			return err
+		}
+		relPath = filepath.Join("/", relPath)
+
+		// Skip root
+		if relPath == "/" || relPath == "/.docker-id" {
+			return nil
+		}
+
+		change := Change{
+			Path: relPath,
+		}
+
+		oldPath := filepath.Join(oldDir, relPath)
+
+		var oldStat = &syscall.Stat_t{}
+		err = syscall.Lstat(oldPath, oldStat)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			oldStat = nil
+		}
+
+		if oldStat == nil {
+			change.Kind = ChangeAdd
+			changes = append(changes, change)
+		} else {
+			if oldStat.Ino != newStat.Ino ||
+				oldStat.Mode != newStat.Mode ||
+				oldStat.Uid != newStat.Uid ||
+				oldStat.Gid != newStat.Gid ||
+				oldStat.Rdev != newStat.Rdev ||
+				oldStat.Size != newStat.Size ||
+				oldStat.Blocks != newStat.Blocks ||
+				oldStat.Mtim != newStat.Mtim ||
+				oldStat.Ctim != newStat.Ctim {
+				change.Kind = ChangeModify
+				changes = append(changes, change)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = filepath.Walk(oldDir, func(oldPath string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Rebase path
+		relPath, err := filepath.Rel(oldDir, oldPath)
+		if err != nil {
+			return err
+		}
+		relPath = filepath.Join("/", relPath)
+
+		// Skip root
+		if relPath == "/" {
+			return nil
+		}
+
+		change := Change{
+			Path: relPath,
+		}
+
+		newPath := filepath.Join(newDir, relPath)
+
+		var newStat = &syscall.Stat_t{}
+		err = syscall.Lstat(newPath, newStat)
+		if err != nil && os.IsNotExist(err) {
+			change.Kind = ChangeDelete
+			changes = append(changes, change)
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	return changes, nil
