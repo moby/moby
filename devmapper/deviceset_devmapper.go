@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -18,11 +19,12 @@ const defaultMetaDataLoopbackSize int64 = 2 * 1024 * 1024 * 1024
 const defaultBaseFsSize uint64 = 10 * 1024 * 1024 * 1024
 
 type DevInfo struct {
-	Hash          string `json:"-"`
-	DeviceId      int    `json:"device_id"`
-	Size          uint64 `json:"size"`
-	TransactionId uint64 `json:"transaction_id"`
-	Initialized   bool   `json:"initialized"`
+	Hash          string       `json:"-"`
+	DeviceId      int          `json:"device_id"`
+	Size          uint64       `json:"size"`
+	TransactionId uint64       `json:"transaction_id"`
+	Initialized   bool         `json:"initialized"`
+	devices       *DeviceSetDM `json:"-"`
 }
 
 type MetaData struct {
@@ -31,7 +33,8 @@ type MetaData struct {
 
 type DeviceSetDM struct {
 	initialized bool
-	root string
+	root        string
+	devicePrefix string
 	MetaData
 	TransactionId    uint64
 	NewTransactionId uint64
@@ -47,7 +50,7 @@ func (info *DevInfo) Name() string {
 	if hash == "" {
 		hash = "base"
 	}
-	return fmt.Sprintf("docker-%s", hash)
+	return fmt.Sprintf("%s-%s", info.devices.devicePrefix, hash)
 }
 
 func (info *DevInfo) DevName() string {
@@ -63,7 +66,7 @@ func (devices *DeviceSetDM) jsonFile() string {
 }
 
 func (devices *DeviceSetDM) getPoolName() string {
-	return "docker-pool"
+	return fmt.Sprintf("%s-pool", devices.devicePrefix)
 }
 
 func (devices *DeviceSetDM) getPoolDevName() string {
@@ -446,6 +449,7 @@ func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*D
 		Size:          size,
 		TransactionId: transaction,
 		Initialized:   false,
+		devices:       devices,
 	}
 
 	devices.Devices[hash] = info
@@ -520,6 +524,7 @@ func (devices *DeviceSetDM) loadMetaData() error {
 
 	for hash, d := range devices.Devices {
 		d.Hash = hash
+		d.devices = devices
 
 		if d.DeviceId >= devices.nextFreeDevice {
 			devices.nextFreeDevice = d.DeviceId + 1
@@ -873,7 +878,7 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 }
 
 func (devices *DeviceSetDM) ensureInit() error {
-	if (!devices.initialized) {
+	if !devices.initialized {
 		devices.initialized = true
 		err := devices.initDevmapper()
 		if err != nil {
@@ -885,9 +890,16 @@ func (devices *DeviceSetDM) ensureInit() error {
 
 func NewDeviceSetDM(root string) *DeviceSetDM {
 	SetDevDir("/dev")
+
+	base := filepath.Base(root)
+	if !strings.HasPrefix(base, "docker") {
+		base = "docker-" + base
+	}
+
 	devices := &DeviceSetDM{
 		initialized: false,
-		root: root,
+		root:        root,
+		devicePrefix: base,
 	}
 	devices.Devices = make(map[string]*DevInfo)
 
