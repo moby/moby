@@ -35,15 +35,15 @@ then invoke the following:
 
    sudo layman -f -a docker
 
-Once that completes, the ``app-emulation/lxc-docker`` package will be available
+Once that completes, the ``app-emulation/docker`` package will be available
 for emerge:
 
 .. code-block:: bash
 
-   sudo emerge -av app-emulation/lxc-docker
+   sudo emerge -av app-emulation/docker
 
 If you prefer to use the official binaries, or just do not wish to compile
-docker, emerge ``app-emulation/lxc-docker-bin`` instead.  It is important to
+docker, emerge ``app-emulation/docker-bin`` instead.  It is important to
 remember that Gentoo is still an unsupported platform, even when using the
 official binaries.
 
@@ -54,7 +54,7 @@ portage tree also contains ``sys-fs/aufs3``, which contains the patches
 necessary for adding AUFS support to other kernel source packages (and a
 ``kernel-patch`` use flag to perform the patching automatically).
 
-Between ``app-emulation/lxc`` and ``app-emulation/lxc-docker``, all the
+Between ``app-emulation/lxc`` and ``app-emulation/docker``, all the
 necessary kernel configuration flags should be checked for and warned about in
 the standard manner.
 
