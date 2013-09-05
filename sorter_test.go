@@ -12,7 +12,7 @@ func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = runtime.graph.Create(archive, nil, "Testing", "", nil)
+	_, err = runtime.graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := runtime.graph.Create(archive, nil, "Testing", "", nil)
+	image, err := runtime.graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

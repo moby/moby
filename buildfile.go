@@ -79,7 +79,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
 	if err != nil {
 		return err
 	}
@@ -445,7 +445,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.runtime.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.runtime.Commit(container, "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}

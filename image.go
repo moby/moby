@@ -21,16 +21,13 @@ import (
 type Image struct {
 	ID              string    `json:"id"`
 	Parent          string    `json:"parent,omitempty"`
-	Comment         string    `json:"comment,omitempty"`
 	Created         time.Time `json:"created"`
-	Container       string    `json:"container,omitempty"`
-	ContainerConfig Config    `json:"container_config,omitempty"`
+	ContainerConfig Config    `json:"container_config,omitempty"` //DEPRECATED
 	DockerVersion   string    `json:"docker_version,omitempty"`
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
-	Architecture    string    `json:"architecture,omitempty"`
 	graph           *Graph
-	Size            int64
+	size            int64
 }
 
 func LoadImage(root string) (*Image, error) {
@@ -56,7 +53,7 @@ func LoadImage(root string) (*Image, error) {
 		if size, err := strconv.Atoi(string(buf)); err != nil {
 			return nil, err
 		} else {
-			img.Size = int64(size)
+			img.size = int64(size)
 		}
 	}
 
@@ -119,7 +116,7 @@ func StoreSize(img *Image, root string) error {
 		totalSize += fileInfo.Size()
 		return nil
 	})
-	img.Size = totalSize
+	img.size = totalSize
 
 	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(totalSize))), 0600); err != nil {
 		return nil
@@ -327,7 +324,7 @@ func (img *Image) getParentsSize(size int64) int64 {
 	if err != nil || parentImage == nil {
 		return size
 	}
-	size += parentImage.Size
+	size += parentImage.size
 	return parentImage.getParentsSize(size)
 }
 

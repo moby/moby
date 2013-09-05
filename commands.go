@@ -1109,7 +1109,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
-	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
@@ -1125,7 +1124,6 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("container", name)
 	v.Set("repo", repository)
 	v.Set("tag", tag)
-	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)
 	var config *Config
 	if *flConfig != "" {
@@ -1419,7 +1417,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRun(args ...string) error {
-	config, hostConfig, cmd, err := ParseRun(args, nil)
+	config, hostConfig, containerIDFilePath, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
 	}
@@ -1429,11 +1427,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	var containerIDFile *os.File
-	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
-			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
+	if len(containerIDFilePath) > 0 {
+		if _, err := ioutil.ReadFile(containerIDFilePath); err == nil {
+			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", containerIDFilePath)
 		}
-		containerIDFile, err = os.Create(hostConfig.ContainerIDFile)
+		containerIDFile, err = os.Create(containerIDFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to create the container ID file: %s", err)
 		}
@@ -1500,7 +1498,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	for _, warning := range runResult.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
-	if len(hostConfig.ContainerIDFile) > 0 {
+	if len(containerIDFilePath) > 0 {
 		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}

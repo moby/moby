@@ -17,14 +17,12 @@ func CompareConfig(a, b *Config) bool {
 		a.User != b.User ||
 		a.Memory != b.Memory ||
 		a.MemorySwap != b.MemorySwap ||
-		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
 		a.Tty != b.Tty ||
 		a.VolumesFrom != b.VolumesFrom {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
-		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.Entrypoint) != len(b.Entrypoint) ||
@@ -37,11 +35,7 @@ func CompareConfig(a, b *Config) bool {
 			return false
 		}
 	}
-	for i := 0; i < len(a.Dns); i++ {
-		if a.Dns[i] != b.Dns[i] {
-			return false
-		}
-	}
+
 	for i := 0; i < len(a.Env); i++ {
 		if a.Env[i] != b.Env[i] {
 			return false
@@ -74,9 +68,6 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.MemorySwap == 0 {
 		userConf.MemorySwap = imageConf.MemorySwap
-	}
-	if userConf.CpuShares == 0 {
-		userConf.CpuShares = imageConf.CpuShares
 	}
 	if userConf.PortSpecs == nil || len(userConf.PortSpecs) == 0 {
 		userConf.PortSpecs = imageConf.PortSpecs
@@ -123,12 +114,6 @@ func MergeConfig(userConf, imageConf *Config) {
 	}
 	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
 		userConf.Cmd = imageConf.Cmd
-	}
-	if userConf.Dns == nil || len(userConf.Dns) == 0 {
-		userConf.Dns = imageConf.Dns
-	} else {
-		//duplicates aren't an issue here
-		userConf.Dns = append(userConf.Dns, imageConf.Dns...)
 	}
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint

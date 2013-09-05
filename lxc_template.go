@@ -6,34 +6,34 @@ import (
 
 const LxcTemplate = `
 # hostname
-{{if .Config.Hostname}}
-lxc.utsname = {{.Config.Hostname}}
+{{if .Container.Config.Hostname}}
+lxc.utsname = {{.Container.Config.Hostname}}
 {{else}}
-lxc.utsname = {{.Id}}
+lxc.utsname = {{.Container.Id}}
 {{end}}
 #lxc.aa_profile = unconfined
 
-{{if .Config.NetworkDisabled}}
+{{if .HostConfig.NetworkDisabled}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 {{else}}
 # network configuration
 lxc.network.type = veth
 lxc.network.flags = up
-lxc.network.link = {{.NetworkSettings.Bridge}}
+lxc.network.link = {{.Container.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
-lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
+lxc.network.ipv4 = {{.Container.NetworkSettings.IPAddress}}/{{.Container.NetworkSettings.IPPrefixLen}}
 {{end}}
 
 # root filesystem
-{{$ROOTFS := .RootfsPath}}
+:){{$ROOTFS := .Container.RootfsPath}}
 lxc.rootfs = {{$ROOTFS}}
 
-{{if and .HostnamePath .HostsPath}}
+{{if and .Container.HostnamePath .Container.HostsPath}}
 # enable domain name support
-lxc.mount.entry = {{.HostnamePath}} {{$ROOTFS}}/etc/hostname none bind,ro 0 0
-lxc.mount.entry = {{.HostsPath}} {{$ROOTFS}}/etc/hosts none bind,ro 0 0
+lxc.mount.entry = {{.Container.HostnamePath}} {{$ROOTFS}}/etc/hostname none bind,ro 0 0
+lxc.mount.entry = {{.Container.HostsPath}} {{$ROOTFS}}/etc/hosts none bind,ro 0 0
 {{end}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal
@@ -46,7 +46,7 @@ lxc.console = none
 # no controlling tty at all
 lxc.tty = 1
 
-{{if .Config.Privileged}}
+{{if .Container.Config.Privileged}}
 lxc.cgroup.devices.allow = a 
 {{else}}
 # no implicit access to devices
@@ -93,18 +93,18 @@ lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,no
 lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
 # Inject docker-init
-lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/.dockerinit none bind,ro 0 0
+lxc.mount.entry = {{.Container.SysInitPath}} {{$ROOTFS}}/.dockerinit none bind,ro 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
-lxc.mount.entry = {{.ResolvConfPath}} {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
-{{if .Volumes}}
-{{ $rw := .VolumesRW }}
-{{range $virtualPath, $realPath := .Volumes}}
+lxc.mount.entry = {{.Container.ResolvConfPath}} {{$ROOTFS}}/etc/resolv.conf none bind,ro 0 0
+{{if .Container.Volumes}}
+{{ $rw := .Container.VolumesRW }}
+{{range $virtualPath, $realPath := .Container.Volumes}}
 lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if index $rw $virtualPath }}rw{{else}}ro{{end}} 0 0
 {{end}}
 {{end}}
 
-{{if .Config.Privileged}}
+{{if .Container.Config.Privileged}}
 # retain all capabilities; no lxc.cap.drop line
 {{else}}
 # drop linux capabilities (apply mainly to the user root in the container)
@@ -115,28 +115,24 @@ lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setfcap se
 {{end}}
 
 # limits
-{{if .Config.Memory}}
-lxc.cgroup.memory.limit_in_bytes = {{.Config.Memory}}
-lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Memory}}
-{{with $memSwap := getMemorySwap .Config}}
+{{if .Container.Config.Memory}}
+lxc.cgroup.memory.limit_in_bytes = {{.Container.Config.Memory}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Container.Config.Memory}}
+{{with $memSwap := getMemorySwap .Container.Config}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
-{{if .Config.CpuShares}}
-lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
-{{end}}
-`
-
-const LxcHostConfigTemplate = `
-{{if .LxcConf}}
-{{range $pair := .LxcConf}}
+{{if .HostConfig.LxcConf}}
+{{range $pair := .HostConfig.LxcConf}}
 {{$pair.Key}} = {{$pair.Value}}
 {{end}}
+{{end}}
+{{if .HostConfig.CpuShares}}
+lxc.cgroup.cpu.shares = {{.HostConfig.CpuShares}}
 {{end}}
 `
 
 var LxcTemplateCompiled *template.Template
-var LxcHostConfigTemplateCompiled *template.Template
 
 func getMemorySwap(config *Config) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
@@ -153,10 +149,6 @@ func init() {
 		"getMemorySwap": getMemorySwap,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
-	if err != nil {
-		panic(err)
-	}
-	LxcHostConfigTemplateCompiled, err = template.New("lxc-hostconfig").Funcs(funcMap).Parse(LxcHostConfigTemplate)
 	if err != nil {
 		panic(err)
 	}
