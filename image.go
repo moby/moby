@@ -523,6 +523,37 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 	return nil, fmt.Errorf("No supported Changes implementation")
 }
 
+func (image *Image) ExportChanges(runtime *Runtime, root, rw, id string) (Archive, error) {
+	switch runtime.GetMountMethod() {
+	case MountMethodAUFS:
+		return Tar(rw, Uncompressed)
+
+	case MountMethodDeviceMapper:
+		changes, err := image.Changes(runtime, root, rw, id)
+		if err != nil {
+			return nil, err
+		}
+
+		files := make([]string, 0)
+		deletions := make([]string, 0)
+		for _, change := range changes {
+			if change.Kind == ChangeModify || change.Kind == ChangeAdd {
+				files = append(files, change.Path)
+			}
+			if change.Kind == ChangeDelete {
+				base := filepath.Base(change.Path)
+				dir := filepath.Dir(change.Path)
+				deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+			}
+		}
+
+		return TarFilter(root, Uncompressed, files, false, deletions)
+	}
+
+	return nil, fmt.Errorf("No supported Changes implementation")
+}
+
+
 func (image *Image) ShortID() string {
 	return utils.TruncateID(image.ID)
 }
