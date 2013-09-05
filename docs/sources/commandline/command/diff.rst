@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker diff CONTAINER [OPTIONS]
+   Usage: docker diff [-h] CONTAINER
 
-    Inspect changes on a container's filesystem
+   Inspect changes on a container's filesystem
+
+    -h, --help  Display this help
+

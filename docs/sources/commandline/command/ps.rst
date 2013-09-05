@@ -8,7 +8,7 @@
 
 ::
 
-   Usage: docker ps [-ahlqs] [--before id] [-n value] [--no-trunc] [--since id] [OPTIONS]
+   Usage: docker ps [-ahlqs] [--before id] [-n value] [--no-trunc] [--since id]
 
    List containers
 

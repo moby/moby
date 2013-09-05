@@ -12,5 +12,5 @@
 
    Search the docker index for images
 
-    -h, --help  Display this help
-    --no-trunc	Don't truncate output
+    -h, --help		Display this help
+        --no-trunc	Don't truncate output

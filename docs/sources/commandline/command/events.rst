@@ -8,9 +8,13 @@
 
 ::
 
-    Usage: docker events
+   Usage: docker events [-h] [--since timestamp]
 
-    Get real time events from the server
+   Get real time events from the server
+
+    -h, --help  Display this help
+        --since=timestamp
+                Show events previously created (used for polling).
 
 Examples
 --------

@@ -8,9 +8,11 @@
 
 ::
 
-    Usage: docker import URL|- [REPOSITORY [TAG]]
+   Usage: docker import [-h] URL|- [REPOSITORY [TAG]]
 
-    Create a new filesystem image from the contents of a tarball
+   Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).
+
+    -h, --help  Display this help
 
 At this time, the URL must start with ``http`` and point to a single
 file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) containing a

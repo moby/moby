@@ -8,10 +8,11 @@
 
 ::
 
-   Usage: docker run [-dint] [-a value] [--cidfile value] [-c value] [--dns value] [--entrypoint value] [-e value] [--help] [-h value] [--lxc-conf value] [-m value] [-p value] [--privileged] [-u value] [-v value] [--volumes-from value] [-w value] [OPTIONS] IMAGE [COMMAND] [ARG...]
+   Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 
    Run a command in a new container
 
+   OPTIONS:
     -a, --attach=value
                        Attach to stdin, stdout or stderr.
         --cidfile=value
