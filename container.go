@@ -1278,5 +1278,5 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return TarFilter(basePath, Uncompressed, filter)
+	return TarFilter(basePath, Uncompressed, filter, true, nil)
 }
