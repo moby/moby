@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/devmapper"
 	"io"
 	"log"
 	"net"
@@ -87,7 +88,7 @@ func init() {
 	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreBase), false); err != nil {
 		panic(err)
 	} else {
 		globalRuntime = runtime
@@ -456,7 +457,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, devmapper.NewDeviceSetDM(runtime1.root), false)
 	if err != nil {
 		t.Fatal(err)
 	}
