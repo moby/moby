@@ -57,7 +57,7 @@ func cleanup(runtime *Runtime) error {
 	}
 	for _, image := range images {
 		if image.ID != unitTestImageID {
-			runtime.graph.Delete(image.ID)
+			runtime.DeleteImage(image.ID)
 		}
 	}
 	return nil
