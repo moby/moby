@@ -845,29 +845,6 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	apiConfig := &APIImageConfig{}
-	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
-		return err
-	}
-
-	image, err := srv.ImageGetCached(apiConfig.ID, apiConfig.Config)
-	if err != nil {
-		return err
-	}
-	if image == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return nil
-	}
-	apiID := &APIID{ID: image.ID}
-	b, err := json.Marshal(apiID)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
-}
-
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version < 1.3 {
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
@@ -1043,7 +1020,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
-			"/images/getCache":              postImagesGetCache,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,
