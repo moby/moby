@@ -667,29 +667,57 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 
 // Retrieve the all the images to be uploaded in the correct order
 // Note: we can't use a map as it is not ordered
-func (srv *Server) getImageList(localRepo map[string]string) ([]*registry.ImgData, error) {
-	var imgList []*registry.ImgData
+func (srv *Server) getImageList(localRepo map[string]string) ([][]*registry.ImgData, error) {
+	imgList := map[string]*registry.ImgData{}
+	depGraph := utils.NewDependencyGraph()
 
-	imageSet := make(map[string]struct{})
 	for tag, id := range localRepo {
 		img, err := srv.runtime.graph.Get(id)
 		if err != nil {
 			return nil, err
 		}
-		img.WalkHistory(func(img *Image) error {
-			if _, exists := imageSet[img.ID]; exists {
+		depGraph.NewNode(img.ID)
+		img.WalkHistory(func(current *Image) error {
+			imgList[current.ID] = &registry.ImgData{
+				ID: current.ID,
+				Tag: tag,
+			}
+			parent, err := current.GetParent()
+			if err != nil {
+				return err
+			}
+			if parent == nil {
 				return nil
 			}
-			imageSet[img.ID] = struct{}{}
-
-			imgList = append([]*registry.ImgData{{
-				ID:  img.ID,
-				Tag: tag,
-			}}, imgList...)
+			depGraph.NewNode(parent.ID)
+			depGraph.AddDependency(current.ID, parent.ID)
 			return nil
 		})
 	}
-	return imgList, nil
+
+	traversalMap, err := depGraph.GenerateTraversalMap()
+	if err != nil {
+		return nil, err
+	}
+
+	utils.Debugf("Traversal map: %v", traversalMap)
+	result := [][]*registry.ImgData{}
+	for _, round := range traversalMap {
+		dataRound := []*registry.ImgData{}
+		for _, imgID := range round {
+			dataRound = append(dataRound, imgList[imgID])
+		}
+		result = append(result, dataRound)
+	}
+	return result, nil
+}
+
+func flatten(slc [][]*registry.ImgData) []*registry.ImgData {
+	result := []*registry.ImgData{}
+	for _, x := range slc {
+		result = append(result, x...)
+	}
+	return result
 }
 
 func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, indexEp string, sf *utils.StreamFormatter) error {
@@ -698,39 +726,43 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	if err != nil {
 		return err
 	}
+	flattenedImgList := flatten(imgList)
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
 	var repoData *registry.RepositoryData
-	repoData, err = r.PushImageJSONIndex(indexEp, remoteName, imgList, false, nil)
+	repoData, err = r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, false, nil)
 	if err != nil {
 		return err
 	}
 
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, len(localRepo)))
-		// For each image within the repo, push them
-		for _, elem := range imgList {
-			if _, exists := repoData.ImgList[elem.ID]; exists {
-				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
-				continue
-			} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
-				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
-				continue
-			}
-			if checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
-				// FIXME: Continue on error?
-				return err
-			} else {
-				elem.Checksum = checksum
-			}
-			out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
-			if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
-				return err
+		// This section can not be parallelized (each round depends on the previous one)
+		for _, round := range imgList {
+			// FIXME: This section can be parallelized
+			for _, elem := range round {
+				if _, exists := repoData.ImgList[elem.ID]; exists {
+					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
+					continue
+				} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
+					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
+					continue
+				}
+				if checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
+					// FIXME: Continue on error?
+					return err
+				} else {
+					elem.Checksum = checksum
+				}
+				out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
+				if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
+					return err
+				}
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(indexEp, remoteName, imgList, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 

@@ -889,3 +889,119 @@ func UserLookup(uid string) (*user.User, error) {
 	}
 	return nil, fmt.Errorf("User not found in /etc/passwd")
 }
+
+type DependencyGraph struct{
+	nodes map[string]*DependencyNode
+}
+
+type DependencyNode struct{
+	id 		string
+	deps	map[*DependencyNode]bool
+}
+
+func NewDependencyGraph() DependencyGraph {
+	return DependencyGraph{
+		nodes: map[string]*DependencyNode{},
+	}
+}
+
+func (graph *DependencyGraph) addNode(node *DependencyNode) string {
+	if graph.nodes[node.id] == nil {
+		graph.nodes[node.id] = node
+	}
+	return node.id
+}
+
+func (graph *DependencyGraph) NewNode(id string) string {
+	if graph.nodes[id] != nil {
+		return id
+	}
+	nd := &DependencyNode{
+		id: id,
+		deps: map[*DependencyNode]bool{},
+	}
+	graph.addNode(nd)
+	return id
+}
+
+func (graph *DependencyGraph) AddDependency(node, to string) error {
+	if graph.nodes[node] == nil {
+		return fmt.Errorf("Node %s does not belong to this graph", node)
+	}
+
+	if graph.nodes[to] == nil {
+		return fmt.Errorf("Node %s does not belong to this graph", to)
+	}
+
+	if node == to {
+		return fmt.Errorf("Dependency loops are forbidden!")
+	}
+
+	graph.nodes[node].addDependency(graph.nodes[to])
+	return nil
+}
+
+func (node *DependencyNode) addDependency(to *DependencyNode) bool {
+	node.deps[to] = true
+	return node.deps[to]
+}
+
+func (node *DependencyNode) Degree() int {
+	return len(node.deps)
+}
+
+// The magic happens here ::
+func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
+	Debugf("Generating traversal map. Nodes: %d", len(graph.nodes))
+	result := [][]string{}
+	processed := map[*DependencyNode]bool{}
+	// As long as we haven't processed all nodes...
+	for len(processed) < len(graph.nodes) {
+		// Use a temporary buffer for processed nodes, otherwise
+		// nodes that depend on each other could end up in the same round.
+		tmp_processed := []*DependencyNode{}
+		for _, node := range graph.nodes {
+			// If the node has more dependencies than what we have cleared,
+			// it won't be valid for this round.
+			if node.Degree() > len(processed) {
+				continue
+			}
+			// If it's already processed, get to the next one
+			if processed[node] {
+				continue
+			}
+			// It's not been processed yet and has 0 deps. Add it!
+			// (this is a shortcut for what we're doing below)
+			if node.Degree() == 0 {
+				tmp_processed = append(tmp_processed, node)
+				continue
+			}
+			// If at least one dep hasn't been processed yet, we can't
+			// add it.
+			ok := true
+			for dep, _ := range node.deps {
+				if !processed[dep] {
+					ok = false
+					break
+				}
+			}
+			// All deps have already been processed. Add it!
+			if ok {
+				tmp_processed = append(tmp_processed, node)
+			}
+		}
+		Debugf("Round %d: found %d available nodes", len(result), len(tmp_processed))
+		// If no progress has been made this round, 
+		// that means we have circular dependencies.
+		if len(tmp_processed) == 0 {
+			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
+		}
+		round := []string{}
+		for _, nd := range tmp_processed {
+			round = append(round, nd.id)
+			processed[nd] = true
+		}
+		result = append(result, round)
+	}
+	return result, nil
+}
