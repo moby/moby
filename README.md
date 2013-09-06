@@ -1,8 +1,8 @@
 Docker: the Linux container engine
 ==================================
 
-Docker is an open-source engine which automates the deployment of
-applications as highly portable, self-sufficient containers.
+Docker is an open source project to pack, ship and run any application
+as a lightweight container
 
 Docker containers are both *hardware-agnostic* and
 *platform-agnostic*. This means that they can run anywhere, from your
