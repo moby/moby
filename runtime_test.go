@@ -457,7 +457,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, devmapper.NewDeviceSetDM(runtime1.root), false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, runtime1.deviceSet, false)
 	if err != nil {
 		t.Fatal(err)
 	}
