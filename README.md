@@ -143,25 +143,11 @@ as they can be built by running a Unix command in a container.
 Install instructions
 ==================
 
-Quick install on Ubuntu 12.04 and 12.10
----------------------------------------
+Docker can be installed on your local machine as well as servers - both bare metal and virtualized.
+It is available as a binary on most modern Linux systems, or as a VM on Windows, Mac and other systems.
 
-```bash
-curl https://get.docker.io | sudo sh -x
-```
+For the most up-to-date install instructions, see the [install page on the documentation](http://docs.docker.io/en/latest/installation/).
 
-Binary installs
-----------------
-
-Docker supports the following binary installation methods.  Note that
-some methods are community contributions and not yet officially
-supported.
-
-* [Ubuntu 12.04 and 12.10 (officially supported)](http://docs.docker.io/en/latest/installation/ubuntulinux/)
-* [Arch Linux](http://docs.docker.io/en/latest/installation/archlinux/)
-* [Mac OS X (with Vagrant)](http://docs.docker.io/en/latest/installation/vagrant/)
-* [Windows (with Vagrant)](http://docs.docker.io/en/latest/installation/windows/)
-* [Amazon EC2 (with Vagrant)](http://docs.docker.io/en/latest/installation/amazon/)
 
 Usage examples
 ==============
