@@ -107,15 +107,15 @@ func (runtime *Runtime) GetMountMethod() MountMethod {
 	if runtime.mountMethod == MountMethodNone {
 		// Try to automatically pick a method
 		if hasFilesystemSupport("aufs") {
-			log.Printf("Using AUFS backend.")
+			utils.Debugf("Using AUFS backend.")
 			runtime.mountMethod = MountMethodAUFS
 		} else {
 			_ = exec.Command("modprobe", "aufs").Run()
 			if hasFilesystemSupport("aufs") {
-				log.Printf("Using AUFS backend.")
+				utils.Debugf("Using AUFS backend.")
 				runtime.mountMethod = MountMethodAUFS
 			} else {
-				log.Printf("Using device-mapper backend.")
+				utils.Debugf("Using device-mapper backend.")
 				runtime.mountMethod = MountMethodDeviceMapper
 			}
 		}
