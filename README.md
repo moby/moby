@@ -140,111 +140,25 @@ Note that Docker doesn't care *how* dependencies are built - as long
 as they can be built by running a Unix command in a container.
 
 
-Install instructions
-==================
+Getting started
+===============
 
 Docker can be installed on your local machine as well as servers - both bare metal and virtualized.
 It is available as a binary on most modern Linux systems, or as a VM on Windows, Mac and other systems.
 
-For the most up-to-date install instructions, see the [install page on the documentation](http://docs.docker.io/en/latest/installation/).
+We also offer an interactive tutorial for quickly learning the basics of using Docker.
+
+
+For up-to-date install instructions and online tutorials, see the [Getting Started page](http://www.docker.io/gettingstarted/).
 
 
 Usage examples
 ==============
 
-First run the ``docker`` daemon
--------------------------------
+Docker can be used to run short-lived commands, long-running daemons (app servers, databases etc.),
+interactive shell sessions, etc.
 
-All the examples assume your machine is running the ``docker``
-daemon. To run the ``docker`` daemon in the background, simply type:
-
-```bash
-# On a production system you want this running in an init script
-sudo docker -d &
-```
-
-Now you can run ``docker`` in client mode: all commands will be
-forwarded to the ``docker`` daemon, so the client can run from any
-account.
-
-```bash
-# Now you can run docker commands from any account.
-docker help
-```
-
-
-Throwaway shell in a base Ubuntu image
---------------------------------------
-
-```bash
-docker pull ubuntu:12.10
-
-# Run an interactive shell, allocate a tty, attach stdin and stdout
-# To detach the tty without exiting the shell, use the escape sequence Ctrl-p + Ctrl-q
-docker run -i -t ubuntu:12.10 /bin/bash
-```
-
-Starting a long-running worker process
---------------------------------------
-
-```bash
-# Start a very useful long-running process
-JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
-
-# Collect the output of the job so far
-docker logs $JOB
-
-# Kill the job
-docker kill $JOB
-```
-
-Running an irc bouncer
-----------------------
-
-```bash
-BOUNCER_ID=$(docker run -d -p 6667 -u irc shykes/znc zncrun $USER $PASSWORD)
-echo "Configure your irc client to connect to port $(docker port $BOUNCER_ID 6667) of this machine"
-```
-
-Running Redis
--------------
-
-```bash
-REDIS_ID=$(docker run -d -p 6379 shykes/redis redis-server)
-echo "Configure your redis client to connect to port $(docker port $REDIS_ID 6379) of this machine"
-```
-
-Share your own image!
----------------------
-
-```bash
-CONTAINER=$(docker run -d ubuntu:12.10 apt-get install -y curl)
-docker commit -m "Installed curl" $CONTAINER $USER/betterbase
-docker push $USER/betterbase
-```
-
-A list of publicly available images is [available
-here](https://github.com/dotcloud/docker/wiki/Public-docker-images).
-
-Expose a service on a TCP port
-------------------------------
-
-```bash
-# Expose port 4444 of this container, and tell netcat to listen on it
-JOB=$(docker run -d -p 4444 base /bin/nc -l -p 4444)
-
-# Which public port is NATed to my container?
-PORT=$(docker port $JOB 4444)
-
-# Connect to the public port via the host's public address
-# Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
-# Replace *eth0* according to your local interface name.
-IP=$(ip -o -4 addr list eth0 | perl -n -e 'if (m{inet\s([\d\.]+)\/\d+\s}xms) { print $1 }')
-echo hello world | nc $IP $PORT
-
-# Verify that the network connection worked
-echo "Daemon received: $(docker logs $JOB)"
-```
+You can find a [list of real-world examples](http://docs.docker.io/en/latest/examples/) in the documentation.
 
 Under the hood
 --------------
