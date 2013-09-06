@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -802,7 +801,7 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 	var output []byte
 	for _, currentLine := range lines {
 		var commentIndex = bytes.Index(currentLine, commentMarker)
-		if ( commentIndex == -1 ) {
+		if commentIndex == -1 {
 			output = append(output, currentLine...)
 		} else {
 			output = append(output, currentLine[:commentIndex]...)
@@ -867,10 +866,18 @@ func ParseRepositoryTag(repos string) (string, string) {
 	return repos, ""
 }
 
+type User struct {
+	Uid      string // user id
+	Gid      string // primary group id
+	Username string
+	Name     string
+	HomeDir  string
+}
+
 // UserLookup check if the given username or uid is present in /etc/passwd
 // and returns the user struct.
 // If the username is not found, an error is returned.
-func UserLookup(uid string) (*user.User, error) {
+func UserLookup(uid string) (*User, error) {
 	file, err := ioutil.ReadFile("/etc/passwd")
 	if err != nil {
 		return nil, err
@@ -878,7 +885,7 @@ func UserLookup(uid string) (*user.User, error) {
 	for _, line := range strings.Split(string(file), "\n") {
 		data := strings.Split(line, ":")
 		if len(data) > 5 && (data[0] == uid || data[2] == uid) {
-			return &user.User{
+			return &User{
 				Uid:      data[2],
 				Gid:      data[3],
 				Username: data[0],
@@ -890,13 +897,13 @@ func UserLookup(uid string) (*user.User, error) {
 	return nil, fmt.Errorf("User not found in /etc/passwd")
 }
 
-type DependencyGraph struct{
+type DependencyGraph struct {
 	nodes map[string]*DependencyNode
 }
 
-type DependencyNode struct{
-	id 		string
-	deps	map[*DependencyNode]bool
+type DependencyNode struct {
+	id   string
+	deps map[*DependencyNode]bool
 }
 
 func NewDependencyGraph() DependencyGraph {
@@ -917,7 +924,7 @@ func (graph *DependencyGraph) NewNode(id string) string {
 		return id
 	}
 	nd := &DependencyNode{
-		id: id,
+		id:   id,
 		deps: map[*DependencyNode]bool{},
 	}
 	graph.addNode(nd)
@@ -979,7 +986,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			// If at least one dep hasn't been processed yet, we can't
 			// add it.
 			ok := true
-			for dep, _ := range node.deps {
+			for dep := range node.deps {
 				if !processed[dep] {
 					ok = false
 					break
@@ -991,7 +998,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			}
 		}
 		Debugf("Round %d: found %d available nodes", len(result), len(tmp_processed))
-		// If no progress has been made this round, 
+		// If no progress has been made this round,
 		// that means we have circular dependencies.
 		if len(tmp_processed) == 0 {
 			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
