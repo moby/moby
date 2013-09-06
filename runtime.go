@@ -291,6 +291,19 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	return nil
 }
 
+func (runtime *Runtime) DeleteImage(id string) error {
+	err := runtime.graph.Delete(id)
+	if err != nil {
+		return err
+	}
+	if runtime.GetMountMethod() == MountMethodDeviceMapper && runtime.deviceSet.HasDevice(id) {
+		if err := runtime.deviceSet.RemoveDevice(id); err != nil {
+			return fmt.Errorf("Unable to remove device for %v: %v", id, err)
+		}
+	}
+	return nil
+}
+
 func (runtime *Runtime) restore() error {
 	wheel := "-\\|/"
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
