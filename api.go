@@ -819,6 +819,11 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 	if err != nil {
 		return err
 	}
+
+	_, err = srv.ImageInspect(name)
+	if err == nil {
+		return fmt.Errorf("Conflict between containers and images")
+	}
 	b, err := json.Marshal(container)
 	if err != nil {
 		return err
@@ -836,6 +841,11 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 	image, err := srv.ImageInspect(name)
 	if err != nil {
 		return err
+	}
+
+	_, err = srv.ContainerInspect(name)
+	if err == nil {
+		return fmt.Errorf("Conflict between containers and images")
 	}
 	b, err := json.Marshal(image)
 	if err != nil {
