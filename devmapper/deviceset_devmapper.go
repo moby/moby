@@ -1,6 +1,7 @@
 package devmapper
 
 import (
+	"github.com/dotcloud/docker/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -184,7 +185,7 @@ func (devices *DeviceSetDM) ensureImage(name string, size int64) (string, error)
 }
 
 func (devices *DeviceSetDM) createPool(dataFile *os.File, metadataFile *os.File) error {
-	log.Printf("Activating device-mapper pool %s", devices.getPoolName())
+	utils.Debugf("Activating device-mapper pool %s", devices.getPoolName())
 	task, err := devices.createTask(DeviceCreate, devices.getPoolName())
 	if task == nil {
 		return err

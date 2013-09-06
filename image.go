@@ -339,7 +339,7 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 
 	mounted, err := Mounted(mountDir)
 	if err == nil && mounted {
-		log.Printf("Image %s is unexpectedly mounted, unmounting...", image.ID)
+		utils.Debugf("Image %s is unexpectedly mounted, unmounting...", image.ID)
 		err = syscall.Unmount(mountDir, 0)
 		if err != nil {
 			return err
@@ -347,21 +347,19 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	}
 
 	if devices.HasDevice(image.ID) {
-		log.Printf("Found non-initialized demove-mapper device for image %s, removing", image.ID)
+		utils.Debugf("Found non-initialized demove-mapper device for image %s, removing", image.ID)
 		err = devices.RemoveDevice(image.ID)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Printf("Creating device-mapper device for image id %s", image.ID)
-
+	utils.Debugf("Creating device-mapper device for image id %s", image.ID)
 	err = devices.AddDevice(image.ID, image.Parent)
 	if err != nil {
 		return err
 	}
 
-	utils.Debugf("Mounting device %s at %s for image setup", image.ID, mountDir)
 	err = devices.MountDevice(image.ID, mountDir)
 	if err != nil {
 		_ = devices.RemoveDevice(image.ID)
@@ -375,14 +373,12 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 		return err
 	}
 
-	utils.Debugf("Applying layer %s at %s", image.ID, mountDir)
 	err = image.applyLayer(layerPath(root), mountDir)
 	if err != nil {
 		_ = devices.RemoveDevice(image.ID)
 		return err
 	}
 
-	utils.Debugf("Unmounting %s", mountDir)
 	err = syscall.Unmount(mountDir, 0)
 	if err != nil {
 		_ = devices.RemoveDevice(image.ID)
