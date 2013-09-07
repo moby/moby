@@ -1,4 +1,24 @@
 # This file describes the standard way to build Docker, using docker
+#
+# Usage:
+#
+# # Assemble the full dev environment. This is slow the first time.
+# docker build -t docker .
+# # Apparmor messes with privileged mode: disable it
+# /etc/init.d/apparmor stop ; /etc/init.d/apparmor teardown
+#
+# # Run the test suite:
+# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker go test -v
+#
+# # Publish a release:
+# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined \
+# -e AWS_S3_BUCKET=baz \
+# -e AWS_ACCESS_KEY=foo \
+# -e AWS_SECRET_KEY=bar \
+# -e GPG_PASSPHRASE=gloubiboulga \
+# -lxc-conf=lxc.aa_profile=unconfined -privileged docker hack/release/release.sh
+# 
+
 docker-version 0.6.1
 from	ubuntu:12.04
 maintainer	Solomon Hykes <solomon@dotcloud.com>
