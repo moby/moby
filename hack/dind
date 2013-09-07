@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# DinD: a wrapper script which allows docker to be run inside a docker container.
+# Original version by Jerome Petazzoni <jerome@dotcloud.com>
+# See the blog post: http://blog.docker.io/2013/09/docker-can-now-run-within-docker/
+#
+# This script should be executed inside a docker container in privilieged mode
+# ('docker run -privileged', introduced in docker 0.6).
+
+# Usage: dind CMD [ARG...]
+
 # First, make sure that cgroups are mounted correctly.
 CGROUP=/sys/fs/cgroup
 
@@ -44,13 +53,4 @@ do
 done
 popd
 
-# If we were given a PORT environment variable, start as a simple daemon;
-# otherwise, spawn a shell as well
-if [ "$PORT" ]
-then
-	exec docker -d -H 0.0.0.0:$PORT
-else
-
-	docker -d &
-	exec bash
-fi
+exec $*
