@@ -7,6 +7,10 @@
 # # Apparmor messes with privileged mode: disable it
 # /etc/init.d/apparmor stop ; /etc/init.d/apparmor teardown
 #
+# # Mount your source in an interactive container for quick testing:
+# docker run -v `pwd`:/go/src/github.com/dotcloud/docker -privileged -lxc-conf=lxc.aa_profile=unconfined -i -t docker bash
+#
+#
 # # Run the test suite:
 # docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker go test -v
 #
