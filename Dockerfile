@@ -16,7 +16,7 @@
 # -e AWS_ACCESS_KEY=foo \
 # -e AWS_SECRET_KEY=bar \
 # -e GPG_PASSPHRASE=gloubiboulga \
-# -lxc-conf=lxc.aa_profile=unconfined -privileged docker hack/release/release.sh
+# -lxc-conf=lxc.aa_profile=unconfined -privileged docker hack/release.sh
 # 
 
 docker-version 0.6.1
@@ -52,13 +52,9 @@ run	PKG=github.com/gorilla/context/ REV=708054d61e5; git clone http://$PKG /go/s
 run	PKG=github.com/gorilla/mux/ REV=9b36453141c;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/dotcloud/tar/ REV=e5ea6bb21a3294;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
-# Upload docker source
-add	.       /go/src/github.com/dotcloud/docker
-run	ln -s	/go/src/github.com/dotcloud/docker /src
 volume	/var/lib/docker
-# Build the binary
-run	cd /go/src/github.com/dotcloud/docker && hack/release/make.sh
 workdir	/go/src/github.com/dotcloud/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 entrypoint ["hack/dind"]
-cmd	cd /go/src/github.com/dotcloud/docker && hack/release/release.sh
+# Upload docker source
+add	.       /go/src/github.com/dotcloud/docker
