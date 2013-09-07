@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# Variables AWS_ACCESS_KEY, AWS_SECRET_KEY, PG_PASSPHRASE and INDEX_AUTH
+# are decoded from /root/release_credentials.json and passed to the environment
+# Variable AWS_S3_BUCKET is passed to the environment from docker run -e
+
+# Enable debugging
+set -x
+
+# Prepare container environment to run docker in docker
+# Mount cgroups
+mount -t tmpfs none /tmp; mount -t tmpfs none /sys/fs/cgroup; cd /sys/fs/cgroup
+for C in $(awk "{print \$1}" < /proc/cgroups | grep -v subsys | grep -v memory) ; do mkdir $C ; mount -t cgroup none -o $C $C ; done
+pushd /proc/self/fd >/dev/null; for FD in *; do case "$FD" in [012]) ;; *) eval exec "$FD>&-" ;; esac done; popd >/dev/null
+
+# Launch docker daemon inside the container
+docker -d &
+
+# fetch docker master branch
+export GOPATH=/go
+rm -rf $GOPATH; mkdir -p $GOPATH
+go get -d github.com/dotcloud/docker
+cd /go/src/github.com/dotcloud/docker
+
+# Add an uncommitted change to generate a timestamped release
+date > timestamp
+
+# Build the docker package and extract docker binary
+docker build -t releasedocker .
+docker run releasedocker sh -c 'cat /go/src/github.com/dotcloud/docker/bundles/*/binary/docker*'  >/docker
+chmod +x /docker
+
+# Swap docker production daemon with new docker binary for testing
+kill $(pgrep '^docker$')
+sleep 15
+mv /docker /usr/bin
+docker -d &
+sleep 15
+
+# Turn debug off to load credentials in the environment and
+# to authenticate to the index
+set +x
+eval $(cat /root/release_credentials.json  | python -c '
+import sys,json,base64;
+d=json.loads(base64.b64decode(sys.stdin.read()));
+exec("""for k in d: print "export {0}=\\"{1}\\"".format(k,d[k])""")')
+echo '{"https://index.docker.io/v1/":{"auth":"'$INDEX_AUTH'","email":"engineering@dotcloud.com"}}' > /.dockercfg
+set -x
+
+# Test docker nightly
+# Generate unique image name
+export DIMAGE=testimage`date +'%Y%m%d%H%M%S'`
+
+# Simple docker version test
+docker version || exit 1
+
+# Containerized hello world
+docker run -cidfile=hello.cid busybox echo 'Hello world' | grep -q 'Hello world' || exit 1
+
+# Create an image based on the busybox container and test pushing it to the index
+docker commit `cat hello.cid` test/$DIMAGE
+docker images | grep -q test/$DIMAGE || exit 1
+docker push test/$DIMAGE
+
+# Verify the image was properly pushed to the index
+docker search $DIMAGE | grep -q $DIMAGE || exit 1
+
+# Push docker nightly
+echo docker run -i -t -e AWS_S3_BUCKET="$AWS_S3_BUCKET" -e AWS_ACCESS_KEY="XXXXX" -e AWS_SECRET_KEY="XXXXX" -e GPG_PASSPHRASE="XXXXX" releasedocker
+set +x
+docker run -i -t -e AWS_S3_BUCKET="$AWS_S3_BUCKET" -e AWS_ACCESS_KEY="$AWS_ACCESS_KEY" -e AWS_SECRET_KEY="$AWS_SECRET_KEY" -e GPG_PASSPHRASE="$GPG_PASSPHRASE" releasedocker
