@@ -44,6 +44,7 @@ func init() {
 	sysInitPath = utils.SelfPath()
 }
 
+// List returns an array of all containers registered in the runtime.
 func (runtime *Runtime) List() []*Container {
 	containers := new(History)
 	for e := runtime.containers.Front(); e != nil; e = e.Next() {
@@ -62,6 +63,8 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 	return nil
 }
 
+// Get looks for a container by the specified ID or name, and returns it.
+// If the container is not found, or if an error occurs, nil is returned.
 func (runtime *Runtime) Get(name string) *Container {
 	id, err := runtime.idIndex.Get(name)
 	if err != nil {
@@ -74,6 +77,8 @@ func (runtime *Runtime) Get(name string) *Container {
 	return e.Value.(*Container)
 }
 
+// Exists returns a true if a container of the specified ID or name exists,
+// false otherwise.
 func (runtime *Runtime) Exists(id string) bool {
 	return runtime.Get(id) != nil
 }
@@ -82,6 +87,9 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
+// Load reads the contents of a container from disk and registers
+// it with Register.
+// This is typically done at startup.
 func (runtime *Runtime) Load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
@@ -179,6 +187,7 @@ func (runtime *Runtime) LogToDisk(src *utils.WriteBroadcaster, dst, stream strin
 	return nil
 }
 
+// Destroy unregisters a container from the runtime and cleanly removes its contents from the filesystem.
 func (runtime *Runtime) Destroy(container *Container) error {
 	if container == nil {
 		return fmt.Errorf("The given container is <nil>")
@@ -235,7 +244,7 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
-// FIXME: comment please
+// FIXME: comment please!
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
@@ -455,6 +464,8 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	return runtime, nil
 }
 
+// History is a convenience type for storing a list of containers,
+// ordered by creation date.
 type History []*Container
 
 func (history *History) Len() int {
