@@ -23,7 +23,6 @@ type BuildFile interface {
 
 type buildFile struct {
 	runtime *Runtime
-	builder *Builder
 	srv     *Server
 
 	image        string
@@ -337,7 +336,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	b.config.Image = b.image
 	// Create the container and start it
-	container, err := b.builder.Create(b.config)
+	container, err := b.runtime.Create(b.config)
 	if err != nil {
 		return err
 	}
@@ -372,7 +371,7 @@ func (b *buildFile) run() (string, error) {
 	b.config.Image = b.image
 
 	// Create the container and start it
-	c, err := b.builder.Create(b.config)
+	c, err := b.runtime.Create(b.config)
 	if err != nil {
 		return "", err
 	}
@@ -428,7 +427,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, err := b.builder.Create(b.config)
+		container, err := b.runtime.Create(b.config)
 		if err != nil {
 			return err
 		}
@@ -450,7 +449,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.builder.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.runtime.Commit(container, "", "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}
@@ -524,7 +523,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
-		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},

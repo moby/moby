@@ -139,8 +139,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 
-	b := NewBuilder(srv.runtime)
-	c, err := b.Create(config)
+	c, err := srv.runtime.Create(config)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +148,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
-	img, err = b.Commit(c, "", "", img.Comment, img.Author, nil)
+	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
 		return "", err
 	}
@@ -400,7 +399,7 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	if container == nil {
 		return "", fmt.Errorf("No such container: %s", name)
 	}
-	img, err := NewBuilder(srv.runtime).Commit(container, repo, tag, comment, author, config)
+	img, err := srv.runtime.Commit(container, repo, tag, comment, author, config)
 	if err != nil {
 		return "", err
 	}
@@ -904,8 +903,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
 		config.MemorySwap = -1
 	}
-	b := NewBuilder(srv.runtime)
-	container, err := b.Create(config)
+	container, err := srv.runtime.Create(config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
 

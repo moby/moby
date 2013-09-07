@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
+
 type Capabilities struct {
 	MemoryLimit            bool
 	SwapLimit              bool
@@ -233,6 +235,7 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
+// FIXME: comment please
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
@@ -258,6 +261,133 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
+}
+
+// Create creates a new container from the given configuration.
+func (runtime *Runtime) Create(config *Config) (*Container, error) {
+	// Lookup image
+	img, err := runtime.repositories.LookupImage(config.Image)
+	if err != nil {
+		return nil, err
+	}
+
+	if img.Config != nil {
+		MergeConfig(config, img.Config)
+	}
+
+	if len(config.Entrypoint) != 0 && config.Cmd == nil {
+		config.Cmd = []string{}
+	} else if config.Cmd == nil || len(config.Cmd) == 0 {
+		return nil, fmt.Errorf("No command specified")
+	}
+
+	// Generate id
+	id := GenerateID()
+	// Generate default hostname
+	// FIXME: the lxc template no longer needs to set a default hostname
+	if config.Hostname == "" {
+		config.Hostname = id[:12]
+	}
+
+	var args []string
+	var entrypoint string
+
+	if len(config.Entrypoint) != 0 {
+		entrypoint = config.Entrypoint[0]
+		args = append(config.Entrypoint[1:], config.Cmd...)
+	} else {
+		entrypoint = config.Cmd[0]
+		args = config.Cmd[1:]
+	}
+
+	container := &Container{
+		// FIXME: we should generate the ID here instead of receiving it as an argument
+		ID:              id,
+		Created:         time.Now(),
+		Path:            entrypoint,
+		Args:            args, //FIXME: de-duplicate from config
+		Config:          config,
+		Image:           img.ID, // Always use the resolved image id
+		NetworkSettings: &NetworkSettings{},
+		// FIXME: do we need to store this in the container?
+		SysInitPath: sysInitPath,
+	}
+	container.root = runtime.containerRoot(container.ID)
+	// Step 1: create the container directory.
+	// This doubles as a barrier to avoid race conditions.
+	if err := os.Mkdir(container.root, 0700); err != nil {
+		return nil, err
+	}
+
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(config.Dns) == 0 && len(runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
+		runtime.Dns = defaultDns
+	}
+
+	// If custom dns exists, then create a resolv.conf for the container
+	if len(config.Dns) > 0 || len(runtime.Dns) > 0 {
+		var dns []string
+		if len(config.Dns) > 0 {
+			dns = config.Dns
+		} else {
+			dns = runtime.Dns
+		}
+		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
+		f, err := os.Create(container.ResolvConfPath)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		for _, dns := range dns {
+			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		container.ResolvConfPath = "/etc/resolv.conf"
+	}
+
+	// Step 2: save the container json
+	if err := container.ToDisk(); err != nil {
+		return nil, err
+	}
+	// Step 3: register the container
+	if err := runtime.Register(container); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
+
+// Commit creates a new filesystem image from the current state of a container.
+// The image can optionally be tagged into a repository
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
+	// FIXME: freeze the container before copying it to avoid data corruption?
+	// FIXME: this shouldn't be in commands.
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
+	rwTar, err := container.ExportRw()
+	if err != nil {
+		return nil, err
+	}
+	// Create a new image from the container's base layers + a new layer from container changes
+	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
+	if err != nil {
+		return nil, err
+	}
+	// Register the image if needed
+	if repository != "" {
+		if err := runtime.repositories.Set(repository, tag, img.ID, true); err != nil {
+			return img, err
+		}
+	}
+	return img, nil
 }
 
 // FIXME: harmonize with NewGraph()
@@ -347,3 +477,4 @@ func (history *History) Add(container *Container) {
 	*history = append(*history, container)
 	sort.Sort(history)
 }
+
