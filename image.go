@@ -379,7 +379,7 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 		return err
 	}
 
-	err = syscall.Unmount(mountDir, 0)
+	err = devices.UnmountDevice(image.ID, mountDir)
 	if err != nil {
 		_ = devices.RemoveDevice(image.ID)
 		return err
@@ -467,16 +467,17 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 		return Unmount(root)
 
 	case MountMethodDeviceMapper:
-		err := syscall.Unmount(root, 0)
-		if err != nil {
-			return err
-		}
-
 		// Try to deactivate the device as generally there is no use for it anymore
 		devices, err := runtime.GetDeviceSet()
 		if err != nil {
 			return err;
 		}
+
+		err = devices.UnmountDevice(id, root)
+		if err != nil {
+			return err
+		}
+
 		return devices.DeactivateDevice(id)
 	}
 	return nil
@@ -509,7 +510,7 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 		}
 
 		changes, err := ChangesDirs(root, rw)
-		_ = syscall.Unmount(rw, 0)
+		_ = devices.UnmountDevice(image.ID, rw)
 		if err != nil {
 			return nil, err
 		}

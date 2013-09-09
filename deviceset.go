@@ -6,6 +6,7 @@ type DeviceSet interface {
 	DeactivateDevice(hash string) error
 	RemoveDevice(hash string) error
 	MountDevice(hash, path string) error
+	UnmountDevice(hash, path string) error
 	HasDevice(hash string) bool
 	HasInitializedDevice(hash string) bool
 }
@@ -41,6 +42,10 @@ func (wrapper *DeviceSetWrapper) RemoveDevice(hash string) error {
 
 func (wrapper *DeviceSetWrapper) MountDevice(hash, path string) error {
 	return wrapper.wrapped.MountDevice(wrapper.wrap(hash), path)
+}
+
+func (wrapper *DeviceSetWrapper) UnmountDevice(hash, path string) error {
+	return wrapper.wrapped.UnmountDevice(wrapper.wrap(hash), path)
 }
 
 func (wrapper *DeviceSetWrapper) HasDevice(hash string) bool {
