@@ -1,5 +1,7 @@
 package docker
 
+import "encoding/json"
+
 type APIHistory struct {
 	ID        string   `json:"Id"`
 	Tags      []string `json:",omitempty"`
@@ -47,7 +49,7 @@ type APIContainers struct {
 	Command    string
 	Created    int64
 	Status     string
-	Ports      string
+	Ports      []APIPort
 	SizeRw     int64
 	SizeRootFs int64
 }
@@ -67,7 +69,17 @@ type APIRun struct {
 }
 
 type APIPort struct {
-	Port string
+	PrivatePort int64
+	PublicPort  int64
+	Type        string
+}
+
+func (port *APIPort) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"PrivatePort": port.PrivatePort,
+		"PublicPort":  port.PublicPort,
+		"Type":        port.Type,
+	})
 }
 
 type APIVersion struct {

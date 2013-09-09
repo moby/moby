@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -253,17 +252,28 @@ type NetworkSettings struct {
 	PortMapping map[string]PortMapping
 }
 
-// String returns a human-readable description of the port mapping defined in the settings
-func (settings *NetworkSettings) PortMappingHuman() string {
-	var mapping []string
+// returns a more easy to process description of the port mapping defined in the settings
+func (settings *NetworkSettings) PortMappingAPI() []APIPort {
+	var mapping []APIPort
 	for private, public := range settings.PortMapping["Tcp"] {
-		mapping = append(mapping, fmt.Sprintf("%s->%s", public, private))
+		pubint, _ := strconv.ParseInt(public, 0, 0)
+		privint, _ := strconv.ParseInt(private, 0, 0)
+		mapping = append(mapping, APIPort{
+			PrivatePort: privint,
+			PublicPort:  pubint,
+			Type:        "tcp",
+		})
 	}
 	for private, public := range settings.PortMapping["Udp"] {
-		mapping = append(mapping, fmt.Sprintf("%s->%s/udp", public, private))
+		pubint, _ := strconv.ParseInt(public, 0, 0)
+		privint, _ := strconv.ParseInt(private, 0, 0)
+		mapping = append(mapping, APIPort{
+			PrivatePort: privint,
+			PublicPort:  pubint,
+			Type:        "udp",
+		})
 	}
-	sort.Strings(mapping)
-	return strings.Join(mapping, ", ")
+	return mapping
 }
 
 // Inject the io.Reader at the given path. Note: do not close the reader
