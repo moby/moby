@@ -22,6 +22,7 @@ import (
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+	ErrLoginRequired         = errors.New("Authentication is required.")
 )
 
 func pingRegistryEndpoint(endpoint string) error {
@@ -102,17 +103,38 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	if err := validateRepositoryName(reposName); err != nil {
 		return "", "", err
 	}
+	endpoint, err := ExpandAndVerifyRegistryUrl(hostname)
+	if err != nil {
+		return "", "", err
+	}
+	return endpoint, reposName, err
+}
+
+// this method expands the registry name as used in the prefix of a repo
+// to a full url. if it already is a url, there will be no change.
+// The registry is pinged to test if it http or https
+func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
+	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
+		// if there is no slash after https:// (8 characters) then we have no path in the url
+		if strings.LastIndex(hostname, "/") < 9 {
+			// there is no path given. Expand with default path
+			hostname = hostname + "/v1/"
+		}
+		if err := pingRegistryEndpoint(hostname); err != nil {
+			return "", errors.New("Invalid Registry endpoint: " + err.Error())
+		}
+		return hostname, nil
+	}
 	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
 	if err := pingRegistryEndpoint(endpoint); err != nil {
 		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
 		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
 		if err = pingRegistryEndpoint(endpoint); err != nil {
 			//TODO: triggering highland build can be done there without "failing"
-			return "", "", errors.New("Invalid Registry endpoint: " + err.Error())
+			return "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
 	}
-	err := validateRepositoryName(reposName)
-	return endpoint, reposName, err
+	return endpoint, nil
 }
 
 func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
@@ -139,6 +161,9 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
+		if res.StatusCode == 401 {
+			return nil, ErrLoginRequired
+		}
 		if res != nil {
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 		}
@@ -282,7 +307,7 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Please login first (HTTP code %d)", res.StatusCode), res)
+		return nil, ErrLoginRequired
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.

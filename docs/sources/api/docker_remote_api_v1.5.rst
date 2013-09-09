@@ -1,11 +1,11 @@
-:title: Remote API v1.4
+:title: Remote API v1.5
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 :orphan:
 
 ======================
-Docker Remote API v1.4
+Docker Remote API v1.5
 ======================
 
 .. contents:: Table of Contents
@@ -50,7 +50,7 @@ List containers
 			"Command": "echo 1",
 			"Created": 1367854155,
 			"Status": "Exit 0",
-			"Ports":"",
+			"Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
 			"SizeRw":12288,
 			"SizeRootFs":0
 		},
@@ -60,7 +60,7 @@ List containers
 			"Command": "echo 222222",
 			"Created": 1367854155,
 			"Status": "Exit 0",
-			"Ports":"",
+			"Ports":[],
 			"SizeRw":12288,
 			"SizeRootFs":0
 		},
@@ -70,7 +70,7 @@ List containers
 			"Command": "echo 3333333333333333",
 			"Created": 1367854154,
 			"Status": "Exit 0",
-			"Ports":"",
+			"Ports":[],
 			"SizeRw":12288,
 			"SizeRootFs":0
 		},
@@ -80,7 +80,7 @@ List containers
 			"Command": "echo 444444444444444444444444444444444",
 			"Created": 1367854152,
 			"Status": "Exit 0",
-			"Ports":"",
+			"Ports":[],
 			"SizeRw":12288,
 			"SizeRootFs":0
 		}
@@ -224,7 +224,6 @@ Inspect a container
 
 	:statuscode 200: no error
 	:statuscode 404: no such container
-	:statuscode 409: conflict between containers and images
 	:statuscode 500: server error
 
 
@@ -672,6 +671,10 @@ Create an image
 	   {"error":"Invalid..."}
 	   ...
 
+	When using this endpoint to pull an image from the registry,
+	the ``X-Registry-Auth`` header can be used to include a
+	base64-encoded AuthConfig object.
+
         :query fromImage: name of the image to pull
 	:query fromSrc: source to import, - means stdin
         :query repo: repository
@@ -761,8 +764,7 @@ Inspect an image
 
 	:statuscode 200: no error
 	:statuscode 404: no such image
-	:statuscode 409: conflict between containers and images
-	:statuscode 500: server error
+        :statuscode 500: server error
 
 
 Get the history of an image
@@ -815,7 +817,6 @@ Push an image on the registry
    .. sourcecode:: http
 
       POST /images/test/push HTTP/1.1
-      {{ authConfig }}
 
    **Example response**:
 
@@ -828,6 +829,9 @@ Push an image on the registry
    {"status":"Pushing", "progress":"1/? (n/a)"}
    {"error":"Invalid..."}
    ...
+
+	The ``X-Registry-Auth`` header can be used to include a
+	base64-encoded AuthConfig object.
 
    :query registry: the registry you wan to push, optional
    :statuscode 200: no error
