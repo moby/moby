@@ -209,8 +209,10 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	}
 	outs := []APIImages{} //produce [] when empty instead of 'null'
 	for name, repository := range srv.runtime.repositories.Repositories {
-		if filter != "" && name != filter {
-			continue
+		if filter != "" {
+			if match, _ := path.Match(filter, name); !match {
+				continue
+			}
 		}
 		for tag, id := range repository {
 			var out APIImages
@@ -678,7 +680,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([][]*registry.ImgD
 		depGraph.NewNode(img.ID)
 		img.WalkHistory(func(current *Image) error {
 			imgList[current.ID] = &registry.ImgData{
-				ID: current.ID,
+				ID:  current.ID,
 				Tag: tag,
 			}
 			parent, err := current.GetParent()
