@@ -367,16 +367,11 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 		return nil
 	}
 	for _, name := range cmd.Args() {
-		body, _, err := cli.call("POST", "/containers/"+name+"/wait", nil)
+		status, err := waitForExit(cli, name)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s", err)
 		} else {
-			var out APIWait
-			err = json.Unmarshal(body, &out)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(cli.out, "%d\n", out.StatusCode)
+			fmt.Fprintf(cli.out, "%d\n", status)
 		}
 	}
 	return nil
@@ -1477,8 +1472,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if !config.AttachStdout && !config.AttachStderr {
+		// Detached mode
 		<-wait
+	} else {
+		status, err := waitForExit(cli, runResult.ID)
+		if err != nil {
+			return err
+		}
+		if status != 0 {
+			return &utils.StatusError{status}
+		}
 	}
+
 	return nil
 }
 
@@ -1757,6 +1762,19 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
 	return err
+}
+
+func waitForExit(cli *DockerCli, containerId string) (int, error) {
+	body, _, err := cli.call("POST", "/containers/"+containerId+"/wait", nil)
+	if err != nil {
+		return -1, err
+	}
+
+	var out APIWait
+	if err := json.Unmarshal(body, &out); err != nil {
+		return -1, err
+	}
+	return out.StatusCode, nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
