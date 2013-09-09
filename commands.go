@@ -1479,7 +1479,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err != nil {
 			return err
 		}
-		os.Exit(status)
+		if status != 0 {
+			return &utils.StatusError{status}
+		}
 	}
 
 	return nil
