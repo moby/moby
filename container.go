@@ -915,6 +915,7 @@ func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 	}
 
 	if container.Config.PortSpecs != nil {
+		utils.Debugf("Migrating port mappings for container: %s", strings.Join(container.Config.PortSpecs, ", "))
 		if err := migratePortMappings(container.Config); err != nil {
 			return err
 		}
@@ -944,6 +945,9 @@ func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 
 	for port := range portSpecs {
 		binding := bindings[port]
+		if len(binding) == 0 {
+			binding = append(binding, PortBinding{})
+		}
 		for i := 0; i < len(binding); i++ {
 			b := binding[i]
 			nat, err := iface.AllocatePort(port, b)

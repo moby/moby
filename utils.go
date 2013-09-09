@@ -29,6 +29,7 @@ func CompareConfig(a, b *Config) bool {
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
+		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		len(a.Entrypoint) != len(b.Entrypoint) ||
 		len(a.Volumes) != len(b.Volumes) {
 		return false
@@ -51,6 +52,11 @@ func CompareConfig(a, b *Config) bool {
 	}
 	for i := 0; i < len(a.PortSpecs); i++ {
 		if a.PortSpecs[i] != b.PortSpecs[i] {
+			return false
+		}
+	}
+	for k := range a.ExposedPorts {
+		if _, exists := b.ExposedPorts[k]; !exists {
 			return false
 		}
 	}
@@ -97,8 +103,10 @@ func MergeConfig(userConf, imageConf *Config) {
 				userConf.ExposedPorts[port] = struct{}{}
 			}
 		}
+		userConf.PortSpecs = nil
 	}
 	if imageConf.PortSpecs != nil && len(imageConf.PortSpecs) > 0 {
+		utils.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
 		if userConf.ExposedPorts == nil {
 			userConf.ExposedPorts = make(map[Port]struct{})
 		}
