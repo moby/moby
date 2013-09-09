@@ -18,6 +18,10 @@
 #   your checkout of the Docker repository.
 # 
 
+# FIXME: break down bundles into sub-scripts
+# FIXME: create all bundles in a single run for consistency.
+#	If the bundles directory already exists, fail or erase it.
+
 set -e
 
 # We're a nice, sexy, little shell script, and people might try to run us;
@@ -38,6 +42,9 @@ then
 	GITCOMMIT="$GITCOMMIT-dirty"
 	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
 fi
+
+# Use these flags when compiling the tests and final binary
+LDFLAGS="-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w"
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.io/"
@@ -65,11 +72,34 @@ end script
 # Each "bundle" is a different type of build artefact: static binary, Ubuntu
 # package, etc.
 
+# Run Docker's test suite, including sub-packages, and store their output as a bundle
+bundle_test() {
+	mkdir -p bundles/$VERSION/test
+	{
+		date
+		for test_dir in $(find_test_dirs); do (
+			set -x
+			cd $test_dir
+			go test -v -ldflags "$LDFLAGS"
+		)  done
+	} 2>&1 | tee bundles/$VERSION/test/test.log
+}
+
+
+# This helper function walks the current directory looking for directories
+# holding Go test files, and prints their paths on standard output, one per
+# line.
+find_test_dirs() {
+       find . -name '*_test.go' | grep -v '^./vendor' |
+               { while read f; do dirname $f; done; } |
+               sort -u
+}
+
 # Build Docker as a static binary file
 bundle_binary() {
 	mkdir -p bundles/$VERSION/binary
 	go build -o bundles/$VERSION/binary/docker-$VERSION \
-		-ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" \
+		-ldflags "$LDFLAGS" \
 		./docker
 }
 
@@ -134,6 +164,7 @@ EOF
 
 
 main() {
+	bundle_test
 	bundle_binary
 	bundle_ubuntu
 	cat <<EOF
