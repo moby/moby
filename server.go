@@ -679,7 +679,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([][]*registry.ImgD
 		depGraph.NewNode(img.ID)
 		img.WalkHistory(func(current *Image) error {
 			imgList[current.ID] = &registry.ImgData{
-				ID: current.ID,
+				ID:  current.ID,
 				Tag: tag,
 			}
 			parent, err := current.GetParent()

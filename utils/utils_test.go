@@ -366,7 +366,6 @@ func TestParseRelease(t *testing.T) {
 	assertParseRelease(t, "3.8.0-19-generic", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "19-generic"}, 0)
 }
 
-
 func TestDependencyGraphCircular(t *testing.T) {
 	g1 := NewDependencyGraph()
 	a := g1.NewNode("a")
