@@ -88,6 +88,12 @@ func init() {
 
 	NetworkBridgeIface = unitTestNetworkBridge
 
+	// Always start from a clean set of loopback mounts
+	err := os.RemoveAll(unitTestStoreDevicesBase)
+	if err != nil {
+		panic(err)
+	}
+
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreDevicesBase), false); err != nil {
 		panic(err)
