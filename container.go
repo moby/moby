@@ -292,12 +292,17 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
+	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
+
+	// Make sure the directory exists
+	if err := os.MkdirAll(path.Join(container.RootfsPath(), path.Dir(pth)), 0755); err != nil {
+		return err
+	}
+
 	// FIXME: Handle permissions/already existing dest
-	dest, err := os.Create(path.Join(container.rwPath(), pth))
+	dest, err := os.Create(path.Join(container.RootfsPath(), pth))
 	if err != nil {
 		return err
 	}
