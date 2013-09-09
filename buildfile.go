@@ -292,7 +292,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: no such file or directory", orig)
 	}
 	if fi.IsDir() {
 		if err := CopyWithTar(origPath, destPath); err != nil {
