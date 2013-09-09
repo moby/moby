@@ -9,6 +9,7 @@ type DeviceSet interface {
 	UnmountDevice(hash, path string) error
 	HasDevice(hash string) bool
 	HasInitializedDevice(hash string) bool
+	Shutdown() error
 }
 
 type DeviceSetWrapper struct {
@@ -34,6 +35,10 @@ func (wrapper *DeviceSetWrapper) SetInitialized(hash string) error {
 
 func (wrapper *DeviceSetWrapper) DeactivateDevice(hash string) error {
 	return wrapper.wrapped.DeactivateDevice(wrapper.wrap(hash))
+}
+
+func (wrapper *DeviceSetWrapper) Shutdown() error {
+	return nil
 }
 
 func (wrapper *DeviceSetWrapper) RemoveDevice(hash string) error {
