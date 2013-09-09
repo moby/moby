@@ -51,11 +51,14 @@ func RemoveExistingChain(name string) error {
 	return chain.Remove()
 }
 
-func (c *Chain) Forward(action Action, port int, proto, dest_addr string, dest_port int) error {
+func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr string, dest_port int) error {
 	return Raw("-t", "nat", fmt.Sprint(action), c.Name,
-		"-p", proto, "--dport", strconv.Itoa(port),
+		"-p", proto,
+		"-d", ip.String(),
+		"--dport", strconv.Itoa(port),
 		"!", "-i", c.Bridge,
-		"-j", "DNAT", "--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
+		"-j", "DNAT",
+		"--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
 }
 
 func (c *Chain) Prerouting(action Action, args ...string) error {
