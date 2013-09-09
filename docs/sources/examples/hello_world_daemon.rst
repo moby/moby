@@ -56,6 +56,8 @@ Attach to the container to see the results in realtime.
   process to see what is going on.
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
+Exit from the container attachment by pressing Control-C.
+
 .. code-block:: bash
 
     sudo docker ps
