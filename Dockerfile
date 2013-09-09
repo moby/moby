@@ -35,7 +35,7 @@ run	apt-get install -y -q mercurial
 # Install Go
 run	curl -s https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-env	GOPATH	/go:/vendor
+env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
 env	CGO_ENABLED 0
 run	cd /tmp && echo 'package main' > t.go && go test -a -i -v
 # Ubuntu stuff
@@ -55,5 +55,4 @@ workdir	/go/src/github.com/dotcloud/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 entrypoint ["hack/dind"]
 # Upload docker source
-add 	vendor	/vendor
 add	.       /go/src/github.com/dotcloud/docker
