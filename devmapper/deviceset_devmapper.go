@@ -637,7 +637,7 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 		return err
 	}
 
-	err = syscall.Unmount(tmpDir, 0)
+	err = devices.UnmountDevice("", tmpDir)
 	if err != nil {
 		return err
 	}
@@ -839,6 +839,16 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 	}
 	return nil
 }
+
+func (devices *DeviceSetDM) UnmountDevice(hash, path string) error {
+	err := syscall.Unmount(path, 0)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 
 func (devices *DeviceSetDM) HasDevice(hash string) bool {
 	if err := devices.ensureInit(); err != nil {
