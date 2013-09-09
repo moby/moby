@@ -125,21 +125,23 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 	container.HostnamePath = path.Join(container.root, "hostname")
 	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 
-	hostsContent := []byte("127.0.0.1\tlocalhost\n" +
-		"::1\t\tlocalhost ip6-localhost ip6-loopback\n" +
-		"fe00::0\t\tip6-localnet\n" +
-		"ff00::0\t\tip6-mcastprefix\n" +
-		"ff02::1\t\tip6-allnodes\n" +
-		"ff02::2\t\tip6-allrouters\n")
+	hostsContent := []byte(`
+127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+`)
 
 	container.HostsPath = path.Join(container.root, "hosts")
 
 	if container.Config.Domainname != "" {
-		hostsContent = append([]byte("127.0.0.1\t"+container.Config.Hostname+"."+container.Config.Domainname+" "+container.Config.Hostname+"\n"+
-			"::1\t\t"+container.Config.Hostname+"."+container.Config.Domainname+" "+container.Config.Hostname+"\n"), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
 	} else {
-		hostsContent = append([]byte("127.0.0.1\t"+container.Config.Hostname+"\n"+
-			"::1\t\t"+container.Config.Hostname+"\n"), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", container.Config.Hostname)), hostsContent...)
 	}
 
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)

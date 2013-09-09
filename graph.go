@@ -202,6 +202,8 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 		"/sys":             "dir",
 		"/.dockerinit":     "file",
 		"/etc/resolv.conf": "file",
+		"/etc/hosts":       "file",
+		"/etc/hostname":    "file",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
