@@ -214,19 +214,19 @@ type PortMapper struct {
 	defaultIp net.IP
 }
 
-func (mapper *PortMapper) Map(port int, backendAddr net.Addr, proxyIp net.IP) error {
+func (mapper *PortMapper) Map(ip net.IP, port int, backendAddr net.Addr) error {
 	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
 		backendPort := backendAddr.(*net.TCPAddr).Port
 		backendIP := backendAddr.(*net.TCPAddr).IP
 		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Add, port, "tcp", backendIP.String(), backendPort); err != nil {
+			if err := mapper.iptables.Forward(iptables.Add, ip, port, "tcp", backendIP.String(), backendPort); err != nil {
 				return err
 			}
 		}
 		mapper.tcpMapping[port] = backendAddr.(*net.TCPAddr)
-		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: proxyIp, Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.TCPAddr{IP: ip, Port: port}, backendAddr)
 		if err != nil {
-			mapper.Unmap(port, "tcp")
+			mapper.Unmap(ip, port, "tcp")
 			return err
 		}
 		mapper.tcpProxies[port] = proxy
@@ -235,14 +235,14 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr, proxyIp net.IP) er
 		backendPort := backendAddr.(*net.UDPAddr).Port
 		backendIP := backendAddr.(*net.UDPAddr).IP
 		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Add, port, "udp", backendIP.String(), backendPort); err != nil {
+			if err := mapper.iptables.Forward(iptables.Add, ip, port, "udp", backendIP.String(), backendPort); err != nil {
 				return err
 			}
 		}
 		mapper.udpMapping[port] = backendAddr.(*net.UDPAddr)
-		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: proxyIp, Port: port}, backendAddr)
+		proxy, err := proxy.NewProxy(&net.UDPAddr{IP: ip, Port: port}, backendAddr)
 		if err != nil {
-			mapper.Unmap(port, "udp")
+			mapper.Unmap(ip, port, "udp")
 			return err
 		}
 		mapper.udpProxies[port] = proxy
@@ -251,7 +251,7 @@ func (mapper *PortMapper) Map(port int, backendAddr net.Addr, proxyIp net.IP) er
 	return nil
 }
 
-func (mapper *PortMapper) Unmap(port int, proto string) error {
+func (mapper *PortMapper) Unmap(ip net.IP, port int, proto string) error {
 	if proto == "tcp" {
 		backendAddr, ok := mapper.tcpMapping[port]
 		if !ok {
@@ -262,7 +262,7 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 			delete(mapper.tcpProxies, port)
 		}
 		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Delete, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
+			if err := mapper.iptables.Forward(iptables.Delete, ip, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
 				return err
 			}
 		}
@@ -277,7 +277,7 @@ func (mapper *PortMapper) Unmap(port int, proto string) error {
 			delete(mapper.udpProxies, port)
 		}
 		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Delete, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
+			if err := mapper.iptables.Forward(iptables.Delete, ip, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
 				return err
 			}
 		}
@@ -503,7 +503,7 @@ func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Na
 		}
 
 		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: containerPort}
-		if err := iface.manager.portMapper.Map(extPort, backend, ip); err != nil {
+		if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
 			iface.manager.tcpPortAllocator.Release(extPort)
 			return nil, err
 		}
@@ -514,7 +514,7 @@ func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Na
 			return nil, err
 		}
 		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: containerPort}
-		if err := iface.manager.portMapper.Map(extPort, backend, ip); err != nil {
+		if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
 			iface.manager.udpPortAllocator.Release(extPort)
 			return nil, err
 		}
@@ -546,8 +546,9 @@ func (iface *NetworkInterface) Release() {
 			log.Printf("Unable to get host port: %s", err)
 			continue
 		}
+		ip := net.ParseIP(nat.Binding.HostIp)
 		utils.Debugf("Unmaping %s/%s", nat.Port.Proto, nat.Binding.HostPort)
-		if err := iface.manager.portMapper.Unmap(hostPort, nat.Port.Proto()); err != nil {
+		if err := iface.manager.portMapper.Unmap(ip, hostPort, nat.Port.Proto()); err != nil {
 			log.Printf("Unable to unmap port %s: %s", nat, err)
 		}
 		if nat.Port.Proto() == "tcp" {
