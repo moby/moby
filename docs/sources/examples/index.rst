@@ -5,16 +5,16 @@
 
 
 Examples
-============
+========
 
-Contents:
+Here are some examples of how to use Docker to create running
+processes, starting from a very simple *Hello World* and progressing
+to more substantial services like you might find in production.
 
 .. toctree::
    :maxdepth: 1
 
-   running_examples
    hello_world
-   hello_world_daemon
    python_web_app
    nodejs_web_app
    running_redis_service
