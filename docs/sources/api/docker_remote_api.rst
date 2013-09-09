@@ -27,13 +27,35 @@ Docker Remote API
 2. Versions
 ===========
 
-The current version of the API is 1.4
+The current version of the API is 1.5
 
 Calling /images/<name>/insert is the same as calling
-/v1.4/images/<name>/insert 
+/v1.5/images/<name>/insert 
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
+
+:doc:`docker_remote_api_v1.5`
+*****************************
+
+What's new
+----------
+
+.. http:post:: /images/create
+
+   **New!** You can now pass registry credentials (via an AuthConfig object)
+   through the `X-Registry-Auth` header
+
+.. http:post:: /images/(name)/push
+
+   **New!** The AuthConfig object now needs to be passed through 
+   the `X-Registry-Auth` header
+
+.. http:get:: /containers/json
+
+   **New!** The format of the `Ports` entry has been changed to a list of
+   dicts each containing `PublicPort`, `PrivatePort` and `Type` describing a
+   port mapping.
 
 :doc:`docker_remote_api_v1.4`
 *****************************
