@@ -73,21 +73,6 @@ bundle_binary() {
 		./docker
 }
 
-
-# Build Docker's test suite as a collection of binary files (one per
-# sub-package to test)
-bundle_test() {
-	mkdir -p bundles/$VERSION/test
-	for test_dir in $(find_test_dirs); do
-		test_binary=$(
-			cd $test_dir
-			go test -c -v -ldflags "-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w" >&2
-			find . -maxdepth 1 -type f -name '*.test' -executable
-		)
-		cp $test_dir/$test_binary bundles/$VERSION/test/
-	done
-}
-
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
 bundle_ubuntu() {
@@ -148,20 +133,9 @@ EOF
 }
 
 
-# This helper function walks the current directory looking for directories
-# holding Go test files, and prints their paths on standard output, one per
-# line.
-find_test_dirs() {
-	find . -name '*_test.go' | 
-		{ while read f; do dirname $f; done; } | 
-		sort -u
-}
-
-
 main() {
 	bundle_binary
 	bundle_ubuntu
-	#bundle_test
 	cat <<EOF
 ###############################################################################
 Now run the resulting image, making sure that you set AWS_S3_BUCKET,
