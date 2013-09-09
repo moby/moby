@@ -42,6 +42,8 @@ type Container struct {
 
 	SysInitPath    string
 	ResolvConfPath string
+	HostnamePath   string
+	HostsPath      string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -701,9 +703,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	if container.Config.Tty {
 		params = append(params, "-e", "TERM=xterm")
 	}
-
-	params = append(params, "-h", container.Config.Hostname)
-	params = append(params, "-d", container.Config.Domainname)
 
 	// Setup environment
 	params = append(params,

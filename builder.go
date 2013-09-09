@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -119,7 +120,31 @@ func (builder *Builder) Create(config *Config) (*Container, error) {
 	if err := container.ToDisk(); err != nil {
 		return nil, err
 	}
-	// Step 3: register the container
+
+	// Step 3: if hostname, build hostname and hosts files
+	container.HostnamePath = path.Join(container.root, "hostname")
+	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	hostsContent := []byte("127.0.0.1\tlocalhost\n" +
+		"::1\t\tlocalhost ip6-localhost ip6-loopback\n" +
+		"fe00::0\t\tip6-localnet\n" +
+		"ff00::0\t\tip6-mcastprefix\n" +
+		"ff02::1\t\tip6-allnodes\n" +
+		"ff02::2\t\tip6-allrouters\n")
+
+	container.HostsPath = path.Join(container.root, "hosts")
+
+	if container.Config.Domainname != "" {
+		hostsContent = append([]byte("127.0.0.1\t"+container.Config.Hostname+"."+container.Config.Domainname+" "+container.Config.Hostname+"\n"+
+			"::1\t\t"+container.Config.Hostname+"."+container.Config.Domainname+" "+container.Config.Hostname+"\n"), hostsContent...)
+	} else {
+		hostsContent = append([]byte("127.0.0.1\t"+container.Config.Hostname+"\n"+
+			"::1\t\t"+container.Config.Hostname+"\n"), hostsContent...)
+	}
+
+	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
+
+	// Step 4: register the container
 	if err := builder.runtime.Register(container); err != nil {
 		return nil, err
 	}
