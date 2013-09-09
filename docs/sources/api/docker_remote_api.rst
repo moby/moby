@@ -175,8 +175,6 @@ and we will add the libraries here.
 +======================+================+============================================+
 | Python               | docker-py      | https://github.com/dotcloud/docker-py      |
 +----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-ruby    | https://github.com/ActiveState/docker-ruby |
-+----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-client  | https://github.com/geku/docker-client      |
 +----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
