@@ -288,7 +288,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
-	if runtime.GetMountMethod() == MountMethodDeviceMapper {
+	if runtime.GetMountMethod() == MountMethodDeviceMapper && runtime.deviceSet.HasDevice(container.ID) {
 		if err := runtime.deviceSet.RemoveDevice(container.ID); err != nil {
 			return fmt.Errorf("Unable to remove device for %v: %v", container.ID, err)
 		}
