@@ -483,3 +483,51 @@ func TestForbiddenContextPath(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestBuildADDFileNotFound(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	context := testContextTemplate{`
+        from {IMAGE}
+        add foo /usr/local/bar
+        `,
+		nil, nil}
+
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true)
+	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+
+	if err == nil {
+		t.Log("Error should not be nil")
+		t.Fail()
+	}
+
+	if err.Error() != "foo: no such file or directory" {
+		t.Logf("Error message is not expected: %s", err.Error())
+		t.Fail()
+	}
+}
