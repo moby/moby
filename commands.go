@@ -166,6 +166,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 	rm := cmd.Bool("rm", false, "Remove intermediate containers after a successful build")
+	allowUnsafe := cmd.Bool("allow-unsafe", false, "Allow possibly unsafe Dockerfile commands")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -215,6 +216,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if *noCache {
 		v.Set("nocache", "1")
+	}
+	if *allowUnsafe {
+		v.Set("allow-unsafe", "1")
 	}
 	if *rm {
 		v.Set("rm", "1")
