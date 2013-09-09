@@ -45,6 +45,21 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		nil,
 	},
 
+	// Exactly the same as above, except uses a line split with a \ to test
+	// multiline support.
+	{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass \
+	> /tmp/passwd'
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	},
+
 	{
 		`
 from {IMAGE}
