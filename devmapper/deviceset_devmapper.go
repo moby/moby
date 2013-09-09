@@ -40,6 +40,7 @@ type DeviceSetDM struct {
 	TransactionId    uint64
 	NewTransactionId uint64
 	nextFreeDevice   int
+	activeMounts map[string]int
 }
 
 func getDevName(name string) string {
@@ -348,8 +349,8 @@ func (devices *DeviceSetDM) deleteDevice(deviceId int) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) removeDevice(info *DevInfo) error {
-	task, err := devices.createTask(DeviceRemove, info.Name())
+func (devices *DeviceSetDM) removeDevice(name string) error {
+	task, err := devices.createTask(DeviceRemove, name)
 	if task == nil {
 		return err
 	}
@@ -763,7 +764,7 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 
 	devinfo, _ := devices.getInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
-		err := devices.removeDevice(info)
+		err := devices.removeDevice(info.Name())
 		if err != nil {
 			return err
 		}
@@ -809,9 +810,42 @@ func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 		return err
 	}
 	if devinfo.Exists != 0 {
-		err := devices.removeDevice(info)
+		err := devices.removeDevice(info.Name())
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (devices *DeviceSetDM) Shutdown() error {
+	if !devices.initialized {
+		return nil
+	}
+
+	for path, count := range devices.activeMounts {
+		for i := count; i > 0; i-- {
+			err := syscall.Unmount(path, 0)
+			if err != nil {
+				fmt.Printf("Shutdown unmounting %s, error: %s\n", path, err)
+			}
+		}
+		delete(devices.activeMounts, path)
+	}
+
+	for _, d := range devices.Devices {
+		if err := devices.DeactivateDevice(d.Hash); err != nil {
+			fmt.Printf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+		}
+	}
+
+
+	pool := devices.getPoolDevName()
+	devinfo, err := devices.getInfo(pool)
+	if err == nil && devinfo.Exists != 0 {
+		if err := devices.removeDevice(pool); err != nil {
+			fmt.Printf("Shutdown deactivate %s , error: %s\n", pool, err)
 		}
 	}
 
@@ -837,6 +871,10 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 	if err != nil {
 		return err
 	}
+
+	count := devices.activeMounts[path]
+	devices.activeMounts[path] = count + 1
+
 	return nil
 }
 
@@ -844,6 +882,13 @@ func (devices *DeviceSetDM) UnmountDevice(hash, path string) error {
 	err := syscall.Unmount(path, 0)
 	if err != nil {
 		return err
+	}
+
+	count := devices.activeMounts[path]
+	if count > 1 {
+		devices.activeMounts[path] = count - 1
+	} else {
+		delete(devices.activeMounts, path)
 	}
 
 	return nil
@@ -913,6 +958,7 @@ func NewDeviceSetDM(root string) *DeviceSetDM {
 		devicePrefix: base,
 	}
 	devices.Devices = make(map[string]*DevInfo)
+	devices.activeMounts = make(map[string]int)
 
 	return devices
 }

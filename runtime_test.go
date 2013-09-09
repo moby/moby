@@ -64,6 +64,13 @@ func cleanup(runtime *Runtime) error {
 	return nil
 }
 
+func cleanupLast(runtime *Runtime) error {
+	cleanup(runtime)
+	runtime.deviceSet.Shutdown()
+	return nil
+}
+
+
 func layerArchive(tarfile string) (io.Reader, error) {
 	// FIXME: need to close f somewhere
 	f, err := os.Open(tarfile)
