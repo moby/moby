@@ -23,6 +23,7 @@ const (
 	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
 	unitTestNetworkBridge = "testdockbr0"
 	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	unitTestStoreDevicesBase     = "/var/lib/docker/unit-tests-devices"
 	testDaemonAddr        = "127.0.0.1:4270"
 	testDaemonProto       = "tcp"
 )
@@ -88,7 +89,7 @@ func init() {
 	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreBase), false); err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreDevicesBase), false); err != nil {
 		panic(err)
 	} else {
 		globalRuntime = runtime
