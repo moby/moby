@@ -741,10 +741,24 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 		for _, round := range imgList {
 			// FIXME: This section can be parallelized
 			for _, elem := range round {
+				var pushTags func() error
+				pushTags = func() error {
+					out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
+					if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
+						return err
+					}
+					return nil
+				}
 				if _, exists := repoData.ImgList[elem.ID]; exists {
+					if err := pushTags(); err != nil {
+						return err
+					}
 					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
 					continue
 				} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
+					if err := pushTags(); err != nil {
+						return err
+					}
 					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
 					continue
 				}
@@ -754,10 +768,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 				} else {
 					elem.Checksum = checksum
 				}
-				out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
-				if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
-					return err
-				}
+				return pushTags()
 			}
 		}
 	}
