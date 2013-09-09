@@ -68,14 +68,14 @@ func ParseCommands(proto, addr string, args ...string) error {
 }
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
-	if len(args) > 1 {
-		method, exists := cli.getMethod(args[1])
+	if len(args) > 0 {
+		method, exists := cli.getMethod(args[0])
 		if !exists {
-			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[1])
+			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[0])
 		} else {
 			method.Func.CallSlice([]reflect.Value{
 				reflect.ValueOf(cli),
-				reflect.ValueOf([]string{args[0], "--help"}),
+				reflect.ValueOf([]string{"--help"}),
 			})[0].Interface()
 			return nil
 		}
