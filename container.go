@@ -648,7 +648,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				continue
 			}
 			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return nil
+				return err
 			}
 			container.Volumes[volPath] = id
 			if isRW, exists := c.VolumesRW[volPath]; exists {
