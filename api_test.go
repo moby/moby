@@ -566,7 +566,6 @@ func TestPostCommit(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-
 	// Create a container and remove a file
 	container, err := runtime.Create(
 		&Config{
@@ -952,7 +951,7 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string(utils.Stdout)+"hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
 	})
