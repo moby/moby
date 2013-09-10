@@ -564,7 +564,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
-	if len(hostConfig.Binds) == 0 && len(hostConfig.LxcConf) == 0 {
+	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
 		hostConfig, _ = container.ReadHostConfig()
 	}
 
