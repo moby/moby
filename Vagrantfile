@@ -12,23 +12,20 @@ Vagrant::Config.run do |config|
   # Setup virtual machine box. This VM configuration code is always executed.
   config.vm.box = BOX_NAME
   config.vm.box_url = BOX_URI
-  config.vm.forward_port 4243, 4243
 
-  # Provision docker and new kernel if deployment was not done
+  # Provision docker and new kernel if deployment was not done.
+  # It is assumed Vagrant can successfully launch the provider instance.
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
     # Add lxc-docker package
-    pkg_cmd = "wget -q -O - http://get.docker.io/gpg | apt-key add -;" \
-      "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
+    pkg_cmd = "wget -q -O - https://get.docker.io/gpg | apt-key add -;" \
+      "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
-    # Add X.org Ubuntu backported 3.8 kernel
-    pkg_cmd << "apt-get update -qq; apt-get install -q -y python-software-properties; " \
-      "add-apt-repository -y ppa:ubuntu-x-swat/r-lts-backport; " \
-      "apt-get update -qq; apt-get install -q -y linux-image-3.8.0-19-generic; "
-    # Add guest additions if local vbox VM
-    is_vbox = true
-    ARGV.each do |arg| is_vbox &&= !arg.downcase.start_with?("--provider") end
-    if is_vbox
-      pkg_cmd << "apt-get install -q -y linux-headers-3.8.0-19-generic dkms; " \
+    # Add Ubuntu raring backported kernel
+    pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
+    # Add guest additions if local vbox VM. As virtualbox is the default provider,
+    # it is assumed it won't be explicitly stated.
+    if ENV["VAGRANT_DEFAULT_PROVIDER"].nil? && ARGV.none? { |arg| arg.downcase.start_with?("--provider") }
+      pkg_cmd << "apt-get install -q -y linux-headers-generic-lts-raring dkms; " \
         "echo 'Downloading VBox Guest Additions...'; " \
         "wget -q http://dlc.sun.com.edgesuite.net/virtualbox/4.2.12/VBoxGuestAdditions_4.2.12.iso; "
       # Prepare the VM to add guest additions after reboot

@@ -323,6 +323,16 @@ func TestCheckLocalDns(t *testing.T) {
 nameserver 10.0.2.3
 search dotcloud.net`: false,
 		`# Dynamic
+#nameserver 127.0.0.1
+nameserver 10.0.2.3
+search dotcloud.net`: false,
+		`# Dynamic
+nameserver 10.0.2.3 #not used 127.0.1.1
+search dotcloud.net`: false,
+		`# Dynamic
+#nameserver 10.0.2.3
+#search dotcloud.net`: true,
+		`# Dynamic
 nameserver 127.0.0.1
 search dotcloud.net`: true,
 		`# Dynamic
@@ -354,4 +364,61 @@ func TestParseRelease(t *testing.T) {
 	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54}, 0)
 	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: "1"}, 0)
 	assertParseRelease(t, "3.8.0-19-generic", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "19-generic"}, 0)
+}
+
+
+func TestDependencyGraphCircular(t *testing.T) {
+	g1 := NewDependencyGraph()
+	a := g1.NewNode("a")
+	b := g1.NewNode("b")
+	g1.AddDependency(a, b)
+	g1.AddDependency(b, a)
+	res, err := g1.GenerateTraversalMap()
+	if res != nil {
+		t.Fatalf("Expected nil result")
+	}
+	if err == nil {
+		t.Fatalf("Expected error (circular graph can not be resolved)")
+	}
+}
+
+func TestDependencyGraph(t *testing.T) {
+	g1 := NewDependencyGraph()
+	a := g1.NewNode("a")
+	b := g1.NewNode("b")
+	c := g1.NewNode("c")
+	d := g1.NewNode("d")
+	g1.AddDependency(b, a)
+	g1.AddDependency(c, a)
+	g1.AddDependency(d, c)
+	g1.AddDependency(d, b)
+	res, err := g1.GenerateTraversalMap()
+
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	if res == nil {
+		t.Fatalf("Unexpected nil result")
+	}
+
+	if len(res) != 3 {
+		t.Fatalf("Expected map of length 3, found %d instead", len(res))
+	}
+
+	if len(res[0]) != 1 || res[0][0] != "a" {
+		t.Fatalf("Expected [a], found %v instead", res[0])
+	}
+
+	if len(res[1]) != 2 {
+		t.Fatalf("Expected 2 nodes for step 2, found %d", len(res[1]))
+	}
+
+	if (res[1][0] != "b" && res[1][1] != "b") || (res[1][0] != "c" && res[1][1] != "c") {
+		t.Fatalf("Expected [b, c], found %v instead", res[1])
+	}
+
+	if len(res[2]) != 1 || res[2][0] != "d" {
+		t.Fatalf("Expected [d], found %v instead", res[2])
+	}
 }

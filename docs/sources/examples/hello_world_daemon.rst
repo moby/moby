@@ -11,8 +11,8 @@ Hello World Daemon
 
 The most boring daemon ever written.
 
-This example assumes you have Docker installed and with the Ubuntu
-image already imported ``docker pull ubuntu``.  We will use the Ubuntu
+This example assumes you have Docker installed and the Ubuntu
+image already imported with ``docker pull ubuntu``.  We will use the Ubuntu
 image to run a simple hello world daemon that will just print hello
 world to standard out every second. It will continue to do this until
 we stop it.
@@ -55,6 +55,8 @@ Attach to the container to see the results in realtime.
 - **"docker attach**" This will allow us to attach to a background
   process to see what is going on.
 - **$CONTAINER_ID** The Id of the container we want to attach too.
+
+Exit from the container attachment by pressing Control-C.
 
 .. code-block:: bash
 

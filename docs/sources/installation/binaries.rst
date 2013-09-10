@@ -7,9 +7,10 @@
 Binaries
 ========
 
-  **Please note this project is currently under heavy development. It should not be used in production.**
+.. include:: install_header.inc
 
-**This instruction set is meant for hackers who want to try out Docker on a variety of environments.**
+**This instruction set is meant for hackers who want to try out Docker
+on a variety of environments.**
 
 Right now, the officially supported distributions are:
 
@@ -23,22 +24,18 @@ But we know people have had success running it under
 - Suse
 - :ref:`arch_linux`
 
+Check Your Kernel
+-----------------
 
-Dependencies:
--------------
-
-* 3.8 Kernel (read more about :ref:`kernel`)
-* AUFS filesystem support
-* lxc
-* xz-utils
+Your host's Linux kernel must meet the Docker :ref:`kernel`
 
 Get the docker binary:
 ----------------------
 
 .. code-block:: bash
 
-    wget http://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
-    tar -xf docker-latest.tgz
+    wget --output-document=docker https://get.docker.io/builds/Linux/x86_64/docker-latest
+    chmod +x docker
 
 
 Run the docker daemon

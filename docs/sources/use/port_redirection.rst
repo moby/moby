@@ -8,7 +8,7 @@
 Port redirection
 ================
 
-Docker can redirect public TCP ports to your container, so it can be
+Docker can redirect public TCP and UDP ports to your container, so it can be
 reached over the network.  Port redirection is done on ``docker run``
 using the -p flag.
 
@@ -25,6 +25,12 @@ will be allocated.
     # PUBLIC port 80 is redirected to PRIVATE port 80
     sudo docker run -p 80:80 <image> <cmd>
 
+To redirect a UDP port the redirection must be expressed as *PUBLIC:PRIVATE/udp*:
+
+.. code-block:: bash
+
+    # PUBLIC port 5300 is redirected to the PRIVATE port 53 using UDP
+    sudo docker run -p 5300:53/udp <image> <cmd>
 
 Default port redirects can be built into a container with the
 ``EXPOSE`` build command.

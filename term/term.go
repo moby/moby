@@ -43,17 +43,42 @@ func RestoreTerminal(fd uintptr, state *State) error {
 	return err
 }
 
+func SaveState(fd uintptr) (*State, error) {
+	var oldState State
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+		return nil, err
+	}
+
+	return &oldState, nil
+}
+
+func DisableEcho(fd uintptr, state *State) error {
+	newState := state.termios
+	newState.Lflag &^= syscall.ECHO
+
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
+		return err
+	}
+	handleInterrupt(fd, state)
+	return nil
+}
+
 func SetRawTerminal(fd uintptr) (*State, error) {
 	oldState, err := MakeRaw(fd)
 	if err != nil {
 		return nil, err
 	}
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	handleInterrupt(fd, oldState)
+	return oldState, err
+}
+
+func handleInterrupt(fd uintptr, state *State) {
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
+
 	go func() {
-		_ = <-c
-		RestoreTerminal(fd, oldState)
+		_ = <-sigchan
+		RestoreTerminal(fd, state)
 		os.Exit(0)
 	}()
-	return oldState, err
 }

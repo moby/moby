@@ -391,3 +391,21 @@ dt:hover > a.headerlink {
   float: right;
   visibility: hidden;
 }
+
+/* Swiftype style */
+
+#st-search-input {
+  margin-right: 14px;
+  margin-left: 9px;
+  height: 19px;
+  width: 120px;
+
+}
+#swiftype-img {
+    border: none;
+    width: 145px;
+    height: auto;
+    margin: 0px auto;
+    margin-left: 13px;
+    margin-top: -30px;
+}
