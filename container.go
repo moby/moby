@@ -124,6 +124,10 @@ func (p Port) Port() string {
 	return strings.Split(string(p), "/")[1]
 }
 
+func NewPort(proto, port string) Port {
+	return Port(fmt.Sprintf("%s/%s", proto, port))
+}
+
 func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if os.Getenv("TEST") != "" {
@@ -152,8 +156,11 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
 
-	var flPorts ListOpts
-	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
+	var flPublish ListOpts
+	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
+
+	var flExpose ListOpts
+	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
 
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
@@ -238,9 +245,20 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		domainname = parts[1]
 	}
 
-	ports, portBindings, err := parsePortSpecs(flPorts)
+	ports, portBindings, err := parsePortSpecs(flPublish)
 	if err != nil {
 		return nil, nil, cmd, err
+	}
+
+	// Merge in exposed ports to the map of published ports
+	for _, e := range flExpose {
+		if strings.Contains(e, ":") {
+			return nil, nil, cmd, fmt.Errorf("Invalid port format for -expose: %s", e)
+		}
+		p := NewPort(splitProtoPort(e))
+		if _, exists := ports[p]; !exists {
+			ports[p] = struct{}{}
+		}
 	}
 
 	config := &Config{
@@ -301,8 +319,15 @@ type NetworkSettings struct {
 func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 	var mapping []APIPort
 	for port, bindings := range settings.Ports {
+		p, _ := parsePort(port.Port())
+		if len(bindings) == 0 {
+			mapping = append(mapping, APIPort{
+				PublicPort: int64(p),
+				Type:       port.Proto(),
+			})
+			continue
+		}
 		for _, binding := range bindings {
-			p, _ := parsePort(port.Port())
 			h, _ := parsePort(binding.HostPort)
 			mapping = append(mapping, APIPort{
 				PrivatePort: int64(p),
@@ -945,9 +970,6 @@ func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 
 	for port := range portSpecs {
 		binding := bindings[port]
-		if len(binding) == 0 {
-			binding = append(binding, PortBinding{})
-		}
 		for i := 0; i < len(binding); i++ {
 			b := binding[i]
 			nat, err := iface.AllocatePort(port, b)
