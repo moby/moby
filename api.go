@@ -515,11 +515,14 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		config.Dns = defaultDns
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, warnings, err := srv.ContainerCreate(config)
 	if err != nil {
 		return err
 	}
 	out.ID = id
+	for _, warning := range warnings {
+		out.Warnings = append(out.Warnings, warning)
+	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
