@@ -52,16 +52,21 @@ type Runtime struct {
 var sysInitPath string
 
 func init() {
-	selfPath := utils.SelfPath()
-
-	// If we have a separate docker-init, use that, otherwise use the
-	// main docker binary
-	dir := filepath.Dir(selfPath)
-	dockerInitPath := filepath.Join(dir, "docker-init")
-	if _, err := os.Stat(dockerInitPath); err != nil {
-		sysInitPath = selfPath
+	env := os.Getenv("_DOCKER_INIT_PATH")
+	if env != "" {
+		sysInitPath = env
 	} else {
-		sysInitPath = dockerInitPath
+		selfPath := utils.SelfPath()
+
+		// If we have a separate docker-init, use that, otherwise use the
+		// main docker binary
+		dir := filepath.Dir(selfPath)
+		dockerInitPath := filepath.Join(dir, "docker-init")
+		if _, err := os.Stat(dockerInitPath); err != nil {
+			sysInitPath = selfPath
+		} else {
+			sysInitPath = dockerInitPath
+		}
 	}
 }
 
