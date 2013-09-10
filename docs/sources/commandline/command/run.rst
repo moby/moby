@@ -12,7 +12,7 @@
 
     Run a command in a new container
 
-      -a=map[]: Attach to stdin, stdout or stderr.
+      -a=map[]: Attach to stdin, stdout or stderr
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
@@ -28,10 +28,11 @@
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container.
-      -entrypoint="": Overwrite the default entrypoint set by the image.
+      -volumes-from="": Mount all volumes from the given container
+      -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      -expose=[]: Expose a port from the container without publishing it to your host
 
 Examples
 --------
