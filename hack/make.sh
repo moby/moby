@@ -11,11 +11,12 @@
 #   will be used as Docker binary version and package version.
 # - The hash of the git commit will also be included in the Docker binary,
 #   with the suffix -dirty if the repository isn't clean.
-# - The script is intented to be run as part of a docker build, as defined
+# - The script is intented to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "docker build ." from
-#   your checkout of the Docker repository.
+#   your checkout of the Docker repository, and then
+#   "docker run hack/make.sh" in the resulting container image. 
 # 
 
 # FIXME: break down bundles into sub-scripts
