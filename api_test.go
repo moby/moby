@@ -321,7 +321,7 @@ func TestGetContainersJSON(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "test"},
 	})
@@ -358,7 +358,7 @@ func TestGetContainersExport(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
@@ -408,7 +408,7 @@ func TestGetContainersChanges(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/rm", "/etc/passwd"},
@@ -454,7 +454,7 @@ func TestGetContainersTop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "cat"},
@@ -536,7 +536,7 @@ func TestGetContainersByName(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "test"},
@@ -566,9 +566,8 @@ func TestPostCommit(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
@@ -662,7 +661,7 @@ func TestPostContainersKill(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
@@ -704,7 +703,7 @@ func TestPostContainersRestart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
@@ -758,7 +757,7 @@ func TestPostContainersStart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
@@ -808,7 +807,7 @@ func TestPostContainersStop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
@@ -855,7 +854,7 @@ func TestPostContainersWait(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sleep", "1"},
@@ -897,7 +896,7 @@ func TestPostContainersAttach(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
@@ -989,7 +988,7 @@ func TestDeleteContainers(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"touch", "/test"},
 	})
@@ -1179,7 +1178,7 @@ func TestPostContainersCopy(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test.txt"},
