@@ -458,7 +458,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	return nil
 }
 
-var multilineRegex = regexp.MustCompile("\\.*\n")
+// Long lines can be split with a backslash
+var lineContinuation = regexp.MustCompile(`\s*\\.*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	// FIXME: @creack any reason for using /tmp instead of ""?
@@ -481,7 +482,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return "", err
 	}
 	dockerfile := string(fileBytes)
-	// dockerfile = multilineRegex.ReplaceAllString(dockerfile, " ")
+	dockerfile = lineContinuation.ReplaceAllString(dockerfile, " ")
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
 		/*		line, err := dockerfile.ReadString('\n')
