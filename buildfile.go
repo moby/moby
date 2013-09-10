@@ -485,14 +485,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, " ")
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
-		/*		line, err := dockerfile.ReadString('\n')
-				if err != nil {
-					if err == io.EOF && line == "" {
-						break
-					} else if err != io.EOF {
-						return "", err
-					}
-				}*/
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		// Skip comments and empty line
 		if len(line) == 0 || line[0] == '#' {
