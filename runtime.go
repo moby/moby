@@ -17,6 +17,13 @@ import (
 )
 
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
+type MountMethod int
+
+const (
+	MountMethodNone MountMethod = iota
+	MountMethodAUFS
+	MountMethodDeviceMapper
+)
 
 type Capabilities struct {
 	MemoryLimit            bool
@@ -39,6 +46,7 @@ type Runtime struct {
 	srv            *Server
 	Dns            []string
 	deviceSet      DeviceSet
+	mountMethod    MountMethod
 }
 
 var sysInitPath string
@@ -74,6 +82,46 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 		}
 	}
 	return nil
+}
+
+func hasFilesystemSupport(fstype string) bool {
+	content, err := ioutil.ReadFile("/proc/filesystems")
+	if err != nil {
+		log.Printf("WARNING: Unable to read /proc/filesystems, assuming fs %s is not supported.", fstype)
+		return false
+	}
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "nodev") {
+			line = line[5:]
+		}
+		line = strings.TrimSpace(line)
+		if line == fstype {
+			return true
+		}
+	}
+	return false
+}
+
+func (runtime *Runtime) GetMountMethod() MountMethod {
+	if runtime.mountMethod == MountMethodNone {
+		// Try to automatically pick a method
+		if hasFilesystemSupport("aufs") {
+			log.Printf("Using AUFS backend.")
+			runtime.mountMethod = MountMethodAUFS
+		} else {
+			_ = exec.Command("modprobe", "aufs").Run()
+			if hasFilesystemSupport("aufs") {
+				log.Printf("Using AUFS backend.")
+				runtime.mountMethod = MountMethodAUFS
+			} else {
+				log.Printf("Using device-mapper backend.")
+				runtime.mountMethod = MountMethodDeviceMapper
+			}
+		}
+	}
+
+	return runtime.mountMethod
 }
 
 func (runtime *Runtime) GetDeviceSet() (DeviceSet, error) {
