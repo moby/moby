@@ -366,7 +366,33 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	if err := container.ToDisk(); err != nil {
 		return nil, err
 	}
-	// Step 3: register the container
+
+	// Step 3: if hostname, build hostname and hosts files
+	container.HostnamePath = path.Join(container.root, "hostname")
+	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	hostsContent := []byte(`
+127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+`)
+
+	container.HostsPath = path.Join(container.root, "hosts")
+
+	if container.Config.Domainname != "" {
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+	} else {
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", container.Config.Hostname)), hostsContent...)
+	}
+
+	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
+
+	// Step 4: register the container
 	if err := runtime.Register(container); err != nil {
 		return nil, err
 	}
@@ -489,4 +515,3 @@ func (history *History) Add(container *Container) {
 	*history = append(*history, container)
 	sort.Sort(history)
 }
-
