@@ -19,10 +19,6 @@
 #   "docker run hack/make.sh" in the resulting container image. 
 # 
 
-# FIXME: break down bundles into sub-scripts
-# FIXME: create all bundles in a single run for consistency.
-#	If the bundles directory already exists, fail or erase it.
-
 set -e
 
 # We're a nice, sexy, little shell script, and people might try to run us;
