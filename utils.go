@@ -223,7 +223,8 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
-		port := Port(fmt.Sprintf("%s/%s", proto, containerPort))
+
+		port := NewPort(proto, containerPort)
 		if _, exists := exposedPorts[port]; !exists {
 			exposedPorts[port] = struct{}{}
 		}
@@ -239,6 +240,18 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		bindings[port] = append(bslice, binding)
 	}
 	return exposedPorts, bindings, nil
+}
+
+func splitProtoPort(rawPort string) (string, string) {
+	parts := strings.Split(rawPort, "/")
+	l := len(parts)
+	if l == 0 {
+		return "", ""
+	}
+	if l == 1 {
+		return "tcp", rawPort
+	}
+	return parts[1], parts[0]
 }
 
 func parsePort(rawPort string) (int, error) {
@@ -258,7 +271,13 @@ func migratePortMappings(config *Config) error {
 			return err
 		}
 		config.PortSpecs = nil
-		config.ExposedPorts = ports
+
+		if config.ExposedPorts == nil {
+			config.ExposedPorts = make(map[Port]struct{}, len(ports))
+		}
+		for k, v := range ports {
+			config.ExposedPorts[k] = v
+		}
 	}
 	return nil
 }
