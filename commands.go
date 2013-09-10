@@ -165,6 +165,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	tag := cmd.String("t", "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
+	rm := cmd.Bool("rm", false, "Remove intermediate containers after a successful build")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -214,6 +215,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if *noCache {
 		v.Set("nocache", "1")
+	}
+	if *rm {
+		v.Set("rm", "1")
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {

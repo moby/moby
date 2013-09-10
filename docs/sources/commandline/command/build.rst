@@ -13,6 +13,7 @@
       -t="": Repository name (and optionally a tag) to be applied to the resulting image in case of success.
       -q=false: Suppress verbose build output.
       -no-cache: Do not use the cache when building the image.
+      -rm: Remove intermediate containers after a successful build
     When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
 
 
