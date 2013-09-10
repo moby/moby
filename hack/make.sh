@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script builds various binary artifacts from a checkout of the docker
 # source code.
@@ -34,139 +34,50 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 	exit 1
 }
 
+# List of bundles to create when no argument is passed
+DEFAULT_BUNDLES=(
+	test
+	binary
+	ubuntu
+)
+
 VERSION=$(cat ./VERSION)
-PKGVERSION="$VERSION"
 GITCOMMIT=$(git rev-parse --short HEAD)
 if test -n "$(git status --porcelain)"
 then
 	GITCOMMIT="$GITCOMMIT-dirty"
-	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
 fi
 
 # Use these flags when compiling the tests and final binary
 LDFLAGS="-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w"
 
-PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
-PACKAGE_URL="http://www.docker.io/"
-PACKAGE_MAINTAINER="docker@dotcloud.com"
-PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
-Docker complements LXC with a high-level API which operates at the process
-level. It runs unix processes with strong guarantees of isolation and
-repeatability across servers.
-Docker is a great building block for automating distributed systems:
-large-scale web deployments, database clusters, continuous deployment systems,
-private PaaS, service-oriented architectures, etc."
 
-UPSTART_SCRIPT='description     "Docker daemon"
-
-start on filesystem and started lxc-net
-stop on runlevel [!2345]
-
-respawn
-
-script
-    /usr/bin/docker -d
-end script
-'
-
-# Each "bundle" is a different type of build artefact: static binary, Ubuntu
-# package, etc.
-
-# Run Docker's test suite, including sub-packages, and store their output as a bundle
-bundle_test() {
-	mkdir -p bundles/$VERSION/test
-	{
-		date
-		for test_dir in $(find_test_dirs); do (
-			set -x
-			cd $test_dir
-			go test -v -ldflags "$LDFLAGS"
-		)  done
-	} 2>&1 | tee bundles/$VERSION/test/test.log
+bundle() {
+	bundlescript=$1
+	bundle=$(basename $bundlescript)
+	echo "---> Making bundle: $bundle"
+	mkdir -p bundles/$VERSION/$bundle
+	source $bundlescript $(pwd)/bundles/$VERSION/$bundle
 }
-
-
-# This helper function walks the current directory looking for directories
-# holding Go test files, and prints their paths on standard output, one per
-# line.
-find_test_dirs() {
-       find . -name '*_test.go' | grep -v '^./vendor' |
-               { while read f; do dirname $f; done; } |
-               sort -u
-}
-
-# Build Docker as a static binary file
-bundle_binary() {
-	mkdir -p bundles/$VERSION/binary
-	go build -o bundles/$VERSION/binary/docker-$VERSION \
-		-ldflags "$LDFLAGS" \
-		./docker
-}
-
-# Build docker as an ubuntu package using FPM and REPREPRO (sue me).
-# bundle_binary must be called first.
-bundle_ubuntu() {
-	mkdir -p bundles/$VERSION/ubuntu
-
-	DIR=$(pwd)/bundles/$VERSION/ubuntu/build
-
-	# Generate an upstart config file (ubuntu-specific)
-	mkdir -p $DIR/etc/init
-	echo "$UPSTART_SCRIPT" > $DIR/etc/init/docker.conf
-
-	# Copy the binary
-	mkdir -p $DIR/usr/bin
-	cp bundles/$VERSION/binary/docker-$VERSION $DIR/usr/bin/docker
-
-	# Generate postinstall/prerm scripts
-	cat >/tmp/postinstall <<EOF
-#!/bin/sh
-/sbin/stop docker || true
-/sbin/start docker
-EOF
-	cat >/tmp/prerm <<EOF
-#!/bin/sh
-/sbin/stop docker || true
-EOF
-	chmod +x /tmp/postinstall /tmp/prerm
-
-	(
-		cd bundles/$VERSION/ubuntu
-		fpm -s dir -C $DIR \
-		    --name lxc-docker-$VERSION --version $PKGVERSION \
-		    --after-install /tmp/postinstall \
-		    --before-remove /tmp/prerm \
-		    --architecture "$PACKAGE_ARCHITECTURE" \
-		    --prefix / \
-		    --depends lxc --depends aufs-tools \
-		    --description "$PACKAGE_DESCRIPTION" \
-		    --maintainer "$PACKAGE_MAINTAINER" \
-		    --conflicts lxc-docker-virtual-package \
-		    --provides lxc-docker \
-		    --provides lxc-docker-virtual-package \
-		    --replaces lxc-docker \
-		    --replaces lxc-docker-virtual-package \
-		    --url "$PACKAGE_URL" \
-		    --vendor "$PACKAGE_VENDOR" \
-		    -t deb .
-		mkdir empty
-		fpm -s dir -C empty \
-		    --name lxc-docker --version $PKGVERSION \
-		    --architecture "$PACKAGE_ARCHITECTURE" \
-		    --depends lxc-docker-$VERSION \
-		    --description "$PACKAGE_DESCRIPTION" \
-		    --maintainer "$PACKAGE_MAINTAINER" \
-		    --url "$PACKAGE_URL" \
-		    --vendor "$PACKAGE_VENDOR" \
-		    -t deb .
-	)
-}
-
 
 main() {
-	bundle_test
-	bundle_binary
-	bundle_ubuntu
+
+	# We want this to fail if the bundles already exist.
+	# This is to avoid mixing bundles from different versions of the code.
+	mkdir -p bundles
+	if [ -e "bundles/$VERSION" ]; then
+		echo "bundles/$VERSION already exists. Removing."
+		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
+	fi
+	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+	if [ $# -lt 1 ]; then
+		bundles=($DEFAULT_BUNDLES)
+	else
+		bundles=($@)
+	fi
+	for bundle in ${bundles[@]}; do
+		bundle $SCRIPTDIR/make/$bundle
+	done
 	cat <<EOF
 ###############################################################################
 Now run the resulting image, making sure that you set AWS_S3_BUCKET,
@@ -181,4 +92,4 @@ docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
 EOF
 }
 
-main
+main "$@"

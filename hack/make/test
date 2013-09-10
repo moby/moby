@@ -1,0 +1,27 @@
+DEST=$1
+
+set -e
+
+# Run Docker's test suite, including sub-packages, and store their output as a bundle
+bundle_test() {
+	{
+		date
+		for test_dir in $(find_test_dirs); do (
+			set -x
+			cd $test_dir
+			go test -v -ldflags "$LDFLAGS"
+		)  done
+	} 2>&1 | tee $DEST/test.log
+}
+
+
+# This helper function walks the current directory looking for directories
+# holding Go test files, and prints their paths on standard output, one per
+# line.
+find_test_dirs() {
+       find . -name '*_test.go' | grep -v '^./vendor' |
+               { while read f; do dirname $f; done; } |
+               sort -u
+}
+
+bundle_test
