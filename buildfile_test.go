@@ -60,6 +60,19 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		nil,
 	},
 
+	// Line containing literal "\n"
+	{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    echo "foo \n bar"; echo "baz"
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	},
 	{
 		`
 from {IMAGE}
