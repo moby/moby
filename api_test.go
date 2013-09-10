@@ -445,7 +445,7 @@ func TestGetContainersChanges(t *testing.T) {
 }
 
 func TestGetContainersTop(t *testing.T) {
-        t.Skip("Fixme. Skipping test for now. Reported error when testing using dind: 'api_test.go:527: Expected 2 processes, found 0.'")
+	t.Skip("Fixme. Skipping test for now. Reported error when testing using dind: 'api_test.go:527: Expected 2 processes, found 0.'")
 	runtime, err := newTestRuntime()
 	if err != nil {
 		t.Fatal(err)
@@ -565,7 +565,6 @@ func TestPostCommit(t *testing.T) {
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
-
 
 	// Create a container and remove a file
 	container, err := runtime.Create(
@@ -952,7 +951,7 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string(utils.Stdout)+"hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
 	})

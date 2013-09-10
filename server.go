@@ -1244,10 +1244,18 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			cStdinCloser = in
 		}
 		if stdout {
-			cStdout = out
+			if container.Config.Tty {
+				cStdout = out
+			} else {
+				cStdout = utils.NewStdWriter(out, utils.Stdout)
+			}
 		}
 		if stderr {
-			cStderr = out
+			if container.Config.Tty {
+				cStderr = out
+			} else {
+				cStderr = utils.NewStdWriter(out, utils.Stderr)
+			}
 		}
 
 		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
