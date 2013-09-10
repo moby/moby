@@ -274,30 +274,19 @@ func (graph *Graph) Delete(name string) error {
 
 // Map returns a list of all images in the graph, addressable by ID.
 func (graph *Graph) Map() (map[string]*Image, error) {
-	// FIXME: this should replace All()
-	all, err := graph.All()
+	images := make(map[string]*Image)
+	err := graph.walkAll(func(image *Image) {
+		images[image.ID] = image
+	})
 	if err != nil {
 		return nil, err
-	}
-	images := make(map[string]*Image, len(all))
-	for _, image := range all {
-		images[image.ID] = image
 	}
 	return images, nil
 }
 
-// All returns a list of all images in the graph.
-func (graph *Graph) All() ([]*Image, error) {
-	var images []*Image
-	err := graph.WalkAll(func(image *Image) {
-		images = append(images, image)
-	})
-	return images, err
-}
-
-// WalkAll iterates over each image in the graph, and passes it to a handler.
+// walkAll iterates over each image in the graph, and passes it to a handler.
 // The walking order is undetermined.
-func (graph *Graph) WalkAll(handler func(*Image)) error {
+func (graph *Graph) walkAll(handler func(*Image)) error {
 	files, err := ioutil.ReadDir(graph.Root)
 	if err != nil {
 		return err
@@ -319,7 +308,7 @@ func (graph *Graph) WalkAll(handler func(*Image)) error {
 // If an image has no children, it will not have an entry in the table.
 func (graph *Graph) ByParent() (map[string][]*Image, error) {
 	byParent := make(map[string][]*Image)
-	err := graph.WalkAll(func(image *Image) {
+	err := graph.walkAll(func(image *Image) {
 		parent, err := graph.Get(image.Parent)
 		if err != nil {
 			return
@@ -341,7 +330,7 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = graph.WalkAll(func(image *Image) {
+	err = graph.walkAll(func(image *Image) {
 		// If it's not in the byParent lookup table, then
 		// it's not a parent -> so it's a head!
 		if _, exists := byParent[image.ID]; !exists {

@@ -157,7 +157,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 }
 
 func (srv *Server) ImagesViz(out io.Writer) error {
-	images, _ := srv.runtime.graph.All()
+	images, _ := srv.runtime.graph.Map()
 	if images == nil {
 		return nil
 	}
@@ -248,7 +248,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 }
 
 func (srv *Server) DockerInfo() *APIInfo {
-	images, _ := srv.runtime.graph.All()
+	images, _ := srv.runtime.graph.Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -1110,7 +1110,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
 
 	// Retrieve all images
-	images, err := srv.runtime.graph.All()
+	images, err := srv.runtime.graph.Map()
 	if err != nil {
 		return nil, err
 	}
