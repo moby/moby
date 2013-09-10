@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -42,7 +43,17 @@ type Runtime struct {
 var sysInitPath string
 
 func init() {
-	sysInitPath = utils.SelfPath()
+	selfPath := utils.SelfPath()
+
+	// If we have a separate docker-init, use that, otherwise use the
+	// main docker binary
+	dir := filepath.Dir(selfPath)
+	dockerInitPath := filepath.Join(dir, "docker-init")
+	if _, err := os.Stat(dockerInitPath); err != nil {
+		sysInitPath = selfPath
+	} else {
+		sysInitPath = dockerInitPath
+	}
 }
 
 // List returns an array of all containers registered in the runtime.
