@@ -18,6 +18,18 @@ You can also join the IRC channel - #docker and #docker-dev on Freenode are both
 If possible, your package should be called "docker". If that name is already taken, a second
 choice is "lxc-docker".
 
+## Official build vs distro build
+
+The Docker project maintains its own build and release toolchain. It is pretty neat and entirely
+based on Docker (surprise!). This toolchain is the canonical way to build Docker, and the only
+method supported by the development team. We encourage you to give it a try, and if the circumstances
+allow you to use it, we recommend that you do.
+
+You might not be able to use the official build toolchain - usually because your distribution has a
+toolchain and packaging policy of its own. We get it! Your house, your rules. The rest of this document
+should give you the information you need to package Docker your way, without denaturing it in
+the process.
+
 ## System build dependencies
 
 To build docker, you will need the following system dependencies
