@@ -822,7 +822,7 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 		return fmt.Errorf("Conflict between containers and images")
 	}
 
-	return writeJSON(w, http.StatusOK, &APIID{ID: image.ID})
+	return writeJSON(w, http.StatusOK, image)
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
