@@ -21,10 +21,12 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.5
-const DEFAULTHTTPHOST = "127.0.0.1"
-const DEFAULTHTTPPORT = 4243
-const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+const (
+	APIVERSION        = 1.6
+	DEFAULTHTTPHOST   = "127.0.0.1"
+	DEFAULTHTTPPORT   = 4243
+	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+)
 
 type HttpApiFunc func(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
@@ -794,7 +796,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 
 	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 
-	if !c.Config.Tty && version >= 1.4 {
+	if !c.Config.Tty && version >= 1.6 {
 		errStream = utils.NewStdWriter(outStream, utils.Stderr)
 		outStream = utils.NewStdWriter(outStream, utils.Stdout)
 	} else {
