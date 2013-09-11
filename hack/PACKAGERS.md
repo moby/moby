@@ -43,7 +43,7 @@ under the path *src/github.com/dotcloud/docker*. See
 
 ## Go dependencies
 
-All Go dependencies are vendored under ,/vendor. They are used by the official build,
+All Go dependencies are vendored under ./vendor. They are used by the official build,
 so the source of truth for the current version is whatever is in ./vendor.
 
 To use the vendored dependencies, simply make sure the path to ./vendor is included in $GOPATH.
@@ -112,7 +112,7 @@ The test suite will also download a small test container, so you will need inter
 To run properly, docker needs the following software to be installed at runtime:
 
 * GNU Tar version 1.26 or later
-* A recent build of iproute2 (2012-05-21 or later), and specifically the "ip" utility.
+* iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility.
 * iptables version 1.4 or later
 * The lxc utility scripts (http://lxc.sourceforge.net) version 0.8 or later.
 * Git version 1.7 or later 
