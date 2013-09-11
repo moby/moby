@@ -772,7 +772,9 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 				} else {
 					elem.Checksum = checksum
 				}
-				return pushTags()
+				if err := pushTags(); err != nil {
+					return err
+				}
 			}
 		}
 	}
