@@ -27,7 +27,7 @@ run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 run	PKG=github.com/kr/pty REV=27435c699;		 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/gorilla/context/ REV=708054d61e5; git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=github.com/gorilla/mux/ REV=9b36453141c;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
-run	PKG=github.com/dotcloud/tar/ REV=d06045a6d9;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
+run	PKG=github.com/dotcloud/tar/ REV=e5ea6bb21a3294;	 git clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && git checkout -f $REV
 run	PKG=code.google.com/p/go.net/ REV=84a4013f96e0;  hg  clone http://$PKG /go/src/$PKG && cd /go/src/$PKG && hg  checkout    $REV
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker

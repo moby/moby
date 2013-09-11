@@ -37,6 +37,8 @@ Running an interactive shell
   # use the escape sequence Ctrl-p + Ctrl-q
   sudo docker run -i -t ubuntu /bin/bash
 
+.. _dockergroup:
+
 Why ``sudo``?
 -------------
 
@@ -140,7 +142,7 @@ Expose a service on a TCP port
 .. code-block:: bash
 
   # Expose port 4444 of this container, and tell netcat to listen on it
-  JOB=$(sudo docker run -d -p 4444 ubuntu /bin/nc -l -p 4444)
+  JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l -p 4444)
 
   # Which public port is NATed to my container?
   PORT=$(sudo docker port $JOB 4444)

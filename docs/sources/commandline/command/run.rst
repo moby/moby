@@ -67,7 +67,7 @@ use-cases, like running Docker within Docker.
 
    docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
-The ``-w`` lets the command beeing executed inside directory given, 
+The ``-w`` lets the command being executed inside directory given, 
 here /path/to/dir/. If the path does not exists it is created inside the 
 container.
 
@@ -76,8 +76,8 @@ container.
    docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
 
 The ``-v`` flag mounts the current working directory into the container. 
-The ``-w`` lets the command beeing executed inside the current 
-working directory, by changeing into the directory to the value
+The ``-w`` lets the command being executed inside the current 
+working directory, by changing into the directory to the value
 returned by ``pwd``. So this combination executes the command
 using the container, but inside the current working directory.
 

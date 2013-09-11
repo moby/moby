@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -781,19 +780,35 @@ func GetResolvConf() ([]byte, error) {
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
-	if !bytes.Contains(resolvConf, []byte("nameserver")) {
+	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
+	if !bytes.Contains(parsedResolvConf, []byte("nameserver")) {
 		return true
 	}
-
 	for _, ip := range [][]byte{
 		[]byte("127.0.0.1"),
 		[]byte("127.0.1.1"),
 	} {
-		if bytes.Contains(resolvConf, ip) {
+		if bytes.Contains(parsedResolvConf, ip) {
 			return true
 		}
 	}
 	return false
+}
+
+// StripComments parses input into lines and strips away comments.
+func StripComments(input []byte, commentMarker []byte) []byte {
+	lines := bytes.Split(input, []byte("\n"))
+	var output []byte
+	for _, currentLine := range lines {
+		var commentIndex = bytes.Index(currentLine, commentMarker)
+		if commentIndex == -1 {
+			output = append(output, currentLine...)
+		} else {
+			output = append(output, currentLine[:commentIndex]...)
+		}
+		output = append(output, []byte("\n")...)
+	}
+	return output
 }
 
 func ParseHost(host string, port int, addr string) string {
@@ -851,10 +866,18 @@ func ParseRepositoryTag(repos string) (string, string) {
 	return repos, ""
 }
 
+type User struct {
+	Uid      string // user id
+	Gid      string // primary group id
+	Username string
+	Name     string
+	HomeDir  string
+}
+
 // UserLookup check if the given username or uid is present in /etc/passwd
 // and returns the user struct.
 // If the username is not found, an error is returned.
-func UserLookup(uid string) (*user.User, error) {
+func UserLookup(uid string) (*User, error) {
 	file, err := ioutil.ReadFile("/etc/passwd")
 	if err != nil {
 		return nil, err
@@ -862,7 +885,7 @@ func UserLookup(uid string) (*user.User, error) {
 	for _, line := range strings.Split(string(file), "\n") {
 		data := strings.Split(line, ":")
 		if len(data) > 5 && (data[0] == uid || data[2] == uid) {
-			return &user.User{
+			return &User{
 				Uid:      data[2],
 				Gid:      data[3],
 				Username: data[0],
@@ -872,4 +895,129 @@ func UserLookup(uid string) (*user.User, error) {
 		}
 	}
 	return nil, fmt.Errorf("User not found in /etc/passwd")
+}
+
+type DependencyGraph struct {
+	nodes map[string]*DependencyNode
+}
+
+type DependencyNode struct {
+	id   string
+	deps map[*DependencyNode]bool
+}
+
+func NewDependencyGraph() DependencyGraph {
+	return DependencyGraph{
+		nodes: map[string]*DependencyNode{},
+	}
+}
+
+func (graph *DependencyGraph) addNode(node *DependencyNode) string {
+	if graph.nodes[node.id] == nil {
+		graph.nodes[node.id] = node
+	}
+	return node.id
+}
+
+func (graph *DependencyGraph) NewNode(id string) string {
+	if graph.nodes[id] != nil {
+		return id
+	}
+	nd := &DependencyNode{
+		id:   id,
+		deps: map[*DependencyNode]bool{},
+	}
+	graph.addNode(nd)
+	return id
+}
+
+func (graph *DependencyGraph) AddDependency(node, to string) error {
+	if graph.nodes[node] == nil {
+		return fmt.Errorf("Node %s does not belong to this graph", node)
+	}
+
+	if graph.nodes[to] == nil {
+		return fmt.Errorf("Node %s does not belong to this graph", to)
+	}
+
+	if node == to {
+		return fmt.Errorf("Dependency loops are forbidden!")
+	}
+
+	graph.nodes[node].addDependency(graph.nodes[to])
+	return nil
+}
+
+func (node *DependencyNode) addDependency(to *DependencyNode) bool {
+	node.deps[to] = true
+	return node.deps[to]
+}
+
+func (node *DependencyNode) Degree() int {
+	return len(node.deps)
+}
+
+// The magic happens here ::
+func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
+	Debugf("Generating traversal map. Nodes: %d", len(graph.nodes))
+	result := [][]string{}
+	processed := map[*DependencyNode]bool{}
+	// As long as we haven't processed all nodes...
+	for len(processed) < len(graph.nodes) {
+		// Use a temporary buffer for processed nodes, otherwise
+		// nodes that depend on each other could end up in the same round.
+		tmp_processed := []*DependencyNode{}
+		for _, node := range graph.nodes {
+			// If the node has more dependencies than what we have cleared,
+			// it won't be valid for this round.
+			if node.Degree() > len(processed) {
+				continue
+			}
+			// If it's already processed, get to the next one
+			if processed[node] {
+				continue
+			}
+			// It's not been processed yet and has 0 deps. Add it!
+			// (this is a shortcut for what we're doing below)
+			if node.Degree() == 0 {
+				tmp_processed = append(tmp_processed, node)
+				continue
+			}
+			// If at least one dep hasn't been processed yet, we can't
+			// add it.
+			ok := true
+			for dep := range node.deps {
+				if !processed[dep] {
+					ok = false
+					break
+				}
+			}
+			// All deps have already been processed. Add it!
+			if ok {
+				tmp_processed = append(tmp_processed, node)
+			}
+		}
+		Debugf("Round %d: found %d available nodes", len(result), len(tmp_processed))
+		// If no progress has been made this round,
+		// that means we have circular dependencies.
+		if len(tmp_processed) == 0 {
+			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
+		}
+		round := []string{}
+		for _, nd := range tmp_processed {
+			round = append(round, nd.id)
+			processed[nd] = true
+		}
+		result = append(result, round)
+	}
+	return result, nil
+}
+
+// An StatusError reports an unsuccessful exit by a command.
+type StatusError struct {
+	Status int
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("Status: %d", e.Status)
 }

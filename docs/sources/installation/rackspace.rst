@@ -6,21 +6,22 @@
 Rackspace Cloud
 ===============
 
-  Please note this is a community contributed installation path. The only 'official' installation is using the
-  :ref:`ubuntu_linux` installation path. This version may sometimes be out of date.
+.. include:: install_unofficial.inc
 
-
-Installing Docker on Ubuntu provided by Rackspace is pretty straightforward, and you should mostly be able to follow the
+Installing Docker on Ubuntu provided by Rackspace is pretty
+straightforward, and you should mostly be able to follow the
 :ref:`ubuntu_linux` installation guide.
 
 **However, there is one caveat:**
 
-If you are using any linux not already shipping with the 3.8 kernel you will need to install it. And this is a little
-more difficult on Rackspace.
+If you are using any linux not already shipping with the 3.8 kernel
+you will need to install it. And this is a little more difficult on
+Rackspace.
 
-Rackspace boots their servers using grub's menu.lst and does not like non 'virtual' packages (e.g. xen compatible)
-kernels there, although they do work. This makes ``update-grub`` to not have the expected result, and you need to
-set the kernel manually.
+Rackspace boots their servers using grub's ``menu.lst`` and does not
+like non 'virtual' packages (e.g. xen compatible) kernels there,
+although they do work. This makes ``update-grub`` to not have the
+expected result, and you need to set the kernel manually.
 
 **Do not attempt this on a production machine!**
 
@@ -33,7 +34,8 @@ set the kernel manually.
     apt-get install linux-generic-lts-raring
 
 
-Great, now you have kernel installed in /boot/, next is to make it boot next time.
+Great, now you have kernel installed in ``/boot/``, next is to make it
+boot next time.
 
 .. code-block:: bash
 
@@ -43,9 +45,10 @@ Great, now you have kernel installed in /boot/, next is to make it boot next tim
     # this should return some results
 
 
-Now you need to manually edit /boot/grub/menu.lst, you will find a section at the bottom with the existing options.
-Copy the top one and substitute the new kernel into that. Make sure the new kernel is on top, and double check kernel
-and initrd point to the right files.
+Now you need to manually edit ``/boot/grub/menu.lst``, you will find a
+section at the bottom with the existing options.  Copy the top one and
+substitute the new kernel into that. Make sure the new kernel is on
+top, and double check kernel and initrd point to the right files.
 
 Make special care to double check the kernel and initrd entries.
 

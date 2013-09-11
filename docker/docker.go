@@ -16,7 +16,7 @@ import (
 
 var (
 	GITCOMMIT string
-	VERSION string
+	VERSION   string
 )
 
 func main() {
@@ -75,6 +75,9 @@ func main() {
 		}
 		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+			if sterr, ok := err.(*utils.StatusError); ok {
+				os.Exit(sterr.Status)
+			}
 			log.Fatal(err)
 			os.Exit(-1)
 		}

@@ -45,6 +45,34 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		nil,
 	},
 
+	// Exactly the same as above, except uses a line split with a \ to test
+	// multiline support.
+	{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass \
+	> /tmp/passwd'
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	},
+
+	// Line containing literal "\n"
+	{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    echo "foo \n bar"; echo "baz"
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	},
 	{
 		`
 from {IMAGE}
@@ -479,6 +507,54 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 
 	if err.Error() != "Forbidden path: /" {
+		t.Logf("Error message is not expected: %s", err.Error())
+		t.Fail()
+	}
+}
+
+func TestBuildADDFileNotFound(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	context := testContextTemplate{`
+        from {IMAGE}
+        add foo /usr/local/bar
+        `,
+		nil, nil}
+
+	httpServer, err := mkTestingFileServer(context.remoteFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer httpServer.Close()
+
+	idx := strings.LastIndex(httpServer.URL, ":")
+	if idx < 0 {
+		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
+	}
+	port := httpServer.URL[idx+1:]
+
+	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	dockerfile := constructDockerfile(context.dockerfile, ip, port)
+
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true)
+	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+
+	if err == nil {
+		t.Log("Error should not be nil")
+		t.Fail()
+	}
+
+	if err.Error() != "foo: no such file or directory" {
 		t.Logf("Error message is not expected: %s", err.Error())
 		t.Fail()
 	}

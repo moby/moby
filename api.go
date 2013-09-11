@@ -2,6 +2,7 @@ package docker
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -20,7 +21,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.4
+const APIVERSION = 1.5
 const DEFAULTHTTPHOST = "127.0.0.1"
 const DEFAULTHTTPPORT = 4243
 const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
@@ -304,7 +305,16 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 
 	outs := srv.Containers(all, size, n, since, before)
 
-	return writeJSON(w, http.StatusOK, outs)
+	if version < 1.5 {
+		outs2 := []APIContainersOld{}
+		for _, ctnr := range outs {
+			outs2 = append(outs2, ctnr.ToLegacy())
+		}
+
+        return writeJSON(w, http.StatusOK, outs2)
+	} else {
+        return writeJSON(w, http.StatusOK, outs)
+	}
 }
 
 func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -361,6 +371,16 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
 
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	authConfig := &auth.AuthConfig{}
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	}
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/json")
 	}
@@ -372,7 +392,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 				metaHeaders[k] = v
 			}
 		}
-		if err := srv.ImagePull(image, tag, w, sf, &auth.AuthConfig{}, metaHeaders, version > 1.3); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, authConfig, metaHeaders, version > 1.3); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -432,18 +452,31 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	authConfig := &auth.AuthConfig{}
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
 			metaHeaders[k] = v
 		}
 	}
-	if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-		return err
-	}
 	if err := parseForm(r); err != nil {
 		return err
+	}
+	authConfig := &auth.AuthConfig{}
+
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	if authEncoded != "" {
+		// the new format is to handle the authConfig as a header
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// to increase compatibility to existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	} else {
+		// the old format is supported for compatibility if there was no authConfig header
+		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+			return err
+		}
+
 	}
 
 	if vars == nil {
@@ -772,6 +805,11 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 		return err
 	}
 
+	_, err = srv.ImageInspect(name)
+	if err == nil {
+		return fmt.Errorf("Conflict between containers and images")
+	}
+
 	return writeJSON(w, http.StatusOK, container)
 }
 
@@ -786,22 +824,9 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, image)
-}
-
-func postImagesGetCache(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	apiConfig := &APIImageConfig{}
-	if err := json.NewDecoder(r.Body).Decode(apiConfig); err != nil {
-		return err
-	}
-
-	image, err := srv.ImageGetCached(apiConfig.ID, apiConfig.Config)
-	if err != nil {
-		return err
-	}
-	if image == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return nil
+	_, err = srv.ContainerInspect(name)
+	if err == nil {
+		return fmt.Errorf("Conflict between containers and images")
 	}
 
 	return writeJSON(w, http.StatusOK, &APIID{ID: image.ID})
@@ -982,7 +1007,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
-			"/images/getCache":              postImagesGetCache,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,

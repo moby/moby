@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -23,7 +22,6 @@ type BuildFile interface {
 
 type buildFile struct {
 	runtime *Runtime
-	builder *Builder
 	srv     *Server
 
 	image        string
@@ -293,7 +291,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: no such file or directory", orig)
 	}
 	if fi.IsDir() {
 		if err := CopyWithTar(origPath, destPath); err != nil {
@@ -337,7 +335,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	b.config.Image = b.image
 	// Create the container and start it
-	container, err := b.builder.Create(b.config)
+	container, err := b.runtime.Create(b.config)
 	if err != nil {
 		return err
 	}
@@ -372,7 +370,7 @@ func (b *buildFile) run() (string, error) {
 	b.config.Image = b.image
 
 	// Create the container and start it
-	c, err := b.builder.Create(b.config)
+	c, err := b.runtime.Create(b.config)
 	if err != nil {
 		return "", err
 	}
@@ -428,7 +426,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, err := b.builder.Create(b.config)
+		container, err := b.runtime.Create(b.config)
 		if err != nil {
 			return err
 		}
@@ -450,7 +448,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.builder.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.runtime.Commit(container, "", "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}
@@ -458,6 +456,9 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	b.image = image.ID
 	return nil
 }
+
+// Long lines can be split with a backslash
+var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	// FIXME: @creack any reason for using /tmp instead of ""?
@@ -471,22 +472,18 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	}
 	defer os.RemoveAll(name)
 	b.context = name
-	dockerfile, err := os.Open(path.Join(name, "Dockerfile"))
-	if err != nil {
+	filename := path.Join(name, "Dockerfile")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
-	// FIXME: "file" is also a terrible variable name ;)
-	file := bufio.NewReader(dockerfile)
+	fileBytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	dockerfile := string(fileBytes)
+	dockerfile = lineContinuation.ReplaceAllString(dockerfile, " ")
 	stepN := 0
-	for {
-		line, err := file.ReadString('\n')
-		if err != nil {
-			if err == io.EOF && line == "" {
-				break
-			} else if err != io.EOF {
-				return "", err
-			}
-		}
+	for _, line := range strings.Split(dockerfile, "\n") {
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		// Skip comments and empty line
 		if len(line) == 0 || line[0] == '#' {
@@ -524,7 +521,6 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
 	return &buildFile{
-		builder:       NewBuilder(srv.runtime),
 		runtime:       srv.runtime,
 		srv:           srv,
 		config:        &Config{},

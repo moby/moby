@@ -68,6 +68,10 @@ building images.
 
     ``FROM <image>``
 
+Or
+
+    ``FROM <image>:<tag>``
+
 The ``FROM`` instruction sets the :ref:`base_image_def` for subsequent
 instructions. As such, a valid Dockerfile must have ``FROM`` as its
 first instruction. The image can be any valid image -- it is
@@ -80,6 +84,9 @@ especially easy to start by **pulling an image** from the
 ``FROM`` can appear multiple times within a single Dockerfile in order
 to create multiple images. Simply make a note of the last image id
 output by the commit before each new ``FROM`` command.
+
+If no ``tag`` is given to the ``FROM`` instruction, ``latest`` is
+assumed. If the used tag does not exist, an error will be returned.
 
 3.2 MAINTAINER
 --------------

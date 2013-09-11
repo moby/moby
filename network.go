@@ -642,7 +642,7 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 	if err != nil {
 		return nil, err
 	}
-	// avoid duplicate IP 
+	// avoid duplicate IP
 	ipNum := ipToInt(ip)
 	firstIP := manager.ipAllocator.network.IP.To4().Mask(manager.ipAllocator.network.Mask)
 	firstIPNum := ipToInt(firstIP) + 1
