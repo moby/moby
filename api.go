@@ -535,7 +535,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
 
-    return writeJSON(w, http.StatusCreated, out)
+	return writeJSON(w, http.StatusCreated, out)
 }
 
 func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
