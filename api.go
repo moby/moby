@@ -72,9 +72,18 @@ func httpError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), statusCode)
 }
 
-func writeJSON(w http.ResponseWriter, b []byte) {
+func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
+	b, err := json.Marshal(v)
+
+	if err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 	w.Write(b)
+
+	return nil
 }
 
 func getBoolParam(value string) (bool, error) {
@@ -107,25 +116,14 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	if status != "" {
-		b, err := json.Marshal(&APIAuth{Status: status})
-		if err != nil {
-			return err
-		}
-		writeJSON(w, b)
-		return nil
+		return writeJSON(w, http.StatusOK, &APIAuth{Status: status})
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
 func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	m := srv.DockerVersion()
-	b, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+	return writeJSON(w, http.StatusOK, srv.DockerVersion())
 }
 
 func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -168,12 +166,8 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(outs)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, outs)
 }
 
 func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -184,13 +178,7 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	out := srv.DockerInfo()
-	b, err := json.Marshal(out)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+	return writeJSON(w, http.StatusOK, srv.DockerInfo())
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -259,12 +247,8 @@ func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(outs)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, outs)
 }
 
 func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -276,12 +260,8 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(changesStr)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, changesStr)
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -300,12 +280,8 @@ func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(procsStr)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, procsStr)
 }
 
 func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -327,23 +303,18 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 		n = -1
 	}
 
-	var b []byte
 	outs := srv.Containers(all, size, n, since, before)
+
 	if version < 1.5 {
 		outs2 := []APIContainersOld{}
 		for _, ctnr := range outs {
 			outs2 = append(outs2, ctnr.ToLegacy())
 		}
-		b, err = json.Marshal(outs2)
-	} else {
-		b, err = json.Marshal(outs)
-	}
 
-	if err != nil {
-		return err
+		return writeJSON(w, http.StatusOK, outs2)
+	} else {
+		return writeJSON(w, http.StatusOK, outs)
 	}
-	writeJSON(w, b)
-	return nil
 }
 
 func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -385,13 +356,8 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(&APIID{id})
-	if err != nil {
-		return err
-	}
-	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusCreated, &APIID{id})
 }
 
 // Creates an image from Pull or from Import
@@ -455,12 +421,8 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(outs)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, outs)
 }
 
 func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -485,12 +447,8 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 			return nil
 		}
 	}
-	b, err := json.Marshal(&APIID{ID: imgID})
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, &APIID{ID: imgID})
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -577,13 +535,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
 
-	b, err := json.Marshal(out)
-	if err != nil {
-		return err
-	}
-	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, b)
-	return nil
+	return writeJSON(w, http.StatusCreated, out)
 }
 
 func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -639,11 +591,7 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	}
 	if imgs != nil {
 		if len(imgs) != 0 {
-			b, err := json.Marshal(imgs)
-			if err != nil {
-				return err
-			}
-			writeJSON(w, b)
+			return writeJSON(w, http.StatusOK, imgs)
 		} else {
 			return fmt.Errorf("Conflict, %s wasn't deleted", name)
 		}
@@ -706,12 +654,8 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(&APIWait{StatusCode: status})
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, &APIWait{StatusCode: status})
 }
 
 func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -858,12 +802,8 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 	if err == nil {
 		return fmt.Errorf("Conflict between containers and images")
 	}
-	b, err := json.Marshal(container)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, container)
 }
 
 func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -881,12 +821,8 @@ func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *htt
 	if err == nil {
 		return fmt.Errorf("Conflict between containers and images")
 	}
-	b, err := json.Marshal(image)
-	if err != nil {
-		return err
-	}
-	writeJSON(w, b)
-	return nil
+
+	return writeJSON(w, http.StatusOK, image)
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
