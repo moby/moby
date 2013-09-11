@@ -951,7 +951,7 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string(utils.Stdout)+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 6, 0, 0, 0})+"hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -1040,7 +1040,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string(utils.Stderr)+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 6, 0, 0, 0})+"hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
 	})

@@ -1570,7 +1570,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 		if status != 0 {
-			return &utils.StatusError{status}
+			return &utils.StatusError{Status: status}
 		}
 	}
 

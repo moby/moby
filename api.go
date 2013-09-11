@@ -766,32 +766,43 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	}
 	name := vars["name"]
 
-	if _, err := srv.ContainerInspect(name); err != nil {
+	c, err := srv.ContainerInspect(name)
+	if err != nil {
 		return err
 	}
 
-	in, out, err := hijackServer(w)
+	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if tcpc, ok := in.(*net.TCPConn); ok {
+		if tcpc, ok := inStream.(*net.TCPConn); ok {
 			tcpc.CloseWrite()
 		} else {
-			in.Close()
+			inStream.Close()
 		}
 	}()
 	defer func() {
-		if tcpc, ok := out.(*net.TCPConn); ok {
+		if tcpc, ok := outStream.(*net.TCPConn); ok {
 			tcpc.CloseWrite()
-		} else if closer, ok := out.(io.Closer); ok {
+		} else if closer, ok := outStream.(io.Closer); ok {
 			closer.Close()
 		}
 	}()
 
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
+	var errStream io.Writer
+
+	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+
+	if !c.Config.Tty && version >= 1.4 {
+		errStream = utils.NewStdWriter(outStream, utils.Stderr)
+		outStream = utils.NewStdWriter(outStream, utils.Stdout)
+	} else {
+		errStream = outStream
+	}
+
+	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, inStream, outStream, errStream); err != nil {
+		fmt.Fprintf(outStream, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -834,7 +845,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws); err != nil {
+		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws, ws); err != nil {
 			utils.Debugf("Error: %s", err)
 		}
 	})

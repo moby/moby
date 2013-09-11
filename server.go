@@ -1175,11 +1175,12 @@ func (srv *Server) ContainerResize(name string, h, w int) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
+func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, inStream io.ReadCloser, outStream, errStream io.Writer) error {
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
 	//logs
 	if logs {
 		cLog, err := container.ReadLog("json")
@@ -1190,7 +1191,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
 					utils.Debugf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(out, cLog); err != nil {
+				} else if _, err := io.Copy(outStream, cLog); err != nil {
 					utils.Debugf("Error streaming logs (stdout): %s", err)
 				}
 			}
@@ -1198,7 +1199,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
 					utils.Debugf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(out, cLog); err != nil {
+				} else if _, err := io.Copy(errStream, cLog); err != nil {
 					utils.Debugf("Error streaming logs (stderr): %s", err)
 				}
 			}
@@ -1215,7 +1216,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 					break
 				}
 				if (l.Stream == "stdout" && stdout) || (l.Stream == "stderr" && stderr) {
-					fmt.Fprintf(out, "%s", l.Log)
+					fmt.Fprintf(outStream, "%s", l.Log)
 				}
 			}
 		}
@@ -1238,24 +1239,16 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			go func() {
 				defer w.Close()
 				defer utils.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, in)
+				io.Copy(w, inStream)
 			}()
 			cStdin = r
-			cStdinCloser = in
+			cStdinCloser = inStream
 		}
 		if stdout {
-			if container.Config.Tty {
-				cStdout = out
-			} else {
-				cStdout = utils.NewStdWriter(out, utils.Stdout)
-			}
+			cStdout = outStream
 		}
 		if stderr {
-			if container.Config.Tty {
-				cStderr = out
-			} else {
-				cStderr = utils.NewStdWriter(out, utils.Stderr)
-			}
+			cStderr = errStream
 		}
 
 		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
