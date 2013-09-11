@@ -326,6 +326,7 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 				PrivatePort: int64(p),
 				PublicPort:  int64(h),
 				Type:        port.Proto(),
+				IP:          binding.HostIp,
 			})
 		}
 	}
