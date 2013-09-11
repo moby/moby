@@ -311,9 +311,9 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 			outs2 = append(outs2, ctnr.ToLegacy())
 		}
 
-        return writeJSON(w, http.StatusOK, outs2)
+		return writeJSON(w, http.StatusOK, outs2)
 	} else {
-        return writeJSON(w, http.StatusOK, outs)
+		return writeJSON(w, http.StatusOK, outs)
 	}
 }
 
