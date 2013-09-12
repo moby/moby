@@ -542,45 +542,6 @@ func (devices *DeviceSetDM) loadMetaData() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) createBaseLayer(dir string) error {
-	for pth, typ := range map[string]string{
-		"/dev/pts":         "dir",
-		"/dev/shm":         "dir",
-		"/proc":            "dir",
-		"/sys":             "dir",
-		"/.dockerinit":     "file",
-		"/etc/resolv.conf": "file",
-		"/etc/hosts":       "file",
-		"/etc/hostname":    "file",
-		// "var/run": "dir",
-		// "var/lock": "dir",
-	} {
-		if _, err := os.Stat(path.Join(dir, pth)); err != nil {
-			if os.IsNotExist(err) {
-				switch typ {
-				case "dir":
-					if err := os.MkdirAll(path.Join(dir, pth), 0755); err != nil {
-						return err
-					}
-				case "file":
-					if err := os.MkdirAll(path.Join(dir, path.Dir(pth)), 0755); err != nil {
-						return err
-					}
-
-					if f, err := os.OpenFile(path.Join(dir, pth), os.O_CREATE, 0755); err != nil {
-						return err
-					} else {
-						f.Close()
-					}
-				}
-			} else {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (devices *DeviceSetDM) setupBaseImage() error {
 	oldInfo := devices.Devices[""]
 	if oldInfo != nil && oldInfo.Initialized {
@@ -621,29 +582,6 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 	if err != nil {
 		return err
 	}
-
-	tmpDir := path.Join(devices.loopbackDir(), "basefs")
-	if err = os.MkdirAll(tmpDir, 0700); err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	err = devices.MountDevice("", tmpDir)
-	if err != nil {
-		return err
-	}
-
-	err = devices.createBaseLayer(tmpDir)
-	if err != nil {
-		_ = syscall.Unmount(tmpDir, 0)
-		return err
-	}
-
-	err = devices.UnmountDevice("", tmpDir)
-	if err != nil {
-		return err
-	}
-
-	_ = os.Remove(tmpDir)
 
 	info.Initialized = true
 
