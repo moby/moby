@@ -379,6 +379,23 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 		return err
 	}
 
+	// The docker init layer is conceptually above all other layers, so we apply
+	// it for every image. This is safe because the layer directory is the
+	// definition of the image, and the device-mapper device is just a cache
+	// of it instantiated. Diffs/commit compare the container device with the
+	// image device, which will then *not* pick up the init layer changes as
+	// part of the container changes
+	dockerinitLayer, err := image.getDockerInitLayer()
+	if err != nil {
+		_ = devices.RemoveDevice(image.ID)
+		return err
+	}
+	err = image.applyLayer(dockerinitLayer, mountDir)
+	if err != nil {
+		_ = devices.RemoveDevice(image.ID)
+		return err
+	}
+
 	err = devices.UnmountDevice(image.ID, mountDir)
 	if err != nil {
 		_ = devices.RemoveDevice(image.ID)
