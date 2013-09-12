@@ -12,10 +12,12 @@ git_clone () {
   (
     set -e
     cd $vendor_dir
-    if [[ ! -d src/$PKG ]]; then
-      cd $vendor_dir && git clone http://$PKG src/$PKG
+    if [[ -d src/$PKG ]]; then
+      echo "src/$PKG already exists. Removing."
+      rm -fr src/$PKG
     fi
-    cd src/$PKG && git checkout -f $REV
+    cd $vendor_dir && git clone http://$PKG src/$PKG
+    cd src/$PKG && git checkout -f $REV && rm -fr .git
   )
 }
 
