@@ -71,9 +71,9 @@ func (srv *Server) versionInfos() []utils.VersionInfo {
 	return ret
 }
 
-func (srv *Server) ContainerKill(name string) error {
+func (srv *Server) ContainerKill(name string, sig int) error {
 	if container := srv.runtime.Get(name); container != nil {
-		if err := container.Kill(); err != nil {
+		if err := container.Kill(sig); err != nil {
 			return fmt.Errorf("Error killing container %s: %s", name, err)
 		}
 		srv.LogEvent("kill", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))

@@ -1231,6 +1231,8 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
+	noStdin := cmd.Bool("nostdin", false, "Do not attach stdin")
+	proxy := cmd.Bool("proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1262,9 +1264,23 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	v := url.Values{}
 	v.Set("stream", "1")
-	v.Set("stdin", "1")
+	if !*noStdin && container.Config.OpenStdin {
+		v.Set("stdin", "1")
+	}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
+
+	if *proxy && !container.Config.Tty {
+		sigc := make(chan os.Signal, 1)
+		utils.CatchAll(sigc)
+		go func() {
+			for s := range sigc {
+				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cmd.Arg(0), s), nil); err != nil {
+					utils.Debugf("Error sending signal: %s", err)
+				}
+			}
+		}()
+	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out); err != nil {
 		return err
