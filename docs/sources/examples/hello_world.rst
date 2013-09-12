@@ -14,7 +14,7 @@ run the docker daemon in the background, simply type:
 
    sudo docker -d &
 
-Now you can run docker in client mode: by defalt all commands will be
+Now you can run docker in client mode: by default all commands will be
 forwarded to the ``docker`` daemon via a protected Unix socket, so you
 must run as root.
 
