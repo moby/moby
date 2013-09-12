@@ -135,8 +135,21 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	if err := srv.ContainerKill(name); err != nil {
+	s := r.Form.Get("signal")
+	signal := 9
+	if s != "" {
+		if s, err := strconv.Atoi(s); err != nil {
+			return err
+		} else {
+			signal = s
+		}
+	}
+
+	if err := srv.ContainerKill(name, signal); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

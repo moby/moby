@@ -547,6 +547,8 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 
 func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
+	attach := cmd.Bool("a", false, "Attach container's stdout/stderr and forward all signals to the process")
+	openStdin := cmd.Bool("i", false, "Attach container's stdin")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -555,17 +557,79 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		return nil
 	}
 
+	var cErr chan error
+	if *attach || *openStdin {
+		if cmd.NArg() > 1 {
+			return fmt.Errorf("Impossible to start and attach multiple containers at once.")
+		}
+
+		body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+		if err != nil {
+			return err
+		}
+
+		container := &Container{}
+		err = json.Unmarshal(body, container)
+		if err != nil {
+			return err
+		}
+
+		if !container.Config.Tty {
+			sigc := make(chan os.Signal, 1)
+			utils.CatchAll(sigc)
+			go func() {
+				for s := range sigc {
+					if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cmd.Arg(0), s), nil); err != nil {
+						utils.Debugf("Error sending signal: %s", err)
+					}
+				}
+			}()
+		}
+
+		if container.Config.Tty {
+			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
+				return err
+			}
+		}
+
+		v := url.Values{}
+		v.Set("stream", "1")
+		if *openStdin && container.Config.OpenStdin {
+			v.Set("stdin", "1")
+		}
+		v.Set("stdout", "1")
+		v.Set("stderr", "1")
+
+		cErr = utils.Go(func() error {
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out)
+		})
+	}
+
 	var encounteredError error
-	for _, name := range args {
+	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
+			if !*attach || !*openStdin {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				encounteredError = fmt.Errorf("Error: failed to start one or more containers")
+			}
 		} else {
-			fmt.Fprintf(cli.out, "%s\n", name)
+			if !*attach || !*openStdin {
+				fmt.Fprintf(cli.out, "%s\n", name)
+			}
 		}
 	}
-	return encounteredError
+	if encounteredError != nil {
+		if *openStdin || *attach {
+			cli.in.Close()
+			<-cErr
+		}
+		return encounteredError
+	}
+	if *openStdin || *attach {
+		return <-cErr
+	}
+	return nil
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
@@ -1238,6 +1302,8 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
+	noStdin := cmd.Bool("nostdin", false, "Do not attach stdin")
+	proxy := cmd.Bool("proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1269,9 +1335,23 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	v := url.Values{}
 	v.Set("stream", "1")
-	v.Set("stdin", "1")
+	if !*noStdin && container.Config.OpenStdin {
+		v.Set("stdin", "1")
+	}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
+
+	if *proxy && !container.Config.Tty {
+		sigc := make(chan os.Signal, 1)
+		utils.CatchAll(sigc)
+		go func() {
+			for s := range sigc {
+				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cmd.Arg(0), s), nil); err != nil {
+					utils.Debugf("Error sending signal: %s", err)
+				}
+			}
+		}()
+	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err); err != nil {
 		return err

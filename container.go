@@ -1044,13 +1044,13 @@ func (container *Container) cleanup() {
 	}
 }
 
-func (container *Container) kill() error {
+func (container *Container) kill(sig int) error {
 	if !container.State.Running {
 		return nil
 	}
 
 	// Sending SIGKILL to the process via lxc
-	output, err := exec.Command("lxc-kill", "-n", container.ID, "9").CombinedOutput()
+	output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput()
 	if err != nil {
 		log.Printf("error killing container %s (%s, %s)", container.ID, output, err)
 	}
@@ -1060,7 +1060,7 @@ func (container *Container) kill() error {
 		if container.cmd == nil {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ID)
 		}
-		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.ID)
+		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %d  - trying direct SIGKILL", sig, container.ID)
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
@@ -1071,13 +1071,13 @@ func (container *Container) kill() error {
 	return nil
 }
 
-func (container *Container) Kill() error {
+func (container *Container) Kill(sig int) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}
-	return container.kill()
+	return container.kill(sig)
 }
 
 func (container *Container) Stop(seconds int) error {
@@ -1091,7 +1091,7 @@ func (container *Container) Stop(seconds int) error {
 	if output, err := exec.Command("lxc-kill", "-n", container.ID, "15").CombinedOutput(); err != nil {
 		log.Print(string(output))
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.kill(); err != nil {
+		if err := container.kill(9); err != nil {
 			return err
 		}
 	}
@@ -1099,7 +1099,7 @@ func (container *Container) Stop(seconds int) error {
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		if err := container.kill(); err != nil {
+		if err := container.kill(9); err != nil {
 			return err
 		}
 	}
