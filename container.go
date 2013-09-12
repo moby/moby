@@ -748,6 +748,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	params := []string{
+		"lxc-start",
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
@@ -796,7 +797,21 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	container.cmd = exec.Command("lxc-start", params...)
+	if RootIsShared() {
+		// lxc-start really needs / to be private, or all kinds of stuff break
+		// What we really want is to clone into a new namespace and then
+		// mount / MS_REC|MS_PRIVATE, but since we can't really clone or fork
+		// without exec in go we have to do this horrible shell hack...
+		shellString :=
+			"mount --make-rprivate /; exec " +
+			utils.ShellQuoteArguments(params)
+
+		params = []string{
+			"unshare", "-m", "--", "/bin/sh", "-c",	shellString,
+		}
+	}
+
+	container.cmd = exec.Command(params[0], params[1:]...)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {

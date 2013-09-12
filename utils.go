@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 )
 
@@ -166,4 +167,18 @@ func parseLxcOpt(opt string) (string, string, error) {
 		return "", "", fmt.Errorf("Unable to parse lxc conf option: %s", opt)
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+}
+
+func RootIsShared() bool {
+	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			cols := strings.Split(line, " ")
+			if cols[3] == "/" && cols[4] == "/" {
+				return strings.HasPrefix(cols[6], "shared")
+			}
+		}
+	}
+
+	// No idea, probably safe to assume so
+	return true
 }
