@@ -62,7 +62,7 @@ kernel tree to add AUFS. The process is documented on
 Cgroups and namespaces
 ----------------------
 
-You need to enable namespaces and cgroups, to the extend of what is needed
+You need to enable namespaces and cgroups, to the extent of what is needed
 to run LXC containers. Technically, while namespaces have been introduced
 in the early 2.6 kernels, we do not advise to try any kernel before 2.6.32
 to run LXC containers. Note that 2.6.32 has some documented issues regarding
