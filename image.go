@@ -284,12 +284,16 @@ func (image *Image) applyLayer(layer, target string) error {
 				}
 				dstFile := os.NewFile(uintptr(fd), targetPath)
 				srcFile, err := os.Open(srcPath)
-				_, err = io.Copy(dstFile, srcFile)
+				if err != nil {
+					_ = dstFile.Close()
+					return err
+				}
+				err = CopyFile(dstFile, srcFile)
+				_ = dstFile.Close()
+				_ = srcFile.Close()
 				if err != nil {
 					return err
 				}
-				_ = srcFile.Close()
-				_ = dstFile.Close()
 			} else {
 				return fmt.Errorf("Unknown type for file %s", srcPath)
 			}
