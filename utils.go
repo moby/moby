@@ -173,7 +173,7 @@ func RootIsShared() bool {
 	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
 		for _, line := range strings.Split(string(data), "\n") {
 			cols := strings.Split(line, " ")
-			if cols[3] == "/" && cols[4] == "/" {
+			if len(cols) >= 6 && cols[3] == "/" && cols[4] == "/" {
 				return strings.HasPrefix(cols[6], "shared")
 			}
 		}
