@@ -225,6 +225,22 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdTty(args string) error {
+  b.config.Tty = true;
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("TTY %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
+func (b *buildFile) CmdStdin(args string) error {
+  b.config.OpenStdin = true;
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("STDIN %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
 func (b *buildFile) CmdWorkdir(workdir string) error {
 	b.config.WorkingDir = workdir
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
