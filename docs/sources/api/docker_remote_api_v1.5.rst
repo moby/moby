@@ -358,7 +358,7 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}]
            }
 
         **Example response**:
