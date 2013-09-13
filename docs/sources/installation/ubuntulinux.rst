@@ -73,6 +73,9 @@ Docker is available as a Debian package, which makes installation easy.
 
 .. code-block:: bash
 
+   # Ubuntu Precise does not support https-repositories by default, so let's add that
+   sudo apt-get install -y apt-transport-https
+
    # Add the Docker repository key to your local keychain
    # using apt-key finger you can check the fingerprint matches 36A1 D786 9245 C895 0F96 6E92 D857 6A8B A88D 21E9
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
