@@ -185,15 +185,22 @@ func (info *FileInfo)addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// change?
 			oldStat := &oldChild.stat
 			newStat := &newChild.stat
-			if oldStat.Ino != newStat.Ino ||
-				oldStat.Mode != newStat.Mode ||
+			// Note: We can't compare inode or ctime or blocksize here, because these change
+			// when copying a file into a container. However, that is not generally a problem
+			// because any content change will change mtime, and any status change should
+			// be visible when actually comparing the stat fields. The only time this
+			// breaks down is if some code intentionally hides a change by setting
+			// back mtime
+			oldMtime := syscall.NsecToTimeval(oldStat.Mtim.Nano())
+			newMtime := syscall.NsecToTimeval(oldStat.Mtim.Nano())
+			if oldStat.Mode != newStat.Mode ||
 				oldStat.Uid != newStat.Uid ||
 				oldStat.Gid != newStat.Gid ||
 				oldStat.Rdev != newStat.Rdev ||
-				oldStat.Size != newStat.Size ||
-				oldStat.Blocks != newStat.Blocks ||
-				oldStat.Mtim != newStat.Mtim ||
-				oldStat.Ctim != newStat.Ctim {
+				// Don't look at size for dirs, its not a good measure of change
+				(oldStat.Size != newStat.Size && oldStat.Mode &syscall.S_IFDIR != syscall.S_IFDIR) ||
+				oldMtime.Sec != newMtime.Sec ||
+				oldMtime.Usec != newMtime.Usec {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
