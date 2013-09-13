@@ -78,7 +78,7 @@ Docker is available as a Debian package, which makes installation easy.
    sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
 
    # Add the Docker repository to your apt sources list.
-   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # Update your sources
    sudo apt-get update
@@ -132,7 +132,7 @@ to follow them again.*
    sudo sh -c "curl http://get.docker.io/gpg | apt-key add -"
 
    # Add the Docker repository to your apt sources list.
-   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # update
    sudo apt-get update
