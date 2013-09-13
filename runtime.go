@@ -125,7 +125,6 @@ func (runtime *Runtime) GetMountMethod() MountMethod {
 				runtime.mountMethod = MountMethodDeviceMapper
 			}
 		}
-		runtime.mountMethod = MountMethodFilesystem
 	}
 
 	return runtime.mountMethod
