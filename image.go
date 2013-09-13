@@ -175,7 +175,13 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 	return Tar(layerPath, compression)
 }
 
+type TimeUpdate struct {
+	path string
+	time []syscall.Timeval
+}
+
 func (image *Image) applyLayer(layer, target string) error {
+	var updateTimes []TimeUpdate
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
 	err := filepath.Walk(layer, func(srcPath string, f os.FileInfo, err error) error {
@@ -249,11 +255,6 @@ func (image *Image) applyLayer(layer, target string) error {
 					if err != nil {
 						return err
 					}
-				} else if srcStat.Mode&07777 != targetStat.Mode&07777 {
-					err = syscall.Chmod(targetPath, srcStat.Mode&07777)
-					if err != nil {
-						return err
-					}
 				}
 			} else if srcStat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
 				// Source is symlink
@@ -293,22 +294,52 @@ func (image *Image) applyLayer(layer, target string) error {
 				return fmt.Errorf("Unknown type for file %s", srcPath)
 			}
 
+			err = syscall.Lchown(targetPath, int(srcStat.Uid), int(srcStat.Gid))
+			if err != nil {
+				return err
+			}
+
 			if srcStat.Mode&syscall.S_IFLNK != syscall.S_IFLNK {
-				err = syscall.Chown(targetPath, int(srcStat.Uid), int(srcStat.Gid))
+				err = syscall.Chmod(targetPath, srcStat.Mode&07777)
 				if err != nil {
 					return err
 				}
-				ts := []syscall.Timeval{
-					syscall.NsecToTimeval(srcStat.Atim.Nano()),
-					syscall.NsecToTimeval(srcStat.Mtim.Nano()),
-				}
-				syscall.Utimes(targetPath, ts)
 			}
 
+			ts := []syscall.Timeval{
+				syscall.NsecToTimeval(srcStat.Atim.Nano()),
+				syscall.NsecToTimeval(srcStat.Mtim.Nano()),
+			}
+
+			u := TimeUpdate {
+				path: targetPath,
+				time: ts,
+			}
+
+			// Delay time updates until all other changes done, or it is
+			// overwritten for directories (by child changes)
+			updateTimes = append(updateTimes, u)
 		}
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// We do this in reverse order so that children are updated before parents
+	for i := len(updateTimes) - 1; i >= 0; i-- {
+		update := updateTimes[i]
+
+		O_PATH := 010000000 // Not in syscall yet
+		fd, err := syscall.Open(update.path, syscall.O_RDWR | O_PATH | syscall.O_NOFOLLOW, 0600)
+		if err != nil {
+			return err
+		}
+		syscall.Futimes(fd, update.time)
+		_ = syscall.Close(fd)
+	}
+
+	return nil
 }
 
 func (image *Image) ensureImageDevice(devices DeviceSet) error {
