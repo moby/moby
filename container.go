@@ -1209,7 +1209,11 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Mounted() (bool, error) {
-	return Mounted(container.RootfsPath())
+	image, err := container.GetImage()
+	if err != nil {
+		return false, err
+	}
+	return image.Mounted(container.runtime, container.RootfsPath(), container.rwPath())
 }
 
 func (container *Container) Unmount() error {

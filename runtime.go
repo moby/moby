@@ -23,6 +23,7 @@ const (
 	MountMethodNone MountMethod = iota
 	MountMethodAUFS
 	MountMethodDeviceMapper
+	MountMethodFilesystem
 )
 
 type Capabilities struct {
@@ -124,6 +125,7 @@ func (runtime *Runtime) GetMountMethod() MountMethod {
 				runtime.mountMethod = MountMethodDeviceMapper
 			}
 		}
+		runtime.mountMethod = MountMethodFilesystem
 	}
 
 	return runtime.mountMethod
