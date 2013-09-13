@@ -235,11 +235,88 @@ func (info *FileInfo)Changes(oldInfo *FileInfo) []Change {
 }
 
 
-func collectFileInfo(sourceDir string) (*FileInfo, error) {
+func newRootFileInfo() *FileInfo {
 	root := &FileInfo {
 		name: "/",
 		children: make(map[string]*FileInfo),
 	}
+	return root
+}
+
+func applyLayer(root *FileInfo, layer string) error {
+	err := filepath.Walk(layer, func(layerPath string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip root
+		if layerPath == layer {
+			return nil
+		}
+
+		// rebase path
+		relPath, err := filepath.Rel(layer, layerPath)
+		if err != nil {
+			return err
+		}
+		relPath = filepath.Join("/", relPath)
+
+		// Skip AUFS metadata
+		if matched, err := filepath.Match("/.wh..wh.*", relPath); err != nil || matched {
+			if err != nil || !f.IsDir() {
+				return err
+			}
+			return filepath.SkipDir
+		}
+
+		var layerStat syscall.Stat_t
+		err = syscall.Lstat(layerPath, &layerStat)
+		if err != nil {
+			return err
+		}
+
+		file := filepath.Base(relPath)
+		// If there is a whiteout, then the file was removed
+		if strings.HasPrefix(file, ".wh.") {
+			originalFile := file[len(".wh."):]
+			deletePath := filepath.Join(filepath.Dir(relPath), originalFile)
+
+			root.Remove(deletePath)
+		} else {
+			// Added or changed file
+			existing := root.LookUp(relPath)
+			if existing != nil {
+				// Changed file
+				existing.stat = layerStat
+				if !existing.isDir() {
+					// Changed from dir to non-dir, delete all previous files
+					existing.children = make(map[string]*FileInfo)
+				}
+			} else {
+				// Added file
+				parent := root.LookUp(filepath.Dir(relPath))
+				if parent == nil {
+					return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
+				}
+
+				info := &FileInfo {
+					name: filepath.Base(relPath),
+					children: make(map[string]*FileInfo),
+					parent: parent,
+					stat: layerStat,
+				}
+
+				parent.children[info.name] = info
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+
+func collectFileInfo(sourceDir string) (*FileInfo, error) {
+	root := newRootFileInfo()
 
 	err := filepath.Walk(sourceDir, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -280,6 +357,22 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 		return nil, err
 	}
 	return root, nil
+}
+
+func ChangesLayers(newDir string, layers []string) ([]Change, error) {
+	newRoot, err := collectFileInfo(newDir)
+	if err != nil {
+		return nil, err
+	}
+	oldRoot := newRootFileInfo()
+	for i := len(layers)-1; i >= 0; i-- {
+		layer := layers[i]
+		if err = applyLayer(oldRoot, layer); err != nil {
+			return nil, err
+		}
+	}
+
+	return newRoot.Changes(oldRoot), nil
 }
 
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
