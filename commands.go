@@ -1112,6 +1112,37 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdLink(args ...string) error {
+	cmd := Subcmd("link", "[OPTIONS] CONTAINER", "Get the links for a container")
+
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("name", cmd.Arg(0))
+
+	body, _, err := cli.call("GET", "/links/json?"+v.Encode(), nil)
+	if err != nil {
+		return err
+	}
+
+	var links []APILink
+	if err := json.Unmarshal(body, &links); err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+
+	fmt.Fprintf(w, "FROM\tTO\tADDRESS\tALIAS")
+	fmt.Fprintf(w, "\n")
+	for _, l := range links {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s", l.From, l.To, l.Addr, l.Alias)
+		fmt.Fprintf(w, "\n")
+	}
+	w.Flush()
+	return nil
+}
+
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
