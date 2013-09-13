@@ -976,6 +976,7 @@ Build an image from Dockerfile via stdin
 	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
 	:query q: suppress verbose build output
     :query nocache: do not use the cache when building the image
+    :query rm: remove intermediate containers after a successful build
 	:statuscode 200: no error
     :statuscode 500: server error
 

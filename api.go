@@ -833,6 +833,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
 	rawNoCache := r.FormValue("nocache")
+	rawRm := r.FormValue("rm")
 	repoName, tag := utils.ParseRepositoryTag(repoName)
 
 	var context io.Reader
@@ -883,8 +884,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
+	rm, err := getBoolParam(rawRm)
+	if err != nil {
+		return err
+	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
