@@ -944,6 +944,20 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
+func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	out := []APILink{}
+	name := r.FormValue("name")
+
+	links := srv.runtime.links.Get(name)
+	for _, l := range links {
+		out = append(out, APILink{l.To, l.From, l.Addr, l.Alias})
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	writeJSON(w, http.StatusOK, out)
+	return nil
+}
+
 func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
@@ -999,6 +1013,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/links/json":                     getLinksJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,
