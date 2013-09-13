@@ -442,16 +442,38 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	return nil
 }
 
+func (image *Image) Mounted(runtime *Runtime, root, rw string) (bool, error) {
+	method := runtime.GetMountMethod()
+	if method == MountMethodFilesystem {
+		if _, err := os.Stat(rw); err != nil {
+			if os.IsNotExist(err) {
+				err = nil
+			}
+			return false, err
+		}
+		mountedPath := path.Join(rw, ".fs-mounted")
+		if _, err := os.Stat(mountedPath); err != nil {
+			if os.IsNotExist(err) {
+				err = nil
+			}
+			return false, err
+		}
+		return true, nil
+	} else {
+		return Mounted(root)
+	}
+}
+
 func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
-	if mounted, err := Mounted(root); err != nil {
-		return err
-	} else if mounted {
+	if mounted, _ := image.Mounted(runtime, root, rw); mounted {
 		return fmt.Errorf("%s is already mounted", root)
 	}
+
 	// Create the target directories if they don't exist
 	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
+
 	switch runtime.GetMountMethod() {
 	case MountMethodNone:
 		return fmt.Errorf("No supported Mount implementation")
@@ -502,6 +524,29 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 			}
 		}
 
+	case MountMethodFilesystem:
+		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
+
+		layers, err := image.layers()
+		if err != nil {
+			return err
+		}
+
+		for i := len(layers)-1; i >= 0; i-- {
+			layer := layers[i]
+			if err = image.applyLayer(layer, root); err != nil {
+				return err
+			}
+		}
+
+		mountedPath := path.Join(rw, ".fs-mounted")
+		fo, err := os.Create(mountedPath)
+		if err != nil {
+			return err
+		}
+		fo.Close()
 	}
 	return nil
 }
@@ -527,7 +572,11 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 		}
 
 		return devices.DeactivateDevice(id)
+
+	case MountMethodFilesystem:
+		return nil
 	}
+
 	return nil
 }
 
@@ -563,6 +612,17 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 			return nil, err
 		}
 		return changes, nil
+
+	case MountMethodFilesystem:
+		layers, err := image.layers()
+		if err != nil {
+			return nil, err
+		}
+		changes, err := ChangesLayers(root, layers)
+		if err != nil {
+			return nil, err
+		}
+		return changes, nil
 	}
 
 	return nil, fmt.Errorf("No supported Changes implementation")
@@ -573,7 +633,7 @@ func (image *Image) ExportChanges(runtime *Runtime, root, rw, id string) (Archiv
 	case MountMethodAUFS:
 		return Tar(rw, Uncompressed)
 
-	case MountMethodDeviceMapper:
+	case MountMethodFilesystem, MountMethodDeviceMapper:
 		changes, err := image.Changes(runtime, root, rw, id)
 		if err != nil {
 			return nil, err
