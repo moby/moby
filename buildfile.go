@@ -30,6 +30,7 @@ type buildFile struct {
 	context      string
 	verbose      bool
 	utilizeCache bool
+	rm           bool
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -37,15 +38,11 @@ type buildFile struct {
 	out io.Writer
 }
 
-func (b *buildFile) clearTmp(containers, images map[string]struct{}) {
+func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.runtime.Get(c)
 		b.runtime.Destroy(tmp)
-		utils.Debugf("Removing container %s", c)
-	}
-	for i := range images {
-		b.runtime.graph.Delete(i)
-		utils.Debugf("Removing image %s", i)
+		fmt.Fprintf(b.out, "Removing intermediate container %s\n", utils.TruncateID(c))
 	}
 }
 
@@ -514,12 +511,15 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
+		if b.rm {
+			b.clearTmp(b.tmpContainers)
+		}
 		return b.image, nil
 	}
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -529,5 +529,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache bool) BuildF
 		tmpImages:     make(map[string]struct{}),
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
+		rm:            rm,
 	}
 }

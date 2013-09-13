@@ -114,7 +114,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-no-cache -t -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-no-cache -t -q -rm" -- "$cur" ) )
 			;;
 		*)
 			_filedir
