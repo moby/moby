@@ -32,22 +32,33 @@ sudo debootstrap --verbose --variant="$variant" --include="$include" "$suite" "$
 
 cd "$target"
 
-# create the image
-img=$(sudo tar -c . | docker import -)
+# prevent init scripts from running during install/update
+echo $'#!/bin/sh\nexit 101' | sudo tee usr/sbin/policy-rc.d > /dev/null
+sudo chmod +x usr/sbin/policy-rc.d
+# see https://github.com/dotcloud/docker/issues/446#issuecomment-16953173
 
-# tag suite
-docker tag $img $repo $suite
+# shrink the image, since apt makes us fat (wheezy: ~157.5MB vs ~120MB)
+sudo chroot . apt-get clean
+
+# while we're at it, apt is unnecessarily slow inside containers
+#  this forces dpkg not to call sync() after package extraction and speeds up install
+echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
+#  we don't need an apt cache in a container
+echo 'Acquire::http {No-Cache=True;};' | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
+
+# create the image (and tag $repo:$suite)
+sudo tar -c . | docker import - $repo $suite
 
 # test the image
 docker run -i -t $repo:$suite echo success
 
 if [ "$suite" = "$stableSuite" -o "$suite" = 'stable' ]; then
 	# tag latest
-	docker tag $img $repo latest
+	docker tag $repo:$suite $repo latest
 	
 	# tag the specific debian release version
 	ver=$(docker run $repo:$suite cat /etc/debian_version)
-	docker tag $img $repo $ver
+	docker tag $repo:$suite $repo $ver
 fi
 
 # cleanup
