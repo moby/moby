@@ -35,6 +35,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
+	links          *LinkRepository
 }
 
 var sysInitPath string
@@ -452,6 +453,11 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 		}
 	}
 	runtime.UpdateCapabilities(false)
+	links, err := NewLinkRepository("")
+	if err != nil {
+		return nil, err
+	}
+	runtime.links = links
 	return runtime, nil
 }
 
