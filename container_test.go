@@ -1549,3 +1549,80 @@ func TestPrivilegedCannotMount(t *testing.T) {
 		t.Fatal("Could mount into secure container")
 	}
 }
+
+func TestMultipleVolumesFrom(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := runtime.Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	for key := range container.Config.Volumes {
+		if key != "/test" {
+			t.Fail()
+		}
+	}
+
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := container.Volumes["/test"]
+	if expected == "" {
+		t.Fail()
+	}
+
+	container2, err := runtime.Create(
+		&Config{
+			Image:   GetTestImage(runtime).ID,
+			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
+			Volumes: map[string]struct{}{"/other": {}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	for key := range container2.Config.Volumes {
+		if key != "/other" {
+			t.FailNow()
+		}
+	}
+	if _, err := container2.Output(); err != nil {
+		t.Fatal(err)
+	}
+
+	container3, err := runtime.Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"/bin/echo", "-n", "foobar"},
+			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
+		})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container3)
+
+	if _, err := container3.Output(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(container3.Volumes)
+	if container3.Volumes["/test"] != container.Volumes["/test"] {
+		t.Fail()
+	}
+	if container3.Volumes["/other"] != container2.Volumes["/other"] {
+		t.Fail()
+	}
+}
