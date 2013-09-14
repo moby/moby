@@ -1,0 +1,4 @@
+
+DEST=$1
+
+go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS" ./docker
