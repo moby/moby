@@ -165,11 +165,18 @@ release_index() {
 	) | write_to_s3 s3://$BUCKET/index
 }
 
+release_test() {
+	if [ -e "bundles/$VERSION/test" ]; then
+		s3cmd --acl-public sync bundles/$VERSION/test/ s3://$BUCKET/test/
+	fi
+}
+
 main() {
 	setup_s3
 	release_binary
 	release_ubuntu
 	release_index
+	release_test
 }
 
 main

@@ -1,0 +1,94 @@
+#!/bin/sh
+
+DEST=$1
+
+PKGVERSION="$VERSION"
+if test -n "$(git status --porcelain)"
+then
+	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
+fi
+
+PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
+PACKAGE_URL="http://www.docker.io/"
+PACKAGE_MAINTAINER="docker@dotcloud.com"
+PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
+Docker complements LXC with a high-level API which operates at the process
+level. It runs unix processes with strong guarantees of isolation and
+repeatability across servers.
+Docker is a great building block for automating distributed systems:
+large-scale web deployments, database clusters, continuous deployment systems,
+private PaaS, service-oriented architectures, etc."
+
+UPSTART_SCRIPT='description     "Docker daemon"
+
+start on filesystem and started lxc-net
+stop on runlevel [!2345]
+
+respawn
+
+script
+    /usr/bin/docker -d
+end script
+'
+
+# Build docker as an ubuntu package using FPM and REPREPRO (sue me).
+# bundle_binary must be called first.
+bundle_ubuntu() {
+	DIR=$DEST/build
+
+	# Generate an upstart config file (ubuntu-specific)
+	mkdir -p $DIR/etc/init
+	echo "$UPSTART_SCRIPT" > $DIR/etc/init/docker.conf
+
+	# Copy the binary
+	# This will fail if the binary bundle hasn't been built
+	mkdir -p $DIR/usr/bin
+	# Copy the binary
+	# This will fail if the binary bundle hasn't been built
+	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
+
+	# Generate postinstall/prerm scripts
+	cat >/tmp/postinstall <<EOF
+#!/bin/sh
+/sbin/stop docker || true
+/sbin/start docker
+EOF
+	cat >/tmp/prerm <<EOF
+#!/bin/sh
+/sbin/stop docker || true
+EOF
+	chmod +x /tmp/postinstall /tmp/prerm
+
+	(
+		cd $DEST
+		fpm -s dir -C $DIR \
+		    --name lxc-docker-$VERSION --version $PKGVERSION \
+		    --after-install /tmp/postinstall \
+		    --before-remove /tmp/prerm \
+		    --architecture "$PACKAGE_ARCHITECTURE" \
+		    --prefix / \
+		    --depends lxc --depends aufs-tools \
+		    --description "$PACKAGE_DESCRIPTION" \
+		    --maintainer "$PACKAGE_MAINTAINER" \
+		    --conflicts lxc-docker-virtual-package \
+		    --provides lxc-docker \
+		    --provides lxc-docker-virtual-package \
+		    --replaces lxc-docker \
+		    --replaces lxc-docker-virtual-package \
+		    --url "$PACKAGE_URL" \
+		    --vendor "$PACKAGE_VENDOR" \
+		    -t deb .
+		mkdir empty
+		fpm -s dir -C empty \
+		    --name lxc-docker --version $PKGVERSION \
+		    --architecture "$PACKAGE_ARCHITECTURE" \
+		    --depends lxc-docker-$VERSION \
+		    --description "$PACKAGE_DESCRIPTION" \
+		    --maintainer "$PACKAGE_MAINTAINER" \
+		    --url "$PACKAGE_URL" \
+		    --vendor "$PACKAGE_VENDOR" \
+		    -t deb .
+	)
+}
+
+bundle_ubuntu
