@@ -26,8 +26,8 @@ Amazon QuickStart
    * Enter ``amd64 precise`` in the search field (it will search as you
      type)
    * Pick an image by clicking on the image name. *An EBS-enabled
-     image will let you t1.micro instance.* Clicking on the image name
-     will take you to your AWS Console.
+     image will let you use a t1.micro instance.* Clicking on the image 
+     name will take you to your AWS Console.
 
 2. **Tell CloudInit to install Docker:**
 
