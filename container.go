@@ -146,7 +146,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
+	var flVolumesFrom ListOpts
+	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
 	var flLxcOpts ListOpts
@@ -231,7 +233,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Dns:             flDns,
 		Image:           image,
 		Volumes:         flVolumes,
-		VolumesFrom:     *flVolumesFrom,
+		VolumesFrom:     strings.Join(flVolumesFrom, ","),
 		Entrypoint:      entrypoint,
 		Privileged:      *flPrivileged,
 		WorkingDir:      *flWorkingDir,
@@ -639,21 +641,25 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// Apply volumes from another container if requested
 	if container.Config.VolumesFrom != "" {
-		c := container.runtime.Get(container.Config.VolumesFrom)
-		if c == nil {
-			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-		}
-		for volPath, id := range c.Volumes {
-			if _, exists := container.Volumes[volPath]; exists {
-				continue
+		volumes := strings.Split(container.Config.VolumesFrom, ",")
+		for _, v := range volumes {
+			c := container.runtime.Get(v)
+			if c == nil {
+				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
 			}
-			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return err
+			for volPath, id := range c.Volumes {
+				if _, exists := container.Volumes[volPath]; exists {
+					continue
+				}
+				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+					return err
+				}
+				container.Volumes[volPath] = id
+				if isRW, exists := c.VolumesRW[volPath]; exists {
+					container.VolumesRW[volPath] = isRW
+				}
 			}
-			container.Volumes[volPath] = id
-			if isRW, exists := c.VolumesRW[volPath]; exists {
-				container.VolumesRW[volPath] = isRW
-			}
+
 		}
 	}
 
