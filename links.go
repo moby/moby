@@ -9,9 +9,9 @@ import (
 type Link struct {
 	From  string
 	To    string
-	Addr  string
+	IP    string
+	Port  Port
 	Alias string
-	Port  string
 }
 
 type LinkRepository struct {
@@ -19,7 +19,7 @@ type LinkRepository struct {
 }
 
 func (l *Link) ToEnv() string {
-	return fmt.Sprintf("%s_ADDR=%s", strings.ToUpper(l.Alias), l.Addr)
+	return fmt.Sprintf("%s_ADDR=%s://%s:%s", strings.ToUpper(l.Alias), l.Port.Proto(), l.IP, l.Port.Port())
 }
 
 func NewLinkRepository(root string) (*LinkRepository, error) {

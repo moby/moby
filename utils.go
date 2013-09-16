@@ -242,6 +242,7 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 	return exposedPorts, bindings, nil
 }
 
+// Splits a port in the format of port/proto
 func splitProtoPort(rawPort string) (string, string) {
 	parts := strings.Split(rawPort, "/")
 	l := len(parts)
@@ -251,7 +252,7 @@ func splitProtoPort(rawPort string) (string, string) {
 	if l == 1 {
 		return "tcp", rawPort
 	}
-	return parts[1], parts[0]
+	return parts[0], parts[1]
 }
 
 func parsePort(rawPort string) (int, error) {
@@ -289,11 +290,12 @@ func parseLink(rawLink string) (Link, error) {
 	if err != nil {
 		return Link{}, err
 	}
+	port := NewPort(splitProtoPort(parts["port"]))
 
 	return Link{
 		From:  parts["id"],
 		Alias: parts["alias"],
-		Port:  parts["port"],
+		Port:  port,
 	}, nil
 }
 
