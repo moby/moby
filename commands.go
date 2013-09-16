@@ -795,11 +795,13 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
 
-	err := cli.stream("POST", "/images/create?"+v.Encode(), cli.in, cli.out, nil)
-	if err != nil {
-		return err
+	var in io.Reader
+
+	if src == "-" {
+		in = cli.in
 	}
-	return nil
+
+	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil)
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
