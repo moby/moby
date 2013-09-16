@@ -298,7 +298,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		}
 		t.Log("Trying port", strPort)
 		ep := make(map[Port]struct{}, 1)
-		p = Port(fmt.Sprintf("%s/%s", proto, strPort))
+		p = Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
 
 		container, _, err = runtime.Create(&Config{

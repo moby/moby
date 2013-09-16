@@ -114,19 +114,19 @@ type PortBinding struct {
 	HostPort string
 }
 
-// tcp/80
+// 80/tcp
 type Port string
 
 func (p Port) Proto() string {
-	return strings.Split(string(p), "/")[0]
-}
-
-func (p Port) Port() string {
 	return strings.Split(string(p), "/")[1]
 }
 
+func (p Port) Port() string {
+	return strings.Split(string(p), "/")[0]
+}
+
 func NewPort(proto, port string) Port {
-	return Port(fmt.Sprintf("%s/%s", proto, port))
+	return Port(fmt.Sprintf("%s/%s", port, proto))
 }
 
 func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -831,21 +831,15 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		runtime := container.runtime
 		for _, l := range hostConfig.Links {
 			linkedContainer := runtime.Get(l.From)
+
 			if linkedContainer == nil {
 				return fmt.Errorf("Cannot locate container for link: %s AS %s", l.From, l.Alias)
 			}
-			if !linkedContainer.State.Running {
-				return fmt.Errorf("Cannot link a non running container: %s AS %s", l.From, l.Alias)
+			if err := linkedContainer.AcceptLink(l); err != nil {
+				return err
 			}
-
-			// Check for linkedContainer exposed ports
-			//
-			// Hide ports that are not requested
-
-			l.To = utils.TruncateID(container.ID)
-			l.Addr = fmt.Sprintf("%s:%s", linkedContainer.NetworkSettings.IPAddress, l.Port)
-			if err := runtime.links.RegisterLink(l); err != nil {
-				return nil
+			if err := container.Link(linkedContainer, &l); err != nil {
+				return err
 			}
 			params = append(params, "-e", l.ToEnv())
 		}
@@ -1374,4 +1368,30 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		basePath = path.Dir(basePath)
 	}
 	return TarFilter(basePath, Uncompressed, filter)
+}
+
+func (container *Container) AcceptLink(l Link) error {
+	if !container.State.Running {
+		return fmt.Errorf("Cannot accept link on a non running container: %s AS %s", l.From, l.Alias)
+	}
+	if !container.Exposes(l.Port) {
+		return fmt.Errorf("Cannot accept link to %s because %s is not exposed", container.ID, l.Port)
+	}
+	return nil
+}
+
+func (container *Container) Link(c *Container, l *Link) error {
+	l.To = utils.TruncateID(container.ID)
+	l.IP = c.NetworkSettings.IPAddress
+
+	if err := container.runtime.links.RegisterLink(*l); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Returns true if the container exposes a certain port
+func (container *Container) Exposes(p Port) bool {
+	_, exists := container.Config.ExposedPorts[p]
+	return exists
 }

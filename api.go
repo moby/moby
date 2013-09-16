@@ -963,7 +963,7 @@ func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.R
 
 	links := srv.runtime.links.Get(name)
 	for _, l := range links {
-		out = append(out, APILink{l.To, l.From, l.Addr, l.Alias})
+		out = append(out, APILink{l.To, l.From, l.IP, fmt.Sprint(l.Port), l.Alias})
 	}
 
 	w.Header().Add("Content-Type", "application/json")

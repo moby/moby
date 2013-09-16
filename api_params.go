@@ -124,6 +124,7 @@ type APICopy struct {
 type APILink struct {
 	To    string
 	From  string
-	Addr  string
+	IP    string
+	Port  string
 	Alias string
 }
