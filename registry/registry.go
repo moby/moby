@@ -161,10 +161,10 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
-		if res.StatusCode == 401 {
-			return nil, ErrLoginRequired
-		}
 		if res != nil {
+			if res.StatusCode == 401 {
+				return nil, ErrLoginRequired
+			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 		}
 		return nil, err
