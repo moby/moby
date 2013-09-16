@@ -30,9 +30,11 @@ lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen
 {{$ROOTFS := .RootfsPath}}
 lxc.rootfs = {{$ROOTFS}}
 
+{{if and .HostnamePath .HostsPath}}
 # enable domain name support
 lxc.mount.entry = {{.HostnamePath}} {{$ROOTFS}}/etc/hostname none bind,ro 0 0
 lxc.mount.entry = {{.HostsPath}} {{$ROOTFS}}/etc/hosts none bind,ro 0 0
+{{end}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal
 # available)
