@@ -51,11 +51,13 @@ bundle_ubuntu() {
 	cat >/tmp/postinstall <<EOF
 #!/bin/sh
 /sbin/stop docker || true
+/bin/grep -q "^docker:" /etc/group || /usr/sbin/addgroup --system docker || true
 /sbin/start docker
 EOF
 	cat >/tmp/prerm <<EOF
 #!/bin/sh
 /sbin/stop docker || true
+/usr/sbin/delgroup docker || true
 EOF
 	chmod +x /tmp/postinstall /tmp/prerm
 
