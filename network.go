@@ -170,6 +170,10 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 		}
+		// Prevent inter-container communication by default
+		if err := iptables.Raw("-A", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"); err != nil {
+			return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+		}
 	}
 	return nil
 }
