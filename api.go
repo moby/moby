@@ -510,7 +510,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
@@ -530,7 +530,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 
-	if srv.runtime.capabilities.IPv4ForwardingDisabled {
+	if !config.NetworkDisabled && srv.runtime.capabilities.IPv4ForwardingDisabled {
 		log.Println("Warning: IPv4 forwarding is disabled.")
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
