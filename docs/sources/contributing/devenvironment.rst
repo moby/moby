@@ -44,7 +44,7 @@ When you are ready to build docker, run this command:
 
     sudo docker build -t docker .
 
-This will build a container using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test docker. This command will take some time to complete when you execute it.
+This will build a container using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test docker. This command will take some time to complete when you first execute it.
 
 
 If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated in a standard build environment. 
