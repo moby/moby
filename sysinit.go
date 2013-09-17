@@ -3,8 +3,10 @@ package docker
 import (
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strconv"
@@ -17,7 +19,14 @@ func setupNetworking(gw string) {
 	if gw == "" {
 		return
 	}
-	if _, err := ip("route", "add", "default", "via", gw); err != nil {
+
+	ip := net.ParseIP(gw)
+	if ip == nil {
+		log.Fatalf("Unable to set up networking, %s is not a valid IP", gw)
+		return
+	}
+
+	if err := netlink.AddDefaultGw(ip); err != nil {
 		log.Fatalf("Unable to set up networking: %v", err)
 	}
 }
