@@ -122,9 +122,9 @@ type APICopy struct {
 }
 
 type APILink struct {
+	ID    string
 	To    string
 	From  string
-	IP    string
 	Port  string
 	Alias string
 }
