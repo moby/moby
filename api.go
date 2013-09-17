@@ -993,7 +993,6 @@ func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.R
 			ID:    l.ID(),
 			To:    l.ToID,
 			From:  l.FromID,
-			Port:  fmt.Sprint(l.Port),
 			Alias: l.Alias,
 		})
 	}
