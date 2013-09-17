@@ -16,7 +16,7 @@ Step 1: Install Docker
 ----------------------
 
 Docker's build environment itself is a Docker container, so the first
-step is to install docker on your system.
+step is to install Docker on your system.
 
 You can follow the `install instructions most relevant to your system
 <https://docs.docker.io/en/latest/installation/>`_.  Make sure you have
@@ -35,8 +35,8 @@ Step 2: Check out the Source
 To checkout a different revision just use ``git checkout`` with the name of branch or revision number.
 
 
-Step 3: Build
--------------
+Step 3: Build Docker
+---------------------
 
 When you are ready to build docker, run this command:
 
@@ -44,13 +44,23 @@ When you are ready to build docker, run this command:
 
     sudo docker build -t docker .
 
-This will build a container using the Docketfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test docker. The first time you execute this command it will take sometime for 
+This will build a container using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test docker. This command will take some time to complete when you execute it.
 
 
-If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated in a standard build environment.
+If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated in a standard build environment. 
 
 
-Step 4: Use Docker
+Step 4: Testing the Docker Build
+---------------------------------
+
+If you have successfully complete the previous steps then you can test the Docker build by executing the following command
+
+::
+
+	sudo docker run -lxc-conf=lxc.aa_profile=unconfined -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh test
+
+
+Step 5: Use Docker
 -------------------
 
 You can run an interactive session in the newly built container: 
@@ -68,3 +78,8 @@ To extract the binaries from the container:
 
     sudo docker run docker sh -c 'cat $(which docker)' > docker-build && chmod +x docker-build
 
+
+Need More Help?
+===============
+
+If you need more help then hop on to the #docker-dev IRC channel.
