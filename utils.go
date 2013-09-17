@@ -284,7 +284,7 @@ func migratePortMappings(config *Config) error {
 }
 
 // Links come in the format of
-// id:port:alias
+// id:alias
 func parseLink(rawLink string) (map[string]string, error) {
-	return utils.PartParser("id:port:alias", rawLink)
+	return utils.PartParser("id:alias", rawLink)
 }

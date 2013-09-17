@@ -1112,8 +1112,8 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) CmdLink(args ...string) error {
-	cmd := Subcmd("link", "[OPTIONS] CONTAINER", "Get the links for a container")
+func (cli *DockerCli) CmdLinks(args ...string) error {
+	cmd := Subcmd("links", "[OPTIONS] CONTAINER", "Get the links for a container")
 	flRm := cmd.Bool("rm", false, "Remove an existing link by the link ID")
 
 	if err := cmd.Parse(args); err != nil {
@@ -1143,10 +1143,10 @@ func (cli *DockerCli) CmdLink(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 
-	fmt.Fprintf(w, "ID\tFROM\tTO\tPORT\tALIAS")
+	fmt.Fprintf(w, "ID\tFROM\tTO\tALIAS")
 	fmt.Fprintf(w, "\n")
 	for _, l := range links {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s", l.ID, l.From, l.To, l.Port, l.Alias)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s", l.ID, l.From, l.To, l.Alias)
 		fmt.Fprintf(w, "\n")
 	}
 	w.Flush()

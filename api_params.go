@@ -125,6 +125,5 @@ type APILink struct {
 	ID    string
 	To    string
 	From  string
-	Port  string
 	Alias string
 }
