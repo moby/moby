@@ -6,6 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="UxV66EKuPe87dgnH1sbrldrx6VsoWMrx5NjwkgUFxXI" />
 
     <title>{{ meta['title'] if meta and meta['title'] else title }} - Docker Documentation</title>
@@ -110,6 +111,9 @@
 
         <div class="span3 sidebar bs-docs-sidebar">
             {{ toctree(collapse=False, maxdepth=3) }}
+	    <form>
+	      <input type="text" id="st-search-input" class="st-search-input span3" style="width:160px;" />
+	    </form>
         </div>
 
         <!-- body block -->
@@ -120,6 +124,26 @@
             <section id="global" class="containerblock">
                 {% block body %}{% endblock %}
             </section>
+
+	    <!-- Swiftype search -->
+	    <div id="st-results-container"></div>
+	    <script type="text/javascript">
+	      var Swiftype = window.Swiftype || {};
+	      (function() {
+	      Swiftype.key = 'pWPnnyvwcfpcrw1o51Sz';
+	      Swiftype.inputElement = '#st-search-input';
+	      Swiftype.resultContainingElement = '#st-results-container';
+	      Swiftype.attachElement = '#st-search-input';
+	      Swiftype.renderStyle = "overlay";
+
+	      var script = document.createElement('script');
+	      script.type = 'text/javascript';
+	      script.async = true;
+	      script.src = "//swiftype.com/embed.js";
+	      var entry = document.getElementsByTagName('script')[0];
+	      entry.parentNode.insertBefore(script, entry);
+	      }());
+	    </script>
 
         </div>
     </div>
@@ -212,7 +236,9 @@
         }
 
         // attached handler on click
-        $('.sidebar > ul > li > a').not(':last').click(function(){
+        // Do not attach to first element or last (intro, faq) so that
+        // first and last link directly instead of accordian
+        $('.sidebar > ul > li > a').not(':last').not(':first').click(function(){
 
             var index = $.inArray(this.href, openmenus)
 

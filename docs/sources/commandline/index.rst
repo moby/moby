@@ -17,11 +17,13 @@ Contents:
   commit  <command/commit>
   cp      <command/cp>
   diff    <command/diff>
+  events  <command/events>
   export  <command/export>
   history <command/history>
   images  <command/images>
   import  <command/import>
   info    <command/info>
+  insert  <command/insert>
   inspect <command/inspect>
   kill    <command/kill>
   login   <command/login>

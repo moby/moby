@@ -431,3 +431,57 @@ func TestRmi(t *testing.T) {
 		}
 	}
 }
+
+func TestImagesFilter(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	if err := srv.runtime.repositories.Set("utest", "tag1", unitTestImageName, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := srv.runtime.repositories.Set("utest/docker", "tag2", unitTestImageName, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.runtime.repositories.Set("utest:5000/docker", "tag3", unitTestImageName, false); err != nil {
+		t.Fatal(err)
+	}
+
+	images, err := srv.Images(false, "utest*/*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 2 {
+		t.Fatal("incorrect number of matches returned")
+	}
+
+	images, err = srv.Images(false, "utest")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 1 {
+		t.Fatal("incorrect number of matches returned")
+	}
+
+	images, err = srv.Images(false, "utest*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 1 {
+		t.Fatal("incorrect number of matches returned")
+	}
+
+	images, err = srv.Images(false, "*5000*/*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != 1 {
+		t.Fatal("incorrect number of matches returned")
+	}
+}

@@ -122,6 +122,13 @@ What does Docker add to just plain LXC?
       (Jenkins, Strider, Travis), etc. Docker is rapidly establishing
       itself as the standard for container-based tooling.
 
+Do I lose my data when the container exits?
+...........................................
+
+Not at all! Any data that your application writes to disk gets preserved
+in its container until you explicitly delete the container. The file
+system for the container persists even after the container halts.
+
 Can I help by adding some questions and answers?
 ................................................
 

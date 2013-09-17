@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# DinD: a wrapper script which allows docker to be run inside a docker container.
+# Original version by Jerome Petazzoni <jerome@dotcloud.com>
+# See the blog post: http://blog.docker.io/2013/09/docker-can-now-run-within-docker/
+#
+# This script should be executed inside a docker container in privilieged mode
+# ('docker run -privileged', introduced in docker 0.6).
+
+# Usage: dind CMD [ARG...]
+
+# First, make sure that cgroups are mounted correctly.
+CGROUP=/sys/fs/cgroup
+
+[ -d $CGROUP ] || 
+	mkdir $CGROUP
+
+mountpoint -q $CGROUP || 
+	mount -n -t tmpfs -o uid=0,gid=0,mode=0755 cgroup $CGROUP || {
+		echo "Could not make a tmpfs mount. Did you use -privileged?"
+		exit 1
+	}
+
+# Mount the cgroup hierarchies exactly as they are in the parent system.
+for SUBSYS in $(cut -d: -f2 /proc/1/cgroup)
+do
+	[ -d $CGROUP/$SUBSYS ] || mkdir $CGROUP/$SUBSYS
+	mountpoint -q $CGROUP/$SUBSYS || 
+		mount -n -t cgroup -o $SUBSYS cgroup $CGROUP/$SUBSYS
+done
+
+# Note: as I write those lines, the LXC userland tools cannot setup
+# a "sub-container" properly if the "devices" cgroup is not in its
+# own hierarchy. Let's detect this and issue a warning.
+grep -q :devices: /proc/1/cgroup ||
+	echo "WARNING: the 'devices' cgroup should be in its own hierarchy."
+grep -qw devices /proc/1/cgroup ||
+	echo "WARNING: it looks like the 'devices' cgroup is not mounted."
+
+# Now, close extraneous file descriptors.
+pushd /proc/self/fd
+for FD in *
+do
+	case "$FD" in
+	# Keep stdin/stdout/stderr
+	[012])
+		;;
+	# Nuke everything else
+	*)
+		eval exec "$FD>&-"
+		;;
+	esac
+done
+popd
+
+# Mount /tmp
+mount -t tmpfs none /tmp
+
+exec $*

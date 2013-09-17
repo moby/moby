@@ -32,11 +32,13 @@ Available Commands
    command/commit
    command/cp
    command/diff
+   command/events
    command/export
    command/history
    command/images
    command/import
    command/info
+   command/insert
    command/inspect
    command/kill
    command/login

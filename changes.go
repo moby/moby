@@ -99,7 +99,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		changes = append(changes, change)
 		return nil
 	})
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return changes, nil
