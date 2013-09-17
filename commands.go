@@ -1141,7 +1141,7 @@ func displayablePorts(ports []APIPort) string {
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
-	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
+	cmd := Subcmd("ps", "[OPTIONS] [IMAGENAME]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	size := cmd.Bool("s", false, "Display sizes")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
@@ -1172,6 +1172,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	if *size {
 		v.Set("size", "1")
+	}
+	if cmd.NArg() > 0 {
+		v.Set("imageFilter", cmd.Arg(0))
 	}
 
 	body, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil)
