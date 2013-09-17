@@ -96,6 +96,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
+		{"links", "View and modify links to running containers"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
@@ -1115,6 +1116,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 func (cli *DockerCli) CmdLinks(args ...string) error {
 	cmd := Subcmd("links", "[OPTIONS] CONTAINER", "Get the links for a container")
 	flRm := cmd.Bool("rm", false, "Remove an existing link by the link ID")
+	flAll := cmd.Bool("a", false, "Display all registered and active links")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
@@ -1125,6 +1127,10 @@ func (cli *DockerCli) CmdLinks(args ...string) error {
 
 	if *flRm {
 		v.Set("rm", "1")
+	}
+
+	if *flAll {
+		v.Set("all", "1")
 	}
 
 	body, statusCode, err := cli.call("GET", "/links/json?"+v.Encode(), nil)

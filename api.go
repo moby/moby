@@ -961,8 +961,13 @@ func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	out := []APILink{}
 	name := r.FormValue("name")
 	rawRm := r.FormValue("rm")
+	rawAll := r.FormValue("all")
 
 	rm, err := getBoolParam(rawRm)
+	if err != nil {
+		return err
+	}
+	all, err := getBoolParam(rawAll)
 	if err != nil {
 		return err
 	}
@@ -979,15 +984,20 @@ func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-	if name == "" {
-		return fmt.Errorf("Name cannot be empty for link")
+	var links []*Link
+	if all {
+		links = srv.runtime.links.GetAll()
+	} else {
+		if name == "" {
+			return fmt.Errorf("Name cannot be empty for link")
+		}
+		container := srv.runtime.Get(name)
+		if container == nil {
+			return fmt.Errorf("Container not found %s", name)
+		}
+		links = srv.runtime.links.Get(container)
 	}
 
-	container := srv.runtime.Get(name)
-	if container == nil {
-		return fmt.Errorf("Container not found %s", name)
-	}
-	links := srv.runtime.links.Get(container)
 	for _, l := range links {
 		out = append(out, APILink{
 			ID:    l.ID(),
