@@ -63,6 +63,22 @@ func Debugf(format string, a ...interface{}) {
 	}
 }
 
+// Error function
+// Behaves exactly like the Debugf function, but does not require debug flag
+// Used for reporting error information and sending error info on the socket
+func Errorf(format string, a ...interface{}) {
+	// Retrieve the stack infos
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		file = "<unknown>"
+		line = -1
+	} else {
+		file = file[strings.LastIndex(file, "/")+1:]
+	}
+
+	fmt.Fprintf(os.Stderr, fmt.Sprintf("[error] %s:%d %s\n", file, line, format), a...)
+}
+
 // Reader with progress bar
 type progressReader struct {
 	reader       io.ReadCloser // Stream to read from
