@@ -453,11 +453,6 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 		}
 	}
 	runtime.UpdateCapabilities(false)
-	links, err := NewLinkRepository("")
-	if err != nil {
-		return nil, err
-	}
-	runtime.links = links
 	return runtime, nil
 }
 
@@ -487,6 +482,11 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	links, err := NewLinkRepository("")
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -497,6 +497,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		capabilities:   &Capabilities{},
 		volumes:        volumes,
 		config:         config,
+		links:          links,
 	}
 
 	if err := runtime.restore(); err != nil {
