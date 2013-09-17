@@ -983,7 +983,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		}
 
 		if err := handlerFunc(srv, version, w, r, mux.Vars(r)); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 			httpError(w, err)
 		}
 	}
