@@ -197,10 +197,3 @@ done:
 
 	return nil
 }
-
-func main() {
-	ip := net.ParseIP("172.31.0.1")
-	fmt.Println("ip:", len(ip))
-	err := AddDefaultGw(ip)
-	fmt.Println("res:", err)
-}
