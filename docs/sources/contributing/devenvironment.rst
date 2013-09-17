@@ -12,7 +12,7 @@ environment defines all build dependencies: system libraries and
 binaries, go environment, go dependencies, etc.
 
 
-Step 1: install docker
+Step 1: Install Docker
 ----------------------
 
 Docker's build environment itself is a Docker container, so the first
@@ -24,7 +24,7 @@ a working, up-to-date docker installation, then continue to the next
 step.
 
 
-Step 2: check out the source
+Step 2: Check out the Source
 ----------------------------
 
 ::
@@ -32,8 +32,10 @@ Step 2: check out the source
     git clone http://git@github.com/dotcloud/docker
     cd docker
 
+To checkout a different revision just use ``git checkout`` with the name of branch or revision number.
 
-Step 3: build
+
+Step 3: Build
 -------------
 
 When you are ready to build docker, run this command:
@@ -42,17 +44,22 @@ When you are ready to build docker, run this command:
 
     sudo docker build -t docker .
 
-This will build the revision currently checked out in the
-repository. Feel free to check out the version of your choice.
+This will build a container using the Docketfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test docker. The first time you execute this command it will take sometime for 
 
-If the build is successful, congratulations! You have produced a clean
-build of docker, neatly encapsulated in a standard build environment.
 
-You can run an interactive session in the newly built container:
+If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated in a standard build environment.
+
+
+Step 4: Use Docker
+-------------------
+
+You can run an interactive session in the newly built container: 
 
 ::
 
-    sudo docker run -i -t docker bash
+	sudo docker run -privileged -i -t docker bash
+
+To exit the interactive session simply type ``exit``.
 
 
 To extract the binaries from the container:
