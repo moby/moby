@@ -960,10 +960,42 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	out := []APILink{}
 	name := r.FormValue("name")
+	rawRm := r.FormValue("rm")
 
-	links := srv.runtime.links.Get(name)
+	rm, err := getBoolParam(rawRm)
+	if err != nil {
+		return err
+	}
+
+	if rm {
+		link := srv.runtime.links.GetById(name)
+		if link != nil {
+			if err := srv.runtime.links.removeLink(link); err != nil {
+				return err
+			}
+			w.WriteHeader(http.StatusOK)
+			return nil
+		}
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+	if name == "" {
+		return fmt.Errorf("Name cannot be empty for link")
+	}
+
+	container := srv.runtime.Get(name)
+	if container == nil {
+		return fmt.Errorf("Container not found %s", name)
+	}
+	links := srv.runtime.links.Get(container)
 	for _, l := range links {
-		out = append(out, APILink{l.To, l.From, l.IP, fmt.Sprint(l.Port), l.Alias})
+		out = append(out, APILink{
+			ID:    l.ID(),
+			To:    l.ToID,
+			From:  l.FromID,
+			Port:  fmt.Sprint(l.Port),
+			Alias: l.Alias,
+		})
 	}
 
 	w.Header().Add("Content-Type", "application/json")

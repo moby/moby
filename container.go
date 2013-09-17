@@ -91,7 +91,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
 	PortBindings    map[Port][]PortBinding
-	Links           []Link
+	Links           []string
 }
 
 type BindMap struct {
@@ -265,11 +265,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
-	links, err := parseLinks(flLinks)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-
 	config := &Config{
 		Hostname:        *flHostname,
 		Domainname:      domainname,
@@ -300,7 +295,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
 		PortBindings:    portBindings,
-		Links:           links,
+		Links:           flLinks,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -827,21 +822,31 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-e", "HOSTNAME="+container.Config.Hostname,
 	)
 
-	if hostConfig != nil && hostConfig.Links != nil {
+	if !container.Config.NetworkDisabled && hostConfig != nil && hostConfig.Links != nil {
 		runtime := container.runtime
 		for _, l := range hostConfig.Links {
-			linkedContainer := runtime.Get(l.From)
+			parts, err := parseLink(l)
+			if err != nil {
+				return err
+			}
+			p := NewPort(splitProtoPort(parts["port"]))
+			linkedContainer := runtime.Get(parts["id"])
 
-			if linkedContainer == nil {
-				return fmt.Errorf("Cannot locate container for link: %s AS %s", l.From, l.Alias)
-			}
-			if err := linkedContainer.AcceptLink(l); err != nil {
+			link, err := runtime.links.NewLink(container, linkedContainer, runtime.networkManager.bridgeIface, p, parts["alias"])
+			if err != nil {
 				return err
 			}
-			if err := container.Link(linkedContainer, &l); err != nil {
+
+			if err := link.Enable(); err != nil {
+				// If we encounter an err, make sure we remove all links
+				for _, registeredLinks := range runtime.links.Get(container) {
+					runtime.links.removeLink(registeredLinks)
+				}
 				return err
 			}
-			params = append(params, "-e", l.ToEnv())
+			for _, envVar := range link.ToEnv() {
+				params = append(params, "-e", envVar)
+			}
 		}
 	}
 
@@ -1080,6 +1085,13 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 
 	// Cleanup
 	container.releaseNetwork()
+
+	//Destroy all links
+	runtime := container.runtime
+	for _, link := range runtime.links.Get(container) {
+		runtime.links.removeLink(link)
+	}
+
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			utils.Debugf("%s: Error close stdin: %s", container.ID, err)
@@ -1368,26 +1380,6 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		basePath = path.Dir(basePath)
 	}
 	return TarFilter(basePath, Uncompressed, filter)
-}
-
-func (container *Container) AcceptLink(l Link) error {
-	if !container.State.Running {
-		return fmt.Errorf("Cannot accept link on a non running container: %s AS %s", l.From, l.Alias)
-	}
-	if !container.Exposes(l.Port) {
-		return fmt.Errorf("Cannot accept link to %s because %s is not exposed", container.ID, l.Port)
-	}
-	return nil
-}
-
-func (container *Container) Link(c *Container, l *Link) error {
-	l.To = utils.TruncateID(container.ID)
-	l.IP = c.NetworkSettings.IPAddress
-
-	if err := container.runtime.links.RegisterLink(*l); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Returns true if the container exposes a certain port
