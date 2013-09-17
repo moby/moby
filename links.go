@@ -15,9 +15,9 @@ type Link struct {
 	FromIP          string
 	ToIP            string
 	BridgeInterface string
-	Port            Port
 	Alias           string
 	FromEnvironment []string
+	ports           []Port
 	isEnabled       bool
 }
 
@@ -25,22 +25,25 @@ type LinkRepository struct {
 	links map[string]*Link
 }
 
-func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, p Port, alias string) (*Link, error) {
+func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, alias string) (*Link, error) {
 	if !from.State.Running {
 		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", from.ID, alias)
 	}
-	if !from.Exposes(p) {
-		return nil, fmt.Errorf("Cannot link to %s because %s is not exposed", from.ID, p)
+	ports := make([]Port, len(from.Config.ExposedPorts))
+	var i int
+	for k := range from.Config.ExposedPorts {
+		ports[i] = k
+		i++
 	}
 	l := &Link{
 		FromID:          utils.TruncateID(from.ID),
 		ToID:            utils.TruncateID(to.ID),
 		BridgeInterface: bridgeInterface,
 		Alias:           alias,
-		Port:            p,
 		FromIP:          from.NetworkSettings.IPAddress,
 		ToIP:            to.NetworkSettings.IPAddress,
 		FromEnvironment: from.Config.Env,
+		ports:           ports,
 	}
 	if err := r.registerLink(l); err != nil {
 		return nil, err
@@ -53,7 +56,12 @@ func (l *Link) ID() string {
 }
 
 func (l *Link) ToEnv() []string {
-	env := []string{fmt.Sprintf("%s_ADDR=%s://%s:%s", strings.ToUpper(l.Alias), l.Port.Proto(), l.FromIP, l.Port.Port())}
+	env := []string{}
+	// Load exposed ports into the environment
+	for _, p := range l.ports {
+		env = append(env, fmt.Sprintf("%s_%s_ADDR=%s://%s:%s", strings.ToUpper(l.Alias), p.Port(), p.Proto(), l.FromIP, p.Port()))
+	}
+
 	if l.FromEnvironment != nil {
 		for _, v := range l.FromEnvironment {
 			parts := strings.Split(v, "=")
@@ -83,24 +91,26 @@ func (l *Link) Disable() {
 }
 
 func (l *Link) toggle(action string) error {
-	if err := iptables.Raw(action, "FORWARD",
-		"-i", l.BridgeInterface, "-o", l.BridgeInterface,
-		"-p", l.Port.Proto(),
-		"-s", l.ToIP,
-		"--dport", l.Port.Port(),
-		"-d", l.FromIP,
-		"-j", "ACCEPT"); err != nil {
-		return err
-	}
+	for _, p := range l.ports {
+		if err := iptables.Raw(action, "FORWARD",
+			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
+			"-p", p.Proto(),
+			"-s", l.ToIP,
+			"--dport", p.Port(),
+			"-d", l.FromIP,
+			"-j", "ACCEPT"); err != nil {
+			return err
+		}
 
-	if err := iptables.Raw(action, "FORWARD",
-		"-i", l.BridgeInterface, "-o", l.BridgeInterface,
-		"-p", l.Port.Proto(),
-		"-s", l.FromIP,
-		"--sport", l.Port.Port(),
-		"-d", l.ToIP,
-		"-j", "ACCEPT"); err != nil {
-		return err
+		if err := iptables.Raw(action, "FORWARD",
+			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
+			"-p", p.Proto(),
+			"-s", l.FromIP,
+			"--sport", p.Port(),
+			"-d", l.ToIP,
+			"-j", "ACCEPT"); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -181,7 +181,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	var flLinks ListOpts
-	cmd.Var(&flLinks, "link", "Add link to another container (containerid:port:alias)")
+	cmd.Var(&flLinks, "link", "Add link to another container (containerid:alias)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -829,10 +829,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			if err != nil {
 				return err
 			}
-			p := NewPort(splitProtoPort(parts["port"]))
 			linkedContainer := runtime.Get(parts["id"])
 
-			link, err := runtime.links.NewLink(container, linkedContainer, runtime.networkManager.bridgeIface, p, parts["alias"])
+			link, err := runtime.links.NewLink(container, linkedContainer, runtime.networkManager.bridgeIface, parts["alias"])
 			if err != nil {
 				return err
 			}
