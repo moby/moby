@@ -132,6 +132,17 @@ func (l *LinkRepository) Get(c *Container) []*Link {
 	return out
 }
 
+// Return all links in the repository
+func (l *LinkRepository) GetAll() []*Link {
+	out := make([]*Link, len(l.links))
+	var i int
+	for _, link := range l.links {
+		out[i] = link
+		i++
+	}
+	return out
+}
+
 // Get a link based on the link's ID
 func (l *LinkRepository) GetById(id string) *Link {
 	return l.links[id]
