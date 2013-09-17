@@ -285,28 +285,6 @@ func migratePortMappings(config *Config) error {
 
 // Links come in the format of
 // id:port:alias
-func parseLink(rawLink string) (Link, error) {
-	parts, err := utils.PartParser("id:port:alias", rawLink)
-	if err != nil {
-		return Link{}, err
-	}
-	port := NewPort(splitProtoPort(parts["port"]))
-
-	return Link{
-		From:  parts["id"],
-		Alias: parts["alias"],
-		Port:  port,
-	}, nil
-}
-
-func parseLinks(rawLinks []string) ([]Link, error) {
-	out := make([]Link, len(rawLinks))
-	for i, l := range rawLinks {
-		link, err := parseLink(l)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = link
-	}
-	return out, nil
+func parseLink(rawLink string) (map[string]string, error) {
+	return utils.PartParser("id:port:alias", rawLink)
 }
