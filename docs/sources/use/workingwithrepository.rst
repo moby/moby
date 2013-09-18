@@ -52,31 +52,58 @@ repositories in these examples.
 * User images are not checked, it is therefore up to you whether or
   not you trust the creator of this image.
 
-Find public images available on the Central Index
--------------------------------------------------
+.. _searching_central_index:
 
-Search by name, namespace or description
+Find Public Images on the Central Index
+---------------------------------------
 
-.. code-block:: bash
-
-    sudo docker search <value>
-
-
-Download them simply by their name
+You can search the Central Index `online <https://index.docker.io>`_
+or by the CLI. Searching can find images by name, user name or
+description:
 
 .. code-block:: bash
 
-    sudo docker pull <value>
+    $ sudo docker help search
+    Usage: docker search NAME
 
+    Search the docker index for images
 
-Very similarly you can search for and browse the index online on
-https://index.docker.io
+      -notrunc=false: Don't truncate output
+    $ sudo docker search centos
+    Found 25 results matching your query ("centos")
+    NAME                             DESCRIPTION
+    centos                           
+    slantview/centos-chef-solo       CentOS 6.4 with chef-solo.
+    ...
 
+There you can see two example results: ``centos`` and
+``slantview/centos-chef-solo``. The second result shows that it comes
+from the public repository of a user, ``slantview/``, while the first
+result (``centos``) doesn't explicitly list a repository so it comes
+from the trusted Central Repository. The ``/`` character separates a
+user's repository and the image name.
 
-Connecting to the Central Registry
-----------------------------------
+Once you have found the image name, you can download it:
 
-You can create a user on the central Docker Index online, or by running
+.. code-block:: bash
+
+    # sudo docker pull <value>
+    $ sudo docker pull centos
+    Pulling repository centos
+    539c0211cd76: Download complete
+
+What can you do with that image? Check out the :ref:`example_list`
+and, when you're ready with your own image, come back here to learn
+how to share it.
+
+Contributing to the Central Registry
+------------------------------------
+
+Anyone can pull public images from the Central Registry, but if you
+would like to share one of your own images, then you must register a
+unique user name first. You can create your username and login on the
+`central Docker Index online
+<https://index.docker.io/account/signup/>`_, or by running
 
 .. code-block:: bash
 
@@ -85,22 +112,27 @@ You can create a user on the central Docker Index online, or by running
 This will prompt you for a username, which will become a public
 namespace for your public repositories.
 
-If your username does not exist it will prompt you to also enter a
-password and your e-mail address. It will then automatically log you
-in.
+If your username is available then ``docker`` will also prompt you to
+enter a password and your e-mail address. It will then automatically
+log you in. Now you're ready to commit and push your own images!
 
 .. _container_commit:
 
-Committing a container to a named image
+Committing a Container to a Named Image
 ---------------------------------------
 
-In order to commit to the repository it is required to have committed
-your container to an image within your username namespace.
+When you make changes to an existing image, those changes get saved to
+a container's file system. You can then promote that container to
+become an image by making a ``commit``. In addition to converting the
+container to an image, this is also your opportunity to name the
+image, specifically a name that includes your user name from the
+Central Docker Index (as you did a ``login`` above) and a meaningful
+name for the image.
 
 .. code-block:: bash
 
-    # for example docker commit $CONTAINER_ID dhrp/kickassapp
-    sudo docker commit <container_id> <username>/<repo_name>
+    # format is "sudo docker commit <container_id> <username>/<imagename>"
+    $ sudo docker commit $CONTAINER_ID myname/kickassapp
 
 .. _image_push:
 
@@ -115,15 +147,15 @@ or tag.
 
 .. code-block:: bash
 
-    # for example docker push dhrp/kickassapp
-    sudo docker push <username>/<repo_name>
+    # format is "docker push <username>/<repo_name>"
+    $ sudo docker push myname/kickassapp
 
 .. _using_private_repositories:
 
 Private Repositories
 --------------------
 
-Right now (version 0.5), private repositories are only possible by
+Right now (version 0.6), private repositories are only possible by
 hosting `your own registry
 <https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
 repository on your own registry, you must prefix the tag with the
