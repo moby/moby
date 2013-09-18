@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.2 (2013-09-17)
++ Hack: Vendor all dependencies
++ Builder: Add -rm option in order to remove intermediate containers
++ Runtime: Add domainname support
++ Runtime: Implement image filtering with path.Match
+* Builder: Allow multiline for the RUN instruction
+* Runtime: Remove unnecesasry warnings
+* Runtime: Only mount the hostname file when the config exists
+* Runtime: Handle signals within the `docker login` command
+* Runtime: Remove os/user dependency
+* Registry: Implement login with private registry
+* Remote API: Bump to v1.5
+* Packaging: Break down hack/make.sh into small scripts, one per 'bundle': test, binary, ubuntu etc.
+* Documentation: General improvments
+- Runtime: UID and GID are now also applied to volumes
+- Runtime: `docker start` set error code upon error
+- Runtime: `docker run` set the same error code as the process started
+- Registry: Fix push issues
+
 ## 0.6.1 (2013-08-23)
 * Registry: Pass "meta" headers in API calls to the registry
 - Packaging: Use correct upstart script with new build tool

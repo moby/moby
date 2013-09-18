@@ -119,6 +119,7 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
+		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -223,6 +224,7 @@ Inspect a container
 
 	:statuscode 200: no error
 	:statuscode 404: no such container
+	:statuscode 409: conflict between containers and images
 	:statuscode 500: server error
 
 
@@ -357,7 +359,7 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}]
            }
 
         **Example response**:
@@ -368,7 +370,7 @@ Start a container
            Content-Type: text/plain
 
         :jsonparam hostConfig: the container's host configuration (optional)
-        :statuscode 200: no error
+        :statuscode 204: no error
         :statuscode 404: no such container
         :statuscode 500: server error
 
@@ -679,8 +681,8 @@ Create an image
         :statuscode 500: server error
 
 
-Insert a file in a image
-************************
+Insert a file in an image
+*************************
 
 .. http:post:: /images/(name)/insert
 
@@ -759,7 +761,8 @@ Inspect an image
 
 	:statuscode 200: no error
 	:statuscode 404: no such image
-        :statuscode 500: server error
+	:statuscode 409: conflict between containers and images
+	:statuscode 500: server error
 
 
 Get the history of an image
@@ -990,7 +993,8 @@ Check auth configuration
 	   {
 		"username":"hannibal",
 		"password:"xxxx",
-		"email":"hannibal@a-team.com"
+		"email":"hannibal@a-team.com",
+		"serveraddress":"https://index.docker.io/v1/"
 	   }
 
         **Example response**:
@@ -1082,7 +1086,7 @@ Create a new image from a container's changes
 
         POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
 
-        **Example response**:
+    **Example response**:
 
     .. sourcecode:: http
 
@@ -1091,15 +1095,15 @@ Create a new image from a container's changes
 
         {"Id":"596069db4bf5"}
 
-	:query container: source container
-	:query repo: repository
-	:query tag: tag
-	:query m: commit message
-	:query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
-	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
-        :statuscode 201: no error
-	:statuscode 404: no such container
-        :statuscode 500: server error
+    :query container: source container
+    :query repo: repository
+    :query tag: tag
+    :query m: commit message
+    :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
+    :statuscode 201: no error
+    :statuscode 404: no such container
+    :statuscode 500: server error
 
 
 Monitor Docker's events

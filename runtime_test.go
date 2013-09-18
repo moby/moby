@@ -50,7 +50,7 @@ func cleanup(runtime *Runtime) error {
 		container.Kill()
 		runtime.Destroy(container)
 	}
-	images, err := runtime.graph.All()
+	images, err := runtime.graph.Map()
 	if err != nil {
 		return err
 	}
@@ -72,6 +72,8 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 func init() {
+	os.Setenv("TEST", "1")
+
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		SysInit()
@@ -121,13 +123,13 @@ func init() {
 // FIXME: test that ImagePull(json=true) send correct json output
 
 func GetTestImage(runtime *Runtime) *Image {
-	imgs, err := runtime.graph.All()
+	imgs, err := runtime.graph.Map()
 	if err != nil {
 		panic(err)
 	}
-	for i := range imgs {
-		if imgs[i].ID == unitTestImageID {
-			return imgs[i]
+	for _, image := range imgs {
+		if image.ID == unitTestImageID {
+			return image
 		}
 	}
 	panic(fmt.Errorf("Test image %v not found", unitTestImageID))
@@ -142,9 +144,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
 
-	builder := NewBuilder(runtime)
-
-	container, err := builder.Create(&Config{
+	container, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -185,7 +185,7 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// Make sure crete with bad parameters returns an error
-	_, err = builder.Create(
+	_, err = runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 		},
@@ -194,7 +194,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
-	_, err = builder.Create(
+	_, err = runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
@@ -208,7 +208,7 @@ func TestRuntimeCreate(t *testing.T) {
 func TestDestroy(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := NewBuilder(runtime).Create(&Config{
+	container, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -294,7 +294,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
 		t.Log("Trying port", strPort)
-		container, err = NewBuilder(runtime).Create(&Config{
+		container, err = runtime.Create(&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"sh", "-c", cmd},
 			PortSpecs: []string{fmt.Sprintf("%s/%s", strPort, proto)},

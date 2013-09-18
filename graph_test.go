@@ -20,11 +20,11 @@ func TestInit(t *testing.T) {
 	if _, err := os.Stat(graph.Root); err != nil {
 		t.Fatal(err)
 	}
-	// All() should be empty
-	if l, err := graph.All(); err != nil {
+	// Map() should be empty
+	if l, err := graph.Map(); err != nil {
 		t.Fatal(err)
 	} else if len(l) != 0 {
-		t.Fatalf("List() should return %d, not %d", 0, len(l))
+		t.Fatalf("len(Map()) should return %d, not %d", 0, len(l))
 	}
 }
 
@@ -76,10 +76,14 @@ func TestGraphCreate(t *testing.T) {
 	if image.DockerVersion != VERSION {
 		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", VERSION, image.DockerVersion)
 	}
-	if images, err := graph.All(); err != nil {
+	images, err := graph.Map()
+	if err != nil {
 		t.Fatal(err)
 	} else if l := len(images); l != 1 {
 		t.Fatalf("Wrong number of images. Should be %d, not %d", 1, l)
+	}
+	if images[image.ID] == nil {
+		t.Fatalf("Could not find image with id %s", image.ID)
 	}
 }
 
@@ -99,7 +103,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if images, err := graph.All(); err != nil {
+	if images, err := graph.Map(); err != nil {
 		t.Fatal(err)
 	} else if l := len(images); l != 1 {
 		t.Fatalf("Wrong number of images. Should be %d, not %d", 1, l)
@@ -274,7 +278,7 @@ func TestByParent(t *testing.T) {
 }
 
 func assertNImages(graph *Graph, t *testing.T, n int) {
-	if images, err := graph.All(); err != nil {
+	if images, err := graph.Map(); err != nil {
 		t.Fatal(err)
 	} else if actualN := len(images); actualN != n {
 		t.Fatalf("Expected %d images, found %d", n, actualN)

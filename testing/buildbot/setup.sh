@@ -36,6 +36,9 @@ run "sed -i -E 's#(SMTP_PWD = ).+#\1\"$SMTP_PWD\"#' master/master.cfg"
 run "sed -i -E 's#(EMAIL_RCP = ).+#\1\"$EMAIL_RCP\"#' master/master.cfg"
 run "buildslave create-slave slave $SLAVE_SOCKET $SLAVE_NAME $BUILDBOT_PWD"
 
+# Patch github webstatus to capture pull requests
+cp $CFG_PATH/github.py /usr/local/lib/python2.7/dist-packages/buildbot/status/web/hooks
+
 # Allow buildbot subprocesses (docker tests) to properly run in containers,
 # in particular with docker -u
 run "sed -i 's/^umask = None/umask = 000/' slave/buildbot.tac"

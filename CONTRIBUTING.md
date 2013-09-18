@@ -23,7 +23,7 @@ that feature *on top of* docker.
 ### Discuss your design on the mailing list
 
 We recommend discussing your plans [on the mailing
-list](https://groups.google.com/forum/?fromgroups#!forum/docker-club)
+list](https://groups.google.com/forum/?fromgroups#!forum/docker-dev)
 before starting to code - especially for more ambitious contributions.
 This gives other contributors a chance to point you in the right
 direction, give feedback on your design, and maybe point out if someone

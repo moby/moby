@@ -34,3 +34,4 @@ to put them - so we put them here :)
 * entry point config
 * bring back git revision info, looks like it was lost
 * Clean up the ProgressReader api, it's a PITA to use
+* Use netlink instead of iproute2/iptables (#925)

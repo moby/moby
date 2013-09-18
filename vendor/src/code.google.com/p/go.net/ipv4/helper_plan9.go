@@ -1,0 +1,27 @@
+// Copyright 2012 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package ipv4
+
+import "syscall"
+
+func (c *genericOpt) sysfd() (int, error) {
+	// TODO(mikio): Implement this
+	return 0, syscall.EPLAN9
+}
+
+func (c *dgramOpt) sysfd() (int, error) {
+	// TODO(mikio): Implement this
+	return 0, syscall.EPLAN9
+}
+
+func (c *payloadHandler) sysfd() (int, error) {
+	// TODO(mikio): Implement this
+	return 0, syscall.EPLAN9
+}
+
+func (c *packetHandler) sysfd() (int, error) {
+	// TODO(mikio): Implement this
+	return 0, syscall.EPLAN9
+}

@@ -7,7 +7,12 @@
 Ubuntu Linux
 ============
 
-  **Please note this project is currently under heavy development. It should not be used in production.**
+.. warning::
+
+   These instructions have changed for 0.6. If you are upgrading from
+   an earlier version, you will need to follow them again.
+
+.. include:: install_header.inc
 
 Right now, the officially supported distribution are:
 
@@ -19,7 +24,8 @@ Docker has the following dependencies
 * Linux kernel 3.8 (read more about :ref:`kernel`)
 * AUFS file system support (we are working on BTRFS support as an alternative)
 
-Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated Firewall) <https://help.ubuntu.com/community/UFW>`_
+Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated
+Firewall) <https://help.ubuntu.com/community/UFW>`_
 
 .. _ubuntu_precise:
 
@@ -35,12 +41,13 @@ Dependencies
 **Linux kernel 3.8**
 
 Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
-comes with a 3.2 kernel, so we need to upgrade it. The kernel we
-install comes with AUFS built in. We also include the generic headers
-to enable packages that depend on them, like ZFS and the VirtualBox
-guest additions. If you didn't install the headers for your "precise"
-kernel, then you can skip these headers for the "raring" kernel. But
-it is safer to include them if you're not sure.
+comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll
+install when following these steps comes with AUFS built in. We also
+include the generic headers to enable packages that depend on them,
+like ZFS and the VirtualBox guest additions. If you didn't install the
+headers for your "precise" kernel, then you can skip these headers for
+the "raring" kernel. But it is safer to include them if you're not
+sure.
 
 
 .. code-block:: bash
@@ -56,14 +63,22 @@ it is safer to include them if you're not sure.
 Installation
 ------------
 
-Docker is available as a Ubuntu PPA (Personal Package Archive),
-`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
-which makes installing Docker on Ubuntu very easy.
+.. warning::
+
+   These instructions have changed for 0.6. If you are upgrading from
+   an earlier version, you will need to follow them again.
+
+Docker is available as a Debian package, which makes installation easy.
+
 
 .. code-block:: bash
 
-   # Add the PPA sources to your apt sources list.
-   sudo apt-get install python-software-properties && sudo add-apt-repository ppa:dotcloud/lxc-docker
+   # Add the Docker repository key to your local keychain
+   # using apt-key finger you can check the fingerprint matches 36A1 D786 9245 C895 0F96 6E92 D857 6A8B A88D 21E9
+   sudo sh -c "curl https://get.docker.io/gpg | apt-key add -"
+
+   # Add the Docker repository to your apt sources list.
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # Update your sources
    sudo apt-get update
@@ -101,30 +116,23 @@ have AUFS filesystem support enabled, so we need to install it.
    sudo apt-get update
    sudo apt-get install linux-image-extra-`uname -r`
 
-**add-apt-repository support**
-
-Some installations of Ubuntu 13.04 require ``software-properties-common`` to be
-installed before being able to use add-apt-repository.
-
-.. code-block:: bash
-
-  sudo apt-get install software-properties-common
-
 
 Installation
 ------------
 
-Docker is available as a Ubuntu PPA (Personal Package Archive),
-`hosted on launchpad  <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_
-which makes installing Docker on Ubuntu very easy.
+Docker is available as a Debian package, which makes installation easy.
 
-
-Add the custom package sources to your apt sources list.
+*Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
+to follow them again.*
 
 .. code-block:: bash
 
-   # add the sources to your apt
-   sudo add-apt-repository ppa:dotcloud/lxc-docker
+   # Add the Docker repository key to your local keychain
+   # using apt-key finger you can check the fingerprint matches 36A1 D786 9245 C895 0F96 6E92 D857 6A8B A88D 21E9
+   sudo sh -c "curl http://get.docker.io/gpg | apt-key add -"
+
+   # Add the Docker repository to your apt sources list.
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 
    # update
    sudo apt-get update
@@ -137,7 +145,8 @@ Verify it worked
 
 .. code-block:: bash
 
-   # download the base 'ubuntu' container and run bash inside it while setting up an interactive shell
+   # download the base 'ubuntu' container
+   # and run bash inside it while setting up an interactive shell
    sudo docker run -i -t ubuntu /bin/bash
 
    # type exit to exit
@@ -151,7 +160,8 @@ Verify it worked
 Docker and UFW
 ^^^^^^^^^^^^^^
 
-Docker uses a bridge to manage containers networking, by default UFW drop all `forwarding`, a first step is to enable forwarding:
+Docker uses a bridge to manage containers networking, by default UFW
+drop all `forwarding`, a first step is to enable forwarding:
 
 .. code-block:: bash
 
@@ -169,8 +179,9 @@ Then reload UFW:
    sudo ufw reload
 
 
-UFW's default set of rules denied all `incoming`, so if you want to be able to reach your containers from another host,
-you should allow incoming connections on the docker port (default 4243):
+UFW's default set of rules denied all `incoming`, so if you want to be
+able to reach your containers from another host, you should allow
+incoming connections on the docker port (default 4243):
 
 .. code-block:: bash
 
