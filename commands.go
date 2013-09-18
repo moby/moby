@@ -1122,6 +1122,11 @@ func (cli *DockerCli) CmdLinks(args ...string) error {
 		return err
 	}
 
+	if cmd.NArg() < 1 && !*flAll {
+		cmd.Usage()
+		return nil
+	}
+
 	v := url.Values{}
 	v.Set("name", cmd.Arg(0))
 

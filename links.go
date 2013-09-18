@@ -26,6 +26,9 @@ type LinkRepository struct {
 }
 
 func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, alias string) (*Link, error) {
+	if to.ID == from.ID {
+		return nil, fmt.Errorf("Cannot link to self: %s == %s", to.ID, from.ID)
+	}
 	if !from.State.Running {
 		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", from.ID, alias)
 	}
@@ -39,7 +42,7 @@ func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, al
 		FromID:          utils.TruncateID(from.ID),
 		ToID:            utils.TruncateID(to.ID),
 		BridgeInterface: bridgeInterface,
-		Alias:           alias,
+		Alias:           strings.ToUpper(alias),
 		FromIP:          from.NetworkSettings.IPAddress,
 		ToIP:            to.NetworkSettings.IPAddress,
 		FromEnvironment: from.Config.Env,
@@ -57,25 +60,55 @@ func (l *Link) ID() string {
 
 func (l *Link) ToEnv() []string {
 	env := []string{}
+
+	if p := l.getDefaultPort(); p != nil {
+		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", l.Alias, p.Proto(), l.FromIP, p.Port()))
+	}
+
 	// Load exposed ports into the environment
 	for _, p := range l.ports {
-		env = append(env, fmt.Sprintf("%s_%s_ADDR=%s://%s:%s", strings.ToUpper(l.Alias), p.Port(), p.Proto(), l.FromIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", l.Alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.FromIP, p.Port()))
 	}
+
+	// Load the linked container's ID into the environment
+	env = append(env, fmt.Sprintf("%s_ID=%s", l.Alias, l.FromID))
 
 	if l.FromEnvironment != nil {
 		for _, v := range l.FromEnvironment {
 			parts := strings.Split(v, "=")
-			if len(parts) < 2 {
+			if len(parts) != 2 {
 				continue
 			}
-			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", strings.ToUpper(l.Alias), parts[0], parts[1]))
+			// Ignore a few variables that are added during docker build
+			if parts[0] == "HOME" || parts[0] == "PATH" {
+				continue
+			}
+			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", l.Alias, parts[0], parts[1]))
 		}
 	}
 	return env
 }
 
+// Default port rules
+func (l *Link) getDefaultPort() *Port {
+	var p Port
+	i := len(l.ports)
+
+	if i == 0 {
+		return nil
+	} else if i > 1 {
+		sortPorts(l.ports, func(ip, jp Port) bool {
+			// If the two ports have the same number, tcp takes priority
+			// Sort in desc order
+			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && ip.Proto() == "tcp")
+		})
+	}
+	p = l.ports[0]
+	return &p
+}
+
 func (l *Link) Enable() error {
-	if err := l.toggle("-I"); err != nil {
+	if err := l.toggle("-I", false); err != nil {
 		return err
 	}
 	l.isEnabled = true
@@ -85,12 +118,12 @@ func (l *Link) Enable() error {
 func (l *Link) Disable() {
 	// We do not care about erros here because the link may not
 	// exist in iptables
-	l.toggle("-D")
+	l.toggle("-D", true)
 
 	l.isEnabled = false
 }
 
-func (l *Link) toggle(action string) error {
+func (l *Link) toggle(action string, ignoreErrors bool) error {
 	for _, p := range l.ports {
 		if err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
@@ -98,7 +131,7 @@ func (l *Link) toggle(action string) error {
 			"-s", l.ToIP,
 			"--dport", p.Port(),
 			"-d", l.FromIP,
-			"-j", "ACCEPT"); err != nil {
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
 		}
 
@@ -108,7 +141,7 @@ func (l *Link) toggle(action string) error {
 			"-s", l.FromIP,
 			"--sport", p.Port(),
 			"-d", l.ToIP,
-			"-j", "ACCEPT"); err != nil {
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
 		}
 	}
