@@ -125,6 +125,14 @@ func (p Port) Port() string {
 	return strings.Split(string(p), "/")[0]
 }
 
+func (p Port) Int() int {
+	i, err := parsePort(p.Port())
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
 func NewPort(proto, port string) Port {
 	return Port(fmt.Sprintf("%s/%s", port, proto))
 }
@@ -830,6 +838,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return err
 			}
 			linkedContainer := runtime.Get(parts["id"])
+			if linkedContainer == nil {
+				return fmt.Errorf("Cannot find container: %s", parts["id"])
+			}
 
 			link, err := runtime.links.NewLink(container, linkedContainer, runtime.networkManager.bridgeIface, parts["alias"])
 			if err != nil {
