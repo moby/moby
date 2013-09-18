@@ -407,6 +407,44 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestContainerNetwork(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container.State.ExitCode != 0 {
+		t.Errorf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", container.State.ExitCode)
+	}
+
+	container, err = runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"ping", "-c", "1", "8.8.8.8"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container.State.ExitCode != 0 {
+		t.Errorf("Unexpected ping 8.8.8.8 exit code %d (expected 0)", container.State.ExitCode)
+	}
+}
+
 func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
