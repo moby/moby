@@ -123,7 +123,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flTty := cmd.BoolLong("tty", 't', "Allocate a pseudo-tty")
 	flMemory := cmd.Int64Long("memory", 'm', 0, "Memory limit (in bytes)")
 	flContainerIDFile := cmd.StringLong("cidfile", 0, "", "Write the container ID to the file")
-	flNetwork := cmd.BoolLong("networking", 'n', "Enable networking for this container")
+	flNetwork := true
+	cmd.BoolVarLong(&flNetwork, "networking", 'n', "Enable networking for this container")
 	flPrivileged := cmd.BoolLong("privileged", 0, "Give extended privileges to this container")
 	help := cmd.BoolLong("help", 0, "Display this help")
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
@@ -157,7 +158,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.ListVarLong(&flLxcOpts, "lxc-conf", 0, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	cmd.Parse(append([]string{"docker"}, args...))
-	*flNetwork = !*flNetwork
 
 	if *flDetach && len(flAttach) > 0 {
 		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
@@ -223,7 +223,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		PortSpecs:       flPorts,
 		User:            *flUser,
 		Tty:             *flTty,
-		NetworkDisabled: !*flNetwork,
+		NetworkDisabled: !flNetwork,
 		OpenStdin:       *flStdin,
 		Memory:          *flMemory,
 		CpuShares:       *flCpuShares,

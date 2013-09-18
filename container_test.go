@@ -1460,7 +1460,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-n", "false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, err := ParseRun([]string{"--n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1497,7 +1497,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 func TestPrivilegedCanMknod(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	if output, _ := runContainer(runtime, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mknod into privileged container")
 	}
 }
@@ -1505,7 +1505,7 @@ func TestPrivilegedCanMknod(t *testing.T) {
 func TestPrivilegedCanMount(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+	if output, _ := runContainer(runtime, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mount into privileged container")
 	}
 }
