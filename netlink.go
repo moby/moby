@@ -118,16 +118,107 @@ func newNetlinkRequest(proto, flags, seq int) *NetlinkRequest {
 	return rr
 }
 
-func AddDefaultGw(ip net.IP) error {
-	s, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, syscall.NETLINK_ROUTE)
+type NetlinkSocket struct {
+	fd int
+	lsa syscall.SockaddrNetlink
+}
+
+func getNetlinkSocket() (*NetlinkSocket, error) {
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, syscall.NETLINK_ROUTE)
+	if err != nil {
+		return nil, err
+	}
+	s := &NetlinkSocket{
+		fd: fd,
+	}
+	s.lsa.Family = syscall.AF_NETLINK
+	if err := syscall.Bind(fd, &s.lsa); err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func (s *NetlinkSocket)Close() {
+	syscall.Close(s.fd)
+}
+
+func (s *NetlinkSocket)Send(request *NetlinkRequest) error {
+	if err := syscall.Sendto(s.fd, request.ToWireFormat(), 0, &s.lsa); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *NetlinkSocket)Recieve() ([]syscall.NetlinkMessage, error) {
+	rb := make([]byte, syscall.Getpagesize())
+	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
+	if err != nil {
+		return nil, err
+	}
+	if nr < syscall.NLMSG_HDRLEN {
+		return nil, fmt.Errorf("Got short response from netlink")
+	}
+	rb = rb[:nr]
+	return syscall.ParseNetlinkMessage(rb)
+}
+
+func (s *NetlinkSocket)GetPid() (uint32, error) {
+	lsa, err := syscall.Getsockname(s.fd)
+	if err != nil {
+		return 0, err
+	}
+	switch v := lsa.(type) {
+	case *syscall.SockaddrNetlink:
+		return v.Pid, nil
+	}
+	return 0, fmt.Errorf("Wrong socket type")
+}
+
+func (s *NetlinkSocket)HandleAck(seq int) error {
+	pid, err := s.GetPid()
 	if err != nil {
 		return err
 	}
-	defer syscall.Close(s)
-	lsa := &syscall.SockaddrNetlink{Family: syscall.AF_NETLINK}
-	if err := syscall.Bind(s, lsa); err != nil {
+
+done:
+	for {
+		msgs, err := s.Recieve()
+		if err != nil {
+			return err
+		}
+		for _, m := range msgs {
+			if m.Header.Seq != 1 {
+				return fmt.Errorf("Wrong Seq nr %d, expected 1", m.Header.Seq)
+			}
+			if m.Header.Pid != pid {
+				return fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, pid)
+			}
+			if m.Header.Type == syscall.NLMSG_DONE {
+				break done
+			}
+			if m.Header.Type == syscall.NLMSG_ERROR {
+				error := *(*int32)(unsafe.Pointer(&m.Data[0:4][0]))
+				if error == 0 {
+					break done
+				}
+				return syscall.Errno(-error)
+			}
+		}
+	}
+
+	return nil
+}
+
+
+
+func AddDefaultGw(ip net.IP) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
 		return err
 	}
+	defer s.Close()
 
 	family := getIpFamily(ip)
 
@@ -147,53 +238,10 @@ func AddDefaultGw(ip net.IP) error {
 
 	wb.AddData(gateway)
 
-	if err := syscall.Sendto(s, wb.ToWireFormat(), 0, lsa); err != nil {
+	if err := s.Send(wb); err != nil {
 		return err
 	}
 
-done:
-	for {
-		rb := make([]byte, syscall.Getpagesize())
-		nr, _, err := syscall.Recvfrom(s, rb, 0)
-		if err != nil {
-			return err
-		}
-		if nr < syscall.NLMSG_HDRLEN {
-			return fmt.Errorf("Got short response from netlink")
-		}
-		rb = rb[:nr]
-		msgs, err := syscall.ParseNetlinkMessage(rb)
-		if err != nil {
-			return err
-		}
-		for _, m := range msgs {
-			lsa, err := syscall.Getsockname(s)
-			if err != nil {
-				return err
-			}
-			switch v := lsa.(type) {
-			case *syscall.SockaddrNetlink:
-				if m.Header.Seq != 1 {
-					return fmt.Errorf("Wrong Seq nr %d, expected 1", m.Header.Seq)
-				}
-				if m.Header.Pid != v.Pid {
-					return fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, v.Pid)
-				}
-			default:
-				return fmt.Errorf("Wrong socket type")
-			}
-			if m.Header.Type == syscall.NLMSG_DONE {
-				break done
-			}
-			if m.Header.Type == syscall.NLMSG_ERROR {
-				error := *(*int32)(unsafe.Pointer(&m.Data[0:4][0]))
-				if error == 0 {
-					break done
-				}
-				return syscall.Errno(-error)
-			}
-		}
-	}
+	return s.HandleAck(1)
 
-	return nil
 }
