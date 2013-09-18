@@ -77,7 +77,7 @@ func crashTest() error {
 			stop = false
 			for i := 0; i < 100 && !stop; {
 				func() error {
-					cmd := exec.Command(DOCKERPATH, "run", "base", "echo", fmt.Sprintf("%d", totalTestCount))
+					cmd := exec.Command(DOCKERPATH, "run", "ubuntu", "echo", fmt.Sprintf("%d", totalTestCount))
 					i++
 					totalTestCount++
 					outPipe, err := cmd.StdoutPipe()
