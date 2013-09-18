@@ -45,7 +45,8 @@ Why ``sudo``?
 The ``docker`` daemon always runs as root, and since ``docker``
 version 0.5.2, ``docker`` binds to a Unix socket instead of a TCP
 port. By default that Unix socket is owned by the user *root*, and so,
-by default, you can access it with ``sudo``.
+by default, you can access it with ``sudo``. If you are tired of 
+typing sudo before everything, become root by typing ``sudo -i``
 
 Starting in version 0.5.3, if you create a Unix group called *docker*
 and add users to it, then the ``docker`` daemon will make the
