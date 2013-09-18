@@ -541,10 +541,11 @@ Search
       Content-Type: application/json
 
       {"query":"search_term",
-        "num_results": 2,
+        "num_results": 3,
         "results" : [
-           {"name": "dotcloud/base", "description": "A base ubuntu64  image..."},
-           {"name": "base2", "description": "A base ubuntu64  image..."},
+           {"name": "ubuntu", "description": "An ubuntu image..."},
+           {"name": "centos", "description": "A centos image..."},
+           {"name": "fedora", "description": "A fedora image..."}
          ]
        }
 
