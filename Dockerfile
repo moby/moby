@@ -21,38 +21,48 @@
 # -e AWS_SECRET_KEY=bar \
 # -e GPG_PASSPHRASE=gloubiboulga \
 # -lxc-conf=lxc.aa_profile=unconfined -privileged docker hack/release.sh
-# 
+#
 
-docker-version 0.6.1
-from	ubuntu:12.04
+docker-version	0.6.2
+from		ubuntu:12.04
 maintainer	Solomon Hykes <solomon@dotcloud.com>
+
 # Build dependencies
 run	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
 run	apt-get update
 run	apt-get install -y -q curl
 run	apt-get install -y -q git
 run	apt-get install -y -q mercurial
-# Install Go
-run	curl -s https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | tar -v -C /usr/local -xz
-env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
-env	CGO_ENABLED 0
-run	cd /tmp && echo 'package main' > t.go && go test -a -i -v
+run	apt-get install -y -q gcc build-essential
+
+# Install Go // FIXME: Requires go1.1.3 (no released yet, so we use tip)
+run	hg clone https://code.google.com/p/go /goroot
+run	cd /goroot/src && ./all.bash
+
+env	PATH	 /goroot/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+env	GOROOT	 /goroot
+env	GOPATH	 /go:/go/src/github.com/dotcloud/docker/vendor
+
 # Ubuntu stuff
 run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
 run	gem install fpm
 run	apt-get install -y -q reprepro dpkg-sig
+
 # Install s3cmd 1.0.1 (earlier versions don't support env variables in the config)
 run	apt-get install -y -q python-pip
 run	pip install s3cmd
 run	pip install python-magic
 run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY\n' > /.s3cfg
+
 # Runtime dependencies
 run	apt-get install -y -q iptables
 run	apt-get install -y -q lxc
 volume	/var/lib/docker
 workdir	/go/src/github.com/dotcloud/docker
+
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 entrypoint ["hack/dind"]
+
 # Upload docker source
 add	.       /go/src/github.com/dotcloud/docker
+
