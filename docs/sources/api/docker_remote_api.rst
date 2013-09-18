@@ -65,7 +65,7 @@ What's new
 
 .. http:post:: /images/create
 
-   **New!** When pull a repo, all images are now downloaded in parallel.
+   **New!** When pulling a repo, all images are now downloaded in parallel.
 
 .. http:get:: /containers/(id)/top
 
