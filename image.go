@@ -336,11 +336,21 @@ func (image *Image) applyLayer(layer, target string) error {
 
 		O_PATH := 010000000 // Not in syscall yet
 		fd, err := syscall.Open(update.path, syscall.O_RDWR | O_PATH | syscall.O_NOFOLLOW, 0600)
-		if err != nil {
-			return err
+		if err == syscall.EISDIR || err == syscall.ELOOP {
+			// O_PATH not supported, use Utimes except on symlinks where Utimes doesn't work
+			if err != syscall.ELOOP {
+				err = syscall.Utimes(update.path, update.time)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			if err != nil {
+				return err
+			}
+			syscall.Futimes(fd, update.time)
+			_ = syscall.Close(fd)
 		}
-		syscall.Futimes(fd, update.time)
-		_ = syscall.Close(fd)
 	}
 
 	return nil
