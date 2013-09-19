@@ -44,6 +44,10 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
+
+	for _, container := range runtime.List() {
+		container.EnsureUnmounted()
+	}
 	return os.RemoveAll(runtime.root)
 }
 
