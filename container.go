@@ -665,9 +665,11 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			continue
 		}
 		var srcPath string
+		var isBindMount bool
 		srcRW := false
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
+			isBindMount = true
 			srcPath = bindMap.SrcPath
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
@@ -691,7 +693,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 			return nil
 		}
-		if srcRW {
+
+		// Do not copy or change permissions if we are mounting from the host
+		if srcRW && !isBindMount {
 			volList, err := ioutil.ReadDir(rootVolPath)
 			if err != nil {
 				return err
@@ -702,22 +706,26 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 					return err
 				}
 				if len(srcList) == 0 {
+					// If the source volume is empty copy files from the root into the volume
 					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
 						return err
 					}
-				}
-			}
-			var stat syscall.Stat_t
-			if err := syscall.Stat(rootVolPath, &stat); err != nil {
-				return err
-			}
-			var srcStat syscall.Stat_t
-			if err := syscall.Stat(srcPath, &srcStat); err != nil {
-				return err
-			}
-			if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-				if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-					return err
+
+					var stat syscall.Stat_t
+					if err := syscall.Stat(rootVolPath, &stat); err != nil {
+						return err
+					}
+					var srcStat syscall.Stat_t
+					if err := syscall.Stat(srcPath, &srcStat); err != nil {
+						return err
+					}
+					// Change the source volume's ownership if it differs from the root
+					// files that where just copied
+					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
