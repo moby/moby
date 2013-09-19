@@ -27,7 +27,7 @@ attach_loop_device(const char *filename, int *loop_fd_out)
 
   start_index = 0;
   fd = open("/dev/loop-control", O_RDONLY);
-  if (fd == 0) {
+  if (fd >= 0) {
     start_index = ioctl(fd, LOOP_CTL_GET_FREE);
     close(fd);
 
