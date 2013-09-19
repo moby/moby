@@ -414,6 +414,7 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 
 	err = ioutil.WriteFile(path.Join(mountDir, ".docker-id"), []byte(image.ID), 0600)
 	if err != nil {
+		_ = devices.UnmountDevice(image.ID, mountDir)
 		_ = devices.RemoveDevice(image.ID)
 		return err
 	}
@@ -432,11 +433,13 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	// part of the container changes
 	dockerinitLayer, err := image.getDockerInitLayer()
 	if err != nil {
+		_ = devices.UnmountDevice(image.ID, mountDir)
 		_ = devices.RemoveDevice(image.ID)
 		return err
 	}
 	err = image.applyLayer(dockerinitLayer, mountDir)
 	if err != nil {
+		_ = devices.UnmountDevice(image.ID, mountDir)
 		_ = devices.RemoveDevice(image.ID)
 		return err
 	}
