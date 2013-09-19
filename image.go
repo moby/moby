@@ -617,6 +617,8 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 			return nil, err
 		}
 
+		wasActivated := devices.HasActivatedDevice(image.ID)
+
 		// We re-use rw for the temporary mount of the base image as its
 		// not used by device-mapper otherwise
 		err = devices.MountDevice(image.ID, rw)
@@ -626,6 +628,9 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 
 		changes, err := ChangesDirs(root, rw)
 		_ = devices.UnmountDevice(image.ID, rw)
+		if !wasActivated {
+			_ = devices.DeactivateDevice(image.ID)
+		}
 		if err != nil {
 			return nil, err
 		}
