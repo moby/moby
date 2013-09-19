@@ -851,6 +851,23 @@ func (devices *DeviceSetDM) HasInitializedDevice(hash string) bool {
 	return info != nil && info.Initialized
 }
 
+func (devices *DeviceSetDM) HasActivatedDevice(hash string) bool {
+	if err := devices.ensureInit(); err != nil {
+		return false
+	}
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return false
+	}
+	name := info.Name()
+	devinfo, _ := devices.getInfo(name)
+	if devinfo != nil && devinfo.Exists != 0 {
+		return true
+	}
+	return false
+}
+
 func (devices *DeviceSetDM) SetInitialized(hash string) error {
 	if err := devices.ensureInit(); err != nil {
 		return err
