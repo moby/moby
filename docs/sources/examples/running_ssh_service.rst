@@ -47,7 +47,7 @@ The password is 'screencast'
          # I had it so it was quick
          # now let's connect using -i for interactive and with -t for terminal 
          # we execute /bin/bash to get a prompt.
-         $ docker run -i -t base /bin/bash
+         $ docker run -i -t ubuntu /bin/bash
          # yes! we are in!
          # now lets install openssh
          $ apt-get update
