@@ -421,6 +421,7 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 
 	err = image.applyLayer(layerPath(root), mountDir)
 	if err != nil {
+		_ = devices.UnmountDevice(image.ID, mountDir)
 		_ = devices.RemoveDevice(image.ID)
 		return err
 	}
