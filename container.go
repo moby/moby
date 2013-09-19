@@ -1180,6 +1180,15 @@ func (container *Container) EnsureMounted() error {
 	return container.Mount()
 }
 
+func (container *Container) EnsureUnmounted() error {
+	if mounted, err := container.Mounted(); err != nil {
+		return err
+	} else if !mounted {
+		return nil
+	}
+	return container.Unmount()
+}
+
 func (container *Container) Mount() error {
 	image, err := container.GetImage()
 	if err != nil {
