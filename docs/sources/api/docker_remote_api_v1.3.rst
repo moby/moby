@@ -49,7 +49,7 @@ List containers
 	   [
 		{
 			"Id": "8dfafdbc3a40",
-			"Image": "base:latest",
+			"Image": "ubuntu:latest",
 			"Command": "echo 1",
 			"Created": 1367854155,
 			"Status": "Exit 0",
@@ -59,7 +59,7 @@ List containers
 		},
 		{
 			"Id": "9cd87474be90",
-			"Image": "base:latest",
+			"Image": "ubuntu:latest",
 			"Command": "echo 222222",
 			"Created": 1367854155,
 			"Status": "Exit 0",
@@ -69,7 +69,7 @@ List containers
 		},
 		{
 			"Id": "3176a2479c92",
-			"Image": "base:latest",
+			"Image": "centos:latest",
 			"Command": "echo 3333333333333333",
 			"Created": 1367854154,
 			"Status": "Exit 0",
@@ -79,7 +79,7 @@ List containers
 		},
 		{
 			"Id": "4cb07b47f9fb",
-			"Image": "base:latest",
+			"Image": "fedora:latest",
 			"Command": "echo 444444444444444444444444444444444",
 			"Created": 1367854152,
 			"Status": "Exit 0",
@@ -130,7 +130,7 @@ Create a container
 			"date"
 		],
 		"Dns":null,
-		"Image":"base",
+		"Image":"ubuntu",
 		"Volumes":{},
 		"VolumesFrom":""
 	   }
@@ -196,7 +196,7 @@ Inspect a container
 					"date"
 				],
 				"Dns": null,
-				"Image": "base",
+				"Image": "ubuntu",
 				"Volumes": {},
 				"VolumesFrom": ""
 			},
@@ -550,16 +550,16 @@ List Images
 	   
 	   [
 		{
-			"Repository":"base",
-			"Tag":"ubuntu-12.10",
+			"Repository":"ubuntu",
+			"Tag":"precise",
 			"Id":"b750fe79269d",
 			"Created":1364102658,
 			"Size":24653,
 			"VirtualSize":180116135
 		},
 		{
-			"Repository":"base",
-			"Tag":"ubuntu-quantal",
+			"Repository":"ubuntu",
+			"Tag":"12.04",
 			"Id":"b750fe79269d",
 			"Created":1364102658,
 			"Size":24653,
@@ -593,9 +593,9 @@ List Images
 	   "d6434d954665" -> "d82cbacda43a"
 	   base -> "e9aa60c60128" [style=invis]
 	   "074be284591f" -> "f71189fff3de"
-	   "b750fe79269d" [label="b750fe79269d\nbase",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "e9aa60c60128" [label="e9aa60c60128\nbase2",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "9a33b36209ed" [label="9a33b36209ed\ntest",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "b750fe79269d" [label="b750fe79269d\nubuntu",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "e9aa60c60128" [label="e9aa60c60128\ncentos",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "9a33b36209ed" [label="9a33b36209ed\nfedora",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
 	   base [style=invisible]
 	   }
  
@@ -616,7 +616,7 @@ Create an image
 
         .. sourcecode:: http
 
-           POST /images/create?fromImage=base HTTP/1.1
+           POST /images/create?fromImage=ubuntu HTTP/1.1
 
         **Example response**:
 
@@ -639,8 +639,8 @@ Create an image
         :statuscode 500: server error
 
 
-Insert a file in a image
-************************
+Insert a file in an image
+*************************
 
 .. http:post:: /images/(name)/insert
 
@@ -679,7 +679,7 @@ Inspect an image
 
 	.. sourcecode:: http
 
-	   GET /images/base/json HTTP/1.1
+	   GET /images/centos/json HTTP/1.1
 
 	**Example response**:
 
@@ -709,7 +709,7 @@ Inspect an image
 				"Env":null,
 				"Cmd": ["/bin/bash"]
 				,"Dns":null,
-				"Image":"base",
+				"Image":"centos",
 				"Volumes":null,
 				"VolumesFrom":""
 			},
@@ -732,7 +732,7 @@ Get the history of an image
 
         .. sourcecode:: http
 
-           GET /images/base/history HTTP/1.1
+           GET /images/fedora/history HTTP/1.1
 
         **Example response**:
 
