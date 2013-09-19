@@ -347,3 +347,20 @@ func UdevWait(cookie uint32) error {
 func LogInitVerbose(level int) {
 	C.dm_log_init_verbose(C.int(level))
 }
+
+// Useful helper for cleanup
+func RemoveDevice(name string) error {
+	task := TaskCreate(DeviceRemove)
+	if task == nil {
+		return fmt.Errorf("Can't create task of type DeviceRemove")
+	}
+	err := task.SetName(name)
+	if err != nil {
+		return fmt.Errorf("Can't set task name %s", name)
+	}
+	err = task.Run()
+	if err != nil {
+		return fmt.Errorf("Error running removeDevice")
+	}
+	return nil
+}
