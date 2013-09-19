@@ -203,8 +203,18 @@ func CopyFileWithTar(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
+	// We use a temp file here because Untar uses the system tar binary to
+	// untar the archive
+	tempFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
+	}()
+
+	tw := tar.NewWriter(tempFile)
 	hdr, err := tar.FileInfoHeader(srcSt, "")
 	if err != nil {
 		return err
@@ -217,11 +227,16 @@ func CopyFileWithTar(src, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer srcF.Close()
+
 	if _, err := io.Copy(tw, srcF); err != nil {
 		return err
 	}
 	tw.Close()
-	return Untar(buf, filepath.Dir(dst))
+	if _, err := tempFile.Seek(0, 0); err != nil {
+		return err
+	}
+	return Untar(tempFile, filepath.Dir(dst))
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.
