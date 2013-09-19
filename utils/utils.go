@@ -1029,7 +1029,7 @@ func quote(word string, buf *bytes.Buffer) {
 		return
 	}
 
-	buf.WriteString("''")
+	buf.WriteString("'")
 
 	for i := 0; i < len(word); i++ {
 		b := word[i]
@@ -1041,7 +1041,7 @@ func quote(word string, buf *bytes.Buffer) {
 		}
 	}
 
-	buf.WriteString("''")
+	buf.WriteString("'")
 }
 
 func ShellQuoteArguments(args []string) string {
