@@ -37,9 +37,15 @@ To checkout a different revision just use ``git checkout`` with the name of bran
 
 Step 3: Build the Environment
 -----------------------------
+<<<<<<< HEAD
 
 This following command will build a development environment using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test Docker. This command will take some time to complete when you first execute it.
 
+=======
+
+This following command will build a development environment using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test Docker. This command will take some time to complete when you first execute it.
+
+>>>>>>> 70b731735c810d9e179837eb8761a44fbe98f391
 
 .. code-block:: bash
 
@@ -72,7 +78,6 @@ To run the Docker test cases you first need to disable `AppArmor <https://wiki.u
 	sudo /etc/init.d/apparmor stop
 	sudo /etc/init.d/apparmor teardown
 
-
 To execute the test cases, run this command:
 
 .. code-block:: bash
@@ -82,7 +87,7 @@ To execute the test cases, run this command:
 
 If the test are successful then the tail of the output should look something like this
 
-::
+.. code-block:: bash
 
 	--- PASS: TestWriteBroadcaster (0.00 seconds)
 	=== RUN TestRaceWriteBroadcaster
