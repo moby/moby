@@ -9,6 +9,7 @@ type DeviceSet interface {
 	UnmountDevice(hash, path string) error
 	HasDevice(hash string) bool
 	HasInitializedDevice(hash string) bool
+	HasActivatedDevice(hash string) bool
 	Shutdown() error
 }
 
@@ -59,6 +60,10 @@ func (wrapper *DeviceSetWrapper) HasDevice(hash string) bool {
 
 func (wrapper *DeviceSetWrapper) HasInitializedDevice(hash string) bool {
 	return wrapper.wrapped.HasInitializedDevice(wrapper.wrap(hash))
+}
+
+func (wrapper *DeviceSetWrapper) HasActivatedDevice(hash string) bool {
+	return wrapper.wrapped.HasActivatedDevice(wrapper.wrap(hash))
 }
 
 func NewDeviceSetWrapper(wrapped DeviceSet, prefix string) DeviceSet {
