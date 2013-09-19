@@ -55,11 +55,9 @@ EXAMPLES:
 
 ### 4. Run all tests
 
-```bash
-go test
-```
+FIXME
 
-### 5. Commit and create a pull request
+### 5. Commit and create a pull request to the "release" branch
 
 ```bash
 git add CHANGELOG.md
@@ -72,7 +70,7 @@ git push origin bump_$VERSION
 ### 7. Merge the pull request and apply tags
 
 ```bash
-git checkout master
+git checkout release
 git merge bump_$VERSION
 git tag -a v$VERSION # Don't forget the v!
 git tag -f -a latest
@@ -87,13 +85,13 @@ Get them from [the infrastructure maintainers](
 https://github.com/dotcloud/docker/blob/master/hack/infrastructure/MAINTAINERS).
 
 ```bash
-docker build -t releasedocker .
+docker build -t docker .
 docker run  \
 	-e AWS_S3_BUCKET=get-nightly.docker.io \
 	-e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
 	-e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
 	-e GPG_PASSPHRASE=supersecretsesame \
-	releasedocker
+	hack/make.sh release
 ```
 
 It will build and upload the binaries on the specified bucket (you should
