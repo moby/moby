@@ -1202,7 +1202,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 	defer nuke(r)
 
 	// Add directory not owned by root
-	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && chown daemon.daemon /hello"}, t)
+	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test.txt && chown daemon.daemon /hello"}, t)
 	defer r.Destroy(container1)
 
 	if container1.State.Running {
@@ -1227,17 +1227,9 @@ func TestCopyVolumeUidGid(t *testing.T) {
 	// Test that the uid and gid is copied from the image to the volume
 	tmpDir1 := tempDir(t)
 	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello", tmpDir1), img.ID, "stat", "-c", "%U %G", "/hello"}, t)
+	stdout1, _ := runContainer(r, []string{"-v", "/hello", img.ID, "stat", "-c", "%U %G", "/hello"}, t)
 	if !strings.Contains(stdout1, "daemon daemon") {
 		t.Fatal("Container failed to transfer uid and gid to volume")
-	}
-
-	// Test that the uid and gid is not copied from the image when the volume is read only
-	tmpDir2 := tempDir(t)
-	defer os.RemoveAll(tmpDir1)
-	stdout2, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:ro", tmpDir2), img.ID, "stat", "-c", "%U %G", "/hello"}, t)
-	if strings.Contains(stdout2, "daemon daemon") {
-		t.Fatal("Container transfered uid and gid to volume")
 	}
 }
 
@@ -1272,26 +1264,9 @@ func TestCopyVolumeContent(t *testing.T) {
 	// Test that the content is copied from the image to the volume
 	tmpDir1 := tempDir(t)
 	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello", tmpDir1), img.ID, "find", "/hello"}, t)
+	stdout1, _ := runContainer(r, []string{"-v", "/hello", img.ID, "find", "/hello"}, t)
 	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
 		t.Fatal("Container failed to transfer content to volume")
-	}
-
-	// Test that the content is not copied when the volume is readonly
-	tmpDir2 := tempDir(t)
-	defer os.RemoveAll(tmpDir2)
-	stdout2, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:ro", tmpDir2), img.ID, "find", "/hello"}, t)
-	if strings.Contains(stdout2, "/hello/local/world") || strings.Contains(stdout2, "/hello/local") {
-		t.Fatal("Container transfered content to readonly volume")
-	}
-
-	// Test that the content is not copied when the volume is non-empty
-	tmpDir3 := tempDir(t)
-	defer os.RemoveAll(tmpDir3)
-	writeFile(path.Join(tmpDir3, "touch-me"), "", t)
-	stdout3, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/hello:rw", tmpDir3), img.ID, "find", "/hello"}, t)
-	if strings.Contains(stdout3, "/hello/local/world") || strings.Contains(stdout3, "/hello/local") || !strings.Contains(stdout3, "/hello/touch-me") {
-		t.Fatal("Container transfered content to non-empty volume")
 	}
 }
 
