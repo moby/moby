@@ -67,7 +67,7 @@ The relevant maintainer for a pull request is assigned in 3 steps:
 
 ### I'm a maintainer, should I make pull requests too?
 
-Primary maintainers are not required to create pull requests when changing their own subdirectory, but secondary maintainers are.
+Yes. Nobody should ever push to master directly. All changes should be made through a pull request.
 
 ### Who assigns maintainers?
 
