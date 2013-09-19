@@ -52,18 +52,5 @@ nighthly release
 ================
 
 The nightly release process is done by buildbot, running a DinD container that downloads
-the docker repository and builds the release container. The resulting
-docker binary is then tested, and if everything is fine the release is done.
-
-Building the release DinD Container
------------------------------------
-
-# Log into docker-ci
-ssh ubuntu@docker-ci.dotcloud.com
-cd /data/docker/testing/nightlyrelease
-# Add release_credentials.json as specified in ./Dockerfile
-cat  > release_credentials.json << EOF
-EOF
-sudo docker build -t dockerbuilder .
-# Now that the container is built release_credentials.json is not needed anymore
-git checkout release_credentials.json
+the docker repository and builds the release container. The resulting docker
+binary is then tested, and if everything is fine, the release is done.

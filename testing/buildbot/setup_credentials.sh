@@ -8,7 +8,7 @@ REGISTRY_USER=$2
 REGISTRY_PWD=$3
 
 BUILDBOT_PATH="/data/buildbot"
-DOCKER_PATH="/data/docker"
+DOCKER_PATH="/go/src/github.com/dotcloud/docker"
 
 function run { su $USER -c "$1"; }
 

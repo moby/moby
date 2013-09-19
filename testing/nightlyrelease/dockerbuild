@@ -1,41 +1,34 @@
 #!/bin/bash
 
 # Variables AWS_ACCESS_KEY, AWS_SECRET_KEY, PG_PASSPHRASE and INDEX_AUTH
-# are decoded from /root/release_credentials.json and passed to the environment
+# are decoded from /root/release_credentials.json
 # Variable AWS_S3_BUCKET is passed to the environment from docker run -e
 
 # Enable debugging
 set -x
 
-# Prepare container environment to run docker in docker
-# Mount cgroups
-mount -t tmpfs none /tmp; mount -t tmpfs none /sys/fs/cgroup; cd /sys/fs/cgroup
-for C in $(awk "{print \$1}" < /proc/cgroups | grep -v subsys | grep -v memory) ; do mkdir $C ; mount -t cgroup none -o $C $C ; done
-pushd /proc/self/fd >/dev/null; for FD in *; do case "$FD" in [012]) ;; *) eval exec "$FD>&-" ;; esac done; popd >/dev/null
-
-# Launch docker daemon inside the container
-docker -d &
-
-# fetch docker master branch
-export GOPATH=/go
-rm -rf $GOPATH; mkdir -p $GOPATH
-go get -d github.com/dotcloud/docker
+# Fetch docker master branch
+git clone http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
 cd /go/src/github.com/dotcloud/docker
+
+# Launch docker daemon using dind inside the container
+./hack/dind /usr/bin/docker -dns=8.8.8.8 -d &
+sleep 5
 
 # Add an uncommitted change to generate a timestamped release
 date > timestamp
 
-# Build the docker package and extract docker binary
-docker build -t releasedocker .
-docker run releasedocker sh -c 'cat /go/src/github.com/dotcloud/docker/bundles/*/binary/docker*'  >/docker
-chmod +x /docker
+# Build the docker package using /Dockerfile
+docker build -t docker .
 
-# Swap docker production daemon with new docker binary for testing
-kill $(pgrep '^docker$')
-sleep 15
-mv /docker /usr/bin
-docker -d &
-sleep 15
+# Run Docker unittests
+docker run -privileged docker go test -v || exit 1
+
+# Create Docker binary and Ubuntu package
+docker run -privileged docker hack/make.sh binary ubuntu
+
+# Freeze the container to upload the release
+docker commit -run '{"Env": ["PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"], "WorkingDir": "/go/src/github.com/dotcloud/docker"}' $(docker ps -l -q)  release
 
 # Turn debug off to load credentials in the environment and
 # to authenticate to the index
@@ -47,7 +40,17 @@ exec("""for k in d: print "export {0}=\\"{1}\\"".format(k,d[k])""")')
 echo '{"https://index.docker.io/v1/":{"auth":"'$INDEX_AUTH'","email":"engineering@dotcloud.com"}}' > /.dockercfg
 set -x
 
-# Test docker nightly
+# Extract docker binary
+docker cp $(docker ps -l -q):/go/src/github.com/dotcloud/docker/bundles /tmp
+
+# Swap docker production daemon with new docker binary for testing
+kill $(pgrep '^docker$')
+sleep 15
+cp /tmp/bundles/*/binary/* /usr/bin/docker
+./hack/dind /usr/bin/docker -dns=8.8.8.8 -d &
+sleep 15
+
+# Run Docker functional tests
 # Generate unique image name
 export DIMAGE=testimage`date +'%Y%m%d%H%M%S'`
 
@@ -66,6 +69,6 @@ docker push test/$DIMAGE
 docker search $DIMAGE | grep -q $DIMAGE || exit 1
 
 # Push docker nightly
-echo docker run -i -t -e AWS_S3_BUCKET="$AWS_S3_BUCKET" -e AWS_ACCESS_KEY="XXXXX" -e AWS_SECRET_KEY="XXXXX" -e GPG_PASSPHRASE="XXXXX" releasedocker
+echo docker run -i -t -privileged -e AWS_S3_BUCKET=$AWS_S3_BUCKET -e AWS_ACCESS_KEY=XXXXX -e AWS_SECRET_KEY=XXXXX -e GPG_PASSPHRASE=XXXXX release  hack/release.sh
 set +x
-docker run -i -t -e AWS_S3_BUCKET="$AWS_S3_BUCKET" -e AWS_ACCESS_KEY="$AWS_ACCESS_KEY" -e AWS_SECRET_KEY="$AWS_SECRET_KEY" -e GPG_PASSPHRASE="$GPG_PASSPHRASE" releasedocker
+docker run -i -t -privileged -e AWS_S3_BUCKET=$AWS_S3_BUCKET -e AWS_ACCESS_KEY=$AWS_ACCESS_KEY -e AWS_SECRET_KEY=$AWS_SECRET_KEY -e GPG_PASSPHRASE=$GPG_PASSPHRASE  release  hack/release.sh

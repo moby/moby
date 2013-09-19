@@ -13,7 +13,6 @@ SMTP_USER=$6
 SMTP_PWD=$7
 EMAIL_RCP=$8
 BUILDBOT_PATH="/data/buildbot"
-DOCKER_PATH="/data/docker"
 SLAVE_NAME="buildworker"
 SLAVE_SOCKET="localhost:9989"
 export PATH="/bin:sbin:/usr/bin:/usr/sbin:/usr/local/bin"
