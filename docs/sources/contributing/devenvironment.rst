@@ -126,11 +126,7 @@ You can run an interactive session in the newly built container:
 
 
 
-To extract the binaries from the container:
-
-.. code-block:: bash
-
-    sudo docker run docker sh -c 'cat $(which docker)' > docker-build && chmod +x docker-build
+.. note:: The binary is availalbe outside the container in the directory  ``./bundles/<version>-dev/binary/``.
 
 
 **Need More Help?**
