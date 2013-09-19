@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/devmapper"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -84,6 +85,32 @@ func layerArchive(tarfile string) (io.Reader, error) {
 	return f, nil
 }
 
+// Remove any leftover device mapper devices from earlier runs of the unit tests
+func cleanupDevMapper() {
+	infos, _ := ioutil.ReadDir("/dev/mapper")
+	if infos != nil {
+		hasPool := false
+		for _, info := range infos {
+			name := info.Name()
+			if strings.HasPrefix(name, "docker-unit-tests-devices-") {
+				if name == "docker-unit-tests-devices-pool" {
+					hasPool = true
+				} else {
+					if err := devmapper.RemoveDevice(name); err != nil {
+						panic(fmt.Errorf("Unable to remove existing device %s: %s", name, err))
+					}
+				}
+			}
+			// We need to remove the pool last as the other devices block it
+			if hasPool {
+				if err := devmapper.RemoveDevice("docker-unit-tests-devices-pool"); err != nil {
+					panic(fmt.Errorf("Unable to remove existing device docker-unit-tests-devices-pool: %s", name, err))
+				}
+			}
+		}
+	}
+}
+
 func init() {
 	os.Setenv("TEST", "1")
 
@@ -98,6 +125,8 @@ func init() {
 	}
 
 	NetworkBridgeIface = unitTestNetworkBridge
+
+	cleanupDevMapper()
 
 	// Always start from a clean set of loopback mounts
 	err := os.RemoveAll(unitTestStoreDevicesBase)
