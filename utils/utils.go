@@ -45,30 +45,10 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 	return resp, nil
 }
 
-// Debug function, if the debug flag is set, then display. Do nothing otherwise
-// If Docker is in damon mode, also send the debug info on the socket
-func Debugf(format string, a ...interface{}) {
-	if os.Getenv("DEBUG") != "" {
 
-		// Retrieve the stack infos
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "<unknown>"
-			line = -1
-		} else {
-			file = file[strings.LastIndex(file, "/")+1:]
-		}
-
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-	}
-}
-
-// Error function
-// Behaves exactly like the Debugf function, but does not require debug flag
-// Used for reporting error information and sending error info on the socket
-func Errorf(format string, a ...interface{}) {
+func logf(level string, format string, a ...interface{}) {
 	// Retrieve the stack infos
-	_, file, line, ok := runtime.Caller(1)
+	_, file, line, ok := runtime.Caller(2)
 	if !ok {
 		file = "<unknown>"
 		line = -1
@@ -76,7 +56,19 @@ func Errorf(format string, a ...interface{}) {
 		file = file[strings.LastIndex(file, "/")+1:]
 	}
 
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("[error] %s:%d %s\n", file, line, format), a...)
+	fmt.Fprintf(os.Stderr, fmt.Sprintf("[%s] %s:%d %s\n", level, file, line, format), a...)
+}
+
+// Debug function, if the debug flag is set, then display. Do nothing otherwise
+// If Docker is in damon mode, also send the debug info on the socket
+func Debugf(format string, a ...interface{}) {
+	if os.Getenv("DEBUG") != "" {
+		logf("debug", format, a)
+	}
+}
+
+func Errorf(format string, a ...interface{}) {
+	logf("error", format, a)
 }
 
 // Reader with progress bar
@@ -335,7 +327,7 @@ func NewWriteBroadcaster() *WriteBroadcaster {
 
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		Debugf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+		Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
 	} else {
 		return len(fds)
 	}
@@ -787,7 +779,7 @@ func IsGIT(str string) bool {
 func GetResolvConf() ([]byte, error) {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
-		Debugf("Error openning resolv.conf: %s", err)
+		Errorf("Error openning resolv.conf: %s", err)
 		return nil, err
 	}
 	return resolv, nil

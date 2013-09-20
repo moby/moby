@@ -418,7 +418,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	var out APIVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
-		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
+		utils.Errorf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
 	if out.Version != "" {
@@ -1530,7 +1530,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				utils.Debugf("Error monitoring TTY size: %s\n", err)
+				utils.Errorf("Error monitoring TTY size: %s\n", err)
 			}
 		}
 
@@ -1567,7 +1567,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 
 		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr); err != nil {
-			utils.Debugf("Error hijack: %s", err)
+			utils.Errorf("Error hijack: %s", err)
 			return err
 		}
 	}
@@ -1789,11 +1789,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				utils.Errorf("Couldn't send EOF: %s\n", err)
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				utils.Errorf("Couldn't send EOF: %s\n", err)
 			}
 		}
 		// Discard errors due to pipe interruption
@@ -1802,14 +1802,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	if stdout != nil {
 		if err := <-receiveStdout; err != nil {
-			utils.Debugf("Error receiveStdout: %s", err)
+			utils.Errorf("Error receiveStdout: %s", err)
 			return err
 		}
 	}
 
 	if !cli.isTerminal {
 		if err := <-sendStdin; err != nil {
-			utils.Debugf("Error sendStdin: %s", err)
+			utils.Errorf("Error sendStdin: %s", err)
 			return err
 		}
 	}
@@ -1823,7 +1823,7 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	}
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
-		utils.Debugf("Error getting size: %s", err)
+		utils.Errorf("Error getting size: %s", err)
 		if ws == nil {
 			return 0, 0
 		}
@@ -1840,7 +1840,7 @@ func (cli *DockerCli) resizeTty(id string) {
 	v.Set("h", strconv.Itoa(height))
 	v.Set("w", strconv.Itoa(width))
 	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
-		utils.Debugf("Error resize: %s", err)
+		utils.Errorf("Error resize: %s", err)
 	}
 }
 
