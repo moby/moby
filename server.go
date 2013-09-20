@@ -152,7 +152,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	if err != nil {
 		return err
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image", "created"))
+	out.Write(sf.FormatStatus(utils.TruncateID(img.ID), "Image created"))
 	return nil
 }
 
