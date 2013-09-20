@@ -404,7 +404,12 @@ func TestRunDetach(t *testing.T) {
 		<-ch
 	})
 
-	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatal("The detached container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container to die timed out", 20*time.Second, func() {
 		container.Kill()
 		container.Wait()
 	})
@@ -456,6 +461,11 @@ func TestAttachDetach(t *testing.T) {
 	setTimeout(t, "Waiting for CmdAttach timed out", 5*time.Second, func() {
 		<-ch
 	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatal("The detached container should be still running")
+	}
 
 	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
 		container.Kill()
