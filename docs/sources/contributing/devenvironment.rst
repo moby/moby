@@ -37,15 +37,8 @@ To checkout a different revision just use ``git checkout`` with the name of bran
 
 Step 3: Build the Environment
 -----------------------------
-<<<<<<< HEAD
 
 This following command will build a development environment using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test Docker. This command will take some time to complete when you first execute it.
-
-=======
-
-This following command will build a development environment using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test Docker. This command will take some time to complete when you first execute it.
-
->>>>>>> 70b731735c810d9e179837eb8761a44fbe98f391
 
 .. code-block:: bash
 
