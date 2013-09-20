@@ -70,7 +70,7 @@ func validateRepositoryName(repositoryName string) error {
 	if !validNamespace.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
 	}
-	validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
+	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", name)
 	}
