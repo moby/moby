@@ -37,6 +37,9 @@ before finally outputting the ID of your new image.
 
 When you're done with your build, you're ready to look into :ref:`image_push`.
 
+If you want to use the ``TAG`` command in your Dockerfile, pass the
+``--allow-unsafe`` option to ``docker build``.
+
 2. Format
 =========
 
@@ -318,7 +321,8 @@ the command given by ``CMD`` is executed.
 The ``TAG`` instruction tags the current image state with the
 ``image_tag_name``, enabling you to build multiple tagged images in a
 single Docker file.  If you are only building one tagged image, it has the
-same effect as psasing the ``-t`` option to ``docker build``.
+same effect as psasing the ``-t`` option to ``docker build``.  To use this
+tag, the ``--allow-unsafe`` option must be passed.
 
 4. Dockerfile Examples
 ======================
