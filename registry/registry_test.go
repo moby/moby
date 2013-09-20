@@ -159,11 +159,11 @@ func TestPushRegistryTag(t *testing.T) {
 func TestPushImageJSONIndex(t *testing.T) {
 	r := spawnTestRegistry(t)
 	imgData := []*ImgData{
-		&ImgData{
+		{
 			ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 			Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 		},
-		&ImgData{
+		{
 			ID:       "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
@@ -195,4 +195,14 @@ func TestSearchRepositories(t *testing.T) {
 		t.Fatal("Expected non-nil SearchResults object")
 	}
 	assertEqual(t, results.NumResults, 0, "Expected 0 search results")
+}
+
+func TestValidRepositoryName(t *testing.T) {
+	if err := validateRepositoryName("docker/docker"); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRepositoryName("docker/Docker"); err == nil {
+		t.Log("Repository name should be invalid")
+		t.Fail()
+	}
 }
