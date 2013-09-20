@@ -82,7 +82,6 @@ To execute the test cases, run this command:
 
 If the test are successful then the tail of the output should look something like this
 
-::
 
 	--- PASS: TestWriteBroadcaster (0.00 seconds)
 	=== RUN TestRaceWriteBroadcaster
