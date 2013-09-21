@@ -44,6 +44,9 @@ Vagrant::Config.run do |config|
       "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list; " \
       "apt-get update -qq; apt-get install -yq lxc-docker; "
 
+    #### FIXME. Temporarily install docker with proper apparmor handling
+    pkg_cmd << "stop docker; wget -q -O /usr/bin/docker http://test.docker.io/test/docker; start docker; " \
+
     # Install testing dependencies
     pkg_cmd << "wget -O go.tgz http://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz; " \
       "  tar -C /usr/local -vxzf go.tgz; ln -s /usr/local/go/bin/go /usr/bin/go; " \

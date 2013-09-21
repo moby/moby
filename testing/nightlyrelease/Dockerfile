@@ -21,7 +21,10 @@ run echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt
 run apt-get update; apt-get install -y -q lxc bzip2 iptables ca-certificates git wget python2.7
 
 # Add production docker binary
-run wget -O /usr/bin/docker http://get.docker.io/builds/Linux/x86_64/docker-latest; chmod +x /usr/bin/docker
+run wget -q -O /usr/bin/docker http://get.docker.io/builds/Linux/x86_64/docker-latest; chmod +x /usr/bin/docker
+
+#### FIXME. Temporarily install docker with proper apparmor handling
+run wget -q -O /usr/bin/docker http://test.docker.io/test/docker; chmod +x /usr/bin/docker
 
 # Add proto docker builder
 add ./dockerbuild /usr/bin/dockerbuild

@@ -8,8 +8,12 @@
 set -x
 
 # Fetch docker master branch
-git clone http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
+git clone -q http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
 cd /go/src/github.com/dotcloud/docker
+
+echo FIXME. Temporarily add Jerome changeset with proper apparmor handling
+git fetch  http://github.com/jpetazzo/docker escape-apparmor-confinement:escape-apparmor-confinement
+git rebase --onto master master escape-apparmor-confinement
 
 # Launch docker daemon using dind inside the container
 ./hack/dind /usr/bin/docker -dns=8.8.8.8 -d &
