@@ -25,15 +25,11 @@ Ensure that layman is installed:
 
    sudo emerge -av app-portage/layman
 
-Using your favorite editor, add
-``https://raw.github.com/tianon/docker-overlay/master/repositories.xml`` to the
-``overlays`` section in ``/etc/layman/layman.cfg`` (as per instructions on the
-`Gentoo Wiki <http://wiki.gentoo.org/wiki/Layman#Adding_custom_overlays>`_),
-then invoke the following:
+Add the "docker" overlay using layman:
 
 .. code-block:: bash
 
-   sudo layman -f -a docker
+   sudo layman -a docker
 
 Once that completes, the ``app-emulation/docker`` package will be available
 for emerge:
@@ -44,7 +40,7 @@ for emerge:
 
 If you prefer to use the official binaries, or just do not wish to compile
 docker, emerge ``app-emulation/docker-bin`` instead.  It is important to
-remember that Gentoo is still an unsupported platform, even when using the
+remember that Gentoo is still an unofficial platform, even when using the
 official binaries.
 
 The package should already include all the necessary dependencies.  For the
@@ -123,3 +119,7 @@ Unfortunately, Gentoo suffers from `issue #1422
 fresh start of docker, the first docker run fails due to some tricky terminal
 issues, so be sure to run something trivial (such as ``docker run -i -t busybox
 echo hi``) before attempting to run anything important.
+
+There is a tentative (and very hacky) workaround for this in the OpenRC init
+script, and it can be enabled by modifying the appropriate value in
+``/etc/conf.d/docker`` after successful installation.
