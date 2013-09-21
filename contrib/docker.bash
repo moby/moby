@@ -341,7 +341,7 @@ _docker_pull()
 
 _docker_push()
 {
-	return
+	__docker_image_repos
 }
 
 _docker_restart()
