@@ -369,6 +369,110 @@ func TestRunAttachStdin(t *testing.T) {
 	}
 }
 
+// TestRunDetach checks attaching and detaching with the escape sequence.
+func TestRunDetach(t *testing.T) {
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		cli.CmdRun("-i", "-t", unitTestImageID, "cat")
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
+		stdinPipe.Write([]byte{'', ''})
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdRun timed out", 5*time.Second, func() {
+		<-ch
+	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatal("The detached container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container to die timed out", 20*time.Second, func() {
+		container.Kill()
+		container.Wait()
+	})
+}
+
+// TestAttachDetach checks that attach in tty mode can be detached
+func TestAttachDetach(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	go stdout.Read(make([]byte, 1024))
+	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
+		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	stdin, stdinPipe = io.Pipe()
+	stdout, stdoutPipe = io.Pipe()
+	cli = NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		if err := cli.CmdAttach(container.ShortID()); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
+		stdinPipe.Write([]byte{'', ''})
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdAttach timed out", 5*time.Second, func() {
+		<-ch
+	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatal("The detached container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
+		container.Kill()
+		container.Wait()
+	})
+}
+
 // Expected behaviour, the process stays alive when the client disconnects
 func TestAttachDisconnect(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
