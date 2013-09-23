@@ -964,12 +964,17 @@ func (container *Container) monitor() {
 		}
 	}
 	utils.Debugf("Process finished")
-	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
-	}
+
 	exitCode := -1
 	if container.cmd != nil {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	// Report status back
+	container.State.setStopped(exitCode)
+
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
 	}
 
 	// Cleanup
@@ -1000,9 +1005,6 @@ func (container *Container) monitor() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
-	// Report status back
-	container.State.setStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
