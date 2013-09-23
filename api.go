@@ -497,6 +497,17 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	return nil
 }
 
+func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	name := vars["name"]
+	srv.ImageExport(name, w)
+	return nil
+}
+
+func postImagesLoad(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	srv.ImageLoad(r.Body, w)
+	return nil
+}
+
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	config := &Config{}
 	out := &APIRun{}
@@ -987,6 +998,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/images/json":                    getImagesJSON,
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
+			"/images/{name:.*}/get":           getImagesGet,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
 			"/containers/ps":                  getContainersJSON,
@@ -1003,6 +1015,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
+			"/images/load":                  postImagesLoad,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
 			"/containers/create":            postContainersCreate,
