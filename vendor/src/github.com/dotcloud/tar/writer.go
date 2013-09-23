@@ -20,11 +20,11 @@ import (
 )
 
 var (
-	ErrWriteTooLong        = errors.New("archive/tar: write too long")
-	ErrFieldTooLong        = errors.New("archive/tar: header field too long")
-	ErrWriteAfterClose     = errors.New("archive/tar: write after close")
-	errNameTooLong         = errors.New("archive/tar: name too long")
-	errFieldTooLongNoAscii = errors.New("archive/tar: header field too long or contains invalid values")
+	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	errNameTooLong     = errors.New("archive/tar: name too long")
+	errInvalidHeader   = errors.New("archive/tar: header field too long or contains invalid values")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -67,29 +67,23 @@ func (tw *Writer) Flush() error {
 }
 
 // Write s into b, terminating it with a NUL if there is room.
-func (tw *Writer) cString(b []byte, s string) {
+// If the value is too long for the field and allowPax is true add a paxheader record instead
+func (tw *Writer) cString(b []byte, s string, allowPax bool, paxKeyword string, paxHeaders map[string]string) {
+	needsPaxHeader := allowPax && len(s) > len(b) || !isASCII(s)
+	if needsPaxHeader {
+		paxHeaders[paxKeyword] = s
+		return
+	}
 	if len(s) > len(b) {
 		if tw.err == nil {
 			tw.err = ErrFieldTooLong
 		}
 		return
 	}
-	copy(b, s)
-	if len(s) < len(b) {
-		b[len(s)] = 0
-	}
-}
-
-// Write s into b, terminating it with a NUL if there is room. If the value is too long for the field add a paxheader record instead
-func (tw *Writer) fillHeaderField(b []byte, paxHeader map[string]string, paxKeyword string, s string) {
-	needsPaxHeader := len(s) > len(b) || !isASCII7Bit(s)
-	if needsPaxHeader {
-		paxHeader[paxKeyword] = s
-		return
-	}
-	copy(b, stripTo7BitsAndShorten(s, len(b)))
-	if len(s) < len(b) {
-		b[len(s)] = 0
+	ascii := toASCII(s)
+	copy(b, ascii)
+	if len(ascii) < len(b) {
+		b[len(ascii)] = 0
 	}
 }
 
@@ -100,17 +94,27 @@ func (tw *Writer) octal(b []byte, x int64) {
 	for len(s)+1 < len(b) {
 		s = "0" + s
 	}
-	tw.cString(b, s)
+	tw.cString(b, s, false, paxNone, nil)
 }
 
 // Write x into b, either as octal or as binary (GNUtar/star extension).
-func (tw *Writer) numeric(b []byte, x int64) {
+// If the value is too long for the field and writingPax is enabled both for the field and the add a paxheader record instead
+func (tw *Writer) numeric(b []byte, x int64, allowPax bool, paxKeyword string, paxHeaders map[string]string) {
 	// Try octal first.
 	s := strconv.FormatInt(x, 8)
 	if len(s) < len(b) {
 		tw.octal(b, x)
 		return
 	}
+
+	// If it is too long for octal, and pax is preferred, use a pax header
+	if allowPax && tw.preferPax {
+		tw.octal(b, 0)
+		s := strconv.FormatInt(x, 10)
+		paxHeaders[paxKeyword] = s
+		return
+	}
+
 	// Too big: use binary (big-endian).
 	tw.usedBinary = true
 	for i := len(b) - 1; x > 0 && i >= 0; i-- {
@@ -118,28 +122,6 @@ func (tw *Writer) numeric(b []byte, x int64) {
 		x >>= 8
 	}
 	b[0] |= 0x80 // highest bit indicates binary format
-}
-
-// Write x into b, if it is smaller than 2097151. If the value is too long for the field add a paxheader record instead
-func (tw *Writer) fillNumericHeaderField(b []byte, paxHeader map[string]string, paxKeyword string, x int64) {
-	if tw.preferPax && x > 2097151 {
-		s := strconv.FormatInt(x, 10)
-		paxHeader[paxKeyword] = s
-		tw.numeric(b, 0)
-	} else {
-		tw.numeric(b, x)
-	}
-}
-
-// Write x into b, if it is smaller than 2097151. If the value is too long for the field add a paxheader record instead
-func (tw *Writer) fillNumericLongHeaderField(b []byte, paxHeader map[string]string, paxKeyword string, x int64) {
-	if tw.preferPax && x > 8589934591 {
-		s := strconv.FormatInt(x, 10)
-		paxHeader[paxKeyword] = s
-		tw.numeric(b, 0)
-	} else {
-		tw.numeric(b, x)
-	}
 }
 
 var (
@@ -158,7 +140,7 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 // WriteHeader writes hdr and prepares to accept the file's contents.
 // WriteHeader calls Flush if it is not the first header.
 // Calling after a Close will return ErrWriteAfterClose.
-//  As this method is called internally by writePax header it allows to
+// As this method is called internally by writePax header to allow it to
 // suppress writing the pax header.
 func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	if tw.closed {
@@ -172,7 +154,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	}
 
 	// a map to hold pax header records, if any are needed
-	paxHeaderRecords := make(map[string]string)
+	paxHeaders := make(map[string]string)
 
 	// TODO(shanemhansen): we might want to use PAX headers for
 	// subsecond time resolution, but for now let's just capture
@@ -184,7 +166,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	// keep a reference to the filename to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
 	pathHeaderBytes := s.next(fileNameSize)
 
-	tw.fillHeaderField(pathHeaderBytes, paxHeaderRecords, PAX_PATH, hdr.Name)
+	tw.cString(pathHeaderBytes, hdr.Name, true, paxPath, paxHeaders)
 
 	// Handle out of range ModTime carefully.
 	var modTime int64
@@ -192,48 +174,48 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		modTime = hdr.ModTime.Unix()
 	}
 
-	tw.octal(s.next(8), hdr.Mode)                                                   // 100:108
-	tw.fillNumericHeaderField(s.next(8), paxHeaderRecords, PAX_UID, int64(hdr.Uid)) // 108:116
-	tw.fillNumericHeaderField(s.next(8), paxHeaderRecords, PAX_GID, int64(hdr.Gid)) // 116:124
-	tw.fillNumericLongHeaderField(s.next(12), paxHeaderRecords, PAX_SIZE, hdr.Size) // 124:136
-	tw.numeric(s.next(12), modTime)                                                 // 136:148 --- consider using pax for finer granularity
-	s.next(8)                                                                       // chksum (148:156)
-	s.next(1)[0] = hdr.Typeflag                                                     // 156:157
+	tw.octal(s.next(8), hdr.Mode)                                   // 100:108
+	tw.numeric(s.next(8), int64(hdr.Uid), true, paxUid, paxHeaders) // 108:116
+	tw.numeric(s.next(8), int64(hdr.Gid), true, paxGid, paxHeaders) // 116:124
+	tw.numeric(s.next(12), hdr.Size, true, paxSize, paxHeaders)     // 124:136
+	tw.numeric(s.next(12), modTime, false, paxNone, nil)            // 136:148 --- consider using pax for finer granularity
+	s.next(8)                                                       // chksum (148:156)
+	s.next(1)[0] = hdr.Typeflag                                     // 156:157
 
-	tw.fillHeaderField(s.next(100), paxHeaderRecords, PAX_LINKPATH, hdr.Linkname)
+	tw.cString(s.next(100), hdr.Linkname, true, paxLinkpath, paxHeaders)
 
-	copy(s.next(8), []byte("ustar\x0000"))                                 // 257:265
-	tw.fillHeaderField(s.next(32), paxHeaderRecords, PAX_UNAME, hdr.Uname) // 265:297
-	tw.fillHeaderField(s.next(32), paxHeaderRecords, PAX_GNAME, hdr.Gname) // 297:329
-	tw.numeric(s.next(8), hdr.Devmajor)                                    // 329:337
-	tw.numeric(s.next(8), hdr.Devminor)                                    // 337:345
+	copy(s.next(8), []byte("ustar\x0000"))                        // 257:265
+	tw.cString(s.next(32), hdr.Uname, true, paxUname, paxHeaders) // 265:297
+	tw.cString(s.next(32), hdr.Gname, true, paxGname, paxHeaders) // 297:329
+	tw.numeric(s.next(8), hdr.Devmajor, false, paxNone, nil)      // 329:337
+	tw.numeric(s.next(8), hdr.Devminor, false, paxNone, nil)      // 337:345
 
 	// keep a reference to the prefix to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
 	prefixHeaderBytes := s.next(155)
-	tw.cString(prefixHeaderBytes, "") // 345:500  prefix
+	tw.cString(prefixHeaderBytes, "", false, paxNone, nil) // 345:500  prefix
 
 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
 	if tw.usedBinary {
 		copy(header[257:265], []byte("ustar  \x00"))
 	}
 
-	_, paxPathUsed := paxHeaderRecords[PAX_PATH]
+	_, paxPathUsed := paxHeaders[paxPath]
 	// try to use a ustar header when only the name is too long
-	if !tw.preferPax && len(paxHeaderRecords) == 1 && paxPathUsed {
+	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
 		suffix := hdr.Name
 		prefix := ""
-		if len(hdr.Name) > fileNameSize && isASCII7Bit(hdr.Name) {
+		if len(hdr.Name) > fileNameSize && isASCII(hdr.Name) {
 			var err error
 			prefix, suffix, err = tw.splitUSTARLongName(hdr.Name)
 			if err == nil {
 				// ok we can use a ustar long name instead of pax, now correct the fields
 
 				// remove the path field from the pax header. this will suppress the pax header
-				delete(paxHeaderRecords, PAX_PATH)
+				delete(paxHeaders, paxPath)
 
 				// update the path fields
-				tw.cString(pathHeaderBytes, suffix)
-				tw.cString(prefixHeaderBytes, prefix)
+				tw.cString(pathHeaderBytes, suffix, false, paxNone, nil)
+				tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
 
 				// Use the ustar magic if we used ustar long names.
 				if len(prefix) > 0 {
@@ -254,17 +236,16 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		return tw.err
 	}
 
-	if len(paxHeaderRecords) > 0 {
-		if allowPax {
-			if err := tw.writePAXHeader(hdr, paxHeaderRecords); err != nil {
-				return err
-			}
-		} else {
-			return errFieldTooLongNoAscii
+	if len(paxHeaders) > 0 {
+		if !allowPax {
+			return errInvalidHeader
+		}
+		if err := tw.writePAXHeader(hdr, paxHeaders); err != nil {
+			return err
 		}
 	}
 	tw.nb = int64(hdr.Size)
-	tw.pad = -tw.nb & (blockSize - 1) // blockSize is a power of two
+	tw.pad = (blockSize - (tw.nb % blockSize)) % blockSize
 
 	_, tw.err = tw.w.Write(header)
 	return tw.err
@@ -282,8 +263,11 @@ func (tw *Writer) splitUSTARLongName(name string) (prefix, suffix string, err er
 		length--
 	}
 	i := strings.LastIndex(name[:length], "/")
-	nlen := length - i - 1
-	if i <= 0 || nlen > fileNameSize || nlen == 0 {
+	// nlen contains the resulting length in the name field.
+	// plen contains the resulting length in the prefix field.
+	nlen := len(name) - i - 1
+	plen := i
+	if i <= 0 || nlen > fileNameSize || nlen == 0 || plen > fileNamePrefixSize {
 		err = errNameTooLong
 		return
 	}
@@ -293,7 +277,7 @@ func (tw *Writer) splitUSTARLongName(name string) (prefix, suffix string, err er
 
 // writePaxHeader writes an extended pax header to the
 // archive.
-func (tw *Writer) writePAXHeader(hdr *Header, paxHeaderRecords map[string]string) error {
+func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) error {
 	// Prepare extended header
 	ext := new(Header)
 	ext.Typeflag = TypeXHeader
@@ -307,12 +291,16 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaderRecords map[string]string
 	fullName := path.Join(dir,
 		fmt.Sprintf("PaxHeaders.%d", pid), file)
 
-	ext.Name = stripTo7BitsAndShorten(fullName, 100)
+	ascii := toASCII(fullName)
+	if len(ascii) > 100 {
+		ascii = ascii[:100]
+	}
+	ext.Name = ascii
 	// Construct the body
 	var buf bytes.Buffer
 
-	for k, v := range paxHeaderRecords {
-		fmt.Fprint(&buf, paxHeader(k, v))
+	for k, v := range paxHeaders {
+		fmt.Fprint(&buf, paxHeader(k+"="+v))
 	}
 
 	ext.Size = int64(len(buf.Bytes()))
@@ -329,17 +317,16 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaderRecords map[string]string
 }
 
 // paxHeader formats a single pax record, prefixing it with the appropriate length
-func paxHeader(keyword string, value string) string {
-
-	const padding = 3 // Extra padding for space and newline
-	size := len(keyword) + len(value) + padding
+func paxHeader(msg string) string {
+	const padding = 2 // Extra padding for space and newline
+	size := len(msg) + padding
 	size += len(strconv.Itoa(size))
-	record := fmt.Sprintf("%d %s=%s\n", size, keyword, value)
+	record := fmt.Sprintf("%d %s\n", size, msg)
 	if len(record) != size {
 		// Final adjustment if adding size increased
 		// the number of digits in size
 		size = len(record)
-		record = fmt.Sprintf("%d %s=%s\n", size, keyword, value)
+		record = fmt.Sprintf("%d %s\n", size, msg)
 	}
 	return record
 }
