@@ -142,6 +142,25 @@ var untarTests = []*untarTest{
 			},
 		},
 	},
+	{
+		file: "testdata/nil-uid.tar", // golang.org/issue/5290
+		headers: []*Header{
+			{
+				Name:     "P1050238.JPG.log",
+				Mode:     0664,
+				Uid:      0,
+				Gid:      0,
+				Size:     14,
+				ModTime:  time.Unix(1365454838, 0),
+				Typeflag: TypeReg,
+				Linkname: "",
+				Uname:    "eyefi",
+				Gname:    "eyefi",
+				Devmajor: 0,
+				Devminor: 0,
+			},
+		},
+	},
 }
 
 func TestReader(t *testing.T) {
@@ -152,6 +171,7 @@ testLoop:
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 			continue
 		}
+		defer f.Close()
 		tr := NewReader(f)
 		for j, header := range test.headers {
 			hdr, err := tr.Next()
@@ -172,7 +192,6 @@ testLoop:
 		if hdr != nil || err != nil {
 			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
 		}
-		f.Close()
 	}
 }
 
