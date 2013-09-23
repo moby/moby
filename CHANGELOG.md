@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.3 (2013-09-23)
+* Packaging: Update tar vendor dependency
+- Client: Fix detach issue
+- Runtime: Only copy and change permissions on non-bindmount volumes
+- Registry: Update regular expression to match index
+* Runtime: Allow multiple volumes-from
+* Packaging: Download apt key over HTTPS
+* Documentation: Update section on extracting the docker binary after build
+* Documentation: Update development environment docs for new build process
+* Documentation: Remove 'base' image from documentation
+* Packaging: Add 'docker' group on install for ubuntu package
+- Runtime: Fix HTTP imports from STDIN
+
 ## 0.6.2 (2013-09-17)
 + Hack: Vendor all dependencies
 + Builder: Add -rm option in order to remove intermediate containers
