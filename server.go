@@ -134,7 +134,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	}
 	defer file.Body.Close()
 
-	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
+	config, _, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 	// FIXME: Handle custom repo, tag comment, author
-	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
+	img, err = srv.runtime.Commit(c, "", "", img.Author, nil)
 	if err != nil {
 		return "", err
 	}
@@ -226,8 +226,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			out.Tag = tag
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
-			out.Size = image.Size
-			out.VirtualSize = image.getParentsSize(0) + image.Size
+			out.Size = image.size
+			out.VirtualSize = image.getParentsSize(0) + image.size
 			outs = append(outs, out)
 		}
 	}
@@ -237,8 +237,8 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			var out APIImages
 			out.ID = image.ID
 			out.Created = image.Created.Unix()
-			out.Size = image.Size
-			out.VirtualSize = image.getParentsSize(0) + image.Size
+			out.Size = image.size
+			out.VirtualSize = image.getParentsSize(0) + image.size
 			outs = append(outs, out)
 		}
 	}
@@ -396,12 +396,12 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	return retContainers
 }
 
-func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
+func (srv *Server) ContainerCommit(name, repo, tag, author string, config *Config) (string, error) {
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return "", fmt.Errorf("No such container: %s", name)
 	}
-	img, err := srv.runtime.Commit(container, repo, tag, comment, author, config)
+	img, err := srv.runtime.Commit(container, repo, tag, author, config)
 	if err != nil {
 		return "", err
 	}
@@ -894,7 +894,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		}
 		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("", "Importing", "%8v/%v (%v)"), sf, true)
 	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
+	img, err := srv.runtime.graph.Create(archive, nil, "", nil)
 	if err != nil {
 		return err
 	}
@@ -918,9 +918,6 @@ func (srv *Server) ContainerCreate(config *Config) (string, error) {
 		config.Memory = 0
 	}
 
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
-		config.MemorySwap = -1
-	}
 	container, err := srv.runtime.Create(config)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {

@@ -171,7 +171,7 @@ func TestDiff(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
+	img, err := runtime.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,7 +239,7 @@ func TestCommitAutoRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", &Config{Cmd: []string{"cat", "/world"}})
+	img, err := runtime.graph.Create(rwTar, container1, "", &Config{Cmd: []string{"cat", "/world"}})
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,7 +299,7 @@ func TestCommitRun(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	img, err := runtime.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -398,7 +398,7 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +467,7 @@ func TestCreateVolume(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
+	config, hc, _, _, err := ParseRun([]string{"-v", "/var/lib/data", GetTestImage(runtime).ID, "echo", "hello", "world"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +573,7 @@ func TestRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -582,7 +582,7 @@ func TestRestart(t *testing.T) {
 	}
 
 	// Run the container again and check the output
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -681,7 +681,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -701,7 +701,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -721,7 +721,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -741,7 +741,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	} else if container.State.ExitCode != 0 {
@@ -763,7 +763,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
 	}
@@ -783,7 +783,7 @@ func TestUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err = container.Output()
+	output, err = container.Output(&HostConfig{})
 	if container.State.ExitCode == 0 {
 		t.Fatal("Starting container with wrong uid should fail but it passed.")
 	}
@@ -997,7 +997,7 @@ func TestEntrypoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1019,7 +1019,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	output, err := container.Output()
+	output, err := container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1064,16 +1064,18 @@ func TestLXCConfig(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true"},
 
-		Hostname:  "foobar",
-		Memory:    int64(mem),
-		CpuShares: int64(cpu),
+		Hostname: "foobar",
+		Memory:   int64(mem),
 	},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	container.generateLXCConfig(nil)
+	hostConfig := &HostConfig{
+		CpuShares: int64(cpu),
+	}
+	container.generateLXCConfig(hostConfig)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
@@ -1105,7 +1107,6 @@ func TestCustomLxcConfig(t *testing.T) {
 			Value: "0,1",
 		},
 	}}
-
 	container.generateLXCConfig(hostConfig)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = docker")
 	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpuset.cpus = 0,1")
@@ -1124,7 +1125,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			b.Fatal(err)
 		}
 		defer runtime.Destroy(container)
-		output, err := container.Output()
+		output, err := container.Output(&HostConfig{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -1219,7 +1220,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := r.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	img, err := r.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1256,7 +1257,7 @@ func TestCopyVolumeContent(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	img, err := r.graph.Create(rwTar, container1, "unit test commited image", "", nil)
+	img, err := r.graph.Create(rwTar, container1, "", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1308,7 +1309,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1318,9 +1319,8 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 
 	container2, err := runtime.Create(
 		&Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: container.ID,
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"/bin/echo", "-n", "foobar"},
 		},
 	)
 	if err != nil {
@@ -1328,7 +1328,11 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	_, err = container2.Output()
+	_, err = container2.Output(
+		&HostConfig{
+			VolumesFrom: container.ID,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1369,7 +1373,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		}
 	}
 
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1379,7 +1383,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		t.Fail()
 	}
 	// Run the container again to verify the volume path persists
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1412,7 +1416,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 		}
 	}
 
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1424,10 +1428,9 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 
 	container2, err := runtime.Create(
 		&Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"cat", "/test/foo"},
-			VolumesFrom: container.ID,
-			Volumes:     map[string]struct{}{"/test": {}},
+			Image:   GetTestImage(runtime).ID,
+			Cmd:     []string{"cat", "/test/foo"},
+			Volumes: map[string]struct{}{"/test": {}},
 		},
 	)
 	if err != nil {
@@ -1435,7 +1438,11 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 	defer runtime.Destroy(container2)
 
-	output, err := container2.Output()
+	output, err := container2.Output(
+		&HostConfig{
+			VolumesFrom: container.ID,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1449,7 +1456,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 
 	// Ensure it restarts successfully
-	_, err = container2.Output()
+	_, err = container2.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1459,7 +1466,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	config, hc, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, _, err := ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1478,6 +1485,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	}
 	c.WaitTimeout(500 * time.Millisecond)
 	c.Wait()
+
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -1546,7 +1554,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		}
 	}
 
-	_, err = container.Output()
+	_, err = container.Output(&HostConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1573,15 +1581,14 @@ func TestMultipleVolumesFrom(t *testing.T) {
 			t.FailNow()
 		}
 	}
-	if _, err := container2.Output(); err != nil {
+	if _, err := container2.Output(&HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 
 	container3, err := runtime.Create(
 		&Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"/bin/echo", "-n", "foobar"},
 		})
 
 	if err != nil {
@@ -1589,7 +1596,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	}
 	defer runtime.Destroy(container3)
 
-	if _, err := container3.Output(); err != nil {
+	if _, err := container3.Output(&HostConfig{VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ",")}); err != nil {
 		t.Fatal(err)
 	}
 

@@ -81,7 +81,7 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
 	}
 	img.graph = graph
-	if img.Size == 0 {
+	if img.size == 0 {
 		root, err := img.root()
 		if err != nil {
 			return nil, err
@@ -94,19 +94,16 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData Archive, container *Container, comment, author string, config *Config) (*Image, error) {
+func (graph *Graph) Create(layerData Archive, container *Container, author string, config *Config) (*Image, error) {
 	img := &Image{
 		ID:            GenerateID(),
-		Comment:       comment,
 		Created:       time.Now(),
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
-		Architecture:  "x86_64",
 	}
 	if container != nil {
 		img.Parent = container.Image
-		img.Container = container.ID
 		img.ContainerConfig = *container.Config
 	}
 	if err := graph.Register(nil, layerData, img); err != nil {

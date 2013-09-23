@@ -35,7 +35,6 @@ func TestInterruptedRegister(t *testing.T) {
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
 	image := &Image{
 		ID:      GenerateID(),
-		Comment: "testing",
 		Created: time.Now(),
 	}
 	go graph.Register(nil, badArchive, image)
@@ -63,15 +62,12 @@ func TestGraphCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
+	image, err := graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := ValidateID(image.ID); err != nil {
 		t.Fatal(err)
-	}
-	if image.Comment != "Testing" {
-		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", image.Comment)
 	}
 	if image.DockerVersion != VERSION {
 		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", VERSION, image.DockerVersion)
@@ -96,7 +92,6 @@ func TestRegister(t *testing.T) {
 	}
 	image := &Image{
 		ID:      GenerateID(),
-		Comment: "testing",
 		Created: time.Now(),
 	}
 	err = graph.Register(nil, archive, image)
@@ -114,9 +109,6 @@ func TestRegister(t *testing.T) {
 		if resultImg.ID != image.ID {
 			t.Fatalf("Wrong image ID. Should be '%s', not '%s'", image.ID, resultImg.ID)
 		}
-		if resultImg.Comment != image.Comment {
-			t.Fatalf("Wrong image comment. Should be '%s', not '%s'", image.Comment, resultImg.Comment)
-		}
 	}
 }
 
@@ -127,7 +119,7 @@ func TestMount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
+	image, err := graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +163,7 @@ func createTestImage(graph *Graph, t *testing.T) *Image {
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := graph.Create(archive, nil, "Test image", "", nil)
+	img, err := graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +178,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
-	img, err := graph.Create(archive, nil, "Bla bla", "", nil)
+	img, err := graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +193,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test 2 create (same name) / 1 delete
-	img1, err := graph.Create(archive, nil, "Testing", "", nil)
+	img1, err := graph.Create(archive, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +201,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = graph.Create(archive, nil, "Testing", "", nil); err != nil {
+	if _, err = graph.Create(archive, nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 2)
@@ -247,19 +239,16 @@ func TestByParent(t *testing.T) {
 	defer os.RemoveAll(graph.Root)
 	parentImage := &Image{
 		ID:      GenerateID(),
-		Comment: "parent",
 		Created: time.Now(),
 		Parent:  "",
 	}
 	childImage1 := &Image{
 		ID:      GenerateID(),
-		Comment: "child1",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
 	childImage2 := &Image{
 		ID:      GenerateID(),
-		Comment: "child2",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}

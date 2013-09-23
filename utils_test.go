@@ -89,7 +89,7 @@ func readFile(src string, t *testing.T) (content string) {
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
 func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
-	config, hostConfig, _, err := ParseRun(args, nil)
+	config, hostConfig, _, _, err := ParseRun(args, nil)
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)
@@ -144,52 +144,26 @@ func TestCompareConfig(t *testing.T) {
 	volumes1 := make(map[string]struct{})
 	volumes1["/test1"] = struct{}{}
 	config1 := Config{
-		Dns:         []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs:   []string{"1111:1111", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes1,
 	}
 	config2 := Config{
-		Dns:         []string{"0.0.0.0", "2.2.2.2"},
-		PortSpecs:   []string{"1111:1111", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
-	}
-	config3 := Config{
-		Dns:         []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
-	}
-	config4 := Config{
-		Dns:         []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "22222222",
-		Volumes:     volumes1,
+		PortSpecs: []string{"0000:0000", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes1,
 	}
 	volumes2 := make(map[string]struct{})
 	volumes2["/test2"] = struct{}{}
-	config5 := Config{
-		Dns:         []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes2,
+	config3 := Config{
+		PortSpecs: []string{"0000:0000", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes2,
 	}
 	if CompareConfig(&config1, &config2) {
-		t.Fatalf("CompareConfig should return false, Dns are different")
-	}
-	if CompareConfig(&config1, &config3) {
 		t.Fatalf("CompareConfig should return false, PortSpecs are different")
 	}
-	if CompareConfig(&config1, &config4) {
-		t.Fatalf("CompareConfig should return false, VolumesFrom are different")
-	}
-	if CompareConfig(&config1, &config5) {
+	if CompareConfig(&config1, &config3) {
 		t.Fatalf("CompareConfig should return false, Volumes are different")
 	}
 	if !CompareConfig(&config1, &config1) {
@@ -202,32 +176,20 @@ func TestMergeConfig(t *testing.T) {
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
 	configImage := &Config{
-		Dns:         []string{"1.1.1.1", "2.2.2.2"},
-		PortSpecs:   []string{"1111:1111", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "1111",
-		Volumes:     volumesImage,
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumesImage,
 	}
 
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
-		Dns:       []string{"3.3.3.3"},
 		PortSpecs: []string{"3333:2222", "3333:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
 		Volumes:   volumesUser,
 	}
 
 	MergeConfig(configUser, configImage)
-
-	if len(configUser.Dns) != 3 {
-		t.Fatalf("Expected 3 dns, 1.1.1.1, 2.2.2.2 and 3.3.3.3, found %d", len(configUser.Dns))
-	}
-	for _, dns := range configUser.Dns {
-		if dns != "1.1.1.1" && dns != "2.2.2.2" && dns != "3.3.3.3" {
-			t.Fatalf("Expected 1.1.1.1 or 2.2.2.2 or 3.3.3.3, found %s", dns)
-		}
-	}
 
 	if len(configUser.PortSpecs) != 3 {
 		t.Fatalf("Expected 3 portSpecs, 1111:1111, 3333:2222 and 3333:3333, found %d", len(configUser.PortSpecs))
@@ -254,10 +216,6 @@ func TestMergeConfig(t *testing.T) {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
 	}
-
-	if configUser.VolumesFrom != "1111" {
-		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
-	}
 }
 
 func TestMergeConfigPublicPortNotHonored(t *testing.T) {
@@ -265,7 +223,6 @@ func TestMergeConfigPublicPortNotHonored(t *testing.T) {
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
 	configImage := &Config{
-		Dns:       []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs: []string{"1111", "2222"},
 		Env:       []string{"VAR1=1", "VAR2=2"},
 		Volumes:   volumesImage,
@@ -274,7 +231,6 @@ func TestMergeConfigPublicPortNotHonored(t *testing.T) {
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
-		Dns:       []string{"3.3.3.3"},
 		PortSpecs: []string{"1111:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
 		Volumes:   volumesUser,

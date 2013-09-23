@@ -58,38 +58,37 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
+
+	HostConfig HostConfig
 }
 
 type Config struct {
-	Hostname        string
-	Domainname      string
-	User            string
-	Memory          int64 // Memory limit (in bytes)
-	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares       int64 // CPU shares (relative weight vs. other containers)
-	AttachStdin     bool
-	AttachStdout    bool
-	AttachStderr    bool
-	PortSpecs       []string
-	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin       bool // Open stdin
-	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
-	Env             []string
-	Cmd             []string
-	Dns             []string
-	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes         map[string]struct{}
-	VolumesFrom     string
-	WorkingDir      string
-	Entrypoint      []string
-	NetworkDisabled bool
-	Privileged      bool
+	Hostname   string
+	Domainname string
+	User       string
+	Memory     int64 // Memory limit (in bytes)
+	PortSpecs  []string
+	Tty        bool // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin  bool // Open stdin
+	StdinOnce  bool // If true, close stdin after the 1 attached client disconnects.
+	Env        []string
+	Cmd        []string
+	Image      string // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Volumes    map[string]struct{}
+	WorkingDir string
+	Entrypoint []string
+	Privileged bool
 }
 
 type HostConfig struct {
+	DockerVersion   string
 	Binds           []string
-	ContainerIDFile string
+	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	Dns             []string
 	LxcConf         []KeyValuePair
+	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
+	NetworkDisabled bool
+	VolumesFrom     string
 }
 
 type BindMap struct {
@@ -107,7 +106,14 @@ type KeyValuePair struct {
 	Value string
 }
 
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+type ParseRunValues struct {
+	AttachStdin     bool
+	AttachStdout    bool
+	AttachStderr    bool
+	ContainerIDFile string
+}
+
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *ParseRunValues, *flag.FlagSet, error) {
 	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
 	if os.Getenv("TEST") != "" {
 		cmd.SetOutput(ioutil.Discard)
@@ -155,13 +161,13 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvaidWorikingDirectory
+		return nil, nil, nil, cmd, ErrInvaidWorikingDirectory
 	}
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
@@ -204,7 +210,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	var lxcConf []KeyValuePair
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	hostname := *flHostname
@@ -216,44 +222,48 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		domainname = parts[1]
 	}
 	config := &Config{
-		Hostname:        hostname,
-		Domainname:      domainname,
-		PortSpecs:       flPorts,
-		User:            *flUser,
-		Tty:             *flTty,
-		NetworkDisabled: !*flNetwork,
-		OpenStdin:       *flStdin,
-		Memory:          *flMemory,
+		Hostname:   hostname,
+		Domainname: domainname,
+		PortSpecs:  flPorts,
+		User:       *flUser,
+		Tty:        *flTty,
+		OpenStdin:  *flStdin,
+		Memory:     *flMemory,
+		Env:        flEnv,
+		Cmd:        runCmd,
+		Image:      image,
+		Volumes:    flVolumes,
+		Entrypoint: entrypoint,
+		Privileged: *flPrivileged,
+		WorkingDir: *flWorkingDir,
+	}
+	hostConfig := &HostConfig{
+		DockerVersion:   VERSION,
+		Binds:           binds,
 		CpuShares:       *flCpuShares,
+		Dns:             flDns,
+		LxcConf:         lxcConf,
+		NetworkDisabled: !*flNetwork,
+		VolumesFrom:     strings.Join(flVolumesFrom, ","),
+	}
+
+	parseRunValues := &ParseRunValues{
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv,
-		Cmd:             runCmd,
-		Dns:             flDns,
-		Image:           image,
-		Volumes:         flVolumes,
-		VolumesFrom:     strings.Join(flVolumesFrom, ","),
-		Entrypoint:      entrypoint,
-		Privileged:      *flPrivileged,
-		WorkingDir:      *flWorkingDir,
-	}
-	hostConfig := &HostConfig{
-		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
-		LxcConf:         lxcConf,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		config.MemorySwap = -1
+		hostConfig.MemorySwap = -1
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
-	if config.OpenStdin && config.AttachStdin {
+	if config.OpenStdin && parseRunValues.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, hostConfig, cmd, nil
+	return config, hostConfig, parseRunValues, cmd, nil
 }
 
 type PortMapping map[string]string
@@ -325,7 +335,29 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
+	if strings.Contains(string(data), "Dns") {
+		return container.BackPortHostConfig(data)
+	}
 	return nil
+}
+
+// In 0.7 some fields moved from config to hostconfig.
+func (container *Container) BackPortHostConfig(data []byte) error {
+	hostConfig, err := container.ReadHostConfig()
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	type Mock struct {
+		Config *HostConfig
+	}
+	mock := &Mock{}
+	if err := json.Unmarshal(data, mock); err != nil {
+		return err
+	}
+	mock.Config.Binds = hostConfig.Binds
+	mock.Config.LxcConf = hostConfig.LxcConf
+	mock.Config.DockerVersion = VERSION
+	return container.SaveHostConfig(mock.Config)
 }
 
 func (container *Container) ToDisk() (err error) {
@@ -362,13 +394,19 @@ func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
 		return err
 	}
 	defer fo.Close()
-	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
-		return err
+
+	type LXCStructs struct {
+		Container  *Container
+		HostConfig *HostConfig
 	}
+	lxcStructs := LXCStructs{Container: container}
 	if hostConfig != nil {
-		if err := LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
-			return err
-		}
+		lxcStructs.HostConfig = hostConfig
+	} else {
+		lxcStructs.HostConfig = &HostConfig{}
+	}
+	if err := LxcTemplateCompiled.Execute(fo, lxcStructs); err != nil {
+		return err
 	}
 	return nil
 }
@@ -566,8 +604,41 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return err
+	}
+
 	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
 		hostConfig, _ = container.ReadHostConfig()
+	}
+
+	if !hostConfig.NetworkDisabled && len(hostConfig.Dns) == 0 && len(container.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+		log.Println("WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns)
+		container.runtime.Dns = defaultDns
+	}
+
+	// If custom dns exists, then create a resolv.conf for the container
+	if len(hostConfig.Dns) > 0 || len(container.runtime.Dns) > 0 {
+		var dns []string
+		if len(hostConfig.Dns) > 0 {
+			dns = hostConfig.Dns
+		} else {
+			dns = container.runtime.Dns
+		}
+		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
+		f, err := os.Create(container.ResolvConfPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		for _, dns := range dns {
+			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
+				return err
+			}
+		}
+	} else {
+		container.ResolvConfPath = "/etc/resolv.conf"
 	}
 
 	if container.State.Running {
@@ -577,8 +648,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		return err
 	}
 	if container.runtime.networkManager.disabled {
-		container.Config.NetworkDisabled = true
-	} else {
+		hostConfig.NetworkDisabled = true
+	}
+	if !hostConfig.NetworkDisabled {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
@@ -591,7 +663,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 	if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		container.Config.MemorySwap = -1
+		hostConfig.MemorySwap = -1
 	}
 
 	if container.runtime.capabilities.IPv4ForwardingDisabled {
@@ -640,8 +712,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Apply volumes from another container if requested
-	if container.Config.VolumesFrom != "" {
-		volumes := strings.Split(container.Config.VolumesFrom, ",")
+	if hostConfig.VolumesFrom != "" {
+		volumes := strings.Split(hostConfig.VolumesFrom, ",")
 		for _, v := range volumes {
 			c := container.runtime.Get(v)
 			if c == nil {
@@ -682,7 +754,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+			c, err := container.runtime.volumes.Create(nil, container, "", nil)
 			if err != nil {
 				return err
 			}
@@ -749,7 +821,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	// Networking
-	if !container.Config.NetworkDisabled {
+	if !hostConfig.NetworkDisabled {
 		params = append(params, "-g", container.network.Gateway.String())
 	}
 
@@ -800,7 +872,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		return err
 	}
 
-	var err error
 	if container.Config.Tty {
 		err = container.startPty()
 	} else {
@@ -831,13 +902,12 @@ func (container *Container) Run() error {
 	return nil
 }
 
-func (container *Container) Output() (output []byte, err error) {
+func (container *Container) Output(hostConfig *HostConfig) (output []byte, err error) {
 	pipe, err := container.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	defer pipe.Close()
-	hostConfig := &HostConfig{}
 	if err := container.Start(hostConfig); err != nil {
 		return nil, err
 	}
@@ -866,10 +936,6 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled {
-		return nil
-	}
-
 	var iface *NetworkInterface
 	var err error
 	if !container.State.Ghost {
@@ -926,7 +992,7 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
-	if container.Config.NetworkDisabled {
+	if container.network == nil {
 		return
 	}
 	container.network.Release()

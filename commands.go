@@ -1114,7 +1114,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
-	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
@@ -1130,7 +1129,6 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("container", name)
 	v.Set("repo", repository)
 	v.Set("tag", tag)
-	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)
 	var config *Config
 	if *flConfig != "" {
@@ -1424,7 +1422,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRun(args ...string) error {
-	config, hostConfig, cmd, err := ParseRun(args, nil)
+	config, hostConfig, parseRunValues, cmd, err := ParseRun(args, nil)
 	if err != nil {
 		return err
 	}
@@ -1434,11 +1432,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	var containerIDFile *os.File
-	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
-			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
+	if len(parseRunValues.ContainerIDFile) > 0 {
+		if _, err := ioutil.ReadFile(parseRunValues.ContainerIDFile); err == nil {
+			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", parseRunValues.ContainerIDFile)
 		}
-		containerIDFile, err = os.Create(hostConfig.ContainerIDFile)
+		containerIDFile, err = os.Create(parseRunValues.ContainerIDFile)
 		if err != nil {
 			return fmt.Errorf("failed to create the container ID file: %s", err)
 		}
@@ -1505,7 +1503,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	for _, warning := range runResult.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
-	if len(hostConfig.ContainerIDFile) > 0 {
+	if len(parseRunValues.ContainerIDFile) > 0 {
 		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}
@@ -1518,7 +1516,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	var wait chan struct{}
 
-	if !config.AttachStdout && !config.AttachStderr {
+	if !parseRunValues.AttachStdout && !parseRunValues.AttachStderr {
 		// Make this asynchrone in order to let the client write to stdin before having to read the ID
 		wait = make(chan struct{})
 		go func() {
@@ -1527,7 +1525,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 	}
 
-	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+	if parseRunValues.AttachStdin || parseRunValues.AttachStdout || parseRunValues.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
 				utils.Debugf("Error monitoring TTY size: %s\n", err)
@@ -1539,14 +1537,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v.Set("stream", "1")
 		var out io.Writer
 
-		if config.AttachStdin {
+		if parseRunValues.AttachStdin {
 			v.Set("stdin", "1")
 		}
-		if config.AttachStdout {
+		if parseRunValues.AttachStdout {
 			v.Set("stdout", "1")
 			out = cli.out
 		}
-		if config.AttachStderr {
+		if parseRunValues.AttachStderr {
 			v.Set("stderr", "1")
 			out = cli.out
 		}
@@ -1568,7 +1566,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 
-	if !config.AttachStdout && !config.AttachStderr {
+	if !parseRunValues.AttachStdout && !parseRunValues.AttachStderr {
 		// Detached mode
 		<-wait
 	} else {

@@ -84,7 +84,7 @@ func TestCreateRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	config, _, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestCommit(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	config, _, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", config); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -135,7 +135,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
+	config, hostConfig, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,10 +193,9 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
 	_, err = srv.ContainerCreate(
 		&Config{
-			Image:     GetTestImage(runtime).ID,
-			Memory:    524287,
-			CpuShares: 1000,
-			Cmd:       []string{"/bin/cat"},
+			Image:  GetTestImage(runtime).ID,
+			Memory: 524287,
+			Cmd:    []string{"/bin/cat"},
 		},
 	)
 	if err == nil {
@@ -357,7 +356,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	config, hostConfig, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +372,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	imageID, err := srv.ContainerCommit(containerID, "test", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +393,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = srv.ContainerCommit(containerID, "test", "", "", "", nil)
+	_, err = srv.ContainerCommit(containerID, "test", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

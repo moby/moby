@@ -114,10 +114,6 @@ Create a container
 		"Hostname":"",
 		"User":"",
 		"Memory":0,
-		"MemorySwap":0,
-		"AttachStdin":false,
-		"AttachStdout":true,
-		"AttachStderr":true,
 		"PortSpecs":null,
 		"Privileged": false,
 		"Tty":false,
@@ -127,10 +123,8 @@ Create a container
 		"Cmd":[
 			"date"
 		],
-		"Dns":null,
 		"Image":"ubuntu",
 		"Volumes":{},
-		"VolumesFrom":"",
 		"WorkingDir":""
 
 	   }
@@ -183,10 +177,6 @@ Inspect a container
 				"Hostname": "4fa6e0f0c678",
 				"User": "",
 				"Memory": 0,
-				"MemorySwap": 0,
-				"AttachStdin": false,
-				"AttachStdout": true,
-				"AttachStderr": true,
 				"PortSpecs": null,
 				"Tty": false,
 				"OpenStdin": false,
@@ -195,10 +185,8 @@ Inspect a container
 				"Cmd": [
 					"date"
 				],
-				"Dns": null,
 				"Image": "ubuntu",
 				"Volumes": {},
-				"VolumesFrom": "",
 				"WorkingDir":""
 
 			},
@@ -357,8 +345,12 @@ Start a container
            Content-Type: application/json
 
            {
-                "Binds":["/tmp:/tmp"],
-                "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}]
+		"Binds":["/tmp:/tmp"],
+		"Dns":null,
+		"LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
+		"MemorySwap":0,
+		"NetworkDisabled":false,
+		"VolumesFrom":"",
            }
 
         **Example response**:
@@ -743,20 +735,14 @@ Inspect an image
 				"Hostname":"",
 				"User":"",
 				"Memory":0,
-				"MemorySwap":0,
-				"AttachStdin":false,
-				"AttachStdout":false,
-				"AttachStderr":false,
 				"PortSpecs":null,
 				"Tty":true,
 				"OpenStdin":true,
 				"StdinOnce":false,
 				"Env":null,
-				"Cmd": ["/bin/bash"]
-				,"Dns":null,
+				"Cmd": ["/bin/bash"],
 				"Image":"centos",
 				"Volumes":null,
-				"VolumesFrom":"",
 				"WorkingDir":""
 			},
 		"Size": 6824592
@@ -1089,21 +1075,20 @@ Create a new image from a container's changes
 
     .. sourcecode:: http
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&repo=myrepo HTTP/1.1
 
     **Example response**:
 
     .. sourcecode:: http
 
         HTTP/1.1 201 OK
-	    Content-Type: application/vnd.docker.raw-stream
+	Content-Type: application/vnd.docker.raw-stream
 
         {"Id":"596069db4bf5"}
 
     :query container: source container
     :query repo: repository
     :query tag: tag
-    :query m: commit message
     :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
     :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
     :statuscode 201: no error

@@ -329,39 +329,6 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		return nil, err
 	}
 
-	resolvConf, err := utils.GetResolvConf()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(config.Dns) == 0 && len(runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.Dns = defaultDns
-	}
-
-	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(runtime.Dns) > 0 {
-		var dns []string
-		if len(config.Dns) > 0 {
-			dns = config.Dns
-		} else {
-			dns = runtime.Dns
-		}
-		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
-		f, err := os.Create(container.ResolvConfPath)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		for _, dns := range dns {
-			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		container.ResolvConfPath = "/etc/resolv.conf"
-	}
-
 	// Step 2: save the container json
 	if err := container.ToDisk(); err != nil {
 		return nil, err
@@ -401,7 +368,7 @@ ff02::2		ip6-allrouters
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, author string, config *Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	if err := container.EnsureMounted(); err != nil {
@@ -413,7 +380,7 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 		return nil, err
 	}
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
+	img, err := runtime.graph.Create(rwTar, container, author, config)
 	if err != nil {
 		return nil, err
 	}
