@@ -14,12 +14,15 @@
 
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      -run="": Config automatically applied when the image is
-       run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      -run="": Configuration to be applied when the image is launched with `docker run`. 
+               (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Full -run example::
+Full -run example (multiline is ok within a single quote ``'``)
 
-{
+::
+
+  $ sudo docker commit -run='
+  {
       "Entrypoint" : null,
       "Privileged" : false,
       "User" : "",
@@ -46,4 +49,4 @@ Full -run example::
       "NetworkDisabled" : false,
       "Memory" : 0,
       "AttachStdout" : false
-}
+  }' $CONTAINER_ID
