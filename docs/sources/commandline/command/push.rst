@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker push NAME
+   Usage: docker push [-h] NAME
 
-    Push an image or a repository to the registry
+   Push an image or a repository to the registry
+
+    -h, --help  Display this help
+

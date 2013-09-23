@@ -8,8 +8,10 @@
 
 ::
 
-    Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
+   Usage: docker stop [-h] [-t value] CONTAINER [CONTAINER...]
 
-    Stop a running container
+   Stop a running container
 
-      -t=10: Number of seconds to wait for the container to stop before killing it.
+    -h, --help        Display this help
+    -t, --time=value  Number of seconds to wait for the container to stop before
+		      killing it.

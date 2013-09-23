@@ -8,9 +8,11 @@
 
 ::
 
-    Usage: docker insert IMAGE URL PATH
+   Usage: docker insert [-h] IMAGE URL PATH
 
-    Insert a file from URL in the IMAGE at PATH
+   Insert a file from URL in the IMAGE at PATH
+
+    -h, --help  Display this help
 
 Examples
 --------

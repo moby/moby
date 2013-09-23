@@ -8,6 +8,8 @@
 
 ::
 
-    Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
+   Usage: docker port [-h] CONTAINER PRIVATE_PORT
 
-    Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+   Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+
+    -h, --help  Display this help

@@ -8,6 +8,8 @@
 
 ::
 
-    Usage: docker top CONTAINER
+   Usage: docker top [-h] CONTAINER
 
-    Lookup the running processes of a container
+   Lookup the running processes of a container
+
+    -h, --help  Display this help

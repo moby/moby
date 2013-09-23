@@ -8,9 +8,11 @@
 
 ::
 
-    Usage: docker attach CONTAINER
+   Usage: docker attach [-h] CONTAINER
 
-    Attach to a running container.
+   Attach to a running container.
+
+    -h, --help  Display this help
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of

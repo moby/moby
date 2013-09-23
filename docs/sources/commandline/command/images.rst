@@ -8,19 +8,22 @@
 
 ::
 
-    Usage: docker images [OPTIONS] [NAME]
+   Usage: docker images [-ahq] [--no-trunc] [--viz] [NAME]
 
-    List images
+   List images
 
-      -a=false: show all images
-      -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+    -a, --all       show all images
+    -h, --help      Display this help
+        --no-trunc  Don't truncate output
+    -q, --quiet     only show numeric IDs
+        --viz       output graph in graphviz format
+
 
 Displaying images visually
 --------------------------
 
 ::
 
-    sudo docker images -viz | dot -Tpng -o docker.png
+    sudo docker images --viz | dot -Tpng -o docker.png
 
 .. image:: images/docker_images.gif

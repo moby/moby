@@ -8,6 +8,8 @@
 
 ::
 
-    Usage: docker inspect [OPTIONS] CONTAINER
+   Usage: docker inspect [-h] CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
-    Return low-level information on a container
+   Return low-level information on a container/image
+
+    -h, --help  Display this help

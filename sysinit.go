@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"flag"
+	"code.google.com/p/getopt"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"log"
@@ -58,7 +58,7 @@ func changeUser(u string) {
 }
 
 // Clear environment pollution introduced by lxc-start
-func cleanupEnv(env ListOpts) {
+func cleanupEnv(env []string) {
 	os.Clearenv()
 	for _, kv := range env {
 		parts := strings.SplitN(kv, "=", 2)
@@ -89,18 +89,18 @@ func SysInit() {
 		fmt.Println("You should not invoke docker-init manually")
 		os.Exit(1)
 	}
-	var u = flag.String("u", "", "username or uid")
-	var gw = flag.String("g", "", "gateway address")
-	var workdir = flag.String("w", "", "workdir")
+	var u = getopt.StringLong("username", 'u', "", "username or uid")
+	var gw = getopt.StringLong("gateway", 'g', "", "gateway address")
+	var workdir = getopt.StringLong("workdir", 'w', "", "workdir")
 
-	var flEnv ListOpts
-	flag.Var(&flEnv, "e", "Set environment variables")
+	flEnv := []string{}
+	getopt.ListVarLong(&flEnv, "env", 'e', "Set environment variables")
 
-	flag.Parse()
+	getopt.Parse()
 
 	cleanupEnv(flEnv)
 	setupNetworking(*gw)
 	setupWorkingDirectory(*workdir)
 	changeUser(*u)
-	executeProgram(flag.Arg(0), flag.Args())
+	executeProgram(getopt.Arg(0), getopt.Args())
 }

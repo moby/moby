@@ -8,13 +8,14 @@
 
 ::
 
-    Usage: docker login [OPTIONS] [SERVER]
+   Usage: docker login [-h] [-e email] [-p password] [-u username] [SERVER]
 
-    Register or Login to the docker registry server
+   Register or Login to the docker registry server
 
-    -e="": email
-    -p="": password
-    -u="": username
+    -e, --email=email
+    -h, --help         Display this help
+    -p, --password=password
+    -u, --username=username
 
     If you want to login to a private registry you can
     specify this by adding the server name.

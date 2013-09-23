@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker rmi IMAGE [IMAGE...]
+   Usage: docker rmi [-h] IMAGE [IMAGE...]
 
-    Remove one or more images
+   Remove one or more images
+
+    -h, --help  Display this help
+

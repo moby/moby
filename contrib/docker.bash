@@ -105,7 +105,7 @@ _docker_attach()
 _docker_build()
 {
 	case "$prev" in
-		-t)
+		-t|--tag)
 			return
 			;;
 		*)
@@ -114,7 +114,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-no-cache -t -q -rm" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--no-cache -t --tag -q --quiet --rm" -- "$cur" ) )
 			;;
 		*)
 			_filedir
@@ -125,7 +125,7 @@ _docker_build()
 _docker_commit()
 {
 	case "$prev" in
-		-author|-m|-run)
+		-a|--author|-m|--message|-r|--run)
 			return
 			;;
 		*)
@@ -134,13 +134,13 @@ _docker_commit()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-author -m -run" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --author -m --message -r --run" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
 			while [ $counter -le $cword ]; do
 				case "${words[$counter]}" in
-					-author|-m|-run)
+					-a|--author|-m|--message|-r|--run)
 						(( counter++ ))
 						;;
 					-*)
@@ -178,7 +178,7 @@ _docker_diff()
 _docker_events()
 {
 	case "$prev" in
-		-since)
+		--since)
 			return
 			;;
 		*)
@@ -187,7 +187,7 @@ _docker_events()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--since" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -219,7 +219,7 @@ _docker_images()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -notrunc -q -viz" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --all --no-trunc -q --quiet --viz" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
@@ -271,7 +271,7 @@ _docker_kill()
 _docker_login()
 {
 	case "$prev" in
-		-e|-p|-u)
+		-e|--email|-p|--password|-u|--username)
 			return
 			;;
 		*)
@@ -280,7 +280,7 @@ _docker_login()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-e -p -u" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-e --email -p --password -u --username" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -304,7 +304,7 @@ _docker_port()
 _docker_ps()
 {
 	case "$prev" in
-		-beforeId|-n|-sinceId)
+		--before|-n|--since)
 			return
 			;;
 		*)
@@ -313,7 +313,7 @@ _docker_ps()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -beforeId -l -n -notrunc -q -s -sinceId" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --all --before -l --latest -n --no-trunc -q --quiet -s --size --since" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -323,7 +323,7 @@ _docker_ps()
 _docker_pull()
 {
 	case "$prev" in
-		-t)
+		-t|--tag)
 			return
 			;;
 		*)
@@ -332,7 +332,7 @@ _docker_pull()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --tag" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -347,7 +347,7 @@ _docker_push()
 _docker_restart()
 {
 	case "$prev" in
-		-t)
+		-t|--time)
 			return
 			;;
 		*)
@@ -356,7 +356,7 @@ _docker_restart()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --time" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_all
@@ -368,7 +368,7 @@ _docker_rm()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-v" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-v --volumes" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_stopped
@@ -384,13 +384,13 @@ _docker_rmi()
 _docker_run()
 {
 	case "$prev" in
-		-cidfile)
+		--cidfile)
 			_filedir
 			;;
-		-volumes-from)
+		--volumes-from)
 			__docker_containers_all
 			;;
-		-a|-c|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-w)
+		-a|--attach|-c|--cpu|--dns|-e|--env|--entrypoint|-h|--host|--lxc-conf|-m|--memory|-p|--port|-u|--username|-v|--volume|-w|--workdir)
 			return
 			;;
 		*)
@@ -399,13 +399,13 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -c -cidfile -d -dns -e -entrypoint -h -i -lxc-conf -m -n -p -privileged -t -u -v -volumes-from -w" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --attach -c --cpu --cidfile -d --detached --dns -e --env --entrypoint -h --host -i --interactive --lxc-conf -m --memory -n --networking -p --port --privileged -t --tty -u --user -v --volume --volumes-from -w --workdir" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
 			while [ $counter -le $cword ]; do
 				case "${words[$counter]}" in
-					-a|-c|-cidfile|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-volumes-from|-w)
+					-a|--attach|-c|--cpu|--cidfile|--dns|-e|--env|--entrypoint|-h|--host|--lxc-conf|-m|--message|-p|--port|-u|--user|-v|--volume|--volumes-from|-w|--workdir)
 						(( counter++ ))
 						;;
 					-*)
@@ -426,7 +426,7 @@ _docker_run()
 
 _docker_search()
 {
-	COMPREPLY=( $( compgen -W "-notrunc" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "--no-trunc" -- "$cur" ) )
 }
 
 _docker_start()
@@ -437,7 +437,7 @@ _docker_start()
 _docker_stop()
 {
 	case "$prev" in
-		-t)
+		-t|--time)
 			return
 			;;
 		*)
@@ -446,7 +446,7 @@ _docker_stop()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --time" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_running
@@ -456,7 +456,7 @@ _docker_stop()
 
 _docker_tag()
 {
-	COMPREPLY=( $( compgen -W "-f" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "-f --force" -- "$cur" ) )
 }
 
 _docker_top()

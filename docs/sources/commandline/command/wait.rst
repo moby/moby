@@ -8,6 +8,9 @@
 
 ::
 
-    Usage: docker wait [OPTIONS] NAME
+   Usage: docker wait [-h] CONTAINER [CONTAINER...]
 
-    Block until a container stops, then print its exit code.
+   Block until a container stops, then print its exit code.
+
+    -h, --help  Display this help
+

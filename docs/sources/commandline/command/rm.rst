@@ -8,6 +8,10 @@
 
 ::
 
-    Usage: docker rm [OPTIONS] CONTAINER
+   Usage: docker rm [-hv] CONTAINER [CONTAINER...]
 
-    Remove one or more containers
+   Remove one or more containers
+
+    -h, --help     Display this help
+    -v, --volumes  Remove the volumes associated to the container
+

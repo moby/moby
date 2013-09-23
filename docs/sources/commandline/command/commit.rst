@@ -8,16 +8,17 @@
 
 ::
 
-    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY [TAG]]
+   Usage: docker commit [-h] [-a name] [-m mes] [-r config] CONTAINER [REPOSITORY [TAG]]
 
-    Create a new image from a container's changes
+   Create a new image from a container's changes
 
-      -m="": Commit message
-      -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      -run="": Config automatically applied when the image is
-       run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+    -a, --author=name  Author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    -h, --help         Display this help
+    -m, --message=mes  Commit message
+    -r, --run=config   Config automatically applied when the image is run.
+                       (ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Full -run example::
+Full --run example::
 
 {
       "Entrypoint" : null,
