@@ -1529,7 +1529,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
@@ -1556,7 +1556,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fail()
 	}
 
-	container2, err := runtime.Create(
+	container2, _, err := runtime.Create(
 		&Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
@@ -1577,7 +1577,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container3, err := runtime.Create(
+	container3, _, err := runtime.Create(
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},

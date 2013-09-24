@@ -423,7 +423,10 @@ func TestDependencyGraph(t *testing.T) {
 }
 
 func TestParsePortMapping(t *testing.T) {
-	data := PartParser("ip:public:private", "192.168.1.1:80:8080")
+	data, err := PartParser("ip:public:private", "192.168.1.1:80:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(data) != 3 {
 		t.FailNow()
