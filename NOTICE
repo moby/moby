@@ -1,11 +1,41 @@
 Docker
 Copyright 2012-2013 dotCloud, inc.
 
-This product includes software developed at dotCloud, inc. (http://www.dotcloud.com).
+This product includes software developed at dotCloud,
+inc. (http://www.dotcloud.com).
 
-This product contains software (https://github.com/kr/pty) developed by Keith Rarick, licensed under the MIT License.
+This product contains software (https://github.com/kr/pty) developed
+by Keith Rarick, licensed under the MIT License.
 
-Transfers of Docker shall be in accordance with applicable export controls of any country and all other applicable
-legal requirements.  Docker shall not be distributed or downloaded to or in Cuba, Iran, North Korea, Sudan or Syria
-and shall not be distributed or downloaded to any person on the Denied Persons List administered by the U.S.
+Transfers of Docker shall be in accordance with applicable export
+controls of any country and all other applicable legal requirements.
+Docker shall not be distributed or downloaded to or in Cuba, Iran,
+North Korea, Sudan or Syria and shall not be distributed or downloaded
+to any person on the Denied Persons List administered by the U.S.
 Department of Commerce.
+
+What does that mean? 
+Here is a further explanation from our legal counsel:
+
+Like all software products that utilize cryptography, the export and
+use of Docker is subject to the U.S. Commerce Department's Export
+Administration Regulations (EAR) because it uses or contains
+cryptography (see
+http://www.bis.doc.gov/index.php/policy-guidance/encryption).  Certain
+free and open source software projects have a lightweight set of
+requirements, which can generally be met by providing email notice to
+the appropriate U.S. government agencies that their source code is
+available on a publicly available repository and making the
+appropriate statements in the README.
+
+The restrictions of the EAR apply to certain denied locations
+(currently Iran, Sudan, Syria, North Korea, or Cuba) and those
+individuals on the Denied Persons List, which is available here:
+http://www.bis.doc.gov/index.php/policy-guidance/lists-of-parties-of-concern/denied-persons-list.
+If you are incorporating Docker into a new open source project, the
+EAR restrictions apply to your incorporation of Docker into your
+project in the same manner as other cryptography-enabled projects,
+such as OpenSSL, almost all Linux distributions, etc.
+
+For more information, see http://www.apache.org/dev/crypto.html and/or
+seek legal counsel.
