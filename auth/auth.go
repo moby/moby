@@ -239,7 +239,7 @@ func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
 	// as there is only one auth entry which is fully qualified we need to start
 	// parsing and matching
 
-	swapProtocoll := func(url string) string {
+	swapProtocol := func(url string) string {
 		if strings.HasPrefix(url, "http:") {
 			return strings.Replace(url, "http:", "https:", 1)
 		}
@@ -253,9 +253,9 @@ func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
 		if c, found := config.Configs[url]; found {
 			return c
 		}
-		registrySwappedProtocoll := swapProtocoll(url)
+		registrySwappedProtocol := swapProtocol(url)
 		// now try to match with the different protocol
-		if c, found := config.Configs[registrySwappedProtocoll]; found {
+		if c, found := config.Configs[registrySwappedProtocol]; found {
 			return c
 		}
 		return AuthConfig{}
