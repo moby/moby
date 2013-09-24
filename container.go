@@ -473,13 +473,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdout\n")
 				defer utils.Debugf("[end]  attach stdout\n")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stdout, cStdout)
 				if err != nil {
@@ -511,13 +509,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stderr\n")
 				defer utils.Debugf("[end]  attach stderr\n")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stderr, cStderr)
 				if err != nil {
