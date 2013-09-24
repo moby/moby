@@ -66,14 +66,14 @@ other roles.  Following Vagrant's convention the role will be named
 
 .. code-block:: bash
 
-    sudo -u postgres createuser -P -d -r -s docker
+    sudo postgres -c "createuser -P -d -r -s docker"
 
 Create a test database also named ``docker`` owned by previously created ``docker``
 role.
 
 .. code-block:: bash
 
-    sudo -u postgres createdb -O docker docker
+    sudo postgres -c "createdb -O docker docker"
 
 Adjust PostgreSQL configuration so that remote connections to the
 database are possible. Make sure that inside
@@ -99,7 +99,7 @@ Bash prompt; you can also locate it using ``docker ps -a``.
 
 .. code-block:: bash
 
-    docker commit <container_id> <your username>/postgresql
+    docker commit <container_id> <your username> postgresql
 
 Finally, run PostgreSQL server via ``docker``.
 
@@ -149,10 +149,10 @@ container starts.
 
 .. code-block:: bash
 
-    sudo docker commit <container_id> <your username>/postgresql -run='{"Cmd": \
+    sudo docker commit <container_id> <your username> postgresql -run='{"Cmd": \
       ["/bin/su", "postgres", "-c", "/usr/lib/postgresql/9.2/bin/postgres -D \
       /var/lib/postgresql/9.2/main -c \
-      config_file=/etc/postgresql/9.2/main/postgresql.conf"], PortSpecs": ["5432"]}
+      config_file=/etc/postgresql/9.2/main/postgresql.conf"], "PortSpecs": ["5432"]}'
 
 From now on, just type ``docker run <your username>/postgresql`` and
 PostgreSQL should automatically start.
