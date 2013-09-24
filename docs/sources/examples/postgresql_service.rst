@@ -99,7 +99,7 @@ Bash prompt; you can also locate it using ``docker ps -a``.
 
 .. code-block:: bash
 
-    docker commit <container_id> <your username> postgresql
+    docker commit <container_id> <your username>/postgresql
 
 Finally, run PostgreSQL server via ``docker``.
 
