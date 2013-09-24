@@ -3,6 +3,7 @@
 :keywords: docker, hello world, node, nodejs, python, couch, couchdb, redis, ssh, sshd, examples, postgresql
 
 
+.. _example_list:
 
 Examples
 ========

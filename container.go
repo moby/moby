@@ -146,7 +146,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
+	var flVolumesFrom ListOpts
+	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
 	var flLxcOpts ListOpts
@@ -231,7 +233,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Dns:             flDns,
 		Image:           image,
 		Volumes:         flVolumes,
-		VolumesFrom:     *flVolumesFrom,
+		VolumesFrom:     strings.Join(flVolumesFrom, ","),
 		Entrypoint:      entrypoint,
 		Privileged:      *flPrivileged,
 		WorkingDir:      *flWorkingDir,
@@ -639,21 +641,25 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	// Apply volumes from another container if requested
 	if container.Config.VolumesFrom != "" {
-		c := container.runtime.Get(container.Config.VolumesFrom)
-		if c == nil {
-			return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-		}
-		for volPath, id := range c.Volumes {
-			if _, exists := container.Volumes[volPath]; exists {
-				continue
+		volumes := strings.Split(container.Config.VolumesFrom, ",")
+		for _, v := range volumes {
+			c := container.runtime.Get(v)
+			if c == nil {
+				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
 			}
-			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-				return err
+			for volPath, id := range c.Volumes {
+				if _, exists := container.Volumes[volPath]; exists {
+					continue
+				}
+				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+					return err
+				}
+				container.Volumes[volPath] = id
+				if isRW, exists := c.VolumesRW[volPath]; exists {
+					container.VolumesRW[volPath] = isRW
+				}
 			}
-			container.Volumes[volPath] = id
-			if isRW, exists := c.VolumesRW[volPath]; exists {
-				container.VolumesRW[volPath] = isRW
-			}
+
 		}
 	}
 
@@ -665,9 +671,11 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			continue
 		}
 		var srcPath string
+		var isBindMount bool
 		srcRW := false
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
+			isBindMount = true
 			srcPath = bindMap.SrcPath
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
@@ -691,7 +699,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 			return nil
 		}
-		if srcRW {
+
+		// Do not copy or change permissions if we are mounting from the host
+		if srcRW && !isBindMount {
 			volList, err := ioutil.ReadDir(rootVolPath)
 			if err != nil {
 				return err
@@ -702,22 +712,26 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 					return err
 				}
 				if len(srcList) == 0 {
+					// If the source volume is empty copy files from the root into the volume
 					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
 						return err
 					}
-				}
-			}
-			var stat syscall.Stat_t
-			if err := syscall.Stat(rootVolPath, &stat); err != nil {
-				return err
-			}
-			var srcStat syscall.Stat_t
-			if err := syscall.Stat(srcPath, &srcStat); err != nil {
-				return err
-			}
-			if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-				if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-					return err
+
+					var stat syscall.Stat_t
+					if err := syscall.Stat(rootVolPath, &stat); err != nil {
+						return err
+					}
+					var srcStat syscall.Stat_t
+					if err := syscall.Stat(srcPath, &srcStat); err != nil {
+						return err
+					}
+					// Change the source volume's ownership if it differs from the root
+					// files that where just copied
+					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
@@ -950,12 +964,17 @@ func (container *Container) monitor() {
 		}
 	}
 	utils.Debugf("Process finished")
-	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
-	}
+
 	exitCode := -1
 	if container.cmd != nil {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	// Report status back
+	container.State.setStopped(exitCode)
+
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
 	}
 
 	// Cleanup
@@ -986,9 +1005,6 @@ func (container *Container) monitor() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
-	// Report status back
-	container.State.setStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
