@@ -6,10 +6,12 @@ set -e
 bundle_test() {
 	{
 		date
-		for test_dir in $(find_test_dirs); do (
-			set -x
+		dirs=$(find_test_dirs)
+		set -x
+		go install -ldflags "$LDFLAGS" $BUILDFLAGS -a std
+		for test_dir in $dirs; do (
 			cd $test_dir
-			go test -v -ldflags "$LDFLAGS"
+			go test -v -ldflags "$LDFLAGS" $BUILDFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log
 }
