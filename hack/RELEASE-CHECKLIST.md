@@ -91,7 +91,8 @@ docker run  \
 	-e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
 	-e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
 	-e GPG_PASSPHRASE=supersecretsesame \
-	hack/make.sh release
+	docker
+	hack/release.sh
 ```
 
 It will build and upload the binaries on the specified bucket (you should
