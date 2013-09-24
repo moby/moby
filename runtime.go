@@ -519,8 +519,8 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, deviceSet, autoRestart)
+func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns []string, mountMethod string) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(flGraphPath, deviceSet, autoRestart, mountMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +538,7 @@ func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns [
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool, mountMethod string) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -576,6 +576,14 @@ func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool)
 		autoRestart:    autoRestart,
 		volumes:        volumes,
 		deviceSet:      deviceSet,
+	}
+
+	if mountMethod == "aufs" {
+		runtime.mountMethod = MountMethodAUFS
+	} else if mountMethod == "devicemapper" {
+		runtime.mountMethod = MountMethodDeviceMapper
+	} else if mountMethod == "filesystem" {
+		runtime.mountMethod = MountMethodFilesystem
 	}
 
 	if err := runtime.restore(); err != nil {

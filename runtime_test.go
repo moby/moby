@@ -135,7 +135,7 @@ func init() {
 	}
 
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreDevicesBase), false); err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, devmapper.NewDeviceSetDM(unitTestStoreDevicesBase), false, ""); err != nil {
 		panic(err)
 	} else {
 		globalRuntime = runtime
@@ -504,7 +504,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, runtime1.deviceSet, false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, runtime1.deviceSet, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
