@@ -66,14 +66,14 @@ other roles.  Following Vagrant's convention the role will be named
 
 .. code-block:: bash
 
-    sudo postgres -c "createuser -P -d -r -s docker"
+    su postgres -c "createuser -P -d -r -s docker"
 
 Create a test database also named ``docker`` owned by previously created ``docker``
 role.
 
 .. code-block:: bash
 
-    sudo postgres -c "createdb -O docker docker"
+    su postgres -c "createdb -O docker docker"
 
 Adjust PostgreSQL configuration so that remote connections to the
 database are possible. Make sure that inside
