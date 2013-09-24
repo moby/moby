@@ -393,7 +393,7 @@ func (container *Container) startPty() error {
 	// stdin
 	if container.Config.OpenStdin {
 		container.cmd.Stdin = ptySlave
-		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		container.cmd.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
 			utils.Debugf("[startPty] Begin of stdin pipe")
@@ -799,6 +799,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
+
+	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	var err error
 	if container.Config.Tty {
