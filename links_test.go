@@ -49,10 +49,10 @@ func TestLinkNew(t *testing.T) {
 	if link == nil {
 		t.FailNow()
 	}
-	if link.ID() != fmt.Sprintf("%s:%s", utils.TruncateID(to.ID), "DOCKER") {
+	if link.ID() != fmt.Sprintf("%s:%s", utils.TruncateID(to.ID), "docker") {
 		t.Fail()
 	}
-	if link.Alias != "DOCKER" {
+	if link.Alias != "docker" {
 		t.Fail()
 	}
 	if link.FromID != utils.TruncateID(from.ID) {
@@ -107,16 +107,16 @@ func TestLinkEnv(t *testing.T) {
 		}
 		env[parts[0]] = parts[1]
 	}
-	if env["DOCKER_PORT"] != "tcp://172.0.17.2:6379" {
-		t.Fail()
+	if env["docker_PORT"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["docker_PORT"])
 	}
-	if env["DOCKER_PORT_6379_TCP"] != "tcp://172.0.17.2:6379" {
-		t.Fail()
+	if env["docker_PORT_6379_tcp"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["docker_PORT_6379_tcp"])
 	}
-	if env["DOCKER_ID"] != utils.TruncateID(from.ID) {
-		t.Fail()
+	if env["docker_ID"] != utils.TruncateID(from.ID) {
+		t.Fatalf("Expected %s, got %s", utils.TruncateID(from.ID), env["docker_ID"])
 	}
-	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
-		t.Fail()
+	if env["docker_ENV_PASSWORD"] != "gordon" {
+		t.Fatalf("Expected gordon, got %s", env["docker_ENV_PASSWORD"])
 	}
 }

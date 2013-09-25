@@ -957,61 +957,6 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
-func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	out := []APILink{}
-	name := r.FormValue("name")
-	rawRm := r.FormValue("rm")
-	rawAll := r.FormValue("all")
-
-	rm, err := getBoolParam(rawRm)
-	if err != nil {
-		return err
-	}
-	all, err := getBoolParam(rawAll)
-	if err != nil {
-		return err
-	}
-
-	if rm {
-		link := srv.runtime.links.GetById(name)
-		if link != nil {
-			if err := srv.runtime.links.removeLink(link); err != nil {
-				return err
-			}
-			w.WriteHeader(http.StatusOK)
-			return nil
-		}
-		w.WriteHeader(http.StatusNotFound)
-		return nil
-	}
-	var links []*Link
-	if all {
-		links = srv.runtime.links.GetAll()
-	} else {
-		if name == "" {
-			return fmt.Errorf("Name cannot be empty for link")
-		}
-		container := srv.runtime.Get(name)
-		if container == nil {
-			return fmt.Errorf("Container not found %s", name)
-		}
-		links = srv.runtime.links.Get(container)
-	}
-
-	for _, l := range links {
-		out = append(out, APILink{
-			ID:    l.ID(),
-			To:    l.ToID,
-			From:  l.FromID,
-			Alias: l.Alias,
-		})
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	writeJSON(w, http.StatusOK, out)
-	return nil
-}
-
 func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
@@ -1067,7 +1012,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
-			"/links/json":                     getLinksJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,
