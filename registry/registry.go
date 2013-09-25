@@ -72,7 +72,7 @@ func validateRepositoryName(repositoryName string) error {
 	}
 	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", name)
+		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
 	}
 	return nil
 }
