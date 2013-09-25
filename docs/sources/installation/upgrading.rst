@@ -53,13 +53,10 @@ If you installed the Docker :ref:`binaries` then follow these steps:
 .. code-block:: bash
 
    # get the latest binary
-   wget http://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
-
-
-.. code-block:: bash
-
-   # Unpack it to your current dir
-   tar -xf docker-latest.tgz
+   wget http://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
+   
+   # make it executable
+   chmod +x docker
 
 
 Start docker in daemon mode (``-d``) and disconnect, running the
@@ -73,4 +70,4 @@ which might reside in your path.
    sudo ./docker -d &
 
 
-Alternatively you can replace the docker binary in ``/usr/local/bin``
+Alternatively you can replace the docker binary in ``/usr/local/bin``.
