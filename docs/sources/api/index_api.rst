@@ -6,8 +6,6 @@
 Docker Index API
 =================
 
-.. contents:: Table of Contents
-
 1. Brief introduction
 =====================
 

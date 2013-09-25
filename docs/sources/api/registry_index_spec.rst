@@ -8,8 +8,6 @@
 Registry & Index Spec
 =====================
 
-.. contents:: Table of Contents
-
 1. The 3 roles
 ===============
 
@@ -564,8 +562,8 @@ Next request::
     Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="
 
 
-7.0 Document Version
----------------------
+7 Document Version
+====================
 
 - 1.0 : May 6th 2013 : initial release 
 - 1.1 : June 1st 2013 : Added Delete Repository and way to handle new source namespace.
