@@ -121,10 +121,3 @@ type APICopy struct {
 	Resource string
 	HostPath string
 }
-
-type APILink struct {
-	ID    string
-	To    string
-	From  string
-	Alias string
-}
