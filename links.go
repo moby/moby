@@ -17,8 +17,8 @@ type Link struct {
 	BridgeInterface string
 	Alias           string
 	FromEnvironment []string
-	ports           []Port
-	isEnabled       bool
+	Ports           []Port
+	IsEnabled       bool
 }
 
 type LinkRepository struct {
@@ -34,8 +34,8 @@ func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, al
 	}
 	ports := make([]Port, len(from.Config.ExposedPorts))
 	var i int
-	for k := range from.Config.ExposedPorts {
-		ports[i] = k
+	for p := range from.Config.ExposedPorts {
+		ports[i] = p
 		i++
 	}
 	l := &Link{
@@ -46,7 +46,7 @@ func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, al
 		FromIP:          from.NetworkSettings.IPAddress,
 		ToIP:            to.NetworkSettings.IPAddress,
 		FromEnvironment: from.Config.Env,
-		ports:           ports,
+		Ports:           ports,
 	}
 	if err := r.registerLink(l); err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (l *Link) ToEnv() []string {
 	}
 
 	// Load exposed ports into the environment
-	for _, p := range l.ports {
+	for _, p := range l.Ports {
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", l.Alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.FromIP, p.Port()))
 	}
 
@@ -92,18 +92,18 @@ func (l *Link) ToEnv() []string {
 // Default port rules
 func (l *Link) getDefaultPort() *Port {
 	var p Port
-	i := len(l.ports)
+	i := len(l.Ports)
 
 	if i == 0 {
 		return nil
 	} else if i > 1 {
-		sortPorts(l.ports, func(ip, jp Port) bool {
+		sortPorts(l.Ports, func(ip, jp Port) bool {
 			// If the two ports have the same number, tcp takes priority
 			// Sort in desc order
 			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && ip.Proto() == "tcp")
 		})
 	}
-	p = l.ports[0]
+	p = l.Ports[0]
 	return &p
 }
 
@@ -111,7 +111,7 @@ func (l *Link) Enable() error {
 	if err := l.toggle("-I", false); err != nil {
 		return err
 	}
-	l.isEnabled = true
+	l.IsEnabled = true
 	return nil
 }
 
@@ -120,11 +120,11 @@ func (l *Link) Disable() {
 	// exist in iptables
 	l.toggle("-D", true)
 
-	l.isEnabled = false
+	l.IsEnabled = false
 }
 
 func (l *Link) toggle(action string, ignoreErrors bool) error {
-	for _, p := range l.ports {
+	for _, p := range l.Ports {
 		if err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
 			"-p", p.Proto(),
@@ -148,7 +148,7 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 	return nil
 }
 
-func NewLinkRepository(root string) (*LinkRepository, error) {
+func NewLinkRepository() (*LinkRepository, error) {
 	r := &LinkRepository{make(map[string]*Link)}
 	return r, nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func newTestLinkRepository(t *testing.T) *LinkRepository {
-	r, err := NewLinkRepository("")
+	r, err := NewLinkRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestLinkNew(t *testing.T) {
 	if link.BridgeInterface != "172.0.17.1" {
 		t.Fail()
 	}
-	for _, p := range link.ports {
+	for _, p := range link.Ports {
 		if p != Port("6379/tcp") {
 			t.Fail()
 		}

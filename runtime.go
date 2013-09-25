@@ -87,10 +87,9 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
-// Load reads the contents of a container from disk and registers
-// it with Register.
+// Load reads the contents of a container from disk
 // This is typically done at startup.
-func (runtime *Runtime) Load(id string) (*Container, error) {
+func (runtime *Runtime) load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
@@ -100,9 +99,6 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	}
 	if container.State.Running {
 		container.State.Ghost = true
-	}
-	if err := runtime.Register(container); err != nil {
-		return nil, err
 	}
 	return container, nil
 }
@@ -152,7 +148,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				hostConfig := &HostConfig{}
+				hostConfig, _ := container.ReadHostConfig()
 				if err := container.Start(hostConfig); err != nil {
 					return err
 				}
@@ -227,9 +223,10 @@ func (runtime *Runtime) restore() error {
 	if err != nil {
 		return err
 	}
+	containers := []*Container{}
 	for i, v := range dir {
 		id := v.Name()
-		container, err := runtime.Load(id)
+		container, err := runtime.load(id)
 		if i%21 == 0 && os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
@@ -238,10 +235,30 @@ func (runtime *Runtime) restore() error {
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
+		containers = append(containers, container)
+	}
+	sortContainers(containers, func(i, j *Container) bool {
+		ic, _ := i.ReadHostConfig()
+		jc, _ := j.ReadHostConfig()
+
+		if ic == nil || ic.Links == nil {
+			return true
+		}
+		if jc == nil || jc.Links == nil {
+			return false
+		}
+		return len(ic.Links) < len(jc.Links)
+	})
+	for _, container := range containers {
+		if err := runtime.Register(container); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+			continue
+		}
 	}
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
+
 	return nil
 }
 
@@ -482,7 +499,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	links, err := NewLinkRepository("")
+	links, err := NewLinkRepository()
 	if err != nil {
 		return nil, err
 	}
