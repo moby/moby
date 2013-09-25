@@ -1074,7 +1074,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		fmt.Fprint(w, "NAME\tID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1085,9 +1085,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	for _, out := range outs {
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.Name, out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.Name, utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
 			}
 			if *size {
 				if out.SizeRootFs > 0 {
