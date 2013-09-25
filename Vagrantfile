@@ -13,6 +13,8 @@ Vagrant::Config.run do |config|
   config.vm.box = BOX_NAME
   config.vm.box_url = BOX_URI
 
+  config.ssh.forward_agent = true
+
   # Provision docker and new kernel if deployment was not done.
   # It is assumed Vagrant can successfully launch the provider instance.
   if Dir.glob("#{File.dirname(__FILE__)}/.vagrant/machines/default/*/id").empty?
