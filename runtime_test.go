@@ -498,3 +498,79 @@ func TestRestore(t *testing.T) {
 	}
 	container2.State.Running = false
 }
+
+func TestReloadContainerLinks(t *testing.T) {
+	runtime1 := mkRuntime(t)
+	defer nuke(runtime1)
+	// Create a container with one instance of docker
+	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
+	defer runtime1.Destroy(container1)
+
+	// Create a second container meant to be killed
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	defer runtime1.Destroy(container2)
+
+	// Start the container non blocking
+	hostConfig := &HostConfig{}
+	if err := container2.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	h1 := &HostConfig{}
+	// Add a link to container 2
+	h1.Links = []string{utils.TruncateID(container2.ID) + ":first"}
+	if err := container1.Start(h1); err != nil {
+		t.Fatal(err)
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
+	}
+
+	if !container1.State.Running {
+		t.Fatalf("Container %s should appear as running bu isn't", container1.ID)
+	}
+
+	if len(runtime1.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
+	}
+
+	// Here are are simulating a docker restart - that is, reloading all containers
+	// from scratch
+	runtime1.config.AutoRestart = true
+	runtime2, err := NewRuntimeFromDirectory(runtime1.config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime2)
+	if len(runtime2.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
+	}
+	runningCount := 0
+	for _, c := range runtime2.List() {
+		if c.State.Running {
+			t.Logf("Running container found: %v (%v)", c.ID, c.Path)
+			runningCount++
+		}
+	}
+	if runningCount != 2 {
+		t.Fatalf("Expected 2 container alive, %d found", runningCount)
+	}
+
+	// Make sure container 2 ( the child of container 1 ) was registered and started first
+	// with the runtime
+	first := runtime2.containers.Front()
+	if first.Value.(*Container).ID != container2.ID {
+		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
+	}
+
+	t.Logf("Number of links: %d", len(runtime2.links.links))
+	// Verify that the link is still registered in the runtime
+	links := runtime2.links.Get(container1)
+	if len(links) != 1 {
+		t.Fatalf("Expected 1 link but found %d", len(links))
+	}
+}
