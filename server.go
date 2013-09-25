@@ -357,7 +357,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
 	var foundBefore bool
 	var displayed int
-	retContainers := []APIContainers{}
+	retContainers := make(map[string]APIContainers)
 
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
@@ -383,6 +383,8 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		c := APIContainers{
 			ID: container.ID,
 		}
+		c.Name = utils.TruncateID(container.ID)
+
 		c.Image = srv.runtime.repositories.ImageName(container.Image)
 		c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 		c.Created = container.Created.Unix()
@@ -391,9 +393,23 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		if size {
 			c.SizeRw, c.SizeRootFs = container.GetSize()
 		}
-		retContainers = append(retContainers, c)
+		retContainers[utils.TruncateID(c.ID)] = c
 	}
-	return retContainers
+	out := make([]APIContainers, len(retContainers))
+	var i int
+	for _, v := range retContainers {
+		out[i] = v
+		i++
+	}
+
+	// Add links to result
+	for _, link := range srv.runtime.links.GetAll() {
+		cp := retContainers[link.ToID]
+		c := cp
+		c.Name = fmt.Sprintf("%s/%s", link.FromID, link.Alias)
+		out = append(out, c)
+	}
+	return out
 }
 
 func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {

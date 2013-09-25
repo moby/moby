@@ -42,7 +42,7 @@ func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, al
 		FromID:          utils.TruncateID(from.ID),
 		ToID:            utils.TruncateID(to.ID),
 		BridgeInterface: bridgeInterface,
-		Alias:           strings.ToUpper(alias),
+		Alias:           alias,
 		FromIP:          from.NetworkSettings.IPAddress,
 		ToIP:            to.NetworkSettings.IPAddress,
 		FromEnvironment: from.Config.Env,
@@ -67,7 +67,7 @@ func (l *Link) ToEnv() []string {
 
 	// Load exposed ports into the environment
 	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", l.Alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.FromIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", l.Alias, p.Port(), p.Proto(), p.Proto(), l.FromIP, p.Port()))
 	}
 
 	// Load the linked container's ID into the environment
@@ -100,7 +100,7 @@ func (l *Link) getDefaultPort() *Port {
 		sortPorts(l.Ports, func(ip, jp Port) bool {
 			// If the two ports have the same number, tcp takes priority
 			// Sort in desc order
-			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && ip.Proto() == "tcp")
+			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
 		})
 	}
 	p = l.Ports[0]

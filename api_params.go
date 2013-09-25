@@ -42,6 +42,7 @@ type APIRmi struct {
 }
 
 type APIContainers struct {
+	Name       string
 	ID         string `json:"Id"`
 	Image      string
 	Command    string
