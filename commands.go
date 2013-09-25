@@ -96,6 +96,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
+		{"links", "View and modify links to running containers"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
@@ -1017,10 +1018,10 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 func displayablePorts(ports []APIPort) string {
 	result := []string{}
 	for _, port := range ports {
-		if port.Type == "tcp" {
-			result = append(result, fmt.Sprintf("%d->%d", port.PublicPort, port.PrivatePort))
+		if port.IP == "" {
+			result = append(result, fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
 		} else {
-			result = append(result, fmt.Sprintf("%d->%d/%s", port.PublicPort, port.PrivatePort, port.Type))
+			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
 		}
 	}
 	sort.Strings(result)
@@ -1109,6 +1110,57 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if !*quiet {
 		w.Flush()
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdLinks(args ...string) error {
+	cmd := Subcmd("links", "[OPTIONS] CONTAINER", "Get the links for a container")
+	flRm := cmd.Bool("rm", false, "Remove an existing link by the link ID")
+	flAll := cmd.Bool("a", false, "Display all registered and active links")
+
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 1 && !*flAll {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("name", cmd.Arg(0))
+
+	if *flRm {
+		v.Set("rm", "1")
+	}
+
+	if *flAll {
+		v.Set("all", "1")
+	}
+
+	body, statusCode, err := cli.call("GET", "/links/json?"+v.Encode(), nil)
+	if err != nil {
+		return err
+	}
+
+	if *flRm && statusCode == 200 {
+		fmt.Printf("Link successfully removed: %s\n", cmd.Arg(0))
+		return nil
+	}
+
+	var links []APILink
+	if err := json.Unmarshal(body, &links); err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+
+	fmt.Fprintf(w, "ID\tFROM\tTO\tALIAS")
+	fmt.Fprintf(w, "\n")
+	for _, l := range links {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s", l.ID, l.From, l.To, l.Alias)
+		fmt.Fprintf(w, "\n")
+	}
+	w.Flush()
 	return nil
 }
 

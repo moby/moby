@@ -510,16 +510,19 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, warnings, err := srv.ContainerCreate(config)
 	if err != nil {
 		return err
 	}
 	out.ID = id
+	for _, warning := range warnings {
+		out.Warnings = append(out.Warnings, warning)
+	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -941,6 +944,61 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
+func getLinksJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	out := []APILink{}
+	name := r.FormValue("name")
+	rawRm := r.FormValue("rm")
+	rawAll := r.FormValue("all")
+
+	rm, err := getBoolParam(rawRm)
+	if err != nil {
+		return err
+	}
+	all, err := getBoolParam(rawAll)
+	if err != nil {
+		return err
+	}
+
+	if rm {
+		link := srv.runtime.links.GetById(name)
+		if link != nil {
+			if err := srv.runtime.links.removeLink(link); err != nil {
+				return err
+			}
+			w.WriteHeader(http.StatusOK)
+			return nil
+		}
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+	var links []*Link
+	if all {
+		links = srv.runtime.links.GetAll()
+	} else {
+		if name == "" {
+			return fmt.Errorf("Name cannot be empty for link")
+		}
+		container := srv.runtime.Get(name)
+		if container == nil {
+			return fmt.Errorf("Container not found %s", name)
+		}
+		links = srv.runtime.links.Get(container)
+	}
+
+	for _, l := range links {
+		out = append(out, APILink{
+			ID:    l.ID(),
+			To:    l.ToID,
+			From:  l.FromID,
+			Alias: l.Alias,
+		})
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	writeJSON(w, http.StatusOK, out)
+	return nil
+}
+
 func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
@@ -960,7 +1018,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		if err != nil {
 			version = APIVERSION
 		}
-		if srv.enableCors {
+		if srv.runtime.config.EnableCors {
 			writeCorsHeaders(w, r)
 		}
 
@@ -996,6 +1054,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/links/json":                     getLinksJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,

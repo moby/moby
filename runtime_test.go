@@ -42,7 +42,7 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
-	return os.RemoveAll(runtime.root)
+	return os.RemoveAll(runtime.config.GraphPath)
 }
 
 func cleanup(runtime *Runtime) error {
@@ -84,10 +84,13 @@ func init() {
 		log.Fatal("docker tests need to be run as root")
 	}
 
-	NetworkBridgeIface = unitTestNetworkBridge
-
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
+	config := &DaemonConfig{
+		GraphPath:   unitTestStoreBase,
+		AutoRestart: false,
+		BridgeIface: unitTestNetworkBridge,
+	}
+	if runtime, err := NewRuntimeFromDirectory(config); err != nil {
 		panic(err)
 	} else {
 		globalRuntime = runtime
@@ -96,7 +99,6 @@ func init() {
 	// Create the "Server"
 	srv := &Server{
 		runtime:     globalRuntime,
-		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -144,7 +146,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -185,7 +187,7 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// Make sure crete with bad parameters returns an error
-	_, err = runtime.Create(
+	_, _, err = runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 		},
@@ -194,7 +196,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
-	_, err = runtime.Create(
+	_, _, err = runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
@@ -208,7 +210,7 @@ func TestRuntimeCreate(t *testing.T) {
 func TestDestroy(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -282,6 +284,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 	port := 5554
 	var container *Container
 	var strPort string
+	var p Port
 	for {
 		port += 1
 		strPort = strconv.Itoa(port)
@@ -294,22 +297,33 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
 		t.Log("Trying port", strPort)
-		container, err = runtime.Create(&Config{
-			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"sh", "-c", cmd},
-			PortSpecs: []string{fmt.Sprintf("%s/%s", strPort, proto)},
+		ep := make(map[Port]struct{}, 1)
+		p = Port(fmt.Sprintf("%s/%s", strPort, proto))
+		ep[p] = struct{}{}
+
+		container, _, err = runtime.Create(&Config{
+			Image:        GetTestImage(runtime).ID,
+			Cmd:          []string{"sh", "-c", cmd},
+			PortSpecs:    []string{fmt.Sprintf("%s/%s", strPort, proto)},
+			ExposedPorts: ep,
 		})
-		if container != nil {
-			break
-		}
 		if err != nil {
 			nuke(runtime)
 			t.Fatal(err)
 		}
+
+		if container != nil {
+			break
+		}
 		t.Logf("Port %v already in use", strPort)
 	}
 
-	hostConfig := &HostConfig{}
+	hostConfig := &HostConfig{
+		PortBindings: make(map[Port][]PortBinding),
+	}
+	hostConfig.PortBindings[p] = []PortBinding{
+		{},
+	}
 	if err := container.Start(hostConfig); err != nil {
 		nuke(runtime)
 		t.Fatal(err)
@@ -324,7 +338,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 	// Even if the state is running, lets give some time to lxc to spawn the process
 	container.WaitTimeout(500 * time.Millisecond)
 
-	strPort = container.NetworkSettings.PortMapping[strings.Title(proto)][strPort]
+	strPort = container.NetworkSettings.Ports[p][0].HostPort
 	return runtime, container, strPort
 }
 
@@ -456,7 +470,8 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
+	runtime1.config.AutoRestart = false
+	runtime2, err := NewRuntimeFromDirectory(runtime1.config)
 	if err != nil {
 		t.Fatal(err)
 	}

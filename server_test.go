@@ -89,7 +89,7 @@ func TestCreateRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
-	_, err = srv.ContainerCreate(
+	_, _, err = srv.ContainerCreate(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Memory:    524287,
@@ -362,7 +362,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, err := srv.ContainerCreate(config)
+	containerID, _, err := srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +383,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, err = srv.ContainerCreate(config)
+	containerID, _, err = srv.ContainerCreate(config)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -24,7 +24,6 @@ type Capabilities struct {
 }
 
 type Runtime struct {
-	root           string
 	repository     string
 	containers     *list.List
 	networkManager *NetworkManager
@@ -33,10 +32,10 @@ type Runtime struct {
 	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
 	kernelVersion  *utils.KernelVersionInfo
-	autoRestart    bool
 	volumes        *Graph
 	srv            *Server
-	Dns            []string
+	config         *DaemonConfig
+	links          *LinkRepository
 }
 
 var sysInitPath string
@@ -149,7 +148,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		}
 		if !strings.Contains(string(output), "RUNNING") {
 			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
-			if runtime.autoRestart {
+			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
@@ -173,7 +172,8 @@ func (runtime *Runtime) Register(container *Container) error {
 	if !container.State.Running {
 		close(container.waitLock)
 	} else if !nomonitor {
-		container.allocateNetwork()
+		hostConfig, _ := container.ReadHostConfig()
+		container.allocateNetwork(hostConfig)
 		go container.monitor()
 	}
 	return nil
@@ -274,21 +274,32 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 }
 
 // Create creates a new container from the given configuration.
-func (runtime *Runtime) Create(config *Config) (*Container, error) {
+func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	warnings := []string{}
 	if img.Config != nil {
+		if img.Config.PortSpecs != nil && warnings != nil {
+			for _, p := range img.Config.PortSpecs {
+				if strings.Contains(p, ":") {
+					warnings = append(warnings, "This image expects private ports to be mapped to public ports on your host. "+
+						"This has been deprecated and the public mappings will not be honored."+
+						"Use -p to publish the ports.")
+					break
+				}
+			}
+		}
 		MergeConfig(config, img.Config)
 	}
 
 	if len(config.Entrypoint) != 0 && config.Cmd == nil {
 		config.Cmd = []string{}
 	} else if config.Cmd == nil || len(config.Cmd) == 0 {
-		return nil, fmt.Errorf("No command specified")
+		return nil, nil, fmt.Errorf("No command specified")
 	}
 
 	// Generate id
@@ -326,36 +337,36 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if len(config.Dns) == 0 && len(runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.Dns = defaultDns
+		runtime.config.Dns = defaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(runtime.Dns) > 0 {
+	if len(config.Dns) > 0 || len(runtime.config.Dns) > 0 {
 		var dns []string
 		if len(config.Dns) > 0 {
 			dns = config.Dns
 		} else {
-			dns = runtime.Dns
+			dns = runtime.config.Dns
 		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
 		f, err := os.Create(container.ResolvConfPath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		defer f.Close()
 		for _, dns := range dns {
 			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	} else {
@@ -364,7 +375,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 
 	// Step 2: save the container json
 	if err := container.ToDisk(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Step 3: if hostname, build hostname and hosts files
@@ -394,9 +405,9 @@ ff02::2		ip6-allrouters
 
 	// Step 4: register the container
 	if err := runtime.Register(container); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return container, nil
+	return container, warnings, nil
 }
 
 // Commit creates a new filesystem image from the current state of a container.
@@ -427,12 +438,11 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
+func NewRuntime(config *DaemonConfig) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(config)
 	if err != nil {
 		return nil, err
 	}
-	runtime.Dns = dns
 
 	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
@@ -446,34 +456,38 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
-	runtimeRepo := path.Join(root, "containers")
+func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+	runtimeRepo := path.Join(config.GraphPath, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(root, "graph"))
+	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(root, "volumes"))
+	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(config.GraphPath, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
-	if NetworkBridgeIface == "" {
-		NetworkBridgeIface = DefaultNetworkBridge
+	if config.BridgeIface == "" {
+		config.BridgeIface = DefaultNetworkBridge
 	}
-	netManager, err := newNetworkManager(NetworkBridgeIface)
+	netManager, err := newNetworkManager(config)
 	if err != nil {
 		return nil, err
 	}
+	links, err := NewLinkRepository("")
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
-		root:           root,
 		repository:     runtimeRepo,
 		containers:     list.New(),
 		networkManager: netManager,
@@ -481,8 +495,9 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
-		autoRestart:    autoRestart,
 		volumes:        volumes,
+		config:         config,
+		links:          links,
 	}
 
 	if err := runtime.restore(); err != nil {
