@@ -11,59 +11,45 @@ Gentoo Linux
 
 .. include:: install_unofficial.inc
 
-Installing Docker on Gentoo Linux can be accomplished by using the overlay
-provided at https://github.com/tianon/docker-overlay.  The most up-to-date
-documentation for properly installing the overlay can be found in the overlay
-README.  The information here is provided for reference, and may be out of date.
+Installing Docker on Gentoo Linux can be accomplished using one of two methods.
+The first and best way if you're looking for a stable experience is to use the
+official `app-emulation/docker` package directly in the portage tree.
+
+If you're looking for a ``-bin`` ebuild, a live ebuild, or bleeding edge
+ebuild changes/fixes, the second installation method is to use the overlay
+provided at https://github.com/tianon/docker-overlay which can be added using
+``app-portage/layman``. The most accurate and up-to-date documentation for
+properly installing and using the overlay can be found in `the overlay README
+<https://github.com/tianon/docker-overlay/blob/master/README.md#using-this-overlay>`_.
 
 Installation
 ^^^^^^^^^^^^
 
-Ensure that layman is installed:
-
-.. code-block:: bash
-
-   sudo emerge -av app-portage/layman
-
-Add the "docker" overlay using layman:
-
-.. code-block:: bash
-
-   sudo layman -a docker
-
-Once that completes, the ``app-emulation/docker`` package will be available
-for emerge:
+The package should properly pull in all the necessary dependencies and prompt
+for all necessary kernel options.  For the most straightforward installation
+experience, use ``sys-kernel/aufs-sources`` as your kernel sources.  If you
+prefer not to use ``sys-kernel/aufs-sources``, the portage tree also contains
+``sys-fs/aufs3``, which includes the patches necessary for adding AUFS support
+to other kernel source packages such as ``sys-kernel/gentoo-sources`` (and a
+``kernel-patch`` USE flag to perform the patching to ``/usr/src/linux``
+automatically).
 
 .. code-block:: bash
 
    sudo emerge -av app-emulation/docker
 
-If you prefer to use the official binaries, or just do not wish to compile
-docker, emerge ``app-emulation/docker-bin`` instead.  It is important to
-remember that Gentoo is still an unofficial platform, even when using the
-official binaries.
-
-The package should already include all the necessary dependencies.  For the
-simplest installation experience, use ``sys-kernel/aufs-sources`` directly as
-your kernel sources.  If you prefer not to use ``sys-kernel/aufs-sources``, the
-portage tree also contains ``sys-fs/aufs3``, which contains the patches
-necessary for adding AUFS support to other kernel source packages (and a
-``kernel-patch`` use flag to perform the patching automatically).
-
-Between ``app-emulation/lxc`` and ``app-emulation/docker``, all the
-necessary kernel configuration flags should be checked for and warned about in
-the standard manner.
-
 If any issues arise from this ebuild or the resulting binary, including and
 especially missing kernel configuration flags and/or dependencies, `open an
-issue <https://github.com/tianon/docker-overlay/issues>`_ on the docker-overlay
-repository or ping tianon in the #docker IRC channel.
+issue on the docker-overlay repository
+<https://github.com/tianon/docker-overlay/issues>`_ or ping tianon directly in
+the #docker IRC channel on the freenode network.
 
 Starting Docker
 ^^^^^^^^^^^^^^^
 
-Ensure that you are running a kernel that includes the necessary AUFS support
-and includes all the necessary modules and/or configuration for LXC.
+Ensure that you are running a kernel that includes the necessary AUFS
+patches/support and includes all the necessary modules and/or configuration for
+LXC.
 
 OpenRC
 ------
