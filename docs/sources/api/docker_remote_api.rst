@@ -9,7 +9,6 @@
 Docker Remote API
 =================
 
-.. contents:: Table of Contents
 
 1. Brief introduction
 =====================
@@ -197,36 +196,3 @@ Initial version
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
 .. _2e7649b: https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168
 .. _51f6c4a: https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909
-
-==================================
-Docker Remote API Client Libraries
-==================================
-
-These libraries have not been tested by the Docker Maintainers for
-compatibility. Please file issues with the library owners.  If you
-find more library implementations, please list them in Docker doc bugs
-and we will add the libraries here.
-
-+----------------------+----------------+--------------------------------------------+
-| Language/Framework   | Name           | Repository                                 |
-+======================+================+============================================+
-| Python               | docker-py      | https://github.com/dotcloud/docker-py      |
-+----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
-+----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
-+----------------------+----------------+--------------------------------------------+
-| Javascript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  |
-|                      |                | Install via NPM: `npm install docker.io`   |
-+----------------------+----------------+--------------------------------------------+
-| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
-+----------------------+----------------+--------------------------------------------+
-| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
-| **WebUI**            |                |                                            |
-+----------------------+----------------+--------------------------------------------+
-| Java                 | docker-java    | https://github.com/kpelykh/docker-java     |
-+----------------------+----------------+--------------------------------------------+
-| Erlang               | erldocker      | https://github.com/proger/erldocker        |
-+----------------------+----------------+--------------------------------------------+
-| Go                   | go-dockerclient| https://github.com/fsouza/go-dockerclient  |
-+----------------------+----------------+--------------------------------------------+

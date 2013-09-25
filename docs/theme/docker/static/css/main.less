@@ -1,376 +1,337 @@
+// Main CSS configuration file
+// by Thatcher Peskens, thatcher@dotcloud.com
+//
+// Please note variables.less is customized to include custom font, background-color, and link colors.
 
-
-/* ==========================================================================
-   Author's custom styles
-   ========================================================================== */
 
 @import "variables.less";
 
-@red: crimson;
-@lightblue: #118;
-@lightred: #e11;
-@darkblue: #292E33;
+// Variables for main.less
+// -----------------------
 
-@borderGray: #888;
+@box-top-margin: 			8px;
+@box-padding-size:			30px;
+@docker-background-color:   #71AFC0;
+@very-dark-sea-green:       #394D54;
+
+// Custom colors for Docker
+// --------------------------
+@gray-super-light:		#F2F2F2;
+@deep-red: 				#A30000;
+@deep-blue:				#1B2033;
+@deep-green: 			#007035;
+@link-blue:				#213B8F;
 
 
-.red {
-  background-color: red;
+.debug {
+  border: 2px dotted red !important;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
 }
-.blue {
-  background-color: blue;
-}
-.orange {
-  background-color: orange;
-}
-.gray {
-  background-color: grey;
-}
 
 
+// Other custom colors for Docker
+// --------------------------
+
+// ** are defined in sources/less/variables  **
+//@import "bootstrap/variables.less";
+
+
+// Styles generic for each and every page
+// ----------------------------------- // -----------------------------------
+
+
+// moving body down to make place for fixed navigation
 body {
-  padding-top: 58px;
-  font-family: Arial, Helvetica, sans-serif;
+  min-width: 940px;
+  font-family: @font-family-base;
+
 }
 
 
-h1, h2, h3, h4 {
-  font-family: Arial, Helvetica, sans-serif;
-// font-weight: bold;
-  font-weight: 900;
-}
+p a {
+	text-decoration: underline;
 
-/* ===================
-	Top navigation
-===================== */
-
-.navbar {
-  z-index: 999;
-  .nav {
-  // float: right;
-
-    li a{
-      padding: 22px 15px 22px;
+    &.btn {
+      text-decoration: none;
     }
-  }
-  background-color: white;
+
 }
 
-.navbar-dotcloud .container {
-  border-bottom: 2px @black solid;
+.brand.logo a {
+  text-decoration: none;
+}
+
+// Styles for top navigation
+// ----------------------------------
+.navbar .navbar-inner {
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+.navbar .nav {
+  li a {
+  	padding: ((@navbar-height - @line-height-base) / 2) 17px ((@navbar-height - @line-height-base) / 2);
+    color: #777777;
+    text-decoration: none;
+    text-shadow: 0 1px 0 #f2f2f2;
+  }
+}
+
+
+.navbar .nav > li {
+  float: left;
+}
+
+.nav-underline {
+  height: 6px;
+  background-color: @docker-background-color;
+}
+
+.nav-login {
+  li {
+   	a {
+		color: white;
+		padding: 10px 15px 10px;
+	}
+  }
+}
+
+
+
+.navbar .brand {
+	margin-left: 0px;
+	float: left;
+	display: block;
+}
+
+.navbar-inner {
+  min-height: 70px;
+  padding-left: 20px;
+  padding-right: 20px;
+  background-color: #ededed;
+  background-image: -moz-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f2f2f2), to(#e5e5e5));
+  background-image: -webkit-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: -o-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: linear-gradient(to bottom, #f2f2f2, #e5e5e5);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff2f2f2', endColorstr='#ffe5e5e5', GradientType=0);
+  border: 1px solid #c7c7c7;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+}
+
+.brand.logo a {
+	color: white;
+
+}
+
+.logo {
+//	background-color: #A30000;
+//	color: white;
 }
 
 .inline-icon {
   margin-bottom: 6px;
 }
 
-/*
-* Responsive YouTube, Vimeo, Embed, and HTML5 Videos with CSS
-* http://www.jonsuh.com
-*
-* Copyright (c) 2012 Jonathan Suh
-* Free to use under the MIT license.
-* http://www.opensource.org/licenses/mit-license.php
-*/
+// Bootstrap elements
+// ----------------------------------
 
-.js-video {
-  height: 0;
-  padding-top: 25px;
-  padding-bottom: 67.5%;
-  margin-bottom: 10px;
-  position: relative;
-  overflow: hidden;
-}
-.js-video.vimeo {
-  padding-top: 0;
-}
-.js-video.widescreen {
-  padding-bottom: 57.25%;
-}
-.js-video embed, .js-video iframe, .js-video object, .js-video video {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  position: absolute;
-}
-
-/* Responsive */
-@media (max-width: 767px) {
-  .js-video {
-    padding-top: 0;
-  }
-}
-
-/* button style from http://charliepark.org/bootstrap_buttons/ */
-.btn-custom {
-  background-color: hsl(0, 0%, 16%) !important;
-  background-repeat: repeat-x;
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#515151", endColorstr="#282828");
-  background-image: -khtml-gradient(linear, left top, left bottom, from(#515151), to(#282828));
-  background-image: -moz-linear-gradient(top, #515151, #282828);
-  background-image: -ms-linear-gradient(top, #515151, #282828);
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #515151), color-stop(100%, #282828));
-  background-image: -webkit-linear-gradient(top, #515151, #282828);
-  background-image: -o-linear-gradient(top, #515151, #282828);
-  background-image: linear-gradient(#515151, #282828);
-  border-color: #282828 #282828 hsl(0, 0%, 12%);
-  color: #fff !important;
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.26);
-  -webkit-font-smoothing: antialiased;
-}
-
-
-
-/* ===================
-	Page title bar
-===================== */
-
-h1.pageheader {
-  color: @white;
-  font-size: 20px;
-  font-family: "Arial Black", Tahoma, sans-serif;
-  margin: 8px;
-  margin-left: 22px;
-}
-
-/* ===================
-	Hero unit
-===================== */
-
-section.header {
-  margin-top:0;
-}
-
-.hero-unit {
-  background-color: @darkblue;
-
-  h5 {
-    color: @white;
-  }
-  .subtitle {
-
-  }
-
-}
-
-/* ===================
-	Main content layout
-===================== */
-
-.contentblock {
-  margin-top: 20px;
-  border-width: 3px;
-// border-color: #E00;
-//	border-style:solid;
-//	border-color: @borderGray;
-// box-sizing: border-box;
-  background-color: @grayLighter;
-  box-sizing: content-box;
-  padding: 20px;
-}
-
-.section img {
-  margin: 15px 15px 15px 0;
-  border: 2px solid gray;
-}
-
-.admonition {
-  padding: 10px;
-  border: 1px solid grey;
-
-  margin-bottom: 10px;
-  margin-top: 10px;
-
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-}
-
-.admonition .admonition-title {
-  font-weight: bold;
-}
-
-.admonition.note {
-  background-color: rgb(241, 235, 186);
-}
-
-.admonition.warning {
-  background-color: rgb(238, 217, 175);
-}
-
-.admonition.danger {
-  background-color: rgb(233, 188, 171);
-}
-
-/* ===================
-	left navigation
-===================== */
-
-.dotcloudsidebar {
-// background-color: #ee3;
-// border: 1px red dotted;
-  float: left;
-  height: 100%;
-  top: 0px;
-  bottom: 0px;
-  position: relative;
-// margin: 0px;
-  min-height: 100%;
-  margin-top: 78px;
-  margin-bottom: 22px;
-
-}
-
-  .sidebar {
-  //  font-family: "Maven Pro";
-    font-weight: normal;
-  //  margin-top: 38px;
-    float: left;
-  //  width: 220px;
-  /*  min-height: 475px;*/
-  //  margin-bottom: 28px;
-  //  padding-bottom: 120px;
-    background: #ececec;
-  /*  border-left: 1px solid #bbbbbb;*/
-  /*  border-right: 1px solid #cccccc;*/
-    position: relative;
-
-
-
-  ul {
-    padding: 0px;
-    li {
-      font-size: 14px;
-    //      list-style: none;
-      list-style-type: none;
-      list-style-position: outside;
-      list-style-image: none;
-      margin-left: -25px;
-      padding: 0px;
-
-      a {
-        display: block;
-        color: #443331;
-        outline: 1px solid #dddddd;
-        padding: 12px 12px 10px 12px;
-        margin-top: 1px;
-        background-color: #d2d2d2;
-      }
-
-      .toctree-l1, .toctree-l2 {
-
-      }
-
-      .toctree-l1 {
-        font-size: larger;
-        a {
-          background-color: rgb(223, 223, 223);
-        }
-        .current {
-          font-weight: bold;
-        }
-      //          margin-left: -25px;
-      }
-      .toctree-l2 {
-        a {
-          padding-left: 18px;
-          background-color: rgb(255, 255, 255);
-        }
-        .current {
-          font-weight: bold;
-        }
-
-      }
-      .toctree-l3 {
-        font-size: smaller;
-        a {
-          padding-left: 36px;
-          background-color: rgb(255, 255, 255);
-        }
-        .current {
-          font-weight: bold;
-        }
-
-      }
-
-
-    }
-  }
-}
-
-.brand img {
-  height: 38px;
-  margin-left: -6px;
-}
-
-.border-box {
-  box-sizing: border-box;
-  padding: 20px;
-  background-color: @lightblue;
-  color: white;
-}
-
-
-.titlebar {
-  background-color: @black;
-  margin-top: 0px;
-  margin-bottom: 20px;
-  min-height: 40px;
-  color: white;
-//	box-sizing: border-box;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-
-.footer {
-  border-top: 2px solid black;
-
-//  background-color: #d2d2d2;
+.row {
   margin-top: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+}
 
-  min-height: 40px;
+.container {
+	// background-color: green;
+}
 
-  padding-left: 8px;
-  padding-top: 8px;
-  padding-bottom: 8px;
+// Styles on blocks of content
+// ----------------------------------
+
+// everything which is a block should have box-sizing: border-box;
+
+div[class*='span']
+{
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 
-
-/* This is the default */
-.span6.with-padding {
-  background-color: @lightblue;
-  height: 200px;
-  color: white;
-  padding: 10px;
+// Box for making white with a border, and some nice spacings
+.box {
+    padding: @box-padding-size;
+	background-color: white;
+	margin-top: @box-top-margin;
 }
 
-#global {
-  min-height: 500px;
+.paper {
+  	background-color: white;
+    padding-top: 30px;
+    padding-bottom: 30px;
 }
 
+.copy-headline {
+  margin-top: 0px;
+//  border-bottom: 1.2px solid @veryDarkSeaGreen;
+}
+
+.box {
+	h1, h2, h3, h4 {
+		margin-top: -5px;
+	}
+}
+
+.nested {
+	padding: @box-padding-size;
+}
+
+.box.div {
+  padding: @box-padding-size;
+}
+
+span.read-more {
+  margin-left: 15px;
+  white-space: nowrap;
+}
+
+
+// set a top margin of @box-top-margin + 8 px to make it show a margin
+//instead of the div being flush against the side. Typically only
+// required for a stacked div in a column, w.o. using row.
+.forcetopalign {
+	margin-top: 15px !important;
+}
+.forcetopmargin {
+	margin-top: 23px !important;
+}
+.forceleftalign {
+	margin-left: 15px !important;
+}
+.forceleftmargin {
+	margin-left: 21px !important;
+}
+
+
+// simple text aligns
+.textcenter {
+	text-align: center;
+}
+
+.textright {
+	text-align: right;
+}
+
+.textsmaller {
+  font-size: @font-size-small;
+}
+
+.modal-backdrop {
+  opacity: 0.4;
+}
+
+
+/* generic page copy styles */
+
+.copy-headline h1 {
+  font-size: 21px;
+}
 
 
 /* =======================
-   Row size
+   Sticky footer
 ======================= */
 
-.row1 {
-  background-color: @grayLight;
+@sticky-footer-height: 280px;
+
+html,
+body {
   height: 100%;
-  position: relative;
+  /* The html and body elements cannot have any padding or margin. */
 }
 
+/* Wrapper for page content to push down footer */
+#wrap {
+  min-height: 100%;
+  height: auto !important;
+  height: 100%;
+  /* Negative indent footer by it's height */
+  margin: 0 auto -@sticky-footer-height;
+}
+
+/* Set the fixed height of the footer here */
+#push-the-footer,
+#footer {
+  height: @sticky-footer-height;
+}
+
+#footer {
+//    margin-bottom: -60px;
+//  margin-top: 160px;
+}
+
+.main-row {
+  padding-top: @navbar-height; 
+}
+
+
+// Styles on the footer
+// ----------------------------------
+
+//
+#footer .footer {
+	margin-top: 160px;
+	.ligaturesymbols {
+		font-size: 30px;
+		color: black;
+		a {
+			color: black;
+		}
+	}
+
+  .footerlist {
+    h3, h4 {
+      /* correct the top alignment */
+      margin-top: 0px;
+    }
+  }
+
+}
+
+.footer-landscape-image {
+  position: absolute:
+  bottom: 0;
+  margin-bottom: 0;
+  background-image: url('https://www.docker.io/static/img/website-footer_clean.svg');
+  background-repeat: repeat-x;
+  height: @sticky-footer-height;
+}
+
+.main-row {
+  margin-top: 40px;
+}
+
+.main-content {
+  padding: 16px 18px inherit;
+}
 
 /* =======================
    Social footer
 ======================= */
 
+.social {
+  margin-left: 0px;
+  margin-top: 15px;
+}
+
 .social .twitter, .social .github, .social .googleplus {
-  background: url("../img/footer-links.png") no-repeat transparent;
+  background: url("https://www.docker.io/static/img/footer-links.png") no-repeat transparent;
   display: inline-block;
   height: 35px;
   overflow: hidden;
@@ -387,106 +348,218 @@ section.header {
   background-position: -59px 2px;
 }
 
+// Styles on the forms
+// ----------------------------------
 
-#fork-us {
-  /*font-family: 'Maven Pro';*/
-  /*font-weight: bold;*/
-  font-size: 12px;
-  /*text-transform: uppercase;*/
-  display: block;
-  padding: 0px 1em;
-  height: 28px;
-  line-height: 28px;
-  background-color: #43484c;
-  filter: progid:DXImageTransform.Microsoft.gradient(gradientType=0, startColorstr='#FFFF6E56', endColorstr='#FFED4F35');
-  background-image: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #747474), color-stop(100%, #43484c));
-  background-image: -webkit-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: -moz-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: -o-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: linear-gradient(top, #747474 0%, #43484c 100%);
-  border: 1px solid #43484c;
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  -ms-border-radius: 4px;
-  -o-border-radius: 4px;
-  border-radius: 4px;
-  -webkit-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  -moz-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  margin: 8px;
-
-  a {
-    color: #faf2ee;
-    text-shadow: rgba(0, 0, 0, 0.3) 0px 1px 0px;
+form table {
+  th {
+    vertical-align: top;
+    text-align: right;
+    white-space: nowrap;
   }
 }
+
+form {
+  .labeldd label {
+    font-weight: bold;
+  }
+
+  .helptext {
+    font-size: @font-size-small;
+    margin-top: -4px;
+    margin-bottom: 10px;
+  }
+
+  .fielddd input {
+    width: 250px;
+  }
+
+  .error {
+    color: @deep-red;
+  }
+
+  [type=submit] {
+//    margin-top: -8px;
+  }
+}
+
+div.alert.alert-block {
+  margin-bottom: 15px;
+}
+
+/* ======================= =======================
+  Documentation
+========================= ========================= */
+
+
 /* =======================
-   Media size overrides
-======================= */
+  Styles for the sidebar
+========================= */
 
-/* Large desktop */
-@media (min-width: 1200px) {
-  .span6.with-padding {
-    background-color: @red;
 
-    width: (@gridColumnWidth1200 * 6) + (@gridGutterWidth1200 * 5) - @gridGutterWidth1200;
-    padding: @gridGutterWidth1200/2;
+@sidebar-navigation-border: 1.5px solid #595959;
+@sidebar-navigation-width: 225px;
+
+
+.page-title {
+  // border-bottom: 1px solid #bbbbbb;
+  background-color: white;
+  border: 1px solid transparent;
+  text-align: center;
+  width: 100%;
+  h4 {
+    font-size: 20px;
   }
 }
 
-/* Normal desktop */
-@media (min-width: 980px) and (max-width: 1199px) {
-  .span6.with-padding {
-    background-color: @lightred;
+.bs-docs-sidebar {
+  padding-left: 5px;
+  max-width: 100%;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  margin-top: 18px;
 
-    width: (@gridColumnWidth * 6) + (@gridGutterWidth * 5) - @gridGutterWidth;
-    padding: @gridGutterWidth/2;
+  ul {
+      list-style: none;
+      margin-left: 0px;
   }
 
-}
-
-/* Portrait tablet to landscape and desktop */
-@media (min-width: 768px) and (max-width: 979px) {
-  body {
-    padding-top: 0px;
+  .toctree-l2 > ul {
+    width: 100%;
   }
 
+  ul > li {
+    &.toctree-l1.has-children {
+        background-image: url('../img/menu_arrow_right.gif');
+        background-repeat: no-repeat;
+        background-position: 13px 13px;
+        list-style-type: none;
+        // margin-left: px;
+        padding: 0px 0px 0px 0px;
+        vertical-align: middle;
 
-  .span6.with-padding {
-    background-color: @darkblue;
+        &.open {
+          background-image: url('../img/menu_arrow_down.gif');
+        }
+    }
 
-    width: (@gridColumnWidth768 * 6) + (@gridGutterWidth768 * 5) - @gridGutterWidth768;
-    padding: @gridGutterWidth768/2;
+    & > a {
+      box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      width: 100%;
+      display:inline-block;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      padding-left: 35px;
+      padding-right: 20px;
+      font-size: @font-size-base;
+      border-bottom: @sidebar-navigation-border;
+      line-height: 20px;
+    }
 
+    &:first-child.active > a {
+      border-top: @sidebar-navigation-border;
+    }
+
+    &:last-child > a {
+      border-bottom: none;
+    }
+
+    &:last-child.active > a {
+      border-bottom: @sidebar-navigation-border;
+    }
+
+    &.active > a {
+      border-right: @sidebar-navigation-border;
+      border-left: @sidebar-navigation-border;
+      color: @very-dark-sea-green;
+    }
+
+    &:hover {
+      background-color: #e8e8e8;
+    }
   }
-}
 
-/* Landscape phone to portrait tablet */
-@media (max-width: 767px) {
-  body {
-    padding-top: 0px;
+  &.toctree-l3 ul {
+    display: inherit; 
+    
+    margin-left: 15px; 
+    font-size: smaller;
   }
-  #global {
-  /* TODO: Fix this to be relative to the navigation size */
-//    padding-top: 600px;
+
+  .toctree-l3 a {
+    border: none;
+    font-size: 12px;
+    line-height: 15px;
   }
-  #fork-us {
+
+  ul > li > ul {
     display: none;
   }
-}
 
-
-/* Landscape phones and down */
-@media (max-width: 480px) {
-  #nav-gettingstarted {
-    display: none;
+  ul > li.current > ul {
+    display: inline-block;
+    padding-left: 0px;
+    width: 100%;
   }
 }
 
-/* Misc fixes */
-table th {
-  text-align: left;
+.toctree-l2 {
+  &.current > a {
+    font-weight: bold;
+  }
+  &.current {
+    border: 1.5px solid #595959;
+    color: #394d54;
+  }
 }
+
+
+/* =====================================
+  Styles for the floating version widget
+====================================== */
+
+.version-flyer {
+  position: fixed;
+  float: right;
+  right: 0;
+  bottom: 40px;
+  background-color: #E0E0E0;
+  border: 1px solid #88BABC;
+  padding: 5px;
+  font-size: larger;
+
+  .content {
+    padding-right: 45px;
+    margin-top: 7px;
+    margin-left: 7px;
+    // display: inline-block;
+    background-image: url('../img/container3.png');
+    background-position: right center; 
+    background-repeat: no-repeat;
+  }
+
+  .alternative {
+    visibility: hidden;
+    display: none;
+  }
+
+  .active-slug {
+    visibility: visible;
+    display: inline-block;
+  }
+
+  &:hover .alternative {
+    animation-duration: 1s;
+    display: inline-block;
+    visibility: visible;
+  }
+
+}
+
+/* =====================================
+  Styles for 
+====================================== */
 
 h1:hover > a.headerlink,
 h2:hover > a.headerlink,
@@ -505,3 +578,37 @@ dt:hover > a.headerlink {
   float: right;
   visibility: hidden;
 }
+
+/* =====================================
+  Miscellaneous information
+====================================== */
+
+.admonition {
+  &.warning, &.note, &.seealso, &.todo {
+    border: 3px solid black;
+    padding: 10px;
+    margin: 5px auto 10px;
+  }
+
+  .admonition-title {
+      font-size: larger;
+  }
+
+  &.warning {
+    border-color: #ac0004;
+  }
+
+  &.note {
+    border-color: #cbc200;
+  }
+
+  &.todo {
+    border-color: orange;
+  }
+
+  &.seealso {
+    border-color: #23cb1f;
+  }
+
+}
+

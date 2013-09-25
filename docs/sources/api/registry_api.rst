@@ -6,7 +6,6 @@
 Docker Registry API
 ===================
 
-.. contents:: Table of Contents
 
 1. Brief introduction
 =====================
@@ -497,8 +496,8 @@ Ancestry
     :statuscode 200: OK
 
 
-3.0 Authorization
-=================
+3 Authorization
+===============
 This is where we describe the authorization process, including the tokens and cookies. 
 
 TODO: add more info.

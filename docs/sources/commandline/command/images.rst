@@ -23,4 +23,4 @@ Displaying images visually
 
     sudo docker images -viz | dot -Tpng -o docker.png
 
-.. image:: images/docker_images.gif
+.. image:: https://docs.docker.io/en/latest/_static/docker_images.gif
