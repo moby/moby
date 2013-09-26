@@ -62,7 +62,10 @@ volume	/var/lib/docker
 workdir	/go/src/github.com/dotcloud/docker
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
-entrypoint ["hack/dind"]
+entrypoint	["hack/dind"]
 
 # Upload docker source
-add	.       /go/src/github.com/dotcloud/docker
+add	.	/go/src/github.com/dotcloud/docker
+
+# Build Go for cross compiling
+run	/go/src/github.com/dotcloud/docker/hack/cross-setup.sh

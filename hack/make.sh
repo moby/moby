@@ -35,6 +35,7 @@ DEFAULT_BUNDLES=(
 	test
 	binary
 	ubuntu
+	cross
 )
 
 VERSION=$(cat ./VERSION)

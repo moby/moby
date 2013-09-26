@@ -1,0 +1,29 @@
+#!/bin/bash
+
+CROSS_PLATFORMS=(
+	# see http://golang.org/doc/install/source#environment
+	# and https://github.com/davecheney/golang-crosscompile
+	darwin-386
+	darwin-amd64
+	
+	linux-386
+	linux-amd64
+	linux-arm
+	
+	# platforms that don't compile yet but need to:
+	#windows-386
+	#windows-amd64
+	#freebsd-386
+	#freebsd-amd64
+	
+	# possible future platforms:
+	#openbsd-386
+	#openbsd-amd64
+	#netbsd-386
+	#netbsd-amd64
+	
+	# platforms golang-crosscompile has that Go's documentation claims shouldn't work:
+	#freebsd-arm
+	#openbsd-arm
+	#netbsd-arm
+)

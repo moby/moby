@@ -1,0 +1,14 @@
+#!/bin/bash
+
+DEST="$1"
+
+HACKMAKEDIR="$(dirname "$BASH_SOURCE")"
+
+source "$HACKMAKEDIR/../cross-platforms"
+
+for PLATFORM in ${CROSS_PLATFORMS[@]}; do
+	VERSION="$PLATFORM-$VERSION" \
+		GOOS=${PLATFORM%-*} \
+		GOARCH=${PLATFORM#*-} \
+		source "$HACKMAKEDIR/binary" "$DEST"
+done
