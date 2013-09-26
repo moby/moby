@@ -94,7 +94,7 @@ User Repo
         Vary: Accept
         Content-Type: application/json
         WWW-Authenticate: Token signature=123abc,repository="foo/bar",access=delete
-        X-Docker-Token: signature=123abc,repository="foo/bar",access=write
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=delete
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
@@ -178,7 +178,7 @@ Library Repo
         Vary: Accept
         Content-Type: application/json
         WWW-Authenticate: Token signature=123abc,repository="library/foobar",access=delete
-        X-Docker-Token: signature=123abc,repository="foo/bar",access=write
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=delete
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
