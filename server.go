@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -357,7 +358,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
 	var foundBefore bool
 	var displayed int
-	retContainers := make(map[string]APIContainers)
+	out := []APIContainers{}
 
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
@@ -379,39 +380,35 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 			break
 		}
 		displayed++
-
-		c := APIContainers{
-			ID: container.ID,
-		}
-		c.Name = utils.TruncateID(container.ID)
-
-		c.Image = srv.runtime.repositories.ImageName(container.Image)
-		c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-		c.Created = container.Created.Unix()
-		c.Status = container.State.String()
-		c.Ports = container.NetworkSettings.PortMappingAPI()
-		if size {
-			c.SizeRw, c.SizeRootFs = container.GetSize()
-		}
-		retContainers[utils.TruncateID(c.ID)] = c
-	}
-	out := make([]APIContainers, len(retContainers))
-	var i int
-	for _, v := range retContainers {
-		out[i] = v
-		i++
-	}
-
-	// Add links to result
-	for _, link := range srv.runtime.links.GetAll() {
-		cp := retContainers[link.ToID]
-		c := cp
-		c.Name = fmt.Sprintf("%s/%s", link.FromID, link.Alias)
+		c := createAPIContainer(container, size, srv.runtime)
 		out = append(out, c)
 	}
 	return out
 }
 
+func createAPIContainer(container *Container, size bool, runtime *Runtime) APIContainers {
+	c := APIContainers{
+		ID: container.ID,
+	}
+	names := []string{}
+	runtime.containerGraph.Walk(func(p string, e *gograph.Entity) error {
+		if e.ID() == container.ID {
+			names = append(names, p)
+		}
+		return nil
+	})
+	c.Names = names
+
+	c.Image = runtime.repositories.ImageName(container.Image)
+	c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
+	c.Created = container.Created.Unix()
+	c.Status = container.State.String()
+	c.Ports = container.NetworkSettings.PortMappingAPI()
+	if size {
+		c.SizeRw, c.SizeRootFs = container.GetSize()
+	}
+	return c
+}
 func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
 	container := srv.runtime.Get(name)
 	if container == nil {

@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// A Link represents a connection between two containers
-// for a specific port on a specific bridge interface
 type Link struct {
 	FromID          string
 	ToID            string

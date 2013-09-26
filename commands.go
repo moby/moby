@@ -98,6 +98,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
+		{"ls", "List links for containers"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"top", "Lookup the running processes of a container"},
 		{"ps", "List containers"},
@@ -1073,7 +1074,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "NAME\tID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1082,11 +1083,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	for _, out := range outs {
+		names := strings.Join(out.Names, ",")
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.Name, out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), names)
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.Name, utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), names)
 			}
 			if *size {
 				if out.SizeRootFs > 0 {
@@ -1109,6 +1111,34 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if !*quiet {
 		w.Flush()
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdLs(args ...string) error {
+	cmd := Subcmd("ls", "", "List links for containers")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	body, _, err := cli.call("GET", "/containers/links", nil)
+	if err != nil {
+		return err
+	}
+	var links []APILink
+	if err := json.Unmarshal(body, &links); err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tID\tIMAGE")
+	fmt.Fprintf(w, "\n")
+
+	for _, link := range links {
+		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, link.ContainerID, link.Image)
+		fmt.Fprintf(w, "\n")
+	}
+	w.Flush()
+
 	return nil
 }
 

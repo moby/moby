@@ -3,6 +3,7 @@ package docker
 import (
 	"container/list"
 	"fmt"
+	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -36,6 +37,7 @@ type Runtime struct {
 	srv            *Server
 	config         *DaemonConfig
 	links          *LinkRepository
+	containerGraph *gograph.Database
 }
 
 var sysInitPath string
@@ -321,6 +323,12 @@ func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 
 	// Generate id
 	id := GenerateID()
+
+	// Set the default enitity in the graph
+	if _, err := runtime.containerGraph.Set(fmt.Sprintf("/%s", id), id); err != nil {
+		return nil, nil, err
+	}
+
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
@@ -503,6 +511,10 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	graph, err := gograph.NewDatabase("", "engine")
+	if err != nil {
+		return nil, err
+	}
 
 	runtime := &Runtime{
 		repository:     runtimeRepo,
@@ -515,6 +527,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		volumes:        volumes,
 		config:         config,
 		links:          links,
+		containerGraph: graph,
 	}
 
 	if err := runtime.restore(); err != nil {
