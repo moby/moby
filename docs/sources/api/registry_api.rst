@@ -72,6 +72,7 @@ Layer
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
         {
@@ -165,6 +166,7 @@ Layer
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -205,6 +207,7 @@ Image
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -234,6 +237,7 @@ Image
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         {
          “id”: “088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c”,
@@ -271,6 +275,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ["088b4502f51920fbd9b7c503e87c7a2c05aa3adc3d35e79c031fa126b403200f",
          "aeee63968d87c7da4a5cf5d2be6bee4e21bc226fd62273d180a49c96c62e4543",
@@ -297,6 +302,7 @@ Ancestry
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
     :parameter namespace: namespace for the repo
@@ -309,6 +315,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         {
             "latest": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
@@ -332,6 +339,7 @@ Ancestry
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
     :parameter namespace: namespace for the repo
@@ -345,6 +353,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
 
@@ -377,6 +386,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -412,6 +422,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -449,12 +460,49 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
     :statuscode 200: OK
     :statuscode 401: Requires authorization
     :statuscode 404: Repository not found
+
+2.4 Status
+----------
+
+.. http:get /v1/_ping
+
+    Check status of the registry. This endpoint is also used to determine if
+    the registry supports SSL.
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/_ping HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+
+        ""
+
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    :statuscode 200: OK
+
 
 3.0 Authorization
 =================
