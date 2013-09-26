@@ -79,6 +79,7 @@ EOF
 		    --replaces lxc-docker-virtual-package \
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
+			--config-files /etc/init/docker.conf \
 		    -t deb .
 		mkdir empty
 		fpm -s dir -C empty \
@@ -89,6 +90,7 @@ EOF
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
+			--config-files /etc/init/docker.conf \
 		    -t deb .
 	)
 }
