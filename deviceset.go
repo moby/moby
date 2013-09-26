@@ -15,7 +15,7 @@ type DeviceSet interface {
 
 type DeviceSetWrapper struct {
 	wrapped DeviceSet
-	prefix string
+	prefix  string
 }
 
 func (wrapper *DeviceSetWrapper) wrap(hash string) string {
@@ -24,7 +24,6 @@ func (wrapper *DeviceSetWrapper) wrap(hash string) string {
 	}
 	return hash
 }
-
 
 func (wrapper *DeviceSetWrapper) AddDevice(hash, baseHash string) error {
 	return wrapper.wrapped.AddDevice(wrapper.wrap(hash), wrapper.wrap(baseHash))
@@ -69,7 +68,7 @@ func (wrapper *DeviceSetWrapper) HasActivatedDevice(hash string) bool {
 func NewDeviceSetWrapper(wrapped DeviceSet, prefix string) DeviceSet {
 	wrapper := &DeviceSetWrapper{
 		wrapped: wrapped,
-		prefix: prefix,
+		prefix:  prefix,
 	}
 	return wrapper
 }

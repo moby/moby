@@ -804,10 +804,10 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		// without exec in go we have to do this horrible shell hack...
 		shellString :=
 			"mount --make-rprivate /; exec " +
-			utils.ShellQuoteArguments(params)
+				utils.ShellQuoteArguments(params)
 
 		params = []string{
-			"unshare", "-m", "--", "/bin/sh", "-c",	shellString,
+			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
 	}
 

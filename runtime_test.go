@@ -3,8 +3,8 @@ package docker
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/devmapper"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,13 +20,13 @@ import (
 )
 
 const (
-	unitTestImageName     = "docker-test-image"
-	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestNetworkBridge = "testdockbr0"
-	unitTestStoreBase     = "/var/lib/docker/unit-tests"
-	unitTestStoreDevicesBase     = "/var/lib/docker/unit-tests-devices"
-	testDaemonAddr        = "127.0.0.1:4270"
-	testDaemonProto       = "tcp"
+	unitTestImageName        = "docker-test-image"
+	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestNetworkBridge    = "testdockbr0"
+	unitTestStoreBase        = "/var/lib/docker/unit-tests"
+	unitTestStoreDevicesBase = "/var/lib/docker/unit-tests-devices"
+	testDaemonAddr           = "127.0.0.1:4270"
+	testDaemonProto          = "tcp"
 )
 
 var (
@@ -74,7 +74,6 @@ func cleanupLast(runtime *Runtime) error {
 	runtime.deviceSet.Shutdown()
 	return nil
 }
-
 
 func layerArchive(tarfile string) (io.Reader, error) {
 	// FIXME: need to close f somewhere
