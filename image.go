@@ -151,6 +151,7 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 type TimeUpdate struct {
 	path string
 	time []syscall.Timeval
+	mode uint32
 }
 
 func (image *Image) applyLayer(layer, target string) error {
@@ -291,6 +292,7 @@ func (image *Image) applyLayer(layer, target string) error {
 			u := TimeUpdate{
 				path: targetPath,
 				time: ts,
+				mode: srcStat.Mode,
 			}
 
 			// Delay time updates until all other changes done, or it is
@@ -308,21 +310,24 @@ func (image *Image) applyLayer(layer, target string) error {
 		update := updateTimes[i]
 
 		O_PATH := 010000000 // Not in syscall yet
-		fd, err := syscall.Open(update.path, syscall.O_RDWR|O_PATH|syscall.O_NOFOLLOW, 0600)
-		if err == syscall.EISDIR || err == syscall.ELOOP {
-			// O_PATH not supported, use Utimes except on symlinks where Utimes doesn't work
-			if err != syscall.ELOOP {
-				err = syscall.Utimes(update.path, update.time)
-				if err != nil {
-					return err
-				}
+		var err error = nil
+		if update.mode&syscall.S_IFLNK == syscall.S_IFLNK {
+			// Update time on the symlink via O_PATH + futimes(), if supported by the kernel
+
+			fd, err := syscall.Open(update.path, syscall.O_RDWR|O_PATH|syscall.O_NOFOLLOW, 0600)
+			if err == syscall.EISDIR || err == syscall.ELOOP {
+				// O_PATH not supported by kernel, nothing to do, ignore
+			} else if err != nil {
+				return err
+			} else {
+				syscall.Futimes(fd, update.time)
+				_ = syscall.Close(fd)
 			}
 		} else {
+			err = syscall.Utimes(update.path, update.time)
 			if err != nil {
 				return err
 			}
-			syscall.Futimes(fd, update.time)
-			_ = syscall.Close(fd)
 		}
 	}
 
