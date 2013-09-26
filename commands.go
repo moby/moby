@@ -1433,6 +1433,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	flRm := cmd.Lookup("rm")
+	autoRemove, _ := strconv.ParseBool(flRm.Value.String())
+
 	var containerIDFile *os.File
 	if len(hostConfig.ContainerIDFile) > 0 {
 		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
@@ -1579,6 +1582,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		status, err := getExitCode(cli, runResult.ID)
 		if err != nil {
 			return err
+		}
+		if autoRemove {
+			_, _, err = cli.call("DELETE", "/containers/"+runResult.ID, nil)
+			if err != nil {
+				return err
+			}
 		}
 		if status != 0 {
 			return &utils.StatusError{Status: status}
