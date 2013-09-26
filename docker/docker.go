@@ -36,7 +36,6 @@ func main() {
 	flGraphPath := flag.String("g", "/var/lib/docker", "Path to graph storage base dir.")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
-	flMountMethod := flag.String("mount-method", "", "Set the mount method to use, default is auto. [aufs, devicemapper, filesystem]")
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flag.Parse()
@@ -66,7 +65,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, *flMountMethod); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -117,7 +116,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns, mountMethod  string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -135,7 +134,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, devmapper.NewDeviceSetDM(flGraphPath), autoRestart, enableCors, dns, mountMethod)
+	server, err := docker.NewServer(flGraphPath, devmapper.NewDeviceSetDM(flGraphPath), autoRestart, enableCors, dns)
 	if err != nil {
 		return err
 	}
