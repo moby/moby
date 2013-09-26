@@ -468,7 +468,7 @@ Attach to a container
 	   HTTP/1.1 200 OK
 	   Content-Type: application/vnd.docker.raw-stream
 
-	   {{ PREFIXED STREAM }} See :doc:`attach_api_1.6`
+	   {{ STREAM }}
 	   	
 	:query logs: 1/True/true or 0/False/false, return logs. Default false
 	:query stream: 1/True/true or 0/False/false, return stream. Default false
@@ -479,6 +479,49 @@ Attach to a container
 	:statuscode 400: bad parameter
 	:statuscode 404: no such container
 	:statuscode 500: server error
+
+	**Stream details**:
+
+	When using the TTY setting is enabled in
+	:http:post:`/containers/create`, the stream is the raw data
+	from the process PTY and client's stdin.  When the TTY is
+	disabled, then the stream is multiplexed to separate stdout
+	and stderr.
+
+	The format is a **Header** and a **Payload** (frame).
+
+	**HEADER**
+
+	The header will contain the information on which stream write
+	the stream (stdout or stderr). It also contain the size of
+	the associated frame encoded on the last 4 bytes (uint32).
+
+	It is encoded on the first 8 bytes like this::
+
+	    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+
+	``STREAM_TYPE`` can be:
+
+	- 0: stdin (will be writen on stdout)
+	- 1: stdout
+	- 2: stderr
+
+	``SIZE1, SIZE2, SIZE3, SIZE4`` are the 4 bytes of the uint32 size encoded as big endian.
+
+	**PAYLOAD**
+
+	The payload is the raw stream.
+
+	**IMPLEMENTATION**
+
+	The simplest way to implement the Attach protocol is the following:
+
+	1) Read 8 bytes
+	2) chose stdout or stderr depending on the first byte
+	3) Extract the frame size from the last 4 byets
+	4) Read the extracted size and output it on the correct output
+	5) Goto 1)
+
 
 
 Wait a container

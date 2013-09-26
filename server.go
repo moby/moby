@@ -1208,15 +1208,19 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		} else {
 			dec := json.NewDecoder(cLog)
 			for {
-				var l utils.JSONLog
-				if err := dec.Decode(&l); err == io.EOF {
+				l := &utils.JSONLog{}
+
+				if err := dec.Decode(l); err == io.EOF {
 					break
 				} else if err != nil {
 					utils.Debugf("Error streaming logs: %s", err)
 					break
 				}
-				if (l.Stream == "stdout" && stdout) || (l.Stream == "stderr" && stderr) {
+				if l.Stream == "stdout" && stdout {
 					fmt.Fprintf(outStream, "%s", l.Log)
+				}
+				if l.Stream == "stderr" && stderr {
+					fmt.Fprintf(errStream, "%s", l.Log)
 				}
 			}
 		}

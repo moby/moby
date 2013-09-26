@@ -4,17 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"unsafe"
 )
-
-func CheckBigEndian() bool {
-	var x uint32 = 0x01020304
-
-	if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
-		return true
-	}
-	return false
-}
 
 const (
 	StdWriterPrefixLen = 8
@@ -32,16 +22,15 @@ var (
 
 type StdWriter struct {
 	io.Writer
-	prefix    StdType
-	sizeBuf   []byte
-	byteOrder binary.ByteOrder
+	prefix  StdType
+	sizeBuf []byte
 }
 
 func (w *StdWriter) Write(buf []byte) (n int, err error) {
 	if w == nil || w.Writer == nil {
 		return 0, errors.New("Writer not instanciated")
 	}
-	w.byteOrder.PutUint32(w.prefix[4:], uint32(len(buf)))
+	binary.BigEndian.PutUint32(w.prefix[4:], uint32(len(buf)))
 	buf = append(w.prefix[:], buf...)
 
 	n, err = w.Writer.Write(buf)
@@ -55,18 +44,10 @@ func NewStdWriter(w io.Writer, t StdType) *StdWriter {
 		return nil
 	}
 
-	var bo binary.ByteOrder
-
-	if CheckBigEndian() {
-		bo = binary.BigEndian
-	} else {
-		bo = binary.LittleEndian
-	}
 	return &StdWriter{
-		Writer:    w,
-		prefix:    t,
-		sizeBuf:   make([]byte, 4),
-		byteOrder: bo,
+		Writer:  w,
+		prefix:  t,
+		sizeBuf: make([]byte, 4),
 	}
 }
 
@@ -91,16 +72,8 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		nr, nw    int
 		er, ew    error
 		out       io.Writer
-		byteOrder binary.ByteOrder
 		frameSize int
 	)
-
-	// Check the machine's endianness
-	if CheckBigEndian() {
-		byteOrder = binary.BigEndian
-	} else {
-		byteOrder = binary.LittleEndian
-	}
 
 	for {
 		// Make sure we have at least a full header
@@ -132,7 +105,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		}
 
 		// Retrieve the size of the frame
-		frameSize = int(byteOrder.Uint32(buf[StdWriterSizeIndex : StdWriterSizeIndex+4]))
+		frameSize = int(binary.BigEndian.Uint32(buf[StdWriterSizeIndex : StdWriterSizeIndex+4]))
 
 		// Check if the buffer is big enough to read the frame.
 		// Extend it if necessary.

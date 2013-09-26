@@ -44,10 +44,10 @@ What's new
 .. http:post:: /containers/(id)/attach
 
    **New!** You can now split stderr from stdout. This is done by prefixing
-   a header to each transmition. See :doc:`attach_api_1.6`.
+   a header to each transmition. See :http:post:`/containers/(id)/attach`.
    The WebSocket attach is unchanged.
-   Note that attach calls on previous API version didn't change. Stdout and
-   stderr are merge.
+   Note that attach calls on the previous API version didn't change. Stdout and
+   stderr are merged.
 
 
 :doc:`docker_remote_api_v1.5`
