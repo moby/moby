@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -992,6 +993,28 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 	}
 }
 
+func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	runtime := srv.runtime
+
+	out := []APILink{}
+	err := runtime.containerGraph.Walk(func(p string, e *gograph.Entity) error {
+		container := runtime.Get(e.ID())
+		if container != nil {
+			out = append(out, APILink{
+				Path:        p,
+				ContainerID: container.ID,
+				Image:       runtime.repositories.ImageName(container.Image),
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, out)
+}
+
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
@@ -1012,6 +1035,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/containers/links":               getContainersLinks,
 		},
 		"POST": {
 			"/auth":                         postAuth,

@@ -42,7 +42,6 @@ type APIRmi struct {
 }
 
 type APIContainers struct {
-	Name       string
 	ID         string `json:"Id"`
 	Image      string
 	Command    string
@@ -51,6 +50,7 @@ type APIContainers struct {
 	Ports      []APIPort
 	SizeRw     int64
 	SizeRootFs int64
+	Names      []string
 }
 
 func (self *APIContainers) ToLegacy() APIContainersOld {
@@ -120,4 +120,10 @@ type APIImageConfig struct {
 type APICopy struct {
 	Resource string
 	HostPath string
+}
+
+type APILink struct {
+	Path        string
+	ContainerID string
+	Image       string
 }
