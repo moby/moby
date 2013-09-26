@@ -61,7 +61,7 @@ Layer
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
-        Authorization: Token signature=3200f02,repository="namespace/user",access=write'
+        Authorization: Token signature=123abc,repository="foo/bar",access=read
 
     :parameter image_id: the id for the layer you want to get
 
@@ -92,7 +92,7 @@ Layer
         PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
         Host: registry-1.docker.io
         Transfer-Encoding: chunked
-        Authorization: Token signature=3200f02,repository="namespace/user",access=write'
+        Authorization: Token signature=123abc,repository="foo/bar",access=write
 
         {layer binary data stream}
 
