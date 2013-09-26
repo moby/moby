@@ -23,4 +23,5 @@ RUN		go get github.com/dotcloud/docker && cd /go/src/github.com/dotcloud/docker 
 ADD		manager.go	/manager/
 RUN		cd /manager && go build -o /usr/bin/manager
 
-ENTRYPOINT	["manager"]
+ENTRYPOINT	["/usr/bin/manager"]
+

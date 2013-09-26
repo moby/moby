@@ -59,7 +59,7 @@ func main() {
 		panic("Unkown script template")
 	}
 
-	// Load the requested tempalte
+	// Load the requested template
 	tpl, err := template.New("processManager").Parse(templates[*kind])
 	if err != nil {
 		panic(err)
