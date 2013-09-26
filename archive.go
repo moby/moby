@@ -84,13 +84,13 @@ func Tar(path string, compression Compression) (io.Reader, error) {
 }
 
 func escapeName(name string) string {
-	escaped := make([]byte,0)
+	escaped := make([]byte, 0)
 	for i, c := range []byte(name) {
 		if i == 0 && c == '/' {
 			continue
 		}
 		// all printable chars except "-" which is 0x2d
-		if (0x20 <= c && c <= 0x7E) && c != 0x2d  {
+		if (0x20 <= c && c <= 0x7E) && c != 0x2d {
 			escaped = append(escaped, c)
 		} else {
 			escaped = append(escaped, fmt.Sprintf("\\%03o", c)...)
@@ -102,7 +102,7 @@ func escapeName(name string) string {
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
 func TarFilter(path string, compression Compression, filter []string, recursive bool, createFiles []string) (io.Reader, error) {
-	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-",}
+	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
 	if filter == nil {
 		filter = []string{"."}
 	}
@@ -142,7 +142,7 @@ func TarFilter(path string, compression Compression, filter []string, recursive 
 		}
 	}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), &files, func () {
+	return CmdStream(exec.Command(args[0], args[1:]...), &files, func() {
 		if tmpDir != "" {
 			_ = os.RemoveAll(tmpDir)
 		}

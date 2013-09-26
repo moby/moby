@@ -17,14 +17,6 @@ import (
 )
 
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
-type MountMethod int
-
-const (
-	MountMethodNone MountMethod = iota
-	MountMethodAUFS
-	MountMethodDeviceMapper
-	MountMethodFilesystem
-)
 
 type Capabilities struct {
 	MemoryLimit            bool
@@ -47,7 +39,6 @@ type Runtime struct {
 	srv            *Server
 	Dns            []string
 	deviceSet      DeviceSet
-	mountMethod    MountMethod
 }
 
 var sysInitPath string
@@ -107,27 +98,6 @@ func hasFilesystemSupport(fstype string) bool {
 		}
 	}
 	return false
-}
-
-func (runtime *Runtime) GetMountMethod() MountMethod {
-	if runtime.mountMethod == MountMethodNone {
-		// Try to automatically pick a method
-		if hasFilesystemSupport("aufs") {
-			utils.Debugf("Using AUFS backend.")
-			runtime.mountMethod = MountMethodAUFS
-		} else {
-			_ = exec.Command("modprobe", "aufs").Run()
-			if hasFilesystemSupport("aufs") {
-				utils.Debugf("Using AUFS backend.")
-				runtime.mountMethod = MountMethodAUFS
-			} else {
-				utils.Debugf("Using device-mapper backend.")
-				runtime.mountMethod = MountMethodDeviceMapper
-			}
-		}
-	}
-
-	return runtime.mountMethod
 }
 
 func (runtime *Runtime) GetDeviceSet() (DeviceSet, error) {
@@ -288,7 +258,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
-	if runtime.GetMountMethod() == MountMethodDeviceMapper && runtime.deviceSet.HasDevice(container.ID) {
+	if runtime.deviceSet.HasDevice(container.ID) {
 		if err := runtime.deviceSet.RemoveDevice(container.ID); err != nil {
 			return fmt.Errorf("Unable to remove device for %v: %v", container.ID, err)
 		}
@@ -301,7 +271,7 @@ func (runtime *Runtime) DeleteImage(id string) error {
 	if err != nil {
 		return err
 	}
-	if runtime.GetMountMethod() == MountMethodDeviceMapper && runtime.deviceSet.HasDevice(id) {
+	if runtime.deviceSet.HasDevice(id) {
 		if err := runtime.deviceSet.RemoveDevice(id); err != nil {
 			return fmt.Errorf("Unable to remove device for %v: %v", id, err)
 		}

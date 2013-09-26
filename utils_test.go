@@ -2,11 +2,11 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
-	"path/filepath"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 )

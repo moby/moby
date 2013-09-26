@@ -8,9 +8,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -139,31 +137,6 @@ func jsonPath(root string) string {
 
 func mountPath(root string) string {
 	return path.Join(root, "mount")
-}
-
-func MountAUFS(ro []string, rw string, target string) error {
-	// FIXME: Now mount the layers
-	rwBranch := fmt.Sprintf("%v=rw", rw)
-	roBranches := ""
-	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
-	}
-	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-
-	branches += ",xino=/dev/shm/aufs.xino"
-
-	//if error, try to load aufs kernel module
-	if err := mount("none", target, "aufs", 0, branches); err != nil {
-		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
-		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
-		}
-		log.Printf("...module loaded.")
-		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
-		}
-	}
-	return nil
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
@@ -315,7 +288,7 @@ func (image *Image) applyLayer(layer, target string) error {
 				syscall.NsecToTimeval(srcStat.Mtim.Nano()),
 			}
 
-			u := TimeUpdate {
+			u := TimeUpdate{
 				path: targetPath,
 				time: ts,
 			}
@@ -335,7 +308,7 @@ func (image *Image) applyLayer(layer, target string) error {
 		update := updateTimes[i]
 
 		O_PATH := 010000000 // Not in syscall yet
-		fd, err := syscall.Open(update.path, syscall.O_RDWR | O_PATH | syscall.O_NOFOLLOW, 0600)
+		fd, err := syscall.Open(update.path, syscall.O_RDWR|O_PATH|syscall.O_NOFOLLOW, 0600)
 		if err == syscall.EISDIR || err == syscall.ELOOP {
 			// O_PATH not supported, use Utimes except on symlinks where Utimes doesn't work
 			if err != syscall.ELOOP {
@@ -411,7 +384,6 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 		return err
 	}
 
-
 	err = ioutil.WriteFile(path.Join(mountDir, ".docker-id"), []byte(image.ID), 0600)
 	if err != nil {
 		_ = devices.UnmountDevice(image.ID, mountDir)
@@ -461,25 +433,7 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 }
 
 func (image *Image) Mounted(runtime *Runtime, root, rw string) (bool, error) {
-	method := runtime.GetMountMethod()
-	if method == MountMethodFilesystem {
-		if _, err := os.Stat(rw); err != nil {
-			if os.IsNotExist(err) {
-				err = nil
-			}
-			return false, err
-		}
-		mountedPath := path.Join(rw, ".fs-mounted")
-		if _, err := os.Stat(mountedPath); err != nil {
-			if os.IsNotExist(err) {
-				err = nil
-			}
-			return false, err
-		}
-		return true, nil
-	} else {
-		return Mounted(root)
-	}
+	return Mounted(root)
 }
 
 func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
@@ -492,195 +446,107 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 		return err
 	}
 
-	switch runtime.GetMountMethod() {
-	case MountMethodNone:
-		return fmt.Errorf("No supported Mount implementation")
+	devices, err := runtime.GetDeviceSet()
+	if err != nil {
+		return err
+	}
+	err = image.ensureImageDevice(devices)
+	if err != nil {
+		return err
+	}
 
-	case MountMethodAUFS:
-		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-			return err
-		}
-		layers, err := image.layers()
+	createdDevice := false
+	if !devices.HasDevice(id) {
+		utils.Debugf("Creating device %s for container based on image %s", id, image.ID)
+		err = devices.AddDevice(id, image.ID)
 		if err != nil {
 			return err
 		}
-		if err := MountAUFS(layers, rw, root); err != nil {
-			return err
-		}
+		createdDevice = true
+	}
 
-	case MountMethodDeviceMapper:
-		devices, err := runtime.GetDeviceSet()
+	utils.Debugf("Mounting container %s at %s for container", id, root)
+	err = devices.MountDevice(id, root)
+	if err != nil {
+		return err
+	}
+
+	if createdDevice {
+		err = ioutil.WriteFile(path.Join(root, ".docker-id"), []byte(id), 0600)
 		if err != nil {
+			_ = devices.RemoveDevice(image.ID)
 			return err
 		}
-		err = image.ensureImageDevice(devices)
-		if err != nil {
-			return err
-		}
-
-		createdDevice := false
-		if !devices.HasDevice(id) {
-			utils.Debugf("Creating device %s for container based on image %s", id, image.ID)
-			err = devices.AddDevice(id, image.ID)
-			if err != nil {
-				return err
-			}
-			createdDevice = true
-		}
-
-		utils.Debugf("Mounting container %s at %s for container", id, root)
-		err = devices.MountDevice(id, root)
-		if err != nil {
-			return err
-		}
-
-		if createdDevice {
-			err = ioutil.WriteFile(path.Join(root, ".docker-id"), []byte(id), 0600)
-			if err != nil {
-				_ = devices.RemoveDevice(image.ID)
-				return err
-			}
-		}
-
-	case MountMethodFilesystem:
-		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-			return err
-		}
-
-		layers, err := image.layers()
-		if err != nil {
-			return err
-		}
-
-		for i := len(layers)-1; i >= 0; i-- {
-			layer := layers[i]
-			if err = image.applyLayer(layer, root); err != nil {
-				return err
-			}
-		}
-
-		mountedPath := path.Join(rw, ".fs-mounted")
-		fo, err := os.Create(mountedPath)
-		if err != nil {
-			return err
-		}
-		fo.Close()
 	}
 	return nil
 }
 
 func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
-	switch runtime.GetMountMethod() {
-	case MountMethodNone:
-		return fmt.Errorf("No supported Unmount implementation")
-
-	case MountMethodAUFS:
-		return Unmount(root)
-
-	case MountMethodDeviceMapper:
-		// Try to deactivate the device as generally there is no use for it anymore
-		devices, err := runtime.GetDeviceSet()
-		if err != nil {
-			return err;
-		}
-
-		err = devices.UnmountDevice(id, root)
-		if err != nil {
-			return err
-		}
-
-		return devices.DeactivateDevice(id)
-
-	case MountMethodFilesystem:
-		return nil
+	// Try to deactivate the device as generally there is no use for it anymore
+	devices, err := runtime.GetDeviceSet()
+	if err != nil {
+		return err
 	}
 
-	return nil
+	err = devices.UnmountDevice(id, root)
+	if err != nil {
+		return err
+	}
+
+	return devices.DeactivateDevice(id)
 }
 
 func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, error) {
-	switch runtime.GetMountMethod() {
-	case MountMethodAUFS:
-		layers, err := image.layers()
-		if err != nil {
-			return nil, err
-		}
-		return ChangesAUFS(layers, rw)
-
-	case MountMethodDeviceMapper:
-		devices, err := runtime.GetDeviceSet()
-		if err != nil {
-			return nil, err
-		}
-
-		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-			return nil, err
-		}
-
-		wasActivated := devices.HasActivatedDevice(image.ID)
-
-		// We re-use rw for the temporary mount of the base image as its
-		// not used by device-mapper otherwise
-		err = devices.MountDevice(image.ID, rw)
-		if err != nil {
-			return nil, err
-		}
-
-		changes, err := ChangesDirs(root, rw)
-		_ = devices.UnmountDevice(image.ID, rw)
-		if !wasActivated {
-			_ = devices.DeactivateDevice(image.ID)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return changes, nil
-
-	case MountMethodFilesystem:
-		layers, err := image.layers()
-		if err != nil {
-			return nil, err
-		}
-		changes, err := ChangesLayers(root, layers)
-		if err != nil {
-			return nil, err
-		}
-		return changes, nil
+	devices, err := runtime.GetDeviceSet()
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("No supported Changes implementation")
+	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	wasActivated := devices.HasActivatedDevice(image.ID)
+
+	// We re-use rw for the temporary mount of the base image as its
+	// not used by device-mapper otherwise
+	err = devices.MountDevice(image.ID, rw)
+	if err != nil {
+		return nil, err
+	}
+
+	changes, err := ChangesDirs(root, rw)
+	_ = devices.UnmountDevice(image.ID, rw)
+	if !wasActivated {
+		_ = devices.DeactivateDevice(image.ID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return changes, nil
 }
 
 func (image *Image) ExportChanges(runtime *Runtime, root, rw, id string) (Archive, error) {
-	switch runtime.GetMountMethod() {
-	case MountMethodAUFS:
-		return Tar(rw, Uncompressed)
-
-	case MountMethodFilesystem, MountMethodDeviceMapper:
-		changes, err := image.Changes(runtime, root, rw, id)
-		if err != nil {
-			return nil, err
-		}
-
-		files := make([]string, 0)
-		deletions := make([]string, 0)
-		for _, change := range changes {
-			if change.Kind == ChangeModify || change.Kind == ChangeAdd {
-				files = append(files, change.Path)
-			}
-			if change.Kind == ChangeDelete {
-				base := filepath.Base(change.Path)
-				dir := filepath.Dir(change.Path)
-				deletions = append(deletions, filepath.Join(dir, ".wh."+base))
-			}
-		}
-
-		return TarFilter(root, Uncompressed, files, false, deletions)
+	changes, err := image.Changes(runtime, root, rw, id)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("No supported Changes implementation")
-}
+	files := make([]string, 0)
+	deletions := make([]string, 0)
+	for _, change := range changes {
+		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
+			files = append(files, change.Path)
+		}
+		if change.Kind == ChangeDelete {
+			base := filepath.Base(change.Path)
+			dir := filepath.Dir(change.Path)
+			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+		}
+	}
 
+	return TarFilter(root, Uncompressed, files, false, deletions)
+}
 
 func (image *Image) ShortID() string {
 	return utils.TruncateID(image.ID)

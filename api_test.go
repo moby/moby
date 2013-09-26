@@ -566,7 +566,6 @@ func TestPostCommit(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-
 	// Create a container and remove a file
 	container, err := runtime.Create(
 		&Config{

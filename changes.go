@@ -34,82 +34,10 @@ func (change *Change) String() string {
 	return fmt.Sprintf("%s %s", kind, change.Path)
 }
 
-func ChangesAUFS(layers []string, rw string) ([]Change, error) {
-	var changes []Change
-	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Rebase path
-		path, err = filepath.Rel(rw, path)
-		if err != nil {
-			return err
-		}
-		path = filepath.Join("/", path)
-
-		// Skip root
-		if path == "/" {
-			return nil
-		}
-
-		// Skip AUFS metadata
-		if matched, err := filepath.Match("/.wh..wh.*", path); err != nil || matched {
-			return err
-		}
-
-		change := Change{
-			Path: path,
-		}
-
-		// Find out what kind of modification happened
-		file := filepath.Base(path)
-		// If there is a whiteout, then the file was removed
-		if strings.HasPrefix(file, ".wh.") {
-			originalFile := file[len(".wh."):]
-			change.Path = filepath.Join(filepath.Dir(path), originalFile)
-			change.Kind = ChangeDelete
-		} else {
-			// Otherwise, the file was added
-			change.Kind = ChangeAdd
-
-			// ...Unless it already existed in a top layer, in which case, it's a modification
-			for _, layer := range layers {
-				stat, err := os.Stat(filepath.Join(layer, path))
-				if err != nil && !os.IsNotExist(err) {
-					return err
-				}
-				if err == nil {
-					// The file existed in the top layer, so that's a modification
-
-					// However, if it's a directory, maybe it wasn't actually modified.
-					// If you modify /foo/bar/baz, then /foo will be part of the changed files only because it's the parent of bar
-					if stat.IsDir() && f.IsDir() {
-						if f.Size() == stat.Size() && f.Mode() == stat.Mode() && f.ModTime() == stat.ModTime() {
-							// Both directories are the same, don't record the change
-							return nil
-						}
-					}
-					change.Kind = ChangeModify
-					break
-				}
-			}
-		}
-
-		// Record change
-		changes = append(changes, change)
-		return nil
-	})
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	return changes, nil
-}
-
 type FileInfo struct {
-	parent *FileInfo
-	name string
-	stat syscall.Stat_t
+	parent   *FileInfo
+	name     string
+	stat     syscall.Stat_t
 	children map[string]*FileInfo
 }
 
@@ -132,20 +60,20 @@ func (root *FileInfo) LookUp(path string) *FileInfo {
 	return parent
 }
 
-func (info *FileInfo)path() string {
+func (info *FileInfo) path() string {
 	if info.parent == nil {
 		return "/"
 	}
 	return filepath.Join(info.parent.path(), info.name)
 }
 
-func (info *FileInfo)unlink() {
+func (info *FileInfo) unlink() {
 	if info.parent != nil {
 		delete(info.parent.children, info.name)
 	}
 }
 
-func (info *FileInfo)Remove(path string) bool {
+func (info *FileInfo) Remove(path string) bool {
 	child := info.LookUp(path)
 	if child != nil {
 		child.unlink()
@@ -154,12 +82,11 @@ func (info *FileInfo)Remove(path string) bool {
 	return false
 }
 
-func (info *FileInfo)isDir() bool {
+func (info *FileInfo) isDir() bool {
 	return info.parent == nil || info.stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR
 }
 
-
-func (info *FileInfo)addChanges(oldInfo *FileInfo, changes *[]Change) {
+func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	if oldInfo == nil {
 		// add
 		change := Change{
@@ -198,7 +125,7 @@ func (info *FileInfo)addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Gid != newStat.Gid ||
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Size != newStat.Size && oldStat.Mode &syscall.S_IFDIR != syscall.S_IFDIR) ||
+				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
 				oldMtime.Sec != newMtime.Sec ||
 				oldMtime.Usec != newMtime.Usec {
 				change := Change{
@@ -223,10 +150,9 @@ func (info *FileInfo)addChanges(oldInfo *FileInfo, changes *[]Change) {
 		*changes = append(*changes, change)
 	}
 
-
 }
 
-func (info *FileInfo)Changes(oldInfo *FileInfo) []Change {
+func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 	var changes []Change
 
 	info.addChanges(oldInfo, &changes)
@@ -234,10 +160,9 @@ func (info *FileInfo)Changes(oldInfo *FileInfo) []Change {
 	return changes
 }
 
-
 func newRootFileInfo() *FileInfo {
-	root := &FileInfo {
-		name: "/",
+	root := &FileInfo{
+		name:     "/",
 		children: make(map[string]*FileInfo),
 	}
 	return root
@@ -299,11 +224,11 @@ func applyLayer(root *FileInfo, layer string) error {
 					return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 				}
 
-				info := &FileInfo {
-					name: filepath.Base(relPath),
+				info := &FileInfo{
+					name:     filepath.Base(relPath),
 					children: make(map[string]*FileInfo),
-					parent: parent,
-					stat: layerStat,
+					parent:   parent,
+					stat:     layerStat,
 				}
 
 				parent.children[info.name] = info
@@ -313,7 +238,6 @@ func applyLayer(root *FileInfo, layer string) error {
 	})
 	return err
 }
-
 
 func collectFileInfo(sourceDir string) (*FileInfo, error) {
 	root := newRootFileInfo()
@@ -339,10 +263,10 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 		}
 
-		info := &FileInfo {
-			name: filepath.Base(relPath),
+		info := &FileInfo{
+			name:     filepath.Base(relPath),
 			children: make(map[string]*FileInfo),
-			parent: parent,
+			parent:   parent,
 		}
 
 		if err := syscall.Lstat(path, &info.stat); err != nil {
@@ -365,7 +289,7 @@ func ChangesLayers(newDir string, layers []string) ([]Change, error) {
 		return nil, err
 	}
 	oldRoot := newRootFileInfo()
-	for i := len(layers)-1; i >= 0; i-- {
+	for i := len(layers) - 1; i >= 0; i-- {
 		layer := layers[i]
 		if err = applyLayer(oldRoot, layer); err != nil {
 			return nil, err
