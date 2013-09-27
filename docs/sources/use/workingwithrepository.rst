@@ -176,3 +176,30 @@ you can push and pull it like any other repository, but it will
 **not** be searchable (or indexed at all) in the Central Index, and
 there will be no user name checking performed. Your registry will
 function completely independently from the Central Index.
+
+Authentication file
+-------------------
+
+The authentication is stored in a json file, ``.dockercfg`` located in your
+home directory. It supports multiple registry urls.
+
+``docker login`` will create the "https://index.docker.io/v1/" key.
+
+``docker login https://my-registry.com`` will create the "https://my-registry.com" key.
+
+For example:
+
+.. code-block:: json
+
+   {
+	"https://index.docker.io/v1/": {
+		"auth": "xXxXxXxXxXx=",
+		"email": "email@example.com"
+	},
+	"https://my-registry.com": {
+		"auth": "XxXxXxXxXxX=",
+		"email": "email@my-registry.com"
+	}
+   }
+
+The ``auth`` field represents ``base64(<username>:<password>)``
