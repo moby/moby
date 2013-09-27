@@ -27,13 +27,28 @@ Docker Remote API
 2. Versions
 ===========
 
-The current version of the API is 1.5
+The current version of the API is 1.6
 
 Calling /images/<name>/insert is the same as calling
-/v1.5/images/<name>/insert 
+/v1.6/images/<name>/insert
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
+
+:doc:`docker_remote_api_v1.6`
+*****************************
+
+What's new
+----------
+
+.. http:post:: /containers/(id)/attach
+
+   **New!** You can now split stderr from stdout. This is done by prefixing
+   a header to each transmition. See :http:post:`/containers/(id)/attach`.
+   The WebSocket attach is unchanged.
+   Note that attach calls on the previous API version didn't change. Stdout and
+   stderr are merged.
+
 
 :doc:`docker_remote_api_v1.5`
 *****************************
