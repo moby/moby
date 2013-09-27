@@ -23,6 +23,7 @@
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
+      -rm=false: Automatically remove the container when it exits (incompatible with -d)
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
