@@ -1,0 +1,14 @@
+# If you use systemd, place this file in /lib/systemd/system.
+# You can customize the command-line on the ExecStart line.
+# Then "systemctl enable docker && systemctl start docker".
+[Unit]
+Description=Docker
+Requires=network.target
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/docker -d
+
+[Install]
+WantedBy=multi-user.target
