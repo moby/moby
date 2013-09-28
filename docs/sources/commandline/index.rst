@@ -25,6 +25,7 @@ Contents:
   info    <command/info>
   insert  <command/insert>
   inspect <command/inspect>
+  ip      <command/ip>
   kill    <command/kill>
   login   <command/login>
   logs    <command/logs>

@@ -40,6 +40,7 @@ Available Commands
    command/info
    command/insert
    command/inspect
+   command/ip
    command/kill
    command/login
    command/logs
