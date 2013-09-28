@@ -90,7 +90,6 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
-	AutoRemove      bool
 }
 
 type BindMap struct {
@@ -248,7 +247,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
-		AutoRemove:      *flAutoRemove,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -1026,11 +1024,6 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 		// to return.
 		// FIXME: why are we serializing running state to disk in the first place?
 		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
-	}
-	if hostConfig != nil {
-		if hostConfig.AutoRemove {
-			container.runtime.Destroy(container)
-		}
 	}
 }
 
