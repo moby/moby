@@ -67,7 +67,14 @@ write_to_s3() {
 }
 
 s3_url() {
-	echo "http://$BUCKET.s3.amazonaws.com"
+	case "$BUCKET" in
+		get.docker.io|test.docker.io)
+			echo "https://$BUCKET"
+			;;
+		*)
+			echo "http://$BUCKET.s3.amazonaws.com"
+			;;
+	esac
 }
 
 # Upload the 'ubuntu' bundle to S3:
@@ -125,13 +132,13 @@ EOF
 	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/info
 # Add the repository to your APT sources
-echo deb $(s3_url $BUCKET)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
+echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 # Then import the repository key
-curl $(s3_url $BUCKET)/gpg | apt-key add -
+curl $(s3_url)/gpg | apt-key add -
 # Install docker
 apt-get update ; apt-get install -y lxc-docker
 EOF
-	echo "APT repository uploaded. Instructions available at $(s3_url $BUCKET)/ubuntu/info"
+	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu/info"
 }
 
 # Upload a static binary to S3
@@ -141,7 +148,7 @@ release_binary() {
 	s3cmd --acl-public put bundles/$VERSION/binary/docker-$VERSION $S3DIR/docker-$VERSION
 	cat <<EOF | write_to_s3 s3://$BUCKET/builds/info
 # To install, run the following command as root:
-curl -O http://$BUCKET.s3.amazonaws.com/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
+curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
 sudo /usr/local/bin/docker -d
 EOF
@@ -155,14 +162,7 @@ EOF
 
 # Upload the index script
 release_index() {
-	(
-	if [ "$BUCKET" != "get.docker.io" ]
-	then
-		sed s,https://get.docker.io/,http://$BUCKET.s3.amazonaws.com/, contrib/install.sh
-	else
-		cat contrib/install.sh
-	fi
-	) | write_to_s3 s3://$BUCKET/index
+	sed "s,https://get.docker.io/,$(s3_url)/," hack/install.sh | write_to_s3 s3://$BUCKET/index
 }
 
 release_test() {
