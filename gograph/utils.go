@@ -20,6 +20,9 @@ func pathDepth(p string) int {
 }
 
 func splitPath(p string) (parent, name string) {
+	if p[0] != '/' {
+		p = "/" + p
+	}
 	parent, name = path.Split(p)
 	l := len(parent)
 	if parent[l-1] == '/' {

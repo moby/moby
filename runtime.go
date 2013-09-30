@@ -36,7 +36,6 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
-	links          *LinkRepository
 	containerGraph *gograph.Database
 }
 
@@ -462,6 +461,66 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
+func (runtime *Runtime) GetByName(name string) (*Container, error) {
+	entity := runtime.containerGraph.Get(name)
+	if entity == nil {
+		return nil, fmt.Errorf("Could not find entity for %s", name)
+	}
+	container := runtime.Get(entity.ID())
+	if container == nil {
+		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
+	}
+	return container, nil
+}
+
+func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
+	children := make(map[string]*Container)
+
+	err := runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+		c := runtime.Get(e.ID())
+		if c == nil {
+			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
+		}
+		children[p] = c
+		return nil
+	}, 0)
+
+	if err != nil {
+		return nil, err
+	}
+	return children, nil
+}
+
+func (runtime *Runtime) RenameLink(oldName, newName string) error {
+	entity := runtime.containerGraph.Get(oldName)
+	if entity == nil {
+		return fmt.Errorf("Could not find entity for %s", oldName)
+	}
+
+	// This is not rename but adding a new link for the default name
+	// Strip the leading '/'
+	if entity.ID() == oldName[1:] {
+		_, err := runtime.containerGraph.Set(newName, entity.ID())
+		return err
+	}
+	return runtime.containerGraph.Rename(oldName, newName)
+}
+
+func (runtime *Runtime) Link(parentName, childName, alias string) error {
+	parent := runtime.containerGraph.Get(parentName)
+	if parent == nil {
+		return fmt.Errorf("Could not get container for %s", parentName)
+	}
+	child := runtime.containerGraph.Get(childName)
+	if child == nil {
+		return fmt.Errorf("Could not get container for %s", childName)
+	}
+	cc := runtime.Get(child.ID())
+
+	_, err := runtime.containerGraph.Set(path.Join(parentName, alias), cc.ID)
+	return err
+}
+
 // FIXME: harmonize with NewGraph()
 func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory(config)
@@ -507,10 +566,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	links, err := NewLinkRepository()
-	if err != nil {
-		return nil, err
-	}
 	graph, err := gograph.NewDatabase("", "engine")
 	if err != nil {
 		return nil, err
@@ -526,7 +581,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		capabilities:   &Capabilities{},
 		volumes:        volumes,
 		config:         config,
-		links:          links,
 		containerGraph: graph,
 	}
 

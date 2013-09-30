@@ -3,76 +3,70 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/iptables"
-	"github.com/dotcloud/docker/utils"
+	"path"
 	"strings"
 )
 
 type Link struct {
-	FromID          string
-	ToID            string
-	FromIP          string
-	ToIP            string
-	BridgeInterface string
-	Alias           string
-	FromEnvironment []string
-	Ports           []Port
-	IsEnabled       bool
+	ParentIP         string
+	ChildIP          string
+	Name             string
+	BridgeInterface  string
+	ChildEnvironment []string
+	Ports            []Port
+	IsEnabled        bool
 }
 
-type LinkRepository struct {
-	links map[string]*Link
-}
+func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, error) {
+	if parent.ID == child.ID {
+		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
+	}
+	if !child.State.Running {
+		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.ID, name)
+	}
 
-func (r *LinkRepository) NewLink(to, from *Container, bridgeInterface string, alias string) (*Link, error) {
-	if to.ID == from.ID {
-		return nil, fmt.Errorf("Cannot link to self: %s == %s", to.ID, from.ID)
-	}
-	if !from.State.Running {
-		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", from.ID, alias)
-	}
-	ports := make([]Port, len(from.Config.ExposedPorts))
+	ports := make([]Port, len(child.Config.ExposedPorts))
 	var i int
-	for p := range from.Config.ExposedPorts {
+	for p := range child.Config.ExposedPorts {
 		ports[i] = p
 		i++
 	}
+
 	l := &Link{
-		FromID:          utils.TruncateID(from.ID),
-		ToID:            utils.TruncateID(to.ID),
-		BridgeInterface: bridgeInterface,
-		Alias:           alias,
-		FromIP:          from.NetworkSettings.IPAddress,
-		ToIP:            to.NetworkSettings.IPAddress,
-		FromEnvironment: from.Config.Env,
-		Ports:           ports,
-	}
-	if err := r.registerLink(l); err != nil {
-		return nil, err
+		BridgeInterface:  bridgeInterface,
+		Name:             name,
+		ChildIP:          child.NetworkSettings.IPAddress,
+		ParentIP:         parent.NetworkSettings.IPAddress,
+		ChildEnvironment: child.Config.Env,
+		Ports:            ports,
 	}
 	return l, nil
+
 }
 
-func (l *Link) ID() string {
-	return fmt.Sprintf("%s:%s", l.ToID, l.Alias)
+func (l *Link) Alias() string {
+	_, alias := path.Split(l.Name)
+	return alias
 }
 
 func (l *Link) ToEnv() []string {
 	env := []string{}
+	alias := l.Alias()
 
 	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", l.Alias, p.Proto(), l.FromIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
 	// Load exposed ports into the environment
 	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", l.Alias, p.Port(), p.Proto(), p.Proto(), l.FromIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), p.Proto(), p.Proto(), l.ChildIP, p.Port()))
 	}
 
-	// Load the linked container's ID into the environment
-	env = append(env, fmt.Sprintf("%s_ID=%s", l.Alias, l.FromID))
+	// Load the linked container's name into the environment
+	env = append(env, fmt.Sprintf("%s_NAME=%s", alias, l.Name))
 
-	if l.FromEnvironment != nil {
-		for _, v := range l.FromEnvironment {
+	if l.ChildEnvironment != nil {
+		for _, v := range l.ChildEnvironment {
 			parts := strings.Split(v, "=")
 			if len(parts) != 2 {
 				continue
@@ -81,7 +75,7 @@ func (l *Link) ToEnv() []string {
 			if parts[0] == "HOME" || parts[0] == "PATH" {
 				continue
 			}
-			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", l.Alias, parts[0], parts[1]))
+			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", alias, parts[0], parts[1]))
 		}
 	}
 	return env
@@ -126,9 +120,9 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 		if err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
 			"-p", p.Proto(),
-			"-s", l.ToIP,
+			"-s", l.ParentIP,
 			"--dport", p.Port(),
-			"-d", l.FromIP,
+			"-d", l.ChildIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
 		}
@@ -136,65 +130,12 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 		if err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
 			"-p", p.Proto(),
-			"-s", l.FromIP,
+			"-s", l.ChildIP,
 			"--sport", p.Port(),
-			"-d", l.ToIP,
+			"-d", l.ParentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-func NewLinkRepository() (*LinkRepository, error) {
-	r := &LinkRepository{make(map[string]*Link)}
-	return r, nil
-}
-
-// Return all links for a container
-func (l *LinkRepository) Get(c *Container) []*Link {
-	id := utils.TruncateID(c.ID)
-	out := []*Link{}
-	for _, link := range l.links {
-		if link.ToID == id || link.FromID == id {
-			out = append(out, link)
-		}
-	}
-	return out
-}
-
-// Return all links in the repository
-func (l *LinkRepository) GetAll() []*Link {
-	out := make([]*Link, len(l.links))
-	var i int
-	for _, link := range l.links {
-		out[i] = link
-		i++
-	}
-	return out
-}
-
-// Get a link based on the link's ID
-func (l *LinkRepository) GetById(id string) *Link {
-	return l.links[id]
-}
-
-// Create a new link with a unique alias
-func (l *LinkRepository) registerLink(link *Link) error {
-	if _, exists := l.links[link.ID()]; exists {
-		return fmt.Errorf("A link for %s already exists", link.ID())
-	}
-	utils.Debugf("Registering link: %s", link.ID())
-	l.links[link.ID()] = link
-
-	return nil
-}
-
-// Disable and remote the link from the repository
-func (l *LinkRepository) removeLink(link *Link) error {
-	link.Disable()
-
-	utils.Debugf("Removing link: %s", link.ID())
-	delete(l.links, link.ID())
 	return nil
 }

@@ -1,19 +1,9 @@
 package docker
 
 import (
-	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
 )
-
-func newTestLinkRepository(t *testing.T) *LinkRepository {
-	r, err := NewLinkRepository()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return r
-}
 
 func newMockLinkContainer(id string, ip string) *Container {
 	return &Container{
@@ -26,7 +16,6 @@ func newMockLinkContainer(id string, ip string) *Container {
 }
 
 func TestLinkNew(t *testing.T) {
-	r := newTestLinkRepository(t)
 	toID := GenerateID()
 	fromID := GenerateID()
 
@@ -41,7 +30,7 @@ func TestLinkNew(t *testing.T) {
 
 	to := newMockLinkContainer(toID, "172.0.17.3")
 
-	link, err := r.NewLink(to, from, "172.0.17.1", "docker")
+	link, err := NewLink(to, from, "/db/docker", "172.0.17.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,22 +38,16 @@ func TestLinkNew(t *testing.T) {
 	if link == nil {
 		t.FailNow()
 	}
-	if link.ID() != fmt.Sprintf("%s:%s", utils.TruncateID(to.ID), "docker") {
+	if link.Name != "/db/docker" {
 		t.Fail()
 	}
-	if link.Alias != "docker" {
+	if link.Alias() != "docker" {
 		t.Fail()
 	}
-	if link.FromID != utils.TruncateID(from.ID) {
+	if link.ParentIP != "172.0.17.3" {
 		t.Fail()
 	}
-	if link.ToID != utils.TruncateID(to.ID) {
-		t.Fail()
-	}
-	if link.ToIP != "172.0.17.3" {
-		t.Fail()
-	}
-	if link.FromIP != "172.0.17.2" {
+	if link.ChildIP != "172.0.17.2" {
 		t.Fail()
 	}
 	if link.BridgeInterface != "172.0.17.1" {
@@ -78,7 +61,6 @@ func TestLinkNew(t *testing.T) {
 }
 
 func TestLinkEnv(t *testing.T) {
-	r := newTestLinkRepository(t)
 	toID := GenerateID()
 	fromID := GenerateID()
 
@@ -93,7 +75,7 @@ func TestLinkEnv(t *testing.T) {
 
 	to := newMockLinkContainer(toID, "172.0.17.3")
 
-	link, err := r.NewLink(to, from, "172.0.17.1", "docker")
+	link, err := NewLink(to, from, "/db/docker", "172.0.17.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,8 +95,8 @@ func TestLinkEnv(t *testing.T) {
 	if env["docker_PORT_6379_tcp"] != "tcp://172.0.17.2:6379" {
 		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["docker_PORT_6379_tcp"])
 	}
-	if env["docker_ID"] != utils.TruncateID(from.ID) {
-		t.Fatalf("Expected %s, got %s", utils.TruncateID(from.ID), env["docker_ID"])
+	if env["docker_NAME"] != "/db/docker" {
+		t.Fatalf("Expected /db/docker, got %s", env["docker_NAME"])
 	}
 	if env["docker_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["docker_ENV_PASSWORD"])
