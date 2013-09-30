@@ -95,6 +95,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"info", "Display system-wide information"},
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
+		{"ip", "Return the IP address of a container"},
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
@@ -668,6 +669,30 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	} else {
 		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdIp(args ...string) error {
+	cmd := Subcmd("ip", "CONTAINER", "Lookup the IP address of the container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	if err != nil {
+		return err
+	}
+	var out Container
+	err = json.Unmarshal(body, &out)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cli.out, "%s\n", out.NetworkSettings.IPAddress)
 	return nil
 }
 
