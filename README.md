@@ -190,6 +190,9 @@ wrong or incomplete.
 
 ### Legal
 
+*Brought to you courtesy of our legal counsel. For more context,
+please see the Notice document.*
+
 Transfers of Docker shall be in accordance with applicable export
 controls of any country and all other applicable legal requirements.
 Docker shall not be distributed or downloaded to or in Cuba, Iran,
