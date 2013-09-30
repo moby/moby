@@ -129,12 +129,8 @@ func (db *Database) List(name string, depth int) Entities {
 	return out
 }
 
-func (db *Database) Walk(walkFunc WalkFunc) error {
-	parent := db.RootEntity()
-	if err := walkFunc("/", parent); err != nil {
-		return err
-	}
-	for c := range db.children("/", -1) {
+func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
+	for c := range db.children(name, depth) {
 		if err := walkFunc(c.FullPath, c.Entity); err != nil {
 			return err
 		}

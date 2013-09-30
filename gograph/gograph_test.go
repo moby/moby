@@ -182,10 +182,10 @@ func TestWalkAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := db.Walk(func(p string, e *Entity) error {
+	if err := db.Walk("/", func(p string, e *Entity) error {
 		t.Logf("Path: %s Entity: %s", p, e.ID())
 		return nil
-	}); err != nil {
+	}, -1); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -406,8 +406,8 @@ func TestCreateMultipleNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db.Walk(func(p string, e *Entity) error {
+	db.Walk("/", func(p string, e *Entity) error {
 		t.Logf("%s\n", p)
 		return nil
-	})
+	}, -1)
 }

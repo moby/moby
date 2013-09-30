@@ -997,9 +997,8 @@ func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *
 	runtime := srv.runtime
 
 	out := []APILink{}
-	err := runtime.containerGraph.Walk(func(p string, e *gograph.Entity) error {
-		container := runtime.Get(e.ID())
-		if container != nil {
+	err := runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
+		if container := runtime.Get(e.ID()); container != nil {
 			out = append(out, APILink{
 				Path:        p,
 				ContainerID: container.ID,
@@ -1007,14 +1006,44 @@ func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *
 			})
 		}
 		return nil
-	})
+	}, -1)
 	if err != nil {
 		return err
 	}
-
 	return writeJSON(w, http.StatusOK, out)
 }
 
+func postContainerLink(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	values := make(map[string]string)
+	if matchesContentType(r.Header.Get("Content-Type"), "application/json") && r.Body != nil {
+		defer r.Body.Close()
+
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&values); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Invalid json body")
+	}
+	currentName := values["currentName"]
+	newName := values["newName"]
+
+	if currentName == "" {
+		return fmt.Errorf("currentName cannot be empty")
+	}
+	if newName == "" {
+		return fmt.Errorf("newName cannot be empty")
+	}
+
+	if err := srv.runtime.RenameLink(currentName, newName); err != nil {
+		return err
+	}
+
+	return nil
+}
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
@@ -1054,6 +1083,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/link":              postContainerLink,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

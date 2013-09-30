@@ -391,12 +391,12 @@ func createAPIContainer(container *Container, size bool, runtime *Runtime) APICo
 		ID: container.ID,
 	}
 	names := []string{}
-	runtime.containerGraph.Walk(func(p string, e *gograph.Entity) error {
+	runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
 		if e.ID() == container.ID {
 			names = append(names, p)
 		}
 		return nil
-	})
+	}, -1)
 	c.Names = names
 
 	c.Image = runtime.repositories.ImageName(container.Image)
@@ -1152,14 +1152,32 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 }
 
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
-	if container := srv.runtime.Get(name); container != nil {
-		if err := container.Start(hostConfig); err != nil {
-			return fmt.Errorf("Error starting container %s: %s", name, err)
-		}
-		srv.LogEvent("start", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
-	} else {
+	runtime := srv.runtime
+	container := runtime.Get(name)
+	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
+	// Register links
+	if hostConfig != nil && hostConfig.Links != nil {
+		for _, l := range hostConfig.Links {
+			parts, err := parseLink(l)
+			if err != nil {
+				return err
+			}
+
+			childName := parts["name"]
+			if err := runtime.Link(fmt.Sprintf("/%s", container.ID), childName, parts["alias"]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := container.Start(hostConfig); err != nil {
+		return fmt.Errorf("Error starting container %s: %s", name, err)
+	}
+	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))
+
 	return nil
 }
 

@@ -57,6 +57,8 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
+
+	activeLinks map[string]*Link
 }
 
 type Config struct {
@@ -830,30 +832,39 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-e", "HOSTNAME="+container.Config.Hostname,
 	)
 
-	if !container.Config.NetworkDisabled && hostConfig != nil && hostConfig.Links != nil {
-		runtime := container.runtime
-		for _, l := range hostConfig.Links {
-			parts, err := parseLink(l)
+	// Init any links between the parent and children
+	runtime := container.runtime
+
+	children, err := runtime.Children(fmt.Sprintf("/%s", container.ID))
+	if err != nil {
+		return err
+	}
+
+	if len(children) > 0 {
+		container.activeLinks = make(map[string]*Link, len(children))
+
+		// If we encounter an error make sure that we rollback any network
+		// config and ip table changes
+		rollback := func() {
+			for _, link := range container.activeLinks {
+				link.Disable()
+			}
+			container.activeLinks = nil
+		}
+
+		for p, child := range children {
+			link, err := NewLink(container, child, p, runtime.networkManager.bridgeIface)
 			if err != nil {
+				rollback()
 				return err
 			}
-			linkedContainer := runtime.Get(parts["id"])
-			if linkedContainer == nil {
-				return fmt.Errorf("Cannot find container: %s", parts["id"])
-			}
 
-			link, err := runtime.links.NewLink(container, linkedContainer, runtime.networkManager.bridgeIface, parts["alias"])
-			if err != nil {
-				return err
-			}
-
+			container.activeLinks[p] = link
 			if err := link.Enable(); err != nil {
-				// If we encounter an err, make sure we remove all links
-				for _, registeredLinks := range runtime.links.Get(container) {
-					runtime.links.removeLink(registeredLinks)
-				}
+				rollback()
 				return err
 			}
+
 			for _, envVar := range link.ToEnv() {
 				params = append(params, "-e", envVar)
 			}
@@ -893,7 +904,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	var err error
 	if container.Config.Tty {
 		err = container.startPty()
 	} else {
@@ -1096,10 +1106,11 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	// Cleanup
 	container.releaseNetwork()
 
-	//Destroy all links
-	runtime := container.runtime
-	for _, link := range runtime.links.Get(container) {
-		runtime.links.removeLink(link)
+	// Disable all active links
+	if container.activeLinks != nil {
+		for _, link := range container.activeLinks {
+			link.Disable()
+		}
 	}
 
 	if container.Config.OpenStdin {

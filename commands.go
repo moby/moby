@@ -1142,6 +1142,27 @@ func (cli *DockerCli) CmdLs(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdLink(args ...string) error {
+	cmd := Subcmd("link", "CURRENT_NAME NEW_NAME", "Link the container with a new name")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	body := map[string]string{
+		"currentName": cmd.Arg(0),
+		"newName":     cmd.Arg(10),
+	}
+
+	_, _, err := cli.call("POST", "/containers/link", body)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
