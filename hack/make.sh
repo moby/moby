@@ -25,9 +25,9 @@ set -e
 # but really, they shouldn't. We want to be in a container!
 RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
 grep -q "$RESOLVCONF" /proc/mounts || {
-	echo "# WARNING! I don't seem to be running in a docker container."
-	echo "# The result of this command might be an incorrect build, and will not be officially supported."
-	echo "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'"
+	echo >&2 "# WARNING! I don't seem to be running in a docker container."
+	echo >&2 "# The result of this command might be an incorrect build, and will not be officially supported."
+	echo >&2 "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'"
 }
 
 # List of bundles to create when no argument is passed
