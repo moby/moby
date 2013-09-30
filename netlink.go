@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"syscall"
@@ -8,6 +9,14 @@ import (
 )
 
 var nextSeqNr int
+
+func nativeEndian() binary.ByteOrder {
+	var x uint32 = 0x01020304
+	if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
+		return binary.BigEndian
+	}
+	return binary.LittleEndian
+}
 
 func getSeq() int {
 	nextSeqNr = nextSeqNr + 1
@@ -44,14 +53,16 @@ func newIfInfomsg(family int) *IfInfomsg {
 }
 
 func (msg *IfInfomsg) ToWireFormat() []byte {
+	native := nativeEndian()
+
 	len := syscall.SizeofIfInfomsg
 	b := make([]byte, len)
-	*(*uint8)(unsafe.Pointer(&b[0:1][0])) = msg.Family
-	*(*uint8)(unsafe.Pointer(&b[1:2][0])) = 0
-	*(*uint16)(unsafe.Pointer(&b[2:4][0])) = msg.Type
-	*(*int32)(unsafe.Pointer(&b[4:8][0])) = msg.Index
-	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = msg.Flags
-	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = msg.Change
+	b[0] = msg.Family
+	b[1] = 0
+	native.PutUint16(b[2:4], msg.Type)
+	native.PutUint32(b[4:8], uint32(msg.Index))
+	native.PutUint32(b[8:12], msg.Flags)
+	native.PutUint32(b[12:16], msg.Change)
 	return b
 }
 
@@ -71,13 +82,15 @@ func newIfAddrmsg(family int) *IfAddrmsg {
 }
 
 func (msg *IfAddrmsg) ToWireFormat() []byte {
+	native := nativeEndian()
+
 	len := syscall.SizeofIfAddrmsg
 	b := make([]byte, len)
-	*(*uint8)(unsafe.Pointer(&b[0:1][0])) = msg.Family
-	*(*uint8)(unsafe.Pointer(&b[1:2][0])) = msg.Prefixlen
-	*(*uint8)(unsafe.Pointer(&b[2:3][0])) = msg.Flags
-	*(*uint8)(unsafe.Pointer(&b[3:4][0])) = msg.Scope
-	*(*uint32)(unsafe.Pointer(&b[4:8][0])) = msg.Index
+	b[0] = msg.Family
+	b[1] = msg.Prefixlen
+	b[2] = msg.Flags
+	b[3] = msg.Scope
+	native.PutUint32(b[4:8], msg.Index)
 	return b
 }
 
@@ -97,17 +110,19 @@ func newRtMsg(family int) *RtMsg {
 }
 
 func (msg *RtMsg) ToWireFormat() []byte {
+	native := nativeEndian()
+
 	len := syscall.SizeofRtMsg
 	b := make([]byte, len)
-	*(*uint8)(unsafe.Pointer(&b[0:1][0])) = msg.Family
-	*(*uint8)(unsafe.Pointer(&b[1:2][0])) = msg.Dst_len
-	*(*uint8)(unsafe.Pointer(&b[2:3][0])) = msg.Src_len
-	*(*uint8)(unsafe.Pointer(&b[3:4][0])) = msg.Tos
-	*(*uint8)(unsafe.Pointer(&b[4:5][0])) = msg.Table
-	*(*uint8)(unsafe.Pointer(&b[5:6][0])) = msg.Protocol
-	*(*uint8)(unsafe.Pointer(&b[6:7][0])) = msg.Scope
-	*(*uint8)(unsafe.Pointer(&b[7:8][0])) = msg.Type
-	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = msg.Flags
+	b[0] = msg.Family
+	b[1] = msg.Dst_len
+	b[2] = msg.Src_len
+	b[3] = msg.Tos
+	b[4] = msg.Table
+	b[5] = msg.Protocol
+	b[6] = msg.Scope
+	b[7] = msg.Type
+	native.PutUint32(b[8:12], msg.Flags)
 	return b
 }
 
@@ -129,10 +144,12 @@ func newRtAttr(attrType int, data []byte) *RtAttr {
 }
 
 func (attr *RtAttr) ToWireFormat() []byte {
+	native := nativeEndian()
+
 	len := syscall.SizeofRtAttr + len(attr.Data)
 	b := make([]byte, rtaAlignOf(len))
-	*(*uint16)(unsafe.Pointer(&b[0:2][0])) = uint16(len)
-	*(*uint16)(unsafe.Pointer(&b[2:4][0])) = attr.Type
+	native.PutUint16(b[0:2], uint16(len))
+	native.PutUint16(b[2:4], attr.Type)
 	for i, d := range attr.Data {
 		b[4+i] = d
 	}
@@ -146,6 +163,8 @@ type NetlinkRequest struct {
 }
 
 func (rr *NetlinkRequest) ToWireFormat() []byte {
+	native := nativeEndian()
+
 	length := rr.Len
 	dataBytes := make([][]byte, len(rr.Data))
 	for i, data := range rr.Data {
@@ -153,11 +172,11 @@ func (rr *NetlinkRequest) ToWireFormat() []byte {
 		length = length + uint32(len(dataBytes[i]))
 	}
 	b := make([]byte, length)
-	*(*uint32)(unsafe.Pointer(&b[0:4][0])) = length
-	*(*uint16)(unsafe.Pointer(&b[4:6][0])) = rr.Type
-	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Flags
-	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Seq
-	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Pid
+	native.PutUint32(b[0:4], length)
+	native.PutUint16(b[4:6], rr.Type)
+	native.PutUint16(b[6:8], rr.Flags)
+	native.PutUint32(b[8:12], rr.Seq)
+	native.PutUint32(b[12:16], rr.Pid)
 
 	i := 16
 	for _, data := range dataBytes {
@@ -241,6 +260,8 @@ func (s *NetlinkSocket)GetPid() (uint32, error) {
 }
 
 func (s *NetlinkSocket)HandleAck(seq uint32) error {
+	native := nativeEndian()
+
 	pid, err := s.GetPid()
 	if err != nil {
 		return err
@@ -263,7 +284,7 @@ done:
 				break done
 			}
 			if m.Header.Type == syscall.NLMSG_ERROR {
-				error := *(*int32)(unsafe.Pointer(&m.Data[0:4][0]))
+				error := int32(native.Uint32(m.Data[0:4]))
 				if error == 0 {
 					break done
 				}
@@ -418,6 +439,8 @@ func NetworkLinkAdd(name string, linkType string) error {
 }
 
 func NetworkGetRoutes() ([]*net.IPNet, error) {
+	native := nativeEndian()
+
 	s, err := getNetlinkSocket()
 	if err != nil {
 		return nil, err
@@ -458,7 +481,7 @@ done:
 				break done
 			}
 			if m.Header.Type == syscall.NLMSG_ERROR {
-				error := *(*int32)(unsafe.Pointer(&m.Data[0:4][0]))
+				error := int32(native.Uint32(m.Data[0:4]))
 				if error == 0 {
 					break done
 				}
@@ -506,8 +529,8 @@ done:
 						Mask: net.CIDRMask(int(msg.Dst_len), 8*len(ip)),
 					}
 				case syscall.RTA_OIF:
-					index := *(*int32)(unsafe.Pointer(&attr.Value[0:4][0]))
-					iface, _ = net.InterfaceByIndex(int(index))
+					index := int(native.Uint32(attr.Value[0:4]))
+					iface, _ = net.InterfaceByIndex(index)
 					_ = iface
 				}
 			}
