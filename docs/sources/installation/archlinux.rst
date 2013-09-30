@@ -80,7 +80,7 @@ To enable the forwarding, run as root on the host system:
 
     sysctl net.ipv4.ip_forward=1
     
-And, to make it persistent across reboots, enable it on the host's **/etc/sysctl.conf**:
+And, to make it persistent across reboots, enable it on the host's **/etc/sysctl.d/net.conf**:
 
 ::
 
