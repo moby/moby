@@ -67,10 +67,15 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (runtime *Runtime) Get(name string) *Container {
+	if c, _ := runtime.GetByName(name); c != nil {
+		return c
+	}
+
 	id, err := runtime.idIndex.Get(name)
 	if err != nil {
 		return nil
 	}
+
 	e := runtime.getContainerElement(id)
 	if e == nil {
 		return nil
@@ -472,11 +477,11 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
-	container := runtime.Get(entity.ID())
-	if container == nil {
+	e := runtime.getContainerElement(entity.ID())
+	if e == nil {
 		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
 	}
-	return container, nil
+	return e.Value.(*Container), nil
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {

@@ -558,6 +558,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	var encounteredError error
 	for _, name := range args {
+		name = strings.Replace(name, "/", "%252F", -1)
 		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)

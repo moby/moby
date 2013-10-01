@@ -15,6 +15,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
@@ -622,7 +623,12 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	var err error
 	name := vars["name"]
+	name, err = url.QueryUnescape(name)
+	if err != nil {
+		return err
+	}
 	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
