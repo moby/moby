@@ -962,7 +962,22 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
+func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) error {
+	if removeLink {
+		parent, _ := path.Split(name)
+		p := srv.runtime.containerGraph.Get(parent)
+		parentContainer := srv.runtime.Get(p.ID())
+		if parentContainer != nil && parentContainer.activeLinks != nil {
+			if link, exists := parentContainer.activeLinks[name]; exists {
+				link.Disable()
+			}
+		}
+
+		if err := srv.runtime.containerGraph.Delete(name); err != nil {
+			return err
+		}
+		return nil
+	}
 	if container := srv.runtime.Get(name); container != nil {
 		if container.State.Running {
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")

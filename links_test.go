@@ -89,16 +89,16 @@ func TestLinkEnv(t *testing.T) {
 		}
 		env[parts[0]] = parts[1]
 	}
-	if env["docker_PORT"] != "tcp://172.0.17.2:6379" {
-		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["docker_PORT"])
+	if env["DOCKER_PORT"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_PORT"])
 	}
-	if env["docker_PORT_6379_tcp"] != "tcp://172.0.17.2:6379" {
-		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["docker_PORT_6379_tcp"])
+	if env["DOCKER_PORT_6379_TCP"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_PORT_6379_TCP"])
 	}
-	if env["docker_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["docker_NAME"])
+	if env["DOCKER_NAME"] != "/db/docker" {
+		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
 	}
-	if env["docker_ENV_PASSWORD"] != "gordon" {
-		t.Fatalf("Expected gordon, got %s", env["docker_ENV_PASSWORD"])
+	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
+		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
 	}
 }

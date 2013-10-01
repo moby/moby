@@ -81,3 +81,25 @@ func sortContainers(containers []*Container, predicate func(i, j *Container) boo
 	s := &containerSorter{containers, predicate}
 	sort.Sort(s)
 }
+
+type apiLinkSorter struct {
+	links []APILink
+	by    func(i, j APILink) bool
+}
+
+func (s *apiLinkSorter) Len() int {
+	return len(s.links)
+}
+
+func (s *apiLinkSorter) Swap(i, j int) {
+	s.links[i], s.links[j] = s.links[j], s.links[i]
+}
+
+func (s *apiLinkSorter) Less(i, j int) bool {
+	return s.by(s.links[i], s.links[j])
+}
+
+func sortLinks(links []APILink, predicate func(i, j APILink) bool) {
+	s := &apiLinkSorter{links, predicate}
+	sort.Sort(s)
+}

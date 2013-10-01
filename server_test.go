@@ -98,7 +98,7 @@ func TestCreateRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	if err = srv.ContainerDestroy(id, true); err != nil {
+	if err = srv.ContainerDestroy(id, true, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -175,7 +175,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	if err = srv.ContainerDestroy(id, true); err != nil {
+	if err = srv.ContainerDestroy(id, true, false); err != nil {
 		t.Fatal(err)
 	}
 
