@@ -463,7 +463,7 @@ Ancestry
 2.4 Status
 ----------
 
-.. http:get /v1/_ping
+.. http:get:: /v1/_ping
 
     Check status of the registry. This endpoint is also used to determine if
     the registry supports SSL.
@@ -478,9 +478,6 @@ Ancestry
         Content-Type: application/json
 
         ""
-
-    :parameter namespace: namespace for the repo
-    :parameter repository: name for the repo
 
     **Example Response**:
 
