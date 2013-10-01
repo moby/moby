@@ -26,7 +26,7 @@
 * Registry: Implement login with private registry
 * Remote API: Bump to v1.5
 * Packaging: Break down hack/make.sh into small scripts, one per 'bundle': test, binary, ubuntu etc.
-* Documentation: General improvments
+* Documentation: General improvements
 - Runtime: UID and GID are now also applied to volumes
 - Runtime: `docker start` set error code upon error
 - Runtime: `docker run` set the same error code as the process started
