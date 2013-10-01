@@ -1,14 +1,11 @@
-.. use orphan to suppress "WARNING: document isn't included in any toctree"
-.. per http://sphinx-doc.org/markup/misc.html#file-wide-metadata
-
-:orphan:
-
-:title: Remote API v1.0
+:title: Remote API v1.6
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
+:orphan:
+
 ======================
-Docker Remote API v1.0
+Docker Remote API v1.6
 ======================
 
 .. contents:: Table of Contents
@@ -37,7 +34,7 @@ List containers
 
 	.. sourcecode:: http
 
-	   GET /containers/json?all=1&before=8dfafdbc3a40 HTTP/1.1
+	   GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 	   
 	**Example response**:
 
@@ -49,31 +46,43 @@ List containers
 	   [
 		{
 			"Id": "8dfafdbc3a40",
-			"Image": "ubuntu:latest",
+			"Image": "base:latest",
 			"Command": "echo 1",
 			"Created": 1367854155,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "9cd87474be90",
-			"Image": "ubuntu:latest",
+			"Image": "base:latest",
 			"Command": "echo 222222",
 			"Created": 1367854155,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":[],
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "3176a2479c92",
-			"Image": "centos:latest",
+			"Image": "base:latest",
 			"Command": "echo 3333333333333333",
 			"Created": 1367854154,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":[],
+			"SizeRw":12288,
+			"SizeRootFs":0
 		},
 		{
 			"Id": "4cb07b47f9fb",
-			"Image": "fedora:latest",
+			"Image": "base:latest",
 			"Command": "echo 444444444444444444444444444444444",
 			"Created": 1367854152,
-			"Status": "Exit 0"
+			"Status": "Exit 0",
+			"Ports":[],
+			"SizeRw":12288,
+			"SizeRootFs":0
 		}
 	   ]
  
@@ -81,6 +90,7 @@ List containers
 	:query limit: Show ``limit`` last created containers, include non-running ones.
 	:query since: Show only containers created since Id, include non-running ones.
 	:query before: Show only containers created before Id, include non-running ones.
+	:query size: 1/True/true or 0/False/false, Show the containers sizes
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 500: server error
@@ -109,6 +119,7 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
+		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -117,9 +128,11 @@ Create a container
 			"date"
 		],
 		"Dns":null,
-		"Image":"ubuntu",
+		"Image":"base",
 		"Volumes":{},
-		"VolumesFrom":""
+		"VolumesFrom":"",
+		"WorkingDir":""
+
 	   }
 	   
 	**Example response**:
@@ -183,9 +196,11 @@ Inspect a container
 					"date"
 				],
 				"Dns": null,
-				"Image": "ubuntu",
+				"Image": "base",
 				"Volumes": {},
-				"VolumesFrom": ""
+				"VolumesFrom": "",
+				"WorkingDir":""
+
 			},
 			"State": {
 				"Running": false,
@@ -207,6 +222,52 @@ Inspect a container
 			"Volumes": {}
 	   }
 
+	:statuscode 200: no error
+	:statuscode 404: no such container
+	:statuscode 500: server error
+
+
+List processes running inside a container
+*****************************************
+
+.. http:get:: /containers/(id)/top
+
+	List processes running inside the container ``id``
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+	   GET /containers/4fa6e0f0c678/top HTTP/1.1
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: application/json
+
+	   {
+		"Titles":[
+			"USER",
+			"PID",
+			"%CPU",
+			"%MEM",
+			"VSZ",
+			"RSS",
+			"TTY",
+			"STAT",
+			"START",
+			"TIME",
+			"COMMAND"
+			],
+		"Processes":[
+			["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
+			["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
+		]
+	   }
+
+	:query ps_args: ps arguments to use (eg. aux)
 	:statuscode 200: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
@@ -286,23 +347,31 @@ Start a container
 
 .. http:post:: /containers/(id)/start
 
-	Start the container ``id``
+        Start the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/start HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/(id)/start HTTP/1.1
+           Content-Type: application/json
 
-	.. sourcecode:: http
+           {
+                "Binds":["/tmp:/tmp"],
+                "LxcConf":{"lxc.utsname":"docker"}
+           }
 
-	   HTTP/1.1 200 OK
-	   	
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 204 No Content
+           Content-Type: text/plain
+
+        :jsonparam hostConfig: the container's host configuration (optional)
+        :statuscode 204: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Stop a container
@@ -411,6 +480,49 @@ Attach to a container
 	:statuscode 404: no such container
 	:statuscode 500: server error
 
+	**Stream details**:
+
+	When using the TTY setting is enabled in
+	:http:post:`/containers/create`, the stream is the raw data
+	from the process PTY and client's stdin.  When the TTY is
+	disabled, then the stream is multiplexed to separate stdout
+	and stderr.
+
+	The format is a **Header** and a **Payload** (frame).
+
+	**HEADER**
+
+	The header will contain the information on which stream write
+	the stream (stdout or stderr). It also contain the size of
+	the associated frame encoded on the last 4 bytes (uint32).
+
+	It is encoded on the first 8 bytes like this::
+
+	    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+
+	``STREAM_TYPE`` can be:
+
+	- 0: stdin (will be writen on stdout)
+	- 1: stdout
+	- 2: stderr
+
+	``SIZE1, SIZE2, SIZE3, SIZE4`` are the 4 bytes of the uint32 size encoded as big endian.
+
+	**PAYLOAD**
+
+	The payload is the raw stream.
+
+	**IMPLEMENTATION**
+
+	The simplest way to implement the Attach protocol is the following:
+
+	1) Read 8 bytes
+	2) chose stdout or stderr depending on the first byte
+	3) Extract the frame size from the last 4 byets
+	4) Read the extracted size and output it on the correct output
+	5) Goto 1)
+
+
 
 Wait a container
 ****************
@@ -465,6 +577,38 @@ Remove a container
         :statuscode 500: server error
 
 
+Copy files or folders from a container
+**************************************
+
+.. http:post:: /containers/(id)/copy
+
+	Copy files or folders of container ``id``
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+	   POST /containers/4fa6e0f0c678/copy HTTP/1.1
+	   Content-Type: application/json
+
+	   {
+		"Resource":"test.txt"
+	   }
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: application/octet-stream
+	   
+	   {{ STREAM }}
+
+	:statuscode 200: no error
+	:statuscode 404: no such container
+	:statuscode 500: server error
+
+
 2.2 Images
 ----------
 
@@ -490,16 +634,20 @@ List Images
 	   
 	   [
 		{
-			"Repository":"ubuntu",
-			"Tag":"precise",
+			"Repository":"base",
+			"Tag":"ubuntu-12.10",
 			"Id":"b750fe79269d",
-			"Created":1364102658
+			"Created":1364102658,
+			"Size":24653,
+			"VirtualSize":180116135
 		},
 		{
-			"Repository":"ubuntu",
-			"Tag":"12.04",
+			"Repository":"base",
+			"Tag":"ubuntu-quantal",
 			"Id":"b750fe79269d",
-			"Created":1364102658
+			"Created":1364102658,
+			"Size":24653,
+			"VirtualSize":180116135
 		}
 	   ]
 
@@ -529,9 +677,9 @@ List Images
 	   "d6434d954665" -> "d82cbacda43a"
 	   base -> "e9aa60c60128" [style=invis]
 	   "074be284591f" -> "f71189fff3de"
-	   "b750fe79269d" [label="b750fe79269d\nubuntu",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "e9aa60c60128" [label="e9aa60c60128\ncentos",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "9a33b36209ed" [label="9a33b36209ed\nfedora",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "b750fe79269d" [label="b750fe79269d\nbase",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "e9aa60c60128" [label="e9aa60c60128\nbase2",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+	   "9a33b36209ed" [label="9a33b36209ed\ntest",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
 	   base [style=invisible]
 	   }
  
@@ -552,16 +700,23 @@ Create an image
 
         .. sourcecode:: http
 
-           POST /images/create?fromImage=ubuntu HTTP/1.1
+           POST /images/create?fromImage=base HTTP/1.1
 
         **Example response**:
 
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/vnd.docker.raw-stream
+	   Content-Type: application/json
 
-	   {{ STREAM }}
+	   {"status":"Pulling..."}
+	   {"status":"Pulling", "progress":"1/? (n/a)"}
+	   {"error":"Invalid..."}
+	   ...
+
+	When using this endpoint to pull an image from the registry,
+	the ``X-Registry-Auth`` header can be used to include a
+	base64-encoded AuthConfig object.
 
         :query fromImage: name of the image to pull
 	:query fromSrc: source to import, - means stdin
@@ -590,8 +745,12 @@ Insert a file in an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
+	   Content-Type: application/json
 
-	   {{ STREAM }}
+	   {"status":"Inserting..."}
+	   {"status":"Inserting", "progress":"1/? (n/a)"}
+	   {"error":"Invalid..."}
+	   ...
 
 	:statuscode 200: no error
         :statuscode 500: server error
@@ -608,7 +767,7 @@ Inspect an image
 
 	.. sourcecode:: http
 
-	   GET /images/centos/json HTTP/1.1
+	   GET /images/base/json HTTP/1.1
 
 	**Example response**:
 
@@ -638,10 +797,12 @@ Inspect an image
 				"Env":null,
 				"Cmd": ["/bin/bash"]
 				,"Dns":null,
-				"Image":"centos",
+				"Image":"base",
 				"Volumes":null,
-				"VolumesFrom":""
-			}
+				"VolumesFrom":"",
+				"WorkingDir":""
+			},
+		"Size": 6824592
 	   }
 
 	:statuscode 200: no error
@@ -660,7 +821,7 @@ Get the history of an image
 
         .. sourcecode:: http
 
-           GET /images/fedora/history HTTP/1.1
+           GET /images/base/history HTTP/1.1
 
         **Example response**:
 
@@ -692,25 +853,31 @@ Push an image on the registry
 
 .. http:post:: /images/(name)/push
 
-	Push the image ``name`` on the registry
+   Push the image ``name`` on the registry
 
-	 **Example request**:
+   **Example request**:
 
-	 .. sourcecode:: http
+   .. sourcecode:: http
 
-	    POST /images/test/push HTTP/1.1
+      POST /images/test/push HTTP/1.1
 
-	 **Example response**:
+   **Example response**:
 
-        .. sourcecode:: http
+   .. sourcecode:: http
 
-           HTTP/1.1 200 OK
-	   Content-Type: application/vnd.docker.raw-stream
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-	   {{ STREAM }}
+   {"status":"Pushing..."}
+   {"status":"Pushing", "progress":"1/? (n/a)"}
+   {"error":"Invalid..."}
+   ...
 
-	:query registry: the registry you wan to push, optional
-	:statuscode 200: no error
+	The ``X-Registry-Auth`` header can be used to include a
+	base64-encoded AuthConfig object.
+
+   :query registry: the registry you wan to push, optional
+   :statuscode 200: no error
         :statuscode 404: no such image
         :statuscode 500: server error
 
@@ -739,6 +906,7 @@ Tag an image into a repository
 	:statuscode 200: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -759,10 +927,18 @@ Remove an image
 
         .. sourcecode:: http
 
-           HTTP/1.1 204 OK
+	   HTTP/1.1 200 OK
+	   Content-type: application/json
 
-	:statuscode 204: no error
+	   [
+	    {"Untagged":"3e2f21a89f"},
+	    {"Deleted":"3e2f21a89f"},
+	    {"Deleted":"53b4f83ac9"}
+	   ]
+
+	:statuscode 200: no error
         :statuscode 404: no such image
+	:statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -814,60 +990,41 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-	Build an image from Dockerfile via stdin
+   Build an image from Dockerfile via stdin
 
-	**Example request**:
+   **Example request**:
 
-        .. sourcecode:: http
+   .. sourcecode:: http
 
-           POST /build HTTP/1.1
-	   
-	   {{ STREAM }}
+      POST /build HTTP/1.1
 
-	**Example response**:
+      {{ STREAM }}
 
-        .. sourcecode:: http
+   **Example response**:
 
-           HTTP/1.1 200 OK
-	   
-	   {{ STREAM }}
+   .. sourcecode:: http
 
-	:query t: repository name to be applied to the resulting image in case of success
+      HTTP/1.1 200 OK
+
+      {{ STREAM }}
+
+
+       The stream must be a tar archive compressed with one of the following algorithms:
+       identity (no compression), gzip, bzip2, xz. The archive must include a file called
+       `Dockerfile` at its root. It may include any number of other files, which will be
+       accessible in the build context (See the ADD build command).
+
+       The Content-type header should be set to "application/tar".
+
+	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
+	:query q: suppress verbose build output
+    :query nocache: do not use the cache when building the image
 	:statuscode 200: no error
-        :statuscode 500: server error
+    :statuscode 500: server error
 
 
-Get default username and email
-******************************
-
-.. http:get:: /auth
-
-	Get the default username and email
-
-	**Example request**:
-
-        .. sourcecode:: http
-
-           GET /auth HTTP/1.1
-
-        **Example response**:
-
-        .. sourcecode:: http
-
-           HTTP/1.1 200 OK
-	   Content-Type: application/json
-
-	   {
-		"username":"hannibal",
-		"email":"hannibal@a-team.com"
-	   }
-
-        :statuscode 200: no error
-        :statuscode 500: server error
-
-
-Check auth configuration and store it
-*************************************
+Check auth configuration
+************************
 
 .. http:post:: /auth
 
@@ -883,7 +1040,8 @@ Check auth configuration and store it
 	   {
 		"username":"hannibal",
 		"password:"xxxx",
-		"email":"hannibal@a-team.com"
+		"email":"hannibal@a-team.com",
+		"serveraddress":"https://index.docker.io/v1/"
 	   }
 
         **Example response**:
@@ -924,7 +1082,8 @@ Display system-wide information
 		"NFd": 11,
 		"NGoroutines":21,
 		"MemoryLimit":true,
-		"SwapLimit":false
+		"SwapLimit":false,
+		"IPv4Forwarding":true
 	   }
 
         :statuscode 200: no error
@@ -966,31 +1125,61 @@ Create a new image from a container's changes
 
 .. http:post:: /commit
 
-	Create a new image from a container's changes
+    Create a new image from a container's changes
+
+    **Example request**:
+
+    .. sourcecode:: http
+
+        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+
+    **Example response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 201 OK
+	    Content-Type: application/vnd.docker.raw-stream
+
+        {"Id":"596069db4bf5"}
+
+    :query container: source container
+    :query repo: repository
+    :query tag: tag
+    :query m: commit message
+    :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
+    :statuscode 201: no error
+    :statuscode 404: no such container
+    :statuscode 500: server error
+
+
+Monitor Docker's events
+***********************
+
+.. http:get:: /events
+
+	Get events from docker, either in real time via streaming, or via polling (using `since`)
 
 	**Example request**:
 
-        .. sourcecode:: http
+	.. sourcecode:: http
 
-           POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+           POST /events?since=1374067924
 
         **Example response**:
 
         .. sourcecode:: http
 
-           HTTP/1.1 201 OK
-	   Content-Type: application/vnd.docker.raw-stream
+           HTTP/1.1 200 OK
+	   Content-Type: application/json
 
-           {"Id":"596069db4bf5"}
+	   {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+	   {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+	   {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
+	   {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
 
-	:query container: source container
-	:query repo: repository
-	:query tag: tag
-	:query m: commit message
-	:query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
-	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
-        :statuscode 201: no error
-	:statuscode 404: no such container
+	:query since: timestamp used for polling
+        :statuscode 200: no error
         :statuscode 500: server error
 
 
@@ -1016,5 +1205,14 @@ Here are the steps of 'docker run' :
 3.2 Hijacking
 -------------
 
-In this first version of the API, some of the endpoints, like /attach, /pull or /push uses hijacking to transport stdin,
-stdout and stderr on the same socket. This might change in the future.
+In this version of the API, /attach, uses hijacking to transport stdin, stdout and stderr on the same socket. This might change in the future.
+
+3.3 CORS Requests
+-----------------
+
+To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
+
+.. code-block:: bash
+
+   docker -d -H="192.168.1.9:4243" -api-enable-cors
+

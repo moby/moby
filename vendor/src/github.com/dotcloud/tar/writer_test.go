@@ -341,17 +341,53 @@ func TestPaxNonAscii(t *testing.T) {
 func TestPAXHeader(t *testing.T) {
 	medName := strings.Repeat("CD", 50)
 	longName := strings.Repeat("AB", 100)
-	paxTests := [][3]string{
-		{PAX_PATH, "/etc/hosts", "19 path=/etc/hosts\n"},
-		{"a", "b", "6 a=b\n"},          // Single digit length
-		{"a", "names", "11 a=names\n"}, // Test case involving carries
-		{PAX_PATH, longName, fmt.Sprintf("210 path=%s\n", longName)},
-		{PAX_PATH, medName, fmt.Sprintf("110 path=%s\n", medName)}}
+	paxTests := [][2]string{
+		{paxPath + "=/etc/hosts", "19 path=/etc/hosts\n"},
+		{"a=b", "6 a=b\n"},          // Single digit length
+		{"a=names", "11 a=names\n"}, // Test case involving carries
+		{paxPath + "=" + longName, fmt.Sprintf("210 path=%s\n", longName)},
+		{paxPath + "=" + medName, fmt.Sprintf("110 path=%s\n", medName)}}
 
 	for _, test := range paxTests {
-		field, key, expected := test[0], test[1], test[2]
-		if result := paxHeader(field, key); result != expected {
+		key, expected := test[0], test[1]
+		if result := paxHeader(key); result != expected {
 			t.Fatalf("paxHeader: got %s, expected %s", result, expected)
 		}
+	}
+}
+
+func TestUSTARLongName(t *testing.T) {
+	// Create an archive with a path that failed to split with USTAR extension in previous versions.
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdr, err := FileInfoHeader(fileinfo, "")
+	hdr.Typeflag = TypeDir
+	if err != nil {
+		t.Fatalf("os.Stat:1 %v", err)
+	}
+	// Force a PAX long name to be written. The name was taken from a practical example
+	// that fails and replaced ever char through numbers to anonymize the sample.
+	longName := "/0000_0000000/00000-000000000/0000_0000000/00000-0000000000000/0000_0000000/00000-0000000-00000000/0000_0000000/00000000/0000_0000000/000/0000_0000000/00000000v00/0000_0000000/000000/0000_0000000/0000000/0000_0000000/00000y-00/0000/0000/00000000/0x000000/"
+	hdr.Name = longName
+
+	hdr.Size = 0
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Test that we can get a long name back out of the archive.
+	reader := NewReader(&buf)
+	hdr, err = reader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Name != longName {
+		t.Fatal("Couldn't recover long name")
 	}
 }

@@ -1,4 +1,7 @@
+#!/bin/sh
 
 DEST=$1
 
-go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS" ./docker
+if go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS" ./docker; then
+	echo "Created binary: $DEST/docker-$VERSION"
+fi

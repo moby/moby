@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.6.3 (2013-09-23)
+* Packaging: Update tar vendor dependency
+- Client: Fix detach issue
+- Runtime: Only copy and change permissions on non-bindmount volumes
+- Registry: Update regular expression to match index
+* Runtime: Allow multiple volumes-from
+* Packaging: Download apt key over HTTPS
+* Documentation: Update section on extracting the docker binary after build
+* Documentation: Update development environment docs for new build process
+* Documentation: Remove 'base' image from documentation
+* Packaging: Add 'docker' group on install for ubuntu package
+- Runtime: Fix HTTP imports from STDIN
+
+## 0.6.2 (2013-09-17)
++ Hack: Vendor all dependencies
++ Builder: Add -rm option in order to remove intermediate containers
++ Runtime: Add domainname support
++ Runtime: Implement image filtering with path.Match
+* Builder: Allow multiline for the RUN instruction
+* Runtime: Remove unnecesasry warnings
+* Runtime: Only mount the hostname file when the config exists
+* Runtime: Handle signals within the `docker login` command
+* Runtime: Remove os/user dependency
+* Registry: Implement login with private registry
+* Remote API: Bump to v1.5
+* Packaging: Break down hack/make.sh into small scripts, one per 'bundle': test, binary, ubuntu etc.
+* Documentation: General improvments
+- Runtime: UID and GID are now also applied to volumes
+- Runtime: `docker start` set error code upon error
+- Runtime: `docker run` set the same error code as the process started
+- Registry: Fix push issues
+
 ## 0.6.1 (2013-08-23)
 * Registry: Pass "meta" headers in API calls to the registry
 - Packaging: Use correct upstart script with new build tool

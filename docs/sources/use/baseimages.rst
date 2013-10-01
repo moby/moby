@@ -27,7 +27,7 @@ It can be as simple as this to create an Ubuntu base image::
   $ sudo debootstrap raring raring > /dev/null
   $ sudo tar -C raring -c . | sudo docker import - raring
   a29c15f1bf7a
-  $ sudo docker run raring cat /etc/lsb-release                     
+  $ sudo docker run raring cat /etc/lsb-release
   DISTRIB_ID=Ubuntu
   DISTRIB_RELEASE=13.04
   DISTRIB_CODENAME=raring
@@ -39,5 +39,5 @@ Docker Github Repo:
 * `BusyBox <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh>`_
 * `CentOS
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-centos.sh>`_
-* `Debian
+* `Debian/Ubuntu
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debian.sh>`_

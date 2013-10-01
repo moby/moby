@@ -177,18 +177,19 @@ const (
 
 // Keywords for the PAX Extended Header
 const (
-	PAX_ATIME    = "atime"
-	PAX_CHARSET  = "charset"
-	PAX_COMMENT  = "comment"
-	PAX_CTIME    = "ctime" // please note that ctime is not a valid pax header.
-	PAX_GID      = "gid"
-	PAX_GNAME    = "gname"
-	PAX_LINKPATH = "linkpath"
-	PAX_MTIME    = "mtime"
-	PAX_PATH     = "path"
-	PAX_SIZE     = "size"
-	PAX_UID      = "uid"
-	PAX_UNAME    = "uname"
+	paxAtime    = "atime"
+	paxCharset  = "charset"
+	paxComment  = "comment"
+	paxCtime    = "ctime" // please note that ctime is not a valid pax header.
+	paxGid      = "gid"
+	paxGname    = "gname"
+	paxLinkpath = "linkpath"
+	paxMtime    = "mtime"
+	paxPath     = "path"
+	paxSize     = "size"
+	paxUid      = "uid"
+	paxUname    = "uname"
+	paxNone     = ""
 )
 
 // FileInfoHeader creates a partially-populated Header from fi.
@@ -275,36 +276,24 @@ func (sp *slicer) next(n int) (b []byte) {
 	return
 }
 
-func isASCII7Bit(s string) bool {
-	for _, character := range s {
-		if (character & 0x7f) != character {
+func isASCII(s string) bool {
+	for _, c := range s {
+		if c >= 0x80 {
 			return false
 		}
 	}
 	return true
 }
 
-func stripTo7Bits(s string) string {
-	var buffer bytes.Buffer
-	for _, character := range s {
-		if (character & 0x7f) == character {
-			buffer.WriteRune(character)
+func toASCII(s string) string {
+	if isASCII(s) {
+		return s
+	}
+	var buf bytes.Buffer
+	for _, c := range s {
+		if c < 0x80 {
+			buf.WriteByte(byte(c))
 		}
 	}
-	return buffer.String()
-}
-
-func stripTo7BitsAndShorten(s string, maxLen int) string {
-	var buffer bytes.Buffer
-	count := 0
-	for _, character := range s {
-		if count == maxLen {
-			break
-		}
-		if (character & 0x7f) == character {
-			buffer.WriteRune(character)
-			count++
-		}
-	}
-	return buffer.String()
+	return buf.String()
 }

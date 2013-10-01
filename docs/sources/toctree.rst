@@ -8,7 +8,7 @@ Documentation
 This documentation has the following resources:
 
 .. toctree::
-   :titlesonly:
+   :maxdepth: 1
 
    Introduction <index>
    installation/index

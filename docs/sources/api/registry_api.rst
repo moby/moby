@@ -6,7 +6,6 @@
 Docker Registry API
 ===================
 
-.. contents:: Table of Contents
 
 1. Brief introduction
 =====================
@@ -61,7 +60,7 @@ Layer
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
-        Authorization: Token akmklmasadalkmsdfgsdgdge33
+        Authorization: Token signature=123abc,repository="foo/bar",access=read
 
     :parameter image_id: the id for the layer you want to get
 
@@ -71,39 +70,10 @@ Layer
 
         HTTP/1.1 200
         Vary: Accept
-        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
-        {
-            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
-            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
-            created: "2013-04-30T17:46:10.843673+03:00",
-            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
-            container_config: {
-                Hostname: "host-test",
-                User: "",
-                Memory: 0,
-                MemorySwap: 0,
-                AttachStdin: false,
-                AttachStdout: false,
-                AttachStderr: false,
-                PortSpecs: null,
-                Tty: false,
-                OpenStdin: false,
-                StdinOnce: false,
-                Env: null,
-                Cmd: [
-                "/bin/bash",
-                "-c",
-                "apt-get -q -yy -f install libevent-dev"
-                ],
-                Dns: null,
-                Image: "imagename/blah",
-                Volumes: { },
-                VolumesFrom: ""
-            },
-            docker_version: "0.1.7"
-        }
+        {layer binary data stream}
 
     :statuscode 200: OK
     :statuscode 401: Requires authorization
@@ -120,40 +90,10 @@ Layer
 
         PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
         Host: registry-1.docker.io
-        Accept: application/json
-        Content-Type: application/json
-        Authorization: Token akmklmasadalkmsdfgsdgdge33
+        Transfer-Encoding: chunked
+        Authorization: Token signature=123abc,repository="foo/bar",access=write
 
-        {
-            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
-            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
-            created: "2013-04-30T17:46:10.843673+03:00",
-            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
-            container_config: {
-                Hostname: "host-test",
-                User: "",
-                Memory: 0,
-                MemorySwap: 0,
-                AttachStdin: false,
-                AttachStdout: false,
-                AttachStderr: false,
-                PortSpecs: null,
-                Tty: false,
-                OpenStdin: false,
-                StdinOnce: false,
-                Env: null,
-                Cmd: [
-                "/bin/bash",
-                "-c",
-                "apt-get -q -yy -f install libevent-dev"
-                ],
-                Dns: null,
-                Image: "imagename/blah",
-                Volumes: { },
-                VolumesFrom: ""
-            },
-            docker_version: "0.1.7"
-        }
+        {layer binary data stream}
 
     :parameter image_id: the id for the layer you want to get
 
@@ -165,6 +105,7 @@ Layer
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -191,12 +132,37 @@ Image
         Cookie: (Cookie provided by the Registry)
 
         {
-         “id”: “088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c”,
-         “checksum”:  “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
-         }
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
 
     :parameter image_id: the id for the layer you want to get
-
 
     **Example Response**:
 
@@ -205,6 +171,7 @@ Image
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -234,11 +201,40 @@ Image
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+        X-Docker-Size: 456789
+        X-Docker-Checksum: b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087
 
         {
-         “id”: “088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c”,
-         “checksum”:  “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
-         }
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
 
     :statuscode 200: OK
     :statuscode 401: Requires authorization
@@ -271,6 +267,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ["088b4502f51920fbd9b7c503e87c7a2c05aa3adc3d35e79c031fa126b403200f",
          "aeee63968d87c7da4a5cf5d2be6bee4e21bc226fd62273d180a49c96c62e4543",
@@ -297,6 +294,7 @@ Ancestry
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
     :parameter namespace: namespace for the repo
@@ -309,10 +307,11 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         {
             "latest": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
-            “0.1.1”:  “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”
+            "0.1.1":  "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"
         }
 
     :statuscode 200: OK
@@ -332,6 +331,7 @@ Ancestry
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
         Cookie: (Cookie provided by the Registry)
 
     :parameter namespace: namespace for the repo
@@ -345,6 +345,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
 
@@ -377,6 +378,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -399,7 +401,7 @@ Ancestry
         Content-Type: application/json
         Cookie: (Cookie provided by the Registry)
 
-        “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”
+        "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
 
     :parameter namespace: namespace for the repo
     :parameter repository: name for the repo
@@ -412,6 +414,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -449,6 +452,7 @@ Ancestry
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
 
         ""
 
@@ -456,8 +460,44 @@ Ancestry
     :statuscode 401: Requires authorization
     :statuscode 404: Repository not found
 
-3.0 Authorization
-=================
+2.4 Status
+----------
+
+.. http:get /v1/_ping
+
+    Check status of the registry. This endpoint is also used to determine if
+    the registry supports SSL.
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /v1/_ping HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+
+        ""
+
+    :parameter namespace: namespace for the repo
+    :parameter repository: name for the repo
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    :statuscode 200: OK
+
+
+3 Authorization
+===============
 This is where we describe the authorization process, including the tokens and cookies. 
 
 TODO: add more info.

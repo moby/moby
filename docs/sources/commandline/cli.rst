@@ -8,7 +8,7 @@ Overview
 ======================
 
 Docker Usage
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
@@ -21,40 +21,71 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     ...
 
+
+
 Available Commands
 ~~~~~~~~~~~~~~~~~~
 
-.. toctree::
-   :maxdepth: 2
+.. include:: command/attach.rst
 
-   command/attach
-   command/build
-   command/commit
-   command/cp
-   command/diff
-   command/events
-   command/export
-   command/history
-   command/images
-   command/import
-   command/info
-   command/insert
-   command/inspect
-   command/kill
-   command/login
-   command/logs
-   command/port
-   command/ps
-   command/pull
-   command/push
-   command/restart
-   command/rm
-   command/rmi
-   command/run
-   command/search
-   command/start
-   command/stop
-   command/tag
-   command/top
-   command/version
-   command/wait
+.. include:: command/build.rst
+
+.. include:: command/commit.rst
+
+.. include:: command/cp.rst
+
+.. include:: command/diff.rst
+
+.. include:: command/events.rst
+
+.. include:: command/export.rst
+
+.. include:: command/history.rst
+
+.. include:: command/images.rst
+
+.. include:: command/import.rst
+
+.. include:: command/info.rst
+
+.. include:: command/insert.rst
+
+.. include:: command/inspect.rst
+
+.. include:: command/kill.rst
+
+.. include:: command/login.rst
+
+.. include:: command/logs.rst
+
+.. include:: command/port.rst
+
+.. include:: command/ps.rst
+
+.. include:: command/pull.rst
+
+.. include:: command/push.rst
+
+.. include:: command/restart.rst
+
+.. include:: command/rm.rst
+
+.. include:: command/rmi.rst
+
+.. include:: command/run.rst
+
+.. include:: command/search.rst
+
+.. include:: command/start.rst
+
+.. include:: command/stop.rst
+
+.. include:: command/tag.rst
+
+.. include:: command/top.rst
+
+.. include:: command/version.rst
+
+.. include:: command/wait.rst
+
+

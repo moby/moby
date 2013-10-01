@@ -70,9 +70,9 @@ func validateRepositoryName(repositoryName string) error {
 	if !validNamespace.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
 	}
-	validRepo := regexp.MustCompile(`^([a-zA-Z0-9-_.]+)$`)
+	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", name)
+		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
 	}
 	return nil
 }
@@ -161,10 +161,10 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := doWithCookies(r.client, req)
 	if err != nil || res.StatusCode != 200 {
-		if res.StatusCode == 401 {
-			return nil, ErrLoginRequired
-		}
 		if res != nil {
+			if res.StatusCode == 401 {
+				return nil, ErrLoginRequired
+			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 		}
 		return nil, err
