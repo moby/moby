@@ -2,16 +2,21 @@ package gograph
 
 import (
 	"os"
+	"path"
 	"strconv"
 	"testing"
 )
 
 func newTestDb(t *testing.T) *Database {
-	db, err := NewDatabase(os.TempDir(), "0")
+	db, err := NewDatabase(path.Join(os.TempDir(), "sqlite.db"), "0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return db
+}
+
+func destroyTestDb(db *Database) {
+	os.Remove(db.dbPath)
 }
 
 func TestNewDatabase(t *testing.T) {
@@ -19,10 +24,12 @@ func TestNewDatabase(t *testing.T) {
 	if db == nil {
 		t.Fatal("Datbase should not be nil")
 	}
+	defer destroyTestDb(db)
 }
 
 func TestCreateRootEnity(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 	root := db.RootEntity()
 	if root == nil {
 		t.Fatal("Root entity should not be nil")
@@ -31,6 +38,7 @@ func TestCreateRootEnity(t *testing.T) {
 
 func TestGetRootEntity(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	e := db.Get("/")
 	if e == nil {
@@ -43,6 +51,7 @@ func TestGetRootEntity(t *testing.T) {
 
 func TestSetEntityWithDifferentName(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	db.Set("/test", "1")
 	if _, err := db.Set("/other", "1"); err != nil {
@@ -52,6 +61,7 @@ func TestSetEntityWithDifferentName(t *testing.T) {
 
 func TestCreateChild(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	child, err := db.Set("/db", "1")
 	if err != nil {
@@ -67,6 +77,7 @@ func TestCreateChild(t *testing.T) {
 
 func TestListAllRootChildren(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	for i := 1; i < 6; i++ {
 		a := strconv.Itoa(i)
@@ -82,6 +93,7 @@ func TestListAllRootChildren(t *testing.T) {
 
 func TestListAllSubChildren(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	_, err := db.Set("/webapp", "1")
 	if err != nil {
@@ -123,6 +135,7 @@ func TestListAllSubChildren(t *testing.T) {
 
 func TestAddSelfAsChild(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	child, err := db.Set("/test", "1")
 	if err != nil {
@@ -135,6 +148,7 @@ func TestAddSelfAsChild(t *testing.T) {
 
 func TestAddChildToNonExistantRoot(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	if _, err := db.Set("/myapp", "1"); err != nil {
 		t.Fatal(err)
@@ -147,6 +161,7 @@ func TestAddChildToNonExistantRoot(t *testing.T) {
 
 func TestWalkAll(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 	_, err := db.Set("/webapp", "1")
 	if err != nil {
 		t.Fatal(err)
@@ -192,6 +207,7 @@ func TestWalkAll(t *testing.T) {
 
 func TestGetEntityByPath(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 	_, err := db.Set("/webapp", "1")
 	if err != nil {
 		t.Fatal(err)
@@ -238,6 +254,7 @@ func TestGetEntityByPath(t *testing.T) {
 
 func TestEnitiesPaths(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 	_, err := db.Set("/webapp", "1")
 	if err != nil {
 		t.Fatal(err)
@@ -281,6 +298,7 @@ func TestEnitiesPaths(t *testing.T) {
 
 func TestDeleteRootEntity(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	if err := db.Delete("/"); err == nil {
 		t.Fatal("Error should not be nil")
@@ -289,6 +307,7 @@ func TestDeleteRootEntity(t *testing.T) {
 
 func TestDeleteEntity(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 	_, err := db.Set("/webapp", "1")
 	if err != nil {
 		t.Fatal(err)
@@ -335,6 +354,7 @@ func TestDeleteEntity(t *testing.T) {
 
 func TestCountRefs(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	db.Set("/webapp", "1")
 
@@ -351,6 +371,7 @@ func TestCountRefs(t *testing.T) {
 
 func TestPurgeId(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	db.Set("/webapp", "1")
 
@@ -372,6 +393,7 @@ func TestPurgeId(t *testing.T) {
 
 func TestRename(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	db.Set("/webapp", "1")
 
@@ -400,6 +422,7 @@ func TestRename(t *testing.T) {
 
 func TestCreateMultipleNames(t *testing.T) {
 	db := newTestDb(t)
+	defer destroyTestDb(db)
 
 	db.Set("/db", "1")
 	if _, err := db.Set("/myapp", "1"); err != nil {
@@ -410,4 +433,20 @@ func TestCreateMultipleNames(t *testing.T) {
 		t.Logf("%s\n", p)
 		return nil
 	}, -1)
+}
+
+func TestRefPaths(t *testing.T) {
+	db := newTestDb(t)
+	defer destroyTestDb(db)
+
+	db.Set("/webapp", "1")
+
+	db.Set("/db", "2")
+	db.Set("/webapp/db", "2")
+
+	refs := db.RefPaths("2")
+	if len(refs) != 2 {
+		t.Fatalf("Expected reference count to be 2, got %d", len(refs))
+	}
+
 }

@@ -199,6 +199,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	if err := container.Stop(3); err != nil {
 		return err
 	}
+
 	if mounted, err := container.Mounted(); err != nil {
 		return err
 	} else if mounted {
@@ -206,6 +207,11 @@ func (runtime *Runtime) Destroy(container *Container) error {
 			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
 		}
 	}
+
+	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
+		utils.Debugf("Unable to remove container from link graph: %s", err)
+	}
+
 	// Deregister the container before removing its directory, to avoid race conditions
 	runtime.idIndex.Delete(container.ID)
 	runtime.containers.Remove(element)
@@ -566,7 +572,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	graph, err := gograph.NewDatabase("", "engine")
+	graph, err := gograph.NewDatabase(path.Join(config.GraphPath, "linkgraph.db"), "engine")
 	if err != nil {
 		return nil, err
 	}

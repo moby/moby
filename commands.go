@@ -1153,7 +1153,7 @@ func (cli *DockerCli) CmdLink(args ...string) error {
 	}
 	body := map[string]string{
 		"currentName": cmd.Arg(0),
-		"newName":     cmd.Arg(10),
+		"newName":     cmd.Arg(1),
 	}
 
 	_, _, err := cli.call("POST", "/containers/link", body)

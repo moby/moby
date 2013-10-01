@@ -1,15 +1,35 @@
 package gograph
 
 import (
+	_ "code.google.com/p/gosqlite/sqlite3"
+	"database/sql"
 	"fmt"
+	"os"
 	"path"
-	"sync"
 )
 
-// Entity with a unique id and user defined value
+const (
+	createEntityTable = `
+    CREATE TABLE IF NOT EXISTS entity (
+        id text NOT NULL PRIMARY KEY
+    );`
+
+	createEdgeTable = `
+    CREATE TABLE IF NOT EXISTS edge (
+        "entity_id" text NOT NULL,
+        "parent_id" text NULL,
+        "name" text NOT NULL,
+        CONSTRAINT "parent_fk" FOREIGN KEY ("parent_id") REFERENCES "entity" ("id"),
+        CONSTRAINT "entity_fk" FOREIGN KEY ("entity_id") REFERENCES "entity" ("id")
+        );
+
+    CREATE UNIQUE INDEX "name_parent_ix" ON "edge" (parent_id, name);
+    `
+)
+
+// Entity with a unique id
 type Entity struct {
-	id    string
-	Value interface{}
+	id string
 }
 
 // An Edge connects two entities together
@@ -26,111 +46,173 @@ type WalkFunc func(fullPath string, entity *Entity) error
 
 // Graph database for storing entities and their relationships
 type Database struct {
-	entities Entities
-	edges    Edges
-	mux      sync.Mutex
-
+	dbPath string
 	rootID string
 }
 
 // Create a new graph database initialized with a root entity
-func NewDatabase(rootPath, rootId string) (*Database, error) {
-	db := &Database{Entities{}, Edges{}, sync.Mutex{}, rootId}
-	e := &Entity{
-		id: rootId,
+func NewDatabase(dbPath, rootId string) (*Database, error) {
+	db := &Database{dbPath, rootId}
+	if _, err := os.Stat(dbPath); err == nil {
+		return db, nil
 	}
-	db.entities[rootId] = e
-
-	edge := &Edge{
-		EntityID: rootId,
-		Name:     "/",
+	conn, err := db.openConn()
+	if err != nil {
+		return nil, err
 	}
-	db.edges = append(db.edges, edge)
+	defer conn.Close()
 
+	if _, err := conn.Exec(createEntityTable); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(createEdgeTable); err != nil {
+		return nil, err
+	}
+
+	rollback := func() {
+		conn.Exec("ROLLBACK")
+	}
+
+	// Create root entities
+	if _, err := conn.Exec("BEGIN"); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", rootId); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", rootId, "/"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("COMMIT"); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
 // Set the entity id for a given path
 func (db *Database) Set(fullPath, id string) (*Entity, error) {
-	db.mux.Lock()
-	defer db.mux.Unlock()
-
-	e, exists := db.entities[id]
-	if !exists {
-		e = &Entity{
-			id: id,
-		}
-		db.entities[id] = e
+	conn, err := db.openConn()
+	if err != nil {
+		return nil, err
 	}
+	defer conn.Close()
+	rollback := func() {
+		conn.Exec("ROLLBACK")
+	}
+	if _, err := conn.Exec("BEGIN"); err != nil {
+		return nil, err
+	}
+	var entityId string
+	if err := conn.QueryRow("SELECT id FROM entity WHERE id = ?;", id).Scan(&entityId); err != nil {
+		if err == sql.ErrNoRows {
+			if _, err := conn.Exec("INSERT INTO entity (id) VALUES(?);", id); err != nil {
+				rollback()
+				return nil, err
+			}
+		} else {
+			rollback()
+			return nil, err
+		}
+	}
+	e := &Entity{id}
 
 	parentPath, name := splitPath(fullPath)
-	if err := db.setEdge(parentPath, name, e); err != nil {
+	if err := db.setEdge(conn, parentPath, name, e); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("COMMIT"); err != nil {
 		return nil, err
 	}
 	return e, nil
 }
 
-func (db *Database) setEdge(parentPath, name string, e *Entity) error {
-	parent := db.Get(parentPath)
-	if parent == nil {
-		return fmt.Errorf("Parent does not exist for path: %s", parentPath)
+func (db *Database) setEdge(conn *sql.DB, parentPath, name string, e *Entity) error {
+	parent, err := db.get(conn, parentPath)
+	if err != nil {
+		return err
 	}
 	if parent.id == e.id {
 		return fmt.Errorf("Cannot set self as child")
 	}
 
-	edge := &Edge{
-		ParentID: parent.id,
-		EntityID: e.id,
-		Name:     name,
+	if _, err := conn.Exec("INSERT INTO edge (parent_id, name, entity_id) VALUES (?,?,?);", parent.id, name, e.id); err != nil {
+		return err
 	}
-	if db.edges.Exists(parent.id, name) {
-		return fmt.Errorf("Relationship already exists for %s/%s", parentPath, name)
-	}
-	db.edges = append(db.edges, edge)
 	return nil
 }
 
 // Return the root "/" entity for the database
 func (db *Database) RootEntity() *Entity {
-	return db.entities[db.rootID]
+	return &Entity{
+		id: db.rootID,
+	}
 }
 
 // Return the entity for a given path
 func (db *Database) Get(name string) *Entity {
+	conn, err := db.openConn()
+	if err != nil {
+		return nil
+	}
+	e, err := db.get(conn, name)
+	if err != nil {
+		return nil
+	}
+	return e
+}
+
+func (db *Database) get(conn *sql.DB, name string) (*Entity, error) {
 	e := db.RootEntity()
 	// We always know the root name so return it if
 	// it is requested
 	if name == "/" {
-		return e
+		return e, nil
 	}
 
 	parts := split(name)
 	for i := 1; i < len(parts); i++ {
 		p := parts[i]
 
-		next := db.child(e, p)
+		next := db.child(conn, e, p)
 		if next == nil {
-			return nil
+			return nil, fmt.Errorf("Cannot find child")
 		}
 		e = next
-
 	}
-	return e
+	return e, nil
+
 }
 
 // List all entities by from the name
 // The key will be the full path of the entity
 func (db *Database) List(name string, depth int) Entities {
 	out := Entities{}
-	for c := range db.children(name, depth) {
+	conn, err := db.openConn()
+	if err != nil {
+		return out
+	}
+	defer conn.Close()
+
+	for c := range db.children(conn, name, depth) {
 		out[c.FullPath] = c.Entity
 	}
 	return out
 }
 
 func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
-	for c := range db.children(name, depth) {
+	conn, err := db.openConn()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	for c := range db.children(conn, name, depth) {
 		if err := walkFunc(c.FullPath, c.Entity); err != nil {
 			return err
 		}
@@ -140,14 +222,46 @@ func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
 
 // Return the refrence count for a specified id
 func (db *Database) Refs(id string) int {
-	return len(db.RefPaths(id))
+	conn, err := db.openConn()
+	if err != nil {
+		return -1
+	}
+	defer conn.Close()
+
+	var count int
+	if err := conn.QueryRow("SELECT COUNT(*) FROM edge WHERE entity_id = ?;", id).Scan(&count); err != nil {
+		return 0
+	}
+	return count
 }
 
 // Return all the id's path references
 func (db *Database) RefPaths(id string) Edges {
-	refs := db.edges.Search(func(e *Edge) bool {
-		return e.EntityID == id
-	})
+	refs := Edges{}
+	conn, err := db.openConn()
+	if err != nil {
+		return refs
+	}
+	defer conn.Close()
+
+	rows, err := conn.Query("SELECT name, parent_id FROM edge WHERE entity_id = ?;", id)
+	if err != nil {
+		return refs
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var name string
+		var parentId string
+		if err := rows.Scan(&name, &parentId); err != nil {
+			return refs
+		}
+		refs = append(refs, &Edge{
+			EntityID: id,
+			Name:     name,
+			ParentID: parentId,
+		})
+	}
 	return refs
 }
 
@@ -156,54 +270,64 @@ func (db *Database) Delete(name string) error {
 	if name == "/" {
 		return fmt.Errorf("Cannot delete root entity")
 	}
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	conn, err := db.openConn()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	parentPath, n := splitPath(name)
-	parent := db.Get(parentPath)
-	if parent == nil {
-		return fmt.Errorf("Cannot find parent for %s", parentPath)
+	parent, err := db.get(conn, parentPath)
+	if err != nil {
+		return err
 	}
-	edge, i := db.edges.Get(parent.id, n)
-	if edge == nil {
-		return fmt.Errorf("Edge does not exist at %s", name)
-	}
-	db.deleteEdgeAtIndex(i)
 
+	if _, err := conn.Exec("DELETE FROM edge WHERE parent_id = ? AND name = ?;", parent.id, n); err != nil {
+		return err
+	}
 	return nil
-}
-
-func (db *Database) deleteEdgeAtIndex(i int) {
-	db.edges[len(db.edges)-1], db.edges[i], db.edges = nil, db.edges[len(db.edges)-1], db.edges[:len(db.edges)-1]
 }
 
 // Remove the entity with the specified id
 // Walk the graph to make sure all references to the entity
 // are removed and return the number of references removed
 func (db *Database) Purge(id string) (int, error) {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	conn, err := db.openConn()
+	if err != nil {
+		return -1, err
+	}
+	defer conn.Close()
 
-	getIndex := func(e *Edge) int {
-		for i, edge := range db.edges {
-			if edge.EntityID == e.EntityID &&
-				edge.Name == e.Name &&
-				edge.ParentID == e.ParentID {
-				return i
-			}
-		}
-		return -1
+	rollback := func() {
+		conn.Exec("ROLLBACK")
 	}
 
-	refsToDelete := db.RefPaths(id)
-	for i, e := range refsToDelete {
-		index := getIndex(e)
-		if index == -1 {
-			return i + 1, fmt.Errorf("Cannot find index for %s %s", e.ParentID, e.Name)
-		}
-		db.deleteEdgeAtIndex(index)
+	if _, err := conn.Exec("BEGIN"); err != nil {
+		return -1, err
 	}
-	return len(refsToDelete), nil
+
+	// Delete all edges
+	rows, err := conn.Exec("DELETE FROM edge WHERE entity_id = ?;", id)
+	if err != nil {
+		rollback()
+		return -1, err
+	}
+
+	changes, err := rows.RowsAffected()
+	if err != nil {
+		return -1, err
+	}
+
+	// Delete entity
+	if _, err := conn.Exec("DELETE FROM entity where id = ?;", id); err != nil {
+		rollback()
+		return -1, err
+	}
+
+	if _, err := conn.Exec("COMMIT"); err != nil {
+		return -1, err
+	}
+	return int(changes), nil
 }
 
 // Rename an edge for a given path
@@ -215,19 +339,28 @@ func (db *Database) Rename(currentName, newName string) error {
 		return fmt.Errorf("Cannot rename when root paths do not match %s != %s", parentPath, newParentPath)
 	}
 
-	db.mux.Lock()
-	defer db.mux.Unlock()
-
-	parent := db.Get(parentPath)
-	if parent == nil {
-		return fmt.Errorf("Cannot locate parent for %s", currentName)
+	conn, err := db.openConn()
+	if err != nil {
+		return err
 	}
-	edge, _ := db.edges.Get(parent.id, name)
-	if edge == nil {
+	defer conn.Close()
+
+	parent, err := db.get(conn, parentPath)
+	if err != nil {
+		return err
+	}
+
+	rows, err := conn.Exec("UPDATE edge SET name = ? WHERE parent_id = ? AND name = ?;", newEdgeName, parent.id, name)
+	if err != nil {
+		return err
+	}
+	i, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if i == 0 {
 		return fmt.Errorf("Cannot locate edge for %s %s", parent.id, name)
 	}
-	edge.Name = newEdgeName
-
 	return nil
 }
 
@@ -238,38 +371,52 @@ type WalkMeta struct {
 	Edge     *Edge
 }
 
-func (db *Database) children(name string, depth int) <-chan WalkMeta {
+func (db *Database) children(conn *sql.DB, name string, depth int) <-chan WalkMeta {
 	out := make(chan WalkMeta)
-	e := db.Get(name)
-
-	if e == nil {
+	e, err := db.get(conn, name)
+	if err != nil {
 		close(out)
 		return out
 	}
 
 	go func() {
-		for _, edge := range db.edges {
-			if edge.ParentID == e.id {
-				child := db.entities[edge.EntityID]
+		rows, err := conn.Query("SELECT entity_id, name FROM edge where parent_id = ?;", e.id)
+		if err != nil {
+			close(out)
+		}
+		defer rows.Close()
 
-				meta := WalkMeta{
-					Parent:   e,
-					Entity:   child,
-					FullPath: path.Join(name, edge.Name),
-					Edge:     edge,
-				}
-				out <- meta
-				if depth == 0 {
-					continue
-				}
-				nDepth := depth
-				if depth != -1 {
-					nDepth -= 1
-				}
-				sc := db.children(meta.FullPath, nDepth)
-				for c := range sc {
-					out <- c
-				}
+		for rows.Next() {
+			var entityId, entityName string
+			if err := rows.Scan(&entityId, &entityName); err != nil {
+				// Log error
+				continue
+			}
+			child := &Entity{entityId}
+			edge := &Edge{
+				ParentID: e.id,
+				Name:     entityName,
+				EntityID: child.id,
+			}
+
+			meta := WalkMeta{
+				Parent:   e,
+				Entity:   child,
+				FullPath: path.Join(name, edge.Name),
+				Edge:     edge,
+			}
+
+			out <- meta
+			if depth == 0 {
+				continue
+			}
+			nDepth := depth
+			if depth != -1 {
+				nDepth -= 1
+			}
+			sc := db.children(conn, meta.FullPath, nDepth)
+			for c := range sc {
+				out <- c
 			}
 		}
 		close(out)
@@ -278,12 +425,16 @@ func (db *Database) children(name string, depth int) <-chan WalkMeta {
 }
 
 // Return the entity based on the parent path and name
-func (db *Database) child(parent *Entity, name string) *Entity {
-	edge, _ := db.edges.Get(parent.id, name)
-	if edge == nil {
+func (db *Database) child(conn *sql.DB, parent *Entity, name string) *Entity {
+	var id string
+	if err := conn.QueryRow("SELECT entity_id FROM edge WHERE parent_id = ? AND name = ?;", parent.id, name).Scan(&id); err != nil {
 		return nil
 	}
-	return db.entities[edge.EntityID]
+	return &Entity{id}
+}
+
+func (db *Database) openConn() (*sql.DB, error) {
+	return sql.Open("sqlite3", db.dbPath)
 }
 
 // Return the id used to reference this entity
@@ -301,31 +452,5 @@ func (e Entities) Paths() []string {
 	}
 	sortByDepth(out)
 
-	return out
-}
-
-// Checks if an edge with the specified parent id and name exist in the slice
-func (e Edges) Exists(parendId, name string) bool {
-	edge, _ := e.Get(parendId, name)
-	return edge != nil
-}
-
-// Returns the edge and index in the slice with the specified parent id and name
-func (e Edges) Get(parentId, name string) (*Edge, int) {
-	for i, edge := range e {
-		if edge.ParentID == parentId && edge.Name == name {
-			return edge, i
-		}
-	}
-	return nil, -1
-}
-
-func (e Edges) Search(predicate func(edge *Edge) bool) Edges {
-	out := Edges{}
-	for _, edge := range e {
-		if predicate(edge) {
-			out = append(out, edge)
-		}
-	}
 	return out
 }
