@@ -500,8 +500,6 @@ func TestRestore(t *testing.T) {
 }
 
 func TestReloadContainerLinks(t *testing.T) {
-	t.SkipNow() // TODO: @crosbymichael
-
 	runtime1 := mkRuntime(t)
 	defer nuke(runtime1)
 	// Create a container with one instance of docker
