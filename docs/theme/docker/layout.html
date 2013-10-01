@@ -25,11 +25,6 @@
     + ['//fonts.googleapis.com/css?family=Cabin:400,700,400italic']
     %}
 
-    {% set pagename = 'use/commandline/run/index/' %}
-
-
-    combined = {{ combined }}
-
     {#
         This part is hopefully complex because things like |cut '/index/' are not available in spinx jinja
         and will make it crash. (and we need index/ out.
