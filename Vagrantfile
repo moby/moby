@@ -80,6 +80,7 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :virtualbox do |vb|
     config.vm.box = BOX_NAME
     config.vm.box_url = BOX_URI
+    vb.synced_folder ".", "/vagrant"
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
   end
