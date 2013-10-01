@@ -25,11 +25,25 @@
     + ['//fonts.googleapis.com/css?family=Cabin:400,700,400italic']
     %}
 
-    {%- if pagename == 'index' %}
-    <link rel="canonical" href="http://docs.docker.io/en/latest/">
-    {% else %}
-    <link rel="canonical" href="http://docs.docker.io/en/latest/{{ pagename }}/">
-    {% endif %}
+    {% set pagename = 'use/commandline/run/index/' %}
+
+
+    combined = {{ combined }}
+
+    {#
+        This part is hopefully complex because things like |cut '/index/' are not available in spinx jinja
+        and will make it crash. (and we need index/ out.
+    #}
+    <link rel="canonical" href="http://docs.docker.io/en/latest/
+    {%- for word in pagename.split('/') -%}
+        {%- if word != 'index' -%}
+            {%- if word != '' -%}
+                {{ word }}/
+            {%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+    ">
+
     {%- for cssfile in css_files %}
     <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
     {%- endfor %}
@@ -124,7 +138,14 @@
                                 <small>Current version:</small>
                                 <ul class="inline">
                                     {% for slug, url in versions %}
-                                    <li class="alternative"><a href="{{ url }}{{ pagename }}/" title="Switch to {{ slug }}">{{ slug }}</a></li>
+                                    <li class="alternative"><a href="{{ url }}{%- for word in pagename.split('/') -%}
+                                        {%- if word != 'index' -%}
+                                            {%- if word != '' -%}
+                                                {{ word }}/
+                                            {%- endif -%}
+                                        {%- endif -%}
+                                    {%- endfor -%}"
+                                    title="Switch to {{ slug }}">{{ slug }}</a></li>
                                     {% endfor %}
                                 </ul>
                             </div>
