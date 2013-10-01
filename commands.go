@@ -511,7 +511,8 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
+		encName := cleanName(name)
+		_, _, err := cli.call("POST", "/containers/"+encName+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -536,6 +537,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
+		name = cleanName(name)
 		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
@@ -558,8 +560,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	var encounteredError error
 	for _, name := range args {
-		name = strings.Replace(name, "/", "%252F", -1)
-		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
+		encName := cleanName(name)
+		_, _, err := cli.call("POST", "/containers/"+encName+"/start", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
@@ -581,6 +583,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "[")
 	for i, name := range args {
+		name = cleanName(name)
 		if i > 0 {
 			fmt.Fprintf(cli.out, ",")
 		}
@@ -742,6 +745,8 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
+	link := cmd.Bool("link", false, "Remove the specified link and not the underlying container")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -753,7 +758,11 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *v {
 		val.Set("v", "1")
 	}
+	if *link {
+		val.Set("link", "1")
+	}
 	for _, name := range cmd.Args() {
+		name = cleanName(name)
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
@@ -776,6 +785,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 	}
 
 	for _, name := range args {
+		name = cleanName(name)
 		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
@@ -1134,6 +1144,9 @@ func (cli *DockerCli) CmdLs(args ...string) error {
 	fmt.Fprintf(w, "NAME\tID\tIMAGE")
 	fmt.Fprintf(w, "\n")
 
+	sortLinks(links, func(i, j APILink) bool {
+		return len(i.Path) < len(j.Path)
+	})
 	for _, link := range links {
 		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, link.ContainerID, link.Image)
 		fmt.Fprintf(w, "\n")
@@ -1281,8 +1294,9 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	name := cleanName(cmd.Arg(0))
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
 		return err
 	}
 	return nil
@@ -1297,8 +1311,9 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	name := cmd.Arg(0)
+	name = cleanName(name)
+	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 	if err != nil {
 		return err
 	}
@@ -1970,6 +1985,10 @@ func getExitCode(cli *DockerCli, containerId string) (int, error) {
 		return -1, err
 	}
 	return c.State.ExitCode, nil
+}
+
+func cleanName(name string) string {
+	return strings.Replace(name, "/", "%252F", -1)
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
