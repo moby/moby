@@ -116,6 +116,7 @@ To run properly, docker needs the following software to be installed at runtime:
 * iptables version 1.4 or later
 * The lxc utility scripts (http://lxc.sourceforge.net) version 0.8 or later.
 * Git version 1.7 or later 
+* XZ Utils 4.9 or later
 
 ## Kernel dependencies
 
