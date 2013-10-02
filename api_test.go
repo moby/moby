@@ -985,7 +985,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
