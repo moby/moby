@@ -18,7 +18,7 @@
       -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
       -h="": Container host name
-      -i=false: Keep stdin open even if not attached
+      -i=false: Keep stdin open even if not attached (detach with Ctrl-P + Ctrl-Q)
       -privileged=false: Give extended privileges to this container
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
