@@ -96,16 +96,3 @@ Or, to enable it more permanently:
 .. code-block:: bash
 
    echo net.ipv4.ip_forward = 1 | sudo tee /etc/sysctl.d/docker.conf
-
-fork/exec /usr/sbin/lxc-start: operation not permitted
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Unfortunately, Gentoo suffers from `issue #1422
-<https://github.com/dotcloud/docker/issues/1422>`_, meaning that after every
-fresh start of docker, the first docker run fails due to some tricky terminal
-issues, so be sure to run something trivial (such as ``docker run -i -t busybox
-echo hi``) before attempting to run anything important.
-
-There is a tentative (and very hacky) workaround for this in the OpenRC init
-script, and it can be enabled by modifying the appropriate value in
-``/etc/conf.d/docker`` after successful installation.
