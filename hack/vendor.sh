@@ -21,7 +21,7 @@ git_clone () {
   )
 }
 
-git_clone github.com/kr/pty 27435c699
+git_clone github.com/kr/pty 3b1f6487b
 
 git_clone github.com/gorilla/context/ 708054d61e5
 
