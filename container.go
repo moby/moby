@@ -859,7 +859,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 				return err
 			}
 
-			container.activeLinks[p] = link
+			container.activeLinks[link.Alias()] = link
 			if err := link.Enable(); err != nil {
 				rollback()
 				return err
