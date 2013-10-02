@@ -397,7 +397,8 @@ dt:hover > a.headerlink {
 .admonition .admonition-title {
   font-size: larger;
 }
-.admonition.warning {
+.admonition.warning,
+.admonition.danger {
   border-color: #ac0004;
 }
 .admonition.note {
