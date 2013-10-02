@@ -762,8 +762,8 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		val.Set("link", "1")
 	}
 	for _, name := range cmd.Args() {
-		name = cleanName(name)
-		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
+		encName := cleanName(name)
+		_, _, err := cli.call("DELETE", "/containers/"+encName+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {

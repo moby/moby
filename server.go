@@ -964,12 +964,24 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 
 func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) error {
 	if removeLink {
-		parent, _ := path.Split(name)
-		p := srv.runtime.containerGraph.Get(parent)
-		parentContainer := srv.runtime.Get(p.ID())
+		p := name
+		if p[0] != '/' {
+			p = "/" + p
+		}
+		parent, n := path.Split(p)
+		l := len(parent)
+		if parent[l-1] == '/' {
+			parent = parent[:l-1]
+		}
+
+		pe := srv.runtime.containerGraph.Get(parent)
+		parentContainer := srv.runtime.Get(pe.ID())
+
 		if parentContainer != nil && parentContainer.activeLinks != nil {
-			if link, exists := parentContainer.activeLinks[name]; exists {
+			if link, exists := parentContainer.activeLinks[n]; exists {
 				link.Disable()
+			} else {
+				utils.Debugf("Could not find active link for %s", name)
 			}
 		}
 
