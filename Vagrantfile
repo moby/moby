@@ -7,6 +7,7 @@ VF_BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64_vmware_fusi
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI    = ENV['AWS_AMI']    || "ami-d0f89fb9"
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
+API_PORT = ENV['API_PORT'] # should be a port,  docker default is 4243
 
 Vagrant::Config.run do |config|
   # Setup virtual machine box. This VM configuration code is always executed.
@@ -22,6 +23,14 @@ Vagrant::Config.run do |config|
     pkg_cmd = "wget -q -O - https://get.docker.io/gpg | apt-key add -;" \
       "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
+
+    # configure docker -H remote API port
+    if !API_PORT.nil?
+      pkg_cmd << "echo Bind Docker to 0.0.0.0:#{API_PORT};"
+      pkg_cmd << "cp /etc/init/docker.conf /etc/init/docker.conf.orig;"
+      pkg_cmd << "sed -i 's/-d/-H 0.0.0.0:#{API_PORT} -d/' /etc/init/docker.conf;"
+    end
+
     # Add Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
     # Add guest additions if local vbox VM. As virtualbox is the default provider,
@@ -81,6 +90,19 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   end
 end
 
+# configure vagrant to forward docker remote API port to the VM
+if !API_PORT.nil?
+  port = API_PORT.to_i
+  Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
+    config.vm.forward_port port, port
+  end
+
+  Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
+    config.vm.network :forwarded_port, :host => port, :guest => port
+  end
+end
+
+# configure vagrant to forward docker container ports to the VM
 if !FORWARD_DOCKER_PORTS.nil?
   Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
     (49000..49900).each do |port|
