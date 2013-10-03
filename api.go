@@ -806,6 +806,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 
 	if _, err := srv.ContainerInspect(name); err != nil {
 		return err
@@ -828,6 +829,7 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 
 	container, err := srv.ContainerInspect(name)
 	if err != nil {

@@ -577,7 +577,8 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	graph, err := gograph.NewDatabase(path.Join(config.GraphPath, "linkgraph.db"), "engine")
+
+	graph, err := gograph.NewDatabase(path.Join(config.GraphPath, "linkgraph.db"))
 	if err != nil {
 		return nil, err
 	}

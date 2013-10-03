@@ -108,7 +108,7 @@ func (l *Link) Enable() error {
 }
 
 func (l *Link) Disable() {
-	// We do not care about erros here because the link may not
+	// We do not care about errors here because the link may not
 	// exist in iptables
 	l.toggle("-D", true)
 

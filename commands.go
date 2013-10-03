@@ -537,8 +537,8 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		name = cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
+		encName := cleanName(name)
+		_, _, err := cli.call("POST", "/containers/"+encName+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -583,11 +583,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "[")
 	for i, name := range args {
-		name = cleanName(name)
+		encName := cleanName(name)
 		if i > 0 {
 			fmt.Fprintf(cli.out, ",")
 		}
-		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
+		obj, _, err := cli.call("GET", "/containers/"+encName+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
@@ -785,8 +785,8 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 	}
 
 	for _, name := range args {
-		name = cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
+		encName := cleanName(name)
+		_, _, err := cli.call("POST", "/containers/"+encName+"/kill", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -1094,6 +1094,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	for _, out := range outs {
+		for i := 0; i < len(out.Names); i++ {
+			out.Names[i] = utils.Trunc(out.Names[i], 10)
+		}
+
 		names := strings.Join(out.Names, ",")
 		if !*quiet {
 			if *noTrunc {
@@ -1148,7 +1152,7 @@ func (cli *DockerCli) CmdLs(args ...string) error {
 		return len(i.Path) < len(j.Path)
 	})
 	for _, link := range links {
-		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, link.ContainerID, link.Image)
+		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, utils.TruncateID(link.ContainerID), link.Image)
 		fmt.Fprintf(w, "\n")
 	}
 	w.Flush()

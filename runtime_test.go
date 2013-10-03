@@ -597,7 +597,7 @@ func TestDefaultContainerName(t *testing.T) {
 		t.Fatalf("Could not find edges for %s", containerID)
 	}
 	edge := paths[0]
-	if edge.ParentID != "engine" {
+	if edge.ParentID != "0" {
 		t.Fatalf("Expected engine got %s", edge.ParentID)
 	}
 	if edge.EntityID != containerID {

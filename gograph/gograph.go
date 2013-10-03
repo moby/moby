@@ -47,12 +47,11 @@ type WalkFunc func(fullPath string, entity *Entity) error
 // Graph database for storing entities and their relationships
 type Database struct {
 	dbPath string
-	rootID string
 }
 
 // Create a new graph database initialized with a root entity
-func NewDatabase(dbPath, rootId string) (*Database, error) {
-	db := &Database{dbPath, rootId}
+func NewDatabase(dbPath string) (*Database, error) {
+	db := &Database{dbPath}
 	if _, err := os.Stat(dbPath); err == nil {
 		return db, nil
 	}
@@ -77,12 +76,12 @@ func NewDatabase(dbPath, rootId string) (*Database, error) {
 	if _, err := conn.Exec("BEGIN"); err != nil {
 		return nil, err
 	}
-	if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", rootId); err != nil {
+	if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
 		rollback()
 		return nil, err
 	}
 
-	if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", rootId, "/"); err != nil {
+	if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
 		rollback()
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func (db *Database) setEdge(conn *sql.DB, parentPath, name string, e *Entity) er
 // Return the root "/" entity for the database
 func (db *Database) RootEntity() *Entity {
 	return &Entity{
-		id: db.rootID,
+		id: "0",
 	}
 }
 

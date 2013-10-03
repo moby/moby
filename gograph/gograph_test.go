@@ -8,7 +8,7 @@ import (
 )
 
 func newTestDb(t *testing.T) *Database {
-	db, err := NewDatabase(path.Join(os.TempDir(), "sqlite.db"), "0")
+	db, err := NewDatabase(path.Join(os.TempDir(), "sqlite.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
