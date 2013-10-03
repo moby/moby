@@ -44,10 +44,11 @@ Security Group to allow SSH.** By default all incoming ports to your
 new instance will be blocked by the AWS Security Group, so you might
 just get timeouts when you try to connect.
 
-Installing with ``get.docker.io`` (as above) will create a service
-named ``dockerd``. You may want to set up a :ref:`docker group
-<dockergroup>` and add the *ubuntu* user to it so that you don't have
-to use ``sudo`` for every Docker command.
+Installing with ``get.docker.io`` (as above) will create an `Upstart
+service <http://upstart.ubuntu.com/getting-started.html>`_ named
+``docker``. You may want to set up a :ref:`docker group <dockergroup>`
+and add the *ubuntu* user to it so that you don't have to use ``sudo``
+for every Docker command.
 
 Once you've got Docker installed, you're ready to try it out -- head
 on over to the :doc:`../use/basics` or :doc:`../examples/index` section.

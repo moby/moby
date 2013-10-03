@@ -42,10 +42,15 @@ chmod +x /usr/local/bin/docker
 
 if [ -f /etc/init/dockerd.conf ]
 then
-  echo "Upstart script already exists."
+  echo "Old upstart script already exists for dockerd. Removing."
+  rm /etc/init/dockerd.conf
+fi
+if [ -f /etc/init/docker.conf ]
+then
+  echo "Upstart script for docker already exists. Keeping."
 else
-  echo "Creating /etc/init/dockerd.conf..."
-  cat >/etc/init/dockerd.conf <<EOF
+  echo "Creating /etc/init/docker.conf..."
+  cat >/etc/init/docker.conf <<EOF
 description "Docker daemon"
 start on filesystem and started lxc-net
 stop on runlevel [!2345]
@@ -54,8 +59,8 @@ exec /usr/local/bin/docker -d
 EOF
 fi
 
-echo "Starting dockerd..."
-start dockerd > /dev/null
+echo "Starting docker daemon..."
+start docker > /dev/null
 
 echo "Done."
 echo
