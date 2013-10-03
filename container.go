@@ -162,7 +162,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flMemoryString := cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
@@ -170,9 +170,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	cmd.String("name", "", "Assign a name to the container")
 
-	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
+	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		*flMemory = 0
+		*flMemoryString = ""
 	}
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
@@ -237,6 +237,18 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 			v := os.Getenv(env)
 			envs = append(envs, env+"="+v)
 		}
+	}
+
+	var flMemory int64
+
+	if *flMemoryString != "" {
+		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
+
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		flMemory = parsedMemory
 	}
 
 	var binds []string
@@ -306,7 +318,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          *flMemory,
+		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
@@ -330,7 +342,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Links:           flLinks,
 	}
 
-	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
+	if capabilities != nil && flMemory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
