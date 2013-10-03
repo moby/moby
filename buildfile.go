@@ -222,6 +222,77 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
+func stringToBool(args string) (bool, error) {
+  arg := strings.ToLower(args)
+  if arg == "true" {
+    return true, nil;
+  } else if arg == "false" {
+    return false, nil;
+  } else {
+    return false, fmt.Errorf("Argument Must be True or False")
+  }
+}
+
+func (b *buildFile) CmdTty(args string) error {
+  if arg, err := stringToBool(args); err != nil {
+    return err;
+  } else {
+    b.config.Tty = arg
+  }
+  if err := b.commit("", b.config.Cmd, fmt.Sprintf("TTY %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
+func (b *buildFile) CmdInteractive(args string) error {
+  if arg, err := stringToBool(args); err != nil {
+    return err;
+  } else {
+    b.config.OpenStdin = arg
+  }
+  if err := b.commit("", b.config.Cmd, fmt.Sprintf("INTERACTIVE %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
+func (b *buildFile) CmdStdin(args string) error {
+  if arg, err := stringToBool(args); err != nil {
+    return err;
+  } else {
+    b.config.AttachStdin = arg
+  }
+  if err := b.commit("", b.config.Cmd, fmt.Sprintf("STDIN %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
+func (b *buildFile) CmdStdout(args string) error {
+  if arg, err := stringToBool(args); err != nil {
+    return err;
+  } else {
+    b.config.AttachStdout = arg
+  }
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("STDOUT %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
+func (b *buildFile) CmdStderr(args string) error {
+  if arg, err := stringToBool(args); err != nil {
+    return err;
+  } else {
+    b.config.AttachStderr = arg
+  }
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("STDERR %s", args)); err != nil {
+		return err
+	}
+  return nil;
+}
+
 func (b *buildFile) CmdWorkdir(workdir string) error {
 	b.config.WorkingDir = workdir
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
