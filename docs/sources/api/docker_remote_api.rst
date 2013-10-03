@@ -9,7 +9,6 @@
 Docker Remote API
 =================
 
-.. contents:: Table of Contents
 
 1. Brief introduction
 =====================
@@ -27,13 +26,28 @@ Docker Remote API
 2. Versions
 ===========
 
-The current version of the API is 1.5
+The current version of the API is 1.6
 
 Calling /images/<name>/insert is the same as calling
-/v1.5/images/<name>/insert 
+/v1.6/images/<name>/insert
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
+
+:doc:`docker_remote_api_v1.6`
+*****************************
+
+What's new
+----------
+
+.. http:post:: /containers/(id)/attach
+
+   **New!** You can now split stderr from stdout. This is done by prefixing
+   a header to each transmition. See :http:post:`/containers/(id)/attach`.
+   The WebSocket attach is unchanged.
+   Note that attach calls on the previous API version didn't change. Stdout and
+   stderr are merged.
+
 
 :doc:`docker_remote_api_v1.5`
 *****************************
@@ -182,36 +196,3 @@ Initial version
 .. _8d73740: https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4
 .. _2e7649b: https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168
 .. _51f6c4a: https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909
-
-==================================
-Docker Remote API Client Libraries
-==================================
-
-These libraries have not been tested by the Docker Maintainers for
-compatibility. Please file issues with the library owners.  If you
-find more library implementations, please list them in Docker doc bugs
-and we will add the libraries here.
-
-+----------------------+----------------+--------------------------------------------+
-| Language/Framework   | Name           | Repository                                 |
-+======================+================+============================================+
-| Python               | docker-py      | https://github.com/dotcloud/docker-py      |
-+----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
-+----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
-+----------------------+----------------+--------------------------------------------+
-| Javascript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  |
-|                      |                | Install via NPM: `npm install docker.io`   |
-+----------------------+----------------+--------------------------------------------+
-| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      |
-+----------------------+----------------+--------------------------------------------+
-| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  |
-| **WebUI**            |                |                                            |
-+----------------------+----------------+--------------------------------------------+
-| Java                 | docker-java    | https://github.com/kpelykh/docker-java     |
-+----------------------+----------------+--------------------------------------------+
-| Erlang               | erldocker      | https://github.com/proger/erldocker        |
-+----------------------+----------------+--------------------------------------------+
-| Go                   | go-dockerclient| https://github.com/fsouza/go-dockerclient  |
-+----------------------+----------------+--------------------------------------------+

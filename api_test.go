@@ -959,7 +959,96 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Close pipes (client disconnects)
+	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
+	setTimeout(t, "Waiting for CmdAttach timed out", 10*time.Second, func() {
+		<-c1
+	})
+
+	// We closed stdin, expect /bin/cat to still be running
+	// Wait a little bit to make sure container.monitor() did his thing
+	err = container.WaitTimeout(500 * time.Millisecond)
+	if err == nil || !container.State.Running {
+		t.Fatalf("/bin/cat is not running after closing stdin")
+	}
+
+	// Try to avoid the timeout in destroy. Best effort, don't check error
+	cStdin, _ := container.StdinPipe()
+	cStdin.Close()
+	container.Wait()
+}
+
+func TestPostContainersAttachStderr(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	container, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).ID,
+			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
+			OpenStdin: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	// Start the process
+	hostConfig := &HostConfig{}
+	if err := container.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	// Try to avoid the timeout in destroy. Best effort, don't check error
+	defer func() {
+		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+		container.Kill()
+	}()
+
+	// Attach to it
+	c1 := make(chan struct{})
+	go func() {
+		defer close(c1)
+
+		r := &hijackTester{
+			ResponseRecorder: httptest.NewRecorder(),
+			in:               stdin,
+			out:              stdoutPipe,
+		}
+
+		req, err := http.NewRequest("POST", "/containers/"+container.ID+"/attach?stream=1&stdin=1&stdout=1&stderr=1", bytes.NewReader([]byte{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := postContainersAttach(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// Acknowledge hijack
+	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+		stdout.Read([]byte{})
+		stdout.Read(make([]byte, 4096))
+	})
+
+	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
 	})

@@ -126,6 +126,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
+	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -172,6 +173,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 				flAttach.Set("stdin")
 			}
 		}
+	}
+
+	if *flDetach && *flAutoRemove {
+		return nil, nil, cmd, fmt.Errorf("Conflicting options: -rm and -d")
 	}
 
 	var binds []string
@@ -478,13 +483,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stdout\n")
 				defer utils.Debugf("[end]  attach stdout\n")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stdout, cStdout)
 				if err != nil {
@@ -516,13 +519,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				utils.Debugf("[start] attach stderr\n")
 				defer utils.Debugf("[end]  attach stderr\n")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stderr, cStderr)
 				if err != nil {
@@ -840,7 +841,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	container.ToDisk()
 	container.SaveHostConfig(hostConfig)
-	go container.monitor()
+	go container.monitor(hostConfig)
 	return nil
 }
 
@@ -970,7 +971,7 @@ func (container *Container) waitLxc() error {
 	}
 }
 
-func (container *Container) monitor() {
+func (container *Container) monitor(hostConfig *HostConfig) {
 	// Wait for the program to exit
 	utils.Debugf("Waiting for process")
 

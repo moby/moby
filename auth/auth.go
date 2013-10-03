@@ -91,11 +91,17 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		}
 		authConfig := AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
+		if len(origAuth) != 2 {
+			return &configFile, fmt.Errorf("Invalid Auth config file")
+		}
 		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
 			return &configFile, err
 		}
 		origEmail := strings.Split(arr[1], " = ")
+		if len(origEmail) != 2 {
+			return &configFile, fmt.Errorf("Invalid Auth config file")
+		}
 		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = IndexServerAddress()
 		configFile.Configs[IndexServerAddress()] = authConfig

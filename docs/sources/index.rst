@@ -2,7 +2,7 @@
 :description: An overview of the Docker Documentation
 :keywords: containers, lxc, concepts, explanation
 
-.. image:: static_files/dockerlogo-h.png
+.. image:: https://www.docker.io/static/img/linked/dockerlogo-horizontal.png
 
 Introduction
 ------------
