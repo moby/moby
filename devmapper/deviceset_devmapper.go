@@ -204,7 +204,7 @@ func (devices *DeviceSetDM) createPool(dataFile *os.File, metadataFile *os.File)
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 32)
+	err = task.SetCookie(&cookie, 0)
 	if err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
@@ -238,7 +238,7 @@ func (devices *DeviceSetDM) resumeDevice(info *DevInfo) error {
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 32)
+	err = task.SetCookie(&cookie, 0)
 	if err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
@@ -374,7 +374,7 @@ func (devices *DeviceSetDM) activateDevice(info *DevInfo) error {
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 32)
+	err = task.SetCookie(&cookie, 0)
 	if err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
