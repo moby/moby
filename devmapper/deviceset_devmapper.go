@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -564,6 +565,21 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 	return nil
 }
 
+func setCloseOnExec(name string) {
+	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
+	if fileInfos != nil {
+		for _, i := range fileInfos {
+			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
+			if link ==  name {
+				fd, err := strconv.Atoi(i.Name())
+				if err == nil {
+					syscall.CloseOnExec(fd)
+				}
+			}
+		}
+	}
+}
+
 func (devices *DeviceSetDM) initDevmapper() error {
 	info, err := devices.getInfo(devices.getPoolName())
 	if info == nil {
@@ -571,6 +587,11 @@ func (devices *DeviceSetDM) initDevmapper() error {
 		return err
 	}
 	utils.Debugf("initDevmapper(). Pool exists: %v", info.Exists)
+
+	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
+	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
+	// so we add this badhack to make sure it closes itself
+	setCloseOnExec("/dev/mapper/control")
 
 	if info.Exists != 0 {
 		/* Pool exists, assume everything is up */
