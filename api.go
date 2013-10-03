@@ -69,9 +69,10 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}
-	utils.Debugf("[error %d] %s", statusCode, err)
-	http.Error(w, err.Error(), statusCode)
+	}	
+	
+	http.Error(w, err.Error(), statusCode)	
+	utils.Errorf("[error %d]", statusCode, err.Error())		
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -102,7 +103,7 @@ func getBoolParam(value string) (bool, error) {
 func matchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		utils.Debugf("Error parsing media type: %s error: %s", contentType, err.Error())
+		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
 	}
 	return err == nil && mimetype == expectedType
 }
@@ -147,7 +148,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Debugf("%s", err)
+		utils.Errorf("%s", err)
 		return err
 	}
 	return nil
@@ -192,7 +193,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		_, err = wf.Write(b)
 		if err != nil {
 			// On error, evict the listener
-			utils.Debugf("%s", err)
+			utils.Errorf("%s", err)
 			srv.Lock()
 			delete(srv.listeners, r.RemoteAddr)
 			srv.Unlock()
@@ -347,7 +348,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	}
 	config := &Config{}
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		utils.Debugf("%s", err)
+		utils.Errorf("%s", err)
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -792,7 +793,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		defer ws.Close()
 
 		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws, ws); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -938,7 +939,7 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Errorf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -983,7 +984,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		}
 
 		if err := handlerFunc(srv, version, w, r, mux.Vars(r)); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 			httpError(w, err)
 		}
 	}
