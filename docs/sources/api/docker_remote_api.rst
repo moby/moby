@@ -65,6 +65,20 @@ Full Documentation
 What's new
 ----------
 
+.. http:post:: /containers/(id)/attach
+
+   **New!** You can now split stderr from stdout. This is done by prefixing
+   a header to each transmition. See :http:post:`/containers/(id)/attach`.
+   The WebSocket attach is unchanged.
+   Note that attach calls on the previous API version didn't change. Stdout and
+   stderr are merged.
+
+
+:doc:`docker_remote_api_v1.5`
+
+What's new
+----------
+
 .. http:post:: /images/create
 
    **New!** You can now pass registry credentials (via an AuthConfig object)
