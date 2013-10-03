@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -85,6 +86,23 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 // Remove any leftover device mapper devices from earlier runs of the unit tests
+func removeDev(name string) {
+	path := filepath.Join("/dev/mapper", name)
+	fd, err := syscall.Open(path, syscall.O_RDONLY, 07777)
+	if err != nil {
+		if err == syscall.ENXIO {
+			// No device for this node, just remove it
+			os.Remove(path)
+			return
+		}
+	} else {
+		syscall.Close(fd)
+	}
+	if err := devmapper.RemoveDevice(name); err != nil {
+		panic(fmt.Errorf("Unable to remove existing device %s: %s", name, err))
+	}
+}
+
 func cleanupDevMapper() {
 	infos, _ := ioutil.ReadDir("/dev/mapper")
 	if infos != nil {
@@ -95,16 +113,12 @@ func cleanupDevMapper() {
 				if name == "docker-unit-tests-devices-pool" {
 					hasPool = true
 				} else {
-					if err := devmapper.RemoveDevice(name); err != nil {
-						panic(fmt.Errorf("Unable to remove existing device %s: %s", name, err))
-					}
+					removeDev(name)
 				}
 			}
 			// We need to remove the pool last as the other devices block it
 			if hasPool {
-				if err := devmapper.RemoveDevice("docker-unit-tests-devices-pool"); err != nil {
-					panic(fmt.Errorf("Unable to remove existing device docker-unit-tests-devices-pool: %s", name, err))
-				}
+				removeDev("docker-unit-tests-devices-pool")
 			}
 		}
 	}
