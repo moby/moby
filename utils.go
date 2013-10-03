@@ -83,7 +83,10 @@ func MergeConfig(userConf, imageConf *Config) error {
 	} else {
 		for _, imagePortSpec := range imageConf.PortSpecs {
 			found := false
-			imageNat, _ := parseNat(imagePortSpec)
+			imageNat, err := parseNat(imagePortSpec)
+			if err != nil {
+				return err
+			}
 			for _, userPortSpec := range userConf.PortSpecs {
 				userNat, err := parseNat(userPortSpec)
 				if err != nil {
