@@ -1307,7 +1307,7 @@ func NewServer(flGraphPath string, deviceSet DeviceSet, autoRestart, enableCors 
 	if err != nil {
 		return nil, err
 	}
-	srv := &Server{
+	runtime.srv = &Server{
 		runtime:     runtime,
 		enableCors:  enableCors,
 		pullingPool: make(map[string]struct{}),
@@ -1316,18 +1316,14 @@ func NewServer(flGraphPath string, deviceSet DeviceSet, autoRestart, enableCors 
 		listeners:   make(map[string]chan utils.JSONMessage),
 		reqFactory:  nil,
 	}
-	runtime.srv = srv
-	return srv, nil
+	return runtime.srv, nil
 }
 
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	if srv.reqFactory == nil {
-		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
-		md := &utils.HTTPMetaHeadersDecorator{
-			Headers: metaHeaders,
-		}
-		factory := utils.NewHTTPRequestFactory(ud, md)
-		srv.reqFactory = factory
+		srv.reqFactory = utils.NewHTTPRequestFactory(
+			utils.NewHTTPUserAgentDecorator(srv.versionInfos()...),
+			&utils.HTTPMetaHeadersDecorator{Headers: metaHeaders})
 	}
 	return srv.reqFactory
 }

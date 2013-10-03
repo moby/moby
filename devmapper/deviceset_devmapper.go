@@ -1,12 +1,11 @@
 package devmapper
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -15,9 +14,11 @@ import (
 	"syscall"
 )
 
-const defaultDataLoopbackSize int64 = 100 * 1024 * 1024 * 1024
-const defaultMetaDataLoopbackSize int64 = 2 * 1024 * 1024 * 1024
-const defaultBaseFsSize uint64 = 10 * 1024 * 1024 * 1024
+const (
+	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
+	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
+	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+)
 
 type DevInfo struct {
 	Hash          string       `json:"-"`
@@ -33,14 +34,14 @@ type MetaData struct {
 }
 
 type DeviceSetDM struct {
-	initialized bool
-	root        string
-	devicePrefix string
 	MetaData
+	initialized      bool
+	root             string
+	devicePrefix     string
 	TransactionId    uint64
 	NewTransactionId uint64
 	nextFreeDevice   int
-	activeMounts map[string]int
+	activeMounts     map[string]int
 }
 
 func getDevName(name string) string {
@@ -68,7 +69,7 @@ func (devices *DeviceSetDM) jsonFile() string {
 }
 
 func (devices *DeviceSetDM) getPoolName() string {
-	return fmt.Sprintf("%s-pool", devices.devicePrefix)
+	return devices.devicePrefix + "-pool"
 }
 
 func (devices *DeviceSetDM) getPoolDevName() string {
@@ -80,8 +81,7 @@ func (devices *DeviceSetDM) createTask(t TaskType, name string) (*Task, error) {
 	if task == nil {
 		return nil, fmt.Errorf("Can't create task of type %d", int(t))
 	}
-	err := task.SetName(name)
-	if err != nil {
+	if err := task.SetName(name); err != nil {
 		return nil, fmt.Errorf("Can't set task name %s", name)
 	}
 	return task, nil
@@ -92,60 +92,53 @@ func (devices *DeviceSetDM) getInfo(name string) (*Info, error) {
 	if task == nil {
 		return nil, err
 	}
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return nil, err
 	}
-	info, err := task.GetInfo()
-	if err != nil {
-		return nil, err
-	}
-	return info, nil
+	return task.GetInfo()
 }
 
 func (devices *DeviceSetDM) getStatus(name string) (uint64, uint64, string, string, error) {
 	task, err := devices.createTask(DeviceStatus, name)
 	if task == nil {
+		utils.Debugf("getStatus: Error createTask: %s", err)
 		return 0, 0, "", "", err
 	}
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
+		utils.Debugf("getStatus: Error Run: %s", err)
 		return 0, 0, "", "", err
 	}
 
 	devinfo, err := task.GetInfo()
 	if err != nil {
+		utils.Debugf("getStatus: Error GetInfo: %s", err)
 		return 0, 0, "", "", err
 	}
 	if devinfo.Exists == 0 {
+		utils.Debugf("getStatus: Non existing device %s", name)
 		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
 	}
 
-	var next uintptr = 0
-	next, start, length, target_type, params := task.GetNextTarget(next)
-
+	_, start, length, target_type, params := task.GetNextTarget(0)
 	return start, length, target_type, params, nil
 }
 
 func (devices *DeviceSetDM) setTransactionId(oldId uint64, newId uint64) error {
 	task, err := devices.createTask(DeviceTargetMsg, devices.getPoolDevName())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	err = task.SetSector(0)
-	if err != nil {
+	if err := task.SetSector(0); err != nil {
 		return fmt.Errorf("Can't set sector")
 	}
 
-	message := fmt.Sprintf("set_transaction_id %d %d", oldId, newId)
-	err = task.SetMessage(message)
-	if err != nil {
+	if err := task.SetMessage(fmt.Sprintf("set_transaction_id %d %d", oldId, newId)); err != nil {
 		return fmt.Errorf("Can't set message")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running setTransactionId")
 	}
 	return nil
@@ -167,18 +160,17 @@ func (devices *DeviceSetDM) ensureImage(name string, size int64) (string, error)
 		return "", err
 	}
 
-	_, err := os.Stat(filename)
-	if err != nil {
+	if _, err := os.Stat(filename); err != nil {
 		if !os.IsNotExist(err) {
 			return "", err
 		}
-		log.Printf("Creating loopback file %s for device-manage use", filename)
+		utils.Debugf("Creating loopback file %s for device-manage use", filename)
 		file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
 			return "", err
 		}
-		err = file.Truncate(size)
-		if err != nil {
+
+		if err = file.Truncate(size); err != nil {
 			return "", err
 		}
 	}
@@ -189,6 +181,7 @@ func (devices *DeviceSetDM) createPool(dataFile *os.File, metadataFile *os.File)
 	utils.Debugf("Activating device-mapper pool %s", devices.getPoolName())
 	task, err := devices.createTask(DeviceCreate, devices.getPoolName())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -198,19 +191,16 @@ func (devices *DeviceSetDM) createPool(dataFile *os.File, metadataFile *os.File)
 	}
 
 	params := metadataFile.Name() + " " + dataFile.Name() + " 512 8192"
-	err = task.AddTarget(0, size/512, "thin-pool", params)
-	if err != nil {
+	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
 		return fmt.Errorf("Can't add target")
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 0)
-	if err != nil {
+	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate")
 	}
 
@@ -222,10 +212,10 @@ func (devices *DeviceSetDM) createPool(dataFile *os.File, metadataFile *os.File)
 func (devices *DeviceSetDM) suspendDevice(info *DevInfo) error {
 	task, err := devices.createTask(DeviceSuspend, info.Name())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceSuspend")
 	}
 	return nil
@@ -234,17 +224,16 @@ func (devices *DeviceSetDM) suspendDevice(info *DevInfo) error {
 func (devices *DeviceSetDM) resumeDevice(info *DevInfo) error {
 	task, err := devices.createTask(DeviceResume, info.Name())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 0)
-	if err != nil {
+	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceSuspend")
 	}
 
@@ -256,68 +245,60 @@ func (devices *DeviceSetDM) resumeDevice(info *DevInfo) error {
 func (devices *DeviceSetDM) createDevice(deviceId int) error {
 	task, err := devices.createTask(DeviceTargetMsg, devices.getPoolDevName())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	err = task.SetSector(0)
-	if err != nil {
+	if err := task.SetSector(0); err != nil {
 		return fmt.Errorf("Can't set sector")
 	}
 
-	message := fmt.Sprintf("create_thin %d", deviceId)
-	err = task.SetMessage(message)
-	if err != nil {
+	if err := task.SetMessage(fmt.Sprintf("create_thin %d", deviceId)); err != nil {
 		return fmt.Errorf("Can't set message")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running createDevice")
 	}
 	return nil
 }
 
 func (devices *DeviceSetDM) createSnapDevice(deviceId int, baseInfo *DevInfo) error {
-	doSuspend := false
 	devinfo, _ := devices.getInfo(baseInfo.Name())
-	if devinfo != nil && devinfo.Exists != 0 {
-		doSuspend = true
-	}
+	doSuspend := devinfo != nil && devinfo.Exists != 0
 
 	if doSuspend {
-		err := devices.suspendDevice(baseInfo)
-		if err != nil {
+		if err := devices.suspendDevice(baseInfo); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
 
 	task, err := devices.createTask(DeviceTargetMsg, devices.getPoolDevName())
 	if task == nil {
-		_ = devices.resumeDevice(baseInfo)
+		devices.resumeDevice(baseInfo)
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	err = task.SetSector(0)
-	if err != nil {
-		_ = devices.resumeDevice(baseInfo)
+
+	if err := task.SetSector(0); err != nil {
+		devices.resumeDevice(baseInfo)
 		return fmt.Errorf("Can't set sector")
 	}
 
-	message := fmt.Sprintf("create_snap %d %d", deviceId, baseInfo.DeviceId)
-	err = task.SetMessage(message)
-	if err != nil {
-		_ = devices.resumeDevice(baseInfo)
+	if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", deviceId, baseInfo.DeviceId)); err != nil {
+		devices.resumeDevice(baseInfo)
 		return fmt.Errorf("Can't set message")
 	}
 
-	err = task.Run()
-	if err != nil {
-		_ = devices.resumeDevice(baseInfo)
+	if err := task.Run(); err != nil {
+		devices.resumeDevice(baseInfo)
 		return fmt.Errorf("Error running DeviceCreate")
 	}
 
 	if doSuspend {
-		err = devices.resumeDevice(baseInfo)
-		if err != nil {
+		if err := devices.resumeDevice(baseInfo); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -328,22 +309,19 @@ func (devices *DeviceSetDM) createSnapDevice(deviceId int, baseInfo *DevInfo) er
 func (devices *DeviceSetDM) deleteDevice(deviceId int) error {
 	task, err := devices.createTask(DeviceTargetMsg, devices.getPoolDevName())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	err = task.SetSector(0)
-	if err != nil {
+	if err := task.SetSector(0); err != nil {
 		return fmt.Errorf("Can't set sector")
 	}
 
-	message := fmt.Sprintf("delete %d", deviceId)
-	err = task.SetMessage(message)
-	if err != nil {
+	if err := task.SetMessage(fmt.Sprintf("delete %d", deviceId)); err != nil {
 		return fmt.Errorf("Can't set message")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running deleteDevice")
 	}
 	return nil
@@ -352,10 +330,10 @@ func (devices *DeviceSetDM) deleteDevice(deviceId int) error {
 func (devices *DeviceSetDM) removeDevice(name string) error {
 	task, err := devices.createTask(DeviceRemove, name)
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	err = task.Run()
-	if err != nil {
+	if err = task.Run(); err != nil {
 		return fmt.Errorf("Error running removeDevice")
 	}
 	return nil
@@ -364,23 +342,21 @@ func (devices *DeviceSetDM) removeDevice(name string) error {
 func (devices *DeviceSetDM) activateDevice(info *DevInfo) error {
 	task, err := devices.createTask(DeviceCreate, info.Name())
 	if task == nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	params := fmt.Sprintf("%s %d", devices.getPoolDevName(), info.DeviceId)
-	err = task.AddTarget(0, info.Size/512, "thin", params)
-	if err != nil {
+	if err := task.AddTarget(0, info.Size/512, "thin", params); err != nil {
 		return fmt.Errorf("Can't add target")
 	}
 
 	var cookie uint32 = 0
-	err = task.SetCookie(&cookie, 0)
-	if err != nil {
+	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
 
-	err = task.Run()
-	if err != nil {
+	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate")
 	}
 
@@ -404,61 +380,60 @@ func (devices *DeviceSetDM) allocateTransactionId() uint64 {
 func (devices *DeviceSetDM) saveMetadata() error {
 	jsonData, err := json.Marshal(devices.MetaData)
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	tmpFile, err := ioutil.TempFile(filepath.Dir(devices.jsonFile()), ".json")
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	n, err := tmpFile.Write(jsonData)
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if n < len(jsonData) {
-		err = io.ErrShortWrite
+		return io.ErrShortWrite
 	}
-	err = tmpFile.Sync()
-	if err != nil {
+	if err := tmpFile.Sync(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	err = tmpFile.Close()
-	if err != nil {
+	if err := tmpFile.Close(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	err = os.Rename(tmpFile.Name(), devices.jsonFile())
-	if err != nil {
+	if err := os.Rename(tmpFile.Name(), devices.jsonFile()); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
-		err = devices.setTransactionId(devices.TransactionId, devices.NewTransactionId)
-		if err != nil {
+		if err = devices.setTransactionId(devices.TransactionId, devices.NewTransactionId); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 		devices.TransactionId = devices.NewTransactionId
 	}
-
 	return nil
 }
 
 func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
-	transaction := devices.allocateTransactionId()
-
 	info := &DevInfo{
 		Hash:          hash,
 		DeviceId:      id,
 		Size:          size,
-		TransactionId: transaction,
+		TransactionId: devices.allocateTransactionId(),
 		Initialized:   false,
 		devices:       devices,
 	}
 
 	devices.Devices[hash] = info
-	err := devices.saveMetadata()
-	if err != nil {
+	if err := devices.saveMetadata(); err != nil {
 		// Try to remove unused device
-		devices.Devices[hash] = nil
+		delete(devices.Devices, hash)
 		return nil, err
 	}
 
@@ -471,9 +446,7 @@ func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
 		return fmt.Errorf("Unknown device %s", hash)
 	}
 
-	name := info.Name()
-	devinfo, _ := devices.getInfo(name)
-	if devinfo != nil && devinfo.Exists != 0 {
+	if devinfo, _ := devices.getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
 
@@ -483,13 +456,12 @@ func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
 func (devices *DeviceSetDM) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E",
-		"discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
+	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
 	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E",
-		"discard,lazy_itable_init=0", devname).Run()
+		err = exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname).Run()
 	}
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	return nil
@@ -498,31 +470,29 @@ func (devices *DeviceSetDM) createFilesystem(info *DevInfo) error {
 func (devices *DeviceSetDM) loadMetaData() error {
 	_, _, _, params, err := devices.getStatus(devices.getPoolName())
 	if err != nil {
-		return err
-	}
-	var currentTransaction uint64
-	_, err = fmt.Sscanf(params, "%d", &currentTransaction)
-	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	devices.TransactionId = currentTransaction
+	if _, err := fmt.Sscanf(params, "%d", &devices.TransactionId); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
+		return err
+	}
 	devices.NewTransactionId = devices.TransactionId
 
 	jsonData, err := ioutil.ReadFile(devices.jsonFile())
 	if err != nil && !os.IsNotExist(err) {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	metadata := &MetaData{
-		Devices: make(map[string]*DevInfo),
-	}
+	devices.MetaData.Devices = make(map[string]*DevInfo)
 	if jsonData != nil {
-		if err := json.Unmarshal(jsonData, metadata); err != nil {
+		if err := json.Unmarshal(jsonData, &devices.MetaData); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
-	devices.MetaData = *metadata
 
 	for hash, d := range devices.Devices {
 		d.Hash = hash
@@ -533,12 +503,11 @@ func (devices *DeviceSetDM) loadMetaData() error {
 		}
 
 		// If the transaction id is larger than the actual one we lost the device due to some crash
-		if d.TransactionId > currentTransaction {
-			log.Printf("Removing lost device %s with id %d", hash, d.TransactionId)
+		if d.TransactionId > devices.TransactionId {
+			utils.Debugf("Removing lost device %s with id %d", hash, d.TransactionId)
 			delete(devices.Devices, hash)
 		}
 	}
-
 	return nil
 }
 
@@ -549,45 +518,46 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 	}
 
 	if oldInfo != nil && !oldInfo.Initialized {
-		log.Printf("Removing uninitialized base image")
+		utils.Debugf("Removing uninitialized base image")
 		if err := devices.RemoveDevice(""); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
 
-	log.Printf("Initializing base device-manager snapshot")
+	utils.Debugf("Initializing base device-manager snapshot")
 
 	id := devices.allocateDeviceId()
 
 	// Create initial device
-	err := devices.createDevice(id)
-	if err != nil {
+	if err := devices.createDevice(id); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	info, err := devices.registerDevice(id, "", defaultBaseFsSize)
 	if err != nil {
 		_ = devices.deleteDevice(id)
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	log.Printf("Creating filesystem on base device-manager snapshot")
+	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
-	err = devices.activateDeviceIfNeeded("")
-	if err != nil {
+	if err = devices.activateDeviceIfNeeded(""); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	err = devices.createFilesystem(info)
-	if err != nil {
+	if err := devices.createFilesystem(info); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	info.Initialized = true
-
-	err = devices.saveMetadata()
-	if err != nil {
+	if err = devices.saveMetadata(); err != nil {
 		info.Initialized = false
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -597,64 +567,67 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 func (devices *DeviceSetDM) initDevmapper() error {
 	info, err := devices.getInfo(devices.getPoolName())
 	if info == nil {
+		utils.Debugf("Error device getInfo: %s", err)
 		return err
 	}
+	utils.Debugf("initDevmapper(). Pool exists: %v", info.Exists)
 
 	if info.Exists != 0 {
 		/* Pool exists, assume everything is up */
-		err = devices.loadMetaData()
-		if err != nil {
+		if err := devices.loadMetaData(); err != nil {
+			utils.Debugf("Error device loadMetaData: %s\n", err)
 			return err
 		}
-		err = devices.setupBaseImage()
-		if err != nil {
+		if err := devices.setupBaseImage(); err != nil {
+			utils.Debugf("Error device setupBaseImage: %s\n", err)
 			return err
 		}
 		return nil
 	}
 
-	createdLoopback := false
-	if !devices.hasImage("data") || !devices.hasImage("metadata") {
-		/* If we create the loopback mounts we also need to initialize the base fs */
-		createdLoopback = true
-	}
+	/* If we create the loopback mounts we also need to initialize the base fs */
+	createdLoopback := !devices.hasImage("data") || !devices.hasImage("metadata")
 
 	data, err := devices.ensureImage("data", defaultDataLoopbackSize)
 	if err != nil {
+		utils.Debugf("Error device ensureImage (data): %s\n", err)
 		return err
 	}
 
 	metadata, err := devices.ensureImage("metadata", defaultMetaDataLoopbackSize)
 	if err != nil {
+		utils.Debugf("Error device ensureImage (metadata): %s\n", err)
 		return err
 	}
 
 	dataFile, err := AttachLoopDevice(data)
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	defer dataFile.Close()
 
 	metadataFile, err := AttachLoopDevice(metadata)
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	defer metadataFile.Close()
 
-	err = devices.createPool(dataFile, metadataFile)
-	if err != nil {
+	if err := devices.createPool(dataFile, metadataFile); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if !createdLoopback {
-		err = devices.loadMetaData()
-		if err != nil {
+		if err = devices.loadMetaData(); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
 
-	err = devices.setupBaseImage()
-	if err != nil {
+	if err := devices.setupBaseImage(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -663,6 +636,7 @@ func (devices *DeviceSetDM) initDevmapper() error {
 
 func (devices *DeviceSetDM) AddDevice(hash, baseHash string) error {
 	if err := devices.ensureInit(); err != nil {
+		utils.Debugf("Error init: %s\n", err)
 		return err
 	}
 
@@ -672,19 +646,20 @@ func (devices *DeviceSetDM) AddDevice(hash, baseHash string) error {
 
 	baseInfo := devices.Devices[baseHash]
 	if baseInfo == nil {
+		utils.Debugf("Base Hash not found")
 		return fmt.Errorf("Unknown base hash %s", baseHash)
 	}
 
 	deviceId := devices.allocateDeviceId()
 
-	err := devices.createSnapDevice(deviceId, baseInfo)
-	if err != nil {
+	if err := devices.createSnapDevice(deviceId, baseInfo); err != nil {
+		utils.Debugf("Error creating snap device: %s\n", err)
 		return err
 	}
 
-	_, err = devices.registerDevice(deviceId, hash, baseInfo.Size)
-	if err != nil {
-		_ = devices.deleteDevice(deviceId)
+	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
+		devices.deleteDevice(deviceId)
+		utils.Debugf("Error registering device: %s\n", err)
 		return err
 	}
 	return nil
@@ -692,6 +667,7 @@ func (devices *DeviceSetDM) AddDevice(hash, baseHash string) error {
 
 func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 	if err := devices.ensureInit(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -702,31 +678,31 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 
 	devinfo, _ := devices.getInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
-		err := devices.removeDevice(info.Name())
-		if err != nil {
+		if err := devices.removeDevice(info.Name()); err != nil {
+			utils.Debugf("Error removing device: %s\n", err)
 			return err
 		}
 	}
 
 	if info.Initialized {
 		info.Initialized = false
-		err := devices.saveMetadata()
-		if err != nil {
+		if err := devices.saveMetadata(); err != nil {
+			utils.Debugf("Error saving meta data: %s\n", err)
 			return err
 		}
 	}
 
-	err := devices.deleteDevice(info.DeviceId)
-	if err != nil {
+	if err := devices.deleteDevice(info.DeviceId); err != nil {
+		utils.Debugf("Error deleting device: %s\n", err)
 		return err
 	}
 
-	_ = devices.allocateTransactionId()
+	devices.allocateTransactionId()
 	delete(devices.Devices, info.Hash)
 
-	err = devices.saveMetadata()
-	if err != nil {
+	if err := devices.saveMetadata(); err != nil {
 		devices.Devices[info.Hash] = info
+		utils.Debugf("Error saving meta data: %s\n", err)
 		return err
 	}
 
@@ -735,6 +711,7 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 
 func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 	if err := devices.ensureInit(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -745,11 +722,12 @@ func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 
 	devinfo, err := devices.getInfo(info.Name())
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
-		err := devices.removeDevice(info.Name())
-		if err != nil {
+		if err := devices.removeDevice(info.Name()); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -764,9 +742,8 @@ func (devices *DeviceSetDM) Shutdown() error {
 
 	for path, count := range devices.activeMounts {
 		for i := count; i > 0; i-- {
-			err := syscall.Unmount(path, 0)
-			if err != nil {
-				fmt.Printf("Shutdown unmounting %s, error: %s\n", path, err)
+			if err := syscall.Unmount(path, 0); err != nil {
+				utils.Debugf("Shutdown unmounting %s, error: %s\n", path, err)
 			}
 		}
 		delete(devices.activeMounts, path)
@@ -774,16 +751,14 @@ func (devices *DeviceSetDM) Shutdown() error {
 
 	for _, d := range devices.Devices {
 		if err := devices.DeactivateDevice(d.Hash); err != nil {
-			fmt.Printf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
 		}
 	}
 
-
 	pool := devices.getPoolDevName()
-	devinfo, err := devices.getInfo(pool)
-	if err == nil && devinfo.Exists != 0 {
+	if devinfo, err := devices.getInfo(pool); err == nil && devinfo.Exists != 0 {
 		if err := devices.removeDevice(pool); err != nil {
-			fmt.Printf("Shutdown deactivate %s , error: %s\n", pool, err)
+			utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
 		}
 	}
 
@@ -792,21 +767,23 @@ func (devices *DeviceSetDM) Shutdown() error {
 
 func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 	if err := devices.ensureInit(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	err := devices.activateDeviceIfNeeded(hash)
-	if err != nil {
+	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	info := devices.Devices[hash]
 
-	err = syscall.Mount(info.DevName(), path, "ext4", syscall.MS_MGC_VAL, "discard")
+	err := syscall.Mount(info.DevName(), path, "ext4", syscall.MS_MGC_VAL, "discard")
 	if err != nil && err == syscall.EINVAL {
 		err = syscall.Mount(info.DevName(), path, "ext4", syscall.MS_MGC_VAL, "")
 	}
 	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -817,13 +794,12 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 }
 
 func (devices *DeviceSetDM) UnmountDevice(hash, path string) error {
-	err := syscall.Unmount(path, 0)
-	if err != nil {
+	if err := syscall.Unmount(path, 0); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
-	count := devices.activeMounts[path]
-	if count > 1 {
+	if count := devices.activeMounts[path]; count > 1 {
 		devices.activeMounts[path] = count - 1
 	} else {
 		delete(devices.activeMounts, path)
@@ -832,14 +808,11 @@ func (devices *DeviceSetDM) UnmountDevice(hash, path string) error {
 	return nil
 }
 
-
 func (devices *DeviceSetDM) HasDevice(hash string) bool {
 	if err := devices.ensureInit(); err != nil {
 		return false
 	}
-
-	info := devices.Devices[hash]
-	return info != nil
+	return devices.Devices[hash] != nil
 }
 
 func (devices *DeviceSetDM) HasInitializedDevice(hash string) bool {
@@ -860,16 +833,13 @@ func (devices *DeviceSetDM) HasActivatedDevice(hash string) bool {
 	if info == nil {
 		return false
 	}
-	name := info.Name()
-	devinfo, _ := devices.getInfo(name)
-	if devinfo != nil && devinfo.Exists != 0 {
-		return true
-	}
-	return false
+	devinfo, _ := devices.getInfo(info.Name())
+	return devinfo != nil && devinfo.Exists != 0
 }
 
 func (devices *DeviceSetDM) SetInitialized(hash string) error {
 	if err := devices.ensureInit(); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -879,9 +849,9 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 	}
 
 	info.Initialized = true
-	err := devices.saveMetadata()
-	if err != nil {
+	if err := devices.saveMetadata(); err != nil {
 		info.Initialized = false
+		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -889,10 +859,11 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 }
 
 func (devices *DeviceSetDM) ensureInit() error {
+	utils.Debugf("ensureInit(). Initialized: %v", devices.initialized)
 	if !devices.initialized {
 		devices.initialized = true
-		err := devices.initDevmapper()
-		if err != nil {
+		if err := devices.initDevmapper(); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -907,13 +878,11 @@ func NewDeviceSetDM(root string) *DeviceSetDM {
 		base = "docker-" + base
 	}
 
-	devices := &DeviceSetDM{
-		initialized: false,
-		root:        root,
+	return &DeviceSetDM{
+		initialized:  false,
+		root:         root,
 		devicePrefix: base,
+		MetaData:     MetaData{Devices: make(map[string]*DevInfo)},
+		activeMounts: make(map[string]int),
 	}
-	devices.Devices = make(map[string]*DevInfo)
-	devices.activeMounts = make(map[string]int)
-
-	return devices
 }

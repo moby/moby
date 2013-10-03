@@ -66,9 +66,8 @@ func (wrapper *DeviceSetWrapper) HasActivatedDevice(hash string) bool {
 }
 
 func NewDeviceSetWrapper(wrapped DeviceSet, prefix string) DeviceSet {
-	wrapper := &DeviceSetWrapper{
+	return &DeviceSetWrapper{
 		wrapped: wrapped,
 		prefix:  prefix,
 	}
-	return wrapper
 }

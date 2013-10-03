@@ -59,7 +59,15 @@ func Debugf(format string, a ...interface{}) {
 			file = file[strings.LastIndex(file, "/")+1:]
 		}
 
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
+		_, file2, line2, ok := runtime.Caller(2)
+		if !ok {
+			file2 = "<unknown>"
+			line2 = -1
+		} else {
+			file2 = file2[strings.LastIndex(file2, "/")+1:]
+		}
+
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s:%d %s\n", file, line, file2, line2, format), a...)
 	}
 }
 

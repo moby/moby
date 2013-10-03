@@ -123,7 +123,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	defer removePidFile(pidfile)
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
