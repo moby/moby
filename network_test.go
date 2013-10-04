@@ -385,9 +385,9 @@ func TestNetworkOverlaps(t *testing.T) {
 }
 
 func TestCheckRouteOverlaps(t *testing.T) {
-	routesData := []string {"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24", }
+	routesData := []string{"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24"}
 
-	routes := []*net.IPNet {}
+	routes := []*net.IPNet{}
 	for _, addr := range routesData {
 		_, netX, _ := net.ParseCIDR(addr)
 		routes = append(routes, netX)

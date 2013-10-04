@@ -202,7 +202,7 @@ func newNetlinkRequest(proto, flags int) *NetlinkRequest {
 }
 
 type NetlinkSocket struct {
-	fd int
+	fd  int
 	lsa syscall.SockaddrNetlink
 }
 
@@ -223,18 +223,18 @@ func getNetlinkSocket() (*NetlinkSocket, error) {
 	return s, nil
 }
 
-func (s *NetlinkSocket)Close() {
+func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
 }
 
-func (s *NetlinkSocket)Send(request *NetlinkRequest) error {
+func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 	if err := syscall.Sendto(s.fd, request.ToWireFormat(), 0, &s.lsa); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *NetlinkSocket)Recieve() ([]syscall.NetlinkMessage, error) {
+func (s *NetlinkSocket) Recieve() ([]syscall.NetlinkMessage, error) {
 	rb := make([]byte, syscall.Getpagesize())
 	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
 	if err != nil {
@@ -247,7 +247,7 @@ func (s *NetlinkSocket)Recieve() ([]syscall.NetlinkMessage, error) {
 	return syscall.ParseNetlinkMessage(rb)
 }
 
-func (s *NetlinkSocket)GetPid() (uint32, error) {
+func (s *NetlinkSocket) GetPid() (uint32, error) {
 	lsa, err := syscall.Getsockname(s.fd)
 	if err != nil {
 		return 0, err
@@ -259,7 +259,7 @@ func (s *NetlinkSocket)GetPid() (uint32, error) {
 	return 0, fmt.Errorf("Wrong socket type")
 }
 
-func (s *NetlinkSocket)HandleAck(seq uint32) error {
+func (s *NetlinkSocket) HandleAck(seq uint32) error {
 	native := nativeEndian()
 
 	pid, err := s.GetPid()
@@ -295,8 +295,6 @@ done:
 
 	return nil
 }
-
-
 
 func AddDefaultGw(ip net.IP) error {
 	s, err := getNetlinkSocket()
@@ -391,7 +389,7 @@ func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
 }
 
 func zeroTerminated(s string) []byte {
-	bytes := make([]byte, len(s) + 1)
+	bytes := make([]byte, len(s)+1)
 	for i := 0; i < len(s); i++ {
 		bytes[i] = s[i]
 	}
@@ -406,7 +404,6 @@ func nonZeroTerminated(s string) []byte {
 	}
 	return bytes
 }
-
 
 func NetworkLinkAdd(name string, linkType string) error {
 	s, err := getNetlinkSocket()
@@ -429,7 +426,6 @@ func NetworkLinkAdd(name string, linkType string) error {
 
 	infoData := newRtAttr(syscall.IFLA_LINKINFO, kindData.ToWireFormat())
 	wb.AddData(infoData)
-
 
 	if err := s.Send(wb); err != nil {
 		return err
@@ -455,7 +451,6 @@ func NetworkGetRoutes() ([]*net.IPNet, error) {
 	if err := s.Send(wb); err != nil {
 		return nil, err
 	}
-
 
 	pid, err := s.GetPid()
 	if err != nil {
@@ -496,7 +491,7 @@ done:
 
 			msg := (*RtMsg)(unsafe.Pointer(&m.Data[0:syscall.SizeofRtMsg][0]))
 
-			if msg.Flags & syscall.RTM_F_CLONED != 0 {
+			if msg.Flags&syscall.RTM_F_CLONED != 0 {
 				// Ignore cloned routes
 				continue
 			}
@@ -524,8 +519,8 @@ done:
 				switch attr.Attr.Type {
 				case syscall.RTA_DST:
 					ip := attr.Value
-					ipNet = &net.IPNet {
-						IP: ip,
+					ipNet = &net.IPNet{
+						IP:   ip,
 						Mask: net.CIDRMask(int(msg.Dst_len), 8*len(ip)),
 					}
 				case syscall.RTA_OIF:
