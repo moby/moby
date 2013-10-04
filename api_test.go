@@ -336,9 +336,11 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersJSON(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
+	setTimeout(t, "getContainerJSON timed out", 5*time.Second, func() {
+		if err := getContainersJSON(srv, APIVERSION, r, req, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
 	containers := []APIContainers{}
 	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
 		t.Fatal(err)
@@ -374,7 +376,7 @@ func TestGetContainersExport(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err = getContainersExport(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	if err := getContainersExport(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
 

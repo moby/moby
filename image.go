@@ -310,7 +310,7 @@ func (image *Image) applyLayer(layer, target string) error {
 		update := updateTimes[i]
 
 		O_PATH := 010000000 // Not in syscall yet
-		var err error = nil
+		var err error
 		if update.mode&syscall.S_IFLNK == syscall.S_IFLNK {
 			// Update time on the symlink via O_PATH + futimes(), if supported by the kernel
 
@@ -321,7 +321,7 @@ func (image *Image) applyLayer(layer, target string) error {
 				return err
 			} else {
 				syscall.Futimes(fd, update.time)
-				_ = syscall.Close(fd)
+				syscall.Close(fd)
 			}
 		} else {
 			err = syscall.Utimes(update.path, update.time)
@@ -411,8 +411,8 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	// part of the container changes
 	dockerinitLayer, err := image.getDockerInitLayer()
 	if err != nil {
-		_ = devices.UnmountDevice(image.ID, mountDir)
-		_ = devices.RemoveDevice(image.ID)
+		devices.UnmountDevice(image.ID, mountDir)
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
@@ -491,8 +491,7 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 		return err
 	}
 
-	err = devices.UnmountDevice(id, root)
-	if err != nil {
+	if err = devices.UnmountDevice(id, root); err != nil {
 		return err
 	}
 
@@ -519,9 +518,9 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 	}
 
 	changes, err := ChangesDirs(root, rw)
-	_ = devices.UnmountDevice(image.ID, rw)
+	devices.UnmountDevice(image.ID, rw)
 	if !wasActivated {
-		_ = devices.DeactivateDevice(image.ID)
+		devices.DeactivateDevice(image.ID)
 	}
 	if err != nil {
 		return nil, err
