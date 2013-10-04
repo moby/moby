@@ -1,0 +1,23 @@
+# [PackageDev] target_format: plist, ext: tmLanguage
+---
+name: Dockerfile
+scopeName: source.dockerfile
+uuid: a39d8795-59d2-49af-aa00-fe74ee29576e
+
+patterns:
+# Keywords
+- name: keyword.control.dockerfile
+  match: ^\s*(FROM|MAINTAINER|RUN|CMD|EXPOSE|ENV|ADD)\s
+- name: keyword.operator.dockerfile
+  match: ^\s*(ENTRYPOINT|VOLUME|USER|WORKDIR)\s
+# String
+- name: string.quoted.double.dockerfile
+  begin: "\""
+  end: "\""
+  patterns:
+  - name: constant.character.escaped.dockerfile
+    match: \\.
+# Comment
+- name: comment.block.dockerfile
+  match: ^\s*#.*$
+...
