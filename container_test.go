@@ -1559,6 +1559,22 @@ func TestPrivilegedCanMount(t *testing.T) {
 	}
 }
 
+func TestLeastPrivilegedCanMknod(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-cap", "mknod", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mknod into semi-privileged container")
+	}
+}
+
+func TestLeastPrivilegedCanMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	if output, _ := runContainer(runtime, []string{"-cap", "sys_admin", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Could not mount into semi-privileged container")
+	}
+}
+
 func TestPrivilegedCannotMknod(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)

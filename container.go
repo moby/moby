@@ -89,6 +89,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	Privileged      bool
+	Capabilities    []string
 }
 
 type HostConfig struct {
@@ -194,6 +195,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	var flVolumesFrom utils.ListOpts
 	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+
+	var flCapabilities utils.ListOpts
+	cmd.Var(&flCapabilities, "cap", "Priviledges to white-list against deny-all capabilities policy")
 
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
@@ -310,6 +314,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		VolumesFrom:     strings.Join(flVolumesFrom, ","),
 		Entrypoint:      entrypoint,
 		Privileged:      *flPrivileged,
+		Capabilities:    flCapabilities,
 		WorkingDir:      *flWorkingDir,
 	}
 
