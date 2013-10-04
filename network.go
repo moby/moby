@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
 	"log"
 	"net"
@@ -119,7 +120,7 @@ func CreateBridgeIface(ifaceName string) error {
 		if err != nil {
 			return err
 		}
-		routes, err := NetworkGetRoutes()
+		routes, err := netlink.NetworkGetRoutes()
 		if err != nil {
 			return err
 		}
@@ -135,7 +136,7 @@ func CreateBridgeIface(ifaceName string) error {
 	}
 	utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 
-	if err := NetworkLinkAdd(ifaceName, "bridge"); err != nil {
+	if err := netlink.NetworkLinkAdd(ifaceName, "bridge"); err != nil {
 		return fmt.Errorf("Error creating bridge: %s", err)
 	}
 	iface, err := net.InterfaceByName(ifaceName)
@@ -146,10 +147,10 @@ func CreateBridgeIface(ifaceName string) error {
 	if err != nil {
 		return err
 	}
-	if NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
 		return fmt.Errorf("Unable to add private network: %s", err)
 	}
-	if err := NetworkLinkUp(iface); err != nil {
+	if err := netlink.NetworkLinkUp(iface); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
 	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,

@@ -1,4 +1,4 @@
-package docker
+package netlink
 
 import (
 	"encoding/binary"
