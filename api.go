@@ -214,6 +214,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	wf := utils.NewWriteFlusher(w)
+	defer wf.Close()
 	if since != 0 {
 		// If since, send previous events that happened after the timestamp
 		for _, event := range srv.events {
@@ -902,7 +903,9 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
+	wf := utils.NewWriteFlusher(w)
+	defer wf.Close()
+	b := NewBuildFile(srv, wf, !suppressOutput, !noCache, rm)
 	id, err := b.Build(context)
 	if err != nil {
 		fmt.Fprintf(w, "Error build: %s\n", err)
