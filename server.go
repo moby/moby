@@ -1064,7 +1064,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
 			return err
 		}
-		err := srv.runtime.graph.Delete(id)
+		err := srv.runtime.DeleteImage(id)
 		if err != nil {
 			return err
 		}
@@ -1138,7 +1138,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
 	if !autoPrune {
-		if err := srv.runtime.graph.Delete(img.ID); err != nil {
+		if err := srv.runtime.DeleteImage(img.ID); err != nil {
 			return nil, fmt.Errorf("Error deleting image %s: %s", name, err)
 		}
 		return nil, nil
@@ -1364,7 +1364,7 @@ func NewServer(config *DaemonConfig) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	srv := &Server{
+	runtime.srv = &Server{
 		runtime:     runtime,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
@@ -1372,18 +1372,14 @@ func NewServer(config *DaemonConfig) (*Server, error) {
 		listeners:   make(map[string]chan utils.JSONMessage),
 		reqFactory:  nil,
 	}
-	runtime.srv = srv
-	return srv, nil
+	return runtime.srv, nil
 }
 
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	if srv.reqFactory == nil {
-		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
-		md := &utils.HTTPMetaHeadersDecorator{
-			Headers: metaHeaders,
-		}
-		factory := utils.NewHTTPRequestFactory(ud, md)
-		srv.reqFactory = factory
+		srv.reqFactory = utils.NewHTTPRequestFactory(
+			utils.NewHTTPUserAgentDecorator(srv.versionInfos()...),
+			&utils.HTTPMetaHeadersDecorator{Headers: metaHeaders})
 	}
 	return srv.reqFactory
 }

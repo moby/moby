@@ -14,4 +14,5 @@ type DaemonConfig struct {
 	EnableIptables bool
 	BridgeIface    string
 	DefaultIp      net.IP
+	DeviceSet      DeviceSet
 }

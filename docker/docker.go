@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -85,6 +86,7 @@ func main() {
 			BridgeIface:    bridge,
 			ProtoAddresses: flHosts,
 			DefaultIp:      ip,
+			DeviceSet:      devmapper.NewDeviceSetDM(*flGraphPath),
 		}
 		if err := daemon(config); err != nil {
 			log.Fatal(err)
@@ -144,7 +146,7 @@ func daemon(config *docker.DaemonConfig) error {
 	defer removePidFile(config.Pidfile)
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)

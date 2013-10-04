@@ -3,11 +3,14 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -18,12 +21,13 @@ import (
 )
 
 const (
-	unitTestImageName     = "docker-test-image"
-	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestNetworkBridge = "testdockbr0"
-	unitTestStoreBase     = "/var/lib/docker/unit-tests"
-	testDaemonAddr        = "127.0.0.1:4270"
-	testDaemonProto       = "tcp"
+	unitTestImageName        = "docker-test-image"
+	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestNetworkBridge    = "testdockbr0"
+	unitTestStoreBase        = "/var/lib/docker/unit-tests"
+	unitTestStoreDevicesBase = "/var/lib/docker/unit-tests-devices"
+	testDaemonAddr           = "127.0.0.1:4270"
+	testDaemonProto          = "tcp"
 )
 
 var (
@@ -42,6 +46,9 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
+	for _, container := range runtime.List() {
+		container.EnsureUnmounted()
+	}
 	return os.RemoveAll(runtime.config.GraphPath)
 }
 
@@ -56,9 +63,15 @@ func cleanup(runtime *Runtime) error {
 	}
 	for _, image := range images {
 		if image.ID != unitTestImageID {
-			runtime.graph.Delete(image.ID)
+			runtime.DeleteImage(image.ID)
 		}
 	}
+	return nil
+}
+
+func cleanupLast(runtime *Runtime) error {
+	cleanup(runtime)
+	runtime.config.DeviceSet.Shutdown()
 	return nil
 }
 
@@ -69,6 +82,45 @@ func layerArchive(tarfile string) (io.Reader, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// Remove any leftover device mapper devices from earlier runs of the unit tests
+func removeDev(name string) {
+	path := filepath.Join("/dev/mapper", name)
+	fd, err := syscall.Open(path, syscall.O_RDONLY, 07777)
+	if err != nil {
+		if err == syscall.ENXIO {
+			// No device for this node, just remove it
+			os.Remove(path)
+			return
+		}
+	} else {
+		syscall.Close(fd)
+	}
+	if err := devmapper.RemoveDevice(name); err != nil {
+		panic(fmt.Errorf("Unable to remove existing device %s: %s", name, err))
+	}
+}
+
+func cleanupDevMapper() {
+	infos, _ := ioutil.ReadDir("/dev/mapper")
+	if infos != nil {
+		hasPool := false
+		for _, info := range infos {
+			name := info.Name()
+			if strings.HasPrefix(name, "docker-unit-tests-devices-") {
+				if name == "docker-unit-tests-devices-pool" {
+					hasPool = true
+				} else {
+					removeDev(name)
+				}
+			}
+			// We need to remove the pool last as the other devices block it
+			if hasPool {
+				removeDev("docker-unit-tests-devices-pool")
+			}
+		}
+	}
 }
 
 func init() {
@@ -84,11 +136,25 @@ func init() {
 		log.Fatal("docker tests need to be run as root")
 	}
 
+	cleanupDevMapper()
+
+	// Always start from a clean set of loopback mounts
+	err := os.RemoveAll(unitTestStoreDevicesBase)
+	if err != nil {
+		panic(err)
+	}
+
+	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
+	// Create a device, which triggers the initiation of the base FS
+	// This avoids other tests doing this and timing out
+	deviceset.AddDevice("init", "")
+
 	// Make it our Store root
 	config := &DaemonConfig{
 		GraphPath:   unitTestStoreBase,
 		AutoRestart: false,
 		BridgeIface: unitTestNetworkBridge,
+		DeviceSet:   deviceset,
 	}
 	if runtime, err := NewRuntimeFromDirectory(config); err != nil {
 		panic(err)
