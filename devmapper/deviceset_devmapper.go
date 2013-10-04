@@ -880,7 +880,6 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 }
 
 func (devices *DeviceSetDM) ensureInit() error {
-	utils.Debugf("ensureInit(). Initialized: %v", devices.initialized)
 	if !devices.initialized {
 		devices.initialized = true
 		if err := devices.initDevmapper(); err != nil {
