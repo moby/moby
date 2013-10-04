@@ -1,0 +1,26 @@
+DEST=$1
+
+set -ex
+
+# bundle_binary must be called first.
+prepare_test() {
+  # Copy the binary
+	# This will fail if the binary bundle hasn't been built
+	mkdir -p $DIR/usr/bin
+	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
+
+
+  # install test dependencies
+  go test -v -i -ldflags "$LDFLAGS"
+
+  # start docker pointing to the unit test graph
+  docker -d -g /var/lib/docker/unit-tests &
+
+  sleep 2
+
+  # pull the test image
+  docker pull docker-test-image
+}
+
+
+prepare_test
