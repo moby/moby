@@ -1131,11 +1131,17 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 func (cli *DockerCli) CmdLs(args ...string) error {
 	cmd := Subcmd("ls", "", "List links for containers")
+	flAll := cmd.Bool("a", false, "Show all links")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	v := url.Values{}
+	if *flAll {
+		v.Set("all", "1")
+	}
 
-	body, _, err := cli.call("GET", "/containers/links", nil)
+	body, _, err := cli.call("GET", "/containers/links?"+v.Encode(), nil)
 	if err != nil {
 		return err
 	}

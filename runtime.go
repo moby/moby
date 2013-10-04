@@ -473,6 +473,10 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
+	if id, err := runtime.idIndex.Get(name); err == nil {
+		name = id
+	}
+
 	entity := runtime.containerGraph.Get(name)
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
@@ -503,6 +507,9 @@ func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
 }
 
 func (runtime *Runtime) RenameLink(oldName, newName string) error {
+	if id, err := runtime.idIndex.Get(oldName); err == nil {
+		oldName = id
+	}
 	entity := runtime.containerGraph.Get(oldName)
 	if entity == nil {
 		return fmt.Errorf("Could not find entity for %s", oldName)
@@ -518,9 +525,15 @@ func (runtime *Runtime) RenameLink(oldName, newName string) error {
 }
 
 func (runtime *Runtime) Link(parentName, childName, alias string) error {
+	if id, err := runtime.idIndex.Get(parentName); err == nil {
+		parentName = id
+	}
 	parent := runtime.containerGraph.Get(parentName)
 	if parent == nil {
 		return fmt.Errorf("Could not get container for %s", parentName)
+	}
+	if id, err := runtime.idIndex.Get(childName); err == nil {
+		childName = id
 	}
 	child := runtime.containerGraph.Get(childName)
 	if child == nil {

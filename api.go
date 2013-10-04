@@ -1015,11 +1015,22 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 }
 
 func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
 	runtime := srv.runtime
+	all, err := getBoolParam(r.Form.Get("all"))
+	if err != nil {
+		return err
+	}
 
 	out := []APILink{}
-	err := runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
+	err = runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
 		if container := runtime.Get(e.ID()); container != nil {
+			if !all && strings.Contains(p, container.ID) {
+				return nil
+			}
 			out = append(out, APILink{
 				Path:        p,
 				ContainerID: container.ID,
@@ -1028,6 +1039,7 @@ func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *
 		}
 		return nil
 	}, -1)
+
 	if err != nil {
 		return err
 	}
