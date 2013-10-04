@@ -26,8 +26,9 @@ Vagrant::Config.run do |config|
     # Add Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
 
+    # Install jq, used by test scripts.
     pkg_cmd << "wget -q -O /usr/local/bin/jq http://stedolan.github.io/jq/download/linux64/jq; " \
-               "chmod 0700 /usr/local/bin/jq; " 
+               "chmod 0755 /usr/local/bin/jq; " 
 
     # Add guest additions if local vbox VM. As virtualbox is the default provider,
     # it is assumed it won't be explicitly stated.
