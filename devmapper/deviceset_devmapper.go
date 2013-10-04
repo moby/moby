@@ -442,6 +442,7 @@ func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*D
 }
 
 func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
+	utils.Debugf("activateDeviceIfNeeded()")
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
