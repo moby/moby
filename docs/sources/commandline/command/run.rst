@@ -12,7 +12,7 @@
 
     Run a command in a new container
 
-      -a=map[]: Attach to stdin, stdout or stderr.
+      -a=map[]: Attach to stdin, stdout or stderr
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
@@ -28,10 +28,12 @@
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container.
-      -entrypoint="": Overwrite the default entrypoint set by the image.
+      -volumes-from="": Mount all volumes from the given container
+      -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      -expose=[]: Expose a port from the container without publishing it to your host
+      -link="": Add link to another container (containerid:alias)
 
 Examples
 --------
@@ -82,4 +84,34 @@ working directory, by changing into the directory to the value
 returned by ``pwd``. So this combination executes the command
 using the container, but inside the current working directory.
 
+.. code-block:: bash
 
+    docker run -p 127.0.0.0::80 ubuntu bash
+
+This the ``-p`` flag now allows you to bind a port to a specific
+interface of the host machine.  In this example port ``80`` of the 
+container will have a dynamically allocated port bound to 127.0.0.1 
+of the host.
+
+.. code-block:: bash
+
+    docker run -p 127.0.0.1:80:80 ubuntu bash
+
+This will bind port ``80`` of the container to port ``80`` on 127.0.0.1 of your
+host machine.
+
+.. code-block:: bash
+
+    docker run -expose 80 ubuntu bash
+
+This will expose port ``80`` of the container for use within a link
+without publishing the port to the host system's interfaces.  
+
+.. code-block:: bash
+
+    docker run -link /redis:redis ubuntu bash
+
+The ``-link`` flag will link the container named ``/redis`` into the 
+newly created container with the alias ``redis``.  The new container
+can access the network and environment of the redis container via
+environment variables.
