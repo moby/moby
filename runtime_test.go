@@ -43,7 +43,7 @@ func nuke(runtime *Runtime) error {
 	}
 	wg.Wait()
 	runtime.networkManager.Close()
-	return os.RemoveAll(runtime.root)
+	return os.RemoveAll(runtime.config.GraphPath)
 }
 
 func cleanup(runtime *Runtime) error {
@@ -85,8 +85,6 @@ func init() {
 		log.Fatal("docker tests need to be run as root")
 	}
 
-	NetworkBridgeIface = unitTestNetworkBridge
-
 	// Setup the base runtime, which will be duplicated for each test.
 	// (no tests are run directly in the base)
 	setupBaseImage()
@@ -98,7 +96,12 @@ func init() {
 
 
 func setupBaseImage() {
-	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
+	config := &DaemonConfig{
+		GraphPath:   unitTestStoreBase,
+		AutoRestart: false,
+		BridgeIface: unitTestNetworkBridge,
+	}
+	runtime, err := NewRuntimeFromDirectory(config)
 	if err != nil {
 		log.Fatalf("Unable to create a runtime for tests:", err)
 	}
@@ -106,7 +109,6 @@ func setupBaseImage() {
 	// Create the "Server"
 	srv := &Server{
 		runtime:     runtime,
-		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -129,7 +131,6 @@ func spawnGlobalDaemon() {
 	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
 	srv := &Server{
 		runtime:     globalRuntime,
-		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
@@ -171,7 +172,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -211,12 +212,12 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
 
-	// Make sure crete with bad parameters returns an error
-	if _, err = runtime.Create(&Config{Image: GetTestImage(runtime).ID}); err == nil {
+	// Make sure create with bad parameters returns an error
+	if _, _, err = runtime.Create(&Config{Image: GetTestImage(runtime).ID}); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
-	if _, err := runtime.Create(
+	if _, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
@@ -230,30 +231,19 @@ func TestRuntimeCreate(t *testing.T) {
 		Cmd:       []string{"/bin/ls"},
 		PortSpecs: []string{"80"},
 	}
-	container, err = runtime.Create(config)
+	container, _, err = runtime.Create(config)
 
-	image, err := runtime.Commit(container, "testrepo", "testtag", "", "", config)
+	_, err = runtime.Commit(container, "testrepo", "testtag", "", "", config)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = runtime.Create(
-		&Config{
-			Image:     image.ID,
-			PortSpecs: []string{"80000:80"},
-		},
-	)
-	if err == nil {
-		t.Fatal("Builder.Create should throw an error when PortSpecs is invalid")
-	}
-
 }
 
 func TestDestroy(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	})
@@ -327,6 +317,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		strPort   string
 		runtime   = mkRuntime(t)
 		port      = 5554
+		p	  Port
 	)
 
 	for {
@@ -340,22 +331,34 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		} else {
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
-		container, err = runtime.Create(&Config{
-			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"sh", "-c", cmd},
-			PortSpecs: []string{fmt.Sprintf("%s/%s", strPort, proto)},
+		ep := make(map[Port]struct{}, 1)
+		p = Port(fmt.Sprintf("%s/%s", strPort, proto))
+		ep[p] = struct{}{}
+
+		container, _, err = runtime.Create(&Config{
+			Image:        GetTestImage(runtime).ID,
+			Cmd:          []string{"sh", "-c", cmd},
+			PortSpecs:    []string{fmt.Sprintf("%s/%s", strPort, proto)},
+			ExposedPorts: ep,
 		})
-		if container != nil {
-			break
-		}
 		if err != nil {
 			nuke(runtime)
 			t.Fatal(err)
 		}
+
+		if container != nil {
+			break
+		}
 		t.Logf("Port %v already in use, trying another one", strPort)
 	}
 
-	if err := container.Start(&HostConfig{}); err != nil {
+	hostConfig := &HostConfig{
+		PortBindings: make(map[Port][]PortBinding),
+	}
+	hostConfig.PortBindings[p] = []PortBinding{
+		{},
+	}
+	if err := container.Start(hostConfig); err != nil {
 		nuke(runtime)
 		t.Fatal(err)
 	}
@@ -369,7 +372,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 	// Even if the state is running, lets give some time to lxc to spawn the process
 	container.WaitTimeout(500 * time.Millisecond)
 
-	strPort = container.NetworkSettings.PortMapping[strings.Title(proto)][strPort]
+	strPort = container.NetworkSettings.Ports[p][0].HostPort
 	return runtime, container, strPort
 }
 
@@ -501,7 +504,8 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
+	runtime1.config.AutoRestart = false
+	runtime2, err := NewRuntimeFromDirectory(runtime1.config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -527,4 +531,272 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	container2.State.Running = false
+}
+
+func TestReloadContainerLinks(t *testing.T) {
+	runtime1 := mkRuntime(t)
+	defer nuke(runtime1)
+	// Create a container with one instance of docker
+	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
+	defer runtime1.Destroy(container1)
+
+	// Create a second container meant to be killed
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	defer runtime1.Destroy(container2)
+
+	// Start the container non blocking
+	hostConfig := &HostConfig{}
+	if err := container2.Start(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	h1 := &HostConfig{}
+	// Add a link to container 2
+	h1.Links = []string{utils.TruncateID(container2.ID) + ":first"}
+	if err := container1.Start(h1); err != nil {
+		t.Fatal(err)
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
+	}
+
+	if !container1.State.Running {
+		t.Fatalf("Container %s should appear as running bu isn't", container1.ID)
+	}
+
+	if len(runtime1.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
+	}
+
+	if !container2.State.Running {
+		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
+	}
+
+	// Here are are simulating a docker restart - that is, reloading all containers
+	// from scratch
+	runtime1.config.AutoRestart = true
+	runtime2, err := NewRuntimeFromDirectory(runtime1.config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime2)
+	if len(runtime2.List()) != 2 {
+		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
+	}
+	runningCount := 0
+	for _, c := range runtime2.List() {
+		if c.State.Running {
+			t.Logf("Running container found: %v (%v)", c.ID, c.Path)
+			runningCount++
+		}
+	}
+	if runningCount != 2 {
+		t.Fatalf("Expected 2 container alive, %d found", runningCount)
+	}
+
+	// Make sure container 2 ( the child of container 1 ) was registered and started first
+	// with the runtime
+	first := runtime2.containers.Front()
+	if first.Value.(*Container).ID != container2.ID {
+		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
+	}
+
+	t.Logf("Number of links: %d", runtime2.containerGraph.Refs("engine"))
+	// Verify that the link is still registered in the runtime
+	entity := runtime2.containerGraph.Get(fmt.Sprintf("/%s", container1.ID))
+	if entity == nil {
+		t.Fatal("Entity should not be nil")
+	}
+}
+
+func TestDefaultContainerName(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container := runtime.Get(shortId)
+	containerID := container.ID
+
+	paths := runtime.containerGraph.RefPaths(containerID)
+	if paths == nil || len(paths) == 0 {
+		t.Fatalf("Could not find edges for %s", containerID)
+	}
+	edge := paths[0]
+	if edge.ParentID != "0" {
+		t.Fatalf("Expected engine got %s", edge.ParentID)
+	}
+	if edge.EntityID != containerID {
+		t.Fatalf("Expected %s got %s", containerID, edge.EntityID)
+	}
+	if edge.Name != containerID {
+		t.Fatalf("Expected %s got %s", containerID, edge.Name)
+	}
+}
+
+func TestDefaultContainerRename(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container := runtime.Get(shortId)
+	containerID := container.ID
+
+	if err := runtime.RenameLink(fmt.Sprintf("/%s", containerID), "/webapp"); err != nil {
+		t.Fatal(err)
+	}
+
+	webapp, err := runtime.GetByName("/webapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if webapp.ID != container.ID {
+		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
+	}
+}
+
+func TestLinkChildContainer(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container := runtime.Get(shortId)
+
+	if err := runtime.RenameLink(fmt.Sprintf("/%s", container.ID), "/webapp"); err != nil {
+		t.Fatal(err)
+	}
+
+	webapp, err := runtime.GetByName("/webapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if webapp.ID != container.ID {
+		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
+	}
+
+	config, _, _, err = ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err = srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	childContainer := runtime.Get(shortId)
+	if err := runtime.RenameLink(fmt.Sprintf("/%s", childContainer.ID), "/db"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runtime.Link("/webapp", "/db", "db"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the child by it's new name
+	db, err := runtime.GetByName("/webapp/db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if db.ID != childContainer.ID {
+		t.Fatalf("Expect db id to match container id: %s != %s", db.ID, childContainer.ID)
+	}
+}
+
+func TestGetAllChildren(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container := runtime.Get(shortId)
+
+	if err := runtime.RenameLink(fmt.Sprintf("/%s", container.ID), "/webapp"); err != nil {
+		t.Fatal(err)
+	}
+
+	webapp, err := runtime.GetByName("/webapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if webapp.ID != container.ID {
+		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
+	}
+
+	config, _, _, err = ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shortId, _, err = srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	childContainer := runtime.Get(shortId)
+	if err := runtime.RenameLink(fmt.Sprintf("/%s", childContainer.ID), "/db"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runtime.Link("/webapp", "/db", "db"); err != nil {
+		t.Fatal(err)
+	}
+
+	children, err := runtime.Children("/webapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if children == nil {
+		t.Fatal("Children should not be nil")
+	}
+	if len(children) == 0 {
+		t.Fatal("Children should not be empty")
+	}
+
+	for key, value := range children {
+		if key != "/webapp/db" {
+			t.Fatalf("Expected /webapp/db got %s", key)
+		}
+		if value.ID != childContainer.ID {
+			t.Fatalf("Expected id %s got %s", childContainer.ID, value.ID)
+		}
+	}
 }

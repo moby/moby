@@ -1044,3 +1044,22 @@ func IsClosedError(err error) bool {
 	 */
 	return strings.HasSuffix(err.Error(), "use of closed network connection")
 }
+
+func PartParser(template, data string) (map[string]string, error) {
+	// ip:public:private
+	templateParts := strings.Split(template, ":")
+	parts := strings.Split(data, ":")
+	if len(parts) != len(templateParts) {
+		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
+	}
+	out := make(map[string]string, len(templateParts))
+
+	for i, t := range templateParts {
+		value := ""
+		if len(parts) > i {
+			value = parts[i]
+		}
+		out[t] = value
+	}
+	return out, nil
+}

@@ -424,3 +424,23 @@ func TestDependencyGraph(t *testing.T) {
 		t.Fatalf("Expected [d], found %v instead", res[2])
 	}
 }
+
+func TestParsePortMapping(t *testing.T) {
+	data, err := PartParser("ip:public:private", "192.168.1.1:80:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) != 3 {
+		t.FailNow()
+	}
+	if data["ip"] != "192.168.1.1" {
+		t.Fail()
+	}
+	if data["public"] != "80" {
+		t.Fail()
+	}
+	if data["private"] != "8080" {
+		t.Fail()
+	}
+}
