@@ -330,6 +330,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 		for _, image := range allImages {
 			var out APIImages
 			out.ID = image.ID
+			out.RepoTags = []string{"<none>:<none>"}
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
 			out.VirtualSize = image.getParentsSize(0) + image.Size
