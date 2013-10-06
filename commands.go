@@ -1097,27 +1097,29 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
 		}
 
+		var repo string
+		var tag string
 		for _, out := range outs {
-			if out.Repository == "" {
-				out.Repository = "<none>"
-			}
-			if out.Tag == "" {
-				out.Tag = "<none>"
-			}
+			for _, repotag := range out.RepoTags {
 
-			if !*noTrunc {
-				out.ID = utils.TruncateID(out.ID)
-			}
+				components := strings.SplitN(repotag, ":", 2)
+				repo = components[0]
+				tag = components[1]
 
-			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", out.Repository, out.Tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
-				if out.VirtualSize > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
-				} else {
-					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+				if !*noTrunc {
+					out.ID = utils.TruncateID(out.ID)
 				}
-			} else {
-				fmt.Fprintln(w, out.ID)
+
+				if !*quiet {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+					if out.VirtualSize > 0 {
+						fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
+					} else {
+						fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+					}
+				} else {
+					fmt.Fprintln(w, out.ID)
+				}
 			}
 		}
 
