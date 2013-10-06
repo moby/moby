@@ -30,6 +30,9 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 	exit 1
 }
 
+# Added to resolve an inconsistency from the documentation.
+cd "$(dirname $0)/../../."
+
 VERSION=$(cat ./VERSION)
 PKGVERSION="$VERSION"
 GITCOMMIT=$(git rev-parse --short HEAD)

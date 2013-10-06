@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"strconv"
 )
 
 type BuildFile interface {
@@ -194,8 +195,29 @@ func (b *buildFile) CmdExpose(args string) error {
 		return fmt.Errorf("EXPOSE cannot be used to bind to a host ip or port")
 	}
 	ports := strings.Split(args, " ")
-	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
-	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	// recreate ports slice as 'expandedPorts', expanding elements resembling
+	// "m-n" where m,n are ints into a slice of ints from m to n inclusive
+	var expandedPorts []string
+	for i := range ports {
+		if strings.Contains(ports[i], "-") {
+			portRange := strings.Split(ports[i], "-")
+			if len(portRange) < 2 {
+				return fmt.Errorf("EXPOSE ranges must be in format [0-9]+-[0-9]+")
+			}
+			begin, err_begin := strconv.Atoi(portRange[0])
+			end, err_end := strconv.Atoi(portRange[1])
+			if (err_begin != nil || err_end != nil) {
+				fmt.Errorf("EXPOSE range parsing error.")
+			}
+			for j := begin; j < (end + 1); j++ {
+				expandedPorts = append(expandedPorts, strconv.Itoa(j))
+			}
+		} else {
+			expandedPorts = append(expandedPorts, ports[i])
+		}
+	}
+	b.config.PortSpecs = append(expandedPorts, b.config.PortSpecs...)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", expandedPorts))
 }
 
 func (b *buildFile) CmdUser(args string) error {

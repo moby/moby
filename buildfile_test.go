@@ -347,11 +347,14 @@ func TestBuildCmd(t *testing.T) {
 func TestBuildExpose(t *testing.T) {
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
-        expose 4243
+        expose 4243 4244-4249
         `,
 		nil, nil}, t, nil, true)
 
-	if img.Config.PortSpecs[0] != "4243" {
+	if img.Config.PortSpecs[0] != "4243" &&
+	   img.Config.PortSpecs[1] != "4244" &&
+	   img.Config.PortSpecs[2] != "4245" &&
+	   img.Config.PortSpecs[6] != "4249" {
 		t.Fail()
 	}
 }
