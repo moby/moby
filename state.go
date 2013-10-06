@@ -38,6 +38,7 @@ func (s *State) setRunning(pid int) {
 
 func (s *State) setStopped(exitCode int) {
 	s.Running = false
+	s.Pid = 0
 	s.ExitCode = exitCode
 	s.FinishedAt = time.Now()
 }
