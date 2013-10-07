@@ -356,8 +356,8 @@ func (wrapper *DeviceSetWrapper) MountDevice(hash, path string) error {
 	return wrapper.wrapped.MountDevice(wrapper.wrap(hash), path)
 }
 
-func (wrapper *DeviceSetWrapper) UnmountDevice(hash, path string) error {
-	return wrapper.wrapped.UnmountDevice(wrapper.wrap(hash), path)
+func (wrapper *DeviceSetWrapper) UnmountDevice(hash, path string, deactivate bool) error {
+	return wrapper.wrapped.UnmountDevice(wrapper.wrap(hash), path, deactivate)
 }
 
 func (wrapper *DeviceSetWrapper) HasDevice(hash string) bool {

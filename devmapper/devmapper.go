@@ -14,6 +14,10 @@ package devmapper
 #include <linux/fs.h>
 #include <errno.h>
 
+#ifndef LOOP_CTL_GET_FREE
+#define LOOP_CTL_GET_FREE       0x4C82
+#endif
+
 char*			attach_loop_device(const char *filename, int *loop_fd_out)
 {
   struct loop_info64	loopinfo = {0};
@@ -56,19 +60,18 @@ char*			attach_loop_device(const char *filename, int *loop_fd_out)
     loop_fd = open(buf, O_RDWR);
     if (loop_fd < 0 && errno == ENOENT) {
       close(fd);
-      perror("open");
       fprintf (stderr, "no available loopback device!");
       return NULL;
     } else if (loop_fd < 0)
       continue;
 
     if (ioctl (loop_fd, LOOP_SET_FD, (void *)(size_t)fd) < 0) {
-      perror("ioctl");
+      int errsv = errno;
       close(loop_fd);
       loop_fd = -1;
-      if (errno != EBUSY) {
+      if (errsv != EBUSY) {
         close (fd);
-        fprintf (stderr, "cannot set up loopback device %s", buf);
+        fprintf (stderr, "cannot set up loopback device %s: %s", buf, strerror(errsv));
         return NULL;
       }
       continue;
@@ -387,4 +390,256 @@ func RemoveDevice(name string) error {
 
 func free(p *C.char) {
 	C.free(unsafe.Pointer(p))
+}
+
+func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error {
+	task, err := createTask(DeviceCreate, poolName)
+	if task == nil {
+		return err
+	}
+
+	size, err := GetBlockDeviceSize(dataFile)
+	if err != nil {
+		return fmt.Errorf("Can't get data size")
+	}
+
+	params := metadataFile.Name() + " " + dataFile.Name() + " 512 8192"
+	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
+		return fmt.Errorf("Can't add target")
+	}
+
+	var cookie uint32 = 0
+	if err := task.SetCookie(&cookie, 0); err != nil {
+		return fmt.Errorf("Can't set cookie")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running DeviceCreate")
+	}
+
+	UdevWait(cookie)
+
+	return nil
+}
+
+func createTask(t TaskType, name string) (*Task, error) {
+	task := TaskCreate(t)
+	if task == nil {
+		return nil, fmt.Errorf("Can't create task of type %d", int(t))
+	}
+	if err := task.SetName(name); err != nil {
+		return nil, fmt.Errorf("Can't set task name %s", name)
+	}
+	return task, nil
+}
+
+func getInfo(name string) (*Info, error) {
+	task, err := createTask(DeviceInfo, name)
+	if task == nil {
+		return nil, err
+	}
+	if err := task.Run(); err != nil {
+		return nil, err
+	}
+	return task.GetInfo()
+}
+
+func getStatus(name string) (uint64, uint64, string, string, error) {
+	task, err := createTask(DeviceStatus, name)
+	if task == nil {
+		utils.Debugf("getStatus: Error createTask: %s", err)
+		return 0, 0, "", "", err
+	}
+	if err := task.Run(); err != nil {
+		utils.Debugf("getStatus: Error Run: %s", err)
+		return 0, 0, "", "", err
+	}
+
+	devinfo, err := task.GetInfo()
+	if err != nil {
+		utils.Debugf("getStatus: Error GetInfo: %s", err)
+		return 0, 0, "", "", err
+	}
+	if devinfo.Exists == 0 {
+		utils.Debugf("getStatus: Non existing device %s", name)
+		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
+	}
+
+	_, start, length, target_type, params := task.GetNextTarget(0)
+	return start, length, target_type, params, nil
+}
+
+func setTransactionId(poolName string, oldId uint64, newId uint64) error {
+	task, err := createTask(DeviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector")
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("set_transaction_id %d %d", oldId, newId)); err != nil {
+		return fmt.Errorf("Can't set message")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running setTransactionId")
+	}
+	return nil
+}
+
+func suspendDevice(name string) error {
+	task, err := createTask(DeviceSuspend, name)
+	if task == nil {
+		return err
+	}
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running DeviceSuspend")
+	}
+	return nil
+}
+
+func resumeDevice(name string) error {
+	task, err := createTask(DeviceResume, name)
+	if task == nil {
+		return err
+	}
+
+	var cookie uint32 = 0
+	if err := task.SetCookie(&cookie, 0); err != nil {
+		return fmt.Errorf("Can't set cookie")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running DeviceSuspend")
+	}
+
+	UdevWait(cookie)
+
+	return nil
+}
+
+func createDevice(poolName string, deviceId int) error {
+	task, err := createTask(DeviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector")
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("create_thin %d", deviceId)); err != nil {
+		return fmt.Errorf("Can't set message")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running createDevice")
+	}
+	return nil
+}
+
+func deleteDevice(poolName string, deviceId int) error {
+	task, err := createTask(DeviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector")
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("delete %d", deviceId)); err != nil {
+		return fmt.Errorf("Can't set message")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running deleteDevice")
+	}
+	return nil
+}
+
+func removeDevice(name string) error {
+	task, err := createTask(DeviceRemove, name)
+	if task == nil {
+		return err
+	}
+	if err = task.Run(); err != nil {
+		return fmt.Errorf("Error running removeDevice")
+	}
+	return nil
+}
+
+func activateDevice(poolName string, name string, deviceId int, size uint64) error {
+	task, err := createTask(DeviceCreate, name)
+	if task == nil {
+		return err
+	}
+
+	params := fmt.Sprintf("%s %d", poolName, deviceId)
+	if err := task.AddTarget(0, size/512, "thin", params); err != nil {
+		return fmt.Errorf("Can't add target")
+	}
+
+	var cookie uint32 = 0
+	if err := task.SetCookie(&cookie, 0); err != nil {
+		return fmt.Errorf("Can't set cookie")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running DeviceCreate")
+	}
+
+	UdevWait(cookie)
+
+	return nil
+}
+
+func (devices *DeviceSetDM) createSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
+	devinfo, _ := getInfo(baseName)
+	doSuspend := devinfo != nil && devinfo.Exists != 0
+
+	if doSuspend {
+		if err := suspendDevice(baseName); err != nil {
+			return err
+		}
+	}
+
+	task, err := createTask(DeviceTargetMsg, poolName)
+	if task == nil {
+		if doSuspend {
+			resumeDevice(baseName)
+		}
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		if doSuspend {
+			resumeDevice(baseName)
+		}
+		return fmt.Errorf("Can't set sector")
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", deviceId, baseDeviceId)); err != nil {
+		if doSuspend {
+			resumeDevice(baseName)
+		}
+		return fmt.Errorf("Can't set message")
+	}
+
+	if err := task.Run(); err != nil {
+		if doSuspend {
+			resumeDevice(baseName)
+		}
+		return fmt.Errorf("Error running DeviceCreate")
+	}
+
+	if doSuspend {
+		if err := resumeDevice(baseName); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
