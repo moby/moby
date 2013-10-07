@@ -189,6 +189,18 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	{
+		`
+from {IMAGE}
+include foo
+include http://{SERVERADDR}/baz
+run    [ "$(cat /testfile1)" = "test1" ]
+run    [ "$(cat /testfile2)" = "test2" ]
+`,
+		[][2]string{{"foo", "run echo test1 > /testfile1"}},
+		[][2]string{{"/baz", "run echo test2 > /testfile2"}},
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands

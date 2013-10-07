@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -360,6 +361,49 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdInclude(externalDockerfile string) error {
+	if b.context == "" {
+		return fmt.Errorf("No context given. Impossible to use INCLUDE")
+	}
+
+	utils.Debugf("Including commands from %s", externalDockerfile)
+	var pathToDockerfile string
+
+	if utils.IsURL(externalDockerfile) {
+		remoteFile, err := utils.Download(externalDockerfile, ioutil.Discard)
+		if err != nil {
+			return err
+		}
+		body, err := ioutil.ReadAll(remoteFile.Body)
+		if err != nil {
+			return err
+		}
+		tmpFile, err := ioutil.TempFile("", "docker_remote_import")
+		defer os.RemoveAll(tmpFile.Name())
+
+		writer := bufio.NewWriter(tmpFile)
+		if _, err := writer.Write(body); err != nil {
+			return nil
+		}
+		if err = writer.Flush(); err != nil {
+			return nil
+		}
+		if err := tmpFile.Close(); err != nil {
+			return nil
+		}
+		pathToDockerfile = tmpFile.Name()
+	} else {
+		pathToDockerfile := path.Join(b.context, externalDockerfile)
+		if _, err := os.Stat(pathToDockerfile); os.IsNotExist(err) {
+			return fmt.Errorf("Cannot open %s referenced by INCLUDE", externalDockerfile)
+		}
+	}
+
+	b.processDockerfile(pathToDockerfile, externalDockerfile)
+
+	return nil
+}
+
 func (b *buildFile) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -454,10 +498,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	return nil
 }
 
-// Long lines can be split with a backslash
-var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
-
 func (b *buildFile) Build(context io.Reader) (string, error) {
+	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
@@ -472,12 +514,33 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
-	fileBytes, err := ioutil.ReadFile(filename)
-	if err != nil {
+
+	if err := b.processDockerfile(filename, "Dockerfile"); err != nil {
 		return "", err
 	}
+
+	if b.image != "" {
+		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
+		if b.rm {
+			b.clearTmp(b.tmpContainers)
+		}
+		return b.image, nil
+	}
+	return "", fmt.Errorf("An error occurred during the build\n")
+}
+
+func (b *buildFile) processDockerfile(pathToDockerfile string, filename string) error {
+	fileBytes, err := ioutil.ReadFile(pathToDockerfile)
+	if err != nil {
+		return err
+	}
+
+	// Long lines can be split with a backslash
+	lineContinuation := regexp.MustCompile(`\s*\\\s*\n`)
+
 	dockerfile := string(fileBytes)
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
+
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
@@ -487,7 +550,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		tmp := strings.SplitN(line, " ", 2)
 		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+			return fmt.Errorf("Invalid Dockerfile format")
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
@@ -499,23 +562,17 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 
 		stepN += 1
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+		fmt.Fprintf(b.out, "[%s] Step %d : %s %s\n", filename, stepN, strings.ToUpper(instruction), arguments)
 
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
-			return "", ret.(error)
+			return ret.(error)
 		}
 
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
-	if b.image != "" {
-		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
-		if b.rm {
-			b.clearTmp(b.tmpContainers)
-		}
-		return b.image, nil
-	}
-	return "", fmt.Errorf("An error occurred during the build\n")
+
+	return nil
 }
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
