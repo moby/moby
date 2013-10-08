@@ -188,33 +188,28 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	if err := srv.ContainerStart(id, hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerRestart(id, 1)
-	if err != nil {
+	if err := srv.ContainerRestart(id, 1); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStop(id, 1)
-	if err != nil {
+	if err := srv.ContainerStop(id, 1); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	if err := srv.ContainerStart(id, hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerKill(id)
-	if err != nil {
+	if err := srv.ContainerKill(id, 0); err != nil {
 		t.Fatal(err)
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	if err = srv.ContainerDestroy(id, true); err != nil {
+	if err := srv.ContainerDestroy(id, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -225,20 +220,18 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 }
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
-	var err error
 	runtime := mkRuntime(t)
-	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
+
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
-	_, err = srv.ContainerCreate(
+	if _, err := (*Server).ContainerCreate(&Server{runtime: runtime},
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Memory:    524287,
 			CpuShares: 1000,
 			Cmd:       []string{"/bin/cat"},
 		},
-	)
-	if err == nil {
+	); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
 
@@ -246,9 +239,11 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 
 func TestContainerTop(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now. Reported error: 'server_test.go:236: Expected 2 processes, found 1.'")
+
 	runtime := mkRuntime(t)
-	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
 
 	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
 	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)

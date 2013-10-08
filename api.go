@@ -42,6 +42,9 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 
 //If we don't do this, POST method without Content-type (even with empty body) will fail
 func parseForm(r *http.Request) error {
+	if r == nil {
+		return nil
+	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
 	}
@@ -139,13 +142,16 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 		return err
 	}
 	name := vars["name"]
-	s := r.Form.Get("signal")
-	signal := 9
-	if s != "" {
-		if s, err := strconv.Atoi(s); err != nil {
-			return err
-		} else {
-			signal = s
+
+	signal := 0
+	if r != nil {
+		s := r.Form.Get("signal")
+		if s != "" {
+			if s, err := strconv.Atoi(s); err != nil {
+				return err
+			} else {
+				signal = s
+			}
 		}
 	}
 

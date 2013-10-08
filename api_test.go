@@ -347,6 +347,8 @@ func TestGetContainersJSON(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
+	beginLen := runtime.containers.Len()
+
 	container, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "test"},
@@ -370,7 +372,7 @@ func TestGetContainersJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(containers) != 1 {
-		t.Fatalf("Expected %d container, %d found", 1, len(containers))
+		t.Fatalf("Expected %d container, %d found (started with: %d)", 1, len(containers), beginLen)
 	}
 	if containers[0].ID != container.ID {
 		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ID, containers[0].ID)

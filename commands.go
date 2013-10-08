@@ -545,6 +545,18 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) forwardAllSignals(cid string) {
+	sigc := make(chan os.Signal, 1)
+	utils.CatchAll(sigc)
+	go func() {
+		for s := range sigc {
+			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
+				utils.Debugf("Error sending signal: %s", err)
+			}
+		}
+	}()
+}
+
 func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 	attach := cmd.Bool("a", false, "Attach container's stdout/stderr and forward all signals to the process")
@@ -575,15 +587,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		if !container.Config.Tty {
-			sigc := make(chan os.Signal, 1)
-			utils.CatchAll(sigc)
-			go func() {
-				for s := range sigc {
-					if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cmd.Arg(0), s), nil); err != nil {
-						utils.Debugf("Error sending signal: %s", err)
-					}
-				}
-			}()
+			cli.forwardAllSignals(cmd.Arg(0))
 		}
 
 		if container.Config.Tty {
@@ -601,7 +605,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err)
 		})
 	}
 
@@ -1301,9 +1305,9 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
-	cmd := Subcmd("attach", "CONTAINER", "Attach to a running container")
+	cmd := Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
 	noStdin := cmd.Bool("nostdin", false, "Do not attach stdin")
-	proxy := cmd.Bool("proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
+	proxy := cmd.Bool("sig-proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1342,15 +1346,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *proxy && !container.Config.Tty {
-		sigc := make(chan os.Signal, 1)
-		utils.CatchAll(sigc)
-		go func() {
-			for s := range sigc {
-				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cmd.Arg(0), s), nil); err != nil {
-					utils.Debugf("Error sending signal: %s", err)
-				}
-			}
-		}()
+		cli.forwardAllSignals(cmd.Arg(0))
 	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err); err != nil {
@@ -1516,6 +1512,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	flRm := cmd.Lookup("rm")
 	autoRemove, _ := strconv.ParseBool(flRm.Value.String())
 
+	flSigProxy := cmd.Lookup("sig-proxy")
+	sigProxy, _ := strconv.ParseBool(flSigProxy.Value.String())
+
 	var containerIDFile *os.File
 	if len(hostConfig.ContainerIDFile) > 0 {
 		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
@@ -1592,6 +1591,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}
+	}
+
+	if sigProxy {
+		cli.forwardAllSignals(runResult.ID)
 	}
 
 	//start the container
