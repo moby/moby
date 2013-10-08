@@ -1067,11 +1067,31 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	}
 
 	if *flViz {
-		body, _, err := cli.call("GET", "/images/viz", false)
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cli.out, "%s", body)
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "digraph docker {\n")
+
+		for _, image := range outs {
+			if image.ParentId == "" {
+				fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", utils.TruncateID(image.ID))
+			} else {
+				fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", utils.TruncateID(image.ParentId), utils.TruncateID(image.ID))
+			}
+			if image.RepoTags[0] != "<none>:<none>" {
+				fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", utils.TruncateID(image.ID), utils.TruncateID(image.ID), strings.Join(image.RepoTags, "\\n"))
+			}
+		}
+
+		fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {

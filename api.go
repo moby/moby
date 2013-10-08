@@ -203,13 +203,6 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	}
 }
 
-func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := srv.ImagesViz(w); err != nil {
-		return err
-	}
-	return nil
-}
-
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return writeJSON(w, http.StatusOK, srv.DockerInfo())
 }
@@ -1046,7 +1039,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/info":                           getInfo,
 			"/version":                        getVersion,
 			"/images/json":                    getImagesJSON,
-			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,

@@ -233,44 +233,6 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	return img.ShortID(), nil
 }
 
-func (srv *Server) ImagesViz(out io.Writer) error {
-	images, _ := srv.runtime.graph.Map()
-	if images == nil {
-		return nil
-	}
-	out.Write([]byte("digraph docker {\n"))
-
-	var (
-		parentImage *Image
-		err         error
-	)
-	for _, image := range images {
-		parentImage, err = image.GetParent()
-		if err != nil {
-			return err
-		}
-		if parentImage != nil {
-			out.Write([]byte(" \"" + parentImage.ShortID() + "\" -> \"" + image.ShortID() + "\"\n"))
-		} else {
-			out.Write([]byte(" base -> \"" + image.ShortID() + "\" [style=invis]\n"))
-		}
-	}
-
-	reporefs := make(map[string][]string)
-
-	for name, repository := range srv.runtime.repositories.Repositories {
-		for tag, id := range repository {
-			reporefs[utils.TruncateID(id)] = append(reporefs[utils.TruncateID(id)], fmt.Sprintf("%s:%s", name, tag))
-		}
-	}
-
-	for id, repos := range reporefs {
-		out.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
-	}
-	out.Write([]byte(" base [style=invisible]\n}\n"))
-	return nil
-}
-
 func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	var (
 		allImages map[string]*Image
@@ -330,6 +292,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 		for _, image := range allImages {
 			var out APIImages
 			out.ID = image.ID
+			out.ParentId = image.Parent
 			out.RepoTags = []string{"<none>:<none>"}
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
