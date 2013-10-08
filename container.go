@@ -579,10 +579,12 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
+		container.buildHostnameAndHostsFiles("127.0.0.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
+		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 	}
 
 	// Make sure the config is compatible with the current kernel
@@ -866,6 +868,32 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) {
+	container.HostnamePath = path.Join(container.root, "hostname")
+	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	hostsContent := []byte(`
+127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+`)
+
+	container.HostsPath = path.Join(container.root, "hosts")
+
+	if container.Config.Domainname != "" {
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+	} else {
+		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
+	}
+
+	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
 func (container *Container) allocateNetwork() error {
