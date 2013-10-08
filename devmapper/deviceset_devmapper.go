@@ -690,6 +690,14 @@ func NewDeviceSetDM(root string) *DeviceSetDM {
 		base = "docker-" + base
 	}
 
+	// When run inside a container we prefix the device names, because the devmapper device
+	// namespace is shared between all containers, and we don't want to mess with docker running
+	// on the host. To get a unique prefix we use that device node and the inode of the docker root dir
+	var stat syscall.Stat_t
+	if os.Getenv("container") != "" && syscall.Stat(root, &stat) == nil {
+		base = fmt.Sprintf("%s-%d:%d", base, stat.Dev, stat.Ino)
+	}
+
 	return &DeviceSetDM{
 		initialized:  false,
 		root:         root,
