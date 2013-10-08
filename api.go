@@ -71,10 +71,8 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusForbidden
 	}	
 	
-	http.Error(w, err.Error(), statusCode)
-	if (err != nil) {
-		utils.Errorf("[error %d]", statusCode, err.Error())	
-	}
+	http.Error(w, err.Error(), statusCode)	
+	utils.Errorf("[error %d]", statusCode, err.Error())		
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
