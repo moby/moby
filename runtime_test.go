@@ -42,6 +42,7 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
+	runtime.networkManager.Close()
 	return os.RemoveAll(runtime.root)
 }
 

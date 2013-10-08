@@ -336,13 +336,20 @@ func newPortMapper() (*PortMapper, error) {
 type PortAllocator struct {
 	sync.Mutex
 	inUse    map[int]struct{}
-	fountain chan (int)
+	fountain chan int
+	quit     chan bool
 }
 
 func (alloc *PortAllocator) runFountain() {
 	for {
 		for port := portRangeStart; port < portRangeEnd; port++ {
-			alloc.fountain <- port
+			select {
+			case alloc.fountain <- port:
+			case quit := <-alloc.quit:
+				if quit {
+					return
+				}
+			}
 		}
 	}
 }
@@ -376,10 +383,18 @@ func (alloc *PortAllocator) Acquire(port int) (int, error) {
 	return port, nil
 }
 
+func (alloc *PortAllocator) Close() error {
+	alloc.quit <- true
+	close(alloc.quit)
+	close(alloc.fountain)
+	return nil
+}
+
 func newPortAllocator() (*PortAllocator, error) {
 	allocator := &PortAllocator{
 		inUse:    make(map[int]struct{}),
 		fountain: make(chan int),
+		quit:     make(chan bool),
 	}
 	go allocator.runFountain()
 	return allocator, nil
@@ -391,6 +406,7 @@ type IPAllocator struct {
 	queueAlloc    chan allocatedIP
 	queueReleased chan net.IP
 	inUse         map[int32]struct{}
+	quit          chan bool
 }
 
 type allocatedIP struct {
@@ -435,6 +451,10 @@ func (alloc *IPAllocator) run() {
 		}
 
 		select {
+		case quit := <-alloc.quit:
+			if quit {
+				return
+			}
 		case alloc.queueAlloc <- ip:
 			alloc.inUse[newNum] = struct{}{}
 		case released := <-alloc.queueReleased:
@@ -467,12 +487,21 @@ func (alloc *IPAllocator) Release(ip net.IP) {
 	alloc.queueReleased <- ip
 }
 
+func (alloc *IPAllocator) Close() error {
+	alloc.quit <- true
+	close(alloc.quit)
+	close(alloc.queueAlloc)
+	close(alloc.queueReleased)
+	return nil
+}
+
 func newIPAllocator(network *net.IPNet) *IPAllocator {
 	alloc := &IPAllocator{
 		network:       network,
 		queueAlloc:    make(chan allocatedIP),
 		queueReleased: make(chan net.IP),
 		inUse:         make(map[int32]struct{}),
+		quit:          make(chan bool),
 	}
 
 	go alloc.run()
@@ -662,6 +691,19 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 	return iface, nil
 }
 
+func (manager *NetworkManager) Close() error {
+	err1 := manager.tcpPortAllocator.Close()
+	err2 := manager.udpPortAllocator.Close()
+	err3 := manager.ipAllocator.Close()
+	if err1 != nil {
+		return err1
+	}
+	if err2 != nil {
+		return err2
+	}
+	return err3
+}
+
 func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 
 	if bridgeIface == DisableNetworkBridge {
@@ -708,5 +750,6 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		udpPortAllocator: udpPortAllocator,
 		portMapper:       portMapper,
 	}
+
 	return manager, nil
 }
