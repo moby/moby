@@ -303,7 +303,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	cli.LoadConfigFile()
-	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
+	authconfig, ok := cli.configFile.Configs[serverAddress]
 	if !ok {
 		authconfig = auth.AuthConfig{}
 	}
