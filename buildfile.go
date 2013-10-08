@@ -176,7 +176,7 @@ func (b *buildFile) CmdEnv(args string) error {
 func (b *buildFile) CmdCmd(args string) error {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
+		utils.Errorf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
 	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
@@ -296,7 +296,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		}
 		// First try to unpack the source as an archive
 	} else if err := UntarPath(origPath, destPath); err != nil {
-		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
+		utils.Errorf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
