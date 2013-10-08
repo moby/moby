@@ -100,11 +100,25 @@ func removeDev(name string) {
 		syscall.Close(fd)
 	}
 	if err := devmapper.RemoveDevice(name); err != nil {
-		panic(fmt.Errorf("Unable to remove existing device %s: %s", name, err))
+		log.Fatalf("Unable to remove device %s needed to get a freash unit test environment", name)
 	}
 }
 
 func cleanupDevMapper() {
+	// Unmount any leftover mounts from previous unit test runs
+	if data, err := ioutil.ReadFile("/proc/mounts"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			cols := strings.Split(line, " ")
+			if len(cols) >= 2 && strings.HasPrefix(cols[0], "/dev/mapper/docker-unit-tests-devices") {
+				err = syscall.Unmount(cols[1], 0)
+				if err != nil {
+					log.Fatalf("Unable to unmount %s needed to get a freash unit test environment: %s", cols[1], err)
+				}
+			}
+		}
+	}
+
+	// Remove any leftover devmapper devices from previous unit run tests
 	infos, _ := ioutil.ReadDir("/dev/mapper")
 	if infos != nil {
 		hasPool := false
