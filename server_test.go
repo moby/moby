@@ -108,6 +108,45 @@ func TestCreateRm(t *testing.T) {
 
 }
 
+func TestCreateRmVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, hostConfig, _, err := ParseRun([]string{"-v", "/srv", GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := srv.ContainerCreate(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
+	}
+
+	err = srv.ContainerStart(id, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerStop(id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = srv.ContainerDestroy(id, true); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(runtime.List()))
+	}
+}
+
 func TestCommit(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
