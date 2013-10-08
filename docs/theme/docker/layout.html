@@ -6,6 +6,9 @@
     <title>{{ meta['title'] if meta and meta['title'] else title }} - Docker Documentation</title>
     <meta name="description" content="{{ meta['description'] if meta }}" />
     <meta name="keywords" content="{{ meta['keywords'] if meta }}" />
+    <!-- Swiftype tags: https://swiftype.com/documentation/meta_tags -->
+    <meta property='st:popularity' content='4' />
+    <meta property='st:type' content='docker_doc' />
 
     {%- set url_root = pathto('', 1) %}
     {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
@@ -168,6 +171,10 @@
   Swiftype.resultContainingElement = '#st-results-container';
   Swiftype.attachElement = '#st-search-input';
   Swiftype.renderStyle = "overlay";
+  <!-- from https://swiftype.com/questions/how-can-i-make-more-popular-content-rank-higher 
+       Use "page" for now -- they don't subgroup by document type yet.
+    -->
+  Swiftype.searchFunctionalBoosts = {"page": {"popularity": "linear"}};
 
   var script = document.createElement('script');
   script.type = 'text/javascript';
