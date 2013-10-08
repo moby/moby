@@ -3,6 +3,11 @@
 Want to hack on Docker? Awesome! Here are instructions to get you started. They are probably not perfect, please let us know if anything feels
 wrong or incomplete.
 
+## Building and Testing Docker
+
+There are instructions on how to build and test docker [on the docker website](http://docs.docker.io/en/latest/contributing/devenvironment/).
+
+
 ## Contribution guidelines
 
 ### Pull requests are always welcome
