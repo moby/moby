@@ -166,13 +166,25 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
 	}
 	if config.EnableIptables {
+		// Enable NAT
 		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 		}
-		// Prevent inter-container communication by default
-		if err := iptables.Raw("-A", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"); err != nil {
-			return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+		// Accept all outgoing packets
+		if err := iptables.Raw("-I", "FORWARD", "1", "-i", config.BridgeIface, "-s", ifaceAddr, "-j", "ACCEPT"); err != nil {
+			return err
+		}
+		// Accept incoming packets for existing connections
+		if err := iptables.Raw("-I", "FORWARD", "2", "-o", config.BridgeIface, "-d", ifaceAddr, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"); err != nil {
+			return err
+		}
+		// Reject anything else
+		if err := iptables.Raw("-I", "FORWARD", "3", "-i", config.BridgeIface, "-j", "REJECT", "--reject-with", "icmp-port-unreachable"); err != nil {
+			return err
+		}
+		if err := iptables.Raw("-I", "FORWARD", "4", "-o", config.BridgeIface, "-j", "REJECT", "--reject-with", "icmp-port-unreachable"); err != nil {
+			return err
 		}
 	}
 	return nil
