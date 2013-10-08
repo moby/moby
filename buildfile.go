@@ -458,9 +458,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
-	name, err := ioutil.TempDir("/tmp", "docker-build")
+	name, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return "", err
 	}
