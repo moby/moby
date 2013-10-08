@@ -235,7 +235,7 @@ func (runtime *Runtime) restore() error {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
 		if err != nil {
-			utils.Errorf("Failed to load container %v: %v", id, err)
+			utils.Errorf("Failed to load container %s: %v", id, err)
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
