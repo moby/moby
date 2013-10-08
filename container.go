@@ -461,7 +461,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					_, err = io.Copy(cStdin, stdin)
 				}
 				if err != nil {
-					utils.Debugf("[error] attach stdin: %s\n", err)
+					utils.Errorf("[error] attach stdin: %s\n", err)
 				}
 				// Discard error, expecting pipe error
 				errors <- nil
@@ -486,7 +486,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				}
 				_, err := io.Copy(stdout, cStdout)
 				if err != nil {
-					utils.Debugf("[error] attach stdout: %s\n", err)
+					utils.Errorf("[error] attach stdout: %s\n", err)
 				}
 				errors <- err
 			}()
@@ -498,7 +498,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			}
 
 			if cStdout, err := container.StdoutPipe(); err != nil {
-				utils.Debugf("Error stdout pipe")
+				utils.Errorf("Error stdout pipe")
 			} else {
 				io.Copy(&utils.NopWriter{}, cStdout)
 			}
@@ -522,7 +522,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				}
 				_, err := io.Copy(stderr, cStderr)
 				if err != nil {
-					utils.Debugf("[error] attach stderr: %s\n", err)
+					utils.Errorf("[error] attach stderr: %s\n", err)
 				}
 				errors <- err
 			}()
@@ -534,7 +534,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			}
 
 			if cStderr, err := container.StderrPipe(); err != nil {
-				utils.Debugf("Error stdout pipe")
+				utils.Errorf("Error stdout pipe")
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)
 			}
@@ -553,7 +553,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		for i := 0; i < nJobs; i += 1 {
 			utils.Debugf("Waiting for job %d/%d\n", i+1, nJobs)
 			if err := <-errors; err != nil {
-				utils.Debugf("Job %d returned error %s. Aborting all jobs\n", i+1, err)
+				utils.Errorf("Job %d returned error %s. Aborting all jobs\n", i+1, err)
 				return err
 			}
 			utils.Debugf("Job %d completed successfully\n", i+1)
@@ -958,12 +958,12 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	// If the command does not exists, try to wait via lxc
 	if container.cmd == nil {
 		if err := container.waitLxc(); err != nil {
-			utils.Debugf("%s: Process: %s", container.ID, err)
+			utils.Errorf("%s: Process: %s", container.ID, err)
 		}
 	} else {
 		if err := container.cmd.Wait(); err != nil {
 			// Discard the error as any signals or non 0 returns will generate an error
-			utils.Debugf("%s: Process: %s", container.ID, err)
+			utils.Errorf("%s: Process: %s", container.ID, err)
 		}
 	}
 	utils.Debugf("Process finished")
@@ -984,19 +984,19 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	container.releaseNetwork()
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
-			utils.Debugf("%s: Error close stdin: %s", container.ID, err)
+			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 	if err := container.stdout.CloseWriters(); err != nil {
-		utils.Debugf("%s: Error close stdout: %s", container.ID, err)
+		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 	if err := container.stderr.CloseWriters(); err != nil {
-		utils.Debugf("%s: Error close stderr: %s", container.ID, err)
+		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
 	if container.ptyMaster != nil {
 		if err := container.ptyMaster.Close(); err != nil {
-			utils.Debugf("%s: Error closing Pty master: %s", container.ID, err)
+			utils.Errorf("%s: Error closing Pty master: %s", container.ID, err)
 		}
 	}
 
