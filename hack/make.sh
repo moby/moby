@@ -44,7 +44,7 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Use these flags when compiling the tests and final binary
-LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"'
+LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-all"'
 BUILDFLAGS='-tags netgo'
 
 bundle() {

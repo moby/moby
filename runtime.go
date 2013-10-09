@@ -134,7 +134,7 @@ func (runtime *Runtime) containerRoot(id string) string {
 // Load reads the contents of a container from disk and registers
 // it with Register.
 // This is typically done at startup.
-func (runtime *Runtime) Load(id string) (*Container, error) {
+func (runtime *Runtime) load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
@@ -144,9 +144,6 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	}
 	if container.State.Running {
 		container.State.Ghost = true
-	}
-	if err := runtime.Register(container); err != nil {
-		return nil, err
 	}
 	return container, nil
 }
@@ -289,9 +286,11 @@ func (runtime *Runtime) restore() error {
 	if err != nil {
 		return err
 	}
+
+	containers := []*Container{}
 	for i, v := range dir {
 		id := v.Name()
-		container, err := runtime.Load(id)
+		container, err := runtime.load(id)
 		if i%21 == 0 && os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
@@ -300,7 +299,66 @@ func (runtime *Runtime) restore() error {
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
+		containers = append(containers, container)
 	}
+
+	deviceSet := runtime.deviceSet
+	for _, container := range containers {
+
+		// Perform a migration for aufs containers
+		if !deviceSet.HasDevice(container.ID) {
+			contents, err := ioutil.ReadDir(container.rwPath())
+			if err != nil {
+				if !os.IsNotExist(err) {
+					utils.Debugf("[migration] Error reading rw dir %s", err)
+				}
+				continue
+			}
+
+			if len(contents) > 0 {
+				utils.Debugf("[migration] Begin migration of %s", container.ID)
+
+				image, err := runtime.graph.Get(container.Image)
+				if err != nil {
+					utils.Debugf("[migratoin] Failed to get image %s", err)
+					continue
+				}
+
+				unmount := func() {
+					if err := image.Unmount(runtime, container.RootfsPath(), container.ID); err != nil {
+						utils.Debugf("[migraton] Failed to unmount image %s", err)
+					}
+				}
+
+				if err := image.Mount(runtime, container.RootfsPath(), container.rwPath(), container.ID); err != nil {
+					utils.Debugf("[migratoin] Failed to mount image %s", err)
+					continue
+				}
+
+				if err := image.applyLayer(container.rwPath(), container.RootfsPath()); err != nil {
+					utils.Debugf("[migration] Failed to apply layer %s", err)
+					unmount()
+					continue
+				}
+
+				unmount()
+
+				if err := os.RemoveAll(container.rwPath()); err != nil {
+					utils.Debugf("[migration] Failed to remove rw dir %s", err)
+				}
+
+				utils.Debugf("[migration] End migration of %s", container.ID)
+			}
+		}
+
+	}
+
+	for _, container := range containers {
+		if err := runtime.Register(container); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+		}
+	}
+
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
