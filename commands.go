@@ -1057,6 +1057,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	all := cmd.Bool("a", false, "show all images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
+	flTree := cmd.Bool("tree", false, "output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1092,6 +1093,52 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
+	} else if *flTree {
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
+		if err != nil {
+			return err
+		}
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		var startImageArg = cmd.Arg(0)
+		var startImage APIImages
+
+		var roots []APIImages
+		var byParent = make(map[string][]APIImages)
+		for _, image := range outs {
+			if image.ParentId == "" {
+				roots = append(roots, image)
+			} else {
+				if children, exists := byParent[image.ParentId]; exists {
+					byParent[image.ParentId] = append(children, image)
+				} else {
+					byParent[image.ParentId] = []APIImages{image}
+				}
+			}
+
+			if startImageArg != "" {
+				if startImageArg == image.ID || startImageArg == utils.TruncateID(image.ID) {
+					startImage = image
+				}
+
+				for _, repotag := range image.RepoTags {
+					if repotag == startImageArg {
+						startImage = image
+					}
+				}
+			}
+		}
+
+		if startImageArg != "" {
+			WalkTree(cli, noTrunc, []APIImages{startImage}, byParent, "")
+		} else {
+			WalkTree(cli, noTrunc, roots, byParent, "")
+		}
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {
@@ -1148,6 +1195,47 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	}
 	return nil
+}
+
+func WalkTree(cli *DockerCli, noTrunc *bool, images []APIImages, byParent map[string][]APIImages, prefix string) {
+	if len(images) > 1 {
+		length := len(images)
+		for index, image := range images {
+			if index+1 == length {
+				PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+				}
+			} else {
+				PrintTreeNode(cli, noTrunc, image, prefix+"|─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"| ")
+				}
+			}
+		}
+	} else {
+		for _, image := range images {
+			PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+			if subimages, exists := byParent[image.ID]; exists {
+				WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+			}
+		}
+	}
+}
+
+func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string) {
+	var imageID string
+	if *noTrunc {
+		imageID = image.ID
+	} else {
+		imageID = utils.TruncateID(image.ID)
+	}
+
+	if image.RepoTags[0] != "<none>:<none>" {
+		fmt.Fprintf(cli.out, "%s%s Tags: %s\n", prefix, imageID, strings.Join(image.RepoTags, ","))
+	} else {
+		fmt.Fprintf(cli.out, "%s%s\n", prefix, imageID)
+	}
 }
 
 func displayablePorts(ports []APIPort) string {
