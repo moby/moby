@@ -47,18 +47,18 @@ echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
 echo 'Acquire::http {No-Cache=True;};' | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
 
 # create the image (and tag $repo:$suite)
-sudo tar -c . | docker import - $repo $suite
+sudo sh -c "cd $target; tar -c . | docker import - $repo $suite"
 
 # test the image
-docker run -i -t $repo:$suite echo success
+sudo docker run -i -t $repo:$suite echo success
 
 if [ "$suite" = "$stableSuite" -o "$suite" = 'stable' ]; then
 	# tag latest
-	docker tag $repo:$suite $repo latest
+	sudo docker tag $repo:$suite $repo latest
 	
 	# tag the specific debian release version
-	ver=$(docker run $repo:$suite cat /etc/debian_version)
-	docker tag $repo:$suite $repo $ver
+	ver=$(sudo docker run $repo:$suite cat /etc/debian_version)
+	sudo docker tag $repo:$suite $repo $ver
 fi
 
 # cleanup
