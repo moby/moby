@@ -88,7 +88,7 @@ func init() {
 
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
-		panic(err)
+		log.Fatalf("Unable to create a runtime for tests:", err)
 	} else {
 		globalRuntime = runtime
 	}
@@ -104,13 +104,13 @@ func init() {
 	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
 		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
-			panic(err)
+			log.Fatalf("Unable to pull the test image:", err)
 		}
 	}
 	// Spawn a Daemon
 	go func() {
 		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
-			panic(err)
+			log.Fatalf("Unable to spawn the test daemon:", err)
 		}
 	}()
 
@@ -125,14 +125,15 @@ func init() {
 func GetTestImage(runtime *Runtime) *Image {
 	imgs, err := runtime.graph.Map()
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to get the test image:", err)
 	}
 	for _, image := range imgs {
 		if image.ID == unitTestImageID {
 			return image
 		}
 	}
-	panic(fmt.Errorf("Test image %v not found", unitTestImageID))
+	log.Fatalf("Test image %v not found", unitTestImageID)
+	return nil
 }
 
 func TestRuntimeCreate(t *testing.T) {
