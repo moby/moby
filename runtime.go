@@ -321,7 +321,56 @@ func (runtime *Runtime) restore() error {
 		}
 		return len(ic.Links) < len(jc.Links)
 	})
+
+	deviceSet := runtime.config.DeviceSet
 	for _, container := range containers {
+
+		// Perform a migration for aufs containers
+		if !deviceSet.HasDevice(container.ID) {
+			contents, err := ioutil.ReadDir(container.rwPath())
+			if err != nil {
+				if !os.IsNotExist(err) {
+					utils.Debugf("[migration] Error reading rw dir %s", err)
+				}
+				continue
+			}
+
+			if len(contents) > 0 {
+				utils.Debugf("[migration] Begin migration of %s", container.ID)
+
+				image, err := runtime.graph.Get(container.Image)
+				if err != nil {
+					utils.Debugf("[migratoin] Failed to get image %s", err)
+					continue
+				}
+
+				unmount := func() {
+					if err := image.Unmount(runtime, container.RootfsPath(), container.ID); err != nil {
+						utils.Debugf("[migraton] Failed to unmount image %s", err)
+					}
+				}
+
+				if err := image.Mount(runtime, container.RootfsPath(), container.rwPath(), container.ID); err != nil {
+					utils.Debugf("[migratoin] Failed to mount image %s", err)
+					continue
+				}
+
+				if err := image.applyLayer(container.rwPath(), container.RootfsPath()); err != nil {
+					utils.Debugf("[migration] Failed to apply layer %s", err)
+					unmount()
+					continue
+				}
+
+				unmount()
+
+				if err := os.RemoveAll(container.rwPath()); err != nil {
+					utils.Debugf("[migration] Failed to remove rw dir %s", err)
+				}
+
+				utils.Debugf("[migration] End migration of %s", container.ID)
+			}
+		}
+
 		if err := runtime.Register(container); err != nil {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 			continue
