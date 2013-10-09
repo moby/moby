@@ -59,7 +59,15 @@ func Debugf(format string, a ...interface{}) {
 			file = file[strings.LastIndex(file, "/")+1:]
 		}
 
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
+		_, file2, line2, ok := runtime.Caller(2)
+		if !ok {
+			file2 = "<unknown>"
+			line2 = -1
+		} else {
+			file2 = file2[strings.LastIndex(file2, "/")+1:]
+		}
+
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s:%d %s\n", file, line, file2, line2, format), a...)
 	}
 }
 
@@ -1020,4 +1028,56 @@ type StatusError struct {
 
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("Status: %d", e.Status)
+}
+
+func PartParser(template, data string) (map[string]string, error) {
+	// ip:public:private
+	templateParts := strings.Split(template, ":")
+	parts := strings.Split(data, ":")
+	if len(parts) != len(templateParts) {
+		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
+	}
+	out := make(map[string]string, len(templateParts))
+
+	for i, t := range templateParts {
+		value := ""
+		if len(parts) > i {
+			value = parts[i]
+		}
+		out[t] = value
+	}
+	return out, nil
+}
+
+func quote(word string, buf *bytes.Buffer) {
+	// Bail out early for "simple" strings
+	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
+		buf.WriteString(word)
+		return
+	}
+
+	buf.WriteString("'")
+
+	for i := 0; i < len(word); i++ {
+		b := word[i]
+		if b == '\'' {
+			// Replace literal ' with a close ', a \', and a open '
+			buf.WriteString("'\\''")
+		} else {
+			buf.WriteByte(b)
+		}
+	}
+
+	buf.WriteString("'")
+}
+
+func ShellQuoteArguments(args []string) string {
+	var buf bytes.Buffer
+	for i, arg := range args {
+		if i != 0 {
+			buf.WriteByte(' ')
+		}
+		quote(arg, &buf)
+	}
+	return buf.String()
 }

@@ -11,7 +11,7 @@ func displayFdGoroutines(t *testing.T) {
 }
 
 func TestFinal(t *testing.T) {
-	cleanup(globalRuntime)
+	cleanupLast(globalRuntime)
 	t.Logf("Start Fds: %d, Start Goroutines: %d", startFds, startGoroutines)
 	displayFdGoroutines(t)
 }

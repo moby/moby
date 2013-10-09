@@ -121,6 +121,9 @@ func TestRegister(t *testing.T) {
 }
 
 func TestMount(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
 	graph := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
 	archive, err := fakeTar()
@@ -144,12 +147,12 @@ func TestMount(t *testing.T) {
 	if err := os.MkdirAll(rw, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := image.Mount(rootfs, rw); err != nil {
+	if err := image.Mount(runtime, rootfs, rw, "testing"); err != nil {
 		t.Fatal(err)
 	}
 	// FIXME: test for mount contents
 	defer func() {
-		if err := Unmount(rootfs); err != nil {
+		if err := image.Unmount(runtime, rootfs, "testing"); err != nil {
 			t.Error(err)
 		}
 	}()
