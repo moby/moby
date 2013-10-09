@@ -1597,12 +1597,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		cli.forwardAllSignals(runResult.ID)
 	}
 
-	//start the container
-	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig); err != nil {
-		return err
-	}
-
-	var wait chan struct{}
+	var (
+		wait  chan struct{}
+		errCh chan error
+	)
 
 	if !config.AttachStdout && !config.AttachStderr {
 		// Make this asynchrone in order to let the client write to stdin before having to read the ID
@@ -1621,7 +1619,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		v := url.Values{}
-		v.Set("logs", "1")
 		v.Set("stream", "1")
 		var out, stderr io.Writer
 
@@ -1641,18 +1638,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}
 
-		signals := make(chan os.Signal, 1)
-		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-		go func() {
-			for sig := range signals {
-				fmt.Printf("\nReceived signal: %s; cleaning up\n", sig)
-				if err := cli.CmdStop("-t", "4", runResult.ID); err != nil {
-					fmt.Printf("failed to stop container: %v", err)
-				}
-			}
-		}()
+		errCh = utils.Go(func() error {
+			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr)
+		})
+	}
 
-		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr); err != nil {
+	//start the container
+	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig); err != nil {
+		return err
+	}
+
+	if errCh != nil {
+		if err := <-errCh; err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
@@ -1667,8 +1664,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 		if autoRemove {
-			_, _, err = cli.call("DELETE", "/containers/"+runResult.ID, nil)
-			if err != nil {
+			if _, _, err = cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
 				return err
 			}
 		}
@@ -1753,6 +1749,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		return nil, -1, err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, -1, err

@@ -99,6 +99,8 @@ type BindMap struct {
 }
 
 var (
+	ErrContainerStart           = errors.New("The container failed to start. Unkown error")
+	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
 	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictTtySigProxy      = errors.New("TTY mode (-t) already imply signal proxying (-sig-proxy)")
 	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
@@ -838,12 +840,43 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.ToDisk()
 	container.SaveHostConfig(hostConfig)
 	go container.monitor(hostConfig)
-	return nil
+
+	defer utils.Debugf("Container running: %v", container.State.Running)
+	// We wait for the container to be fully running.
+	// Timeout after 5 seconds. In case of broken pipe, just retry.
+	// Note: The container can run and finish correctly before
+	//       the end of this loop
+	for now := time.Now(); time.Since(now) < 5*time.Second; {
+		// If the container dies while waiting for it, just reutrn
+		if !container.State.Running {
+			return nil
+		}
+		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+		if err != nil {
+			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
+
+			output, err = exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+			if err != nil {
+				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
+				return err
+			}
+
+		}
+		if strings.Contains(string(output), "RUNNING") {
+			return nil
+		}
+		utils.Debugf("Waiting for the container to start (running: %v): %s\n", container.State.Running, output)
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if container.State.Running {
+		return ErrContainerStartTimeout
+	}
+	return ErrContainerStart
 }
 
 func (container *Container) Run() error {
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		return err
 	}
 	container.Wait()

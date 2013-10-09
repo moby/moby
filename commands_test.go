@@ -84,7 +84,7 @@ func TestRunHostname(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
 	})
 
@@ -115,7 +115,7 @@ func TestRunWorkdir(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
 	})
 
@@ -399,6 +399,8 @@ func TestRunDetach(t *testing.T) {
 		}
 	})
 
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdRun timed out", 15*time.Second, func() {
 		<-ch
@@ -422,30 +424,52 @@ func TestAttachDetach(t *testing.T) {
 	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalRuntime)
 
-	go stdout.Read(make([]byte, 1024))
-	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
 		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
 			t.Fatal(err)
 		}
-	})
+	}()
 
-	container := globalRuntime.List()[0]
+	var container *Container
+
+	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
+		buf := make([]byte, 1024)
+		n, err := stdout.Read(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		container = globalRuntime.List()[0]
+
+		if strings.Trim(string(buf[:n]), " \r\n") != container.ShortID() {
+			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ShortID(), buf[:n])
+		}
+	})
+	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
+		<-ch
+	})
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
 	cli = NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 
-	ch := make(chan struct{})
+	ch = make(chan struct{})
 	go func() {
 		defer close(ch)
 		if err := cli.CmdAttach(container.ShortID()); err != nil {
-			t.Fatal(err)
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
 		}
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
-			t.Fatal(err)
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
 		}
 	})
 
@@ -455,6 +479,7 @@ func TestAttachDetach(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
@@ -568,7 +593,7 @@ func TestRunAutoRemove(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
 	})
 

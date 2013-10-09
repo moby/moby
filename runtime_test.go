@@ -212,22 +212,16 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// Make sure crete with bad parameters returns an error
-	_, err = runtime.Create(
-		&Config{
-			Image: GetTestImage(runtime).ID,
-		},
-	)
-	if err == nil {
+	if _, err = runtime.Create(&Config{Image: GetTestImage(runtime).ID}); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
-	_, err = runtime.Create(
+	if _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
 		},
-	)
-	if err == nil {
+	); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
 
@@ -258,11 +252,11 @@ func TestRuntimeCreate(t *testing.T) {
 func TestDestroy(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
+
 	container, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
-	},
-	)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,11 +321,14 @@ func TestGet(t *testing.T) {
 }
 
 func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container, string) {
-	var err error
-	runtime := mkRuntime(t)
-	port := 5554
-	var container *Container
-	var strPort string
+	var (
+		err       error
+		container *Container
+		strPort   string
+		runtime   = mkRuntime(t)
+		port      = 5554
+	)
+
 	for {
 		port += 1
 		strPort = strconv.Itoa(port)
@@ -359,8 +356,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		t.Logf("Port %v already in use", strPort)
 	}
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		nuke(runtime)
 		t.Fatal(err)
 	}
