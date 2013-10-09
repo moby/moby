@@ -1659,12 +1659,19 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Detached mode
 		<-wait
 	} else {
-		status, err := getExitCode(cli, runResult.ID)
+		running, status, err := getExitCode(cli, runResult.ID)
 		if err != nil {
 			return err
 		}
 		if autoRemove {
-			if _, _, err = cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
+			if running {
+				return fmt.Errorf("Impossible to auto-remove a detached container")
+			}
+			// Wait for the process to
+			if _, _, err := cli.call("POST", "/containers/"+runResult.ID+"/wait", nil); err != nil {
+				return err
+			}
+			if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
 				return err
 			}
 		}
@@ -1984,20 +1991,22 @@ func waitForExit(cli *DockerCli, containerId string) (int, error) {
 	return out.StatusCode, nil
 }
 
-func getExitCode(cli *DockerCli, containerId string) (int, error) {
+// getExitCode perform an inspect on the container. It returns
+// the running state and the exit code.
+func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	body, _, err := cli.call("GET", "/containers/"+containerId+"/json", nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {
-			return -1, err
+			return false, -1, err
 		}
-		return -1, nil
+		return false, -1, nil
 	}
 	c := &Container{}
 	if err := json.Unmarshal(body, c); err != nil {
-		return -1, err
+		return false, -1, err
 	}
-	return c.State.ExitCode, nil
+	return c.State.Running, c.State.ExitCode, nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
