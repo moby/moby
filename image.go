@@ -494,13 +494,13 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 	return nil
 }
 
-func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, error) {
+func (image *Image) Changes(runtime *Runtime, root, base, id string) ([]Change, error) {
 	devices, err := runtime.GetDeviceSet()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(base, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -508,14 +508,17 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 
 	// We re-use rw for the temporary mount of the base image as its
 	// not used by device-mapper otherwise
-	err = devices.MountDevice(image.ID, rw)
+	err = devices.MountDevice(image.ID, base)
 	if err != nil {
 		return nil, err
 	}
 
-	changes, err := ChangesDirs(root, rw)
-	devices.UnmountDevice(image.ID, rw, !wasActivated)
+	changes, err := ChangesDirs(root, base)
+	devices.UnmountDevice(image.ID, base, !wasActivated)
 	if err != nil {
+		return nil, err
+	}
+	if err := os.RemoveAll(base); err != nil {
 		return nil, err
 	}
 	return changes, nil

@@ -1270,15 +1270,7 @@ func (container *Container) ExportRw() (Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return image.ExportChanges(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
-}
-
-func (container *Container) RwChecksum() (string, error) {
-	rwData, err := Tar(container.rwPath(), Xz)
-	if err != nil {
-		return "", err
-	}
-	return utils.HashData(rwData)
+	return image.ExportChanges(container.runtime, container.RootfsPath(), path.Join(container.root, "base"), container.ID)
 }
 
 func (container *Container) Export() (Archive, error) {
