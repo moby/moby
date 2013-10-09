@@ -22,6 +22,7 @@ Docker Remote API
 - Since API version 1.2, the auth configuration is now handled client
   side, so the client has to send the authConfig as POST in
   /images/(name)/push
+- Known client libraries may be found in :ref:`remote_api_client_libs`
 
 2. Versions
 ===========
