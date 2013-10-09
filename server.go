@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -958,6 +959,8 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
+			volumeId = strings.TrimRight(volumeId, "/layer")
+			volumeId = filepath.Base(volumeId)
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
