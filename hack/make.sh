@@ -45,7 +45,7 @@ fi
 
 # Use these flags when compiling the tests and final binary
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-all"'
-BUILDFLAGS='-tags netgo'
+BUILDFLAGS='-tags netgo -a'
 
 
 bundle() {
