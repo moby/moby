@@ -81,6 +81,8 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 {{end}}
 
 # standard mount point
+# Use mnt.putold as per https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/986385
+lxc.pivotdir = lxc_putold
 #  WARNING: procfs is a known attack vector and should probably be disabled
 #           if your userspace allows it. eg. see http://blog.zx2c4.com/749
 lxc.mount.entry = proc {{$ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
