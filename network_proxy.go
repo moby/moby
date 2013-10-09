@@ -61,10 +61,9 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	var broker = func(to, from *net.TCPConn) {
 		written, err := io.Copy(to, from)
 		if err != nil {
-			err, ok := err.(*net.OpError)
 			// If the socket we are writing to is shutdown with
 			// SHUT_WR, forward it to the other end of the pipe:
-			if ok && err.Err == syscall.EPIPE {
+			if err, ok := err.(*net.OpError); ok && err.Err == syscall.EPIPE {
 				from.CloseWrite()
 			}
 		}
@@ -99,6 +98,7 @@ done:
 func (proxy *TCPProxy) Run() {
 	quit := make(chan bool)
 	defer close(quit)
+
 	utils.Debugf("Starting proxy on tcp/%v for tcp/%v", proxy.frontendAddr, proxy.backendAddr)
 	for {
 		client, err := proxy.listener.Accept()
