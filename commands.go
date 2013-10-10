@@ -92,7 +92,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"kill", "Kill a running container"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		{"ls", "List links for containers"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
