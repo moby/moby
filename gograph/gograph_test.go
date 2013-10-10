@@ -59,6 +59,18 @@ func TestSetEntityWithDifferentName(t *testing.T) {
 	}
 }
 
+func TestSetDuplicateEntity(t *testing.T) {
+	db := newTestDb(t)
+	defer destroyTestDb(db)
+
+	if _, err := db.Set("/foo", "42"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Set("/foo", "43"); err == nil {
+		t.Fatalf("Creating an entry with a duplciate path did not cause an error")
+	}
+}
+
 func TestCreateChild(t *testing.T) {
 	db := newTestDb(t)
 	defer destroyTestDb(db)
