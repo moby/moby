@@ -1480,18 +1480,6 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 // Ports type - Used to parse multiple -p flags
 type ports []int
 
-// ListOpts type
-type ListOpts []string
-
-func (opts *ListOpts) String() string {
-	return fmt.Sprint(*opts)
-}
-
-func (opts *ListOpts) Set(value string) error {
-	*opts = append(*opts, value)
-	return nil
-}
-
 // AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
 type AttachOpts map[string]bool
 
