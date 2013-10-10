@@ -5,13 +5,14 @@ import (
 )
 
 type DaemonConfig struct {
-	Pidfile        string
-	GraphPath      string
-	ProtoAddresses []string
-	AutoRestart    bool
-	EnableCors     bool
-	Dns            []string
-	EnableIptables bool
-	BridgeIface    string
-	DefaultIp      net.IP
+	Pidfile                     string
+	GraphPath                   string
+	ProtoAddresses              []string
+	AutoRestart                 bool
+	EnableCors                  bool
+	Dns                         []string
+	EnableIptables              bool
+	BridgeIface                 string
+	DefaultIp                   net.IP
+	InterContainerCommunication bool
 }
