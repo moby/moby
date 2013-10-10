@@ -175,30 +175,30 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
 
-	var flPublish ListOpts
+	var flPublish utils.ListOpts
 	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
 
-	var flExpose ListOpts
+	var flExpose utils.ListOpts
 	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
 
-	var flEnv ListOpts
+	var flEnv utils.ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
 
-	var flDns ListOpts
+	var flDns utils.ListOpts
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	var flVolumesFrom ListOpts
+	var flVolumesFrom utils.ListOpts
 	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
 
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
-	var flLxcOpts ListOpts
+	var flLxcOpts utils.ListOpts
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
-	var flLinks ListOpts
+	var flLinks utils.ListOpts
 	cmd.Var(&flLinks, "link", "Add link to another container (containerid:alias)")
 
 	if err := cmd.Parse(args); err != nil {

@@ -175,7 +175,7 @@ func MergeConfig(userConf, imageConf *Config) error {
 	return nil
 }
 
-func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+func parseLxcConfOpts(opts utils.ListOpts) ([]KeyValuePair, error) {
 	out := make([]KeyValuePair, len(opts))
 	for i, o := range opts {
 		k, v, err := parseLxcOpt(o)
