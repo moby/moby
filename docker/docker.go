@@ -40,6 +40,7 @@ func main() {
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
 	flDefaultIp := flag.String("ip", "0.0.0.0", "Default ip address to use when binding a containers ports")
+	flInterContainerComm := flag.Bool("enable-container-comm", false, "Enable inter-container communication")
 
 	flag.Parse()
 
@@ -81,15 +82,16 @@ func main() {
 		ip := net.ParseIP(*flDefaultIp)
 
 		config := &docker.DaemonConfig{
-			Pidfile:        *pidfile,
-			GraphPath:      *flGraphPath,
-			AutoRestart:    *flAutoRestart,
-			EnableCors:     *flEnableCors,
-			Dns:            dns,
-			EnableIptables: *flEnableIptables,
-			BridgeIface:    bridge,
-			ProtoAddresses: flHosts,
-			DefaultIp:      ip,
+			Pidfile:                     *pidfile,
+			GraphPath:                   *flGraphPath,
+			AutoRestart:                 *flAutoRestart,
+			EnableCors:                  *flEnableCors,
+			Dns:                         dns,
+			EnableIptables:              *flEnableIptables,
+			BridgeIface:                 bridge,
+			ProtoAddresses:              flHosts,
+			DefaultIp:                   ip,
+			InterContainerCommunication: *flInterContainerComm,
 		}
 		if err := daemon(config); err != nil {
 			log.Fatal(err)
