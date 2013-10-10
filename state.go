@@ -13,6 +13,7 @@ type State struct {
 	Pid       int
 	ExitCode  int
 	StartedAt time.Time
+	FinishedAt time.Time
 	Ghost     bool
 }
 
@@ -38,5 +39,6 @@ func (s *State) setRunning(pid int) {
 func (s *State) setStopped(exitCode int) {
 	s.Running = false
 	s.Pid = 0
+	s.FinishedAt = time.Now()
 	s.ExitCode = exitCode
 }
