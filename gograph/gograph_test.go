@@ -22,7 +22,7 @@ func destroyTestDb(db *Database) {
 func TestNewDatabase(t *testing.T) {
 	db := newTestDb(t)
 	if db == nil {
-		t.Fatal("Datbase should not be nil")
+		t.Fatal("Database should not be nil")
 	}
 	defer destroyTestDb(db)
 }
