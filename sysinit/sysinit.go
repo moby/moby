@@ -1,4 +1,4 @@
-package docker
+package sysinit
 
 import (
 	"flag"

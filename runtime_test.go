@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
@@ -77,7 +78,7 @@ func init() {
 
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
-		SysInit()
+		sysinit.SysInit()
 		return
 	}
 
