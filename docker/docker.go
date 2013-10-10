@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -23,7 +24,7 @@ var (
 func main() {
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		// Running in init mode
-		docker.SysInit()
+		sysinit.SysInit()
 		return
 	}
 	// FIXME: Switch d and D ? (to be more sshd like)
