@@ -39,7 +39,7 @@ Update its dependencies.
 
     apt-get update
 
-Install ``python-software-properies``.
+Install ``python-software-properties``.
 
 .. code-block:: bash
 
