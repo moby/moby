@@ -114,6 +114,28 @@ get_block_size(int fd)
   return (int64_t)size;
 }
 
+extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
+
+static void
+log_cb(int level, const char *file, int line,
+       int dm_errno_or_class, const char *f, ...)
+{
+  char buffer[256];
+  va_list ap;
+
+  va_start(ap, f);
+  vsnprintf(buffer, 256, f, ap);
+  va_end(ap);
+
+  DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
+}
+
+static void
+log_with_errno_init ()
+{
+  dm_log_with_errno_init(log_cb);
+}
+
 */
 import "C"
 
@@ -126,6 +148,10 @@ import (
 	"syscall"
 	"unsafe"
 )
+
+type DevmapperLogger interface  {
+	log(level int, file string, line int, dmError int, message string)
+}
 
 const (
 	DeviceCreate TaskType = iota
@@ -349,6 +375,13 @@ func UdevWait(cookie uint32) error {
 
 func LogInitVerbose(level int) {
 	C.dm_log_init_verbose(C.int(level))
+}
+
+var dmLogger DevmapperLogger = nil
+
+func logInit(logger DevmapperLogger) {
+	dmLogger = logger
+	C.log_with_errno_init()
 }
 
 func SetDevDir(dir string) error {
