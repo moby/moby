@@ -104,9 +104,11 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 		return nil, err
 	}
 	defer conn.Close()
+	// FIXME: is rollback implicit when closing the connection?
 	rollback := func() {
 		conn.Exec("ROLLBACK")
 	}
+	// FIXME: use exclusive transactions to avoid race conditions
 	if _, err := conn.Exec("BEGIN"); err != nil {
 		return nil, err
 	}
