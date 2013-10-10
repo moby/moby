@@ -605,7 +605,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil)
 		})
 	}
 
@@ -1298,7 +1298,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1349,7 +1349,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cli.forwardAllSignals(cmd.Arg(0))
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1611,6 +1611,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 	}
 
+	hijacked := make(chan bool)
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
@@ -1639,8 +1641,20 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr)
+			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr, hijacked)
 		})
+	} else {
+		close(hijacked)
+	}
+
+	// Acknowledge the hijack before starting
+	select {
+	case <-hijacked:
+	case err := <-errCh:
+		if err != nil {
+			utils.Debugf("Error hijack: %s", err)
+			return err
+		}
 	}
 
 	//start the container
@@ -1829,7 +1843,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan bool) error {
 
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
@@ -1854,6 +1868,10 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
+
+	if started != nil {
+		started <- true
+	}
 
 	var receiveStdout chan error
 
