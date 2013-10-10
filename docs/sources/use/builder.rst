@@ -226,10 +226,10 @@ The copy obeys the following rules:
   with conflicts resolved in favor of 2) on a file-by-file basis.
 
 * If ``<src>`` is any other kind of file, it is copied individually
-  along with its metadata. In this case, if ``<dst>`` ends with a
+  along with its metadata. In this case, if ``<dest>`` ends with a
   trailing slash ``/``, it will be considered a directory and the
-  contents of ``<src>`` will be written at ``<dst>/base(<src>)``.
-* If ``<dst>`` does not end with a trailing slash, it will be
+  contents of ``<src>`` will be written at ``<dest>/base(<src>)``.
+* If ``<dest>`` does not end with a trailing slash, it will be
   considered a regular file and the contents of ``<src>`` will be
   written at ``<dst>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
