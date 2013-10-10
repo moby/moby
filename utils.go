@@ -346,3 +346,29 @@ func CopyFile(dstFile, srcFile *os.File) error {
 	_, err = io.Copy(dstFile, srcFile)
 	return err
 }
+
+func Lgetxattr(path string, attr string) ([]byte, error) {
+	var stat syscall.Stat_t
+	if err := syscall.Lstat(path, &stat); err != nil {
+		return nil, err
+	}
+	// No binding for lgetxattr yet...
+	if stat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
+		return nil, syscall.ENODATA
+	}
+
+	dest := make([]byte, 128)
+	sz, err := syscall.Getxattr(path, attr, dest)
+	if err != nil {
+		return nil, err
+	}
+	if sz > 128 {
+		dest = make([]byte, sz)
+		sz, err = syscall.Getxattr(path, attr, dest)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return dest[:sz], nil
+}

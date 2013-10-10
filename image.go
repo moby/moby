@@ -174,6 +174,8 @@ func (image *Image) applyLayer(layer, target string) error {
 			return err
 		}
 
+		srcCapability, _ := Lgetxattr(srcPath, "security.capability")
+
 		relPath, err := filepath.Rel(layer, srcPath)
 		if err != nil {
 			return err
@@ -282,6 +284,12 @@ func (image *Image) applyLayer(layer, target string) error {
 				if err != nil {
 					return err
 				}
+			}
+
+			if srcCapability != nil {
+				syscall.Setxattr(targetPath, "security.capability", srcCapability, 0)
+			} else {
+				syscall.Removexattr(targetPath, "security.capability")
 			}
 
 			ts := []syscall.Timeval{
