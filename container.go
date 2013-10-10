@@ -579,7 +579,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
-		container.buildHostnameAndHostsFiles("127.0.0.1")
+		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
@@ -886,10 +886,8 @@ ff02::2		ip6-allrouters
 	container.HostsPath = path.Join(container.root, "hosts")
 
 	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
 	} else {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
 
