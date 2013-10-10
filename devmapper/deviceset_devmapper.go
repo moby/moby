@@ -327,7 +327,18 @@ func setCloseOnExec(name string) {
 	}
 }
 
+func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, message string)  {
+	if level >= 7 {
+		return // Ignore _LOG_DEBUG
+	}
+
+	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+}
+
+
 func (devices *DeviceSetDM) initDevmapper() error {
+	logInit(devices)
+
 	info, err := getInfo(devices.getPoolName())
 	if info == nil {
 		utils.Debugf("Error device getInfo: %s", err)
