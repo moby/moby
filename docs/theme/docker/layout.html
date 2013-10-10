@@ -6,6 +6,9 @@
     <title>{{ meta['title'] if meta and meta['title'] else title }} - Docker Documentation</title>
     <meta name="description" content="{{ meta['description'] if meta }}" />
     <meta name="keywords" content="{{ meta['keywords'] if meta }}" />
+    <!-- Swiftype tags: https://swiftype.com/documentation/meta_tags -->
+    <meta property='st:popularity' content='4' />
+    <meta property='st:type' content='docker_doc' />
 
     {%- set url_root = pathto('', 1) %}
     {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
@@ -25,11 +28,20 @@
     + ['//fonts.googleapis.com/css?family=Cabin:400,700,400italic']
     %}
 
-    {%- if pagename == 'index' %}
-    <link rel="canonical" href="http://docs.docker.io/en/latest/">
-    {% else %}
-    <link rel="canonical" href="http://docs.docker.io/en/latest/{{ pagename }}/">
-    {% endif %}
+    {#
+        This part is hopefully complex because things like |cut '/index/' are not available in spinx jinja
+        and will make it crash. (and we need index/ out.
+    #}
+    <link rel="canonical" href="http://docs.docker.io/en/latest/
+    {%- for word in pagename.split('/') -%}
+        {%- if word != 'index' -%}
+            {%- if word != '' -%}
+                {{ word }}/
+            {%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+    ">
+
     {%- for cssfile in css_files %}
     <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
     {%- endfor %}
@@ -124,7 +136,14 @@
                                 <small>Current version:</small>
                                 <ul class="inline">
                                     {% for slug, url in versions %}
-                                    <li class="alternative"><a href="{{ url }}{{ pagename }}/" title="Switch to {{ slug }}">{{ slug }}</a></li>
+                                    <li class="alternative"><a href="{{ url }}{%- for word in pagename.split('/') -%}
+                                        {%- if word != 'index' -%}
+                                            {%- if word != '' -%}
+                                                {{ word }}/
+                                            {%- endif -%}
+                                        {%- endif -%}
+                                    {%- endfor -%}"
+                                    title="Switch to {{ slug }}">{{ slug }}</a></li>
                                     {% endfor %}
                                 </ul>
                             </div>
@@ -152,6 +171,9 @@
   Swiftype.resultContainingElement = '#st-results-container';
   Swiftype.attachElement = '#st-search-input';
   Swiftype.renderStyle = "overlay";
+  // from https://swiftype.com/questions/how-can-i-make-more-popular-content-rank-higher 
+  // Use "page" for now -- they don't subgroup by document type yet.
+  Swiftype.searchFunctionalBoosts = {"page": {"popularity": "linear"}};
 
   var script = document.createElement('script');
   script.type = 'text/javascript';

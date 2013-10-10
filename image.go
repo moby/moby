@@ -174,6 +174,8 @@ func (image *Image) applyLayer(layer, target string) error {
 			return err
 		}
 
+		srcCapability, _ := Lgetxattr(srcPath, "security.capability")
+
 		relPath, err := filepath.Rel(layer, srcPath)
 		if err != nil {
 			return err
@@ -284,6 +286,12 @@ func (image *Image) applyLayer(layer, target string) error {
 				}
 			}
 
+			if srcCapability != nil {
+				syscall.Setxattr(targetPath, "security.capability", srcCapability, 0)
+			} else {
+				syscall.Removexattr(targetPath, "security.capability")
+			}
+
 			ts := []syscall.Timeval{
 				syscall.NsecToTimeval(srcStat.Atim.Nano()),
 				syscall.NsecToTimeval(srcStat.Mtim.Nano()),
@@ -310,7 +318,7 @@ func (image *Image) applyLayer(layer, target string) error {
 		update := updateTimes[i]
 
 		O_PATH := 010000000 // Not in syscall yet
-		var err error = nil
+		var err error
 		if update.mode&syscall.S_IFLNK == syscall.S_IFLNK {
 			// Update time on the symlink via O_PATH + futimes(), if supported by the kernel
 
@@ -321,7 +329,7 @@ func (image *Image) applyLayer(layer, target string) error {
 				return err
 			} else {
 				syscall.Futimes(fd, update.time)
-				_ = syscall.Close(fd)
+				syscall.Close(fd)
 			}
 		} else {
 			err = syscall.Utimes(update.path, update.time)
@@ -378,28 +386,28 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	}
 
 	utils.Debugf("Creating device-mapper device for image id %s", image.ID)
-	err = devices.AddDevice(image.ID, image.Parent)
-	if err != nil {
+	if err := devices.AddDevice(image.ID, image.Parent); err != nil {
+		utils.Debugf("Error add device: %s", err)
 		return err
 	}
 
-	err = devices.MountDevice(image.ID, mountDir)
-	if err != nil {
-		_ = devices.RemoveDevice(image.ID)
+	if err := devices.MountDevice(image.ID, mountDir); err != nil {
+		utils.Debugf("Error mounting device: %s", err)
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
-	err = ioutil.WriteFile(path.Join(mountDir, ".docker-id"), []byte(image.ID), 0600)
-	if err != nil {
-		_ = devices.UnmountDevice(image.ID, mountDir)
-		_ = devices.RemoveDevice(image.ID)
+	if err := ioutil.WriteFile(path.Join(mountDir, ".docker-id"), []byte(image.ID), 0600); err != nil {
+		utils.Debugf("Error writing file: %s", err)
+		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
-	err = image.applyLayer(layerPath(root), mountDir)
-	if err != nil {
-		_ = devices.UnmountDevice(image.ID, mountDir)
-		_ = devices.RemoveDevice(image.ID)
+	if err = image.applyLayer(layerPath(root), mountDir); err != nil {
+		utils.Debugf("Error applying layer: %s", err)
+		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
@@ -411,28 +419,23 @@ func (image *Image) ensureImageDevice(devices DeviceSet) error {
 	// part of the container changes
 	dockerinitLayer, err := image.getDockerInitLayer()
 	if err != nil {
-		_ = devices.UnmountDevice(image.ID, mountDir)
-		_ = devices.RemoveDevice(image.ID)
-		return err
-	}
-	err = image.applyLayer(dockerinitLayer, mountDir)
-	if err != nil {
-		_ = devices.UnmountDevice(image.ID, mountDir)
-		_ = devices.RemoveDevice(image.ID)
+		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
-	err = devices.UnmountDevice(image.ID, mountDir)
-	if err != nil {
-		_ = devices.RemoveDevice(image.ID)
+	if err := image.applyLayer(dockerinitLayer, mountDir); err != nil {
+		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.RemoveDevice(image.ID)
+		return err
+	}
+
+	if err := devices.UnmountDevice(image.ID, mountDir, true); err != nil {
+		devices.RemoveDevice(image.ID)
 		return err
 	}
 
 	devices.SetInitialized(image.ID)
-
-	// No need to the device-mapper device to hang around once we've written
-	// the image, it can be enabled on-demand when needed
-	devices.DeactivateDevice(image.ID)
 
 	return nil
 }
@@ -455,8 +458,8 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	if err != nil {
 		return err
 	}
-	err = image.ensureImageDevice(devices)
-	if err != nil {
+
+	if err := image.ensureImageDevice(devices); err != nil {
 		return err
 	}
 
@@ -471,8 +474,7 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	}
 
 	utils.Debugf("Mounting container %s at %s for container", id, root)
-	err = devices.MountDevice(id, root)
-	if err != nil {
+	if err := devices.MountDevice(id, root); err != nil {
 		return err
 	}
 
@@ -493,12 +495,11 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 		return err
 	}
 
-	err = devices.UnmountDevice(id, root)
-	if err != nil {
+	if err = devices.UnmountDevice(id, root, true); err != nil {
 		return err
 	}
 
-	return devices.DeactivateDevice(id)
+	return nil
 }
 
 func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, error) {
@@ -521,10 +522,7 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 	}
 
 	changes, err := ChangesDirs(root, rw)
-	_ = devices.UnmountDevice(image.ID, rw)
-	if !wasActivated {
-		_ = devices.DeactivateDevice(image.ID)
-	}
+	devices.UnmountDevice(image.ID, rw, !wasActivated)
 	if err != nil {
 		return nil, err
 	}
