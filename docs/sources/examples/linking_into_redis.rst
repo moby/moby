@@ -58,19 +58,11 @@ Run the redis container
  
 This will run our redis container using the default port of 6379 and using
 as password to secure our service. Next we will link the redis container to 
-a new name using ``docker link`` and ``docker ls``.
+a new name using ``docker link``.
 
 
 Linking an existing container
 -----------------------------
-
-.. code-block:: bash
-
-    docker ls
-
-    NAME                                                                      ID                                                                 IMAGE
-    /39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89         39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89   crosbymichael/redis:latest
-
 
 Docker will automatically create an initial link with the container's id but
 because the is long and not very user friendly we can link the container with
@@ -79,12 +71,6 @@ a new name.
 .. code-block:: bash
 
     docker link /39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89 /redis
-
-    docker ls 
-
-    NAME                                                                      ID                                                                 IMAGE
-    /redis                                                                    39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89   crosbymichael/redis:latest
-    /39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89         39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89   crosbymichael/redis:latest
 
 Now we can reference our running redis service using the friendly name ``/redis``.  
 We can issue all the commands that you would expect; start, stop, attach, using the new name.
