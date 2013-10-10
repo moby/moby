@@ -53,9 +53,7 @@ Spin it up
 
    * Download the 'official' Precise64 base ubuntu virtual machine image from vagrantup.com
    * Boot this image in virtualbox
-   * Add the `Docker PPA sources <https://launchpad.net/~dotcloud/+archive/lxc-docker>`_ to /etc/apt/sources.lst
-   * Update your sources
-   * Install lxc-docker
+   * Follow official :ref:`ubuntu_linux` installation path
 
    You now have a Ubuntu Virtual Machine running with docker pre-installed.
 
