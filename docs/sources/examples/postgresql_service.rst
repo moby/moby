@@ -43,8 +43,8 @@ Install ``python-software-properies``.
 
 .. code-block:: bash
 
-    apt-get install python-software-properties
-    apt-get install software-properties-common
+    apt-get -y install python-software-properties
+    apt-get -y install software-properties-common
 
 Add Pitti's PostgreSQL repository. It contains the most recent stable release
 of PostgreSQL i.e. ``9.2``.
@@ -77,7 +77,8 @@ role.
 
 Adjust PostgreSQL configuration so that remote connections to the
 database are possible. Make sure that inside
-``/etc/postgresql/9.2/main/pg_hba.conf`` you have following line:
+``/etc/postgresql/9.2/main/pg_hba.conf`` you have following line (you will need
+to install an editor, e.g. ``apt-get install vim``):
 
 .. code-block:: bash
 
@@ -90,9 +91,17 @@ uncomment ``listen_addresses`` so it is as follows:
 
     listen_addresses='*'
 
-*Note:* this PostgreSQL setup is for development only purposes. Refer
-to PostgreSQL documentation how to fine-tune these settings so that it
-is enough secure.
+.. note::
+
+    This PostgreSQL setup is for development only purposes. Refer
+    to PostgreSQL documentation how to fine-tune these settings so that it
+    is enough secure.
+
+Exit.
+
+.. code-block:: bash
+
+    exit
 
 Create an image and assign it a name. ``<container_id>`` is in the
 Bash prompt; you can also locate it using ``docker ps -a``.
@@ -111,7 +120,9 @@ Finally, run PostgreSQL server via ``docker``.
         -D /var/lib/postgresql/9.2/main \
         -c config_file=/etc/postgresql/9.2/main/postgresql.conf')
 
-Connect the PostgreSQL server using ``psql``.
+Connect the PostgreSQL server using ``psql`` (You will need postgres installed
+on the machine.  For ubuntu, use something like
+``sudo apt-get install postgresql``).
 
 .. code-block:: bash
 
@@ -128,7 +139,7 @@ As before, create roles or databases if needed.
     docker=# CREATE DATABASE foo OWNER=docker;
     CREATE DATABASE
 
-Additionally, publish there your newly created image on Docker Index.
+Additionally, publish your newly created image on Docker Index.
 
 .. code-block:: bash
 
@@ -149,10 +160,11 @@ container starts.
 
 .. code-block:: bash
 
-    sudo docker commit <container_id> <your username> postgresql -run='{"Cmd": \
+    sudo docker commit -run='{"Cmd": \
       ["/bin/su", "postgres", "-c", "/usr/lib/postgresql/9.2/bin/postgres -D \
       /var/lib/postgresql/9.2/main -c \
-      config_file=/etc/postgresql/9.2/main/postgresql.conf"], "PortSpecs": ["5432"]}'
+      config_file=/etc/postgresql/9.2/main/postgresql.conf"], "PortSpecs": ["5432"]}' \
+      <container_id> <your username>/postgresql
 
 From now on, just type ``docker run <your username>/postgresql`` and
 PostgreSQL should automatically start.
