@@ -22,7 +22,7 @@ func destroyTestDb(db *Database) {
 func TestNewDatabase(t *testing.T) {
 	db := newTestDb(t)
 	if db == nil {
-		t.Fatal("Datbase should not be nil")
+		t.Fatal("Database should not be nil")
 	}
 	defer destroyTestDb(db)
 }
@@ -56,6 +56,18 @@ func TestSetEntityWithDifferentName(t *testing.T) {
 	db.Set("/test", "1")
 	if _, err := db.Set("/other", "1"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetDuplicateEntity(t *testing.T) {
+	db := newTestDb(t)
+	defer destroyTestDb(db)
+
+	if _, err := db.Set("/foo", "42"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Set("/foo", "43"); err == nil {
+		t.Fatalf("Creating an entry with a duplciate path did not cause an error")
 	}
 }
 

@@ -22,7 +22,9 @@ const (
         CONSTRAINT "parent_fk" FOREIGN KEY ("parent_id") REFERENCES "entity" ("id"),
         CONSTRAINT "entity_fk" FOREIGN KEY ("entity_id") REFERENCES "entity" ("id")
         );
+    `
 
+	createEdgeIndices = `
     CREATE UNIQUE INDEX "name_parent_ix" ON "edge" (parent_id, name);
     `
 )
@@ -67,6 +69,9 @@ func NewDatabase(dbPath string) (*Database, error) {
 	if _, err := conn.Exec(createEdgeTable); err != nil {
 		return nil, err
 	}
+	if _, err := conn.Exec(createEdgeIndices); err != nil {
+		return nil, err
+	}
 
 	rollback := func() {
 		conn.Exec("ROLLBACK")
@@ -99,9 +104,11 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 		return nil, err
 	}
 	defer conn.Close()
+	// FIXME: is rollback implicit when closing the connection?
 	rollback := func() {
 		conn.Exec("ROLLBACK")
 	}
+	// FIXME: use exclusive transactions to avoid race conditions
 	if _, err := conn.Exec("BEGIN"); err != nil {
 		return nil, err
 	}
