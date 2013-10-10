@@ -32,14 +32,14 @@ the process.
 
 ## System build dependencies
 
-To build docker, you will need the following system dependencies
+To build docker, you will need the following system dependencies:
 
 * An amd64 machine
 * A recent version of git and mercurial
-* Go version 1.1.2
+* Go version 1.2rc1
+* A copy of libdevmapper.a (statically compiled), and associated headers
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
-under the path *src/github.com/dotcloud/docker*. See 
-
+under the path *src/github.com/dotcloud/docker*.
 
 ## Go dependencies
 
@@ -55,15 +55,13 @@ NOTE: if you''re not able to package the exact version (to the exact commit) of 
 please get in touch so we can remediate! Who knows what discrepancies can be caused by even the
 slightest deviation. We promise to do our best to make everybody happy.
 
+## Disabling CGO for the net package
 
-## Disabling CGO
-
-Make sure to disable CGO on your system, and then recompile the standard library on the build
-machine:
+Make sure to disable CGO on your system for the net package using `-tags netgo`,
+and then recompile the standard library on the build machine:
 
 ```bash
-export CGO_ENABLED=0
-cd /tmp && echo 'package main' > t.go && go test -a -i -v
+go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
 ```
 
 ## Building Docker
@@ -71,7 +69,7 @@ cd /tmp && echo 'package main' > t.go && go test -a -i -v
 To build the docker binary, run the following command with the source checkout as the
 working directory:
 
-```
+```bash
 ./hack/make.sh binary
 ```
 
@@ -80,9 +78,9 @@ This will create a static binary under *./bundles/$VERSION/binary/docker-$VERSIO
 
 You are encouraged to use ./hack/make.sh without modification. If you must absolutely write
 your own script (are you really, really sure you need to? make.sh is really not that complicated),
-then please take care the respect the following:
+then please take care to respect the following:
 
-* In *./hack/make.sh*: $LDFLAGS, $VERSION and $GITCOMMIT
+* In *./hack/make.sh*: $LDFLAGS, $BUILDFLAGS, $VERSION and $GITCOMMIT
 * In *./hack/make/binary*: the exact build command to run
 
 You may be tempted to tweak these settings. In particular, being a rigorous maintainer, you may want
@@ -105,7 +103,6 @@ The test suite includes both live integration tests and unit tests, so you will 
 dependencies to be installed (see below).
 
 The test suite will also download a small test container, so you will need internet connectivity.
-
 
 ## Runtime dependencies
 

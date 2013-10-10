@@ -336,9 +336,11 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := getContainersJSON(srv, APIVERSION, r, req, nil); err != nil {
-		t.Fatal(err)
-	}
+	setTimeout(t, "getContainerJSON timed out", 5*time.Second, func() {
+		if err := getContainersJSON(srv, APIVERSION, r, req, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
 	containers := []APIContainers{}
 	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
 		t.Fatal(err)
@@ -374,7 +376,7 @@ func TestGetContainersExport(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err = getContainersExport(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
+	if err := getContainersExport(srv, APIVERSION, r, nil, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -646,12 +648,20 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err != nil {
+	if err := container.EnsureMounted(); err != nil {
+		t.Fatalf("Unable to mount container: %s", err)
+	}
+
+	if _, err := os.Stat(path.Join(container.RootfsPath(), "test")); err != nil {
 		if os.IsNotExist(err) {
 			utils.Debugf("Err: %s", err)
 			t.Fatalf("The test file has not been created")
 		}
 		t.Fatal(err)
+	}
+
+	if err := container.Unmount(); err != nil {
+		t.Fatalf("Unable to unmount container: %s", err)
 	}
 }
 

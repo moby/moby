@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -37,12 +38,28 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	Dns            []string
+	deviceSet      DeviceSet
 }
 
 var sysInitPath string
 
 func init() {
-	sysInitPath = utils.SelfPath()
+	env := os.Getenv("_DOCKER_INIT_PATH")
+	if env != "" {
+		sysInitPath = env
+	} else {
+		selfPath := utils.SelfPath()
+
+		// If we have a separate docker-init, use that, otherwise use the
+		// main docker binary
+		dir := filepath.Dir(selfPath)
+		dockerInitPath := filepath.Join(dir, "docker-init")
+		if _, err := os.Stat(dockerInitPath); err != nil {
+			sysInitPath = selfPath
+		} else {
+			sysInitPath = dockerInitPath
+		}
+	}
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -62,6 +79,32 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 		}
 	}
 	return nil
+}
+
+func hasFilesystemSupport(fstype string) bool {
+	content, err := ioutil.ReadFile("/proc/filesystems")
+	if err != nil {
+		log.Printf("WARNING: Unable to read /proc/filesystems, assuming fs %s is not supported.", fstype)
+		return false
+	}
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "nodev") {
+			line = line[5:]
+		}
+		line = strings.TrimSpace(line)
+		if line == fstype {
+			return true
+		}
+	}
+	return false
+}
+
+func (runtime *Runtime) GetDeviceSet() (DeviceSet, error) {
+	if runtime.deviceSet == nil {
+		return nil, fmt.Errorf("No device set available")
+	}
+	return runtime.deviceSet, nil
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
@@ -215,6 +258,24 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	runtime.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
+	}
+	if runtime.deviceSet.HasDevice(container.ID) {
+		if err := runtime.deviceSet.RemoveDevice(container.ID); err != nil {
+			return fmt.Errorf("Unable to remove device for %v: %v", container.ID, err)
+		}
+	}
+	return nil
+}
+
+func (runtime *Runtime) DeleteImage(id string) error {
+	err := runtime.graph.Delete(id)
+	if err != nil {
+		return err
+	}
+	if runtime.deviceSet.HasDevice(id) {
+		if err := runtime.deviceSet.RemoveDevice(id); err != nil {
+			return fmt.Errorf("Unable to remove device for %v: %v", id, err)
+		}
 	}
 	return nil
 }
@@ -428,8 +489,8 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
+func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns []string) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(flGraphPath, deviceSet, autoRestart)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +508,7 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -484,6 +545,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		capabilities:   &Capabilities{},
 		autoRestart:    autoRestart,
 		volumes:        volumes,
+		deviceSet:      deviceSet,
 	}
 
 	if err := runtime.restore(); err != nil {

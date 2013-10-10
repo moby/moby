@@ -297,12 +297,17 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
+	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
+
+	// Make sure the directory exists
+	if err := os.MkdirAll(path.Join(container.RootfsPath(), path.Dir(pth)), 0755); err != nil {
+		return err
+	}
+
 	// FIXME: Handle permissions/already existing dest
-	dest, err := os.Create(path.Join(container.rwPath(), pth))
+	dest, err := os.Create(path.Join(container.RootfsPath(), pth))
 	if err != nil {
 		return err
 	}
@@ -743,6 +748,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	}
 
 	params := []string{
+		"lxc-start",
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
@@ -791,7 +797,21 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	container.cmd = exec.Command("lxc-start", params...)
+	if RootIsShared() {
+		// lxc-start really needs / to be private, or all kinds of stuff break
+		// What we really want is to clone into a new namespace and then
+		// mount / MS_REC|MS_PRIVATE, but since we can't really clone or fork
+		// without exec in go we have to do this horrible shell hack...
+		shellString :=
+			"mount --make-rprivate /; exec " +
+				utils.ShellQuoteArguments(params)
+
+		params = []string{
+			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
+	}
+
+	container.cmd = exec.Command(params[0], params[1:]...)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -1111,7 +1131,15 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (Archive, error) {
-	return Tar(container.rwPath(), Uncompressed)
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
+	image, err := container.GetImage()
+	if err != nil {
+		return nil, err
+	}
+	return image.ExportChanges(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
 }
 
 func (container *Container) RwChecksum() (string, error) {
@@ -1153,20 +1181,33 @@ func (container *Container) EnsureMounted() error {
 	return container.Mount()
 }
 
+func (container *Container) EnsureUnmounted() error {
+	if mounted, err := container.Mounted(); err != nil {
+		return err
+	} else if !mounted {
+		return nil
+	}
+	return container.Unmount()
+}
+
 func (container *Container) Mount() error {
 	image, err := container.GetImage()
 	if err != nil {
 		return err
 	}
-	return image.Mount(container.RootfsPath(), container.rwPath())
+	return image.Mount(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
 }
 
 func (container *Container) Changes() ([]Change, error) {
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
+	}
+
 	image, err := container.GetImage()
 	if err != nil {
 		return nil, err
 	}
-	return image.Changes(container.rwPath())
+	return image.Changes(container.runtime, container.RootfsPath(), container.rwPath(), container.ID)
 }
 
 func (container *Container) GetImage() (*Image, error) {
@@ -1177,11 +1218,20 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Mounted() (bool, error) {
-	return Mounted(container.RootfsPath())
+	image, err := container.GetImage()
+	if err != nil {
+		return false, err
+	}
+	return image.Mounted(container.runtime, container.RootfsPath(), container.rwPath())
 }
 
 func (container *Container) Unmount() error {
-	return Unmount(container.RootfsPath())
+	image, err := container.GetImage()
+	if err != nil {
+		return err
+	}
+	err = image.Unmount(container.runtime, container.RootfsPath(), container.ID)
+	return err
 }
 
 // ShortID returns a shorthand version of the container's id for convenience.
@@ -1269,5 +1319,5 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return TarFilter(basePath, Uncompressed, filter)
+	return TarFilter(basePath, Uncompressed, filter, true, nil)
 }

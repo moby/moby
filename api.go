@@ -623,6 +623,7 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	}
 	name := vars["name"]
 	if err := srv.ContainerStart(name, hostConfig); err != nil {
+		utils.Debugf("error ContainerStart: %s", err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
