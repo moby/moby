@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
 	"log"
 	"net"
@@ -68,19 +69,6 @@ func networkSize(mask net.IPMask) int32 {
 	return int32(binary.BigEndian.Uint32(m)) + 1
 }
 
-//Wrapper around the ip command
-func ip(args ...string) (string, error) {
-	path, err := exec.LookPath("ip")
-	if err != nil {
-		return "", fmt.Errorf("command not found: ip")
-	}
-	output, err := exec.Command(path, args...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("ip failed: ip %v", strings.Join(args, " "))
-	}
-	return string(output), nil
-}
-
 // Wrapper around the iptables command
 func iptables(args ...string) error {
 	path, err := exec.LookPath("iptables")
@@ -93,29 +81,10 @@ func iptables(args ...string) error {
 	return nil
 }
 
-func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
-	utils.Debugf("Routes:\n\n%s", routes)
-	for _, line := range strings.Split(routes, "\n") {
-		if strings.Trim(line, "\r\n\t ") == "" || strings.Contains(line, "default") {
-			continue
-		}
-		_, network, err := net.ParseCIDR(strings.Split(line, " ")[0])
-		if err != nil {
-			// is this a mask-less IP address?
-			if ip := net.ParseIP(strings.Split(line, " ")[0]); ip == nil {
-				// fail only if it's neither a network nor a mask-less IP address
-				return fmt.Errorf("Unexpected ip route output: %s (%s)", err, line)
-			} else {
-				_, network, err = net.ParseCIDR(ip.String() + "/32")
-				if err != nil {
-					return err
-				}
-			}
-		}
-		if err == nil && network != nil {
-			if networkOverlaps(dockerNetwork, network) {
-				return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, line)
-			}
+func checkRouteOverlaps(networks []*net.IPNet, dockerNetwork *net.IPNet) error {
+	for _, network := range networks {
+		if networkOverlaps(dockerNetwork, network) {
+			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, network)
 		}
 	}
 	return nil
@@ -151,7 +120,7 @@ func CreateBridgeIface(ifaceName string) error {
 		if err != nil {
 			return err
 		}
-		routes, err := ip("route")
+		routes, err := netlink.NetworkGetRoutes()
 		if err != nil {
 			return err
 		}
@@ -167,15 +136,22 @@ func CreateBridgeIface(ifaceName string) error {
 	}
 	utils.Debugf("Creating bridge %s with network %s", ifaceName, ifaceAddr)
 
-	if output, err := ip("link", "add", ifaceName, "type", "bridge"); err != nil {
-		return fmt.Errorf("Error creating bridge: %s (output: %s)", err, output)
+	if err := netlink.NetworkLinkAdd(ifaceName, "bridge"); err != nil {
+		return fmt.Errorf("Error creating bridge: %s", err)
 	}
-
-	if output, err := ip("addr", "add", ifaceAddr, "dev", ifaceName); err != nil {
-		return fmt.Errorf("Unable to add private network: %s (%s)", err, output)
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return err
 	}
-	if output, err := ip("link", "set", ifaceName, "up"); err != nil {
-		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
+	ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
+	if err != nil {
+		return err
+	}
+	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+		return fmt.Errorf("Unable to add private network: %s", err)
+	}
+	if err := netlink.NetworkLinkUp(iface); err != nil {
+		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
 	if err := iptables("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 		"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
