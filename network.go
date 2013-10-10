@@ -165,14 +165,21 @@ func CreateBridgeIface(config *DaemonConfig) error {
 	if output, err := ip("link", "set", config.BridgeIface, "up"); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s (%s)", err, output)
 	}
+
 	if config.EnableIptables {
 		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 		}
-		// Prevent inter-container communication by default
-		if err := iptables.Raw("-A", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"); err != nil {
-			return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+
+		if !config.InterContainerCommunication {
+			utils.Debugf("Disable inter-container communication")
+			if err := iptables.Raw("-A", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"); err != nil {
+				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+			}
+		} else {
+			utils.Debugf("Enable inter-container communication")
+			iptables.Raw("-D", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP")
 		}
 	}
 	return nil
