@@ -22,7 +22,9 @@ const (
         CONSTRAINT "parent_fk" FOREIGN KEY ("parent_id") REFERENCES "entity" ("id"),
         CONSTRAINT "entity_fk" FOREIGN KEY ("entity_id") REFERENCES "entity" ("id")
         );
+    `
 
+	createEdgeIndices = `
     CREATE UNIQUE INDEX "name_parent_ix" ON "edge" (parent_id, name);
     `
 )
@@ -65,6 +67,9 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 	if _, err := conn.Exec(createEdgeTable); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(createEdgeIndices); err != nil {
 		return nil, err
 	}
 
