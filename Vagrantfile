@@ -4,6 +4,7 @@
 BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
 BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64.box"
 VF_BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64_vmware_fusion.box"
+VW_BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64_vmware.box"
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI    = ENV['AWS_AMI']    || "ami-d0f89fb9"
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
@@ -71,6 +72,13 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
   config.vm.provider :vmware_fusion do |f, override|
     override.vm.box = BOX_NAME
     override.vm.box_url = VF_BOX_URI
+    override.vm.synced_folder ".", "/vagrant", disabled: true
+    f.vmx["displayName"] = "docker"
+  end
+
+  config.vm.provider :vmware_workstation do |f, override|
+    override.vm.box = BOX_NAME
+    override.vm.box_url = VW_BOX_URI
     override.vm.synced_folder ".", "/vagrant", disabled: true
     f.vmx["displayName"] = "docker"
   end
