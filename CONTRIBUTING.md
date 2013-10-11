@@ -93,6 +93,17 @@ name and email address match your git configuration. The AUTHORS file is
 regenerated occasionally from the git commit history, so a mismatch may result
 in your changes being overwritten.
 
+### Approval
+
+Docker maintainers use LGTM (looks good to me) in comments on the code review
+to indicate acceptance.
+
+A change requires LGTMs from an absolute majority of the maintainers of each
+component affected. For example, if a change affects docs/ and registry/, it
+needs an absolute majority from the maintainers of docs/ AND, separately, an
+absolute majority of the maintainers of registry
+
+For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
 
 ### How can I become a maintainer?
 
