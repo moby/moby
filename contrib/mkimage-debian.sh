@@ -64,18 +64,18 @@ echo 'DPkg::Post-Invoke {"/bin/rm -f /var/cache/apt/archives/*.deb || true";};' 
 #  rm /etc/apt/apt.conf.d/no-cache
 
 # create the image (and tag $repo:$suite)
-sudo tar -c . | docker import - $repo $suite
+sudo sh -c "cd $target; tar -c . | docker import - $repo $suite"
 
 # test the image
-docker run -i -t $repo:$suite echo success
+sudo docker run -i -t $repo:$suite echo success
 
 if [ "$suite" = "$stableSuite" -o "$suite" = 'stable' ]; then
 	# tag latest
-	docker tag $repo:$suite $repo latest
+	sudo docker tag $repo:$suite $repo latest
 	
 	# tag the specific debian release version
-	ver=$(docker run $repo:$suite cat /etc/debian_version)
-	docker tag $repo:$suite $repo $ver
+	ver=$(sudo docker run $repo:$suite cat /etc/debian_version)
+	sudo docker tag $repo:$suite $repo $ver
 fi
 
 # cleanup
