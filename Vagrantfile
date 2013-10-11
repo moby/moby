@@ -39,6 +39,8 @@ Vagrant::Config.run do |config|
         "echo 'Installation of VBox Guest Additions is proceeding in the background.'; " \
         "echo '\"vagrant reload\" can be used in about 2 minutes to activate the new guest additions.'; "
     end
+    # Add vagrant user to the docker group
+    pkg_cmd << "usermod -a -G docker vagrant; "
     # Activate new kernel
     pkg_cmd << "shutdown -r +1; "
     config.vm.provision :shell, :inline => pkg_cmd
