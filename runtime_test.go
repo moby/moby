@@ -105,19 +105,19 @@ func removeDev(name string) {
 func cleanupDevMapper() {
 	infos, _ := ioutil.ReadDir("/dev/mapper")
 	if infos != nil {
-		hasPool := false
+		var pools []string
 		for _, info := range infos {
 			name := info.Name()
 			if strings.HasPrefix(name, "docker-unit-tests-devices-") {
-				if name == "docker-unit-tests-devices-pool" {
-					hasPool = true
+				if strings.HasSuffix(name,"-pool") {
+					pools = append(pools, name)
 				} else {
 					removeDev(name)
 				}
 			}
 			// We need to remove the pool last as the other devices block it
-			if hasPool {
-				removeDev("docker-unit-tests-devices-pool")
+			for _, n := range pools {
+				removeDev(n)
 			}
 		}
 	}
