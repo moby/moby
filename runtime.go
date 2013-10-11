@@ -287,7 +287,10 @@ func (runtime *Runtime) restore() error {
 		return err
 	}
 
+	deviceSet := runtime.deviceSet
 	containers := []*Container{}
+	containersToMigrate := []*Container{}
+
 	for i, v := range dir {
 		id := v.Name()
 		container, err := runtime.load(id)
@@ -300,68 +303,92 @@ func (runtime *Runtime) restore() error {
 		}
 		utils.Debugf("Loaded container %v", container.ID)
 		containers = append(containers, container)
+
+		if !deviceSet.HasDevice(container.ID) {
+			containersToMigrate = append(containersToMigrate, container)
+		}
 	}
 
-	deviceSet := runtime.deviceSet
-	for _, container := range containers {
-
-		// Perform a migration for aufs containers
-		if !deviceSet.HasDevice(container.ID) {
-			contents, err := ioutil.ReadDir(container.rwPath())
-			if err != nil {
-				if !os.IsNotExist(err) {
-					utils.Debugf("[migration] Error reading rw dir %s", err)
-				}
-				continue
-			}
-
-			if len(contents) > 0 {
-				utils.Debugf("[migration] Begin migration of %s", container.ID)
-
-				image, err := runtime.graph.Get(container.Image)
-				if err != nil {
-					utils.Debugf("[migratoin] Failed to get image %s", err)
-					continue
-				}
-
-				unmount := func() {
-					if err := image.Unmount(runtime, container.RootfsPath(), container.ID); err != nil {
-						utils.Debugf("[migraton] Failed to unmount image %s", err)
-					}
-				}
-
-				if err := image.Mount(runtime, container.RootfsPath(), container.rwPath(), container.ID); err != nil {
-					utils.Debugf("[migratoin] Failed to mount image %s", err)
-					continue
-				}
-
-				if err := image.applyLayer(container.rwPath(), container.RootfsPath()); err != nil {
-					utils.Debugf("[migration] Failed to apply layer %s", err)
-					unmount()
-					continue
-				}
-
-				unmount()
-
-				if err := os.RemoveAll(container.rwPath()); err != nil {
-					utils.Debugf("[migration] Failed to remove rw dir %s", err)
-				}
-
-				utils.Debugf("[migration] End migration of %s", container.ID)
-			}
+	// Migrate AUFS containers to device mapper
+	if len(containersToMigrate) > 0 {
+		if err := migrateToDeviceMapper(runtime, containersToMigrate); err != nil {
+			return err
 		}
-
 	}
 
 	for _, container := range containers {
 		if err := runtime.Register(container); err != nil {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+			continue
 		}
 	}
-
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
+
+	return nil
+}
+
+func migrateToDeviceMapper(runtime *Runtime, containers []*Container) error {
+	var (
+		image    *Image
+		contents []os.FileInfo
+		err      error
+	)
+
+	fmt.Printf("Migrating %d containers to new storage backend\n", len(containers))
+	for _, container := range containers {
+		if container.State.Running {
+			fmt.Printf("WARNING - Cannot migrate %s because the container is running.  Please stop the container and relaunch the daemon!")
+			continue
+		}
+
+		fmt.Printf("Migrating %s\n", container.ID)
+
+		if contents, err = ioutil.ReadDir(container.rwPath()); err != nil {
+			if !os.IsNotExist(err) {
+				fmt.Printf("Error reading rw dir %s\n", err)
+			}
+			continue
+		}
+
+		if len(contents) == 0 {
+			fmt.Printf("Skipping migration of %s because rw layer contains no changes\n")
+			continue
+		}
+
+		if image, err = runtime.graph.Get(container.Image); err != nil {
+			fmt.Printf("Failed to fetch image %s\n", err)
+			continue
+		}
+
+		unmount := func() {
+			if err = image.Unmount(runtime, container.RootfsPath(), container.ID); err != nil {
+				fmt.Printf("Failed to unmount image %s\n", err)
+			}
+		}
+
+		if err = image.Mount(runtime, container.RootfsPath(), container.rwPath(), container.ID); err != nil {
+			fmt.Printf("Failed to mount image %s\n", err)
+			continue
+		}
+
+		if err = image.applyLayer(container.rwPath(), container.RootfsPath()); err != nil {
+			fmt.Printf("Failed to apply layer in storage backend %s\n", err)
+			unmount()
+			continue
+		}
+
+		unmount()
+
+		if err = os.RemoveAll(container.rwPath()); err != nil {
+			fmt.Printf("Failed to remove rw layer %s\n", err)
+		}
+
+		fmt.Printf("Successful migration for %s\n", container.ID)
+	}
+	fmt.Printf("Migration complete\n")
+
 	return nil
 }
 
