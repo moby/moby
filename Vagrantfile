@@ -22,8 +22,14 @@ Vagrant::Config.run do |config|
     pkg_cmd = "wget -q -O - https://get.docker.io/gpg | apt-key add -;" \
       "echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list;" \
       "apt-get update -qq; apt-get install -q -y --force-yes lxc-docker; "
+
     # Add Ubuntu raring backported kernel
     pkg_cmd << "apt-get update -qq; apt-get install -q -y linux-image-generic-lts-raring; "
+
+    # Install jq, used by test scripts.
+    pkg_cmd << "wget -q -O /usr/local/bin/jq http://stedolan.github.io/jq/download/linux64/jq; " \
+               "chmod 0755 /usr/local/bin/jq; " 
+
     # Add guest additions if local vbox VM. As virtualbox is the default provider,
     # it is assumed it won't be explicitly stated.
     if ENV["VAGRANT_DEFAULT_PROVIDER"].nil? && ARGV.none? { |arg| arg.downcase.start_with?("--provider") }
