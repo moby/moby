@@ -277,12 +277,13 @@ func TestNetworkOverlaps(t *testing.T) {
 }
 
 func TestCheckRouteOverlaps(t *testing.T) {
-	routes := `default via 10.0.2.2 dev eth0
-10.0.2.0 dev eth0  proto kernel  scope link  src 10.0.2.15
-10.0.3.0/24 dev lxcbr0  proto kernel  scope link  src 10.0.3.1
-10.0.42.0/24 dev testdockbr0  proto kernel  scope link  src 10.0.42.1
-172.16.42.0/24 dev docker0  proto kernel  scope link  src 172.16.42.1
-192.168.142.0/24 dev eth1  proto kernel  scope link  src 192.168.142.142`
+	routesData := []string{"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24"}
+
+	routes := []*net.IPNet{}
+	for _, addr := range routesData {
+		_, netX, _ := net.ParseCIDR(addr)
+		routes = append(routes, netX)
+	}
 
 	_, netX, _ := net.ParseCIDR("172.16.0.1/24")
 	if err := checkRouteOverlaps(routes, netX); err != nil {

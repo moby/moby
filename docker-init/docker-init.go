@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/sysinit"
 )
 
 var (
@@ -11,6 +11,6 @@ var (
 
 func main() {
 	// Running in init mode
-	docker.SysInit()
+	sysinit.SysInit()
 	return
 }
