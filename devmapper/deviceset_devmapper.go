@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"sync"
+	"syscall"
 )
 
-const (
+var (
 	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
 	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
@@ -45,6 +45,30 @@ type DeviceSetDM struct {
 	NewTransactionId uint64
 	nextFreeDevice   int
 	activeMounts     map[string]int
+}
+
+func init() {
+	var err error
+
+	rawMetaSize := os.Getenv("DOCKER_LOOPBACK_META_SIZE")
+	rawDataSize := os.Getenv("DOCKER_LOOPBACK_DATA_SIZE")
+	rawBaseFSSize := os.Getenv("DOCKER_BASE_FS_SIZE")
+
+	if rawMetaSize != "" {
+		if defaultMetaDataLoopbackSize, err = strconv.ParseInt(rawMetaSize, 0, 0); err != nil {
+			panic(err)
+		}
+	}
+	if rawDataSize != "" {
+		if defaultDataLoopbackSize, err = strconv.ParseInt(rawDataSize, 0, 0); err != nil {
+			panic(err)
+		}
+	}
+	if rawBaseFSSize != "" {
+		if defaultBaseFsSize, err = strconv.ParseUint(rawBaseFSSize, 0, 0); err != nil {
+			panic(err)
+		}
+	}
 }
 
 func getDevName(name string) string {
@@ -317,7 +341,7 @@ func setCloseOnExec(name string) {
 	if fileInfos != nil {
 		for _, i := range fileInfos {
 			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
-			if link ==  name {
+			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
 					syscall.CloseOnExec(fd)
@@ -327,14 +351,13 @@ func setCloseOnExec(name string) {
 	}
 }
 
-func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, message string)  {
+func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, message string) {
 	if level >= 7 {
 		return // Ignore _LOG_DEBUG
 	}
 
 	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
-
 
 func (devices *DeviceSetDM) initDevmapper() error {
 	logInit(devices)
@@ -495,7 +518,6 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 		return err
 	}
 
-
 	return devices.removeDevice(hash)
 }
 
@@ -530,9 +552,8 @@ func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 	}
 
 	utils.Debugf("DeactivateDevice %s", hash)
-	return devices.deactivateDevice(hash);
+	return devices.deactivateDevice(hash)
 }
-
 
 func (devices *DeviceSetDM) Shutdown() error {
 	devices.Lock()
