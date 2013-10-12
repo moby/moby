@@ -1184,11 +1184,12 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
-	Status int
+	Status     string
+	StatusCode int
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("Status: %d", e.Status)
+	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }
 
 func quote(word string, buf *bytes.Buffer) {

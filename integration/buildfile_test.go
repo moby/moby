@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -226,11 +227,14 @@ func mkTestingFileServer(files [][2]string) (*httptest.Server, error) {
 
 func TestBuild(t *testing.T) {
 	for _, ctx := range testContexts {
-		buildImage(ctx, t, nil, true)
+		_, err := buildImage(ctx, t, nil, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) *docker.Image {
+func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*docker.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
 		runtime := mkRuntimeFromEngine(eng, t)
@@ -262,25 +266,24 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, useCache, false)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, useCache, false, utils.NewStreamFormatter(false))
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	img, err := srv.ImageInspect(id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return img
+	return srv.ImageInspect(id)
 }
 
 func TestVolume(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         volume /test
         cmd Hello world
     `, nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(img.Config.Volumes) == 0 {
 		t.Fail()
@@ -293,10 +296,13 @@ func TestVolume(t *testing.T) {
 }
 
 func TestBuildMaintainer(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
     `, nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if img.Author != "dockerio" {
 		t.Fail()
@@ -304,10 +310,13 @@ func TestBuildMaintainer(t *testing.T) {
 }
 
 func TestBuildUser(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         user dockerio
     `, nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if img.Config.User != "dockerio" {
 		t.Fail()
@@ -315,11 +324,15 @@ func TestBuildUser(t *testing.T) {
 }
 
 func TestBuildEnv(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         env port 4243
         `,
 		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hasEnv := false
 	for _, envVar := range img.Config.Env {
 		if envVar == "port=4243" {
@@ -333,11 +346,14 @@ func TestBuildEnv(t *testing.T) {
 }
 
 func TestBuildCmd(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         cmd ["/bin/echo", "Hello World"]
         `,
 		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if img.Config.Cmd[0] != "/bin/echo" {
 		t.Log(img.Config.Cmd[0])
@@ -350,11 +366,14 @@ func TestBuildCmd(t *testing.T) {
 }
 
 func TestBuildExpose(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         expose 4243
         `,
 		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if img.Config.PortSpecs[0] != "4243" {
 		t.Fail()
@@ -362,11 +381,14 @@ func TestBuildExpose(t *testing.T) {
 }
 
 func TestBuildEntrypoint(t *testing.T) {
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         entrypoint ["/bin/echo"]
         `,
 		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if img.Config.Entrypoint[0] != "/bin/echo" {
 	}
@@ -378,19 +400,25 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkRuntimeFromEngine(eng, t))
 
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
         run echo "hello"
         `,
 		nil, nil}, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	img = buildImage(testContextTemplate{`
+	img, err = buildImage(testContextTemplate{`
         from {IMAGE}
         run echo "hello"
         add foo /foo
         entrypoint ["/bin/echo"]
         `,
 		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(img.Config.Cmd) != 0 {
 		t.Fail()
@@ -407,11 +435,18 @@ func TestBuildImageWithCache(t *testing.T) {
         `,
 		nil, nil}
 
-	img := buildImage(template, t, eng, true)
+	img, err := buildImage(template, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	imageId := img.ID
 
 	img = nil
-	img = buildImage(template, t, eng, true)
+	img, err = buildImage(template, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if imageId != img.ID {
 		t.Logf("Image ids should match: %s != %s", imageId, img.ID)
@@ -429,11 +464,17 @@ func TestBuildImageWithoutCache(t *testing.T) {
         `,
 		nil, nil}
 
-	img := buildImage(template, t, eng, true)
+	img, err := buildImage(template, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	imageId := img.ID
 
 	img = nil
-	img = buildImage(template, t, eng, false)
+	img, err = buildImage(template, t, eng, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if imageId == img.ID {
 		t.Logf("Image ids should not match: %s == %s", imageId, img.ID)
@@ -475,7 +516,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, true, false)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, true, false, utils.NewStreamFormatter(false))
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -521,7 +562,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, false, true, false)
+	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, false, true, false, utils.NewStreamFormatter(false))
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -539,17 +580,25 @@ func TestBuildInheritance(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkRuntimeFromEngine(eng, t))
 
-	img := buildImage(testContextTemplate{`
+	img, err := buildImage(testContextTemplate{`
             from {IMAGE}
             expose 4243
             `,
 		nil, nil}, t, eng, true)
 
-	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	img2, _ := buildImage(testContextTemplate{fmt.Sprintf(`
             from %s
             entrypoint ["/bin/echo"]
             `, img.ID),
 		nil, nil}, t, eng, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// from child
 	if img2.Config.Entrypoint[0] != "/bin/echo" {
@@ -559,5 +608,25 @@ func TestBuildInheritance(t *testing.T) {
 	// from parent
 	if img.Config.PortSpecs[0] != "4243" {
 		t.Fail()
+	}
+}
+
+func TestBuildFails(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+        from {IMAGE}
+        run sh -c "exit 23"
+        `,
+		nil, nil}, t, nil, true)
+
+	if err == nil {
+		t.Fatal("Error should not be nil")
+	}
+
+	sterr, ok := err.(*utils.JSONError)
+	if !ok {
+		t.Fatalf("Error should be utils.JSONError")
+	}
+	if sterr.Code != 23 {
+		t.Fatalf("StatusCode %d unexpected, should be 23", sterr.Code)
 	}
 }

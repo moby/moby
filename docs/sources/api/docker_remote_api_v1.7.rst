@@ -990,9 +990,11 @@ Build an image from Dockerfile via stdin
    .. sourcecode:: http
 
       HTTP/1.1 200 OK
+      Content-Type: application/json
 
-      {{ STREAM }}
-
+      {"status":"Step 1..."}
+      {"status":"..."}
+      {"error":"Error...", "errorDetail":{"code": 123, "message": "Error..."}}
 
    The stream must be a tar archive compressed with one of the
    following algorithms: identity (no compression), gzip, bzip2,

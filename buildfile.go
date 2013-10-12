@@ -37,6 +37,7 @@ type buildFile struct {
 	tmpImages     map[string]struct{}
 
 	out io.Writer
+	sf  *utils.StreamFormatter
 }
 
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
@@ -52,7 +53,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
+			if err := b.srv.ImagePull(remote, tag, b.out, b.sf, nil, nil, true); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -100,7 +101,11 @@ func (b *buildFile) CmdRun(args string) error {
 		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 			return err
 		} else if cache != nil {
-			fmt.Fprintf(b.out, " ---> Using cache\n")
+			if b.sf.Used() {
+				b.out.Write(b.sf.FormatStatus("", " ---> Using cache"))
+			} else {
+				fmt.Fprintf(b.out, " ---> Using cache\n")
+			}
 			utils.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return nil
@@ -376,8 +381,11 @@ func (b *buildFile) run() (string, error) {
 		return "", err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
-
+	if b.sf.Used() {
+		b.out.Write(b.sf.FormatStatus("", " ---> Running in %s", utils.TruncateID(c.ID)))
+	} else {
+		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
+	}
 	// override the entry point that may have been picked up from the base image
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
@@ -403,7 +411,11 @@ func (b *buildFile) run() (string, error) {
 
 	// Wait for it to finish
 	if ret := c.Wait(); ret != 0 {
-		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, ret)
+		err := &utils.JSONError{
+			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
+			Code:    ret,
+		}
+		return "", err
 	}
 
 	return c.ID, nil
@@ -424,7 +436,11 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
 				return err
 			} else if cache != nil {
-				fmt.Fprintf(b.out, " ---> Using cache\n")
+				if b.sf.Used() {
+					b.out.Write(b.sf.FormatStatus("", " ---> Using cache"))
+				} else {
+					fmt.Fprintf(b.out, " ---> Using cache\n")
+				}
 				utils.Debugf("[BUILDER] Use cached version")
 				b.image = cache.ID
 				return nil
@@ -441,7 +457,11 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			fmt.Fprintf(b.out, " ---> [Warning] %s\n", warning)
 		}
 		b.tmpContainers[container.ID] = struct{}{}
-		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
+		if b.sf.Used() {
+			b.out.Write(b.sf.FormatStatus("", " ---> Running in %s", utils.TruncateID(container.ID)))
+		} else {
+			fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
+		}
 		id = container.ID
 		if err := container.EnsureMounted(); err != nil {
 			return err
@@ -507,22 +527,22 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 		if !exists {
-			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+			b.out.Write(b.sf.FormatStatus("", "# Skipping unknown instruction %s", strings.ToUpper(instruction)))
 			continue
 		}
 
 		stepN += 1
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
+		b.out.Write(b.sf.FormatStatus("", "Step %d : %s %s", stepN, strings.ToUpper(instruction), arguments))
 
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
 			return "", ret.(error)
 		}
 
-		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
+		b.out.Write(b.sf.FormatStatus("", " ---> %s", utils.TruncateID(b.image)))
 	}
 	if b.image != "" {
-		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
+		b.out.Write(b.sf.FormatStatus("", "Successfully built %s", utils.TruncateID(b.image)))
 		if b.rm {
 			b.clearTmp(b.tmpContainers)
 		}
@@ -531,7 +551,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool, sf *utils.StreamFormatter) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -542,5 +562,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) Bu
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		sf:            sf,
 	}
 }
