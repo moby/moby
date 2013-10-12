@@ -86,10 +86,14 @@ def getChanges(request, options = None):
                 the http request object
         """
         payload = json.loads(request.args['payload'][0])
+        import urllib,datetime
+        fname = str(datetime.datetime.now()).replace(' ','_').replace(':','-')[:19]
+        open('github_{0}.json'.format(fname),'w').write(json.dumps(json.loads(urllib.unquote(request.args['payload'][0])), sort_keys = True, indent = 2))
+
 	if 'pull_request' in payload:
-	    user = payload['repository']['owner']['login']
-	    repo = payload['repository']['name']
-            repo_url = payload['repository']['html_url']
+	    user = payload['pull_request']['user']['login']
+	    repo = payload['pull_request']['head']['repo']['name']
+	    repo_url = payload['pull_request']['head']['repo']['html_url']
 	else:
 	    user = payload['repository']['owner']['name']
             repo = payload['repository']['name']
@@ -133,7 +137,7 @@ def process_change(payload, user, repo, repo_url, project):
 	    if 'pull_request' in payload:
 		changes = [{
 		    'category'   : 'github_pullrequest',
-                    'who'        : user,
+                    'who'        : '{0} - PR#{1}'.format(user,payload['number']),
                     'files'      : [],
                     'comments'   : payload['pull_request']['title'], 
                     'revision'   : newrev,
