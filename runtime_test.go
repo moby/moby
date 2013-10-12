@@ -127,6 +127,9 @@ func cleanupDevMapper() {
 
 func init() {
 	os.Setenv("TEST", "1")
+	os.Setenv("DOCKER_LOOPBACK_DATA_SIZE", "209715200") // 200MB
+	os.Setenv("DOCKER_LOOPBACK_META_SIZE", "104857600") // 100MB
+	os.Setenv("DOCKER_BASE_FS_SIZE", "157286400") // 150MB
 
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
