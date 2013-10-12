@@ -218,12 +218,15 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 			// temporary directory
 			tmpImageDir := path.Join(tempdir, i.ID)
 			os.Mkdir(tmpImageDir, os.ModeDir)
+			defer os.RemoveAll(tempdir)
+			var version = "0.7"
+			var versionBuf = []byte(version)
+			ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend)
 
 			// serialize json
 			b, err := json.Marshal(i)
 			if err != nil {
 				utils.Debugf("%s", err)
-				os.RemoveAll(tempdir)
 				return err
 			}
 			ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend)
@@ -232,19 +235,16 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 			fs, err := Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), Uncompressed)
 			if err != nil {
 				utils.Debugf("%s", err)
-				os.RemoveAll(tempdir)
 				return err
 			}
 			fsTar, err := os.Create(path.Join(tmpImageDir, "layer.tar"))
 			if err != nil {
-				os.RemoveAll(tempdir)
 				utils.Debugf("%s", err)
 				return err
 			}
 			_, err = io.Copy(fsTar, fs)
 			if err != nil {
 				utils.Debugf("%s", err)
-				os.RemoveAll(tempdir)
 				return err
 			}
 			fsTar.Close()
@@ -254,7 +254,6 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 				i, err = srv.ImageInspect(i.Parent)
 				if err != nil {
 					utils.Debugf("%s", err)
-					os.RemoveAll(tempdir)
 					return err
 				}
 			} else {
@@ -271,15 +270,13 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 	ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend)
 
 	fs, err := Tar(tempdir, Uncompressed)
+	defer os.RemoveAll(tempdir)
 	if err != nil {
-		os.RemoveAll(tempdir)
 		return err
 	}
 	if _, err := io.Copy(out, fs); err != nil {
-		os.RemoveAll(tempdir)
 		return err
 	}
-	os.RemoveAll(tempdir)
 	return nil
 }
 
@@ -287,6 +284,7 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 // The input stream is an uncompressed tar ball containing images and metadata.
 func (srv *Server) ImageLoad(in io.Reader) error {
 	tmpImageDir, _ := ioutil.TempDir("", "docker-import-")
+	defer os.RemoveAll(tmpImageDir)
 	repoTarFile := path.Join(tmpImageDir, "repo.tar")
 	repoDir := path.Join(tmpImageDir, "repo")
 	tarFile, _ := os.Create(repoTarFile)
@@ -308,7 +306,6 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 			srv.runtime.repositories.Set(imageName, tag, address, true)
 		}
 	}
-	os.RemoveAll(tmpImageDir)
 	return nil
 }
 
