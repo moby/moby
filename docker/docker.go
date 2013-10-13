@@ -37,6 +37,8 @@ func main() {
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
+	flCert := flag.String("sslcert", "", "path to SSL certificate file")
+	flKey := flag.String("sslkey", "", "path to SSL key file")
 	flag.Parse()
 	if *flVersion {
 		showVersion()
@@ -64,7 +66,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, *flCert, *flKey); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -115,7 +117,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string, sslCert string, sslKey string) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -133,7 +135,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns, sslCert, sslKey)
 	if err != nil {
 		return err
 	}
