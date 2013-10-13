@@ -1338,6 +1338,68 @@ func TestBindMounts(t *testing.T) {
 	}
 }
 
+// Test that -volumes-from supports both read-only mounts
+func TestFromVolumesInReadonlyMode(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, err := runtime.Create(
+		&Config{
+			Image:     GetTestImage(runtime).ID,
+			Cmd:       []string{"/bin/echo", "-n", "foobar"},
+			Volumes:   map[string]struct{}{"/test": {}},
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	_, err = container.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !container.VolumesRW["/test"] {
+		t.Fail()
+	}
+
+	container2, _, err := runtime.Create(
+		&Config{
+			Image:       GetTestImage(runtime).ID,
+			Cmd:         []string{"/bin/echo", "-n", "foobar"},
+			VolumesFrom: container.ID + ":ro",
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	_, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if container.Volumes["/test"] != container2.Volumes["/test"] {
+		t.Logf("container volumes do not match: %s | %s ", 
+			container.Volumes["/test"],
+			container2.Volumes["/test"])
+		t.Fail()
+	}
+
+	_, exists := container2.VolumesRW["/test"]
+	if !exists {
+		t.Logf("container2 is missing '/test' volume: %s", container2.VolumesRW)
+		t.Fail()
+	}
+
+	if container2.VolumesRW["/test"] != false {
+		t.Log("'/test' volume mounted in read-write mode, expected read-only")
+		t.Fail()
+	}
+}
+
+
 // Test that VolumesRW values are copied to the new container.  Regression test for #1201
 func TestVolumesFromReadonlyMount(t *testing.T) {
 	runtime := mkRuntime(t)
