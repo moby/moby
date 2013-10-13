@@ -1270,6 +1270,16 @@ func TestCopyVolumeContent(t *testing.T) {
 	}
 }
 
+// Test for #2070
+func TestNonExistantVolume(t *testing.T) {
+	r := mkRuntime(t)
+	defer nuke(r)
+
+	if _, err := runContainer(r, []string{"-v", "/goodbye", "_", "stat", "/goodbye"}, nil); err == nil {
+		t.Fatal("Container mounted non-existant directory")
+	}
+}
+
 func TestBindMounts(t *testing.T) {
 	r := mkRuntime(t)
 	defer nuke(r)
