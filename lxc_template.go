@@ -46,7 +46,7 @@ lxc.console = none
 # no controlling tty at all
 lxc.tty = 1
 
-{{if .Config.Privileged}}
+{{if (getHostConfig .).Privileged}}
 lxc.cgroup.devices.allow = a 
 {{else}}
 # no implicit access to devices
@@ -66,7 +66,7 @@ lxc.cgroup.devices.allow = c 4:1 rwm
 lxc.cgroup.devices.allow = c 1:9 rwm
 lxc.cgroup.devices.allow = c 1:8 rwm
 
-# /dev/pts/* - pts namespaces are "coming soon"
+# /dev/pts/ - pts namespaces are "coming soon"
 lxc.cgroup.devices.allow = c 136:* rwm
 lxc.cgroup.devices.allow = c 5:2 rwm
 
@@ -106,7 +106,7 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 {{end}}
 
-{{if .Config.Privileged}}
+{{if (getHostConfig .).Privileged}}
 # retain all capabilities; no lxc.cap.drop line
 {{else}}
 # drop linux capabilities (apply mainly to the user root in the container)
@@ -127,18 +127,15 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{if .Config.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
 {{end}}
-`
 
-const LxcHostConfigTemplate = `
-{{if .LxcConf}}
-{{range $pair := .LxcConf}}
+{{if (getHostConfig .).LxcConf}}
+{{range $pair := (getHostConfig .).LxcConf}}
 {{$pair.Key}} = {{$pair.Value}}
 {{end}}
 {{end}}
 `
 
 var LxcTemplateCompiled *template.Template
-var LxcHostConfigTemplateCompiled *template.Template
 
 func getMemorySwap(config *Config) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
@@ -149,16 +146,17 @@ func getMemorySwap(config *Config) int64 {
 	return config.Memory * 2
 }
 
+func getHostConfig(container *Container) *HostConfig {
+	return container.hostConfig
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap": getMemorySwap,
+		"getHostConfig": getHostConfig,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
-	if err != nil {
-		panic(err)
-	}
-	LxcHostConfigTemplateCompiled, err = template.New("lxc-hostconfig").Funcs(funcMap).Parse(LxcHostConfigTemplate)
 	if err != nil {
 		panic(err)
 	}

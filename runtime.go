@@ -152,8 +152,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				hostConfig := &HostConfig{}
-				if err := container.Start(hostConfig); err != nil {
+				if err := container.Start(); err != nil {
 					return err
 				}
 				nomonitor = true
@@ -173,8 +172,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		close(container.waitLock)
 	} else if !nomonitor {
 		container.allocateNetwork()
-		// hostConfig isn't needed here and can be nil
-		go container.monitor(nil)
+		go container.monitor()
 	}
 	return nil
 }
@@ -319,6 +317,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
+		hostConfig:      &HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?

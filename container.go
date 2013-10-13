@@ -58,9 +58,13 @@ type Container struct {
 	Volumes  map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
-	VolumesRW map[string]bool
+	VolumesRW  map[string]bool
+	hostConfig *HostConfig
 }
 
+// Note: the Config structure should hold only portable information about the container.
+// Here, "portable" means "independent from the host we are running on".
+// Non-portable information *should* appear in HostConfig.
 type Config struct {
 	Hostname        string
 	Domainname      string
@@ -84,13 +88,13 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
-	Privileged      bool
 }
 
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
+	Privileged      bool
 }
 
 type BindMap struct {
@@ -250,13 +254,13 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Volumes:         flVolumes,
 		VolumesFrom:     strings.Join(flVolumesFrom, ","),
 		Entrypoint:      entrypoint,
-		Privileged:      *flPrivileged,
 		WorkingDir:      *flWorkingDir,
 	}
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
+		Privileged:      *flPrivileged,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -340,7 +344,7 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
-	return nil
+	return container.readHostConfig()
 }
 
 func (container *Container) ToDisk() (err error) {
@@ -348,44 +352,44 @@ func (container *Container) ToDisk() (err error) {
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(container.jsonPath(), data, 0666)
+	err = ioutil.WriteFile(container.jsonPath(), data, 0666)
+	if err != nil {
+		return
+	}
+	return container.writeHostConfig()
 }
 
-func (container *Container) ReadHostConfig() (*HostConfig, error) {
+func (container *Container) readHostConfig() error {
+	container.hostConfig = &HostConfig{}
+	// If the hostconfig file does not exist, do not read it.
+	// (We still have to initialize container.hostConfig,
+	// but that's OK, since we just did that above.)
+	_, err := os.Stat(container.hostConfigPath())
+	if os.IsNotExist(err) {
+		return nil
+	}
 	data, err := ioutil.ReadFile(container.hostConfigPath())
 	if err != nil {
-		return &HostConfig{}, err
+		return err
 	}
-	hostConfig := &HostConfig{}
-	if err := json.Unmarshal(data, hostConfig); err != nil {
-		return &HostConfig{}, err
-	}
-	return hostConfig, nil
+	return json.Unmarshal(data, container.hostConfig)
 }
 
-func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
-	data, err := json.Marshal(hostConfig)
+func (container *Container) writeHostConfig() (err error) {
+	data, err := json.Marshal(container.hostConfig)
 	if err != nil {
 		return
 	}
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
-func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
+func (container *Container) generateLXCConfig() error {
 	fo, err := os.Create(container.lxcConfigPath())
 	if err != nil {
 		return err
 	}
 	defer fo.Close()
-	if err := LxcTemplateCompiled.Execute(fo, container); err != nil {
-		return err
-	}
-	if hostConfig != nil {
-		if err := LxcHostConfigTemplateCompiled.Execute(fo, hostConfig); err != nil {
-			return err
-		}
-	}
-	return nil
+	return LxcTemplateCompiled.Execute(fo, container)
 }
 
 func (container *Container) startPty() error {
@@ -578,7 +582,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func (container *Container) Start(hostConfig *HostConfig) (err error) {
+func (container *Container) Start() (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
 	defer func() {
@@ -586,10 +590,6 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 			container.cleanup()
 		}
 	}()
-
-	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
-		hostConfig, _ = container.ReadHostConfig()
-	}
 
 	if container.State.Running {
 		return fmt.Errorf("The container %s is already running.", container.ID)
@@ -624,7 +624,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	// Define illegal container destinations
 	illegalDsts := []string{"/", "."}
 
-	for _, bind := range hostConfig.Binds {
+	for _, bind := range container.hostConfig.Binds {
 		// FIXME: factorize bind parsing in parseBind
 		var src, dst, mode string
 		arr := strings.Split(bind, ":")
@@ -758,7 +758,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		}
 	}
 
-	if err := container.generateLXCConfig(hostConfig); err != nil {
+	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}
 
@@ -839,8 +839,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.waitLock = make(chan struct{})
 
 	container.ToDisk()
-	container.SaveHostConfig(hostConfig)
-	go container.monitor(hostConfig)
+	go container.monitor()
 
 	defer utils.Debugf("Container running: %v", container.State.Running)
 	// We wait for the container to be fully running.
@@ -877,7 +876,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 }
 
 func (container *Container) Run() error {
-	if err := container.Start(&HostConfig{}); err != nil {
+	if err := container.Start(); err != nil {
 		return err
 	}
 	container.Wait()
@@ -890,8 +889,7 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	defer pipe.Close()
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
@@ -1006,7 +1004,7 @@ func (container *Container) waitLxc() error {
 	}
 }
 
-func (container *Container) monitor(hostConfig *HostConfig) {
+func (container *Container) monitor() {
 	// Wait for the program to exit
 
 	// If the command does not exist, try to wait via lxc
@@ -1155,11 +1153,7 @@ func (container *Container) Restart(seconds int) error {
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
-		return err
-	}
-	return nil
+	return container.Start()
 }
 
 // Wait blocks until the container stops running, then returns its exit code.
