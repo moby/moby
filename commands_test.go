@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -697,5 +698,52 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
+	})
+}
+
+func TestImagesViz(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdImages("-viz"); err != nil {
+			t.Fatal(err)
+		}
+		stdoutPipe.Close()
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmdOutput := string(cmdOutputBytes)
+
+		regexpStrings := []string{
+			"digraph docker {",
+			fmt.Sprintf("base -> \"%s\" \\[style=invis]", unitTestImageIDShort),
+			fmt.Sprintf("label=\"%s\\\\n%s:latest\"", unitTestImageIDShort, unitTestImageName),
+			"base \\[style=invisible]",
+		}
+
+		compiledRegexps := []*regexp.Regexp{}
+		for _, regexpString := range regexpStrings {
+			regexp, err := regexp.Compile(regexpString)
+			if err != nil {
+				fmt.Println("Error in regex string: ", err)
+				return
+			}
+			compiledRegexps = append(compiledRegexps, regexp)
+		}
+
+		for _, regexp := range compiledRegexps {
+			if !regexp.MatchString(cmdOutput) {
+				t.Fatalf("images -viz content '%s' did not match regexp '%s'", cmdOutput, regexp)
+			}
+		}
 	})
 }

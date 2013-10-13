@@ -22,6 +22,7 @@ import (
 const (
 	unitTestImageName     = "docker-test-image"
 	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestImageIDShort  = "83599e29c455"
 	unitTestNetworkBridge = "testdockbr0"
 	unitTestStoreBase     = "/var/lib/docker/unit-tests"
 	testDaemonAddr        = "127.0.0.1:4270"
