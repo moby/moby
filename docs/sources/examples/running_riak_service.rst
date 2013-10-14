@@ -68,7 +68,7 @@ Next, we add Basho's APT repository:
 
 .. code-block:: bash
 
-    RUN curl -s http://apt.basho.com/gpg/basho.apt.key | apt-key add --
+    RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F933E597DDF2E833
     RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
     RUN apt-get update
 
