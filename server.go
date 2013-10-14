@@ -996,6 +996,14 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
+func (srv *Server) getChildImages(id string) ([]*Image, error) {
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return nil, err
+	}
+	return byParents[id], nil
+}
+
 func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	// If the image is referenced by a repo, do not delete
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
@@ -1101,6 +1109,33 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	if err != nil {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
+	images := make(map[string]bool)
+	images[img.ID] = true
+
+	children, err := srv.getChildImages(img.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range children {
+		images[i.ID] = true
+	}
+
+	// Check for any containers referencing the image or children of the image
+	referencedContainers := []string{}
+
+	for e := srv.runtime.containers.Front(); e != nil; e = e.Next() {
+		c := e.Value.(*Container)
+		if images[c.Image] {
+			referencedContainers = append(referencedContainers, c.ID)
+		}
+	}
+
+	if len(referencedContainers) > 0 {
+		return nil, fmt.Errorf("Cannot delete image with existing containers.  Please remove %s before deleting image.",
+			strings.Join(referencedContainers, ", "))
+	}
+
 	if !autoPrune {
 		if err := srv.runtime.DeleteImage(img.ID); err != nil {
 			return nil, fmt.Errorf("Error deleting image %s: %s", name, err)
