@@ -154,7 +154,7 @@ func init() {
 	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
-	deviceset.AddDevice("init","")
+	deviceset.AddDevice("init", "")
 
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, deviceset, false); err != nil {
