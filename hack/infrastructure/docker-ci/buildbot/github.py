@@ -90,12 +90,12 @@ def getChanges(request, options = None):
         fname = str(datetime.datetime.now()).replace(' ','_').replace(':','-')[:19]
         open('github_{0}.json'.format(fname),'w').write(json.dumps(json.loads(urllib.unquote(request.args['payload'][0])), sort_keys = True, indent = 2))
 
-	if 'pull_request' in payload:
-	    user = payload['pull_request']['user']['login']
-	    repo = payload['pull_request']['head']['repo']['name']
-	    repo_url = payload['pull_request']['head']['repo']['html_url']
-	else:
-	    user = payload['repository']['owner']['name']
+        if 'pull_request' in payload:
+            user = payload['pull_request']['user']['login']
+            repo = payload['pull_request']['head']['repo']['name']
+            repo_url = payload['pull_request']['head']['repo']['html_url']
+        else:
+            user = payload['repository']['owner']['name']
             repo = payload['repository']['name']
             repo_url = payload['repository']['url']
         project = request.args.get('project', None)
@@ -119,7 +119,7 @@ def process_change(payload, user, repo, repo_url, project):
                 Hook.
         """
         changes = []
-	
+
         newrev = payload['after'] if 'after' in payload else payload['pull_request']['head']['sha']
         refname = payload['ref'] if 'ref' in payload else payload['pull_request']['head']['ref']
 
@@ -134,9 +134,12 @@ def process_change(payload, user, repo, repo_url, project):
             log.msg("Branch `%s' deleted, ignoring" % branch)
             return []
         else: 
-	    if 'pull_request' in payload:
-		changes = [{
-		    'category'   : 'github_pullrequest',
+            if 'pull_request' in payload:
+                if payload['action'] == 'closed':
+                    log.msg("PR#{} closed, ignoring".format(payload['number']))
+                    return []
+                changes = [{
+                    'category'   : 'github_pullrequest',
                     'who'        : '{0} - PR#{1}'.format(user,payload['number']),
                     'files'      : [],
                     'comments'   : payload['pull_request']['title'], 
@@ -146,7 +149,7 @@ def process_change(payload, user, repo, repo_url, project):
                     'revlink'    : '{0}/commit/{1}'.format(repo_url,newrev),
                     'repository' : repo_url,
                     'project'  : project  }] 
-		return changes
+                return changes
             for commit in payload['commits']:
                 files = []
                 if 'added' in commit:
@@ -170,4 +173,3 @@ def process_change(payload, user, repo, repo_url, project):
                     project  = project)
                 changes.append(chdict) 
             return changes
-        
