@@ -283,6 +283,8 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 	return root, nil
 }
 
+// Compare a directory with an array of layer directories it was based on and
+// generate an array of Change objects describing the changes
 func ChangesLayers(newDir string, layers []string) ([]Change, error) {
 	newRoot, err := collectFileInfo(newDir)
 	if err != nil {
@@ -299,6 +301,7 @@ func ChangesLayers(newDir string, layers []string) ([]Change, error) {
 	return newRoot.Changes(oldRoot), nil
 }
 
+// Compare two directories and generate an array of Change objects describing the changes
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	oldRoot, err := collectFileInfo(oldDir)
 	if err != nil {
