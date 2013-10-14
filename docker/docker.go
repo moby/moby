@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,7 +21,29 @@ var (
 	VERSION   string
 )
 
+const CLONE_NEWNS = 0x00020000 // This is not exported in the go syscall module yet
+
 func main() {
+	// Check for -e to do exec-with-mount-rprivate-/
+	// We parse this manually since we want to avoid running unnecessary module code before
+	// doing the syscalls as 3rd party goroutines my interfer. Also we don't
+	// want "-e" in the docker help output
+	if len(os.Args) >= 3 && os.Args[1] == "--exec" {
+		runtime.LockOSThread() // Make sure we keep executing in the same native thread
+
+		// Don't share the FS namespace with caller
+		if err := syscall.Unshare(CLONE_NEWNS); err != nil {
+			log.Fatalf("Error unsharing mount namespace: %s\n", err)
+		}
+		if err := syscall.Mount("/", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, ""); err != nil {
+			log.Fatalf("Error unsharing mount namespace: %s\n", err)
+		}
+		if err := syscall.Exec(os.Args[2], os.Args[2:], os.Environ()); err != nil {
+			log.Fatalf("Error exec:ing %s: %s\n", os.Args[2], err)
+		}
+		log.Fatalf("Should not be reached!\n")
+	}
+
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
 		// Running in init mode
 		docker.SysInit()
