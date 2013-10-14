@@ -1051,6 +1051,8 @@ func quote(word string, buf *bytes.Buffer) {
 	buf.WriteString("'")
 }
 
+// Take a list of strings and escape them so they will be handled right
+// when passed as arguments to an program via a shell
 func ShellQuoteArguments(args []string) string {
 	var buf bytes.Buffer
 	for i, arg := range args {
