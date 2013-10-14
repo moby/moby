@@ -87,56 +87,61 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 // Remove any leftover device mapper devices from earlier runs of the unit tests
-func removeDev(name string) {
+func removeDev(name string) error {
 	path := filepath.Join("/dev/mapper", name)
-	fd, err := syscall.Open(path, syscall.O_RDONLY, 07777)
-	if err != nil {
-		if err == syscall.ENXIO {
+
+	if f, err := os.OpenFile(path, os.O_RDONLY, 07777); err != nil {
+		if er, ok := err.(*os.PathError); ok && er.Err == syscall.ENXIO {
 			// No device for this node, just remove it
-			os.Remove(path)
-			return
+			return os.Remove(path)
 		}
 	} else {
-		syscall.Close(fd)
+		f.Close()
 	}
 	if err := devmapper.RemoveDevice(name); err != nil {
-		log.Fatalf("Unable to remove device %s needed to get a freash unit test environment", name)
+		return fmt.Errorf("Unable to remove device %s needed to get a freash unit test environment", name)
 	}
+	return nil
 }
 
-func cleanupDevMapper() {
+func cleanupDevMapper() error {
 	// Unmount any leftover mounts from previous unit test runs
-	if data, err := ioutil.ReadFile("/proc/mounts"); err == nil {
+	if data, err := ioutil.ReadFile("/proc/mounts"); err != nil {
+		return err
+	} else {
 		for _, line := range strings.Split(string(data), "\n") {
-			cols := strings.Split(line, " ")
-			if len(cols) >= 2 && strings.HasPrefix(cols[0], "/dev/mapper/docker-unit-tests-devices") {
-				err = syscall.Unmount(cols[1], 0)
-				if err != nil {
-					log.Fatalf("Unable to unmount %s needed to get a freash unit test environment: %s", cols[1], err)
+			if cols := strings.Split(line, " "); len(cols) >= 2 && strings.HasPrefix(cols[0], "/dev/mapper/docker-unit-tests-devices") {
+				if err := syscall.Unmount(cols[1], 0); err != nil {
+					return fmt.Errorf("Unable to unmount %s needed to get a freash unit test environment: %s", cols[1], err)
 				}
 			}
 		}
 	}
 
 	// Remove any leftover devmapper devices from previous unit run tests
-	infos, _ := ioutil.ReadDir("/dev/mapper")
-	if infos != nil {
-		hasPool := false
-		for _, info := range infos {
-			name := info.Name()
-			if strings.HasPrefix(name, "docker-unit-tests-devices-") {
-				if name == "docker-unit-tests-devices-pool" {
-					hasPool = true
-				} else {
-					removeDev(name)
+	infos, err := ioutil.ReadDir("/dev/mapper")
+	if err != nil {
+		return err
+	}
+	pools := []string{}
+	for _, info := range infos {
+		if name := info.Name(); strings.HasPrefix(name, "docker-unit-tests-devices-") {
+			if name == "docker-unit-tests-devices-pool" {
+				pools = append(pools, name)
+			} else {
+				if err := removeDev(name); err != nil {
+					return err
 				}
-			}
-			// We need to remove the pool last as the other devices block it
-			if hasPool {
-				removeDev("docker-unit-tests-devices-pool")
 			}
 		}
 	}
+	// We need to remove the pool last as the other devices block it
+	for _, pool := range pools {
+		if err := removeDev(pool); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func init() {
@@ -154,7 +159,9 @@ func init() {
 
 	NetworkBridgeIface = unitTestNetworkBridge
 
-	cleanupDevMapper()
+	if err := cleanupDevMapper(); err != nil {
+		log.Fatalf("Unable to cleanup devmapper: %s", err)
+	}
 
 	// Always start from a clean set of loopback mounts
 	err := os.RemoveAll(unitTestStoreDevicesBase)
@@ -165,7 +172,7 @@ func init() {
 	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
-	deviceset.AddDevice("init","")
+	deviceset.AddDevice("init", "")
 
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, deviceset, false); err != nil {
