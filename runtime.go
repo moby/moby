@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+const (
+	DefaultFilesystemType = "devicemapper"
+)
+
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
 
 type Capabilities struct {
@@ -268,9 +272,10 @@ func (runtime *Runtime) restore() error {
 		return err
 	}
 
-	deviceSet := runtime.deviceSet
-	containers := []*Container{}
-	containersToMigrate := []*Container{}
+	var (
+		containers          []*Container
+		containersToMigrate []*Container
+	)
 
 	for i, v := range dir {
 		id := v.Name()
@@ -285,12 +290,12 @@ func (runtime *Runtime) restore() error {
 		utils.Debugf("Loaded container %v", container.ID)
 		containers = append(containers, container)
 
-		if !deviceSet.HasDevice(container.ID) {
+		if container.FilesystemType != DefaultFilesystemType {
 			containersToMigrate = append(containersToMigrate, container)
 		}
 	}
 
-	// Migrate AUFS containers to device mapper
+	// Migrate containers to the default filesystem type
 	if len(containersToMigrate) > 0 {
 		if err := migrateToDeviceMapper(runtime, containersToMigrate); err != nil {
 			return err
@@ -364,6 +369,11 @@ func migrateToDeviceMapper(runtime *Runtime, containers []*Container) error {
 
 		if err = os.RemoveAll(container.rwPath()); err != nil {
 			fmt.Printf("Failed to remove rw layer %s\n", err)
+		}
+
+		container.FilesystemType = DefaultFilesystemType
+		if err := container.ToDisk(); err != nil {
+			fmt.Printf("Failed to save filesystem type to disk %s\n", err)
 		}
 
 		fmt.Printf("Successful migration for %s\n", container.ID)
@@ -448,7 +458,8 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
+		SysInitPath:    sysInitPath,
+		FilesystemType: DefaultFilesystemType,
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
