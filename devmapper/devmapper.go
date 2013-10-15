@@ -353,6 +353,9 @@ func AttachLoopDevice(filename string) (*os.File, error) {
 	var fd C.int
 	res := C.attach_loop_device(c_filename, &fd)
 	if res == nil {
+		if os.Getenv("DEBUG") != "" {
+			C.perror(C.CString(fmt.Sprintf("[debug] Error attach_loop_device(%s, $#v)", c_filename, &fd)))
+		}
 		return nil, ErrAttachLoopbackDevice
 	}
 	defer free(res)

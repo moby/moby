@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"path"
 	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/devmapper"
@@ -107,12 +108,15 @@ func removeDev(name string) error {
 }
 
 func cleanupDevMapper() error {
+	filter := "docker-" + path.Base(unitTestStoreBase)
+	utils.Debugf("Filtering out %s\n", filter)
 	// Unmount any leftover mounts from previous unit test runs
 	if data, err := ioutil.ReadFile("/proc/mounts"); err != nil {
 		return err
 	} else {
 		for _, line := range strings.Split(string(data), "\n") {
-			if cols := strings.Split(line, " "); len(cols) >= 2 && strings.HasPrefix(cols[0], "/dev/mapper/docker-unit-tests-devices") {
+			if cols := strings.Split(line, " "); len(cols) >= 2 && strings.HasPrefix(cols[0], path.Join("/dev/mapper", filter)) {
+				utils.Debugf("[devmapper cleanup] Unmounting device: %s", cols[1])
 				if err := syscall.Unmount(cols[1], 0); err != nil {
 					return fmt.Errorf("Unable to unmount %s needed to get a freash unit test environment: %s", cols[1], err)
 				}
@@ -120,6 +124,7 @@ func cleanupDevMapper() error {
 		}
 	}
 
+	utils.Debugf("[devmapper cleanup] looking for leftover devices")
 	// Remove any leftover devmapper devices from previous unit run tests
 	infos, err := ioutil.ReadDir("/dev/mapper")
 	if err != nil {
@@ -131,8 +136,8 @@ func cleanupDevMapper() error {
 	}
 	pools := []string{}
 	for _, info := range infos {
-		if name := info.Name(); strings.HasPrefix(name, "docker-unit-tests-devices-") {
-			if name == "docker-unit-tests-devices-pool" {
+		if name := info.Name(); strings.HasPrefix(name, filter + "-") {
+			if strings.HasSuffix(name, "-pool") {
 				pools = append(pools, name)
 			} else {
 				if err := removeDev(name); err != nil {
@@ -143,6 +148,7 @@ func cleanupDevMapper() error {
 	}
 	// We need to remove the pool last as the other devices block it
 	for _, pool := range pools {
+		utils.Debugf("[devmapper cleanup] Removing pool: %s", pool)
 		if err := removeDev(pool); err != nil {
 			return err
 		}
