@@ -88,7 +88,7 @@ func (info *DevInfo) DevName() string {
 }
 
 func (devices *DeviceSetDM) loopbackDir() string {
-	return path.Join(devices.root, "loopback")
+	return path.Join(devices.root, "devicemapper")
 }
 
 func (devices *DeviceSetDM) jsonFile() string {
