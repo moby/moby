@@ -17,3 +17,6 @@ docs/_templates
 bundles/
 .hg/
 .git/
+y.output
+buildfile_lexer.go
+buildfile_parser.go
