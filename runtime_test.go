@@ -148,7 +148,7 @@ func init() {
 	os.Setenv("TEST", "1")
 	os.Setenv("DOCKER_LOOPBACK_DATA_SIZE", "209715200") // 200MB
 	os.Setenv("DOCKER_LOOPBACK_META_SIZE", "104857600") // 100MB
-	os.Setenv("DOCKER_BASE_FS_SIZE", "157286400") // 150MB
+	os.Setenv("DOCKER_BASE_FS_SIZE", "157286400")       // 150MB
 
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
@@ -167,15 +167,16 @@ func init() {
 	}
 
 	// Always start from a clean set of loopback mounts
-	err := os.RemoveAll(unitTestStoreDevicesBase)
-	if err != nil {
-		panic(err)
+	if err := os.RemoveAll(unitTestStoreDevicesBase); err != nil {
+		log.Fatalf("Unable to remove former unit-test directory: %s", err)
 	}
 
 	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
-	deviceset.AddDevice("init", "")
+	if err := deviceset.AddDevice("init", ""); err != nil {
+		log.Fatalf("Unable to create the base device: %s", err)
+	}
 
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, deviceset, false); err != nil {
