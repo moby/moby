@@ -296,7 +296,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		}
 		// First try to unpack the source as an archive
 	} else if err := UntarPath(origPath, destPath); err != nil {
-		utils.Errorf("Couldn't untar %s to %s: %s", origPath, destPath, err)
+		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
