@@ -683,6 +683,9 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
+			if _, err := os.Stat(srcPath); err != nil {
+				return fmt.Errorf("Error: %s for volume source directory. %s", srcPath, err)
+			}
 			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
 			if err != nil {
 				return err
