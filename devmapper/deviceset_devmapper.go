@@ -362,19 +362,45 @@ func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, m
 func (devices *DeviceSetDM) initDevmapper() error {
 	logInit(devices)
 
+begin:
 	info, err := getInfo(devices.getPoolName())
 	if info == nil {
 		utils.Debugf("Error device getInfo: %s", err)
 		return err
 	}
-	utils.Debugf("initDevmapper(). Pool exists: %v", info.Exists)
+
+	loopbackExists := false
+	if _, err := os.Stat(devices.loopbackDir()); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// If it does not, then we use a different pool name
+		parts := strings.Split(devices.devicePrefix, "-")
+		i, err := strconv.Atoi(parts[len(parts)-1])
+		if err != nil {
+			i = 0
+			parts = append(parts, "0")
+		}
+		i++
+		parts[len(parts)-1] = strconv.Itoa(i)
+		devices.devicePrefix = strings.Join(parts, "-")
+	} else {
+		loopbackExists = true
+	}
+
+	// If the pool exists but the loopback does not, then we start again
+	if info.Exists == 1 && !loopbackExists {
+		goto begin
+	}
+
+	utils.Debugf("initDevmapper(). Pool exists: %v, loopback Exists: %v", info.Exists, loopbackExists)
 
 	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
 	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
 	// so we add this badhack to make sure it closes itself
 	setCloseOnExec("/dev/mapper/control")
 
-	if info.Exists != 0 {
+	if info.Exists != 0 && loopbackExists {
 		/* Pool exists, assume everything is up */
 		if err := devices.loadMetaData(); err != nil {
 			utils.Debugf("Error device loadMetaData: %s\n", err)
