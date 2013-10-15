@@ -59,6 +59,11 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+
+	if (len(*flKey) > 0) != (len(*flCert) > 0) {
+		log.Fatal("sslcert or sslkey set without the other. Please set both to enable https")
+	}
+
 	docker.GITCOMMIT = GITCOMMIT
 	docker.VERSION = VERSION
 	if *flDaemon {
