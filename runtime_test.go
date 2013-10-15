@@ -167,15 +167,16 @@ func init() {
 	}
 
 	// Always start from a clean set of loopback mounts
-	err := os.RemoveAll(unitTestStoreDevicesBase)
-	if err != nil {
-		panic(err)
+	if err := os.RemoveAll(unitTestStoreDevicesBase); err != nil {
+		log.Fatalf("Unable to remove former unit-test directory: %s", err)
 	}
 
 	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
-	deviceset.AddDevice("init", "")
+	if err := deviceset.AddDevice("init", ""); err != nil {
+		log.Fatalf("Unable to create the base device: %s", err)
+	}
 
 	// Make it our Store root
 	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, deviceset, false); err != nil {
