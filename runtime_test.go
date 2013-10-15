@@ -25,7 +25,6 @@ const (
 	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
 	unitTestNetworkBridge    = "testdockbr0"
 	unitTestStoreBase        = "/var/lib/docker/unit-tests"
-	unitTestStoreDevicesBase = "/var/lib/docker/unit-tests-devices"
 	testDaemonAddr           = "127.0.0.1:4270"
 	testDaemonProto          = "tcp"
 )
@@ -50,6 +49,9 @@ func nuke(runtime *Runtime) error {
 
 	for _, container := range runtime.List() {
 		container.EnsureUnmounted()
+	}
+	if err := runtime.deviceSet.Shutdown(); err != nil {
+		utils.Debugf("Error shutting down devicemapper for runtime %s", runtime.root)
 	}
 	return os.RemoveAll(runtime.root)
 }
@@ -170,24 +172,17 @@ func init() {
 		log.Fatalf("Unable to cleanup devmapper: %s", err)
 	}
 
-	// Always start from a clean set of loopback mounts
-	if err := os.RemoveAll(unitTestStoreDevicesBase); err != nil {
-		log.Fatalf("Unable to remove former unit-test directory: %s", err)
-	}
-
-	deviceset := devmapper.NewDeviceSetDM(unitTestStoreDevicesBase)
-	// Create a device, which triggers the initiation of the base FS
-	// This avoids other tests doing this and timing out
-	if err := deviceset.AddDevice("init", ""); err != nil {
-		log.Fatalf("Unable to create the base device: %s", err)
-	}
-
 	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, deviceset, false); err != nil {
+	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
 		log.Fatalf("Unable to create a runtime for tests:", err)
 	} else {
 		globalRuntime = runtime
 	}
+
+	// Create a device, which triggers the initiation of the base FS
+	// This avoids other tests doing this and timing out
+	deviceset := devmapper.NewDeviceSetDM(unitTestStoreBase)
+	deviceset.AddDevice("init", "")
 
 	// Create the "Server"
 	srv := &Server{
@@ -553,7 +548,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	runtime2, err := NewRuntimeFromDirectory(runtime1.root, runtime1.deviceSet, false)
+	runtime2, err := NewRuntimeFromDirectory(runtime1.root, false)
 	if err != nil {
 		t.Fatal(err)
 	}

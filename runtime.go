@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/devmapper"
 	"io"
 	"io/ioutil"
 	"log"
@@ -566,8 +567,8 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, deviceSet, autoRestart)
+func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +586,7 @@ func NewRuntime(flGraphPath string, deviceSet DeviceSet, autoRestart bool, dns [
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool) (*Runtime, error) {
+func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	runtimeRepo := path.Join(root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -611,6 +612,8 @@ func NewRuntimeFromDirectory(root string, deviceSet DeviceSet, autoRestart bool)
 	if err != nil {
 		return nil, err
 	}
+	deviceSet := devmapper.NewDeviceSetDM(root)
+	// Initialize devicemapper deviceSet
 	runtime := &Runtime{
 		root:           root,
 		repository:     runtimeRepo,

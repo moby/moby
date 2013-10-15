@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -134,7 +133,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, devmapper.NewDeviceSetDM(flGraphPath), autoRestart, enableCors, dns)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
 	if err != nil {
 		return err
 	}
