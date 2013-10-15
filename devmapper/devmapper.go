@@ -175,6 +175,11 @@ const (
 	DeviceSetGeometry
 )
 
+const (
+	AddNodeOnResume AddNodeType = iota
+	AddNodeOnCreate
+)
+
 var (
 	ErrTaskRun              = errors.New("dm_task_run failed")
 	ErrTaskSetName          = errors.New("dm_task_set_name failed")
@@ -209,6 +214,7 @@ type (
 		TargetCount   int32
 	}
 	TaskType int
+	AddNodeType int
 )
 
 func (t *Task) destroy() {
@@ -271,6 +277,13 @@ func (t *Task) SetCookie(cookie *uint32, flags uint16) error {
 		return ErrTaskSetAddNode
 	}
 	*cookie = uint32(c_cookie)
+	return nil
+}
+
+func (t *Task) SetAddNode(add_node AddNodeType) error {
+	if res := C.dm_task_set_add_node(t.unmanaged, C.dm_add_node_t (add_node)); res != 1 {
+		return ErrTaskSetAddNode
+	}
 	return nil
 }
 
@@ -613,6 +626,9 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	params := fmt.Sprintf("%s %d", poolName, deviceId)
 	if err := task.AddTarget(0, size/512, "thin", params); err != nil {
 		return fmt.Errorf("Can't add target")
+	}
+	if err := task.SetAddNode(AddNodeOnCreate); err != nil {
+		return fmt.Errorf("Can't add node")
 	}
 
 	var cookie uint32 = 0
