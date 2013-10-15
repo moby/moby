@@ -43,6 +43,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	FilesystemType string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
