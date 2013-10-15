@@ -5,13 +5,18 @@ DEST=$1
 set -e
 
 # Run Docker's test suite, including sub-packages, and store their output as a bundle
+# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
+# You can use this to select certain tests to run, eg.
+# 
+# 	TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#
 bundle_test() {
 	{
 		date
 		for test_dir in $(find_test_dirs); do (
 			set -x
 			cd $test_dir
-			DEBUG=1 go test -v -ldflags "$LDFLAGS" $BUILDFLAGS
+			DEBUG=1 go test -v -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log
 }
