@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -9,15 +8,15 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 type BuildFile interface {
 	Build(io.Reader) (string, error)
-	CmdFrom(string) error
-	CmdRun(string) error
+	CmdFrom(*fromArgs) error
+	CmdRun(*runArgs) error
 }
 
 type buildFile struct {
@@ -46,15 +45,15 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
-func (b *buildFile) CmdFrom(name string) error {
-	image, err := b.runtime.repositories.LookupImage(name)
+func (b *buildFile) CmdFrom(args *fromArgs) error {
+	image, err := b.runtime.repositories.LookupImage(args.name)
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
-			remote, tag := utils.ParseRepositoryTag(name)
+			remote, tag := utils.ParseRepositoryTag(args.name)
 			if err := b.srv.ImagePull(remote, tag, b.out, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
 				return err
 			}
-			image, err = b.runtime.repositories.LookupImage(name)
+			image, err = b.runtime.repositories.LookupImage(args.name)
 			if err != nil {
 				return err
 			}
@@ -70,16 +69,16 @@ func (b *buildFile) CmdFrom(name string) error {
 	return nil
 }
 
-func (b *buildFile) CmdMaintainer(name string) error {
-	b.maintainer = name
-	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
+func (b *buildFile) CmdMaintainer(args *maintainerArgs) error {
+	b.maintainer = args.name
+	return b.commit("", b.config.Cmd, args.String())
 }
 
-func (b *buildFile) CmdRun(args string) error {
+func (b *buildFile) CmdRun(args *runArgs) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, err := ParseRun(append([]string{b.image}, args.cmd...), nil)
 	if err != nil {
 		return err
 	}
@@ -150,20 +149,13 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	return value, nil
 }
 
-func (b *buildFile) CmdEnv(args string) error {
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ENV format")
-	}
-	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
-
-	envKey := b.FindEnvKey(key)
-	replacedValue, err := b.ReplaceEnvMatches(value)
+func (b *buildFile) CmdEnv(args *envArgs) error {
+	envKey := b.FindEnvKey(args.key)
+	replacedValue, err := b.ReplaceEnvMatches(args.value)
 	if err != nil {
 		return err
 	}
-	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+	replacedVar := fmt.Sprintf("%s=%s", args.key, replacedValue)
 
 	if envKey >= 0 {
 		b.config.Env[envKey] = replacedVar
@@ -173,28 +165,26 @@ func (b *buildFile) CmdEnv(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
-func (b *buildFile) CmdCmd(args string) error {
-	var cmd []string
-	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
-		cmd = []string{"/bin/sh", "-c", args}
-	}
-	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+func (b *buildFile) CmdCmd(args *cmdArgs) error {
+	if err := b.commit("", args.cmd, args.String()); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
+	b.config.Cmd = args.cmd
 	return nil
 }
 
-func (b *buildFile) CmdExpose(args string) error {
-	ports := strings.Split(args, " ")
+func (b *buildFile) CmdExpose(args *exposeArgs) error {
+	ports := make([]string, len(args.ports))
+	for i := 0; i < len(args.ports); i++ {
+		ports[i] = strconv.Itoa(args.ports[i])
+	}
 	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
-	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	return b.commit("", b.config.Cmd, args.String())
 }
 
-func (b *buildFile) CmdUser(args string) error {
-	b.config.User = args
-	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
+func (b *buildFile) CmdUser(args *userArgs) error {
+	b.config.User = args.name
+	return b.commit("", b.config.Cmd, args.String())
 }
 
 func (b *buildFile) CmdInsert(args string) error {
@@ -205,44 +195,33 @@ func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
 }
 
-func (b *buildFile) CmdEntrypoint(args string) error {
-	if args == "" {
+func (b *buildFile) CmdEntrypoint(args *entryPointArgs) error {
+	if len(args.cmd) == 0 {
 		return fmt.Errorf("Entrypoint cannot be empty")
 	}
-
-	var entrypoint []string
-	if err := json.Unmarshal([]byte(args), &entrypoint); err != nil {
-		b.config.Entrypoint = []string{"/bin/sh", "-c", args}
-	} else {
-		b.config.Entrypoint = entrypoint
-	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %s", args)); err != nil {
+	b.config.Entrypoint = args.cmd
+	if err := b.commit("", b.config.Cmd, args.String()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *buildFile) CmdWorkdir(workdir string) error {
-	b.config.WorkingDir = workdir
-	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+func (b *buildFile) CmdWorkdir(args *workDirArgs) error {
+	b.config.WorkingDir = args.path
+	return b.commit("", b.config.Cmd, args.String())
 }
 
-func (b *buildFile) CmdVolume(args string) error {
-	if args == "" {
+func (b *buildFile) CmdVolume(args *volumeArgs) error {
+	if len(args.volumes) == 0 {
 		return fmt.Errorf("Volume cannot be empty")
-	}
-
-	var volume []string
-	if err := json.Unmarshal([]byte(args), &volume); err != nil {
-		volume = []string{args}
 	}
 	if b.config.Volumes == nil {
 		b.config.Volumes = NewPathOpts()
 	}
-	for _, v := range volume {
+	for _, v := range args.volumes {
 		b.config.Volumes[v] = struct{}{}
 	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+	if err := b.commit("", b.config.Cmd, args.String()); err != nil {
 		return err
 	}
 	return nil
@@ -308,21 +287,15 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	return nil
 }
 
-func (b *buildFile) CmdAdd(args string) error {
+func (b *buildFile) CmdAdd(args *addArgs) error {
 	if b.context == "" {
 		return fmt.Errorf("No context given. Impossible to use ADD")
 	}
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ADD format")
-	}
-
-	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	orig, err := b.ReplaceEnvMatches(args.src)
 	if err != nil {
 		return err
 	}
-
-	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	dest, err := b.ReplaceEnvMatches(args.dst)
 	if err != nil {
 		return err
 	}
@@ -353,7 +326,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, args.String()); err != nil {
 		return err
 	}
 	b.config.Cmd = cmd
@@ -454,9 +427,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	return nil
 }
 
-// Long lines can be split with a backslash
-var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
-
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
@@ -473,41 +443,52 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
-	fileBytes, err := ioutil.ReadFile(filename)
+	dockerfile, err := parseFile(filename)
 	if err != nil {
 		return "", err
 	}
-	dockerfile := string(fileBytes)
-	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
+	if dockerfile == nil {
+		fileBytes, err := ioutil.ReadFile(filename)
+		if err == nil {
+			s := string(fileBytes)
+			utils.Debugf("Couldn't parse %s:\n%s", filename, s)
+		}
+		return "", fmt.Errorf("Invalid build file %s", filename)
+	}
 	stepN := 0
-	for _, line := range strings.Split(dockerfile, "\n") {
-		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
-		// Skip comments and empty line
-		if len(line) == 0 || line[0] == '#' {
-			continue
+	for _, instr := range dockerfile.instructions {
+		v := instr.(fmt.Stringer)
+		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, v.String())
+		switch args := instr.(type) {
+		case *fromArgs:
+			err = b.CmdFrom(args)
+		case *maintainerArgs:
+			err = b.CmdMaintainer(args)
+		case *runArgs:
+			err = b.CmdRun(args)
+		case *cmdArgs:
+			err = b.CmdCmd(args)
+		case *exposeArgs:
+			err = b.CmdExpose(args)
+		case *envArgs:
+			err = b.CmdEnv(args)
+		case *addArgs:
+			err = b.CmdAdd(args)
+		case *entryPointArgs:
+			err = b.CmdEntrypoint(args)
+		case *volumeArgs:
+			err = b.CmdVolume(args)
+		case *userArgs:
+			err = b.CmdUser(args)
+		case *workDirArgs:
+			err = b.CmdWorkdir(args)
+		default:
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+		if err != nil {
+			return "", err
 		}
-		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-		arguments := strings.Trim(tmp[1], " ")
-
-		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-		if !exists {
-			fmt.Fprintf(b.out, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-			continue
-		}
-
-		stepN += 1
-		fmt.Fprintf(b.out, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
-
-		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-		if ret != nil {
-			return "", ret.(error)
-		}
-
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
+		stepN += 1
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
