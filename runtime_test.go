@@ -121,6 +121,10 @@ func cleanupDevMapper() error {
 	// Remove any leftover devmapper devices from previous unit run tests
 	infos, err := ioutil.ReadDir("/dev/mapper")
 	if err != nil {
+		// If the mapper file does not exist there is nothing to clean up
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 	pools := []string{}
