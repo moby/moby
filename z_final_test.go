@@ -13,5 +13,6 @@ func displayFdGoroutines(t *testing.T) {
 func TestFinal(t *testing.T) {
 	nuke(globalRuntime)
 	t.Logf("Start Fds: %d, Start Goroutines: %d", startFds, startGoroutines)
+	cleanupDevMapper()
 	displayFdGoroutines(t)
 }
