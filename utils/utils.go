@@ -297,7 +297,7 @@ func CreateJSONLog(log string, stream string, created time.Time) JSONLog {
 		(&jsonLog).Log = jsonLine
 	}
 
-	return message
+	return jsonLog
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
