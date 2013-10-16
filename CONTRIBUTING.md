@@ -59,8 +59,10 @@ Submit unit tests for your changes.  Go has a great test framework built in; use
 it! Take a look at existing tests for inspiration. Run the full test suite on
 your branch before submitting a pull request.
 
-Make sure you include relevant updates or additions to documentation when
-creating or modifying features.
+Update the documentation when creating or modifying features. Test
+your documentation changes for clarity, concision, and correctness, as
+well as a clean docmuent build. See ``docs/README.md`` for more
+information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `go fmt` before committing your changes. Most
