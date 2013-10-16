@@ -56,7 +56,7 @@ To create the Docker binary, run this command:
 
 .. code-block:: bash
 
-	sudo docker run -lxc-conf=lxc.aa_profile=unconfined -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh binary
+	sudo docker run -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh binary
 
 This will create the Docker binary in ``./bundles/<version>-dev/binary/``
 
@@ -64,18 +64,11 @@ This will create the Docker binary in ``./bundles/<version>-dev/binary/``
 Step 5: Run the Tests
 ---------------------
 
-To run the Docker test cases you first need to disable `AppArmor <https://wiki.ubuntu.com/AppArmor>`_ using the following commands
-
-.. code-block:: bash
-
-	sudo /etc/init.d/apparmor stop
-	sudo /etc/init.d/apparmor teardown
-
 To execute the test cases, run this command:
 
 .. code-block:: bash
 
-	sudo docker run -lxc-conf=lxc.aa_profile=unconfined -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh test
+	sudo docker run -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh test
 
 
 If the test are successful then the tail of the output should look something like this

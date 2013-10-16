@@ -13,10 +13,6 @@ cd /
 git clone -q http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
 cd /go/src/github.com/dotcloud/docker
 
-echo FIXME. Temporarily add Jerome changeset with proper apparmor handling
-git fetch  http://github.com/jpetazzo/docker escape-apparmor-confinement:escape-apparmor-confinement
-git rebase --onto master master escape-apparmor-confinement
-
 # Launch docker daemon using dind inside the container
 ./hack/dind /usr/bin/docker -d &
 sleep 5
@@ -28,7 +24,7 @@ date > timestamp
 docker build -t docker .
 
 # Run Docker unittests binary and Ubuntu package
-docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh || exit 1
+docker run -privileged docker hack/make.sh || exit 1
 
 # Turn debug off to load credentials from the environment
 set +x
