@@ -112,6 +112,7 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetEvents(t *testing.T) {
 	runtime := mkRuntime(t)
+	defer nuke(runtime)
 	srv := &Server{
 		runtime:   runtime,
 		events:    make([]utils.JSONMessage, 0, 64),

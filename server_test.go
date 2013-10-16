@@ -351,6 +351,7 @@ func TestPools(t *testing.T) {
 
 func TestLogEvent(t *testing.T) {
 	runtime := mkRuntime(t)
+	defer nuke(runtime)
 	srv := &Server{
 		runtime:   runtime,
 		events:    make([]utils.JSONMessage, 0, 64),
