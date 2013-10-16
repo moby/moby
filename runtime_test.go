@@ -94,6 +94,13 @@ func init() {
 		globalRuntime = runtime
 	}
 
+	// Cleanup any leftover container
+	for _, container := range globalRuntime.List() {
+		if err := globalRuntime.Destroy(container); err != nil {
+			log.Fatalf("Error destroying leftover container: %s", err)
+		}
+	}
+
 	// Create the "Server"
 	srv := &Server{
 		runtime:     globalRuntime,
