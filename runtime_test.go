@@ -28,6 +28,10 @@ const (
 	unitTestStoreBase        = "/var/lib/docker/unit-tests"
 	testDaemonAddr           = "127.0.0.1:4270"
 	testDaemonProto          = "tcp"
+
+	unitTestDMDataLoopbackSize     = 209715200 // 200MB
+	unitTestDMMetaDataLoopbackSize = 104857600 // 100MB
+	unitTestDMBaseFsSize           = 157286400 // 150MB
 )
 
 var (
@@ -152,9 +156,11 @@ func cleanupDevMapper() error {
 
 func init() {
 	os.Setenv("TEST", "1")
-	os.Setenv("DOCKER_LOOPBACK_DATA_SIZE", "209715200") // 200MB
-	os.Setenv("DOCKER_LOOPBACK_META_SIZE", "104857600") // 100MB
-	os.Setenv("DOCKER_BASE_FS_SIZE", "157286400")       // 150MB
+	// Set unit-test specific values
+	devmapper.DefaultDataLoopbackSize = unitTestDMDataLoopbackSize
+	devmapper.DefaultMetaDataLoopbackSize = unitTestDMMetaDataLoopbackSize
+	devmapper.DefaultBaseFsSize = unitTestDMBaseFsSize
+	NetworkBridgeIface = unitTestNetworkBridge
 
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
@@ -165,8 +171,6 @@ func init() {
 	if uid := syscall.Geteuid(); uid != 0 {
 		log.Fatal("docker tests need to be run as root")
 	}
-
-	NetworkBridgeIface = unitTestNetworkBridge
 
 	if err := cleanupDevMapper(); err != nil {
 		log.Fatalf("Unable to cleanup devmapper: %s", err)

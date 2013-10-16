@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
-	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
-	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
+	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
+	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
 )
 
 type DevInfo struct {
@@ -45,30 +45,6 @@ type DeviceSetDM struct {
 	NewTransactionId uint64
 	nextFreeDevice   int
 	activeMounts     map[string]int
-}
-
-func init() {
-	var err error
-
-	rawMetaSize := os.Getenv("DOCKER_LOOPBACK_META_SIZE")
-	rawDataSize := os.Getenv("DOCKER_LOOPBACK_DATA_SIZE")
-	rawBaseFSSize := os.Getenv("DOCKER_BASE_FS_SIZE")
-
-	if rawMetaSize != "" {
-		if defaultMetaDataLoopbackSize, err = strconv.ParseInt(rawMetaSize, 0, 0); err != nil {
-			panic(err)
-		}
-	}
-	if rawDataSize != "" {
-		if defaultDataLoopbackSize, err = strconv.ParseInt(rawDataSize, 0, 0); err != nil {
-			panic(err)
-		}
-	}
-	if rawBaseFSSize != "" {
-		if defaultBaseFsSize, err = strconv.ParseUint(rawBaseFSSize, 0, 0); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func getDevName(name string) string {
@@ -307,7 +283,8 @@ func (devices *DeviceSetDM) setupBaseImage() error {
 		return err
 	}
 
-	info, err := devices.registerDevice(id, "", defaultBaseFsSize)
+	utils.Debugf("Registering base device (id %v) with FS size %v", id, DefaultBaseFsSize)
+	info, err := devices.registerDevice(id, "", DefaultBaseFsSize)
 	if err != nil {
 		_ = deleteDevice(devices.getPoolDevName(), id)
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -416,13 +393,13 @@ begin:
 	/* If we create the loopback mounts we also need to initialize the base fs */
 	createdLoopback := !devices.hasImage("data") || !devices.hasImage("metadata")
 
-	data, err := devices.ensureImage("data", defaultDataLoopbackSize)
+	data, err := devices.ensureImage("data", DefaultDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (data): %s\n", err)
 		return err
 	}
 
-	metadata, err := devices.ensureImage("metadata", defaultMetaDataLoopbackSize)
+	metadata, err := devices.ensureImage("metadata", DefaultMetaDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (metadata): %s\n", err)
 		return err
