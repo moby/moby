@@ -25,11 +25,6 @@ properly installing and using the overlay can be found in `the overlay README
 Installation
 ^^^^^^^^^^^^
 
-.. versionchanged:: v0.7
-   This section may need to be updated since Docker no longer depends
-   on AUFS. Please see :ref:`kernel`.
-
-
 The package should properly pull in all the necessary dependencies and prompt
 for all necessary kernel options.  For the most straightforward installation
 experience, use ``sys-kernel/aufs-sources`` as your kernel sources.  If you

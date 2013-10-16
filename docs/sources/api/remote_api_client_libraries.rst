@@ -3,18 +3,14 @@
 :keywords: API, Docker, index, registry, REST, documentation, clients, Python, Ruby, Javascript, Erlang, Go
 
 
-.. _remote_api_client_libs:
-
 ==================================
 Docker Remote API Client Libraries
 ==================================
 
 These libraries have not been tested by the Docker Maintainers for
-compatibility with the :doc:`docker_remote_api`. Please file issues
-with the library owners.  If you find more library implementations,
-please list them in `Docker doc issues
-<https://github.com/dotcloud/docker/issues?direction=desc&labels=doc&sort=updated&state=open>`_
-or make a pull request, and we will add the libraries here.
+compatibility. Please file issues with the library owners.  If you
+find more library implementations, please list them in Docker doc bugs
+and we will add the libraries here.
 
 +----------------------+----------------+--------------------------------------------+
 | Language/Framework   | Name           | Repository                                 |

@@ -178,4 +178,4 @@ you could skip to any of the other examples:
 * :ref:`running_ssh_service`
 * :ref:`running_couchdb_service`
 * :ref:`postgresql_service`
-* :ref:`mongodb_image`
+* :ref:`mongodb`
