@@ -57,6 +57,7 @@ run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 # Runtime dependencies
 run	apt-get install -y -q iptables
 run	apt-get install -y -q lxc
+run	apt-get install -y -q aufs-tools
 
 volume	/var/lib/docker
 workdir	/go/src/github.com/dotcloud/docker
