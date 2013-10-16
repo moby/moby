@@ -558,7 +558,7 @@ func TestRunAutoRemove(t *testing.T) {
 	}()
 
 	var temporaryContainerID string
-	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+	setTimeout(t, "Reading command output time out", 5*time.Second, func() {
 		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
 		if err != nil {
 			t.Fatal(err)
