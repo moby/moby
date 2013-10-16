@@ -801,6 +801,8 @@ func TestPostContainersStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+
 	r := httptest.NewRecorder()
 	if err := postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
 		t.Fatal(err)
