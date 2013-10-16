@@ -1,6 +1,7 @@
 package devmapper
 
 import (
+	"time"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -546,6 +547,32 @@ func (devices *DeviceSetDM) deactivateDevice(hash string) error {
 	return nil
 }
 
+// waitClose blocks until either:
+// a) the device registered at <device_set_prefix>-<hash> is closed,
+// or b) the 1 second timeout expires.
+func (devices *DeviceSetDM) waitClose(hash string) error {
+	devname, err := devices.byHash(hash)
+	if err != nil {
+		return err
+	}
+	i := 0
+	for ; i<1000; i+=1 {
+		devinfo, err := getInfo(devname)
+		if err != nil {
+			return err
+		}
+		utils.Debugf("Waiting for unmount of %s: opencount=%d", devname, devinfo.OpenCount)
+		if devinfo.OpenCount == 0 {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	if i == 1000 {
+		return fmt.Errorf("Timeout while waiting for device %s to close", devname)
+	}
+	return nil
+}
+
 func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
@@ -578,6 +605,9 @@ func (devices *DeviceSetDM) Shutdown() error {
 	}
 
 	for _, d := range devices.Devices {
+		if err := devices.waitClose(d.Hash); err != nil {
+			utils.Errorf("Warning: error waiting for device %s to unmount: %s\n", d.Hash, err)
+		}
 		if err := devices.deactivateDevice(d.Hash); err != nil {
 			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
 		}
@@ -630,6 +660,12 @@ func (devices *DeviceSetDM) UnmountDevice(hash, path string, deactivate bool) er
 
 	if err := syscall.Unmount(path, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
+		return err
+	}
+	utils.Debugf("[devmapper] Unmount done")
+	// Wait for the unmount to be effective,
+	// by watching the value of Info.OpenCount for the device
+	if err := devices.waitClose(hash); err != nil {
 		return err
 	}
 
