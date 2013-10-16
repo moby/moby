@@ -563,9 +563,14 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func (container *Container) Start(hostConfig *HostConfig) error {
+func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
+	defer func() {
+		if err != nil {
+			container.cleanup()
+		}
+	}()
 
 	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
 		hostConfig, _ = container.ReadHostConfig()
@@ -803,7 +808,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	var err error
 	if container.Config.Tty {
 		err = container.startPty()
 	} else {
@@ -929,7 +933,7 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
-	if container.Config.NetworkDisabled {
+	if container.Config.NetworkDisabled || container.network == nil {
 		return
 	}
 	container.network.Release()
@@ -981,6 +985,28 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	}
 
 	// Cleanup
+	container.cleanup()
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	// Release the lock
+	close(container.waitLock)
+
+	if err := container.ToDisk(); err != nil {
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+	}
+}
+
+func (container *Container) cleanup() {
 	container.releaseNetwork()
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
@@ -1002,24 +1028,6 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
-	}
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
-	// Release the lock
-	close(container.waitLock)
-
-	if err := container.ToDisk(); err != nil {
-		// FIXME: there is a race condition here which causes this to fail during the unit tests.
-		// If another goroutine was waiting for Wait() to return before removing the container's root
-		// from the filesystem... At this point it may already have done so.
-		// This is because State.setStopped() has already been called, and has caused Wait()
-		// to return.
-		// FIXME: why are we serializing running state to disk in the first place?
-		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
 	}
 }
 
