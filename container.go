@@ -567,262 +567,270 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	container.State.Lock()
 	defer container.State.Unlock()
 
-	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
-		hostConfig, _ = container.ReadHostConfig()
-	}
+	startFct := func(hostConfig *HostConfig) error {
 
-	if container.State.Running {
-		return fmt.Errorf("The container %s is already running.", container.ID)
-	}
-	if err := container.EnsureMounted(); err != nil {
-		return err
-	}
-	if container.runtime.networkManager.disabled {
-		container.Config.NetworkDisabled = true
-	} else {
-		if err := container.allocateNetwork(); err != nil {
+		if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
+			hostConfig, _ = container.ReadHostConfig()
+		}
+
+		if container.State.Running {
+			return fmt.Errorf("The container %s is already running.", container.ID)
+		}
+		if err := container.EnsureMounted(); err != nil {
 			return err
 		}
-	}
-
-	// Make sure the config is compatible with the current kernel
-	if container.Config.Memory > 0 && !container.runtime.capabilities.MemoryLimit {
-		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		container.Config.Memory = 0
-	}
-	if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
-		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		container.Config.MemorySwap = -1
-	}
-
-	if container.runtime.capabilities.IPv4ForwardingDisabled {
-		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
-	}
-
-	// Create the requested bind mounts
-	binds := make(map[string]BindMap)
-	// Define illegal container destinations
-	illegalDsts := []string{"/", "."}
-
-	for _, bind := range hostConfig.Binds {
-		// FIXME: factorize bind parsing in parseBind
-		var src, dst, mode string
-		arr := strings.Split(bind, ":")
-		if len(arr) == 2 {
-			src = arr[0]
-			dst = arr[1]
-			mode = "rw"
-		} else if len(arr) == 3 {
-			src = arr[0]
-			dst = arr[1]
-			mode = arr[2]
+		if container.runtime.networkManager.disabled {
+			container.Config.NetworkDisabled = true
 		} else {
-			return fmt.Errorf("Invalid bind specification: %s", bind)
-		}
-
-		// Bail if trying to mount to an illegal destination
-		for _, illegal := range illegalDsts {
-			if dst == illegal {
-				return fmt.Errorf("Illegal bind destination: %s", dst)
-			}
-		}
-
-		bindMap := BindMap{
-			SrcPath: src,
-			DstPath: dst,
-			Mode:    mode,
-		}
-		binds[path.Clean(dst)] = bindMap
-	}
-
-	if container.Volumes == nil || len(container.Volumes) == 0 {
-		container.Volumes = make(map[string]string)
-		container.VolumesRW = make(map[string]bool)
-	}
-
-	// Apply volumes from another container if requested
-	if container.Config.VolumesFrom != "" {
-		volumes := strings.Split(container.Config.VolumesFrom, ",")
-		for _, v := range volumes {
-			c := container.runtime.Get(v)
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-			}
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					continue
-				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-					return err
-				}
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW
-				}
-			}
-
-		}
-	}
-
-	// Create the requested volumes if they don't exist
-	for volPath := range container.Config.Volumes {
-		volPath = path.Clean(volPath)
-		// Skip existing volumes
-		if _, exists := container.Volumes[volPath]; exists {
-			continue
-		}
-		var srcPath string
-		var isBindMount bool
-		srcRW := false
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			isBindMount = true
-			srcPath = bindMap.SrcPath
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				srcRW = true
-			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
-			if err != nil {
+			if err := container.allocateNetwork(); err != nil {
 				return err
 			}
-			srcPath, err = c.layer()
-			if err != nil {
-				return err
-			}
-			srcRW = true // RW by default
-		}
-		container.Volumes[volPath] = srcPath
-		container.VolumesRW[volPath] = srcRW
-		// Create the mountpoint
-		rootVolPath := path.Join(container.RootfsPath(), volPath)
-		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-			return nil
 		}
 
-		// Do not copy or change permissions if we are mounting from the host
-		if srcRW && !isBindMount {
-			volList, err := ioutil.ReadDir(rootVolPath)
-			if err != nil {
-				return err
+		// Make sure the config is compatible with the current kernel
+		if container.Config.Memory > 0 && !container.runtime.capabilities.MemoryLimit {
+			log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+			container.Config.Memory = 0
+		}
+		if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
+			log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+			container.Config.MemorySwap = -1
+		}
+
+		if container.runtime.capabilities.IPv4ForwardingDisabled {
+			log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+		}
+
+		// Create the requested bind mounts
+		binds := make(map[string]BindMap)
+		// Define illegal container destinations
+		illegalDsts := []string{"/", "."}
+
+		for _, bind := range hostConfig.Binds {
+			// FIXME: factorize bind parsing in parseBind
+			var src, dst, mode string
+			arr := strings.Split(bind, ":")
+			if len(arr) == 2 {
+				src = arr[0]
+				dst = arr[1]
+				mode = "rw"
+			} else if len(arr) == 3 {
+				src = arr[0]
+				dst = arr[1]
+				mode = arr[2]
+			} else {
+				return fmt.Errorf("Invalid bind specification: %s", bind)
 			}
-			if len(volList) > 0 {
-				srcList, err := ioutil.ReadDir(srcPath)
+
+			// Bail if trying to mount to an illegal destination
+			for _, illegal := range illegalDsts {
+				if dst == illegal {
+					return fmt.Errorf("Illegal bind destination: %s", dst)
+				}
+			}
+
+			bindMap := BindMap{
+				SrcPath: src,
+				DstPath: dst,
+				Mode:    mode,
+			}
+			binds[path.Clean(dst)] = bindMap
+		}
+
+		if container.Volumes == nil || len(container.Volumes) == 0 {
+			container.Volumes = make(map[string]string)
+			container.VolumesRW = make(map[string]bool)
+		}
+
+		// Apply volumes from another container if requested
+		if container.Config.VolumesFrom != "" {
+			volumes := strings.Split(container.Config.VolumesFrom, ",")
+			for _, v := range volumes {
+				c := container.runtime.Get(v)
+				if c == nil {
+					return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+				}
+				for volPath, id := range c.Volumes {
+					if _, exists := container.Volumes[volPath]; exists {
+						continue
+					}
+					if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+						return err
+					}
+					container.Volumes[volPath] = id
+					if isRW, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[volPath] = isRW
+					}
+				}
+
+			}
+		}
+
+		// Create the requested volumes if they don't exist
+		for volPath := range container.Config.Volumes {
+			volPath = path.Clean(volPath)
+			// Skip existing volumes
+			if _, exists := container.Volumes[volPath]; exists {
+				continue
+			}
+			var srcPath string
+			var isBindMount bool
+			srcRW := false
+			// If an external bind is defined for this volume, use that as a source
+			if bindMap, exists := binds[volPath]; exists {
+				isBindMount = true
+				srcPath = bindMap.SrcPath
+				if strings.ToLower(bindMap.Mode) == "rw" {
+					srcRW = true
+				}
+				// Otherwise create an directory in $ROOT/volumes/ and use that
+			} else {
+				c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
 				if err != nil {
 					return err
 				}
-				if len(srcList) == 0 {
-					// If the source volume is empty copy files from the root into the volume
-					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
-						return err
-					}
+				srcPath, err = c.layer()
+				if err != nil {
+					return err
+				}
+				srcRW = true // RW by default
+			}
+			container.Volumes[volPath] = srcPath
+			container.VolumesRW[volPath] = srcRW
+			// Create the mountpoint
+			rootVolPath := path.Join(container.RootfsPath(), volPath)
+			if err := os.MkdirAll(rootVolPath, 0755); err != nil {
+				return nil
+			}
 
-					var stat syscall.Stat_t
-					if err := syscall.Stat(rootVolPath, &stat); err != nil {
+			// Do not copy or change permissions if we are mounting from the host
+			if srcRW && !isBindMount {
+				volList, err := ioutil.ReadDir(rootVolPath)
+				if err != nil {
+					return err
+				}
+				if len(volList) > 0 {
+					srcList, err := ioutil.ReadDir(srcPath)
+					if err != nil {
 						return err
 					}
-					var srcStat syscall.Stat_t
-					if err := syscall.Stat(srcPath, &srcStat); err != nil {
-						return err
-					}
-					// Change the source volume's ownership if it differs from the root
-					// files that where just copied
-					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+					if len(srcList) == 0 {
+						// If the source volume is empty copy files from the root into the volume
+						if err := CopyWithTar(rootVolPath, srcPath); err != nil {
 							return err
+						}
+
+						var stat syscall.Stat_t
+						if err := syscall.Stat(rootVolPath, &stat); err != nil {
+							return err
+						}
+						var srcStat syscall.Stat_t
+						if err := syscall.Stat(srcPath, &srcStat); err != nil {
+							return err
+						}
+						// Change the source volume's ownership if it differs from the root
+						// files that where just copied
+						if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+							if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+								return err
+							}
 						}
 					}
 				}
 			}
 		}
-	}
 
-	if err := container.generateLXCConfig(hostConfig); err != nil {
-		return err
-	}
-
-	params := []string{
-		"-n", container.ID,
-		"-f", container.lxcConfigPath(),
-		"--",
-		"/.dockerinit",
-	}
-
-	// Networking
-	if !container.Config.NetworkDisabled {
-		params = append(params, "-g", container.network.Gateway.String())
-	}
-
-	// User
-	if container.Config.User != "" {
-		params = append(params, "-u", container.Config.User)
-	}
-
-	if container.Config.Tty {
-		params = append(params, "-e", "TERM=xterm")
-	}
-
-	// Setup environment
-	params = append(params,
-		"-e", "HOME=/",
-		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"-e", "container=lxc",
-		"-e", "HOSTNAME="+container.Config.Hostname,
-	)
-	if container.Config.WorkingDir != "" {
-		workingDir := path.Clean(container.Config.WorkingDir)
-		utils.Debugf("[working dir] working dir is %s", workingDir)
-
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
-			return nil
+		if err := container.generateLXCConfig(hostConfig); err != nil {
+			return err
 		}
 
+		params := []string{
+			"-n", container.ID,
+			"-f", container.lxcConfigPath(),
+			"--",
+			"/.dockerinit",
+		}
+
+		// Networking
+		if !container.Config.NetworkDisabled {
+			params = append(params, "-g", container.network.Gateway.String())
+		}
+
+		// User
+		if container.Config.User != "" {
+			params = append(params, "-u", container.Config.User)
+		}
+
+		if container.Config.Tty {
+			params = append(params, "-e", "TERM=xterm")
+		}
+
+		// Setup environment
 		params = append(params,
-			"-w", workingDir,
+			"-e", "HOME=/",
+			"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			"-e", "container=lxc",
+			"-e", "HOSTNAME="+container.Config.Hostname,
 		)
+		if container.Config.WorkingDir != "" {
+			workingDir := path.Clean(container.Config.WorkingDir)
+			utils.Debugf("[working dir] working dir is %s", workingDir)
+
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
+				return nil
+			}
+
+			params = append(params,
+				"-w", workingDir,
+			)
+		}
+
+		for _, elem := range container.Config.Env {
+			params = append(params, "-e", elem)
+		}
+
+		// Program
+		params = append(params, "--", container.Path)
+		params = append(params, container.Args...)
+
+		container.cmd = exec.Command("lxc-start", params...)
+
+		// Setup logging of stdout and stderr to disk
+		if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
+			return err
+		}
+		if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
+			return err
+		}
+
+		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+		var err error
+		if container.Config.Tty {
+			err = container.startPty()
+		} else {
+			err = container.start()
+		}
+		if err != nil {
+			return err
+		}
+		// FIXME: save state on disk *first*, then converge
+		// this way disk state is used as a journal, eg. we can restore after crash etc.
+		container.State.setRunning(container.cmd.Process.Pid)
+
+		// Init the lock
+		container.waitLock = make(chan struct{})
+
+		container.ToDisk()
+		container.SaveHostConfig(hostConfig)
+		go container.monitor(hostConfig)
+		return nil
 	}
-
-	for _, elem := range container.Config.Env {
-		params = append(params, "-e", elem)
-	}
-
-	// Program
-	params = append(params, "--", container.Path)
-	params = append(params, container.Args...)
-
-	container.cmd = exec.Command("lxc-start", params...)
-
-	// Setup logging of stdout and stderr to disk
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
-		return err
-	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
-		return err
-	}
-
-	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
-	var err error
-	if container.Config.Tty {
-		err = container.startPty()
-	} else {
-		err = container.start()
-	}
+	err := startFct(hostConfig)
 	if err != nil {
-		return err
+		container.cleanup()
 	}
-	// FIXME: save state on disk *first*, then converge
-	// this way disk state is used as a journal, eg. we can restore after crash etc.
-	container.State.setRunning(container.cmd.Process.Pid)
-
-	// Init the lock
-	container.waitLock = make(chan struct{})
-
-	container.ToDisk()
-	container.SaveHostConfig(hostConfig)
-	go container.monitor(hostConfig)
-	return nil
+	return err
 }
 
 func (container *Container) Run() error {
@@ -981,6 +989,28 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	}
 
 	// Cleanup
+	container.cleanup()
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	// Release the lock
+	close(container.waitLock)
+
+	if err := container.ToDisk(); err != nil {
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+	}
+}
+
+func (container *Container) cleanup() {
 	container.releaseNetwork()
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
@@ -1002,24 +1032,6 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
-	}
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
-	// Release the lock
-	close(container.waitLock)
-
-	if err := container.ToDisk(); err != nil {
-		// FIXME: there is a race condition here which causes this to fail during the unit tests.
-		// If another goroutine was waiting for Wait() to return before removing the container's root
-		// from the filesystem... At this point it may already have done so.
-		// This is because State.setStopped() has already been called, and has caused Wait()
-		// to return.
-		// FIXME: why are we serializing running state to disk in the first place?
-		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
 	}
 }
 
