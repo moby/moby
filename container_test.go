@@ -1189,7 +1189,7 @@ func BenchmarkRunParallel(b *testing.B) {
 }
 
 func tempDir(t *testing.T) string {
-	tmpDir, err := ioutil.TempDir("", "docker-test")
+	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
 		t.Fatal(err)
 	}

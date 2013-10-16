@@ -76,7 +76,7 @@ func TestCreateAccount(t *testing.T) {
 }
 
 func setupTempConfigFile() (*ConfigFile, error) {
-	root, err := ioutil.TempDir("", "docker-test")
+	root, err := ioutil.TempDir("", "docker-test-auth")
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +101,7 @@ func TestSameAuthDataPostSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(configFile.rootPath)
 
 	err = SaveConfig(configFile)
 	if err != nil {
@@ -127,6 +128,7 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(configFile.rootPath)
 
 	for _, registry := range []string{"", IndexServerAddress()} {
 		resolved := configFile.ResolveAuthConfig(registry)
@@ -141,6 +143,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(configFile.rootPath)
 
 	registryAuth := AuthConfig{
 		Username: "foo-user",
