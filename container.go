@@ -933,7 +933,7 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
-	if container.Config.NetworkDisabled {
+	if container.Config.NetworkDisabled || container.network == nil {
 		return
 	}
 	container.network.Release()
