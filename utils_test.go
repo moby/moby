@@ -30,19 +30,25 @@ type Fataler interface {
 	Fatal(args ...interface{})
 }
 
-func newTestRuntime() (*Runtime, error) {
+func newTestRuntime() (runtime *Runtime, err error) {
+	utils.Debugf("newTestRuntime start")
 	root, err := ioutil.TempDir("", "docker-test")
+	defer func() {
+		utils.Debugf("newTestRuntime: %s", root)
+	}()
 	if err != nil {
 		return nil, err
 	}
 	if err := os.Remove(root); err != nil {
 		return nil, err
 	}
+	utils.Debugf("Copying %s to %s", unitTestStoreBase, root)
 	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
+		utils.Debugf("ERROR: Copying %s to %s returned %s", unitTestStoreBase, root, err)
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root, false)
+	runtime, err = NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		return nil, err
 	}

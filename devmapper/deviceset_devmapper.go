@@ -168,6 +168,7 @@ func (devices *DeviceSetDM) saveMetadata() error {
 }
 
 func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
+	utils.Debugf("registerDevice(%v, %v)", id, hash)
 	info := &DevInfo{
 		Hash:          hash,
 		DeviceId:      id,
@@ -188,7 +189,7 @@ func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*D
 }
 
 func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
-	utils.Debugf("activateDeviceIfNeeded()")
+	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
@@ -560,6 +561,7 @@ func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
 
 func (devices *DeviceSetDM) Shutdown() error {
 	devices.Lock()
+	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer devices.Unlock()
 
 	if !devices.initialized {

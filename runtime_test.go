@@ -106,6 +106,8 @@ func removeDev(name string) error {
 }
 
 func cleanupDevMapper() error {
+	utils.Debugf("[devmapper cleanup] starting")
+	defer utils.Debugf("[devmapper cleanup] done")
 	filter := "docker-" + path.Base(unitTestStoreBase)
 	utils.Debugf("Filtering out %s\n", filter)
 	// Unmount any leftover mounts from previous unit test runs

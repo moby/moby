@@ -570,6 +570,7 @@ func resumeDevice(name string) error {
 }
 
 func createDevice(poolName string, deviceId int) error {
+	utils.Debugf("[devmapper] createDevice(poolName=%v, deviceId=%v)", poolName, deviceId)
 	task, err := createTask(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
