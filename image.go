@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/devmapper"
 	"io"
 	"io/ioutil"
 	"os"
@@ -334,7 +335,7 @@ func (image *Image) applyLayer(layer, target string) error {
 	return nil
 }
 
-func (image *Image) ensureImageDevice(devices DeviceSet) error {
+func (image *Image) ensureImageDevice(devices *devmapper.DeviceSetDM) error {
 	if devices.HasInitializedDevice(image.ID) {
 		return nil
 	}

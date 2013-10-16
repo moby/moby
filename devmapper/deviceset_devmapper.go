@@ -573,19 +573,6 @@ func (devices *DeviceSetDM) waitClose(hash string) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) DeactivateDevice(hash string) error {
-	devices.Lock()
-	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
-	}
-
-	utils.Debugf("DeactivateDevice %s", hash)
-	return devices.deactivateDevice(hash)
-}
-
 func (devices *DeviceSetDM) Shutdown() error {
 	devices.Lock()
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
