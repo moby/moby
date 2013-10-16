@@ -11,7 +11,6 @@ lxc.utsname = {{.Config.Hostname}}
 {{else}}
 lxc.utsname = {{.Id}}
 {{end}}
-#lxc.aa_profile = unconfined
 
 {{if .Config.NetworkDisabled}}
 # network is disabled (-n=false)
@@ -108,6 +107,11 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 
 {{if (getHostConfig .).Privileged}}
 # retain all capabilities; no lxc.cap.drop line
+{{if (getCapabilities .).AppArmor}}
+lxc.aa_profile = unconfined
+{{else}}
+#lxc.aa_profile = unconfined
+{{end}}
 {{else}}
 # drop linux capabilities (apply mainly to the user root in the container)
 #  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
@@ -150,11 +154,16 @@ func getHostConfig(container *Container) *HostConfig {
 	return container.hostConfig
 }
 
+func getCapabilities(container *Container) *Capabilities {
+	return container.runtime.capabilities
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap": getMemorySwap,
-		"getHostConfig": getHostConfig,
+		"getMemorySwap":   getMemorySwap,
+		"getHostConfig":   getHostConfig,
+		"getCapabilities": getCapabilities,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

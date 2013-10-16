@@ -21,6 +21,7 @@ type Capabilities struct {
 	MemoryLimit            bool
 	SwapLimit              bool
 	IPv4ForwardingDisabled bool
+	AppArmor               bool
 }
 
 type Runtime struct {
@@ -269,6 +270,15 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
+
+	// Check if AppArmor seems to be enabled on this system.
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
+		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
+		runtime.capabilities.AppArmor = false
+	} else {
+		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
+		runtime.capabilities.AppArmor = true
+	}
 }
 
 // Create creates a new container from the given configuration.
@@ -453,6 +463,9 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 
+	if err := copyLxcStart(root); err != nil {
+		return nil, err
+	}
 	g, err := NewGraph(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
@@ -489,6 +502,27 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+func copyLxcStart(root string) error {
+	sourcePath, err := exec.LookPath("lxc-start")
+	if err != nil {
+		return err
+	}
+	targetPath := path.Join(root, "lxc-start-unconfined")
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+	targetFile, err := os.Create(targetPath)
+	if err != nil {
+		return err
+	}
+	defer targetFile.Close()
+	os.Chmod(targetPath, 0755)
+	_, err = io.Copy(targetFile, sourceFile)
+	return err
 }
 
 // History is a convenience type for storing a list of containers,

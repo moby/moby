@@ -811,7 +811,11 @@ func (container *Container) Start() (err error) {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	container.cmd = exec.Command("lxc-start", params...)
+	var lxcStart string = "lxc-start"
+	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
+		lxcStart = path.Join(container.runtime.root, "lxc-start-unconfined")
+	}
+	container.cmd = exec.Command(lxcStart, params...)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
