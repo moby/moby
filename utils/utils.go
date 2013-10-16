@@ -280,7 +280,8 @@ type JSONLog struct {
 
 func escapeLog(line string) (*json.RawMessage, error) {
 	var objmap *json.RawMessage
-	return objmap, json.Unmarshal([]byte(line), &objmap)
+	err := json.Unmarshal([]byte(line), &objmap)
+	return objmap, err
 }
 
 func CreateJSONLog(log string, stream string, created time.Time) JSONLog {
