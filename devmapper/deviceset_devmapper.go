@@ -690,9 +690,12 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 }
 
 func (devices *DeviceSetDM) UnmountDevice(hash, path string, deactivate bool) error {
+	utils.Debugf("[devmapper] UnmountDevice(hash=%s path=%s)", hash, path)
+	defer utils.Debugf("[devmapper] UnmountDevice END")
 	devices.Lock()
 	defer devices.Unlock()
 
+	utils.Debugf("[devmapper] Unmount(%s)", path)
 	if err := syscall.Unmount(path, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err

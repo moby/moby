@@ -611,6 +611,8 @@ func deleteDevice(poolName string, deviceId int) error {
 }
 
 func removeDevice(name string) error {
+	utils.Debugf("[devmapper] removeDevice START")
+	defer utils.Debugf("[devmapper] removeDevice END")
 	task, err := createTask(DeviceRemove, name)
 	if task == nil {
 		return err
