@@ -37,8 +37,12 @@ func (w *StdWriter) Write(buf []byte) (n int, err error) {
 	return n - StdWriterPrefixLen, err
 }
 
-// NewStdWriter instanciate a new Writer based on the given type `t`.
-// the utils package contains the valid parametres for `t`:
+// NewStdWriter instanciates a new Writer.
+// Everything written to it will be encapsulated using a custom format,
+// and written to the underlying `w` stream.
+// This allows multiple write streams (e.g. stdout and stderr) to be muxed into a single connection.
+// `t` indicates the id of the stream to encapsulate.
+// It can be utils.Stdin, utils.Stdout, utils.Stderr.
 func NewStdWriter(w io.Writer, t StdType) *StdWriter {
 	if len(t) != StdWriterPrefixLen {
 		return nil
@@ -55,16 +59,14 @@ var ErrInvalidStdHeader = errors.New("Unrecognized input header")
 
 // StdCopy is a modified version of io.Copy.
 //
-// StdCopy copies from src to dstout or dsterr until either EOF is reached
-// on src or an error occurs.  It returns the number of bytes
-// copied and the first error encountered while copying, if any.
+// StdCopy will demultiplex `src`, assuming that it contains two streams,
+// previously multiplexed together using a StdWriter instance.
+// As it reads from `src`, StdCopy will write to `dstout` and `dsterr`.
 //
-// A successful Copy returns err == nil, not err == EOF.
-// Because Copy is defined to read from src until EOF, it does
-// not treat an EOF from Read as an error to be reported.
+// StdCopy will read until it hits EOF on `src`. It will then return a nil error.
+// In other words: if `err` is non nil, it indicates a real underlying error.
 //
-// The source needs to be writter via StdWriter, dstout or dsterr is selected
-// based on the prefix added by StdWriter
+// `written` will hold the total number of bytes written to `dstout` and `dsterr`.
 func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error) {
 	var (
 		buf       = make([]byte, 32*1024+StdWriterPrefixLen+1)
