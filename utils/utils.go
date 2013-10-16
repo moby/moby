@@ -283,7 +283,7 @@ func escapeLog(line string) (*json.RawMessage, error) {
 	return objmap, json.Unmarshal([]byte(line), &objmap)
 }
 
-func CreateJSONLog(log string, stream Stream, created time.Time) JSONLog {
+func CreateJSONLog(log string, stream string, created time.Time) JSONLog {
 	jsonLog := JSONLog{
 		Log:     log,
 		Stream:  stream,
