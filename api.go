@@ -349,7 +349,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		return err
 	}
 	config := &Config{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err.Error() != "EOF" {
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
 		utils.Errorf("%s", err)
 	}
 	repo := r.Form.Get("repo")

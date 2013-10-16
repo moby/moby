@@ -176,7 +176,7 @@ func (b *buildFile) CmdEnv(args string) error {
 func (b *buildFile) CmdCmd(args string) error {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Errorf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
+		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
 	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
