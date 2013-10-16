@@ -11,7 +11,7 @@ In short, Docker has the following kernel requirements:
 
 - Linux version 3.8 or above.
 
-- `Device Mapper support <http://www.sourceware.org/dm/>`_.
+- `AUFS support <http://aufs.sourceforge.net/>`_.
 
 - Cgroups and namespaces must be enabled.
 
@@ -48,17 +48,15 @@ detects something older than 3.8.
 See issue `#407 <https://github.com/dotcloud/docker/issues/407>`_ for details.
 
 
-Device Mapper support
----------------------
+AUFS support
+------------
 
-The `Device Mapper <http://www.sourceware.org/dm/>`_ replaces the
-previous Docker dependency on AUFS and has been in the kernel since
-2.6.9, so the device-mapper module is more broadly-supported across
-Linux distributions. Docker uses `thin-provisioning
-<https://github.com/mirrors/linux/blob/master/Documentation/device-mapper/thin-provisioning.txt>`_
-to provide a :ref:`unioning file system <ufs_def>`. If you'd like to
-check for the presence of the device-mapper module, please see the
-`LVM-HOWTO. <http://www.tldp.org/HOWTO/LVM-HOWTO/builddmmod.html>`_
+Docker currently relies on AUFS, an unioning filesystem.
+While AUFS is included in the kernels built by the Debian and Ubuntu
+distributions, is not part of the standard kernel. This means that if
+you decide to roll your own kernel, you will have to patch your
+kernel tree to add AUFS. The process is documented on
+`AUFS webpage <http://aufs.sourceforge.net/>`_.
 
 
 Cgroups and namespaces
@@ -71,7 +69,7 @@ to run LXC containers. Note that 2.6.32 has some documented issues regarding
 network namespace setup and teardown; those issues are not a risk if you
 run containers in a private environment, but can lead to denial-of-service
 attacks if you want to run untrusted code in your containers. For more details,
-see `LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
+see `[LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
 
 Kernels 2.6.38, and every version since 3.2, have been deployed successfully
 to run containerized production workloads. Feature-wise, there is no huge
