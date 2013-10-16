@@ -527,23 +527,55 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 }
 
 func (devices *DeviceSetDM) deactivateDevice(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("hash %s doesn't exists", hash)
+	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
+	defer utils.Debugf("[devmapper] deactivateDevice END")
+	var devname string
+	// FIXME: shouldn't we just register the pool into devices?
+	devname, err := devices.byHash(hash)
+	if err != nil {
+		return err
 	}
-
-	devinfo, err := getInfo(info.Name())
+	devinfo, err := getInfo(devname)
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
-		if err := removeDevice(info.Name()); err != nil {
+		if err := removeDevice(devname); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
+			return err
+		}
+		if err := devices.waitRemove(hash); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+// waitRemove blocks until either:
+// a) the device registered at <device_set_prefix>-<hash> is removed,
+// or b) the 1 second timeout expires.
+func (devices *DeviceSetDM) waitRemove(hash string) error {
+	devname, err := devices.byHash(hash)
+	if err != nil {
+		return err
+	}
+	i := 0
+	for ; i<1000; i+=1 {
+		devinfo, err := getInfo(devname)
+		if err != nil {
+			return err
+		}
+		utils.Debugf("Waiting for removal of %s: exists=%d", devname, devinfo.Exists)
+		if devinfo.Exists == 0 {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	if i == 1000 {
+		return fmt.Errorf("Timeout while waiting for device %s to be removed", devname)
+	}
 	return nil
 }
 
@@ -572,6 +604,22 @@ func (devices *DeviceSetDM) waitClose(hash string) error {
 	}
 	return nil
 }
+
+// byHash is a hack to allow looking up the deviceset's pool by the hash "pool".
+// FIXME: it seems probably cleaner to register the pool in devices.Devices,
+// but I am afraid of arcane implications deep in the devicemapper code,
+// so this will do.
+func (devices *DeviceSetDM) byHash(hash string) (devname string, err error) {
+	if hash == "pool" {
+		return devices.getPoolDevName(), nil
+	}
+	info := devices.Devices[hash]
+	if info == nil {
+		return "", fmt.Errorf("hash %s doesn't exists", hash)
+	}
+	return info.Name(), nil
+}
+
 
 func (devices *DeviceSetDM) Shutdown() error {
 	devices.Lock()
@@ -602,7 +650,7 @@ func (devices *DeviceSetDM) Shutdown() error {
 
 	pool := devices.getPoolDevName()
 	if devinfo, err := getInfo(pool); err == nil && devinfo.Exists != 0 {
-		if err := removeDevice(pool); err != nil {
+		if err := devices.deactivateDevice("pool"); err != nil {
 			utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
 		}
 	}
