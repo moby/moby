@@ -559,3 +559,84 @@ func TestBuildADDFileNotFound(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestBuildinheritance(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        expose 4243
+        `,
+		nil, nil}, t, srv, true)
+
+	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
+        from %s
+        entrypoint ["/bin/echo"]
+        `, img.ID),
+		nil, nil}, t, srv, true)
+
+	// from child
+	if img2.Config.Entrypoint[0] != "/bin/echo" {
+		t.Fail()
+	}
+
+	// from parent
+	if img.Config.PortSpecs[0] != "4243" {
+		t.Fail()
+	}
+}
+
+func TestBuildinheritanceDoNotCarryPriviliged(t *testing.T) {
+	runtime, err := newTestRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	config := &Config{
+		Image:      GetTestImage(runtime).ID,
+		Cmd:        []string{"/bin/ls"},
+		Privileged: true,
+	}
+	container, err := runtime.Create(config)
+	if err != nil {
+		t.Error(err)
+	}
+
+	img, err := runtime.Commit(container, "testrepo", "testtag", "", "", config)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// from parent
+	if !img.Config.Privileged {
+		t.Fatalf("Privileged should be true it the parent.")
+	}
+
+	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
+        from %s
+        entrypoint ["/bin/echo"]
+        `, img.ID),
+		nil, nil}, t, srv, true)
+
+	// from child
+	if img2.Config.Privileged {
+		t.Fatalf("Privileged should be false it the child. It should'nt be carry over to the children")
+	}
+}

@@ -63,7 +63,10 @@ func (b *buildFile) CmdFrom(name string) error {
 		}
 	}
 	b.image = image.ID
-	b.config = &Config{}
+	b.config = image.Config
+	if b.config == nil {
+		b.config = &Config{}
+	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
