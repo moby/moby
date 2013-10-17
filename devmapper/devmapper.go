@@ -27,6 +27,7 @@ char*			attach_loop_device(const char *filename, int *loop_fd_out)
   int			i, loop_fd, fd, start_index;
   char*			loopname;
 
+
   *loop_fd_out = -1;
 
   start_index = 0;
@@ -48,71 +49,80 @@ char*			attach_loop_device(const char *filename, int *loop_fd_out)
   loop_fd = -1;
   for (i = start_index ; loop_fd < 0 ; i++ ) {
     if (sprintf(buf, "/dev/loop%d", i) < 0) {
-      close(fd);
-	perror("sprintf");
-      return NULL;
+	close(fd);
+	return NULL;
     }
 
-    if (stat(buf, &st) || !S_ISBLK(st.st_mode)) {
+    if (stat(buf, &st)) {
+      if (!S_ISBLK(st.st_mode)) {
+	 fprintf(stderr, "[error] Loopback device %s is not a block device.\n", buf);
+      } else if (errno == ENOENT) {
+	fprintf(stderr, "[error] There are no more loopback device available.\n");
+      } else {
+	fprintf(stderr, "[error] Unkown error trying to stat the loopback device %s (errno: %d).\n", buf, errno);
+      }
       close(fd);
       return NULL;
     }
 
     loop_fd = open(buf, O_RDWR);
     if (loop_fd < 0 && errno == ENOENT) {
+      fprintf(stderr, "[error] The loopback device %s does not exists.\n", buf);
       close(fd);
-      fprintf (stderr, "no available loopback device!");
       return NULL;
-    } else if (loop_fd < 0)
-      continue;
+    } else if (loop_fd < 0) {
+	fprintf(stderr, "[error] Unkown error openning the loopback device %s. (errno: %d)\n", buf, errno);
+	continue;
+    }
 
-    if (ioctl (loop_fd, LOOP_SET_FD, (void *)(size_t)fd) < 0) {
+    if (ioctl(loop_fd, LOOP_SET_FD, (void *)(size_t)fd) < 0) {
       int errsv = errno;
       close(loop_fd);
       loop_fd = -1;
       if (errsv != EBUSY) {
-        close (fd);
-        fprintf (stderr, "cannot set up loopback device %s: %s", buf, strerror(errsv));
+        close(fd);
+        fprintf(stderr, "cannot set up loopback device %s: %s", buf, strerror(errsv));
         return NULL;
       }
       continue;
     }
 
-    close (fd);
+    close(fd);
 
     strncpy((char*)loopinfo.lo_file_name, buf, LO_NAME_SIZE);
     loopinfo.lo_offset = 0;
     loopinfo.lo_flags = LO_FLAGS_AUTOCLEAR;
 
     if (ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo) < 0) {
-      perror("ioctl1");
+      perror("ioctl LOOP_SET_STATUS64");
       if (ioctl(loop_fd, LOOP_CLR_FD, 0) < 0) {
-        perror("ioctl2");
+        perror("ioctl LOOP_CLR_FD");
       }
       close(loop_fd);
       fprintf (stderr, "cannot set up loopback device info");
-      return NULL;
+      return (NULL);
     }
 
     loopname = strdup(buf);
     if (loopname == NULL) {
       close(loop_fd);
-      return NULL;
+      return (NULL);
     }
 
     *loop_fd_out = loop_fd;
-    return loopname;
+    return (loopname);
   }
-  return NULL;
+
+  return (NULL);
 }
 
-static int64_t
-get_block_size(int fd)
+static int64_t	get_block_size(int fd)
 {
-  uint64_t size;
+  uint64_t	size;
+
   if (ioctl(fd, BLKGETSIZE64, &size) == -1)
     return -1;
-  return (int64_t)size;
+  return ((int64_t)size);
 }
 
 extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
@@ -150,7 +160,7 @@ import (
 	"unsafe"
 )
 
-type DevmapperLogger interface  {
+type DevmapperLogger interface {
 	log(level int, file string, line int, dmError int, message string)
 }
 
@@ -214,7 +224,7 @@ type (
 		ReadOnly      int
 		TargetCount   int32
 	}
-	TaskType int
+	TaskType    int
 	AddNodeType int
 )
 
@@ -279,7 +289,7 @@ func (t *Task) SetCookie(cookie *uint32, flags uint16) error {
 }
 
 func (t *Task) SetAddNode(add_node AddNodeType) error {
-	if res := C.dm_task_set_add_node(t.unmanaged, C.dm_add_node_t (add_node)); res != 1 {
+	if res := C.dm_task_set_add_node(t.unmanaged, C.dm_add_node_t(add_node)); res != 1 {
 		return ErrTaskSetAddNode
 	}
 	return nil
@@ -352,7 +362,7 @@ func AttachLoopDevice(filename string) (*os.File, error) {
 	res := C.attach_loop_device(c_filename, &fd)
 	if res == nil {
 		if os.Getenv("DEBUG") != "" {
-			C.perror(C.CString(fmt.Sprintf("[debug] Error attach_loop_device(%s, $#v)", c_filename, &fd)))
+			C.perror(C.CString(fmt.Sprintf("[debug] Error attach_loop_device(%s, %d)", filename, int(fd))))
 		}
 		return nil, ErrAttachLoopbackDevice
 	}

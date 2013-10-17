@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"path"
 	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/devmapper"
@@ -11,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -22,12 +22,12 @@ import (
 )
 
 const (
-	unitTestImageName        = "docker-test-image"
-	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestNetworkBridge    = "testdockbr0"
-	unitTestStoreBase        = "/var/lib/docker/unit-tests"
-	testDaemonAddr           = "127.0.0.1:4270"
-	testDaemonProto          = "tcp"
+	unitTestImageName     = "docker-test-image"
+	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestNetworkBridge = "testdockbr0"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	testDaemonAddr        = "127.0.0.1:4270"
+	testDaemonProto       = "tcp"
 
 	unitTestDMDataLoopbackSize     = 209715200 // 200MB
 	unitTestDMMetaDataLoopbackSize = 104857600 // 100MB
@@ -136,7 +136,7 @@ func cleanupDevMapper() error {
 	}
 	pools := []string{}
 	for _, info := range infos {
-		if name := info.Name(); strings.HasPrefix(name, filter + "-") {
+		if name := info.Name(); strings.HasPrefix(name, filter+"-") {
 			if strings.HasSuffix(name, "-pool") {
 				pools = append(pools, name)
 			} else {
@@ -187,7 +187,6 @@ func init() {
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
-
 func setupBaseImage() {
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
 	if err != nil {
@@ -197,7 +196,9 @@ func setupBaseImage() {
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
 	deviceset := devmapper.NewDeviceSetDM(unitTestStoreBase)
-	deviceset.AddDevice("init", "")
+	if err := deviceset.AddDevice("init", ""); err != nil {
+		log.Fatalf("Unable to setup the base image: %s", err)
+	}
 
 	// Create the "Server"
 	srv := &Server{
@@ -215,7 +216,6 @@ func setupBaseImage() {
 		}
 	}
 }
-
 
 func spawnGlobalDaemon() {
 	if globalRuntime != nil {
