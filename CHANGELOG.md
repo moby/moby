@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.4 (2013-10-15)
+## 0.6.4 (2013-10-16)
 - Runtime: Add cleanup of container when Start() fails
 - Testing: Catch errClosing error when TCP and UDP proxies are terminated
 - Testing: Add aggregated docker-ci email report
