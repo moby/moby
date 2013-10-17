@@ -6,8 +6,6 @@
 Docker Index API
 =================
 
-.. contents:: Table of Contents
-
 1. Brief introduction
 =====================
 
@@ -42,7 +40,7 @@ User Repo
         Authorization: Basic akmklmasadalkm==
         X-Docker-Token: true
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"}]
 
     :parameter namespace: the namespace for the repo
     :parameter repo_name: the name for the repo
@@ -54,7 +52,8 @@ User Repo
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
-        WWW-Authenticate: Token signature=123abc,repository=”foo/bar”,access=write
+        WWW-Authenticate: Token signature=123abc,repository="foo/bar",access=write
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=write
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
@@ -92,7 +91,8 @@ User Repo
         HTTP/1.1 202
         Vary: Accept
         Content-Type: application/json
-        WWW-Authenticate: Token signature=123abc,repository=”foo/bar”,access=delete
+        WWW-Authenticate: Token signature=123abc,repository="foo/bar",access=delete
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=delete
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
@@ -124,7 +124,7 @@ Library Repo
         Authorization: Basic akmklmasadalkm==
         X-Docker-Token: true
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"}]
 
     :parameter repo_name:  the library name for the repo
 
@@ -135,7 +135,8 @@ Library Repo
         HTTP/1.1 200
         Vary: Accept
         Content-Type: application/json
-        WWW-Authenticate: Token signature=123abc,repository=”library/foobar”,access=write
+        WWW-Authenticate: Token signature=123abc,repository="library/foobar",access=write
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=write
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
@@ -174,7 +175,8 @@ Library Repo
         HTTP/1.1 202
         Vary: Accept
         Content-Type: application/json
-        WWW-Authenticate: Token signature=123abc,repository=”library/foobar”,access=delete
+        WWW-Authenticate: Token signature=123abc,repository="library/foobar",access=delete
+        X-Docker-Token: signature=123abc,repository="foo/bar",access=delete
         X-Docker-Endpoints: registry-1.docker.io [, registry-2.docker.io]
 
         ""
@@ -205,8 +207,8 @@ User Repo Images
         Content-Type: application/json
         Authorization: Basic akmklmasadalkm==
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
-        “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+        "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"}]
 
     :parameter namespace: the namespace for the repo
     :parameter repo_name: the name for the repo
@@ -250,10 +252,10 @@ User Repo Images
         Vary: Accept
         Content-Type: application/json
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
-        “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”},
-        {“id”: “ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds”,
-        “checksum”: “34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+        "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"},
+        {"id": "ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds",
+        "checksum": "34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew"}]
 
     :statuscode 200: OK
     :statuscode 404: Not found
@@ -275,8 +277,8 @@ Library Repo Images
         Content-Type: application/json
         Authorization: Basic akmklmasadalkm==
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
-        “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+        "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"}]
 
     :parameter repo_name: the library name for the repo
 
@@ -318,10 +320,10 @@ Library Repo Images
         Vary: Accept
         Content-Type: application/json
 
-        [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
-        “checksum”: “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”},
-        {“id”: “ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds”,
-        “checksum”: “34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew”}]
+        [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+        "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"},
+        {"id": "ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds",
+        "checksum": "34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew"}]
 
     :statuscode 200: OK
     :statuscode 404: Not found

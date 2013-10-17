@@ -23,10 +23,11 @@
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
+      -rm=false: Automatically remove the container when it exits (incompatible with -d)
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
-      -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "host-dir" is missing, then docker creates a new volume.
+      -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
       -volumes-from="": Mount all volumes from the given container.
       -entrypoint="": Overwrite the default entrypoint set by the image.
       -w="": Working directory inside the container

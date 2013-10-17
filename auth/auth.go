@@ -91,11 +91,17 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		}
 		authConfig := AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
+		if len(origAuth) != 2 {
+			return &configFile, fmt.Errorf("Invalid Auth config file")
+		}
 		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
 			return &configFile, err
 		}
 		origEmail := strings.Split(arr[1], " = ")
+		if len(origEmail) != 2 {
+			return &configFile, fmt.Errorf("Invalid Auth config file")
+		}
 		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = IndexServerAddress()
 		configFile.Configs[IndexServerAddress()] = authConfig
@@ -239,7 +245,7 @@ func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
 	// as there is only one auth entry which is fully qualified we need to start
 	// parsing and matching
 
-	swapProtocoll := func(url string) string {
+	swapProtocol := func(url string) string {
 		if strings.HasPrefix(url, "http:") {
 			return strings.Replace(url, "http:", "https:", 1)
 		}
@@ -253,9 +259,9 @@ func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
 		if c, found := config.Configs[url]; found {
 			return c
 		}
-		registrySwappedProtocoll := swapProtocoll(url)
+		registrySwappedProtocol := swapProtocol(url)
 		// now try to match with the different protocol
-		if c, found := config.Configs[registrySwappedProtocoll]; found {
+		if c, found := config.Configs[registrySwappedProtocol]; found {
 			return c
 		}
 		return AuthConfig{}

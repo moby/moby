@@ -16,8 +16,8 @@
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "docker build ." from
 #   your checkout of the Docker repository, and then
-#   "docker run hack/make.sh" in the resulting container image. 
-# 
+#   "docker run hack/make.sh" in the resulting container image.
+#
 
 set -e
 
@@ -25,9 +25,9 @@ set -e
 # but really, they shouldn't. We want to be in a container!
 RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
 grep -q "$RESOLVCONF" /proc/mounts || {
-	echo "# WARNING! I don't seem to be running in a docker container.
-	echo "# The result of this command might be an incorrect build, and will not be officially supported."
-	echo "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'
+	echo >&2 "# WARNING! I don't seem to be running in a docker container."
+	echo >&2 "# The result of this command might be an incorrect build, and will not be officially supported."
+	echo >&2 "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'"
 }
 
 # List of bundles to create when no argument is passed
@@ -39,8 +39,7 @@ DEFAULT_BUNDLES=(
 
 VERSION=$(cat ./VERSION)
 GITCOMMIT=$(git rev-parse --short HEAD)
-if test -n "$(git status --porcelain)"
-then
+if [ -n "$(git status --porcelain)" ]; then
 	GITCOMMIT="$GITCOMMIT-dirty"
 fi
 
@@ -51,19 +50,19 @@ LDFLAGS="-X main.GITCOMMIT $GITCOMMIT -X main.VERSION $VERSION -d -w"
 bundle() {
 	bundlescript=$1
 	bundle=$(basename $bundlescript)
-	echo "---> Making bundle: $bundle"
+	echo "---> Making bundle: $bundle (in bundles/$VERSION/$bundle)"
 	mkdir -p bundles/$VERSION/$bundle
 	source $bundlescript $(pwd)/bundles/$VERSION/$bundle
 }
 
 main() {
-
-	# We want this to fail if the bundles already exist.
+	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.
 	mkdir -p bundles
 	if [ -e "bundles/$VERSION" ]; then
 		echo "bundles/$VERSION already exists. Removing."
 		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
+		echo
 	fi
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
@@ -73,19 +72,8 @@ main() {
 	fi
 	for bundle in ${bundles[@]}; do
 		bundle $SCRIPTDIR/make/$bundle
+		echo
 	done
-	cat <<EOF
-###############################################################################
-Now run the resulting image, making sure that you set AWS_S3_BUCKET,
-AWS_ACCESS_KEY, and AWS_SECRET_KEY environment variables:
-
-docker run -e AWS_S3_BUCKET=get-staging.docker.io \\
-              AWS_ACCESS_KEY=AKI1234... \\
-              AWS_SECRET_KEY=sEs3mE... \\
-              GPG_PASSPHRASE=sesame... \\
-              image_id_or_name
-###############################################################################
-EOF
 }
 
 main "$@"

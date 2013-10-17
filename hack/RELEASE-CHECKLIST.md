@@ -55,11 +55,15 @@ EXAMPLES:
 
 ### 4. Run all tests
 
-```bash
-go test
-```
+FIXME
 
-### 5. Commit and create a pull request
+### 5. Test the docs
+
+Make sure that your tree includes documentation for any modified or
+new features, syntax or semantic changes. Instructions for building
+the docs are in ``docs/README.md``
+
+### 6. Commit and create a pull request to the "release" branch
 
 ```bash
 git add CHANGELOG.md
@@ -67,12 +71,12 @@ git commit -m "Bump version to $VERSION"
 git push origin bump_$VERSION
 ```
 
-### 6. Get 2 other maintainers to validate the pull request
+### 7. Get 2 other maintainers to validate the pull request
 
-### 7. Merge the pull request and apply tags
+### 8. Merge the pull request and apply tags
 
 ```bash
-git checkout master
+git checkout release
 git merge bump_$VERSION
 git tag -a v$VERSION # Don't forget the v!
 git tag -f -a latest
@@ -80,20 +84,27 @@ git push
 git push --tags
 ```
 
-### 8. Publish binaries
+Merging the pull request to the release branch will automatically
+update the documentation on the "latest" revision of the docs. You
+should see the updated docs 5-10 minutes after the merge. The docs
+will appear on http://docs.docker.io/. For more information about
+documentation releases, see ``docs/README.md``
+
+### 9. Publish binaries
 
 To run this you will need access to the release credentials.
 Get them from [the infrastructure maintainers](
 https://github.com/dotcloud/docker/blob/master/hack/infrastructure/MAINTAINERS).
 
 ```bash
-docker build -t releasedocker .
+docker build -t docker .
 docker run  \
 	-e AWS_S3_BUCKET=get-nightly.docker.io \
 	-e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
 	-e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
 	-e GPG_PASSPHRASE=supersecretsesame \
-	releasedocker
+	docker
+	hack/release.sh
 ```
 
 It will build and upload the binaries on the specified bucket (you should
@@ -101,6 +112,6 @@ use get-nightly.docker.io for general testing, and once everything is fine,
 switch to get.docker.io).
 
 
-### 9. Rejoice!
+### 10. Rejoice!
 
 Congratulations! You're done.
