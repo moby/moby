@@ -365,8 +365,7 @@ func (devices *DeviceSetDM) initDevmapper() error {
 
 	st, err := os.Stat(data)
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error looking up data image %s: %s", data, err)
 	}
 	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".

@@ -247,9 +247,6 @@ func (t *Task) SetName(name string) error {
 	defer free(c_name)
 
 	if res := C.dm_task_set_name(t.unmanaged, c_name); res != 1 {
-		if os.Getenv("DEBUG") != "" {
-			C.perror(C.CString(fmt.Sprintf("[debug] Error dm_task_set_name(%s, %#v)", name, t.unmanaged)))
-		}
 		return ErrTaskSetName
 	}
 	return nil
