@@ -18,6 +18,7 @@ package devmapper
 #define LOOP_CTL_GET_FREE       0x4C82
 #endif
 
+// FIXME: this could easily be rewritten in go
 char*			attach_loop_device(const char *filename, int *loop_fd_out)
 {
   struct loop_info64	loopinfo = {0};
@@ -441,6 +442,7 @@ func free(p *C.char) {
 	C.free(unsafe.Pointer(p))
 }
 
+// This is the programmatic example of "dmsetup create"
 func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error {
 	task, err := createTask(DeviceCreate, poolName)
 	if task == nil {

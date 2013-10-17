@@ -88,6 +88,10 @@ func (devices *DeviceSetDM) hasImage(name string) bool {
 	return err == nil
 }
 
+// ensureImage creates a sparse file of <size> bytes at the path
+// <root>/devicemapper/<name>.
+// If the file already exists, it does nothing.
+// Either way it returns the full path.
 func (devices *DeviceSetDM) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
