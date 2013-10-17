@@ -577,11 +577,10 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	fmt.Fprintf(cli.out, "[")
-	for i, name := range args {
-		if i > 0 {
-			fmt.Fprintf(cli.out, ",")
-		}
+
+	indented := new(bytes.Buffer)
+
+	for _, name := range args {
 		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
@@ -591,14 +590,18 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 			}
 		}
 
-		indented := new(bytes.Buffer)
 		if err = json.Indent(indented, obj, "", "    "); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			continue
 		}
-		if _, err := io.Copy(cli.out, indented); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-		}
+		indented.WriteString(",")
+	}
+	// Remove trailling ','
+	indented.Truncate(indented.Len() - 1)
+
+	fmt.Fprintf(cli.out, "[")
+	if _, err := io.Copy(cli.out, indented); err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
 	}
 	fmt.Fprintf(cli.out, "]")
 	return nil
