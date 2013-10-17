@@ -579,6 +579,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	indented := new(bytes.Buffer)
+	status := 0
 
 	for _, name := range args {
 		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
@@ -586,12 +587,14 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
 				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
+				status = 1
 				continue
 			}
 		}
 
 		if err = json.Indent(indented, obj, "", "    "); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
 			continue
 		}
 		indented.WriteString(",")
@@ -601,9 +604,12 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	fmt.Fprintf(cli.out, "[")
 	if _, err := io.Copy(cli.out, indented); err != nil {
-		fmt.Fprintf(cli.err, "%s\n", err)
+		return err
 	}
 	fmt.Fprintf(cli.out, "]")
+	if status != 0 {
+		return &utils.StatusError{Status: status}
+	}
 	return nil
 }
 
