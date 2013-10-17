@@ -174,7 +174,8 @@ func (runtime *Runtime) Register(container *Container) error {
 		close(container.waitLock)
 	} else if !nomonitor {
 		container.allocateNetwork()
-		go container.monitor()
+		// hostConfig isn't needed here and can be nil
+		go container.monitor(nil)
 	}
 	return nil
 }
@@ -234,7 +235,7 @@ func (runtime *Runtime) restore() error {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
 		if err != nil {
-			utils.Debugf("Failed to load container %v: %v", id, err)
+			utils.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
@@ -282,7 +283,9 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 	}
 
 	if img.Config != nil {
-		MergeConfig(config, img.Config)
+		if err := MergeConfig(config, img.Config); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(config.Entrypoint) != 0 && config.Cmd == nil {

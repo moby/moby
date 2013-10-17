@@ -18,7 +18,7 @@ Platform-as-a-Service.  It benefits directly from the experience
 accumulated over several years of large-scale operation and support of
 hundreds of thousands of applications and databases.
 
-![Docker L](docs/sources/static_files/dockerlogo-h.png "Docker")
+![Docker L](docs/theme/docker/static/img/dockerlogo-h.png "Docker")
 
 ## Better than VMs
 
@@ -189,6 +189,9 @@ wrong or incomplete.
 
 
 ### Legal
+
+*Brought to you courtesy of our legal counsel. For more context,
+please see the Notice document.*
 
 Transfers of Docker shall be in accordance with applicable export
 controls of any country and all other applicable legal requirements.

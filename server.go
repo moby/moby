@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -428,7 +429,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 
 		// ensure no two downloads of the same layer happen at the same time
 		if err := srv.poolAdd("pull", "layer:"+id); err != nil {
-			utils.Debugf("Image (id: %s) pull is already running, skipping: %v", id, err)
+			utils.Errorf("Image (id: %s) pull is already running, skipping: %v", id, err)
 			return nil
 		}
 		defer srv.poolRemove("pull", "layer:"+id)
@@ -477,7 +478,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 	utils.Debugf("Retrieving the tag list")
 	tagsList, err := r.GetRemoteTags(repoData.Endpoints, remoteName, repoData.Tokens)
 	if err != nil {
-		utils.Debugf("%v", err)
+		utils.Errorf("%v", err)
 		return err
 	}
 
@@ -525,7 +526,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 
 			// ensure no two downloads of the same image happen at the same time
 			if err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
-				utils.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+				utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				if parallel {
 					errors <- nil
 				}
@@ -958,6 +959,8 @@ func (srv *Server) ContainerDestroy(name string, removeVolume bool) error {
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
+			volumeId = strings.TrimRight(volumeId, "/layer")
+			volumeId = filepath.Base(volumeId)
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
@@ -1177,47 +1180,52 @@ func (srv *Server) ContainerResize(name string, h, w int) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, in io.ReadCloser, out io.Writer) error {
+func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, inStream io.ReadCloser, outStream, errStream io.Writer) error {
 	container := srv.runtime.Get(name)
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
 	//logs
 	if logs {
 		cLog, err := container.ReadLog("json")
 		if err != nil && os.IsNotExist(err) {
 			// Legacy logs
-			utils.Debugf("Old logs format")
+			utils.Errorf("Old logs format")
 			if stdout {
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
-					utils.Debugf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(out, cLog); err != nil {
-					utils.Debugf("Error streaming logs (stdout): %s", err)
+					utils.Errorf("Error reading logs (stdout): %s", err)
+				} else if _, err := io.Copy(outStream, cLog); err != nil {
+					utils.Errorf("Error streaming logs (stdout): %s", err)
 				}
 			}
 			if stderr {
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
-					utils.Debugf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(out, cLog); err != nil {
-					utils.Debugf("Error streaming logs (stderr): %s", err)
+					utils.Errorf("Error reading logs (stderr): %s", err)
+				} else if _, err := io.Copy(errStream, cLog); err != nil {
+					utils.Errorf("Error streaming logs (stderr): %s", err)
 				}
 			}
 		} else if err != nil {
-			utils.Debugf("Error reading logs (json): %s", err)
+			utils.Errorf("Error reading logs (json): %s", err)
 		} else {
 			dec := json.NewDecoder(cLog)
 			for {
-				var l utils.JSONLog
-				if err := dec.Decode(&l); err == io.EOF {
+				l := &utils.JSONLog{}
+
+				if err := dec.Decode(l); err == io.EOF {
 					break
 				} else if err != nil {
-					utils.Debugf("Error streaming logs: %s", err)
+					utils.Errorf("Error streaming logs: %s", err)
 					break
 				}
-				if (l.Stream == "stdout" && stdout) || (l.Stream == "stderr" && stderr) {
-					fmt.Fprintf(out, "%s", l.Log)
+				if l.Stream == "stdout" && stdout {
+					fmt.Fprintf(outStream, "%s", l.Log)
+				}
+				if l.Stream == "stderr" && stderr {
+					fmt.Fprintf(errStream, "%s", l.Log)
 				}
 			}
 		}
@@ -1240,16 +1248,16 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			go func() {
 				defer w.Close()
 				defer utils.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, in)
+				io.Copy(w, inStream)
 			}()
 			cStdin = r
-			cStdinCloser = in
+			cStdinCloser = inStream
 		}
 		if stdout {
-			cStdout = out
+			cStdout = outStream
 		}
 		if stderr {
-			cStderr = out
+			cStderr = errStream
 		}
 
 		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
