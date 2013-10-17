@@ -268,19 +268,26 @@ func (srv *Server) DockerInfo() *APIInfo {
 		kernelVersion = kv.String()
 	}
 
+	devSetInfo := srv.runtime.deviceSet.Status()
+
 	return &APIInfo{
-		Containers:         len(srv.runtime.List()),
-		Images:             imgcount,
-		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
-		SwapLimit:          srv.runtime.capabilities.SwapLimit,
-		IPv4Forwarding:     !srv.runtime.capabilities.IPv4ForwardingDisabled,
-		Debug:              os.Getenv("DEBUG") != "",
-		NFd:                utils.GetTotalUsedFds(),
-		NGoroutines:        runtime.NumGoroutine(),
-		LXCVersion:         lxcVersion,
-		NEventsListener:    len(srv.events),
-		KernelVersion:      kernelVersion,
-		IndexServerAddress: auth.IndexServerAddress(),
+		Containers:             len(srv.runtime.List()),
+		Images:                 imgcount,
+		MemoryLimit:            srv.runtime.capabilities.MemoryLimit,
+		SwapLimit:              srv.runtime.capabilities.SwapLimit,
+		IPv4Forwarding:         !srv.runtime.capabilities.IPv4ForwardingDisabled,
+		Debug:                  os.Getenv("DEBUG") != "",
+		NFd:                    utils.GetTotalUsedFds(),
+		NGoroutines:            runtime.NumGoroutine(),
+		LXCVersion:             lxcVersion,
+		NEventsListener:        len(srv.events),
+		KernelVersion:          kernelVersion,
+		IndexServerAddress:     auth.IndexServerAddress(),
+		DevmapperPool:          devSetInfo.PoolName,
+		DevmapperDataUsed:      devSetInfo.Data.Used,
+		DevmapperDataTotal:     devSetInfo.Data.Total,
+		DevmapperMetadataUsed:  devSetInfo.Metadata.Used,
+		DevmapperMetadataTotal: devSetInfo.Metadata.Total,
 	}
 }
 

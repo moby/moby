@@ -465,6 +465,11 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", out.Containers)
 	fmt.Fprintf(cli.out, "Images: %d\n", out.Images)
+	if out.DevmapperDataTotal != 0 {
+		fmt.Fprintf(cli.out, "Devmapper disk use: Data: %.1f/%.1f Metadata: %.1f/%.1f\n",
+			float64(out.DevmapperDataUsed)/(1024*1024), float64(out.DevmapperDataTotal)/(1024*1024),
+			float64(out.DevmapperMetadataUsed)/(1024*1024), float64(out.DevmapperMetadataTotal)/(1024*1024))
+	}
 	if out.Debug || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", out.Debug)
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
@@ -473,6 +478,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "LXC Version: %s\n", out.LXCVersion)
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", out.KernelVersion)
+		fmt.Fprintf(cli.out, "Devmapper pool: %s\n", out.DevmapperPool)
 	}
 
 	if len(out.IndexServerAddress) != 0 {
