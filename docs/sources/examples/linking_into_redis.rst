@@ -54,7 +54,7 @@ Run the redis container
 
 .. code-block:: bash
     
-    docker run -d -e PASSWORD=docker crosbymichael/redis --requirepass=docker
+    docker run -d -e PASSWORD=docker crosbymichael/redis --requirepass docker
  
 This will run our redis container using the default port of 6379 and using
 as password to secure our service. Next we will link the redis container to 
