@@ -650,7 +650,7 @@ func (devices *DeviceSetDM) Shutdown() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) MountDevice(hash, path string) error {
+func (devices *DeviceSetDM) MountDevice(hash, path string, readOnly bool) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -666,9 +666,15 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 
 	info := devices.Devices[hash]
 
-	err := syscall.Mount(info.DevName(), path, "ext4", syscall.MS_MGC_VAL, "discard")
+	var flags uintptr = syscall.MS_MGC_VAL
+
+	if readOnly {
+		flags = flags | syscall.MS_RDONLY
+	}
+
+	err := syscall.Mount(info.DevName(), path, "ext4", flags, "discard")
 	if err != nil && err == syscall.EINVAL {
-		err = syscall.Mount(info.DevName(), path, "ext4", syscall.MS_MGC_VAL, "")
+		err = syscall.Mount(info.DevName(), path, "ext4", flags, "")
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
