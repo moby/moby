@@ -1,7 +1,6 @@
 package devmapper
 
 import (
-	"time"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
@@ -371,7 +371,7 @@ func (devices *DeviceSetDM) initDevmapper() error {
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	devices.devicePrefix = fmt.Sprintf("docker-reg-%d-%d", sysSt.Dev, sysSt.Ino)
-
+	utils.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the device <prefix>-pool
 	utils.Debugf("Checking for existence of the pool '%s'", devices.getPoolName())
@@ -389,6 +389,7 @@ func (devices *DeviceSetDM) initDevmapper() error {
 	// If the pool doesn't exist, create it
 	if info.Exists == 0 {
 		utils.Debugf("Pool doesn't exist. Creating it.")
+
 		dataFile, err := AttachLoopDevice(data)
 		if err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
@@ -550,7 +551,7 @@ func (devices *DeviceSetDM) waitRemove(hash string) error {
 		return err
 	}
 	i := 0
-	for ; i<1000; i+=1 {
+	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(devname)
 		if err != nil {
 			// If there is an error we assume the device doesn't exist.
@@ -578,7 +579,7 @@ func (devices *DeviceSetDM) waitClose(hash string) error {
 		return err
 	}
 	i := 0
-	for ; i<1000; i+=1 {
+	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(devname)
 		if err != nil {
 			return err
@@ -609,7 +610,6 @@ func (devices *DeviceSetDM) byHash(hash string) (devname string, err error) {
 	}
 	return info.Name(), nil
 }
-
 
 func (devices *DeviceSetDM) Shutdown() error {
 	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
