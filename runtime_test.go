@@ -276,12 +276,6 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := runtime.Destroy(container); err != nil {
-			t.Error(err)
-		}
-	}()
-
 	// Make sure we can find the newly created container with List()
 	if len(runtime.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))

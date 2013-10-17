@@ -1072,7 +1072,6 @@ func TestLXCConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
 	container.generateLXCConfig(nil)
 	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
