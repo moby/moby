@@ -518,7 +518,7 @@ func (runtime *Runtime) RenameLink(oldName, newName string) error {
 
 	// This is not rename but adding a new link for the default name
 	// Strip the leading '/'
-	if entity.ID() == oldName[1:] {
+	if strings.HasPrefix(entity.ID(), oldName[1:]) {
 		_, err := runtime.containerGraph.Set(newName, entity.ID())
 		return err
 	}
