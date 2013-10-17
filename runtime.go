@@ -325,7 +325,6 @@ func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 		if err := MergeConfig(config, img.Config); err != nil {
 			return nil, nil, err
 		}
-
 	}
 
 	if len(config.Entrypoint) != 0 && config.Cmd == nil {
