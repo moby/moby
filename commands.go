@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -510,8 +511,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		encName := cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+encName+"/stop?"+v.Encode(), nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -536,8 +536,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	v.Set("t", strconv.Itoa(*nSeconds))
 
 	for _, name := range cmd.Args() {
-		encName := cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+encName+"/restart?"+v.Encode(), nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -559,8 +558,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	var encounteredError error
 	for _, name := range args {
-		encName := cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+encName+"/start", nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/start", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
@@ -582,11 +580,10 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "[")
 	for i, name := range args {
-		encName := cleanName(name)
 		if i > 0 {
 			fmt.Fprintf(cli.out, ",")
 		}
-		obj, _, err := cli.call("GET", "/containers/"+encName+"/json", nil)
+		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
@@ -761,8 +758,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		val.Set("link", "1")
 	}
 	for _, name := range cmd.Args() {
-		encName := cleanName(name)
-		_, _, err := cli.call("DELETE", "/containers/"+encName+"?"+val.Encode(), nil)
+		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -784,8 +780,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 	}
 
 	for _, name := range args {
-		encName := cleanName(name)
-		_, _, err := cli.call("POST", "/containers/"+encName+"/kill", nil)
+		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 		} else {
@@ -1293,7 +1288,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	name := cleanName(cmd.Arg(0))
+	name := cmd.Arg(0)
 
 	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
 		return err
@@ -1311,7 +1306,6 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return nil
 	}
 	name := cmd.Arg(0)
-	name = cleanName(name)
 	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 	if err != nil {
 		return err
@@ -1696,6 +1690,10 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
@@ -1741,6 +1739,11 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
+
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
 	if err != nil {
 		return err
@@ -1797,6 +1800,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer) error {
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
 
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
@@ -1972,10 +1978,6 @@ func getExitCode(cli *DockerCli, containerId string) (int, error) {
 		return -1, err
 	}
 	return c.State.ExitCode, nil
-}
-
-func cleanName(name string) string {
-	return strings.Replace(name, "/", "%252F", -1)
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
