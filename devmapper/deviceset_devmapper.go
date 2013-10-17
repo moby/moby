@@ -553,7 +553,9 @@ func (devices *DeviceSetDM) waitRemove(hash string) error {
 	for ; i<1000; i+=1 {
 		devinfo, err := getInfo(devname)
 		if err != nil {
-			return err
+			// If there is an error we assume the device doesn't exist.
+			// The error might actually be something else, but we can't differentiate.
+			return nil
 		}
 		utils.Debugf("Waiting for removal of %s: exists=%d", devname, devinfo.Exists)
 		if devinfo.Exists == 0 {
