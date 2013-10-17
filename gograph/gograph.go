@@ -288,7 +288,7 @@ func (db *Database) Delete(name string) error {
 		return err
 	}
 
-	if _, err := conn.Exec("DELETE FROM edge WHERE parent_id = ? AND name = ?;", parent.id, n); err != nil {
+	if _, err := conn.Exec("DELETE FROM edge WHERE parent_id = ? AND name LIKE ?;", parent.id, n+"%"); err != nil {
 		return err
 	}
 	return nil
@@ -356,7 +356,7 @@ func (db *Database) Rename(currentName, newName string) error {
 		return err
 	}
 
-	rows, err := conn.Exec("UPDATE edge SET name = ? WHERE parent_id = ? AND name = ?;", newEdgeName, parent.id, name)
+	rows, err := conn.Exec("UPDATE edge SET name = ? WHERE parent_id = ? AND name LIKE ?;", newEdgeName, parent.id, name+"%")
 	if err != nil {
 		return err
 	}
@@ -433,7 +433,7 @@ func (db *Database) children(conn *sql.DB, name string, depth int) <-chan WalkMe
 // Return the entity based on the parent path and name
 func (db *Database) child(conn *sql.DB, parent *Entity, name string) *Entity {
 	var id string
-	if err := conn.QueryRow("SELECT entity_id FROM edge WHERE parent_id = ? AND name = ?;", parent.id, name).Scan(&id); err != nil {
+	if err := conn.QueryRow("SELECT entity_id FROM edge WHERE parent_id = ? AND name LIKE ?;", parent.id, name+"%").Scan(&id); err != nil {
 		return nil
 	}
 	return &Entity{id}
