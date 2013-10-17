@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 )
@@ -345,91 +344,72 @@ func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, m
 func (devices *DeviceSetDM) initDevmapper() error {
 	logInit(devices)
 
-begin:
-	info, err := getInfo(devices.getPoolName())
-	if info == nil {
-		utils.Debugf("Error device getInfo: %s", err)
-		return err
-	}
+	// Make sure the sparse images exist in <root>/devicemapper/data and
+	// <root>/devicemapper/metadata
 
-	loopbackExists := false
-	if _, err := os.Stat(devices.loopbackDir()); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		// If it does not, then we use a different pool name
-		parts := strings.Split(devices.devicePrefix, "-")
-		i, err := strconv.Atoi(parts[len(parts)-1])
-		if err != nil {
-			i = 0
-			parts = append(parts, "0")
-		}
-		i++
-		parts[len(parts)-1] = strconv.Itoa(i)
-		devices.devicePrefix = strings.Join(parts, "-")
-	} else {
-		loopbackExists = true
-	}
-
-	// If the pool exists but the loopback does not, then we start again
-	if info.Exists == 1 && !loopbackExists {
-		goto begin
-	}
-
-	utils.Debugf("initDevmapper(). Pool exists: %v, loopback Exists: %v", info.Exists, loopbackExists)
-
-	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
-	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
-	// so we add this badhack to make sure it closes itself
-	setCloseOnExec("/dev/mapper/control")
-
-	if info.Exists != 0 && loopbackExists {
-		/* Pool exists, assume everything is up */
-		if err := devices.loadMetaData(); err != nil {
-			utils.Debugf("Error device loadMetaData: %s\n", err)
-			return err
-		}
-		if err := devices.setupBaseImage(); err != nil {
-			utils.Debugf("Error device setupBaseImage: %s\n", err)
-			return err
-		}
-		return nil
-	}
-
-	/* If we create the loopback mounts we also need to initialize the base fs */
 	createdLoopback := !devices.hasImage("data") || !devices.hasImage("metadata")
-
 	data, err := devices.ensureImage("data", DefaultDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (data): %s\n", err)
 		return err
 	}
-
 	metadata, err := devices.ensureImage("metadata", DefaultMetaDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (metadata): %s\n", err)
 		return err
 	}
 
-	dataFile, err := AttachLoopDevice(data)
+	// Set the device prefix from the device id and inode of the data image
+
+	st, err := os.Stat(data)
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
-	defer dataFile.Close()
+	sysSt := st.Sys().(*syscall.Stat_t)
+	// "reg-" stands for "regular file".
+	// In the future we might use "dev-" for "device file", etc.
+	devices.devicePrefix = fmt.Sprintf("docker-reg-%d-%d", sysSt.Dev, sysSt.Ino)
 
-	metadataFile, err := AttachLoopDevice(metadata)
-	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
+
+	// Check for the existence of the device <prefix>-pool
+	utils.Debugf("Checking for existence of the pool '%s'", devices.getPoolName())
+	info, err := getInfo(devices.getPoolName())
+	if info == nil {
+		utils.Debugf("Error device getInfo: %s", err)
 		return err
 	}
-	defer metadataFile.Close()
 
-	if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
+	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
+	// so we add this badhack to make sure it closes itself
+	setCloseOnExec("/dev/mapper/control")
+
+	// If the pool doesn't exist, create it
+	if info.Exists == 0 {
+		utils.Debugf("Pool doesn't exist. Creating it.")
+		dataFile, err := AttachLoopDevice(data)
+		if err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
+			return err
+		}
+		defer dataFile.Close()
+
+		metadataFile, err := AttachLoopDevice(metadata)
+		if err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
+			return err
+		}
+		defer metadataFile.Close()
+
+		if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
+			utils.Debugf("\n--->Err: %s\n", err)
+			return err
+		}
 	}
 
+	// If we didn't just create the data or metadata image, we need to
+	// load the metadata from the existing file.
 	if !createdLoopback {
 		if err = devices.loadMetaData(); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
@@ -437,8 +417,9 @@ begin:
 		}
 	}
 
+	// Setup the base image
 	if err := devices.setupBaseImage(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
+		utils.Debugf("Error device setupBaseImage: %s\n", err)
 		return err
 	}
 
@@ -800,15 +781,9 @@ func (devices *DeviceSetDM) ensureInit() error {
 func NewDeviceSetDM(root string) *DeviceSetDM {
 	SetDevDir("/dev")
 
-	base := filepath.Base(root)
-	if !strings.HasPrefix(base, "docker") {
-		base = "docker-" + base
-	}
-
 	return &DeviceSetDM{
 		initialized:  false,
 		root:         root,
-		devicePrefix: base,
 		MetaData:     MetaData{Devices: make(map[string]*DevInfo)},
 		activeMounts: make(map[string]int),
 	}
