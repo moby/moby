@@ -66,6 +66,9 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (runtime *Runtime) Get(name string) *Container {
+	if name[0] != '/' {
+		name = "/" + name
+	}
 	if c, _ := runtime.GetByName(name); c != nil {
 		return c
 	}
