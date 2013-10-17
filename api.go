@@ -1088,6 +1088,9 @@ func postContainerLink(srv *Server, version float64, w http.ResponseWriter, r *h
 	}
 
 	if err := srv.runtime.RenameLink(currentName, newName); err != nil {
+		if strings.HasSuffix(err.Error(), "name are not unique") {
+			return fmt.Errorf("Conflict, %s already exists", newName)
+		}
 		return err
 	}
 
