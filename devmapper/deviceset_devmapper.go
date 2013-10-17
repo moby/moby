@@ -221,6 +221,8 @@ func (devices *DeviceSetDM) createFilesystem(info *DevInfo) error {
 }
 
 func (devices *DeviceSetDM) loadMetaData() error {
+	utils.Debugf("loadMetadata()")
+	defer utils.Debugf("loadMetadata END")
 	_, _, _, params, err := getStatus(devices.getPoolName())
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -542,6 +544,8 @@ func (devices *DeviceSetDM) deactivateDevice(hash string) error {
 // a) the device registered at <device_set_prefix>-<hash> is removed,
 // or b) the 1 second timeout expires.
 func (devices *DeviceSetDM) waitRemove(hash string) error {
+	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, hash)
+	defer utils.Debugf("[deviceset %s] waitRemove END", devices.devicePrefix, hash)
 	devname, err := devices.byHash(hash)
 	if err != nil {
 		return err
@@ -607,6 +611,8 @@ func (devices *DeviceSetDM) byHash(hash string) (devname string, err error) {
 
 
 func (devices *DeviceSetDM) Shutdown() error {
+	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
+	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 	devices.Lock()
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer devices.Unlock()
