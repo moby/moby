@@ -22,7 +22,7 @@ Digital Ocean | ci
 dotCloud PAAS | website, index, registry, ssl, blog
 DynECT        | dns (docker.io)            
 GitHub        | repository
-Linode        | dev-env
+Linode        | stackbrew
 Mailgun       | outgoing e-mail            
 ReadTheDocs   | docs
 
@@ -34,22 +34,23 @@ ReadTheDocs   | docs
 This should be the list of all the infrastructure-related URLs
 and which service is handling them.
 
-URL                                         | Service
---------------------------------------------|---------------------------------
- http://blog.docker.io/                     | blog
-*http://cdn-registry-1.docker.io/           | registry (pull)
- http://debug.docker.io/                    | debug tool
- http://docs.docker.io/                     | docsproxy (proxy to readthedocs)
- http://docker-ci.dotcloud.com/             | ci
- http://docker.io/                          | redirect to www.docker.io (dynect)
- http://docker.readthedocs.org/             | docs
-*http://get.docker.io/                      | packages
- https://github.com/dotcloud/docker         | repository
-*https://index.docker.io/                   | index
- http://registry-1.docker.io/               | registry (push)
- http://staging-docker-ci.dotcloud.com/     | ci
-*http://test.docker.io/                     | packages
-*http://www.docker.io/                      | website
+URL                                          | Service
+---------------------------------------------|---------------------------------
+ http://blog.docker.io/                      | blog
+*http://cdn-registry-1.docker.io/            | registry (pull)
+ http://debug.docker.io/                     | debug tool
+ http://docs.docker.io/                      | docsproxy (proxy to readthedocs)
+ http://docker-ci.dotcloud.com/              | ci
+ http://docker.io/                           | redirect to www.docker.io (dynect)
+ http://docker.readthedocs.org/              | docs
+*http://get.docker.io/                       | packages
+ https://github.com/dotcloud/docker          | repository
+*https://index.docker.io/                    | index
+ http://registry-1.docker.io/                | registry (push)
+ http://staging-docker-ci.dotcloud.com/      | ci
+*http://test.docker.io/                      | packages
+*http://www.docker.io/                       | website
+ http://? (internal URL, not for public use) | stackbrew
 
 *Ordered-by: lexicographic*
 
@@ -73,6 +74,7 @@ registry            | @samalba           | dotcloud push    | https://github.com
 repository (github) | N/A                | N/A              | N/A
 ssl (dotcloud)      | @jpetazzo          | dotcloud ops     | N/A
 ssl (cloudflare)    | @jpetazzo          | cloudflare panel | N/A
+stackbrew           | @shin-             | manual           | https://github.com/dotcloud/stackbrew/stackbrew
 website             | @dhrp              | dotcloud push    | https://github.com/dotcloud/www.docker.io
 
 *Ordered-by: lexicographic*
