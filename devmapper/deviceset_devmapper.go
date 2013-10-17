@@ -361,11 +361,11 @@ func (devices *DeviceSetDM) initDevmapper() error {
 		return err
 	}
 
-	// Set the device prefix from the device id and inode of the data image
+	// Set the device prefix from the device id and inode of the docker root dir
 
-	st, err := os.Stat(data)
+	st, err := os.Stat(devices.root)
 	if err != nil {
-		return fmt.Errorf("Error looking up data image %s: %s", data, err)
+		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
 	}
 	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
