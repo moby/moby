@@ -74,12 +74,12 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}	
-	
+	}
+
 	if err != nil {
 		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
-		http.Error(w, err.Error(), statusCode)		
-	}	
+		http.Error(w, err.Error(), statusCode)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -653,12 +653,8 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var err error
 	name := vars["name"]
 	name = decodeName(name)
-	if err != nil {
-		return err
-	}
 	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
