@@ -390,9 +390,9 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.CloseWriters()
-		utils.Debugf("[startPty] Begin of stdout pipe")
+		utils.Debugf("startPty: begin of stdout pipe")
 		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("[startPty] End of stdout pipe")
+		utils.Debugf("startPty: end of stdout pipe")
 	}()
 
 	// stdin
@@ -401,9 +401,9 @@ func (container *Container) startPty() error {
 		container.cmd.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
-			utils.Debugf("[startPty] Begin of stdin pipe")
+			utils.Debugf("startPty: begin of stdin pipe")
 			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("[startPty] End of stdin pipe")
+			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -423,9 +423,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
-			utils.Debugf("Begin of stdin pipe [start]")
+			utils.Debugf("start: begin of stdin pipe")
 			io.Copy(stdin, container.stdin)
-			utils.Debugf("End of stdin pipe [start]")
+			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
 	return container.cmd.Start()
@@ -442,8 +442,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			errors <- err
 		} else {
 			go func() {
-				utils.Debugf("[start] attach stdin\n")
-				defer utils.Debugf("[end] attach stdin\n")
+				utils.Debugf("attach: stdin: begin")
+				defer utils.Debugf("attach: stdin: end")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
@@ -461,7 +461,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					_, err = io.Copy(cStdin, stdin)
 				}
 				if err != nil {
-					utils.Errorf("[error] attach stdin: %s\n", err)
+					utils.Errorf("attach: stdin: %s", err)
 				}
 				// Discard error, expecting pipe error
 				errors <- nil
@@ -475,8 +475,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		} else {
 			cStdout = p
 			go func() {
-				utils.Debugf("[start] attach stdout\n")
-				defer utils.Debugf("[end]  attach stdout\n")
+				utils.Debugf("attach: stdout: begin")
+				defer utils.Debugf("attach: stdout: end")
 				// If we are in StdinOnce mode, then close stdin
 				if container.Config.StdinOnce && stdin != nil {
 					defer stdin.Close()
@@ -485,8 +485,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stdout, cStdout)
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
-					utils.Errorf("[error] attach stdout: %s\n", err)
+					utils.Errorf("attach: stdout: %s", err)
 				}
 				errors <- err
 			}()
@@ -496,9 +499,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			if stdinCloser != nil {
 				defer stdinCloser.Close()
 			}
-
 			if cStdout, err := container.StdoutPipe(); err != nil {
-				utils.Errorf("Error stdout pipe")
+				utils.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStdout)
 			}
@@ -511,8 +513,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		} else {
 			cStderr = p
 			go func() {
-				utils.Debugf("[start] attach stderr\n")
-				defer utils.Debugf("[end]  attach stderr\n")
+				utils.Debugf("attach: stderr: begin")
+				defer utils.Debugf("attach: stderr: end")
 				// If we are in StdinOnce mode, then close stdin
 				if container.Config.StdinOnce && stdin != nil {
 					defer stdin.Close()
@@ -521,8 +523,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stderr, cStderr)
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
-					utils.Errorf("[error] attach stderr: %s\n", err)
+					utils.Errorf("attach: stderr: %s", err)
 				}
 				errors <- err
 			}()
@@ -534,7 +539,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			}
 
 			if cStderr, err := container.StderrPipe(); err != nil {
-				utils.Errorf("Error stdout pipe")
+				utils.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)
 			}
@@ -548,17 +553,17 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		if cStderr != nil {
 			defer cStderr.Close()
 		}
-		// FIXME: how do clean up the stdin goroutine without the unwanted side effect
+		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
 		for i := 0; i < nJobs; i += 1 {
-			utils.Debugf("Waiting for job %d/%d\n", i+1, nJobs)
+			utils.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
 			if err := <-errors; err != nil {
-				utils.Errorf("Job %d returned error %s. Aborting all jobs\n", i+1, err)
+				utils.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
 				return err
 			}
-			utils.Debugf("Job %d completed successfully\n", i+1)
+			utils.Debugf("attach: job %d completed successfully", i+1)
 		}
-		utils.Debugf("All jobs completed successfully\n")
+		utils.Debugf("attach: all jobs completed successfully")
 		return nil
 	})
 }
@@ -853,9 +858,14 @@ func (container *Container) Output() (output []byte, err error) {
 	return output, err
 }
 
-// StdinPipe() returns a pipe connected to the standard input of the container's
-// active process.
-//
+// Container.StdinPipe returns a WriteCloser which can be used to feed data
+// to the standard input of the container's active process.
+// Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
+// which can be used to retrieve the standard output (and error) generated
+// by the container's active process. The output (and error) are actually
+// copied and delivered to all StdoutPipe and StderrPipe consumers, using
+// a kind of "broadcaster".
+
 func (container *Container) StdinPipe() (io.WriteCloser, error) {
 	return container.stdinPipe, nil
 }
@@ -957,20 +967,23 @@ func (container *Container) waitLxc() error {
 
 func (container *Container) monitor(hostConfig *HostConfig) {
 	// Wait for the program to exit
-	utils.Debugf("Waiting for process")
 
-	// If the command does not exists, try to wait via lxc
+	// If the command does not exist, try to wait via lxc
+	// (This probably happens only for ghost containers, i.e. containers that were running when Docker started)
 	if container.cmd == nil {
+		utils.Debugf("monitor: waiting for container %s using waitLxc", container.ID)
 		if err := container.waitLxc(); err != nil {
-			utils.Errorf("%s: Process: %s", container.ID, err)
+			utils.Errorf("monitor: while waiting for container %s, waitLxc had a problem: %s", container.ID, err)
 		}
 	} else {
+		utils.Debugf("monitor: waiting for container %s using cmd.Wait", container.ID)
 		if err := container.cmd.Wait(); err != nil {
-			// Discard the error as any signals or non 0 returns will generate an error
-			utils.Errorf("%s: Process: %s", container.ID, err)
+			// Since non-zero exit status and signal terminations will cause err to be non-nil,
+			// we have to actually discard it. Still, log it anyway, just in case.
+			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
 		}
 	}
-	utils.Debugf("Process finished")
+	utils.Debugf("monitor: container %s finished", container.ID)
 
 	exitCode := -1
 	if container.cmd != nil {
