@@ -316,7 +316,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		strPort   string
 		runtime   = mkRuntime(t)
 		port      = 5554
-		p	  Port
+		p         Port
 	)
 
 	for {

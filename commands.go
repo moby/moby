@@ -91,6 +91,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
+		{"link", "Link the container with a new name"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
@@ -1181,43 +1182,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if !*quiet {
 		w.Flush()
 	}
-	return nil
-}
-
-func (cli *DockerCli) CmdLs(args ...string) error {
-	cmd := Subcmd("ls", "", "List links for containers")
-	flAll := cmd.Bool("a", false, "Show all links")
-
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	v := url.Values{}
-	if *flAll {
-		v.Set("all", "1")
-	}
-
-	body, _, err := cli.call("GET", "/containers/links?"+v.Encode(), nil)
-	if err != nil {
-		return err
-	}
-	var links []APILink
-	if err := json.Unmarshal(body, &links); err != nil {
-		return err
-	}
-
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tID\tIMAGE")
-	fmt.Fprintf(w, "\n")
-
-	sortLinks(links, func(i, j APILink) bool {
-		return len(i.Path) < len(j.Path)
-	})
-	for _, link := range links {
-		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, utils.TruncateID(link.ContainerID), link.Image)
-		fmt.Fprintf(w, "\n")
-	}
-	w.Flush()
-
 	return nil
 }
 
