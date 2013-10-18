@@ -14,6 +14,7 @@ bundle_test() {
 		for test_dir in $(find_test_dirs); do (
 			set -x
 			cd $test_dir
+			go test -i
 			go test -v -ldflags "$LDFLAGS" $TESTFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log
