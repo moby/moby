@@ -43,7 +43,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	Dns            []string
-	deviceSet      *devmapper.DeviceSetDM
+	deviceSet      *devmapper.DeviceSet
 }
 
 var sysInitPath string
@@ -86,7 +86,7 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 	return nil
 }
 
-func (runtime *Runtime) GetDeviceSet() (*devmapper.DeviceSetDM, error) {
+func (runtime *Runtime) GetDeviceSet() (*devmapper.DeviceSet, error) {
 	if runtime.deviceSet == nil {
 		return nil, fmt.Errorf("No device set available")
 	}
@@ -612,7 +612,7 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	deviceSet := devmapper.NewDeviceSetDM(root)
+	deviceSet := devmapper.NewDeviceSet(root)
 	// Initialize devicemapper deviceSet
 	runtime := &Runtime{
 		root:           root,

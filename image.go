@@ -335,7 +335,7 @@ func (image *Image) applyLayer(layer, target string) error {
 	return nil
 }
 
-func (image *Image) ensureImageDevice(devices *devmapper.DeviceSetDM) error {
+func (image *Image) ensureImageDevice(devices *devmapper.DeviceSet) error {
 	if devices.HasInitializedDevice(image.ID) {
 		return nil
 	}

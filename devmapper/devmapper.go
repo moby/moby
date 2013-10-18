@@ -660,7 +660,7 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	return nil
 }
 
-func (devices *DeviceSetDM) createSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
+func (devices *DeviceSet) createSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
 	devinfo, _ := getInfo(baseName)
 	doSuspend := devinfo != nil && devinfo.Exists != 0
 

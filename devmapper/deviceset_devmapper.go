@@ -28,14 +28,14 @@ type DevInfo struct {
 	Size          uint64       `json:"size"`
 	TransactionId uint64       `json:"transaction_id"`
 	Initialized   bool         `json:"initialized"`
-	devices       *DeviceSetDM `json:"-"`
+	devices       *DeviceSet `json:"-"`
 }
 
 type MetaData struct {
 	Devices map[string]*DevInfo `json:devices`
 }
 
-type DeviceSetDM struct {
+type DeviceSet struct {
 	MetaData
 	sync.Mutex
 	initialized      bool
@@ -63,23 +63,23 @@ func (info *DevInfo) DevName() string {
 	return getDevName(info.Name())
 }
 
-func (devices *DeviceSetDM) loopbackDir() string {
+func (devices *DeviceSet) loopbackDir() string {
 	return path.Join(devices.root, "devicemapper")
 }
 
-func (devices *DeviceSetDM) jsonFile() string {
+func (devices *DeviceSet) jsonFile() string {
 	return path.Join(devices.loopbackDir(), "json")
 }
 
-func (devices *DeviceSetDM) getPoolName() string {
+func (devices *DeviceSet) getPoolName() string {
 	return devices.devicePrefix + "-pool"
 }
 
-func (devices *DeviceSetDM) getPoolDevName() string {
+func (devices *DeviceSet) getPoolDevName() string {
 	return getDevName(devices.getPoolName())
 }
 
-func (devices *DeviceSetDM) hasImage(name string) bool {
+func (devices *DeviceSet) hasImage(name string) bool {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
@@ -91,7 +91,7 @@ func (devices *DeviceSetDM) hasImage(name string) bool {
 // <root>/devicemapper/<name>.
 // If the file already exists, it does nothing.
 // Either way it returns the full path.
-func (devices *DeviceSetDM) ensureImage(name string, size int64) (string, error) {
+func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
@@ -116,19 +116,19 @@ func (devices *DeviceSetDM) ensureImage(name string, size int64) (string, error)
 	return filename, nil
 }
 
-func (devices *DeviceSetDM) allocateDeviceId() int {
+func (devices *DeviceSet) allocateDeviceId() int {
 	// TODO: Add smarter reuse of deleted devices
 	id := devices.nextFreeDevice
 	devices.nextFreeDevice = devices.nextFreeDevice + 1
 	return id
 }
 
-func (devices *DeviceSetDM) allocateTransactionId() uint64 {
+func (devices *DeviceSet) allocateTransactionId() uint64 {
 	devices.NewTransactionId = devices.NewTransactionId + 1
 	return devices.NewTransactionId
 }
 
-func (devices *DeviceSetDM) saveMetadata() error {
+func (devices *DeviceSet) saveMetadata() error {
 	jsonData, err := json.Marshal(devices.MetaData)
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -171,7 +171,7 @@ func (devices *DeviceSetDM) saveMetadata() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
+func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
 	utils.Debugf("registerDevice(%v, %v)", id, hash)
 	info := &DevInfo{
 		Hash:          hash,
@@ -192,7 +192,7 @@ func (devices *DeviceSetDM) registerDevice(id int, hash string, size uint64) (*D
 	return info, nil
 }
 
-func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
+func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
 	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
 	info := devices.Devices[hash]
 	if info == nil {
@@ -206,7 +206,7 @@ func (devices *DeviceSetDM) activateDeviceIfNeeded(hash string) error {
 	return activateDevice(devices.getPoolDevName(), info.Name(), info.DeviceId, info.Size)
 }
 
-func (devices *DeviceSetDM) createFilesystem(info *DevInfo) error {
+func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
 	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
@@ -220,7 +220,7 @@ func (devices *DeviceSetDM) createFilesystem(info *DevInfo) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) loadMetaData() error {
+func (devices *DeviceSet) loadMetaData() error {
 	utils.Debugf("loadMetadata()")
 	defer utils.Debugf("loadMetadata END")
 	_, _, _, params, err := getStatus(devices.getPoolName())
@@ -266,7 +266,7 @@ func (devices *DeviceSetDM) loadMetaData() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) setupBaseImage() error {
+func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo := devices.Devices[""]
 	if oldInfo != nil && oldInfo.Initialized {
 		return nil
@@ -335,7 +335,7 @@ func setCloseOnExec(name string) {
 	}
 }
 
-func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, message string) {
+func (devices *DeviceSet) log(level int, file string, line int, dmError int, message string) {
 	if level >= 7 {
 		return // Ignore _LOG_DEBUG
 	}
@@ -343,7 +343,7 @@ func (devices *DeviceSetDM) log(level int, file string, line int, dmError int, m
 	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
 
-func (devices *DeviceSetDM) initDevmapper() error {
+func (devices *DeviceSet) initDevmapper() error {
 	logInit(devices)
 
 	// Make sure the sparse images exist in <root>/devicemapper/data and
@@ -428,7 +428,7 @@ func (devices *DeviceSetDM) initDevmapper() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) AddDevice(hash, baseHash string) error {
+func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -462,7 +462,7 @@ func (devices *DeviceSetDM) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) removeDevice(hash string) error {
+func (devices *DeviceSet) removeDevice(hash string) error {
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("hash %s doesn't exists", hash)
@@ -501,7 +501,7 @@ func (devices *DeviceSetDM) removeDevice(hash string) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) RemoveDevice(hash string) error {
+func (devices *DeviceSet) RemoveDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -513,7 +513,7 @@ func (devices *DeviceSetDM) RemoveDevice(hash string) error {
 	return devices.removeDevice(hash)
 }
 
-func (devices *DeviceSetDM) deactivateDevice(hash string) error {
+func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
 	var devname string
@@ -543,7 +543,7 @@ func (devices *DeviceSetDM) deactivateDevice(hash string) error {
 // waitRemove blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is removed,
 // or b) the 1 second timeout expires.
-func (devices *DeviceSetDM) waitRemove(hash string) error {
+func (devices *DeviceSet) waitRemove(hash string) error {
 	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, hash)
 	defer utils.Debugf("[deviceset %s] waitRemove END", devices.devicePrefix, hash)
 	devname, err := devices.byHash(hash)
@@ -573,7 +573,7 @@ func (devices *DeviceSetDM) waitRemove(hash string) error {
 // waitClose blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is closed,
 // or b) the 1 second timeout expires.
-func (devices *DeviceSetDM) waitClose(hash string) error {
+func (devices *DeviceSet) waitClose(hash string) error {
 	devname, err := devices.byHash(hash)
 	if err != nil {
 		return err
@@ -600,7 +600,7 @@ func (devices *DeviceSetDM) waitClose(hash string) error {
 // FIXME: it seems probably cleaner to register the pool in devices.Devices,
 // but I am afraid of arcane implications deep in the devicemapper code,
 // so this will do.
-func (devices *DeviceSetDM) byHash(hash string) (devname string, err error) {
+func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
 	if hash == "pool" {
 		return devices.getPoolDevName(), nil
 	}
@@ -611,7 +611,7 @@ func (devices *DeviceSetDM) byHash(hash string) (devname string, err error) {
 	return info.Name(), nil
 }
 
-func (devices *DeviceSetDM) Shutdown() error {
+func (devices *DeviceSet) Shutdown() error {
 	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 	devices.Lock()
@@ -650,7 +650,7 @@ func (devices *DeviceSetDM) Shutdown() error {
 	return nil
 }
 
-func (devices *DeviceSetDM) MountDevice(hash, path string) error {
+func (devices *DeviceSet) MountDevice(hash, path string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -681,7 +681,7 @@ func (devices *DeviceSetDM) MountDevice(hash, path string) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) UnmountDevice(hash, path string, deactivate bool) error {
+func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) error {
 	utils.Debugf("[devmapper] UnmountDevice(hash=%s path=%s)", hash, path)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
 	devices.Lock()
@@ -712,7 +712,7 @@ func (devices *DeviceSetDM) UnmountDevice(hash, path string, deactivate bool) er
 	return nil
 }
 
-func (devices *DeviceSetDM) HasDevice(hash string) bool {
+func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -722,7 +722,7 @@ func (devices *DeviceSetDM) HasDevice(hash string) bool {
 	return devices.Devices[hash] != nil
 }
 
-func (devices *DeviceSetDM) HasInitializedDevice(hash string) bool {
+func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -734,7 +734,7 @@ func (devices *DeviceSetDM) HasInitializedDevice(hash string) bool {
 	return info != nil && info.Initialized
 }
 
-func (devices *DeviceSetDM) HasActivatedDevice(hash string) bool {
+func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -750,7 +750,7 @@ func (devices *DeviceSetDM) HasActivatedDevice(hash string) bool {
 	return devinfo != nil && devinfo.Exists != 0
 }
 
-func (devices *DeviceSetDM) SetInitialized(hash string) error {
+func (devices *DeviceSet) SetInitialized(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -774,7 +774,7 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 	return nil
 }
 
-func (devices *DeviceSetDM) ensureInit() error {
+func (devices *DeviceSet) ensureInit() error {
 	if !devices.initialized {
 		devices.initialized = true
 		if err := devices.initDevmapper(); err != nil {
@@ -785,10 +785,10 @@ func (devices *DeviceSetDM) ensureInit() error {
 	return nil
 }
 
-func NewDeviceSetDM(root string) *DeviceSetDM {
+func NewDeviceSet(root string) *DeviceSet {
 	SetDevDir("/dev")
 
-	return &DeviceSetDM{
+	return &DeviceSet{
 		initialized:  false,
 		root:         root,
 		MetaData:     MetaData{Devices: make(map[string]*DevInfo)},

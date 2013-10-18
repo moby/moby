@@ -12,7 +12,7 @@ func usage() {
 }
 
 func main() {
-	devices := devmapper.NewDeviceSetDM("/var/lib/docker")
+	devices := devmapper.NewDeviceSet("/var/lib/docker")
 
 	if len(os.Args) < 2 {
 		usage()

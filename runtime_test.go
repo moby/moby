@@ -195,7 +195,7 @@ func setupBaseImage() {
 
 	// Create a device, which triggers the initiation of the base FS
 	// This avoids other tests doing this and timing out
-	deviceset := devmapper.NewDeviceSetDM(unitTestStoreBase)
+	deviceset := devmapper.NewDeviceSet(unitTestStoreBase)
 	if err := deviceset.AddDevice("init", ""); err != nil {
 		log.Fatalf("Unable to setup the base image: %s", err)
 	}
