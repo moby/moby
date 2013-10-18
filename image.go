@@ -61,6 +61,7 @@ func LoadImage(root string) (*Image, error) {
 	}
 
 	// Check that the filesystem layer exists
+	// FIXME: once an image is added into device mapper, the layer is no longer needed
 	if stat, err := os.Stat(layerPath(root)); err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("Couldn't load image %s: no filesystem layer", img.ID)
