@@ -349,6 +349,14 @@ func (devices *DeviceSet) log(level int, file string, line int, dmError int, mes
 	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
 
+func major (device uint64) uint64 {
+	return  (device >> 8) & 0xfff
+}
+
+func minor (device uint64) uint64 {
+	return (device & 0xff) | ((device >> 12) & 0xfff00)
+}
+
 func (devices *DeviceSet) initDevmapper() error {
 	logInit(devices)
 
@@ -380,7 +388,7 @@ func (devices *DeviceSet) initDevmapper() error {
 	//	- Managed by docker
 	//	- The target of this device is at major <maj> and minor <min>
 	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
-	devices.devicePrefix = fmt.Sprintf("docker-%d,%d-%d", sysSt.Dev >>8, sysSt.Dev  & 0xff, sysSt.Ino)
+	devices.devicePrefix = fmt.Sprintf("docker-%d,%d-%d", major(sysSt.Dev), minor(sysSt.Dev), sysSt.Ino)
 	utils.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the device <prefix>-pool
