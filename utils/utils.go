@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -19,6 +20,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+)
+
+var (
+	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
+	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
 )
 
 // ListOpts type
@@ -188,6 +194,67 @@ func SelfPath() string {
 		panic(err)
 	}
 	return path
+}
+
+func dockerInitSha1(target string) string {
+	f, err := os.Open(target)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	h := sha1.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
+	if IAMSTATIC {
+		if target == selfPath {
+			return true
+		}
+		targetFileInfo, err := os.Lstat(target)
+		if err != nil {
+			return false
+		}
+		selfPathFileInfo, err := os.Lstat(selfPath)
+		if err != nil {
+			return false
+		}
+		return os.SameFile(targetFileInfo, selfPathFileInfo)
+	}
+	return INITSHA1 != "" && dockerInitSha1(target) == INITSHA1
+}
+
+// Figure out the path of our dockerinit (which may be SelfPath())
+func DockerInitPath() string {
+	selfPath := SelfPath()
+	if isValidDockerInitPath(selfPath, selfPath) {
+		// if we're valid, don't bother checking anything else
+		return selfPath
+	}
+	var possibleInits = []string{
+		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
+		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		"/usr/libexec/docker/dockerinit",
+		"/usr/local/libexec/docker/dockerinit",
+	}
+	for _, dockerInit := range possibleInits {
+		path, err := exec.LookPath(dockerInit)
+		if err == nil {
+			path, err = filepath.Abs(path)
+			if err != nil {
+				// LookPath already validated that this file exists and is executable (following symlinks), so how could Abs fail?
+				panic(err)
+			}
+			if isValidDockerInitPath(path, selfPath) {
+				return path
+			}
+		}
+	}
+	return ""
 }
 
 type NopWriter struct{}
