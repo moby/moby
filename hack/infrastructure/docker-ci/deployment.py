@@ -138,6 +138,9 @@ sudo('curl -s https://phantomjs.googlecode.com/files/'
 # Preventively reboot docker-ci daily
 sudo('ln -s /sbin/reboot /etc/cron.daily')
 
+# Preventively reboot docker-ci daily
+sudo('ln -s /sbin/reboot /etc/cron.daily')
+
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
