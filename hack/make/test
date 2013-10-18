@@ -1,3 +1,5 @@
+#!/bin/sh
+
 DEST=$1
 
 set -e

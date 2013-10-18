@@ -48,7 +48,6 @@ fi
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
 BUILDFLAGS='-tags netgo'
 
-
 bundle() {
 	bundlescript=$1
 	bundle=$(basename $bundlescript)
