@@ -131,40 +131,33 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 func (devices *DeviceSet) saveMetadata() error {
 	jsonData, err := json.Marshal(devices.MetaData)
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error encoding metaadata to json: %s", err)
 	}
 	tmpFile, err := ioutil.TempFile(filepath.Dir(devices.jsonFile()), ".json")
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error creating metadata file: %s", err)
 	}
 
 	n, err := tmpFile.Write(jsonData)
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error writing metadata to %s: %s", tmpFile.Name(), err)
 	}
 	if n < len(jsonData) {
 		return io.ErrShortWrite
 	}
 	if err := tmpFile.Sync(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error syncing metadata file %s: %s", tmpFile.Name(), err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
 	if err := os.Rename(tmpFile.Name(), devices.jsonFile()); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error committing metadata file", err)
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
 		if err = setTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
+			return fmt.Errorf("Error setting devmapper transition ID: %s", err)
 		}
 		devices.TransactionId = devices.NewTransactionId
 	}
@@ -655,13 +648,11 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	defer devices.Unlock()
 
 	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error initializing devmapper: %s", err)
 	}
 
 	if err := devices.activateDeviceIfNeeded(hash); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
 	info := devices.Devices[hash]
@@ -677,8 +668,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 		err = syscall.Mount(info.DevName(), path, "ext4", flags, "")
 	}
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
+		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
 	count := devices.activeMounts[path]
