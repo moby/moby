@@ -2,5 +2,5 @@
 
 DEST=$1
 
-go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS -linkmode external -extldflags \"-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files\"" $BUILDFLAGS ./docker
+go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS ./docker
 echo "Created binary: $DEST/docker-$VERSION"
