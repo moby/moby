@@ -449,8 +449,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 
 	baseInfo := devices.Devices[baseHash]
 	if baseInfo == nil {
-		utils.Debugf("Base Hash not found")
-		return fmt.Errorf("Unknown base hash %s", baseHash)
+		return fmt.Errorf("Error adding device for '%s': can't find device for parent '%s'", hash, baseHash)
 	}
 
 	deviceId := devices.allocateDeviceId()
