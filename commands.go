@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
@@ -34,6 +35,10 @@ import (
 var (
 	GITCOMMIT string
 	VERSION   string
+)
+
+var (
+	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 )
 
 func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
@@ -292,7 +297,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	cli.LoadConfigFile()
-	authconfig, ok := cli.configFile.Configs[auth.IndexServerAddress()]
+	authconfig, ok := cli.configFile.Configs[serverAddress]
 	if !ok {
 		authconfig = auth.AuthConfig{}
 	}
@@ -407,7 +412,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	var out APIVersion
 	err = json.Unmarshal(body, &out)
 	if err != nil {
-		utils.Debugf("Error unmarshal: body: %s, err: %s\n", body, err)
+		utils.Errorf("Error unmarshal: body: %s, err: %s\n", body, err)
 		return err
 	}
 	if out.Version != "" {
@@ -1219,7 +1224,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
 		return err
 	}
 	return nil
@@ -1252,7 +1257,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	if container.Config.Tty {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-			return err
+			utils.Debugf("Error monitoring tty size: %s", err)
 		}
 	}
 
@@ -1262,7 +1267,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err); err != nil {
 		return err
 	}
 	return nil
@@ -1422,6 +1427,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	flRm := cmd.Lookup("rm")
+	autoRemove, _ := strconv.ParseBool(flRm.Value.String())
+
 	var containerIDFile *os.File
 	if len(hostConfig.ContainerIDFile) > 0 {
 		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
@@ -1519,14 +1527,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				utils.Debugf("Error monitoring TTY size: %s\n", err)
+				utils.Errorf("Error monitoring TTY size: %s\n", err)
 			}
 		}
 
 		v := url.Values{}
 		v.Set("logs", "1")
 		v.Set("stream", "1")
-		var out io.Writer
+		var out, stderr io.Writer
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
@@ -1537,7 +1545,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 		if config.AttachStderr {
 			v.Set("stderr", "1")
-			out = cli.out
+			if config.Tty {
+				stderr = cli.out
+			} else {
+				stderr = cli.err
+			}
 		}
 
 		signals := make(chan os.Signal, 1)
@@ -1551,7 +1563,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}()
 
-		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out); err != nil {
+		if err := cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr); err != nil {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
@@ -1561,12 +1573,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Detached mode
 		<-wait
 	} else {
-		status, err := waitForExit(cli, runResult.ID)
+		status, err := getExitCode(cli, runResult.ID)
 		if err != nil {
 			return err
 		}
+		if autoRemove {
+			_, _, err = cli.call("DELETE", "/containers/"+runResult.ID, nil)
+			if err != nil {
+				return err
+			}
+		}
 		if status != 0 {
-			return &utils.StatusError{status}
+			return &utils.StatusError{Status: status}
 		}
 	}
 
@@ -1632,7 +1650,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+			return nil, -1, ErrConnectionRefused
 		}
 		return nil, -1, err
 	}
@@ -1641,7 +1659,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 	defer clientconn.Close()
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return nil, -1, fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+			return nil, -1, ErrConnectionRefused
 		}
 		return nil, -1, err
 	}
@@ -1718,7 +1736,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, out io.Writer) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer) error {
 
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
@@ -1744,10 +1762,16 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
 
-	var receiveStdout (chan error)
-	if out != nil {
-		receiveStdout = utils.Go(func() error {
-			_, err := io.Copy(out, br)
+	var receiveStdout chan error
+
+	if stdout != nil {
+		receiveStdout = utils.Go(func() (err error) {
+			// When TTY is ON, use regular copy
+			if setRawTerminal {
+				_, err = io.Copy(stdout, br)
+			} else {
+				_, err = utils.StdCopy(stdout, stderr, br)
+			}
 			utils.Debugf("[hijack] End of stdout")
 			return err
 		})
@@ -1768,27 +1792,27 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				utils.Errorf("Couldn't send EOF: %s\n", err)
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				utils.Errorf("Couldn't send EOF: %s\n", err)
 			}
 		}
 		// Discard errors due to pipe interruption
 		return nil
 	})
 
-	if out != nil {
+	if stdout != nil {
 		if err := <-receiveStdout; err != nil {
-			utils.Debugf("Error receiveStdout: %s", err)
+			utils.Errorf("Error receiveStdout: %s", err)
 			return err
 		}
 	}
 
 	if !cli.isTerminal {
 		if err := <-sendStdin; err != nil {
-			utils.Debugf("Error sendStdin: %s", err)
+			utils.Errorf("Error sendStdin: %s", err)
 			return err
 		}
 	}
@@ -1802,7 +1826,7 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	}
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
-		utils.Debugf("Error getting size: %s", err)
+		utils.Errorf("Error getting size: %s", err)
 		if ws == nil {
 			return 0, 0
 		}
@@ -1819,7 +1843,7 @@ func (cli *DockerCli) resizeTty(id string) {
 	v.Set("h", strconv.Itoa(height))
 	v.Set("w", strconv.Itoa(width))
 	if _, _, err := cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil); err != nil {
-		utils.Debugf("Error resize: %s", err)
+		utils.Errorf("Error resize: %s", err)
 	}
 }
 
@@ -1860,7 +1884,11 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 func waitForExit(cli *DockerCli, containerId string) (int, error) {
 	body, _, err := cli.call("POST", "/containers/"+containerId+"/wait", nil)
 	if err != nil {
-		return -1, err
+		// If we can't connect, then the daemon probably died.
+		if err != ErrConnectionRefused {
+			return -1, err
+		}
+		return -1, nil
 	}
 
 	var out APIWait
@@ -1868,6 +1896,22 @@ func waitForExit(cli *DockerCli, containerId string) (int, error) {
 		return -1, err
 	}
 	return out.StatusCode, nil
+}
+
+func getExitCode(cli *DockerCli, containerId string) (int, error) {
+	body, _, err := cli.call("GET", "/containers/"+containerId+"/json", nil)
+	if err != nil {
+		// If we can't connect, then the daemon probably died.
+		if err != ErrConnectionRefused {
+			return -1, err
+		}
+		return -1, nil
+	}
+	c := &Container{}
+	if err := json.Unmarshal(body, c); err != nil {
+		return -1, err
+	}
+	return c.State.ExitCode, nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {

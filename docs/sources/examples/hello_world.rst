@@ -2,6 +2,11 @@
 :description: A simple hello world example with Docker
 :keywords: docker, example, hello world
 
+.. _examples:
+
+Hello World
+-----------
+
 .. _running_examples:
 
 Running the Examples
@@ -166,13 +171,11 @@ See the example in action
 The next example in the series is a :ref:`python_web_app` example, or
 you could skip to any of the other examples:
 
-.. toctree::
-   :maxdepth: 1
 
-   python_web_app
-   nodejs_web_app
-   running_redis_service
-   running_ssh_service
-   couchdb_data_volumes
-   postgresql_service
-   mongodb
+* :ref:`python_web_app`
+* :ref:`nodejs_web_app`
+* :ref:`running_redis_service`
+* :ref:`running_ssh_service`
+* :ref:`running_couchdb_service`
+* :ref:`postgresql_service`
+* :ref:`mongodb`

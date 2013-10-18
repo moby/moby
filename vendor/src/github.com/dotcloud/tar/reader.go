@@ -95,45 +95,45 @@ func (tr *Reader) Next() (*Header, error) {
 func mergePAX(hdr *Header, headers map[string]string) error {
 	for k, v := range headers {
 		switch k {
-		case PAX_PATH:
+		case paxPath:
 			hdr.Name = v
-		case PAX_LINKPATH:
+		case paxLinkpath:
 			hdr.Linkname = v
-		case PAX_GNAME:
+		case paxGname:
 			hdr.Gname = v
-		case PAX_UNAME:
+		case paxUname:
 			hdr.Uname = v
-		case PAX_UID:
+		case paxUid:
 			uid, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
 			}
 			hdr.Uid = int(uid)
-		case PAX_GID:
+		case paxGid:
 			gid, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
 			}
 			hdr.Gid = int(gid)
-		case PAX_ATIME:
+		case paxAtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.AccessTime = t
-		case PAX_MTIME:
+		case paxMtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.ModTime = t
-		case PAX_CTIME:
+		case paxCtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.ChangeTime = t
-		case PAX_SIZE:
+		case paxSize:
 			size, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
@@ -243,13 +243,15 @@ func (tr *Reader) octal(b []byte) int64 {
 		return x
 	}
 
-	// Removing leading spaces.
-	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:]
-	}
-	// Removing trailing NULs and spaces.
-	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
-		b = b[0 : len(b)-1]
+	// Because unused fields are filled with NULs, we need
+	// to skip leading NULs. Fields may also be padded with
+	// spaces or NULs.
+	// So we remove leading and trailing NULs and spaces to
+	// be sure.
+	b = bytes.Trim(b, " \x00")
+
+	if len(b) == 0 {
+		return 0
 	}
 	x, err := strconv.ParseUint(cString(b), 8, 64)
 	if err != nil {

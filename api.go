@@ -21,10 +21,12 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.5
-const DEFAULTHTTPHOST = "127.0.0.1"
-const DEFAULTHTTPPORT = 4243
-const DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+const (
+	APIVERSION        = 1.6
+	DEFAULTHTTPHOST   = "127.0.0.1"
+	DEFAULTHTTPPORT   = 4243
+	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+)
 
 type HttpApiFunc func(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
@@ -67,9 +69,12 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}
-	utils.Debugf("[error %d] %s", statusCode, err)
-	http.Error(w, err.Error(), statusCode)
+	}	
+	
+	if err != nil {
+		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		http.Error(w, err.Error(), statusCode)		
+	}	
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -100,7 +105,7 @@ func getBoolParam(value string) (bool, error) {
 func matchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		utils.Debugf("Error parsing media type: %s error: %s", contentType, err.Error())
+		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
 	}
 	return err == nil && mimetype == expectedType
 }
@@ -145,7 +150,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Debugf("%s", err)
+		utils.Errorf("%s", err)
 		return err
 	}
 	return nil
@@ -190,7 +195,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		_, err = wf.Write(b)
 		if err != nil {
 			// On error, evict the listener
-			utils.Debugf("%s", err)
+			utils.Errorf("%s", err)
 			srv.Lock()
 			delete(srv.listeners, r.RemoteAddr)
 			srv.Unlock()
@@ -344,8 +349,8 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		return err
 	}
 	config := &Config{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		utils.Debugf("%s", err)
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
+		utils.Errorf("%s", err)
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -710,32 +715,43 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	}
 	name := vars["name"]
 
-	if _, err := srv.ContainerInspect(name); err != nil {
+	c, err := srv.ContainerInspect(name)
+	if err != nil {
 		return err
 	}
 
-	in, out, err := hijackServer(w)
+	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if tcpc, ok := in.(*net.TCPConn); ok {
+		if tcpc, ok := inStream.(*net.TCPConn); ok {
 			tcpc.CloseWrite()
 		} else {
-			in.Close()
+			inStream.Close()
 		}
 	}()
 	defer func() {
-		if tcpc, ok := out.(*net.TCPConn); ok {
+		if tcpc, ok := outStream.(*net.TCPConn); ok {
 			tcpc.CloseWrite()
-		} else if closer, ok := out.(io.Closer); ok {
+		} else if closer, ok := outStream.(io.Closer); ok {
 			closer.Close()
 		}
 	}()
 
-	fmt.Fprintf(out, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, in, out); err != nil {
-		fmt.Fprintf(out, "Error: %s\n", err)
+	var errStream io.Writer
+
+	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+
+	if !c.Config.Tty && version >= 1.6 {
+		errStream = utils.NewStdWriter(outStream, utils.Stderr)
+		outStream = utils.NewStdWriter(outStream, utils.Stdout)
+	} else {
+		errStream = outStream
+	}
+
+	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, inStream, outStream, errStream); err != nil {
+		fmt.Fprintf(outStream, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -778,8 +794,8 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws); err != nil {
-			utils.Debugf("Error: %s", err)
+		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws, ws); err != nil {
+			utils.Errorf("Error: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -892,8 +908,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
 	id, err := b.Build(context)
 	if err != nil {
-		fmt.Fprintf(w, "Error build: %s\n", err)
-		return err
+		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
@@ -925,7 +940,7 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Errorf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -970,7 +985,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		}
 
 		if err := handlerFunc(srv, version, w, r, mux.Vars(r)); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 			httpError(w, err)
 		}
 	}

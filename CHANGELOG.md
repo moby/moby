@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.6.4 (2013-10-16)
+- Runtime: Add cleanup of container when Start() fails
+- Testing: Catch errClosing error when TCP and UDP proxies are terminated
+- Testing: Add aggregated docker-ci email report
+- Testing: Remove a few errors in tests
+* Contrib: Reorganize contributed completion scripts to add zsh completion
+* Contrib: Add vim syntax highlighting for Dockerfiles from @honza
+* Runtime: Add better comments to utils/stdcopy.go
+- Testing: add cleanup to remove leftover containers
+* Documentation: Document how to edit and release docs
+* Documentation: Add initial draft of the Docker infrastructure doc
+* Contrib: Add mkimage-arch.sh
+- Builder: Abort build if mergeConfig returns an error and fix duplicate error message
+- Runtime: Remove error messages which are not actually errors
+* Testing: Only run certain tests with TESTFLAGS='-run TestName' make.sh
+* Testing: Prevent docker-ci to test closing PRs
+- Documentation: Minor updates to postgresql_service.rst
+* Testing: Add nightly release to docker-ci
+* Hack: Improve network performance for VirtualBox
+* Hack: Add vagrant user to the docker group
+* Runtime: Add utils.Errorf for error logging
+- Packaging: Remove deprecated packaging directory
+* Hack: Revamp install.sh to be usable by more people, and to use official install methods whenever possible (apt repo, portage tree, etc.)
+- Hack: Fix contrib/mkimage-debian.sh apt caching prevention
+* Documentation: Clarify LGTM process to contributors
+- Documentation: Small fixes to parameter names in docs for ADD command
+* Runtime: Record termination time in state.
+- Registry: Use correct auth config when logging in.
+- Documentation: Corrected error in the package name
+* Documentation: Document what `vagrant up` is actually doing
+- Runtime: Fix `docker rm` with volumes
+- Runtime: Use empty string so TempDir uses the OS's temp dir automatically
+- Runtime: Make sure to close the network allocators
+* Testing: Replace panic by log.Fatal in tests
++ Documentation: improve doc search results
+- Runtime: Fix some error cases where a HTTP body might not be closed
+* Hack: Add proper bash completion for "docker push"
+* Documentation: Add devenvironment link to CONTRIBUTING.md
+* Documentation: Cleanup whitespace in API 1.5 docs
+* Documentation: use angle brackets in MAINTAINER example email
+- Testing: Increase TestRunDetach timeout
+* Documentation: Fix help text for -v option
++ Hack: Added Dockerfile.tmLanguage to contrib
++ Runtime: Autorestart containers by default
+* Testing: Adding more tests around auth.ResolveAuthConfig
+* Hack: Configured FPM to make /etc/init/docker.conf a config file
+* Hack: Add xz utils as a runtime dep
+* Documentation: Add `apt-get install curl` to Ubuntu docs
+* Documentation: Remove Gentoo install notes about #1422 workaround
+* Documentation: Fix Ping endpoint documentation
+* Runtime: Bump vendor kr/pty to commit 3b1f6487b (syscall.O_NOCTTY)
+* Runtime: lxc: Allow set_file_cap capability in container
+* Documentation: Update archlinux.rst
+- Documentation: Fix ironic typo in changelog
+* Documentation: Add explanation for export restrictions
+* Hack: Add cleanup/refactor portion of #2010 for hack and Dockerfile updates
++ Documentation: Changes to a new style for the docs. Includes version switcher.
+* Documentation: Formatting, add information about multiline json
++ Hack: Add contrib/mkimage-centos.sh back (from #1621), and associated documentation link
+- Runtime: Fix panic with wrong dockercfg file
+- Runtime: Fix the attach behavior with -i
+* Documentation: Add .dockercfg doc
+- Runtime: Move run -rm to the cli only
+* Hack: Enable SSH Agent forwarding in Vagrant VM
++ Runtime: Add -rm to docker run for removing a container on exit
+* Documentation: Improve registry and index REST API documentation
+* Runtime: Split stdout stderr
+- Documentation: Replace deprecated upgrading reference to docker-latest.tgz, which hasn't been updated since 0.5.3
+* Documentation: Update Gentoo installation documentation now that we're in the portage tree proper
+- Registry: Fix the error message so it is the same as the regex
+* Runtime: Always create a new session for the container
+* Hack: Add several of the small make.sh fixes from #1920, and make the output more consistent and contributor-friendly
+* Documentation: Various command fixes in postgres example
+* Documentation: Cleanup and reorganize docs and tooling for contributors and maintainers
+- Documentation: Minor spelling correction of protocoll -> protocol
+* Hack: Several small tweaks/fixes for contrib/mkimage-debian.sh
++ Hack: Add @tianon to hack/MAINTAINERS
+
+## 0.6.3 (2013-09-23)
+* Packaging: Update tar vendor dependency
+- Client: Fix detach issue
+- Runtime: Only copy and change permissions on non-bindmount volumes
+- Registry: Update regular expression to match index
+* Runtime: Allow multiple volumes-from
+* Packaging: Download apt key over HTTPS
+* Documentation: Update section on extracting the docker binary after build
+* Documentation: Update development environment docs for new build process
+* Documentation: Remove 'base' image from documentation
+* Packaging: Add 'docker' group on install for ubuntu package
+- Runtime: Fix HTTP imports from STDIN
+
 ## 0.6.2 (2013-09-17)
 + Hack: Vendor all dependencies
 + Builder: Add -rm option in order to remove intermediate containers
@@ -13,7 +104,7 @@
 * Registry: Implement login with private registry
 * Remote API: Bump to v1.5
 * Packaging: Break down hack/make.sh into small scripts, one per 'bundle': test, binary, ubuntu etc.
-* Documentation: General improvments
+* Documentation: General improvements
 - Runtime: UID and GID are now also applied to volumes
 - Runtime: `docker start` set error code upon error
 - Runtime: `docker run` set the same error code as the process started

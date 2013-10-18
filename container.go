@@ -126,6 +126,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
+	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -172,6 +173,10 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 				flAttach.Set("stdin")
 			}
 		}
+	}
+
+	if *flDetach && *flAutoRemove {
+		return nil, nil, cmd, fmt.Errorf("Conflicting options: -rm and -d")
 	}
 
 	var binds []string
@@ -385,20 +390,20 @@ func (container *Container) startPty() error {
 	// Copy the PTYs to our broadcasters
 	go func() {
 		defer container.stdout.CloseWriters()
-		utils.Debugf("[startPty] Begin of stdout pipe")
+		utils.Debugf("startPty: begin of stdout pipe")
 		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("[startPty] End of stdout pipe")
+		utils.Debugf("startPty: end of stdout pipe")
 	}()
 
 	// stdin
 	if container.Config.OpenStdin {
 		container.cmd.Stdin = ptySlave
-		container.cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+		container.cmd.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
-			utils.Debugf("[startPty] Begin of stdin pipe")
+			utils.Debugf("startPty: begin of stdin pipe")
 			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("[startPty] End of stdin pipe")
+			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
 	if err := container.cmd.Start(); err != nil {
@@ -418,9 +423,9 @@ func (container *Container) start() error {
 		}
 		go func() {
 			defer stdin.Close()
-			utils.Debugf("Begin of stdin pipe [start]")
+			utils.Debugf("start: begin of stdin pipe")
 			io.Copy(stdin, container.stdin)
-			utils.Debugf("End of stdin pipe [start]")
+			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
 	return container.cmd.Start()
@@ -437,8 +442,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			errors <- err
 		} else {
 			go func() {
-				utils.Debugf("[start] attach stdin\n")
-				defer utils.Debugf("[end] attach stdin\n")
+				utils.Debugf("attach: stdin: begin")
+				defer utils.Debugf("attach: stdin: end")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
@@ -456,7 +461,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 					_, err = io.Copy(cStdin, stdin)
 				}
 				if err != nil {
-					utils.Debugf("[error] attach stdin: %s\n", err)
+					utils.Errorf("attach: stdin: %s", err)
 				}
 				// Discard error, expecting pipe error
 				errors <- nil
@@ -470,20 +475,21 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		} else {
 			cStdout = p
 			go func() {
-				utils.Debugf("[start] attach stdout\n")
-				defer utils.Debugf("[end]  attach stdout\n")
+				utils.Debugf("attach: stdout: begin")
+				defer utils.Debugf("attach: stdout: end")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stdout, cStdout)
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
-					utils.Debugf("[error] attach stdout: %s\n", err)
+					utils.Errorf("attach: stdout: %s", err)
 				}
 				errors <- err
 			}()
@@ -493,9 +499,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			if stdinCloser != nil {
 				defer stdinCloser.Close()
 			}
-
 			if cStdout, err := container.StdoutPipe(); err != nil {
-				utils.Debugf("Error stdout pipe")
+				utils.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStdout)
 			}
@@ -508,20 +513,21 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		} else {
 			cStderr = p
 			go func() {
-				utils.Debugf("[start] attach stderr\n")
-				defer utils.Debugf("[end]  attach stderr\n")
+				utils.Debugf("attach: stderr: begin")
+				defer utils.Debugf("attach: stderr: end")
 				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce {
-					if stdin != nil {
-						defer stdin.Close()
-					}
-					if stdinCloser != nil {
-						defer stdinCloser.Close()
-					}
+				if container.Config.StdinOnce && stdin != nil {
+					defer stdin.Close()
+				}
+				if stdinCloser != nil {
+					defer stdinCloser.Close()
 				}
 				_, err := io.Copy(stderr, cStderr)
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
-					utils.Debugf("[error] attach stderr: %s\n", err)
+					utils.Errorf("attach: stderr: %s", err)
 				}
 				errors <- err
 			}()
@@ -533,7 +539,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 			}
 
 			if cStderr, err := container.StderrPipe(); err != nil {
-				utils.Debugf("Error stdout pipe")
+				utils.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)
 			}
@@ -547,24 +553,29 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 		if cStderr != nil {
 			defer cStderr.Close()
 		}
-		// FIXME: how do clean up the stdin goroutine without the unwanted side effect
+		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
 		for i := 0; i < nJobs; i += 1 {
-			utils.Debugf("Waiting for job %d/%d\n", i+1, nJobs)
+			utils.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
 			if err := <-errors; err != nil {
-				utils.Debugf("Job %d returned error %s. Aborting all jobs\n", i+1, err)
+				utils.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
 				return err
 			}
-			utils.Debugf("Job %d completed successfully\n", i+1)
+			utils.Debugf("attach: job %d completed successfully", i+1)
 		}
-		utils.Debugf("All jobs completed successfully\n")
+		utils.Debugf("attach: all jobs completed successfully")
 		return nil
 	})
 }
 
-func (container *Container) Start(hostConfig *HostConfig) error {
+func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
+	defer func() {
+		if err != nil {
+			container.cleanup()
+		}
+	}()
 
 	if hostConfig == nil { // in docker start of docker restart we want to reuse previous HostConfigFile
 		hostConfig, _ = container.ReadHostConfig()
@@ -800,7 +811,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		return err
 	}
 
-	var err error
+	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
 	if container.Config.Tty {
 		err = container.startPty()
 	} else {
@@ -818,7 +830,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 
 	container.ToDisk()
 	container.SaveHostConfig(hostConfig)
-	go container.monitor()
+	go container.monitor(hostConfig)
 	return nil
 }
 
@@ -846,9 +858,14 @@ func (container *Container) Output() (output []byte, err error) {
 	return output, err
 }
 
-// StdinPipe() returns a pipe connected to the standard input of the container's
-// active process.
-//
+// Container.StdinPipe returns a WriteCloser which can be used to feed data
+// to the standard input of the container's active process.
+// Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
+// which can be used to retrieve the standard output (and error) generated
+// by the container's active process. The output (and error) are actually
+// copied and delivered to all StdoutPipe and StderrPipe consumers, using
+// a kind of "broadcaster".
+
 func (container *Container) StdinPipe() (io.WriteCloser, error) {
 	return container.stdinPipe, nil
 }
@@ -926,7 +943,7 @@ func (container *Container) allocateNetwork() error {
 }
 
 func (container *Container) releaseNetwork() {
-	if container.Config.NetworkDisabled {
+	if container.Config.NetworkDisabled || container.network == nil {
 		return
 	}
 	container.network.Release()
@@ -948,61 +965,45 @@ func (container *Container) waitLxc() error {
 	}
 }
 
-func (container *Container) monitor() {
+func (container *Container) monitor(hostConfig *HostConfig) {
 	// Wait for the program to exit
-	utils.Debugf("Waiting for process")
 
-	// If the command does not exists, try to wait via lxc
+	// If the command does not exist, try to wait via lxc
+	// (This probably happens only for ghost containers, i.e. containers that were running when Docker started)
 	if container.cmd == nil {
+		utils.Debugf("monitor: waiting for container %s using waitLxc", container.ID)
 		if err := container.waitLxc(); err != nil {
-			utils.Debugf("%s: Process: %s", container.ID, err)
+			utils.Errorf("monitor: while waiting for container %s, waitLxc had a problem: %s", container.ID, err)
 		}
 	} else {
+		utils.Debugf("monitor: waiting for container %s using cmd.Wait", container.ID)
 		if err := container.cmd.Wait(); err != nil {
-			// Discard the error as any signals or non 0 returns will generate an error
-			utils.Debugf("%s: Process: %s", container.ID, err)
+			// Since non-zero exit status and signal terminations will cause err to be non-nil,
+			// we have to actually discard it. Still, log it anyway, just in case.
+			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
 		}
 	}
-	utils.Debugf("Process finished")
-	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
-	}
+	utils.Debugf("monitor: container %s finished", container.ID)
+
 	exitCode := -1
 	if container.cmd != nil {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
+	// Report status back
+	container.State.setStopped(exitCode)
+
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
+	}
+
 	// Cleanup
-	container.releaseNetwork()
-	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
-			utils.Debugf("%s: Error close stdin: %s", container.ID, err)
-		}
-	}
-	if err := container.stdout.CloseWriters(); err != nil {
-		utils.Debugf("%s: Error close stdout: %s", container.ID, err)
-	}
-	if err := container.stderr.CloseWriters(); err != nil {
-		utils.Debugf("%s: Error close stderr: %s", container.ID, err)
-	}
-
-	if container.ptyMaster != nil {
-		if err := container.ptyMaster.Close(); err != nil {
-			utils.Debugf("%s: Error closing Pty master: %s", container.ID, err)
-		}
-	}
-
-	if err := container.Unmount(); err != nil {
-		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
-	}
+	container.cleanup()
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
-	// Report status back
-	container.State.setStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
@@ -1015,6 +1016,31 @@ func (container *Container) monitor() {
 		// to return.
 		// FIXME: why are we serializing running state to disk in the first place?
 		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+	}
+}
+
+func (container *Container) cleanup() {
+	container.releaseNetwork()
+	if container.Config.OpenStdin {
+		if err := container.stdin.Close(); err != nil {
+			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
+		}
+	}
+	if err := container.stdout.CloseWriters(); err != nil {
+		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
+	}
+	if err := container.stderr.CloseWriters(); err != nil {
+		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
+	}
+
+	if container.ptyMaster != nil {
+		if err := container.ptyMaster.Close(); err != nil {
+			utils.Errorf("%s: Error closing Pty master: %s", container.ID, err)
+		}
+	}
+
+	if err := container.Unmount(); err != nil {
+		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
 }
 

@@ -1,280 +1,205 @@
-/* ==========================================================================
-   Author's custom styles
-   ========================================================================== */
-.red {
-  background-color: red;
-}
-.blue {
-  background-color: blue;
-}
-.orange {
-  background-color: orange;
-}
-.gray {
-  background-color: grey;
+.debug {
+  border: 2px dotted red !important;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
 }
 body {
-  padding-top: 58px;
-  font-family: Arial, Helvetica, sans-serif;
+  min-width: 940px;
+  font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
-h1,
-h2,
-h3,
-h4 {
-  font-family: Arial, Helvetica, sans-serif;
-  font-weight: 900;
+p a {
+  text-decoration: underline;
 }
-/* ===================
-	Top navigation
-===================== */
-.navbar {
-  z-index: 999;
-  background-color: white;
+p a.btn {
+  text-decoration: none;
+}
+.brand.logo a {
+  text-decoration: none;
+}
+.navbar .navbar-inner {
+  padding-left: 0px;
+  padding-right: 0px;
 }
 .navbar .nav li a {
-  padding: 22px 15px 22px;
+  padding: 24.2857142855px 17px 24.2857142855px;
+  color: #777777;
+  text-decoration: none;
+  text-shadow: 0 1px 0 #f2f2f2;
 }
-.navbar-dotcloud .container {
-  border-bottom: 2px #000000 solid;
+.navbar .nav > li {
+  float: left;
+}
+.nav-underline {
+  height: 6px;
+  background-color: #71afc0;
+}
+.nav-login li a {
+  color: white;
+  padding: 10px 15px 10px;
+}
+.navbar .brand {
+  margin-left: 0px;
+  float: left;
+  display: block;
+}
+.navbar-inner {
+  min-height: 70px;
+  padding-left: 20px;
+  padding-right: 20px;
+  background-color: #ededed;
+  background-image: -moz-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f2f2f2), to(#e5e5e5));
+  background-image: -webkit-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: -o-linear-gradient(top, #f2f2f2, #e5e5e5);
+  background-image: linear-gradient(to bottom, #f2f2f2, #e5e5e5);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff2f2f2', endColorstr='#ffe5e5e5', GradientType=0);
+  border: 1px solid #c7c7c7;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+}
+.brand.logo a {
+  color: white;
 }
 .inline-icon {
   margin-bottom: 6px;
 }
-/*
-* Responsive YouTube, Vimeo, Embed, and HTML5 Videos with CSS
-* http://www.jonsuh.com
-*
-* Copyright (c) 2012 Jonathan Suh
-* Free to use under the MIT license.
-* http://www.opensource.org/licenses/mit-license.php
-*/
-.js-video {
-  height: 0;
-  padding-top: 25px;
-  padding-bottom: 67.5%;
-  margin-bottom: 10px;
-  position: relative;
-  overflow: hidden;
-}
-.js-video.vimeo {
-  padding-top: 0;
-}
-.js-video.widescreen {
-  padding-bottom: 57.25%;
-}
-.js-video embed,
-.js-video iframe,
-.js-video object,
-.js-video video {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  position: absolute;
-}
-/* Responsive */
-@media (max-width: 767px) {
-  .js-video {
-    padding-top: 0;
-  }
-}
-/* button style from http://charliepark.org/bootstrap_buttons/ */
-.btn-custom {
-  background-color: #292929 !important;
-  background-repeat: repeat-x;
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#515151", endColorstr="#282828");
-  background-image: -khtml-gradient(linear, left top, left bottom, from(#515151), to(#282828));
-  background-image: -moz-linear-gradient(top, #515151, #282828);
-  background-image: -ms-linear-gradient(top, #515151, #282828);
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #515151), color-stop(100%, #282828));
-  background-image: -webkit-linear-gradient(top, #515151, #282828);
-  background-image: -o-linear-gradient(top, #515151, #282828);
-  background-image: linear-gradient(#515151, #282828);
-  border-color: #282828 #282828 #1f1f1f;
-  color: #fff !important;
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.26);
-  -webkit-font-smoothing: antialiased;
-}
-/* ===================
-	Page title bar
-===================== */
-h1.pageheader {
-  color: #ffffff;
-  font-size: 20px;
-  font-family: "Arial Black", Tahoma, sans-serif;
-  margin: 8px;
-  margin-left: 22px;
-}
-/* ===================
-	Hero unit
-===================== */
-section.header {
-  margin-top: 0;
-}
-.hero-unit {
-  background-color: #292e33;
-}
-.hero-unit h5 {
-  color: #ffffff;
-}
-/* ===================
-	Main content layout
-===================== */
-.contentblock {
-  margin-top: 20px;
-  border-width: 3px;
-  background-color: #eeeeee;
-  box-sizing: content-box;
-  padding: 20px;
-}
-.section img {
-  margin: 15px 15px 15px 0;
-  border: 2px solid gray;
-}
-.admonition {
-  padding: 10px;
-  border: 1px solid grey;
-  margin-bottom: 10px;
-  margin-top: 10px;
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-}
-.admonition .admonition-title {
-  font-weight: bold;
-}
-.admonition.note {
-  background-color: #f1ebba;
-}
-.admonition.warning {
-  background-color: #eed9af;
-}
-.admonition.danger {
-  background-color: #e9bcab;
-}
-/* ===================
-	left navigation
-===================== */
-.dotcloudsidebar {
-  float: left;
-  height: 100%;
-  top: 0px;
-  bottom: 0px;
-  position: relative;
-  min-height: 100%;
-  margin-top: 78px;
-  margin-bottom: 22px;
-}
-.sidebar {
-  font-weight: normal;
-  float: left;
-  /*  min-height: 475px;*/
-
-  background: #ececec;
-  /*  border-left: 1px solid #bbbbbb;*/
-
-  /*  border-right: 1px solid #cccccc;*/
-
-  position: relative;
-}
-.sidebar ul {
-  padding: 0px;
-}
-.sidebar ul li {
-  font-size: 14px;
-  list-style-type: none;
-  list-style-position: outside;
-  list-style-image: none;
-  margin-left: -25px;
-  padding: 0px;
-}
-.sidebar ul li a {
-  display: block;
-  color: #443331;
-  outline: 1px solid #dddddd;
-  padding: 12px 12px 10px 12px;
-  margin-top: 1px;
-  background-color: #d2d2d2;
-}
-.sidebar ul li .toctree-l1 {
-  font-size: larger;
-}
-.sidebar ul li .toctree-l1 a {
-  background-color: #dfdfdf;
-}
-.sidebar ul li .toctree-l1 .current {
-  font-weight: bold;
-}
-.sidebar ul li .toctree-l2 a {
-  padding-left: 18px;
-  background-color: #ffffff;
-}
-.sidebar ul li .toctree-l2 .current {
-  font-weight: bold;
-}
-.sidebar ul li .toctree-l3 {
-  font-size: smaller;
-}
-.sidebar ul li .toctree-l3 a {
-  padding-left: 36px;
-  background-color: #ffffff;
-}
-.sidebar ul li .toctree-l3 .current {
-  font-weight: bold;
-}
-.brand img {
-  height: 38px;
-  margin-left: -6px;
-}
-.border-box {
-  box-sizing: border-box;
-  padding: 20px;
-  background-color: #111188;
-  color: white;
-}
-.titlebar {
-  background-color: #000000;
-  margin-top: 0px;
-  margin-bottom: 20px;
-  min-height: 40px;
-  color: white;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-.footer {
-  border-top: 2px solid black;
+.row {
   margin-top: 15px;
-  margin-bottom: 20px;
-  min-height: 40px;
-  padding-left: 8px;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 15px;
 }
-/* This is the default */
-.span6.with-padding {
-  background-color: #111188;
-  height: 200px;
-  color: white;
-  padding: 10px;
+div[class*='span'] {
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
 }
-#global {
-  min-height: 500px;
+.box {
+  padding: 30px;
+  background-color: white;
+  margin-top: 8px;
+}
+.paper {
+  background-color: white;
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+.copy-headline {
+  margin-top: 0px;
+}
+.box h1,
+.box h2,
+.box h3,
+.box h4 {
+  margin-top: -5px;
+}
+.nested {
+  padding: 30px;
+}
+.box.div {
+  padding: 30px;
+}
+span.read-more {
+  margin-left: 15px;
+  white-space: nowrap;
+}
+.forcetopalign {
+  margin-top: 15px !important;
+}
+.forcetopmargin {
+  margin-top: 23px !important;
+}
+.forceleftalign {
+  margin-left: 15px !important;
+}
+.forceleftmargin {
+  margin-left: 21px !important;
+}
+.textcenter {
+  text-align: center;
+}
+.textright {
+  text-align: right;
+}
+.textsmaller {
+  font-size: 12px;
+}
+.modal-backdrop {
+  opacity: 0.4;
+}
+/* generic page copy styles */
+.copy-headline h1 {
+  font-size: 21px;
 }
 /* =======================
-   Row size
+   Sticky footer
 ======================= */
-.row1 {
-  background-color: #999999;
+html,
+body {
   height: 100%;
-  position: relative;
+  /* The html and body elements cannot have any padding or margin. */
+
+}
+/* Wrapper for page content to push down footer */
+#wrap {
+  min-height: 100%;
+  height: auto !important;
+  height: 100%;
+  /* Negative indent footer by it's height */
+
+  margin: 0 auto -280px;
+}
+/* Set the fixed height of the footer here */
+#push-the-footer,
+#footer {
+  height: 280px;
+}
+.main-row {
+  padding-top: 50px;
+}
+#footer .footer {
+  margin-top: 160px;
+}
+#footer .footer .ligaturesymbols {
+  font-size: 30px;
+  color: black;
+}
+#footer .footer .ligaturesymbols a {
+  color: black;
+}
+#footer .footer .footerlist h3,
+#footer .footer .footerlist h4 {
+  /* correct the top alignment */
+
+  margin-top: 0px;
+}
+.footer-landscape-image {
+  position: absolute:
+  bottom: 0;
+  margin-bottom: 0;
+  background-image: url('https://www.docker.io/static/img/website-footer_clean.svg');
+  background-repeat: repeat-x;
+  height: 280px;
+}
+.main-row {
+  margin-top: 40px;
+}
+.main-content {
+  padding: 16px 18px inherit;
 }
 /* =======================
    Social footer
 ======================= */
+.social {
+  margin-left: 0px;
+  margin-top: 15px;
+}
 .social .twitter,
 .social .github,
 .social .googleplus {
-  background: url("../img/footer-links.png") no-repeat transparent;
+  background: url("https://www.docker.io/static/img/footer-links.png") no-repeat transparent;
   display: inline-block;
   height: 35px;
   overflow: hidden;
@@ -288,93 +213,160 @@ section.header {
 .social .github {
   background-position: -59px 2px;
 }
-#fork-us {
-  /*font-family: 'Maven Pro';*/
-
-  /*font-weight: bold;*/
-
+form table th {
+  vertical-align: top;
+  text-align: right;
+  white-space: nowrap;
+}
+form .labeldd label {
+  font-weight: bold;
+}
+form .helptext {
   font-size: 12px;
-  /*text-transform: uppercase;*/
-
-  display: block;
-  padding: 0px 1em;
-  height: 28px;
-  line-height: 28px;
-  background-color: #43484c;
-  filter: progid:DXImageTransform.Microsoft.gradient(gradientType=0, startColorstr='#FFFF6E56', endColorstr='#FFED4F35');
-  background-image: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #747474), color-stop(100%, #43484c));
-  background-image: -webkit-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: -moz-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: -o-linear-gradient(top, #747474 0%, #43484c 100%);
-  background-image: linear-gradient(top, #747474 0%, #43484c 100%);
-  border: 1px solid #43484c;
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  -ms-border-radius: 4px;
-  -o-border-radius: 4px;
-  border-radius: 4px;
-  -webkit-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  -moz-box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  box-shadow: inset rgba(255, 255, 255, 0.17) 0 1px 1px;
-  margin: 8px;
+  margin-top: -4px;
+  margin-bottom: 10px;
 }
-#fork-us a {
-  color: #faf2ee;
-  text-shadow: rgba(0, 0, 0, 0.3) 0px 1px 0px;
+form .fielddd input {
+  width: 250px;
 }
+form .error {
+  color: #a30000;
+}
+div.alert.alert-block {
+  margin-bottom: 15px;
+}
+/* ======================= =======================
+  Documentation
+========================= ========================= */
 /* =======================
-   Media size overrides
-======================= */
-/* Large desktop */
-@media (min-width: 1200px) {
-  .span6.with-padding {
-    background-color: #dc143c;
-    width: 540px;
-    padding: 15px;
-  }
+  Styles for the sidebar
+========================= */
+.page-title {
+  background-color: white;
+  border: 1px solid transparent;
+  text-align: center;
+  width: 100%;
 }
-/* Normal desktop */
-@media (min-width: 980px) and (max-width: 1199px) {
-  .span6.with-padding {
-    background-color: #ee1111;
-    width: 440px;
-    padding: 10px;
-  }
+.page-title h4 {
+  font-size: 20px;
 }
-/* Portrait tablet to landscape and desktop */
-@media (min-width: 768px) and (max-width: 979px) {
-  body {
-    padding-top: 0px;
-  }
-  .span6.with-padding {
-    background-color: #292e33;
-    width: 332px;
-    padding: 10px;
-  }
+.bs-docs-sidebar {
+  padding-left: 5px;
+  max-width: 100%;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  margin-top: 18px;
 }
-/* Landscape phone to portrait tablet */
-@media (max-width: 767px) {
-  body {
-    padding-top: 0px;
-  }
-  #global {
-    /* TODO: Fix this to be relative to the navigation size */
-  
-  }
-  #fork-us {
-    display: none;
-  }
+.bs-docs-sidebar ul {
+  list-style: none;
+  margin-left: 0px;
 }
-/* Landscape phones and down */
-@media (max-width: 480px) {
-  #nav-gettingstarted {
-    display: none;
-  }
+.bs-docs-sidebar .toctree-l2 > ul {
+  width: 100%;
 }
-/* Misc fixes */
-table th {
-  text-align: left;
+.bs-docs-sidebar ul > li.toctree-l1.has-children {
+  background-image: url('../img/menu_arrow_right.gif');
+  background-repeat: no-repeat;
+  background-position: 13px 13px;
+  list-style-type: none;
+  padding: 0px 0px 0px 0px;
+  vertical-align: middle;
 }
+.bs-docs-sidebar ul > li.toctree-l1.has-children.open {
+  background-image: url('../img/menu_arrow_down.gif');
+}
+.bs-docs-sidebar ul > li > a {
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  width: 100%;
+  display: inline-block;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 35px;
+  padding-right: 20px;
+  font-size: 14px;
+  border-bottom: 1.5px solid #595959;
+  line-height: 20px;
+}
+.bs-docs-sidebar ul > li:first-child.active > a {
+  border-top: 1.5px solid #595959;
+}
+.bs-docs-sidebar ul > li:last-child > a {
+  border-bottom: none;
+}
+.bs-docs-sidebar ul > li:last-child.active > a {
+  border-bottom: 1.5px solid #595959;
+}
+.bs-docs-sidebar ul > li.active > a {
+  border-right: 1.5px solid #595959;
+  border-left: 1.5px solid #595959;
+  color: #394d54;
+}
+.bs-docs-sidebar ul > li:hover {
+  background-color: #e8e8e8;
+}
+.bs-docs-sidebar.toctree-l3 ul {
+  display: inherit;
+  margin-left: 15px;
+  font-size: smaller;
+}
+.bs-docs-sidebar .toctree-l3 a {
+  border: none;
+  font-size: 12px;
+  line-height: 15px;
+}
+.bs-docs-sidebar ul > li > ul {
+  display: none;
+}
+.bs-docs-sidebar ul > li.current > ul {
+  display: inline-block;
+  padding-left: 0px;
+  width: 100%;
+}
+.toctree-l2.current > a {
+  font-weight: bold;
+}
+.toctree-l2.current {
+  border: 1.5px solid #595959;
+  color: #394d54;
+}
+/* =====================================
+  Styles for the floating version widget
+====================================== */
+.version-flyer {
+  position: fixed;
+  float: right;
+  right: 0;
+  bottom: 40px;
+  background-color: #E0E0E0;
+  border: 1px solid #88BABC;
+  padding: 5px;
+  font-size: larger;
+}
+.version-flyer .content {
+  padding-right: 45px;
+  margin-top: 7px;
+  margin-left: 7px;
+  background-image: url('../img/container3.png');
+  background-position: right center;
+  background-repeat: no-repeat;
+}
+.version-flyer .alternative {
+  visibility: hidden;
+  display: none;
+}
+.version-flyer .active-slug {
+  visibility: visible;
+  display: inline-block;
+}
+.version-flyer:hover .alternative {
+  animation-duration: 1s;
+  display: inline-block;
+  visibility: visible;
+}
+/* =====================================
+  Styles for 
+====================================== */
 h1:hover > a.headerlink,
 h2:hover > a.headerlink,
 h3:hover > a.headerlink,
@@ -391,21 +383,30 @@ dt:hover > a.headerlink {
   float: right;
   visibility: hidden;
 }
-
-/* Swiftype style */
-
-#st-search-input {
-  margin-right: 14px;
-  margin-left: 9px;
-  height: 19px;
-  width: 120px;
-
+/* =====================================
+  Miscellaneous information
+====================================== */
+.admonition.warning,
+.admonition.note,
+.admonition.seealso,
+.admonition.todo {
+  border: 3px solid black;
+  padding: 10px;
+  margin: 5px auto 10px;
 }
-#swiftype-img {
-    border: none;
-    width: 145px;
-    height: auto;
-    margin: 0px auto;
-    margin-left: 13px;
-    margin-top: -30px;
+.admonition .admonition-title {
+  font-size: larger;
+}
+.admonition.warning,
+.admonition.danger {
+  border-color: #ac0004;
+}
+.admonition.note {
+  border-color: #cbc200;
+}
+.admonition.todo {
+  border-color: orange;
+}
+.admonition.seealso {
+  border-color: #23cb1f;
 }

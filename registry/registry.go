@@ -72,7 +72,7 @@ func validateRepositoryName(repositoryName string) error {
 	}
 	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-zA-Z0-9-_.] are allowed", name)
+		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
 	}
 	return nil
 }
@@ -160,16 +160,16 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := doWithCookies(r.client, req)
-	if err != nil || res.StatusCode != 200 {
-		if res != nil {
-			if res.StatusCode == 401 {
-				return nil, ErrLoginRequired
-			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
-		}
+	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		if res.StatusCode == 401 {
+			return nil, ErrLoginRequired
+		}
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
+	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -240,6 +240,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 		return nil, err
 	}
 	if res.StatusCode != 200 {
+		res.Body.Close()
 		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
 			res.StatusCode, imgID)
 	}
