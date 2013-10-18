@@ -193,13 +193,6 @@ func setupBaseImage() {
 		log.Fatalf("Unable to create a runtime for tests:", err)
 	}
 
-	// Create a device, which triggers the initiation of the base FS
-	// This avoids other tests doing this and timing out
-	deviceset := devmapper.NewDeviceSet(unitTestStoreBase)
-	if err := deviceset.AddDevice("init", ""); err != nil {
-		log.Fatalf("Unable to setup the base image: %s", err)
-	}
-
 	// Create the "Server"
 	srv := &Server{
 		runtime:     runtime,
