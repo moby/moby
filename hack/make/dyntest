@@ -1,8 +1,14 @@
 #!/bin/sh
 
 DEST=$1
+INIT=$DEST/../dynbinary/dockerinit-$VERSION
 
 set -e
+
+if [ ! -x "$INIT" ]; then
+	echo >&2 'error: dynbinary must be run before dyntest'
+	false
+fi
 
 # Run Docker's test suite, including sub-packages, and store their output as a bundle
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -16,8 +22,8 @@ bundle_test() {
 		for test_dir in $(find_test_dirs); do (
 			set -x
 			cd $test_dir
-			go test -i
-			go test -v -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
+			export TEST_DOCKERINIT_PATH=$DEST/../dynbinary/dockerinit-$VERSION
+			go test -v -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log
 }
