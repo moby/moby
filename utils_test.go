@@ -2,22 +2,38 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"runtime"
 )
 
 // This file contains utility functions for docker's unit test suite.
 // It has to be named XXX_test.go, apparently, in other to access private functions
 // from other XXX_test.go functions.
 
+var globalTestID string
+
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
 func mkRuntime(f Fataler) *Runtime {
-	runtime, err := newTestRuntime()
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts) - 1]
+	if globalTestID == "" {
+		globalTestID = GenerateID()[:4]
+	}
+	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, callerShortName)
+	utils.Debugf("prefix = '%s'", prefix)
+
+	runtime, err := newTestRuntime(prefix)
 	if err != nil {
 		f.Fatal(err)
 	}
@@ -30,8 +46,16 @@ type Fataler interface {
 	Fatal(args ...interface{})
 }
 
-func newTestRuntime() (*Runtime, error) {
-	root, err := ioutil.TempDir("", "docker-test")
+func newTestRuntime(prefix string) (runtime *Runtime, err error) {
+	if prefix == "" {
+		prefix = "docker-test-"
+	}
+	utils.Debugf("prefix = %s", prefix)
+	utils.Debugf("newTestRuntime start")
+	root, err := ioutil.TempDir("", prefix)
+	defer func() {
+		utils.Debugf("newTestRuntime: %s", root)
+	}()
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +66,7 @@ func newTestRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime, err := NewRuntimeFromDirectory(root, false)
+	runtime, err = NewRuntimeFromDirectory(root, false)
 	if err != nil {
 		return nil, err
 	}
