@@ -97,7 +97,7 @@ func executeProgram(name string, args []string) {
 // up the environment before running the actual process
 func SysInit() {
 	if len(os.Args) <= 1 {
-		fmt.Println("You should not invoke docker-init manually")
+		fmt.Println("You should not invoke dockerinit manually")
 		os.Exit(1)
 	}
 	var u = flag.String("u", "", "username or uid")

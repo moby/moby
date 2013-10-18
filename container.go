@@ -1119,7 +1119,7 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-// FIXME: replace this with a control socket within docker-init
+// FIXME: replace this with a control socket within dockerinit
 func (container *Container) waitLxc() error {
 	for {
 		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
