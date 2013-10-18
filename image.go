@@ -385,7 +385,7 @@ func (image *Image) ensureImageDevice(devices *devmapper.DeviceSet) error {
 		return err
 	}
 
-	if err := devices.MountDevice(image.ID, mountDir); err != nil {
+	if err := devices.MountDevice(image.ID, mountDir, false); err != nil {
 		utils.Debugf("Error mounting device: %s", err)
 		devices.RemoveDevice(image.ID)
 		return err
@@ -459,7 +459,7 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 	}
 
 	utils.Debugf("Mounting container %s at %s for container", id, root)
-	if err := devices.MountDevice(id, root); err != nil {
+	if err := devices.MountDevice(id, root, false); err != nil {
 		return err
 	}
 
@@ -494,7 +494,7 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 
 	// We re-use rw for the temporary mount of the base image as its
 	// not used by device-mapper otherwise
-	err = devices.MountDevice(image.ID, rw)
+	err = devices.MountDevice(image.ID, rw, true)
 	if err != nil {
 		return nil, err
 	}
