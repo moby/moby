@@ -33,8 +33,8 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	test
 	binary
+	test
 	ubuntu
 )
 
@@ -67,7 +67,7 @@ main() {
 	fi
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
-		bundles=($DEFAULT_BUNDLES)
+		bundles=(${DEFAULT_BUNDLES[@]})
 	else
 		bundles=($@)
 	fi
