@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,6 +39,25 @@ func TestGetBoolParam(t *testing.T) {
 	}
 	if ret, err := getBoolParam("faux"); err == nil || ret {
 		t.Fatalf("faux -> false, err | got %t %s", ret, err)
+	}
+}
+
+func TesthttpError(t *testing.T) {
+	r := httptest.NewRecorder()
+
+	httpError(r, fmt.Errorf("No such method"))
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("Expected %d, got %d", http.StatusNotFound, r.Code)
+	}
+
+	httpError(r, fmt.Errorf("This accound hasn't been activated"))
+	if r.Code != http.StatusForbidden {
+		t.Fatalf("Expected %d, got %d", http.StatusForbidden, r.Code)
+	}
+
+	httpError(r, fmt.Errorf("Some error"))
+	if r.Code != http.StatusInternalServerError {
+		t.Fatalf("Expected %d, got %d", http.StatusInternalServerError, r.Code)
 	}
 }
 
@@ -244,7 +265,11 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatalf("Error expected, received none")
 	}
 
-	httpError(r4, err)
+	if !strings.HasPrefix(err.Error(), "Bad parameter") {
+		t.Fatalf("Error should starts with \"Bad parameter\"")
+	}
+	http.Error(r4, err.Error(), http.StatusBadRequest)
+
 	if r4.Code != http.StatusBadRequest {
 		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
 	}
@@ -783,6 +808,8 @@ func TestPostContainersStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
 	if err := postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {

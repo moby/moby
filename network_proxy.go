@@ -103,7 +103,11 @@ func (proxy *TCPProxy) Run() {
 	for {
 		client, err := proxy.listener.Accept()
 		if err != nil {
-			utils.Errorf("Stopping proxy on tcp/%v for tcp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			if utils.IsClosedError(err) {
+				utils.Debugf("Stopping proxy on tcp/%v for tcp/%v (socket was closed)", proxy.frontendAddr, proxy.backendAddr)
+			} else {
+				utils.Errorf("Stopping proxy on tcp/%v for tcp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			}
 			return
 		}
 		go proxy.clientLoop(client.(*net.TCPConn), quit)
@@ -205,7 +209,11 @@ func (proxy *UDPProxy) Run() {
 			// NOTE: Apparently ReadFrom doesn't return
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
-			utils.Errorf("Stopping proxy on udp/%v for udp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			if utils.IsClosedError(err) {
+				utils.Debugf("Stopping proxy on udp/%v for udp/%v (socket was closed)", proxy.frontendAddr, proxy.backendAddr)
+			} else {
+				utils.Errorf("Stopping proxy on udp/%v for udp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			}
 			break
 		}
 

@@ -19,10 +19,6 @@ The lxc-docker-git package will build from the current master branch.
 Dependencies
 ------------
 
-.. versionchanged:: v0.7
-   This section may need to be updated since Docker no longer depends
-   on AUFS. Please see :ref:`kernel`.
-
 Docker depends on several packages which are specified as dependencies in
 either AUR package.
 

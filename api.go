@@ -349,7 +349,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		return err
 	}
 	config := &Config{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
 		utils.Errorf("%s", err)
 	}
 	repo := r.Form.Get("repo")
@@ -909,8 +909,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
 	id, err := b.Build(context)
 	if err != nil {
-		fmt.Fprintf(w, "Error build: %s\n", err)
-		return err
+		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)

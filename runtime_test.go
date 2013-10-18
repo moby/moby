@@ -313,6 +313,29 @@ func TestRuntimeCreate(t *testing.T) {
 	if err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
+
+	config := &Config{
+		Image:     GetTestImage(runtime).ID,
+		Cmd:       []string{"/bin/ls"},
+		PortSpecs: []string{"80"},
+	}
+	container, err = runtime.Create(config)
+
+	image, err := runtime.Commit(container, "testrepo", "testtag", "", "", config)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = runtime.Create(
+		&Config{
+			Image:     image.ID,
+			PortSpecs: []string{"80000:80"},
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when PortSpecs is invalid")
+	}
+
 }
 
 func TestDestroy(t *testing.T) {
