@@ -95,7 +95,6 @@ func init() {
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
-
 func setupBaseImage() {
 	config := &DaemonConfig{
 		GraphPath:   unitTestStoreBase,
@@ -123,7 +122,6 @@ func setupBaseImage() {
 	}
 }
 
-
 func spawnGlobalDaemon() {
 	if globalRuntime != nil {
 		utils.Debugf("Global runtime already exists. Skipping.")
@@ -132,7 +130,6 @@ func spawnGlobalDaemon() {
 	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
 	srv := &Server{
 		runtime:     globalRuntime,
-		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
