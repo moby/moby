@@ -3,8 +3,7 @@
 DEST=$1
 
 PKGVERSION="$VERSION"
-if test -n "$(git status --porcelain)"
-then
+if [ -n "$(git status --porcelain)" ]; then
 	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
 fi
 
