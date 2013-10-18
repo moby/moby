@@ -376,7 +376,11 @@ func (devices *DeviceSet) initDevmapper() error {
 	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
-	devices.devicePrefix = fmt.Sprintf("docker-reg-%d-%d", sysSt.Dev, sysSt.Ino)
+	// docker-maj,min[-inode] stands for:
+	//	- Managed by docker
+	//	- The target of this device is at major <maj> and minor <min>
+	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
+	devices.devicePrefix = fmt.Sprintf("docker-%d,%d-%d", sysSt.Dev >>8, sysSt.Dev  & 0xff, sysSt.Ino)
 	utils.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the device <prefix>-pool
