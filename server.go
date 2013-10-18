@@ -1216,6 +1216,9 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 			}
 
 			childName := parts["name"]
+			if childName[0] != '/' {
+				childName = "/" + childName
+			}
 			if err := runtime.Link(fmt.Sprintf("/%s", container.ID), childName, parts["alias"]); err != nil {
 				return err
 			}

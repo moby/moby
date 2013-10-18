@@ -95,7 +95,6 @@ func init() {
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
-
 func setupBaseImage() {
 	config := &DaemonConfig{
 		GraphPath:   unitTestStoreBase,
@@ -122,7 +121,6 @@ func setupBaseImage() {
 		}
 	}
 }
-
 
 func spawnGlobalDaemon() {
 	if globalRuntime != nil {
