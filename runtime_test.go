@@ -87,45 +87,63 @@ func init() {
 
 	NetworkBridgeIface = unitTestNetworkBridge
 
-	// Make it our Store root
-	if runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false); err != nil {
-		log.Fatalf("Unable to create a runtime for tests:", err)
-	} else {
-		globalRuntime = runtime
-	}
+	// Setup the base runtime, which will be duplicated for each test.
+	// (no tests are run directly in the base)
+	setupBaseImage()
 
-	// Cleanup any leftover container
-	for _, container := range globalRuntime.List() {
-		if err := globalRuntime.Destroy(container); err != nil {
-			log.Fatalf("Error destroying leftover container: %s", err)
-		}
+	// Create the "global runtime" with a long-running daemon for integration tests
+	spawnGlobalDaemon()
+	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
+}
+
+
+func setupBaseImage() {
+	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
+	if err != nil {
+		log.Fatalf("Unable to create a runtime for tests:", err)
 	}
 
 	// Create the "Server"
+	srv := &Server{
+		runtime:     runtime,
+		enableCors:  false,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	// If the unit test is not found, try to download it.
+	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
+		// Retrieve the Image
+		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
+			log.Fatalf("Unable to pull the test image:", err)
+		}
+	}
+}
+
+
+func spawnGlobalDaemon() {
+	if globalRuntime != nil {
+		utils.Debugf("Global runtime already exists. Skipping.")
+		return
+	}
+	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
 	srv := &Server{
 		runtime:     globalRuntime,
 		enableCors:  false,
 		pullingPool: make(map[string]struct{}),
 		pushingPool: make(map[string]struct{}),
 	}
-	// If the unit test is not found, try to download it.
-	if img, err := globalRuntime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
-		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
-			log.Fatalf("Unable to pull the test image:", err)
-		}
-	}
+
 	// Spawn a Daemon
 	go func() {
+		utils.Debugf("Spawning global daemon for integration tests")
 		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
 			log.Fatalf("Unable to spawn the test daemon:", err)
 		}
 	}()
-
 	// Give some time to ListenAndServer to actually start
+	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
-
-	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
