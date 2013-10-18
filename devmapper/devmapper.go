@@ -461,7 +461,7 @@ func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error
 		return fmt.Errorf("Can't get data size")
 	}
 
-	params := metadataFile.Name() + " " + dataFile.Name() + " 512 8192"
+	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768"
 	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
 		return fmt.Errorf("Can't add target")
 	}
