@@ -32,8 +32,10 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	test
 	binary
+	test
+	dynbinary
+	dyntest
 	ubuntu
 )
 
@@ -45,6 +47,7 @@ fi
 
 # Use these flags when compiling the tests and final binary
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
+LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
 BUILDFLAGS='-tags netgo'
 
 bundle() {

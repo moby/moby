@@ -90,6 +90,16 @@ You would do the users of your distro a disservice and "void the docker warranty
 A good comparison is Busybox: all distros package it as a statically linked binary, because it just
 makes sense. Docker is the same way.
 
+If you *must* have a non-static Docker binary, please use:
+
+```bash
+./hack/make.sh dynbinary
+```
+
+This will create *./bundles/$VERSION/dynbinary/docker-$VERSION* and *./bundles/$VERSION/binary/dockerinit-$VERSION*.
+The first of these would usually be installed at */usr/bin/docker*, while the second must be installed
+at */usr/libexec/docker/dockerinit*.
+
 ## Testing Docker
 
 Before releasing your binary, make sure to run the tests! Run the following command with the source

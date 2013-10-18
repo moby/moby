@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -84,6 +85,25 @@ func init() {
 
 	if uid := syscall.Geteuid(); uid != 0 {
 		log.Fatal("docker tests need to be run as root")
+	}
+
+	// Copy dockerinit into our current testing directory, if provided (so we can test a separate dockerinit binary)
+	if dockerinit := os.Getenv("TEST_DOCKERINIT_PATH"); dockerinit != "" {
+		src, err := os.Open(dockerinit)
+		if err != nil {
+			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s\n", err)
+		}
+		defer src.Close()
+		dst, err := os.OpenFile(filepath.Join(filepath.Dir(utils.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
+		if err != nil {
+			log.Fatalf("Unable to create dockerinit in test directory: %s\n", err)
+		}
+		defer dst.Close()
+		if _, err := io.Copy(dst, src); err != nil {
+			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s\n", err)
+		}
+		dst.Close()
+		src.Close()
 	}
 
 	// Setup the base runtime, which will be duplicated for each test.

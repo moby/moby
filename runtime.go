@@ -39,12 +39,6 @@ type Runtime struct {
 	containerGraph *gograph.Database
 }
 
-var sysInitPath string
-
-func init() {
-	sysInitPath = utils.SelfPath()
-}
-
 // List returns an array of all containers registered in the runtime.
 func (runtime *Runtime) List() []*Container {
 	containers := new(History)
@@ -334,6 +328,11 @@ func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 		config.Cmd = []string{}
 	} else if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, nil, fmt.Errorf("No command specified")
+	}
+
+	sysInitPath := utils.DockerInitPath()
+	if sysInitPath == "" {
+		return nil, nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
 	}
 
 	// Generate id
