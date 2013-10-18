@@ -120,7 +120,8 @@ func TarFilter(path string, compression Compression, filter []string, recursive 
 	tmpDir := ""
 
 	if createFiles != nil {
-		tmpDir, err := ioutil.TempDir("", "docker-tar")
+		var err error // Can't use := here or we override the outer tmpDir
+		tmpDir, err = ioutil.TempDir("", "docker-tar")
 		if err != nil {
 			return nil, err
 		}
@@ -284,6 +285,9 @@ func CmdStream(cmd *exec.Cmd, input *string, atEnd func()) (io.Reader, error) {
 	if input != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
+			if atEnd != nil {
+				atEnd()
+			}
 			return nil, err
 		}
 		// Write stdin if any
@@ -294,10 +298,16 @@ func CmdStream(cmd *exec.Cmd, input *string, atEnd func()) (io.Reader, error) {
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		if atEnd != nil {
+			atEnd()
+		}
 		return nil, err
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		if atEnd != nil {
+			atEnd()
+		}
 		return nil, err
 	}
 	pipeR, pipeW := io.Pipe()
