@@ -390,13 +390,6 @@ func (image *Image) ensureImageDevice(devices *devmapper.DeviceSetDM) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(path.Join(mountDir, ".docker-id"), []byte(image.ID), 0600); err != nil {
-		utils.Debugf("Error writing file: %s", err)
-		devices.UnmountDevice(image.ID, mountDir, true)
-		devices.RemoveDevice(image.ID)
-		return err
-	}
-
 	if err = image.applyLayer(layerPath(root), mountDir); err != nil {
 		utils.Debugf("Error applying layer: %s", err)
 		devices.UnmountDevice(image.ID, mountDir, true)
@@ -456,14 +449,12 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 		return err
 	}
 
-	createdDevice := false
 	if !devices.HasDevice(id) {
 		utils.Debugf("Creating device %s for container based on image %s", id, image.ID)
 		err = devices.AddDevice(id, image.ID)
 		if err != nil {
 			return err
 		}
-		createdDevice = true
 	}
 
 	utils.Debugf("Mounting container %s at %s for container", id, root)
@@ -471,13 +462,6 @@ func (image *Image) Mount(runtime *Runtime, root, rw string, id string) error {
 		return err
 	}
 
-	if createdDevice {
-		err = ioutil.WriteFile(path.Join(root, ".docker-id"), []byte(id), 0600)
-		if err != nil {
-			_ = devices.RemoveDevice(image.ID)
-			return err
-		}
-	}
 	return nil
 }
 

@@ -312,9 +312,5 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 		return nil, err
 	}
 
-	// Ignore changes in .docker-id
-	_ = newRoot.Remove("/.docker-id")
-	_ = oldRoot.Remove("/.docker-id")
-
 	return newRoot.Changes(oldRoot), nil
 }
