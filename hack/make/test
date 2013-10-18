@@ -31,4 +31,26 @@ find_test_dirs() {
                sort -u
 }
 
+
+check_test_garbage() {
+	nGarbage=`find /tmp/ -name 'docker-*' | wc -l`
+	if [ $nGarbage -gt 0 ]; then
+		(
+		cat <<EOF
+
+Error: there are $nGarbage docker-related files in /tmp. Please clean them up and try again.
+--------------------------------------------------------------------------------------------
+EOF
+		find /tmp -name 'docker-*'
+		cat <<EOF
+--------------------------------------------------------------------------------------------
+If the error persists, your tests might leak temporary files. This is considered a test fail.
+EOF
+		exit 1
+		) 2>&1
+	fi
+}
+
+check_test_garbage
 bundle_test
+check_test_garbage
