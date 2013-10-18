@@ -17,7 +17,7 @@ bundle_test() {
 			set -x
 			cd $test_dir
 			go test -i
-			go test -v -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
+			go test -v -ldflags "$LDFLAGS -linkmode external -extldflags \"-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files\"" $BUILDFLAGS $TESTFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log
 }
