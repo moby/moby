@@ -47,6 +47,19 @@ type DeviceSetDM struct {
 	activeMounts     map[string]int
 }
 
+type DiskUsage struct {
+	Used uint64
+	Total uint64
+}
+
+type Status struct {
+	PoolName string
+	DataLoopback string
+	MetadataLoopback string
+	Data DiskUsage
+	Metadata DiskUsage
+}
+
 func getDevName(name string) string {
 	return "/dev/mapper/" + name
 }
@@ -772,6 +785,39 @@ func (devices *DeviceSetDM) SetInitialized(hash string) error {
 	}
 
 	return nil
+}
+
+func (devices *DeviceSetDM) Status() *Status {
+	devices.Lock()
+	defer devices.Unlock()
+
+	status := &Status {}
+
+	if err := devices.ensureInit(); err != nil {
+		return status
+	}
+
+	status.PoolName = devices.getPoolName()
+	status.DataLoopback = path.Join( devices.loopbackDir(), "data")
+	status.MetadataLoopback = path.Join( devices.loopbackDir(), "metadata")
+
+	_, totalSizeInSectors, _, params, err := getStatus(devices.getPoolName())
+	if err == nil {
+		var transactionId, dataUsed, dataTotal, metadataUsed, metadataTotal uint64
+		if _, err := fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionId, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal); err == nil {
+			// Convert from blocks to bytes
+			blockSizeInSectors := totalSizeInSectors / dataTotal;
+
+			status.Data.Used = dataUsed * blockSizeInSectors * 512
+			status.Data.Total = dataTotal * blockSizeInSectors * 512
+
+			// metadata blocks are always 4k
+			status.Metadata.Used = metadataUsed * 4096
+			status.Metadata.Total = metadataTotal * 4096
+		}
+	}
+
+	return status
 }
 
 func (devices *DeviceSetDM) ensureInit() error {
