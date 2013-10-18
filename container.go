@@ -676,6 +676,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
+		volIsDir := true
 		volPath = path.Clean(volPath)
 		// Skip existing volumes
 		if _, exists := container.Volumes[volPath]; exists {
@@ -691,7 +692,18 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
 			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
+
+			if file, err := os.Open(bindMap.SrcPath); err != nil {
+				return err
+			} else {
+				defer file.Close()
+				if stat, err := file.Stat(); err != nil {
+					return err
+				} else {
+					volIsDir = stat.IsDir()
+				}
+			}
+		// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
 			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
 			if err != nil {
@@ -706,6 +718,26 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		container.Volumes[volPath] = srcPath
 		container.VolumesRW[volPath] = srcRW
 		// Create the mountpoint
+		volPath = path.Join(container.RootfsPath(), volPath)
+		if _, err := os.Stat(volPath); err != nil {
+			if os.IsNotExist(err) {
+				if volIsDir {
+					if err := os.MkdirAll(volPath, 0755); err != nil {
+						return err
+					}
+				} else {
+					if err := os.MkdirAll(path.Dir(volPath), 0755); err != nil {
+						return err
+					}
+					if f, err := os.OpenFile(volPath, os.O_CREATE, 0755); err != nil {
+						return err
+					} else {
+						f.Close()
+					}
+				}
+			}
+		}
+
 		rootVolPath := path.Join(container.RootfsPath(), volPath)
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 			return nil
