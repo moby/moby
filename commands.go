@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -746,6 +747,8 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
+	link := cmd.Bool("link", false, "Remove the specified link and not the underlying container")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -756,6 +759,9 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	val := url.Values{}
 	if *v {
 		val.Set("v", "1")
+	}
+	if *link {
+		val.Set("link", "1")
 	}
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
@@ -991,25 +997,19 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				out.Tag = "<none>"
 			}
 
+			if !*noTrunc {
+				out.ID = utils.TruncateID(out.ID)
+			}
+
 			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t", out.Repository, out.Tag)
-				if *noTrunc {
-					fmt.Fprintf(w, "%s\t", out.ID)
-				} else {
-					fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
-				}
-				fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", out.Repository, out.Tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
 				if out.VirtualSize > 0 {
 					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
 				} else {
 					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
 				}
 			} else {
-				if *noTrunc {
-					fmt.Fprintln(w, out.ID)
-				} else {
-					fmt.Fprintln(w, utils.TruncateID(out.ID))
-				}
+				fmt.Fprintln(w, out.ID)
 			}
 		}
 
@@ -1023,10 +1023,10 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 func displayablePorts(ports []APIPort) string {
 	result := []string{}
 	for _, port := range ports {
-		if port.Type == "tcp" {
-			result = append(result, fmt.Sprintf("%d->%d", port.PublicPort, port.PrivatePort))
+		if port.IP == "" {
+			result = append(result, fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
 		} else {
-			result = append(result, fmt.Sprintf("%d->%d/%s", port.PublicPort, port.PrivatePort, port.Type))
+			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
 		}
 	}
 	sort.Strings(result)
@@ -1079,7 +1079,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS")
+		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1088,12 +1088,17 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	for _, out := range outs {
+		if !*noTrunc {
+			out.ID = utils.TruncateID(out.ID)
+		}
 		if !*quiet {
-			if *noTrunc {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
-			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t", utils.TruncateID(out.ID), out.Image, utils.Trunc(out.Command, 20), utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports))
+			if !*noTrunc {
+				out.Command = utils.Trunc(out.Command, 20)
+				for i := 0; i < len(out.Names); i++ {
+					out.Names[i] = utils.Trunc(out.Names[i], 10)
+				}
 			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), strings.Join(out.Names, ","))
 			if *size {
 				if out.SizeRootFs > 0 {
 					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
@@ -1104,16 +1109,70 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 				fmt.Fprint(w, "\n")
 			}
 		} else {
-			if *noTrunc {
-				fmt.Fprintln(w, out.ID)
-			} else {
-				fmt.Fprintln(w, utils.TruncateID(out.ID))
-			}
+			fmt.Fprintln(w, out.ID)
 		}
 	}
 
 	if !*quiet {
 		w.Flush()
+	}
+	return nil
+}
+
+func (cli *DockerCli) CmdLs(args ...string) error {
+	cmd := Subcmd("ls", "", "List links for containers")
+	flAll := cmd.Bool("a", false, "Show all links")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	v := url.Values{}
+	if *flAll {
+		v.Set("all", "1")
+	}
+
+	body, _, err := cli.call("GET", "/containers/links?"+v.Encode(), nil)
+	if err != nil {
+		return err
+	}
+	var links []APILink
+	if err := json.Unmarshal(body, &links); err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tID\tIMAGE")
+	fmt.Fprintf(w, "\n")
+
+	sortLinks(links, func(i, j APILink) bool {
+		return len(i.Path) < len(j.Path)
+	})
+	for _, link := range links {
+		fmt.Fprintf(w, "%s\t%s\t%s", link.Path, utils.TruncateID(link.ContainerID), link.Image)
+		fmt.Fprintf(w, "\n")
+	}
+	w.Flush()
+
+	return nil
+}
+
+func (cli *DockerCli) CmdLink(args ...string) error {
+	cmd := Subcmd("link", "CURRENT_NAME NEW_NAME", "Link the container with a new name")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	body := map[string]string{
+		"currentName": cmd.Arg(0),
+		"newName":     cmd.Arg(1),
+	}
+
+	_, _, err := cli.call("POST", "/containers/link", body)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -1235,8 +1294,9 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	name := cmd.Arg(0)
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err); err != nil {
 		return err
 	}
 	return nil
@@ -1251,8 +1311,8 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
+	name := cmd.Arg(0)
+	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 	if err != nil {
 		return err
 	}
@@ -1331,18 +1391,6 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 // Ports type - Used to parse multiple -p flags
 type ports []int
-
-// ListOpts type
-type ListOpts []string
-
-func (opts *ListOpts) String() string {
-	return fmt.Sprint(*opts)
-}
-
-func (opts *ListOpts) Set(value string) error {
-	*opts = append(*opts, value)
-	return nil
-}
 
 // AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
 type AttachOpts map[string]bool
@@ -1652,6 +1700,10 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		params = bytes.NewBuffer(buf)
 	}
 
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
@@ -1697,6 +1749,11 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
+
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
+
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
 	if err != nil {
 		return err
@@ -1753,6 +1810,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer) error {
+	// fixme: refactor client to support redirect
+	re := regexp.MustCompile("/+")
+	path = re.ReplaceAllString(path, "/")
 
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {

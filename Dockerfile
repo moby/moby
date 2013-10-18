@@ -33,6 +33,7 @@ run     apt-get install -y -q curl
 run     apt-get install -y -q git
 run     apt-get install -y -q mercurial
 run     apt-get install -y -q build-essential
+run     apt-get install -y -q libsqlite3-dev
 
 # Install Go from source (for eventual cross-compiling)
 run     curl -s https://go.googlecode.com/files/go1.2rc1.src.tar.gz | tar -v -C / -xz && mv /go /goroot

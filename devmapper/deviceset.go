@@ -23,11 +23,11 @@ var (
 )
 
 type DevInfo struct {
-	Hash          string       `json:"-"`
-	DeviceId      int          `json:"device_id"`
-	Size          uint64       `json:"size"`
-	TransactionId uint64       `json:"transaction_id"`
-	Initialized   bool         `json:"initialized"`
+	Hash          string     `json:"-"`
+	DeviceId      int        `json:"device_id"`
+	Size          uint64     `json:"size"`
+	TransactionId uint64     `json:"transaction_id"`
+	Initialized   bool       `json:"initialized"`
 	devices       *DeviceSet `json:"-"`
 }
 
@@ -48,16 +48,16 @@ type DeviceSet struct {
 }
 
 type DiskUsage struct {
-	Used uint64
+	Used  uint64
 	Total uint64
 }
 
 type Status struct {
-	PoolName string
-	DataLoopback string
+	PoolName         string
+	DataLoopback     string
 	MetadataLoopback string
-	Data DiskUsage
-	Metadata DiskUsage
+	Data             DiskUsage
+	Metadata         DiskUsage
 }
 
 func getDevName(name string) string {
@@ -349,11 +349,11 @@ func (devices *DeviceSet) log(level int, file string, line int, dmError int, mes
 	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
 
-func major (device uint64) uint64 {
-	return  (device >> 8) & 0xfff
+func major(device uint64) uint64 {
+	return (device >> 8) & 0xfff
 }
 
-func minor (device uint64) uint64 {
+func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
@@ -798,22 +798,22 @@ func (devices *DeviceSet) Status() *Status {
 	devices.Lock()
 	defer devices.Unlock()
 
-	status := &Status {}
+	status := &Status{}
 
 	if err := devices.ensureInit(); err != nil {
 		return status
 	}
 
 	status.PoolName = devices.getPoolName()
-	status.DataLoopback = path.Join( devices.loopbackDir(), "data")
-	status.MetadataLoopback = path.Join( devices.loopbackDir(), "metadata")
+	status.DataLoopback = path.Join(devices.loopbackDir(), "data")
+	status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
 
 	_, totalSizeInSectors, _, params, err := getStatus(devices.getPoolName())
 	if err == nil {
 		var transactionId, dataUsed, dataTotal, metadataUsed, metadataTotal uint64
 		if _, err := fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionId, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal); err == nil {
 			// Convert from blocks to bytes
-			blockSizeInSectors := totalSizeInSectors / dataTotal;
+			blockSizeInSectors := totalSizeInSectors / dataTotal
 
 			status.Data.Used = dataUsed * blockSizeInSectors * 512
 			status.Data.Total = dataTotal * blockSizeInSectors * 512
