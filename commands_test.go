@@ -660,4 +660,22 @@ func TestCmdLogs(t *testing.T) {
 	if err := cli.CmdLogs(globalRuntime.List()[0].ID); err != nil {
 		t.Fatal(err)
 	}
+
+// Expected behaviour: using / as a bind mount source should throw an error
+func TestRunErrorBindMountRootSource(t *testing.T) {
+
+	cli := NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("-v", "/:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
+			t.Fatal("should have failed to run when using / as a source for the bind mount")
+		}
+	}()
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
 }
