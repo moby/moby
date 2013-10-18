@@ -56,10 +56,10 @@ func init() {
 	} else {
 		selfPath := utils.SelfPath()
 
-		// If we have a separate docker-init, use that, otherwise use the
+		// If we have a separate dockerinit, use that, otherwise use the
 		// main docker binary
 		dir := filepath.Dir(selfPath)
-		dockerInitPath := filepath.Join(dir, "docker-init")
+		dockerInitPath := filepath.Join(dir, "dockerinit")
 		if _, err := os.Stat(dockerInitPath); err != nil {
 			sysInitPath = selfPath
 		} else {
