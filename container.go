@@ -99,7 +99,12 @@ type BindMap struct {
 }
 
 var (
-	ErrInvaidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
+	ErrContainerStart           = errors.New("The container failed to start. Unkown error")
+	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
+	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictTtySigProxy      = errors.New("TTY mode (-t) already imply signal proxying (-sig-proxy)")
+	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
+	ErrConflictDetachAutoRemove = errors.New("Conflicting options: -rm and -d")
 )
 
 type KeyValuePair struct {
@@ -127,6 +132,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
+	flSigProxy := cmd.Bool("sig-proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -159,11 +165,18 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		return nil, nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, nil, cmd, ErrConflictAttachDetach
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvaidWorikingDirectory
+		return nil, nil, cmd, ErrInvalidWorikingDirectory
 	}
+	if *flTty && *flSigProxy {
+		return nil, nil, cmd, ErrConflictTtySigProxy
+	}
+	if *flDetach && *flAutoRemove {
+		return nil, nil, cmd, ErrConflictDetachAutoRemove
+	}
+
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
 		if !*flDetach {
@@ -173,10 +186,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 				flAttach.Set("stdin")
 			}
 		}
-	}
-
-	if *flDetach && *flAutoRemove {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -rm and -d")
 	}
 
 	var binds []string
@@ -831,12 +840,43 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.ToDisk()
 	container.SaveHostConfig(hostConfig)
 	go container.monitor(hostConfig)
-	return nil
+
+	defer utils.Debugf("Container running: %v", container.State.Running)
+	// We wait for the container to be fully running.
+	// Timeout after 5 seconds. In case of broken pipe, just retry.
+	// Note: The container can run and finish correctly before
+	//       the end of this loop
+	for now := time.Now(); time.Since(now) < 5*time.Second; {
+		// If the container dies while waiting for it, just reutrn
+		if !container.State.Running {
+			return nil
+		}
+		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+		if err != nil {
+			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
+
+			output, err = exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+			if err != nil {
+				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
+				return err
+			}
+
+		}
+		if strings.Contains(string(output), "RUNNING") {
+			return nil
+		}
+		utils.Debugf("Waiting for the container to start (running: %v): %s\n", container.State.Running, output)
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if container.State.Running {
+		return ErrContainerStartTimeout
+	}
+	return ErrContainerStart
 }
 
 func (container *Container) Run() error {
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		return err
 	}
 	container.Wait()
@@ -1044,54 +1084,57 @@ func (container *Container) cleanup() {
 	}
 }
 
-func (container *Container) kill() error {
+func (container *Container) kill(sig int) error {
+	container.State.Lock()
+	defer container.State.Unlock()
+
 	if !container.State.Running {
 		return nil
 	}
 
-	// Sending SIGKILL to the process via lxc
-	output, err := exec.Command("lxc-kill", "-n", container.ID, "9").CombinedOutput()
-	if err != nil {
-		log.Printf("error killing container %s (%s, %s)", container.ID, output, err)
+	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
+		log.Printf("error killing container %s (%s, %s)", container.ShortID(), output, err)
+		return err
+	}
+
+	return nil
+}
+
+func (container *Container) Kill() error {
+	if !container.State.Running {
+		return nil
+	}
+
+	// 1. Send SIGKILL
+	if err := container.kill(9); err != nil {
+		return err
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		if container.cmd == nil {
-			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ID)
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ShortID())
 		}
-		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.ID)
+		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", container.ShortID())
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
 	}
 
-	// Wait for the container to be actually stopped
 	container.Wait()
 	return nil
 }
 
-func (container *Container) Kill() error {
-	container.State.Lock()
-	defer container.State.Unlock()
-	if !container.State.Running {
-		return nil
-	}
-	return container.kill()
-}
-
 func (container *Container) Stop(seconds int) error {
-	container.State.Lock()
-	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}
 
 	// 1. Send a SIGTERM
-	if output, err := exec.Command("lxc-kill", "-n", container.ID, "15").CombinedOutput(); err != nil {
-		log.Print(string(output))
+	if err := container.kill(15); err != nil {
+		utils.Debugf("Error sending kill SIGTERM: %s", err)
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.kill(); err != nil {
+		if err := container.kill(9); err != nil {
 			return err
 		}
 	}
@@ -1099,7 +1142,8 @@ func (container *Container) Stop(seconds int) error {
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		if err := container.kill(); err != nil {
+		// 3. If it doesn't, then send SIGKILL
+		if err := container.Kill(); err != nil {
 			return err
 		}
 	}
