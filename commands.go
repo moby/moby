@@ -788,7 +788,10 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := Subcmd("history", "IMAGE", "Show the history of an image")
+	cmd := Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
+	quiet := cmd.Bool("q", false, "only show numeric IDs")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -807,14 +810,35 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	if err != nil {
 		return err
 	}
+
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
+	if !*quiet {
+		fmt.Fprintln(w, "ID\tCREATED\tCREATED BY\tSIZE")
+	}
 
 	for _, out := range outs {
-		if out.Tags != nil {
-			out.ID = out.Tags[0]
+		if !*quiet {
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t", out.ID)
+			} else {
+				fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
+			}
+
+			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t", out.CreatedBy)
+			} else {
+				fmt.Fprintf(w, "%s\t", utils.Trunc(out.CreatedBy, 45))
+			}
+			fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+		} else {
+			if *noTrunc {
+				fmt.Fprintln(w, out.ID)
+			} else {
+				fmt.Fprintln(w, utils.TruncateID(out.ID))
+			}
 		}
-		fmt.Fprintf(w, "%s \t%s ago\t%s\n", out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil

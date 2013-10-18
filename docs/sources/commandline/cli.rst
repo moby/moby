@@ -282,6 +282,9 @@ Shell 1: (Again .. now showing events)
 
     Show the history of an image
 
+      -notrunc=false: Don't truncate output
+      -q=false: only show numeric IDs
+
 .. _cli_images:
 
 ``images``
