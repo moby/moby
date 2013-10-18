@@ -200,6 +200,13 @@ func setupBaseImage() {
 		log.Fatalf("Unable to setup the base image: %s", err)
 	}
 
+	// Cleanup any leftover container
+	for _, container := range globalRuntime.List() {
+		if err := globalRuntime.Destroy(container); err != nil {
+			log.Fatalf("Error destroying leftover container: %s", err)
+		}
+	}
+
 	// Create the "Server"
 	srv := &Server{
 		runtime:     runtime,
@@ -320,6 +327,29 @@ func TestRuntimeCreate(t *testing.T) {
 	if err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
+
+	config := &Config{
+		Image:     GetTestImage(runtime).ID,
+		Cmd:       []string{"/bin/ls"},
+		PortSpecs: []string{"80"},
+	}
+	container, err = runtime.Create(config)
+
+	image, err := runtime.Commit(container, "testrepo", "testtag", "", "", config)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = runtime.Create(
+		&Config{
+			Image:     image.ID,
+			PortSpecs: []string{"80000:80"},
+		},
+	)
+	if err == nil {
+		t.Fatal("Builder.Create should throw an error when PortSpecs is invalid")
+	}
+
 }
 
 func TestDestroy(t *testing.T) {

@@ -54,8 +54,14 @@ Docker evaluates the instructions in a Dockerfile in order. **The
 first instruction must be `FROM`** in order to specify the
 :ref:`base_image_def` from which you are building.
 
-Docker will ignore **comment lines** *beginning* with ``#``. A comment
-marker anywhere in the rest of the line will be treated as an argument.
+Docker will treat lines that *begin* with ``#`` as a comment. A ``#``
+marker anywhere else in the line will be treated as an argument. This
+allows statements like:
+
+::
+
+    # Comment
+    RUN echo 'we are running some # of cool things'
 
 3. Instructions
 ===============

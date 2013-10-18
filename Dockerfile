@@ -12,7 +12,7 @@
 #
 #
 # # Run the test suite:
-# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker go test -v
+# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh test
 #
 # # Publish a release:
 # docker run -privileged -lxc-conf=lxc.aa_profile=unconfined \

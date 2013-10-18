@@ -124,7 +124,7 @@ You can run an interactive session in the newly built container:
 
 
 
-.. note:: The binary is availalbe outside the container in the directory  ``./bundles/<version>-dev/binary/``.
+.. note:: The binary is available outside the container in the directory  ``./bundles/<version>-dev/binary/``. You can swap your host docker executable with this binary for live testing - for example, on ubuntu: ``sudo service docker stop ; sudo cp $(which docker) $(which docker)_ ; sudo cp ./bundles/<version>-dev/binary/docker-<version>-dev $(which docker);sudo service docker start``.
 
 
 **Need More Help?**

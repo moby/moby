@@ -57,7 +57,13 @@ EXAMPLES:
 
 FIXME
 
-### 5. Commit and create a pull request to the "release" branch
+### 5. Test the docs
+
+Make sure that your tree includes documentation for any modified or
+new features, syntax or semantic changes. Instructions for building
+the docs are in ``docs/README.md``
+
+### 6. Commit and create a pull request to the "release" branch
 
 ```bash
 git add CHANGELOG.md
@@ -65,9 +71,9 @@ git commit -m "Bump version to $VERSION"
 git push origin bump_$VERSION
 ```
 
-### 6. Get 2 other maintainers to validate the pull request
+### 7. Get 2 other maintainers to validate the pull request
 
-### 7. Merge the pull request and apply tags
+### 8. Merge the pull request and apply tags
 
 ```bash
 git checkout release
@@ -78,7 +84,13 @@ git push
 git push --tags
 ```
 
-### 8. Publish binaries
+Merging the pull request to the release branch will automatically
+update the documentation on the "latest" revision of the docs. You
+should see the updated docs 5-10 minutes after the merge. The docs
+will appear on http://docs.docker.io/. For more information about
+documentation releases, see ``docs/README.md``
+
+### 9. Publish binaries
 
 To run this you will need access to the release credentials.
 Get them from [the infrastructure maintainers](
@@ -100,6 +112,6 @@ use get-nightly.docker.io for general testing, and once everything is fine,
 switch to get.docker.io).
 
 
-### 9. Rejoice!
+### 10. Rejoice!
 
 Congratulations! You're done.

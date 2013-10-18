@@ -90,7 +90,7 @@ func CompareConfig(a, b *Config) bool {
 	return true
 }
 
-func MergeConfig(userConf, imageConf *Config) {
+func MergeConfig(userConf, imageConf *Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
@@ -108,9 +108,15 @@ func MergeConfig(userConf, imageConf *Config) {
 	} else {
 		for _, imagePortSpec := range imageConf.PortSpecs {
 			found := false
-			imageNat, _ := parseNat(imagePortSpec)
+			imageNat, err := parseNat(imagePortSpec)
+			if err != nil {
+				return err
+			}
 			for _, userPortSpec := range userConf.PortSpecs {
-				userNat, _ := parseNat(userPortSpec)
+				userNat, err := parseNat(userPortSpec)
+				if err != nil {
+					return err
+				}
 				if imageNat.Proto == userNat.Proto && imageNat.Backend == userNat.Backend {
 					found = true
 				}
@@ -171,6 +177,7 @@ func MergeConfig(userConf, imageConf *Config) {
 			userConf.Volumes[k] = v
 		}
 	}
+	return nil
 }
 
 func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
