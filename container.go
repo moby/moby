@@ -979,12 +979,13 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 	// If the command does not exists, try to wait via lxc
 	if container.cmd == nil {
 		if err := container.waitLxc(); err != nil {
-			utils.Errorf("%s: Process: %s", container.ID, err)
+			// Discard the error as any signals or non 0 returns will generate an error
+			utils.Debugf("%s: Process: %s", container.ShortID(), err)
 		}
 	} else {
 		if err := container.cmd.Wait(); err != nil {
 			// Discard the error as any signals or non 0 returns will generate an error
-			utils.Errorf("%s: Process: %s", container.ID, err)
+			utils.Debugf("%s: Process: %s", container.ShortID(), err)
 		}
 	}
 	utils.Debugf("Process finished")
