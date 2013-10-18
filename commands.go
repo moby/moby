@@ -1539,7 +1539,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		if config.Tty {
 			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				utils.Errorf("Error monitoring TTY size: %s\n", err)
+				// When running the test suite, there is no terminal, just pipes.
+				// Discard the error then.
+				if os.Getenv("TEST") != "1" {
+					utils.Errorf("Error monitoring TTY size: %s\n", err)
+				}
 			}
 		}
 
