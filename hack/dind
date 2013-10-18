@@ -63,7 +63,7 @@ grep -qw devices /proc/1/cgroup ||
 	echo "WARNING: it looks like the 'devices' cgroup is not mounted."
 
 # Now, close extraneous file descriptors.
-pushd /proc/self/fd
+pushd /proc/self/fd >/dev/null
 for FD in *
 do
 	case "$FD" in
@@ -76,9 +76,10 @@ do
 		;;
 	esac
 done
-popd
+popd >/dev/null
 
 # Mount /tmp
 mount -t tmpfs none /tmp
 
-exec $*
+[ "$1" ] && exec "$@"
+echo "You probably want to run hack/make.sh, or maybe a shell?"
