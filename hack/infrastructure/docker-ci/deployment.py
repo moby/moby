@@ -140,10 +140,16 @@ sudo('stop docker')
 sudo('wget -q -O /usr/bin/docker http://test.docker.io/test/docker')
 sudo('start docker')
 
+# Preventively reboot docker-ci daily
+sudo('ln -s /sbin/reboot /etc/cron.daily')
+
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
     DOCKER_CI_PATH))
+
+# Download docker-ci testing container
+sudo('docker pull mzdaniel/test_docker')
 
 # Setup buildbot
 sudo('mkdir /data')
