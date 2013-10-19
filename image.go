@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -114,10 +115,22 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 
 func StoreSize(img *Image, root string) error {
 	layer := layerPath(root)
+	data := make(map[uint64]bool)
 
 	var totalSize int64 = 0
 	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
-		totalSize += fileInfo.Size()
+		size := fileInfo.Size()
+		if size == 0 {
+			return nil
+		}
+
+		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
+		if _, entryExists := data[inode]; entryExists {
+			return nil
+		}
+		data[inode] = false
+
+		totalSize += size
 		return nil
 	})
 	img.Size = totalSize
