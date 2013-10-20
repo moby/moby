@@ -1082,38 +1082,52 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	return r, nil
 }
 
-func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-
+func CreateHTTPServer(srv *Server, logging bool) (*http.Server, error) {
 	r, err := createRouter(srv, logging)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return &http.Server{Handler: r}, nil
+}
+
+func Listen(proto, addr string) (net.Listener, error) {
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
 	l, e := net.Listen(proto, addr)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	if proto == "unix" {
 		if err := os.Chmod(addr, 0660); err != nil {
-			return err
+			return nil, err
 		}
 
 		groups, err := ioutil.ReadFile("/etc/group")
 		if err != nil {
-			return err
+			return nil, err
 		}
 		re := regexp.MustCompile("(^|\n)docker:.*?:([0-9]+)")
 		if gidMatch := re.FindStringSubmatch(string(groups)); gidMatch != nil {
 			gid, err := strconv.Atoi(gidMatch[2])
 			if err != nil {
-				return err
+				return nil, err
 			}
 			utils.Debugf("docker group found. gid: %d", gid)
 			if err := os.Chown(addr, 0, gid); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	httpSrv := http.Server{Addr: addr, Handler: r}
-	return httpSrv.Serve(l)
+	return l, nil; 
+}
+
+func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
+		httpServer, err := CreateHTTPServer(srv, logging)
+	if err != nil {
+		return err
+	}
+	listener, err := Listen(proto, addr)
+	if err != nil {
+		return err
+	}
+	return httpServer.Serve(listener)
 }

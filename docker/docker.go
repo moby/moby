@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -17,6 +18,10 @@ import (
 var (
 	GITCOMMIT string
 	VERSION   string
+)
+
+const (
+	LISTEN_FDS_START = 3
 )
 
 func main() {
@@ -137,23 +142,49 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if err != nil {
 		return err
 	}
-	chErrors := make(chan error, len(protoAddrs))
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		} else {
-			log.Fatal("Invalid protocol format.")
-			os.Exit(-1)
-		}
-		go func() {
-			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
-		}()
+	chErrors := make(chan error)
+
+	servers := 0
+
+	httpServer, err := docker.CreateHTTPServer(server, true)
+	if err != nil {
+		return err
 	}
+
+	listeners := ListenFDS()
+	if listeners != nil {
+		for _, l := range listeners {
+			log.Printf("Listening on %s from LISTEN_FDS\n", l.Addr())
+			servers++
+			go func() {
+				chErrors <- httpServer.Serve(l)
+			}()
+		}
+	} else {
+
+		for _, protoAddr := range protoAddrs {
+			protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+			if protoAddrParts[0] == "unix" {
+				syscall.Unlink(protoAddrParts[1])
+			} else if protoAddrParts[0] == "tcp" {
+				if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
+					log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+				}
+			} else {
+				log.Fatal("Invalid protocol format.")
+				os.Exit(-1)
+			}
+			listener, err := docker.Listen(protoAddrParts[0], protoAddrParts[1])
+			if err != nil {
+				return err
+			}
+			servers++
+			go func() {
+				chErrors <- httpServer.Serve(listener)
+			}()
+		}
+	}
+
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
@@ -161,4 +192,28 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 		}
 	}
 	return nil
+}
+
+func ListenFDS() []net.Listener {
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil || pid != os.Getpid() {
+		return nil
+	}
+	fds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	listeners := []net.Listener{}
+	for i := uintptr(0); i < uintptr(fds); i++ {
+		file := os.NewFile(i+LISTEN_FDS_START, "")
+		l, err := net.FileListener(file)
+		if err != nil {
+			log.Println(err)
+			return nil
+		}
+		file.Close()
+		listeners = append(listeners, l)
+	}
+	return listeners
 }
