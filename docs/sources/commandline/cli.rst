@@ -518,7 +518,7 @@ Insert file from github
 
 ::
 
-    Usage: docker rmi IMAGE [IMAGE...]
+    Usage: docker rmi IMAGE[:TAG] [IMAGE...]
 
     Remove one or more images
 
