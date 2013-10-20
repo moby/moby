@@ -38,6 +38,8 @@ type buildFile struct {
 	out io.Writer
 }
 
+var VarMap map[string]string
+
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.runtime.Get(c)
@@ -360,6 +362,16 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdVar(args string) error {
+	if b.context == "" {
+		return fmt.Errorf("No context given. Impossible to use VAR")
+	}
+	tmp := strings.SplitN(args, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid ADD format")
+	}
+}
+
 func (b *buildFile) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -466,6 +478,9 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err := Untar(context, name); err != nil {
 		return "", err
 	}
+
+	VarMap = make(map[string]string)
+
 	defer os.RemoveAll(name)
 	b.context = name
 	filename := path.Join(name, "Dockerfile")
@@ -505,6 +520,8 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if ret != nil {
 			return "", ret.(error)
 		}
+
+		VarMap["_LAST_IMAGE"] = b.image
 
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 	}
