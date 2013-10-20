@@ -99,7 +99,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
-		{"top", "Lookup the running processes of a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -111,6 +110,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
+		{"top", "Lookup the running processes of a container"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
