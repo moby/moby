@@ -96,7 +96,6 @@ func init() {
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
-
 func setupBaseImage() {
 	runtime, err := NewRuntimeFromDirectory(unitTestStoreBase, false)
 	if err != nil {
@@ -119,7 +118,6 @@ func setupBaseImage() {
 		}
 	}
 }
-
 
 func spawnGlobalDaemon() {
 	if globalRuntime != nil {

@@ -1,15 +1,15 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"testing"
-	"runtime"
 )
 
 // This file contains utility functions for docker's unit test suite.
@@ -26,7 +26,7 @@ func mkRuntime(f Fataler) *Runtime {
 	pc, _, _, _ := runtime.Caller(1)
 	callerLongName := runtime.FuncForPC(pc).Name()
 	parts := strings.Split(callerLongName, ".")
-	callerShortName := parts[len(parts) - 1]
+	callerShortName := parts[len(parts)-1]
 	if globalTestID == "" {
 		globalTestID = GenerateID()[:4]
 	}
