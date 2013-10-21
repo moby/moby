@@ -67,6 +67,8 @@ you don't need to add ``sudo`` to all the client commands.
   # Restart the docker daemon
   sudo service docker restart
 
+.. _bind_docker:
+
 Bind Docker to another host/port or a Unix socket
 -------------------------------------------------
 
