@@ -6,9 +6,9 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/engine"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -61,10 +61,6 @@ func main() {
 		}
 	}
 
-	bridge := docker.DefaultNetworkBridge
-	if *bridgeName != "" {
-		bridge = *bridgeName
-	}
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
@@ -75,26 +71,25 @@ func main() {
 			flag.Usage()
 			return
 		}
-		var dns []string
-		if *flDns != "" {
-			dns = []string{*flDns}
+		eng, err := engine.New(*flGraphPath)
+		if err != nil {
+			log.Fatal(err)
 		}
-
-		ip := net.ParseIP(*flDefaultIp)
-
-		config := &docker.DaemonConfig{
-			Pidfile:                     *pidfile,
-			GraphPath:                   *flGraphPath,
-			AutoRestart:                 *flAutoRestart,
-			EnableCors:                  *flEnableCors,
-			Dns:                         dns,
-			EnableIptables:              *flEnableIptables,
-			BridgeIface:                 bridge,
-			ProtoAddresses:              flHosts,
-			DefaultIp:                   ip,
-			InterContainerCommunication: *flInterContainerComm,
+		job, err := eng.Job("serveapi")
+		if err != nil {
+			log.Fatal(err)
 		}
-		if err := daemon(config); err != nil {
+		job.Setenv("Pidfile", *pidfile)
+		job.Setenv("GraphPath", *flGraphPath)
+		job.SetenvBool("AutoRestart", *flAutoRestart)
+		job.SetenvBool("EnableCors", *flEnableCors)
+		job.Setenv("Dns", *flDns)
+		job.SetenvBool("EnableIptables", *flEnableIptables)
+		job.Setenv("BridgeIface", *bridgeName)
+		job.SetenvList("ProtoAddresses", flHosts)
+		job.Setenv("DefaultIp", *flDefaultIp)
+		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+		if err := daemon(job, *pidfile); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -142,51 +137,22 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(config *docker.DaemonConfig) error {
-	if err := createPidFile(config.Pidfile); err != nil {
+// daemon runs `job` as a daemon. 
+// A pidfile is created for the duration of the job,
+// and all signals are intercepted.
+func daemon(job *engine.Job, pidfile string) error {
+	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
-	defer removePidFile(config.Pidfile)
-
-	server, err := docker.NewServer(config)
-	if err != nil {
-		return err
-	}
-	defer server.Close()
+	defer removePidFile(pidfile)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
-		server.Close()
-		removePidFile(config.Pidfile)
+		removePidFile(pidfile)
 		os.Exit(0)
 	}()
-
-	chErrors := make(chan error, len(config.ProtoAddresses))
-	for _, protoAddr := range config.ProtoAddresses {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		} else {
-			server.Close()
-			removePidFile(config.Pidfile)
-			log.Fatal("Invalid protocol format.")
-		}
-		go func() {
-			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
-		}()
-	}
-	for i := 0; i < len(config.ProtoAddresses); i += 1 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return job.Run()
 }

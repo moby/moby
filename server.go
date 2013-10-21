@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/engine"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,10 +23,48 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"syscall"
 )
 
 func (srv *Server) Close() error {
 	return srv.runtime.Close()
+}
+
+func init() {
+	engine.Register("serveapi", JobServeApi)
+}
+
+func JobServeApi(job *engine.Job) string {
+	srv, err := NewServer(ConfigGetenv(job))
+	if err != nil {
+		return err.Error()
+	}
+	defer srv.Close()
+	// Parse addresses to serve on
+	protoAddrs := job.Args
+	chErrors := make(chan error, len(protoAddrs))
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if protoAddrParts[0] == "unix" {
+			syscall.Unlink(protoAddrParts[1])
+		} else if protoAddrParts[0] == "tcp" {
+			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
+				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			}
+		} else {
+			return "Invalid protocol format."
+		}
+		go func() {
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, true)
+		}()
+	}
+	for i := 0; i < len(protoAddrs); i += 1 {
+		err := <-chErrors
+		if err != nil {
+			return err.Error()
+		}
+	}
+	return "0"
 }
 
 func (srv *Server) DockerVersion() APIVersion {
