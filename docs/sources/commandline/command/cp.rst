@@ -8,7 +8,7 @@
 
 ::
 
-    Usage: docker cp CONTAINER:RESOURCE HOSTPATH
+    Usage: docker cp CONTAINER:PATH HOSTPATH
 
     Copy files/folders from the containers filesystem to the host
     path.  Paths are relative to the root of the filesystem.

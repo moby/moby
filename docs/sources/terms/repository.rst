@@ -7,4 +7,4 @@
 Repository
 ==========
 
-A repository is a set of images ...... FILLMEIN
+A repository is a named set of images
