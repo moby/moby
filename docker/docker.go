@@ -131,7 +131,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	}()
 	var dns []string
 	if flDns != "" {
-		dns = []string{flDns}
+		dns = strings.Split(flDns, ",")
 	}
 	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
 	if err != nil {
