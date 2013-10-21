@@ -18,5 +18,6 @@ Contents:
    layer
    image
    container
+   repository
 
 
