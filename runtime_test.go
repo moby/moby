@@ -536,7 +536,7 @@ func TestReloadContainerLinks(t *testing.T) {
 	runtime1 := mkRuntime(t)
 	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
+	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
@@ -560,15 +560,11 @@ func TestReloadContainerLinks(t *testing.T) {
 	}
 
 	if !container1.State.Running {
-		t.Fatalf("Container %s should appear as running bu isn't", container1.ID)
+		t.Fatalf("Container %s should appear as running but isn't", container1.ID)
 	}
 
 	if len(runtime1.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
-	}
-
-	if !container2.State.Running {
-		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
 	// Here are are simulating a docker restart - that is, reloading all containers
