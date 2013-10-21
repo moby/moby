@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/engine"
 	"io/ioutil"
 	"log"
 	"os"
@@ -133,32 +134,11 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
-	if err != nil {
-		return err
-	}
-	chErrors := make(chan error, len(protoAddrs))
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		} else {
-			log.Fatal("Invalid protocol format.")
-			os.Exit(-1)
-		}
-		go func() {
-			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
-		}()
-	}
-	for i := 0; i < len(protoAddrs); i += 1 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	eng := engine.New(flGraphPath)
+	job := eng.Job("serveapi", protoAddrs...)
+	job.SetenvBool("enableCors", enableCors)
+	job.SetenvBool("autorestart", autoRestart)
+	job.SetenvList("dns", dns)
+	job.Setenv("flGraphPath", flGraphPath)
+	return job.Run()
 }
