@@ -72,12 +72,12 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}	
-	
+	}
+
 	if err != nil {
 		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
-		http.Error(w, err.Error(), statusCode)		
-	}	
+		http.Error(w, err.Error(), statusCode)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
