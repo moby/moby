@@ -2,18 +2,18 @@
 :description: Build a new image from the Dockerfile passed via stdin
 :keywords: build, docker, container, documentation
 
-================================================
-``build`` -- Build a container from a Dockerfile
-================================================
+=============================================
+``build`` -- Build an image from a Dockerfile
+=============================================
 
 ::
 
     Usage: docker build [OPTIONS] PATH | URL | -
-    Build a new container image from the source code at PATH
+    Build an image from the source code at PATH
       -t="": Repository name (and optionally a tag) to be applied to the resulting image in case of success.
       -q=false: Suppress verbose build output.
-      -no-cache: Do not use the cache when building the image.
-      -rm: Remove intermediate containers after a successful build
+      -no-cache=false: Do not use the cache when building the image.
+      -rm=false: Remove intermediate containers after a successful build
     When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
 
 
