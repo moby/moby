@@ -7,4 +7,4 @@
 Repository
 ==========
 
-A repository is a named set of images
+A repository is a tagged set of images stored in a registry.
