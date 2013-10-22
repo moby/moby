@@ -95,6 +95,7 @@ var instructions = map[string]int{
     "volume":     tokVolume,
     "user":       tokUser,
     "workdir":    tokWorkDir,
+    "include":    tokInclude,
 }
 
 // Long lines can be split with a backslash

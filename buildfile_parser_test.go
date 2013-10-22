@@ -74,6 +74,7 @@ var parsetests = []parsetest{
 	{`env port 4243`, `ENV port 4243`},
 	{`cmd ["/bin/echo", "Hello World"]`, `CMD /bin/echo Hello World`},
 	{`cmd Hello world`, `CMD /bin/sh -c Hello world`},
+	{`include foo/bar/baz`, `INCLUDE foo/bar/baz`},
 }
 
 func TestLexer(t *testing.T) {

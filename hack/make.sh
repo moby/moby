@@ -56,6 +56,15 @@ bundle() {
 }
 
 main() {
+	# Most bundles need buildfile_lexer.go and buildfile_parser.go
+	if ! go run vendor/src/github.com/wagerlabs/nex/nex.go -e -o buildfile_lexer.go buildfile.nex; then
+    	echo "Could not invoke nex, run vendor.sh once to pull in this dependency"
+    	exit 1
+	fi
+	if ! go tool yacc -o buildfile_parser.go buildfile.y; then 
+	    echo "Failed to generate buildfile_parser.go from buildfile.y"
+	    exit 1
+	fi
 	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.
 	mkdir -p bundles

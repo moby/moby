@@ -40,6 +40,7 @@ import (
 %type <v> volumeInstr
 %type <v> userInstr
 %type <v> workDirInstr
+%type <v> includeInstr
 %type <s> arg
 
 %token tokComma
@@ -57,6 +58,7 @@ import (
 %token tokVolume
 %token tokUser
 %token tokWorkDir
+%token tokInclude 
 
 %%
 
@@ -99,6 +101,7 @@ instruction:
 |	volumeInstr
 |	userInstr
 |	workDirInstr
+|	includeInstr
 
 fromInstr: 
 	tokFrom arg
@@ -235,6 +238,14 @@ workDirInstr:
 	{
 		$$ = &workDirArgs{
 			path: $2,
+		}	
+	}
+
+includeInstr:
+	tokInclude arg 
+	{
+		$$ = &includeArgs{
+			filename: $2,
 		}	
 	}
 

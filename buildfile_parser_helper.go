@@ -52,6 +52,10 @@ type workDirArgs struct {
 	path string
 }
 
+type includeArgs struct {
+	filename string
+}
+
 type dockerFile struct {
 	instructions []interface{}
 }
@@ -124,6 +128,10 @@ func (args *userArgs) String() string {
 
 func (args *workDirArgs) String() string {
 	return "WORKDIR " + args.path
+}
+
+func (args *includeArgs) String() string {
+	return "INCLUDE " + args.filename
 }
 
 func (file *dockerFile) String() string {

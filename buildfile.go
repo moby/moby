@@ -333,6 +333,19 @@ func (b *buildFile) CmdAdd(args *addArgs) error {
 	return nil
 }
 
+func (b *buildFile) CmdInclude(args *includeArgs) error {
+	if args.filename == "" {
+		return fmt.Errorf("Missing file name to include")
+	}
+	if err := b.processFile(args.filename); err != nil {
+		return err
+	}
+	if err := b.commit("", b.config.Cmd, args.String()); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *buildFile) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -439,13 +452,27 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	}
 	defer os.RemoveAll(name)
 	b.context = name
-	filename := path.Join(name, "Dockerfile")
+	if err := b.processFile("Dockerfile"); err != nil {
+		return "", err
+	}
+	if b.image == "" {
+		return "", fmt.Errorf("No image, an error must have occurred during the build\n")
+	}
+	fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
+	if b.rm {
+		b.clearTmp(b.tmpContainers)
+	}
+	return b.image, nil
+}
+
+func (b *buildFile) processFile(filename string) error {
+	filename = path.Join(b.context, filename)
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
+		return fmt.Errorf("Can't build a directory with no '%s'", filename)
 	}
 	dockerfile, err := parseFile(filename)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if dockerfile == nil {
 		fileBytes, err := ioutil.ReadFile(filename)
@@ -453,7 +480,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			s := string(fileBytes)
 			utils.Debugf("Couldn't parse %s:\n%s", filename, s)
 		}
-		return "", fmt.Errorf("Invalid build file %s", filename)
+		return fmt.Errorf("Invalid build file %s", filename)
 	}
 	stepN := 0
 	for _, instr := range dockerfile.instructions {
@@ -482,22 +509,17 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			err = b.CmdUser(args)
 		case *workDirArgs:
 			err = b.CmdWorkdir(args)
+		case *includeArgs:
+			err = b.CmdInclude(args)
 		default:
 		}
 		if err != nil {
-			return "", err
+			return err
 		}
 		fmt.Fprintf(b.out, " ---> %v\n", utils.TruncateID(b.image))
 		stepN += 1
 	}
-	if b.image != "" {
-		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.image))
-		if b.rm {
-			b.clearTmp(b.tmpContainers)
-		}
-		return b.image, nil
-	}
-	return "", fmt.Errorf("An error occurred during the build\n")
+	return nil
 }
 
 func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
