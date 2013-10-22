@@ -15,7 +15,7 @@
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       -run="": Configuration to be applied when the image is launched with `docker run`. 
-               (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 Full -run example (multiline is ok within a single quote ``'``)
 
