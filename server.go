@@ -24,6 +24,10 @@ import (
 	"time"
 )
 
+func (srv *Server) Close() error {
+	return srv.runtime.Close()
+}
+
 func (srv *Server) DockerVersion() APIVersion {
 	return APIVersion{
 		Version:   VERSION,
