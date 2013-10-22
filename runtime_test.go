@@ -44,7 +44,9 @@ func nuke(runtime *Runtime) error {
 		}(container)
 	}
 	wg.Wait()
-	runtime.networkManager.Close()
+	runtime.Close()
+
+	os.Remove(filepath.Join(runtime.config.GraphPath, "linkgraph.db"))
 	return os.RemoveAll(runtime.config.GraphPath)
 }
 
