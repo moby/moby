@@ -27,7 +27,9 @@ func setupWorkingDirectory(workdir string) {
 	if workdir == "" {
 		return
 	}
-	syscall.Chdir(workdir)
+	if err := syscall.Chdir(workdir); err != nil {
+		log.Fatalf("Unable to change dir to %v: %v", workdir, err)
+	}
 }
 
 // Takes care of dropping privileges to the desired user
