@@ -26,6 +26,7 @@ Import from a remote location
 .............................
 
 .. code-block:: bash
+
     $ sudo docker import http://example.com/exampleimage.tgz exampleimagerepo
     b2dede49674e
 
