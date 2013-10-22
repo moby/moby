@@ -1,7 +1,9 @@
 package docker
 
 import (
+	_ "code.google.com/p/gosqlite/sqlite3"
 	"container/list"
+	"database/sql"
 	"fmt"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
@@ -593,7 +595,19 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	graph, err := gograph.NewDatabase(path.Join(config.GraphPath, "linkgraph.db"))
+	gographPath := path.Join(config.GraphPath, "linkgraph.db")
+	initDatabase := false
+	if _, err := os.Stat(gographPath); err != nil {
+		if os.IsNotExist(err) {
+			initDatabase = true
+		}
+		return nil, err
+	}
+	conn, err := sql.Open("sqlite3", gographPath)
+	if err != nil {
+		return nil, err
+	}
+	graph, err := gograph.NewDatabase(conn, initDatabase)
 	if err != nil {
 		return nil, err
 	}
@@ -615,6 +629,11 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+func (runtime *Runtime) Close() error {
+	runtime.networkManager.Close()
+	return runtime.containerGraph.Close()
 }
 
 // History is a convenience type for storing a list of containers,

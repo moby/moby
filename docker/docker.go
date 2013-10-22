@@ -148,18 +148,22 @@ func daemon(config *docker.DaemonConfig) error {
 	}
 	defer removePidFile(config.Pidfile)
 
+	server, err := docker.NewServer(config)
+	if err != nil {
+		return err
+	}
+	defer server.Close()
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
+		server.Close()
 		removePidFile(config.Pidfile)
 		os.Exit(0)
 	}()
-	server, err := docker.NewServer(config)
-	if err != nil {
-		return err
-	}
+
 	chErrors := make(chan error, len(config.ProtoAddresses))
 	for _, protoAddr := range config.ProtoAddresses {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
@@ -170,6 +174,8 @@ func daemon(config *docker.DaemonConfig) error {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
 		} else {
+			server.Close()
+			removePidFile(config.Pidfile)
 			log.Fatal("Invalid protocol format.")
 		}
 		go func() {
