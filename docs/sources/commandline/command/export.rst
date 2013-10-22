@@ -10,4 +10,10 @@
 
     Usage: docker export CONTAINER
 
-    Export the contents of a filesystem as a tar archive
+    Export the contents of a filesystem as a tar archive to STDIO
+
+Examples
+--------
+
+.. code-block:: bash
+    docker export 3cbe352798b0 > latest.tar
