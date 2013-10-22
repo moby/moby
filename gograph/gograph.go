@@ -166,6 +166,8 @@ func (db *Database) Get(name string) *Entity {
 	if err != nil {
 		return nil
 	}
+	defer conn.Close()
+
 	e, err := db.get(conn, name)
 	if err != nil {
 		return nil
