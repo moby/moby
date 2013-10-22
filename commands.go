@@ -1156,7 +1156,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
-	since := cmd.String("since", "", "Show events previously created (used for polling).")
+	since := cmd.String("since", "", "Show events previously created (timestamp in seconds since Epoch) and then stream.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

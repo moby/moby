@@ -12,6 +12,9 @@
 
     Get real time events from the server
 
+      -since="": Show events previously created (timestamp in seconds since Epoch) and then stream.
+
+
 Examples
 --------
 
