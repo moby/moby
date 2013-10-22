@@ -504,6 +504,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	req.ContentLength = int64(len(imgListJSON))
 	req.Header.Set("X-Docker-Token", "true")
