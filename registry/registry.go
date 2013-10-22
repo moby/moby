@@ -665,9 +665,9 @@ type ImgData struct {
 }
 
 type Registry struct {
-	client		  *http.Client
-	authConfig	  *auth.AuthConfig
-	reqFactory	  *utils.HTTPRequestFactory
+	client        *http.Client
+	authConfig    *auth.AuthConfig
+	reqFactory    *utils.HTTPRequestFactory
 	indexEndpoint string
 }
 
@@ -700,4 +700,3 @@ func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory,
 	r.reqFactory = factory
 	return r, nil
 }
-
