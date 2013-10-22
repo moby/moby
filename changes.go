@@ -119,7 +119,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
 			oldMtime := syscall.NsecToTimeval(oldStat.Mtim.Nano())
-			newMtime := syscall.NsecToTimeval(oldStat.Mtim.Nano())
+			newMtime := syscall.NsecToTimeval(newStat.Mtim.Nano())
 			if oldStat.Mode != newStat.Mode ||
 				oldStat.Uid != newStat.Uid ||
 				oldStat.Gid != newStat.Gid ||
