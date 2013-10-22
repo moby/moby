@@ -378,15 +378,22 @@ func (b *buildFile) run() (string, error) {
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
 
+	var errCh chan error
+
+	if b.verbose {
+		errCh = utils.Go(func() error {
+			return <-c.Attach(nil, nil, b.out, b.out)
+		})
+	}
+
 	//start the container
 	hostConfig := &HostConfig{}
 	if err := c.Start(hostConfig); err != nil {
 		return "", err
 	}
 
-	if b.verbose {
-		err = <-c.Attach(nil, nil, b.out, b.out)
-		if err != nil {
+	if errCh != nil {
+		if err := <-errCh; err != nil {
 			return "", err
 		}
 	}
