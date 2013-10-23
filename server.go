@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1302,7 +1303,7 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 
 }
 
-func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts, sslCert string, sslKey string) (*Server, error) {
+func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts, tlsConfig *tls.Config) (*Server, error) {
 	if runtime.GOARCH != "amd64" {
 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
@@ -1318,8 +1319,7 @@ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts, s
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
 		reqFactory:  nil,
-		sslKey:      sslKey,
-		sslCert:     sslCert,
+		tlsConfig:   tlsConfig,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -1358,6 +1358,5 @@ type Server struct {
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
 	reqFactory  *utils.HTTPRequestFactory
-	sslCert     string
-	sslKey      string
+	tlsConfig   *tls.Config
 }

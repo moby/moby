@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
@@ -64,6 +65,18 @@ func main() {
 		log.Fatal("sslcert or sslkey set without the other. Please set both to enable https")
 	}
 
+	var tlsConfig *tls.Config = nil
+	var err error = nil
+	if len(*flKey) > 0 && len(*flCert) > 0 {
+		tlsConfig = &tls.Config{}
+		tlsConfig.NextProtos = []string{"http/1.1"}
+		tlsConfig.Certificates = make([]tls.Certificate, 1)
+		tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(*flKey, *flCert)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+
 	docker.GITCOMMIT = GITCOMMIT
 	docker.VERSION = VERSION
 	if *flDaemon {
@@ -71,7 +84,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, *flCert, *flKey); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, tlsConfig); err != nil {
 			log.Fatal(err)
 			os.Exit(-1)
 		}
@@ -122,7 +135,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string, sslCert string, sslKey string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string, tlsConfig *tls.Config) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -140,7 +153,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns, sslCert, sslKey)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns, tlsConfig)
 	if err != nil {
 		return err
 	}

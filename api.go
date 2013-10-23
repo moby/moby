@@ -1077,15 +1077,8 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 		return e
 	}
 
-	if len(srv.sslKey) > 0 && len(srv.sslCert) > 0 {
-		config := &tls.Config{}
-		config.NextProtos = []string{"http/1.1"}
-		config.Certificates = make([]tls.Certificate, 1)
-		config.Certificates[0], err = tls.LoadX509KeyPair(srv.sslCert, srv.sslKey)
-		if err != nil {
-			return err
-		}
-		l = tls.NewListener(l, config)
+	if srv.tlsConfig != nil {
+		l = tls.NewListener(l, srv.tlsConfig)
 	}
 
 	if proto == "unix" {
