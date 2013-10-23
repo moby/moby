@@ -75,16 +75,35 @@ case "$lsb_dist" in
 	Ubuntu|Debian)
 		export DEBIAN_FRONTEND=noninteractive
 		
-		# TODO remove this comment/section once device-mapper lands
-		echo 'Warning: Docker currently requires AUFS support in the kernel.'
-		echo 'Please ensure that your kernel includes such support.'
-		( set -x; sleep 10 )
+		did_apt_get_update=
+		apt_get_update() {
+			if [ -z "$did_apt_get_update" ]; then
+				( set -x; $sh_c 'sleep 3; apt-get update' )
+				did_apt_get_update=1
+			fi
+		}
+		
+		# TODO remove this section once device-mapper lands
+		if ! grep -q aufs /proc/filesystems && ! modprobe aufs; then
+			kern_extras="linux-image-extra-$(uname -r)"
+			
+			apt_get_update
+			( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
+			
+			if ! grep -q aufs /proc/filesystems && ! modprobe aufs; then
+				echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
+				echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+				( set -x; sleep 10 )
+			fi
+		fi
 		
 		if [ ! -e /usr/lib/apt/methods/https ]; then
-			( set -x; $sh_c 'sleep 3; apt-get update; apt-get install -y -q apt-transport-https' )
+			apt_get_update
+			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https' )
 		fi
 		if [ -z "$curl" ]; then
-			( set -x; $sh_c 'sleep 3; apt-get update; apt-get install -y -q curl' )
+			apt_get_update
+			( set -x; $sh_c 'sleep 3; apt-get install -y -q curl' )
 			curl='curl -sL'
 		fi
 		(
