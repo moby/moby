@@ -814,7 +814,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		// mount / MS_REC|MS_PRIVATE, but since we can't really clone or fork
 		// without exec in go we have to do this horrible shell hack...
 		shellString :=
-			"mount --make-rprivate /; exec " +
+			"mount --make-rslave /; exec " +
 				utils.ShellQuoteArguments(params)
 
 		params = []string{
