@@ -577,14 +577,6 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if k, err := utils.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
-	} else {
-		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
-		}
-	}
 	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }

@@ -3,6 +3,9 @@ package engine
 import (
 	"fmt"
 	"os"
+	"log"
+	"runtime"
+	"github.com/dotcloud/docker/utils"
 )
 
 
@@ -31,6 +34,24 @@ type Engine struct {
 // Changing the contents of the root without executing a job will cause unspecified
 // behavior.
 func New(root string) (*Engine, error) {
+	// Check for unsupported architectures
+	if runtime.GOARCH != "amd64" {
+		return nil, fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+	}
+	// Check for unsupported kernel versions
+	// FIXME: it would be cleaner to not test for specific versions, but rather
+	// test for specific functionalities.
+	// Unfortunately we can't test for the feature "does not cause a kernel panic"
+	// without actually causing a kernel panic, so we need this workaround until
+	// the circumstances of pre-3.8 crashes are clearer.
+	// For details see http://github.com/dotcloud/docker/issues/407
+	if k, err := utils.GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+		}
+	}
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}

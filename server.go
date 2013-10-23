@@ -1430,9 +1430,6 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 }
 
 func NewServer(config *DaemonConfig) (*Server, error) {
-	if runtime.GOARCH != "amd64" {
-		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
 	runtime, err := NewRuntime(config)
 	if err != nil {
 		return nil, err
