@@ -720,11 +720,11 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	}
 
 	port := cmd.Arg(1)
-	proto := "Tcp"
+	proto := "tcp"
 	parts := strings.SplitN(port, "/", 2)
 	if len(parts) == 2 && len(parts[1]) != 0 {
 		port = parts[0]
-		proto = strings.ToUpper(parts[1][:1]) + strings.ToLower(parts[1][1:])
+		proto = parts[1]
 	}
 	body, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil)
 	if err != nil {
@@ -736,8 +736,14 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontend, exists := out.NetworkSettings.PortMapping[proto][port]; exists {
-		fmt.Fprintf(cli.out, "%s\n", frontend)
+	if frontends, exists := out.NetworkSettings.Ports[Port(port+"/"+proto)]; exists {
+		if frontends == nil {
+			fmt.Fprintf(cli.out, "%s\n", port)
+		} else {
+			for _, frontend := range frontends {
+				fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
+			}
+		}
 	} else {
 		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
 	}
