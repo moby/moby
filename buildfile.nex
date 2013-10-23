@@ -1,0 +1,151 @@
+/[0-9]+/ {
+    i, err := strconv.ParseUint(yylex.Text(), 10, 16)
+    if err != nil {
+        yylex.Error("Invalid decimal integer: " + yylex.Text())
+    }
+    lval.i = int(i)
+    return tokInt
+}
+
+/,/ {
+    return tokComma
+}
+
+/:/ {
+    return tokColon
+}
+
+/\[/ {
+    return tokLBracket
+}
+
+/\]/ {
+    return tokRBracket
+}
+
+/"[^"]*"/ {
+    t := yylex.Text()
+    lval.s = linecont.ReplaceAllString(t[1:len(t)-1], "")
+    lval.s = whitespace.ReplaceAllString(lval.s, " ")
+    return tokStr
+}
+
+/'[^']*'/ {
+    t := yylex.Text()
+    lval.s = linecont.ReplaceAllString(t[1:len(t)-1], "")
+    lval.s = whitespace.ReplaceAllString(lval.s, " ")
+    return tokStr
+}
+
+/[a-zA-Z][a-zA-Z_.0-9]*/ {
+    lval.s = yylex.Text()
+    if tok, ok := instructions[strings.ToLower(lval.s)]; ok {
+        return tok
+    }
+    return tokId
+}
+
+/[^"',\[\]\n\r\t \\]+/ {
+    lval.s = yylex.Text()
+    return tokArg
+}
+
+/[ \t\r]/ {
+    // ignore whitespace
+}
+
+/[\\]/ {
+    
+}
+
+/#[^\n]*\n/ {
+    // ignore comments
+    yylex.l++
+}
+
+/\n+/ {
+    yylex.l += len(yylex.Text())
+}
+
+/./ {
+    yylex.Error(fmt.Sprintf("Unexpected character: %q", yylex.Text()))
+}
+
+//
+//" nex -e -o buildfile_lexer.go buildfile.nex
+
+package docker 
+
+import (
+    "strconv"
+    "os"
+    "fmt"
+    "regexp"
+)
+
+var instructions = map[string]int{
+    "from":       tokFrom,
+    "maintainer": tokMaintainer,
+    "run":        tokRun,
+    "cmd":        tokCommand,
+    "expose":     tokExpose,
+    "env":        tokEnv,
+    "add":        tokAdd,
+    "entrypoint": tokEntryPoint,
+    "volume":     tokVolume,
+    "user":       tokUser,
+    "workdir":    tokWorkDir,
+    "include":    tokInclude,
+}
+
+// Long lines can be split with a backslash
+var (
+    linecont = regexp.MustCompile(`\s*\\\s*\n`)
+    whitespace = regexp.MustCompile(`\s+`)
+)
+
+func parse(reader io.Reader) (file *dockerFile, err error) {
+    defer func() {
+        if e := recover(); e != nil {
+            switch e := e.(type) {
+            case error:
+                err = e
+            }
+        }
+    }()
+    lexer := NewLexer(reader)
+    yyParse(lexer)
+    file = parsedFile
+    return 
+}
+
+func parseFile(filename string) (*dockerFile, error) {
+    fd, err := os.Open(filename)
+    if err != nil { 
+        return nil, err 
+    }
+    file, err := parse(fd)
+    fd.Close()
+    return file, nil
+}
+
+func (yylex Lexer) Error(e string) {
+    panic(fmt.Errorf("%d: %s", yylex.l + 1, e))
+}
+
+func token(tok int, lval *yySymType) string {
+    switch tok {
+    case tokComma:
+        return ","
+    case tokColon:
+        return ":"
+    case tokLBracket:
+        return "["
+    case tokRBracket:
+        return "]"
+    case tokInt:
+        return strconv.Itoa(lval.i)
+    default:
+        return lval.s
+    }
+}
