@@ -103,8 +103,7 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	rollback := func() {
 		db.conn.Exec("ROLLBACK")
 	}
-	// FIXME: use exclusive transactions to avoid race conditions
-	if _, err := db.conn.Exec("BEGIN"); err != nil {
+	if _, err := db.conn.Exec("BEGIN EXCLUSIVE"); err != nil {
 		return nil, err
 	}
 	var entityId string

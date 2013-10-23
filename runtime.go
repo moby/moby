@@ -62,9 +62,6 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (runtime *Runtime) Get(name string) *Container {
-	if name[0] != '/' {
-		name = "/" + name
-	}
 	if c, _ := runtime.GetByName(name); c != nil {
 		return c
 	}
@@ -478,6 +475,10 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
+	if name[0] != '/' {
+		name = "/" + name
+	}
+
 	if id, err := runtime.idIndex.Get(name); err == nil {
 		name = id
 	}
@@ -544,9 +545,7 @@ func (runtime *Runtime) Link(parentName, childName, alias string) error {
 	if child == nil {
 		return fmt.Errorf("Could not get container for %s", childName)
 	}
-	cc := runtime.Get(child.ID())
-
-	_, err := runtime.containerGraph.Set(path.Join(parentName, alias), cc.ID)
+	_, err := runtime.containerGraph.Set(path.Join(parentName, alias), child.ID())
 	return err
 }
 
