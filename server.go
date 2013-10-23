@@ -35,7 +35,7 @@ func init() {
 }
 
 func JobServeApi(job *engine.Job) string {
-	srv, err := NewServer(ConfigGetenv(job))
+	srv, err := NewServer(ConfigFromJob(job))
 	if err != nil {
 		return err.Error()
 	}

@@ -19,9 +19,9 @@ type DaemonConfig struct {
 	InterContainerCommunication bool
 }
 
-// ConfigGetenv creates and returns a new DaemonConfig object
+// ConfigFromJob creates and returns a new DaemonConfig object
 // by parsing the contents of a job's environment.
-func ConfigGetenv(job *engine.Job) *DaemonConfig {
+func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	var config DaemonConfig
 	config.Pidfile = job.Getenv("Pidfile")
 	config.Root = job.Getenv("Root")
