@@ -85,9 +85,9 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(sig); err != nil {
-				return fmt.Errorf("Error killing container %s: %s", name, err)
+				return fmt.Errorf("Error signaling container %s: %s", name, err)
 			}
-			// FIXME: Add event for signals
+			srv.LogEvent("signal", container.ShortID(), srv.runtime.repositories.ImageName(container.Image), strconv.Itoa(sig)))
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
