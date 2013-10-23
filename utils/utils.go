@@ -819,17 +819,24 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 }
 
 func ParseHost(host string, port int, addr string) string {
-	if strings.HasPrefix(addr, "unix://") {
+	var proto string
+	switch {
+	case strings.HasPrefix(addr, "unix://"):
 		return addr
-	}
-	if strings.HasPrefix(addr, "tcp://") {
+	case strings.HasPrefix(addr, "tcp://"):
+		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	default:
+		if strings.Contains(addr, "://") {
+			log.Fatal("Invalid bind address proto")
+		}
+		proto = "tcp"
 	}
+
 	if strings.Contains(addr, ":") {
 		hostParts := strings.Split(addr, ":")
 		if len(hostParts) != 2 {
 			log.Fatal("Invalid bind address format.")
-			os.Exit(-1)
 		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
@@ -840,7 +847,7 @@ func ParseHost(host string, port int, addr string) string {
 	} else {
 		host = addr
 	}
-	return fmt.Sprintf("tcp://%s:%d", host, port)
+	return fmt.Sprintf("%s://%s:%d", proto, host, port)
 }
 
 func GetReleaseVersion() string {
