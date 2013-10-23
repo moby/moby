@@ -153,7 +153,7 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	return res, err
 }
 
-func setTokenAuth(req *http.Request, token []string) (*http.Request) {
+func setTokenAuth(req *http.Request, token []string) *http.Request {
 	if req.Header.Get("Authorization") == "" { // Don't override
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	}
@@ -269,9 +269,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		if err != nil {
 			return nil, err
 		}
-		if req.Header.Get("Authorization") == "" { // Don't override
-			req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
-		}
+		req = setTokenAuth(req, token)
 		res, err := doWithCookies(r.client, req)
 		if err != nil {
 			return nil, err
