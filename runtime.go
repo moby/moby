@@ -600,8 +600,9 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if _, err := os.Stat(gographPath); err != nil {
 		if os.IsNotExist(err) {
 			initDatabase = true
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 	conn, err := sql.Open("sqlite3", gographPath)
 	if err != nil {
