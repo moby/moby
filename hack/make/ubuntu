@@ -19,26 +19,17 @@ Docker is a great building block for automating distributed systems:
 large-scale web deployments, database clusters, continuous deployment systems,
 private PaaS, service-oriented architectures, etc."
 
-UPSTART_SCRIPT='description     "Docker daemon"
-
-start on filesystem and started lxc-net
-stop on runlevel [!2345]
-
-respawn
-
-script
-    /usr/bin/docker -d
-end script
-'
-
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
 bundle_ubuntu() {
 	DIR=$DEST/build
 
-	# Generate an upstart config file (ubuntu-specific)
-	mkdir -p $DIR/etc/init
-	echo "$UPSTART_SCRIPT" > $DIR/etc/init/docker.conf
+	# Include our init scripts
+	mkdir -p $DIR/etc
+	cp -R contrib/init/upstart $DIR/etc/init
+	cp -R contrib/init/sysvinit $DIR/etc/init.d
+	mkdir -p $DIR/lib/systemd
+	cp -R contrib/init/systemd $DIR/lib/systemd/system
 
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
@@ -47,29 +38,40 @@ bundle_ubuntu() {
 	# This will fail if the binary bundle hasn't been built
 	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
 
-	# Generate postinstall/prerm scripts
-	cat >/tmp/postinstall <<EOF
+	# Generate postinst/prerm scripts
+	cat >/tmp/postinst <<'EOF'
 #!/bin/sh
-/sbin/stop docker || true
-/bin/grep -q "^docker:" /etc/group || /usr/sbin/addgroup --system docker || true
-/sbin/start docker
+service docker stop || true
+grep -q '^docker:' /etc/group || groupadd --system docker || true
+service docker start
 EOF
-	cat >/tmp/prerm <<EOF
+	cat >/tmp/prerm <<'EOF'
 #!/bin/sh
-/sbin/stop docker || true
-/usr/sbin/delgroup docker || true
+service docker stop || true
+
+case "$1" in
+	purge|remove|abort-install)
+		groupdel docker || true
+		;;
+		
+	upgrade|failed-upgrade|abort-upgrade)
+		# don't touch docker group
+		;;
+esac
 EOF
-	chmod +x /tmp/postinstall /tmp/prerm
+	chmod +x /tmp/postinst /tmp/prerm
 
 	(
 		cd $DEST
 		fpm -s dir -C $DIR \
 		    --name lxc-docker-$VERSION --version $PKGVERSION \
-		    --after-install /tmp/postinstall \
+		    --after-install /tmp/postinst \
 		    --before-remove /tmp/prerm \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
-		    --depends lxc --depends aufs-tools \
+		    --depends lxc \
+		    --depends aufs-tools \
+		    --depends iptables \
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --conflicts lxc-docker-virtual-package \
@@ -80,6 +82,7 @@ EOF
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
 		    --config-files /etc/init/docker.conf \
+		    --config-files /etc/init.d/docker \
 		    -t deb .
 		mkdir empty
 		fpm -s dir -C empty \
@@ -90,7 +93,6 @@ EOF
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
-		    --config-files /etc/init/docker.conf \
 		    -t deb .
 	)
 }

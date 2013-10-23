@@ -1,0 +1,85 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:           docker
+# Required-Start:     $syslog $remote_fs
+# Required-Stop:      $syslog $remote_fs
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description:  Linux container runtime
+# Description:        Linux container runtime
+### END INIT INFO
+
+DOCKER=/usr/bin/docker
+DOCKER_PIDFILE=/var/run/docker.pid
+DOCKER_OPTS=
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+# Check lxc-docker is present
+[ -x $DOCKER ] || (log_failure_msg "docker not present"; exit 1)
+
+# Get lsb functions
+. /lib/lsb/init-functions
+
+if [ -f /etc/default/lxc ]; then
+	. /etc/default/lxc
+fi
+
+if [ "$1" = start ] && which initctl >/dev/null && initctl version | grep -q upstart; then
+	exit 1
+fi
+
+check_root_id ()
+{
+	if [ "$(id -u)" != "0" ]; then
+		log_failure_msg "Docker must be run as root"; exit 1
+	fi
+}
+
+case "$1" in
+	start)
+		check_root_id || exit 1
+		log_begin_msg "Starting Docker"
+		mount | grep cgroup >/dev/null || mount -t cgroup none /sys/fs/cgroup 2>/dev/null
+		start-stop-daemon --start --background $NO_CLOSE \
+			--exec "$DOCKER" \
+			--pidfile "$DOCKER_PIDFILE" \
+			-- -d -p "$DOCKER_PIDFILE" \
+			$DOCKER_OPTS
+		log_end_msg $?
+		;;
+
+	stop)
+		check_root_id || exit 1
+		log_begin_msg "Stopping Docker"
+		start-stop-daemon --stop \
+			--pidfile "$DOCKER_PIDFILE"
+		log_end_msg $?
+		;;
+
+	restart)
+		check_root_id || exit 1
+		docker_pid=`cat "$DOCKER_PIDFILE" 2>/dev/null`
+		[ -n "$docker_pid" ] \
+			&& ps -p $docker_pid > /dev/null 2>&1 \
+			&& $0 stop
+		$0 start
+		;;
+
+	force-reload)
+		check_root_id || exit 1
+		$0 restart
+		;;
+
+	status)
+		status_of_proc -p "$DOCKER_PIDFILE" "$DOCKER" docker
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac
+
+exit 0
