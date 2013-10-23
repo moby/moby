@@ -84,13 +84,13 @@ case "$lsb_dist" in
 		}
 		
 		# TODO remove this section once device-mapper lands
-		if ! grep -q aufs /proc/filesystems && ! modprobe aufs; then
+		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 			kern_extras="linux-image-extra-$(uname -r)"
 			
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
 			
-			if ! grep -q aufs /proc/filesystems && ! modprobe aufs; then
+			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 				echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
 				echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
 				( set -x; sleep 10 )
