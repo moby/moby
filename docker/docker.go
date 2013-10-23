@@ -34,7 +34,7 @@ func main() {
 	flAutoRestart := flag.Bool("r", true, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge. Use 'none' to disable container networking")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flGraphPath := flag.String("g", "/var/lib/docker", "Path to graph storage base dir.")
+	flRoot := flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime.")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := utils.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
@@ -71,7 +71,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		eng, err := engine.New(*flGraphPath)
+		eng, err := engine.New(*flRoot)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -80,7 +80,7 @@ func main() {
 			log.Fatal(err)
 		}
 		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("GraphPath", *flGraphPath)
+		job.Setenv("Root", *flRoot)
 		job.SetenvBool("AutoRestart", *flAutoRestart)
 		job.SetenvBool("EnableCors", *flEnableCors)
 		job.Setenv("Dns", *flDns)

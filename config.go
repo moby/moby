@@ -8,9 +8,7 @@ import (
 // FIXME: separate runtime configuration from http api configuration
 type DaemonConfig struct {
 	Pidfile                     string
-	// FIXME: don't call this GraphPath, it doesn't actually
-	// point to /var/lib/docker/graph, which is confusing.
-	GraphPath                   string
+	Root                        string
 	ProtoAddresses              []string
 	AutoRestart                 bool
 	EnableCors                  bool
@@ -26,7 +24,7 @@ type DaemonConfig struct {
 func ConfigGetenv(job *engine.Job) *DaemonConfig {
 	var config DaemonConfig
 	config.Pidfile = job.Getenv("Pidfile")
-	config.GraphPath = job.Getenv("GraphPath")
+	config.Root = job.Getenv("Root")
 	config.AutoRestart = job.GetenvBool("AutoRestart")
 	config.EnableCors = job.GetenvBool("EnableCors")
 	if dns := job.Getenv("Dns"); dns != "" {
