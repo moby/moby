@@ -15,6 +15,7 @@ usage() {
 	
 	echo >&2
 	echo >&2 'options: (not recommended)'
+	echo >&2 "  -p set an http_proxy for debootstrap"
 	echo >&2 "  -v $variant # change default debootstrap variant"
 	echo >&2 "  -i $include # change default package includes"
 	echo >&2 "  -d # strict debootstrap (do not apply any docker-specific tweaks)"
@@ -44,8 +45,11 @@ debianUnstable=sid
 # this should match the name found at http://releases.ubuntu.com/
 ubuntuLatestLTS=precise
 
-while getopts v:i:a:dst name; do
+while getopts v:i:a:p:dst name; do
 	case "$name" in
+		p)
+			http_proxy="$OPTARG"
+			;;
 		v)
 			variant="$OPTARG"
 			;;
@@ -117,7 +121,7 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-sudo debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
+sudo http_proxy=$http_proxy debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
 
 cd "$target"
 
