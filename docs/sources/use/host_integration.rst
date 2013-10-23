@@ -15,7 +15,7 @@ Introduction
 
 When you have finished setting up your image and are happy with your
 running container, you may want to use a process manager to manage
-it. To help with this, we provide a simple image: ``creack/manger:min``
+it. To help with this, we provide a simple image: ``creack/manager:min``
 
 This image takes the container ID as parameter. We also can specify
 the kind of process manager and metadata like *Author* and
