@@ -50,13 +50,13 @@ bundle_ubuntu() {
 	# Generate postinstall/prerm scripts
 	cat >/tmp/postinstall <<EOF
 #!/bin/sh
-/sbin/stop docker || true
+/usr/sbin/service docker stop || true
 /bin/grep -q "^docker:" /etc/group || /usr/sbin/addgroup --system docker || true
-/sbin/start docker
+/usr/sbin/service docker start
 EOF
 	cat >/tmp/prerm <<EOF
 #!/bin/sh
-/sbin/stop docker || true
+/usr/sbin/service docker stop || true
 /usr/sbin/delgroup docker || true
 EOF
 	chmod +x /tmp/postinstall /tmp/prerm
