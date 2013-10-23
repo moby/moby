@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # This script builds various binary artifacts from a checkout of the docker
 # source code.
@@ -19,7 +20,7 @@
 #   "docker run hack/make.sh" in the resulting container image.
 #
 
-set -e
+set -o pipefail
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
@@ -32,8 +33,8 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	test
 	binary
+	test
 	ubuntu
 )
 
@@ -66,7 +67,7 @@ main() {
 	fi
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
-		bundles=($DEFAULT_BUNDLES)
+		bundles=(${DEFAULT_BUNDLES[@]})
 	else
 		bundles=($@)
 	fi
