@@ -116,6 +116,16 @@ core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
 
+Known Issues
+............
+
+* :issue:`783` is about file permissions problems that can occur when
+  using the AUFS file system. You might notice it during an attempt to
+  ``rm`` a file, for example. The issue describes a workaround.
+
+
+
+
 3.4 CMD
 -------
 
