@@ -2,6 +2,7 @@ package docker
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -72,12 +73,12 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}	
-	
+	}
+
 	if err != nil {
 		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
-		http.Error(w, err.Error(), statusCode)		
-	}	
+		http.Error(w, err.Error(), statusCode)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -1093,6 +1094,11 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 	if e != nil {
 		return e
 	}
+
+	if srv.tlsConfig != nil {
+		l = tls.NewListener(l, srv.tlsConfig)
+	}
+
 	if proto == "unix" {
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err

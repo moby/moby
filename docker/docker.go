@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
@@ -37,6 +38,8 @@ func main() {
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := docker.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
+	flCert := flag.String("sslcert", "", "path to SSL certificate file")
+	flKey := flag.String("sslkey", "", "path to SSL key file")
 	flag.Parse()
 	if *flVersion {
 		showVersion()
@@ -62,6 +65,23 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+
+	if (len(*flKey) > 0) != (len(*flCert) > 0) {
+		log.Fatal("sslcert or sslkey set without the other. Please set both to enable https")
+	}
+
+	var tlsConfig *tls.Config = nil
+	var err error = nil
+	if len(*flKey) > 0 && len(*flCert) > 0 {
+		tlsConfig = &tls.Config{}
+		tlsConfig.NextProtos = []string{"http/1.1"}
+		tlsConfig.Certificates = make([]tls.Certificate, 1)
+		tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(*flKey, *flCert)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+
 	docker.GITCOMMIT = GITCOMMIT
 	docker.VERSION = VERSION
 	if *flDaemon {
@@ -69,7 +89,7 @@ func main() {
 			flag.Usage()
 			return
 		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
+		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns, tlsConfig); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -117,7 +137,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
+func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string, tlsConfig *tls.Config) error {
 	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
@@ -135,7 +155,7 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	if flDns != "" {
 		dns = []string{flDns}
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
+	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns, tlsConfig)
 	if err != nil {
 		return err
 	}
