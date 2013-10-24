@@ -28,7 +28,8 @@ type DevInfo struct {
 	Size          uint64       `json:"size"`
 	TransactionId uint64       `json:"transaction_id"`
 	Initialized   bool         `json:"initialized"`
-	devices       *DeviceSet `json:"-"`
+	devices       *DeviceSet   `json:"-"`
+	activateCount int          `json:"-"`
 }
 
 type MetaData struct {
@@ -198,13 +199,17 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 	return info, nil
 }
 
-func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
-	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
+func (devices *DeviceSet) activateDevice(hash string) error {
+	utils.Debugf("activateDevice(%v)", hash)
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
 	}
 
+	info.activateCount++;
+
+	// Even if activeCount was already non-zero we activate the device if needed, maybe
+	// some external actor deactivated it?
 	if devinfo, _ := getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
@@ -306,12 +311,17 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
-	if err = devices.activateDeviceIfNeeded(""); err != nil {
+	if err = devices.activateDevice(""); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if err := devices.createFilesystem(info); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
+		return err
+	}
+
+	if err = devices.deactivateDevice(""); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -533,23 +543,44 @@ func (devices *DeviceSet) RemoveDevice(hash string) error {
 func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
-	var devname string
-	// FIXME: shouldn't we just register the pool into devices?
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("hash %s doesn't exists", hash)
 	}
+
+	if info.activateCount > 0 {
+		info.activateCount--;
+		if info.activateCount == 0 {
+			return devices.doDeactivateDevice(info.Name(), true)
+		}
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) doDeactivateDevice(devname string, waitClose bool) error {
+	utils.Debugf("[devmapper] doDeactivateDevice(%s)", devname)
+	defer utils.Debugf("[devmapper] doDeactivateDevice END")
+
 	devinfo, err := getInfo(devname)
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
+		if waitClose {
+			// Wait for the deactivate to be effective,
+			// by watching the value of Info.OpenCount for the device
+			if err := devices.waitClose(devname); err != nil {
+				utils.Errorf("Warning: error waiting for device %s to unmount: %s\n", devname, err)
+			}
+		}
 		if err := removeDevice(devname); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
-		if err := devices.waitRemove(hash); err != nil {
+		if err := devices.waitRemove(devname); err != nil {
 			return err
 		}
 	}
@@ -560,13 +591,9 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 // waitRemove blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is removed,
 // or b) the 1 second timeout expires.
-func (devices *DeviceSet) waitRemove(hash string) error {
-	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, hash)
-	defer utils.Debugf("[deviceset %s] waitRemove END", devices.devicePrefix, hash)
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
-	}
+func (devices *DeviceSet) waitRemove(devname string) error {
+	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, devname)
+	defer utils.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
 	i := 0
 	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(devname)
@@ -590,11 +617,7 @@ func (devices *DeviceSet) waitRemove(hash string) error {
 // waitClose blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is closed,
 // or b) the 1 second timeout expires.
-func (devices *DeviceSet) waitClose(hash string) error {
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
-	}
+func (devices *DeviceSet) waitClose(devname string) error {
 	i := 0
 	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(devname)
@@ -611,21 +634,6 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		return fmt.Errorf("Timeout while waiting for device %s to close", devname)
 	}
 	return nil
-}
-
-// byHash is a hack to allow looking up the deviceset's pool by the hash "pool".
-// FIXME: it seems probably cleaner to register the pool in devices.Devices,
-// but I am afraid of arcane implications deep in the devicemapper code,
-// so this will do.
-func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
-	if hash == "pool" {
-		return devices.getPoolDevName(), nil
-	}
-	info := devices.Devices[hash]
-	if info == nil {
-		return "", fmt.Errorf("hash %s doesn't exists", hash)
-	}
-	return info.Name(), nil
 }
 
 func (devices *DeviceSet) Shutdown() error {
@@ -649,19 +657,16 @@ func (devices *DeviceSet) Shutdown() error {
 	}
 
 	for _, d := range devices.Devices {
-		if err := devices.waitClose(d.Hash); err != nil {
-			utils.Errorf("Warning: error waiting for device %s to unmount: %s\n", d.Hash, err)
-		}
-		if err := devices.deactivateDevice(d.Hash); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+		for d.activateCount > 0 {
+			if err := devices.deactivateDevice(d.Hash); err != nil {
+				utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+			}
 		}
 	}
 
 	pool := devices.getPoolDevName()
-	if devinfo, err := getInfo(pool); err == nil && devinfo.Exists != 0 {
-		if err := devices.deactivateDevice("pool"); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
-		}
+	if err := devices.doDeactivateDevice(pool, false); err != nil {
+		utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
 	}
 
 	return nil
@@ -675,7 +680,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 		return fmt.Errorf("Error initializing devmapper: %s", err)
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDevice(hash); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
@@ -701,7 +706,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	return nil
 }
 
-func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) error {
+func (devices *DeviceSet) UnmountDevice(hash, path string) error {
 	utils.Debugf("[devmapper] UnmountDevice(hash=%s path=%s)", hash, path)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
 	devices.Lock()
@@ -713,11 +718,6 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 		return err
 	}
 	utils.Debugf("[devmapper] Unmount done")
-	// Wait for the unmount to be effective,
-	// by watching the value of Info.OpenCount for the device
-	if err := devices.waitClose(hash); err != nil {
-		return err
-	}
 
 	if count := devices.activeMounts[path]; count > 1 {
 		devices.activeMounts[path] = count - 1
@@ -725,9 +725,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 		delete(devices.activeMounts, path)
 	}
 
-	if deactivate {
-		devices.deactivateDevice(hash)
-	}
+	devices.deactivateDevice(hash)
 
 	return nil
 }
@@ -752,22 +750,6 @@ func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 
 	info := devices.Devices[hash]
 	return info != nil && info.Initialized
-}
-
-func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
-	devices.Lock()
-	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
-
-	info := devices.Devices[hash]
-	if info == nil {
-		return false
-	}
-	devinfo, _ := getInfo(info.Name())
-	return devinfo != nil && devinfo.Exists != 0
 }
 
 func (devices *DeviceSet) SetInitialized(hash string) error {

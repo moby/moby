@@ -1305,12 +1305,19 @@ func validateID(id string) error {
 func (container *Container) GetSize() (int64, int64) {
 	var sizeRw, sizeRootfs int64
 
-	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
-		if fileInfo != nil {
-			sizeRw += fileInfo.Size()
+	changes, _ := container.Changes()
+	if changes != nil {
+		for _, change := range changes {
+			if change.Kind == ChangeModify || change.Kind == ChangeAdd {
+				file := filepath.Join(container.RootfsPath(), change.Path)
+				fileInfo, _ := os.Lstat(file)
+				if fileInfo != nil && !fileInfo.IsDir() {
+					sizeRw += fileInfo.Size()
+				}
+			}
+
 		}
-		return nil
-	})
+	}
 
 	_, err := os.Stat(container.RootfsPath())
 	if err == nil {
