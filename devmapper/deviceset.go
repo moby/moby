@@ -28,7 +28,8 @@ type DevInfo struct {
 	Size          uint64       `json:"size"`
 	TransactionId uint64       `json:"transaction_id"`
 	Initialized   bool         `json:"initialized"`
-	devices       *DeviceSet `json:"-"`
+	devices       *DeviceSet   `json:"-"`
+	activateCount int          `json:"-"`
 }
 
 type MetaData struct {
@@ -198,13 +199,17 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 	return info, nil
 }
 
-func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
-	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
+func (devices *DeviceSet) activateDevice(hash string) error {
+	utils.Debugf("activateDevice(%v)", hash)
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
 	}
 
+	info.activateCount++;
+
+	// Even if activeCount was already non-zero we activate the device if needed, maybe
+	// some external actor deactivated it?
 	if devinfo, _ := getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
@@ -306,12 +311,17 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
-	if err = devices.activateDeviceIfNeeded(""); err != nil {
+	if err = devices.activateDevice(""); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if err := devices.createFilesystem(info); err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
+		return err
+	}
+
+	if err = devices.deactivateDevice(""); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -538,7 +548,15 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 	if info == nil {
 		return fmt.Errorf("hash %s doesn't exists", hash)
 	}
-	return devices.doDeactivateDevice(info.Name(), true)
+
+	if info.activateCount > 0 {
+		info.activateCount--;
+		if info.activateCount == 0 {
+			return devices.doDeactivateDevice(info.Name(), true)
+		}
+	}
+
+	return nil
 }
 
 func (devices *DeviceSet) doDeactivateDevice(devname string, waitClose bool) error {
@@ -639,8 +657,10 @@ func (devices *DeviceSet) Shutdown() error {
 	}
 
 	for _, d := range devices.Devices {
-		if err := devices.deactivateDevice(d.Hash); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+		for d.activateCount > 0 {
+			if err := devices.deactivateDevice(d.Hash); err != nil {
+				utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
+			}
 		}
 	}
 
@@ -660,7 +680,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 		return fmt.Errorf("Error initializing devmapper: %s", err)
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDevice(hash); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
@@ -686,7 +706,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	return nil
 }
 
-func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) error {
+func (devices *DeviceSet) UnmountDevice(hash, path string) error {
 	utils.Debugf("[devmapper] UnmountDevice(hash=%s path=%s)", hash, path)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
 	devices.Lock()
@@ -705,9 +725,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 		delete(devices.activeMounts, path)
 	}
 
-	if deactivate {
-		devices.deactivateDevice(hash)
-	}
+	devices.deactivateDevice(hash)
 
 	return nil
 }
@@ -732,22 +750,6 @@ func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 
 	info := devices.Devices[hash]
 	return info != nil && info.Initialized
-}
-
-func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
-	devices.Lock()
-	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
-
-	info := devices.Devices[hash]
-	if info == nil {
-		return false
-	}
-	devinfo, _ := getInfo(info.Name())
-	return devinfo != nil && devinfo.Exists != 0
 }
 
 func (devices *DeviceSet) SetInitialized(hash string) error {

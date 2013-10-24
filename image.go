@@ -393,7 +393,7 @@ func (image *Image) ensureImageDevice(devices *devmapper.DeviceSet) error {
 
 	if err = image.applyLayer(layerPath(root), mountDir); err != nil {
 		utils.Debugf("Error applying layer: %s", err)
-		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.UnmountDevice(image.ID, mountDir)
 		devices.RemoveDevice(image.ID)
 		return err
 	}
@@ -406,18 +406,18 @@ func (image *Image) ensureImageDevice(devices *devmapper.DeviceSet) error {
 	// part of the container changes
 	dockerinitLayer, err := image.getDockerInitLayer()
 	if err != nil {
-		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.UnmountDevice(image.ID, mountDir)
 		devices.RemoveDevice(image.ID)
 		return err
 	}
 
 	if err := image.applyLayer(dockerinitLayer, mountDir); err != nil {
-		devices.UnmountDevice(image.ID, mountDir, true)
+		devices.UnmountDevice(image.ID, mountDir)
 		devices.RemoveDevice(image.ID)
 		return err
 	}
 
-	if err := devices.UnmountDevice(image.ID, mountDir, true); err != nil {
+	if err := devices.UnmountDevice(image.ID, mountDir); err != nil {
 		devices.RemoveDevice(image.ID)
 		return err
 	}
@@ -473,7 +473,7 @@ func (image *Image) Unmount(runtime *Runtime, root string, id string) error {
 		return err
 	}
 
-	if err = devices.UnmountDevice(id, root, true); err != nil {
+	if err = devices.UnmountDevice(id, root); err != nil {
 		return err
 	}
 
@@ -490,8 +490,6 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 		return nil, err
 	}
 
-	wasActivated := devices.HasActivatedDevice(image.ID)
-
 	// We re-use rw for the temporary mount of the base image as its
 	// not used by device-mapper otherwise
 	err = devices.MountDevice(image.ID, rw, true)
@@ -500,7 +498,7 @@ func (image *Image) Changes(runtime *Runtime, root, rw, id string) ([]Change, er
 	}
 
 	changes, err := ChangesDirs(root, rw)
-	devices.UnmountDevice(image.ID, rw, !wasActivated)
+	devices.UnmountDevice(image.ID, rw)
 	if err != nil {
 		return nil, err
 	}
