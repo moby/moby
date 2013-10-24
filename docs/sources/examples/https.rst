@@ -19,6 +19,7 @@ and a private key file. How to do this securely is beyond the scope of this
 example, however the following command will generate an example one.
 
 .. code-block:: bash
+
     openssl dsaparam -out dsaparam.pem 2048
     openssl gendsa -out privkey.pem dsaparam.pem
     openssl req -new -x509 -key privkey.pem -out cacert.pem -days 1095
@@ -28,6 +29,7 @@ Docker can then run using these certificates. Most commonly you will want to
 run docker on a different port that the default unix socket when in https mode.
 
 .. code-block:: bash
+
     sudo docker -d -sslkey=privkey.pem -sslcert=cacert.pem -H=tcp://0.0.0.0
 
 Note that when run in this way, the docker client will not work with docker.
