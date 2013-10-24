@@ -23,12 +23,13 @@ type Driver struct {
 }
 
 func Init(home string) (graphdriver.Driver, error) {
-	d := &Driver{
-		DeviceSet: NewDeviceSet(home),
-		home:      home,
-	}
-	if err := d.DeviceSet.ensureInit(); err != nil {
+	deviceSet, err := NewDeviceSet(home);
+	if err != nil {
 		return nil, err
+	}
+	d := &Driver{
+		DeviceSet: deviceSet,
+		home:      home,
 	}
 	return d, nil
 }
