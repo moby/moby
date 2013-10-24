@@ -530,15 +530,21 @@ func (devices *DeviceSet) RemoveDevice(hash string) error {
 	return devices.removeDevice(hash)
 }
 
-func (devices *DeviceSet) deactivateDevice(hash string, waitClose bool) error {
+func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
-	var devname string
-	// FIXME: shouldn't we just register the pool into devices?
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("hash %s doesn't exists", hash)
 	}
+	return devices.doDeactivateDevice(info.Name(), true)
+}
+
+func (devices *DeviceSet) doDeactivateDevice(devname string, waitClose bool) error {
+	utils.Debugf("[devmapper] doDeactivateDevice(%s)", devname)
+	defer utils.Debugf("[devmapper] doDeactivateDevice END")
+
 	devinfo, err := getInfo(devname)
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -612,21 +618,6 @@ func (devices *DeviceSet) waitClose(devname string) error {
 	return nil
 }
 
-// byHash is a hack to allow looking up the deviceset's pool by the hash "pool".
-// FIXME: it seems probably cleaner to register the pool in devices.Devices,
-// but I am afraid of arcane implications deep in the devicemapper code,
-// so this will do.
-func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
-	if hash == "pool" {
-		return devices.getPoolDevName(), nil
-	}
-	info := devices.Devices[hash]
-	if info == nil {
-		return "", fmt.Errorf("hash %s doesn't exists", hash)
-	}
-	return info.Name(), nil
-}
-
 func (devices *DeviceSet) Shutdown() error {
 	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
@@ -648,16 +639,14 @@ func (devices *DeviceSet) Shutdown() error {
 	}
 
 	for _, d := range devices.Devices {
-		if err := devices.deactivateDevice(d.Hash, true); err != nil {
+		if err := devices.deactivateDevice(d.Hash); err != nil {
 			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
 		}
 	}
 
 	pool := devices.getPoolDevName()
-	if devinfo, err := getInfo(pool); err == nil && devinfo.Exists != 0 {
-		if err := devices.deactivateDevice("pool", false); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
-		}
+	if err := devices.doDeactivateDevice(pool, false); err != nil {
+		utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
 	}
 
 	return nil
@@ -717,7 +706,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 	}
 
 	if deactivate {
-		devices.deactivateDevice(hash, true)
+		devices.deactivateDevice(hash)
 	}
 
 	return nil
