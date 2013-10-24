@@ -177,7 +177,7 @@ func (db *Database) get(name string) (*Entity, error) {
 
 		next := db.child(e, p)
 		if next == nil {
-			return nil, fmt.Errorf("Cannot find child")
+			return nil, fmt.Errorf("Cannot find child for %s", name)
 		}
 		e = next
 	}
