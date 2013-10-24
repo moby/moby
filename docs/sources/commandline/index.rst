@@ -43,3 +43,4 @@ Contents:
   top     <command/top>
   version <command/version>
   wait    <command/wait>
+  https   <server/https>

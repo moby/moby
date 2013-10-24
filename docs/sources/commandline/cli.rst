@@ -88,4 +88,7 @@ Available Commands
 
 .. include:: command/wait.rst
 
+Server Flags
+~~~~~~~~~~~~
 
+.. include:: server/https.rst
