@@ -145,16 +145,6 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 		}
-
-		if !config.InterContainerCommunication {
-			utils.Debugf("Disable inter-container communication")
-			if err := iptables.Raw("-A", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"); err != nil {
-				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
-			}
-		} else {
-			utils.Debugf("Enable inter-container communication")
-			iptables.Raw("-D", "FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP")
-		}
 	}
 	return nil
 }
@@ -658,6 +648,23 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		}
 	}
 	network := addr.(*net.IPNet)
+
+	// Configure iptables for link support
+	if config.EnableIptables {
+		args := []string{"FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"}
+
+		if !config.InterContainerCommunication {
+			if !iptables.Exists(args...) {
+				utils.Debugf("Disable inter-container communication")
+				if err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
+					return nil, fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+				}
+			}
+		} else {
+			utils.Debugf("Enable inter-container communication")
+			iptables.Raw(append([]string{"-D"}, args...)...)
+		}
+	}
 
 	ipAllocator := newIPAllocator(network)
 

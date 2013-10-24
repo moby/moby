@@ -92,6 +92,11 @@ func (c *Chain) Remove() error {
 	return nil
 }
 
+// Check if an existing rule exists
+func Exists(args ...string) bool {
+	return Raw(append([]string{"-C"}, args...)...) == nil
+}
+
 func Raw(args ...string) error {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
