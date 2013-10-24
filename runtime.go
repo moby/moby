@@ -257,6 +257,13 @@ func (runtime *Runtime) restore() error {
 		return len(ic.Links) < len(jc.Links)
 	})
 	for _, container := range containers {
+
+		// Try to set the default name for a container if it exists prior to links
+		// Ignore the error because if it already exists you will get an invalid constraint
+		if _, err := runtime.containerGraph.Set(fmt.Sprintf("/%s", container.ID), container.ID); err != nil {
+			utils.Debugf("Setting default id - %s", err)
+		}
+
 		if err := runtime.Register(container); err != nil {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 			continue
