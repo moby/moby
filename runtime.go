@@ -614,7 +614,10 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	deviceSet := devmapper.NewDeviceSet(root)
+	deviceSet, err := devmapper.NewDeviceSet(root)
+	if err != nil {
+		return nil, err
+	}
 	// Initialize devicemapper deviceSet
 	runtime := &Runtime{
 		root:           root,
