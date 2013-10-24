@@ -470,11 +470,13 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				} else {
 					_, err = io.Copy(cStdin, stdin)
 				}
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
 					utils.Errorf("attach: stdin: %s", err)
 				}
-				// Discard error, expecting pipe error
-				errors <- nil
+				errors <- err
 			}()
 		}
 	}
