@@ -590,7 +590,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			cli.forwardAllSignals(cmd.Arg(0))
 		}
 
-		if container.Config.Tty {
+		if container.Config.Tty && cli.isTerminal {
 			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
 				return err
 			}
@@ -1340,9 +1340,9 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
-	if container.Config.Tty {
+	if container.Config.Tty && cli.isTerminal {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-			utils.Debugf("Error monitoring tty size: %s", err)
+			utils.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
 
@@ -1666,7 +1666,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty {
+	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
 		if err := cli.monitorTtySize(runResult.ID); err != nil {
 			utils.Errorf("Error monitoring TTY size: %s\n", err)
 		}
@@ -1969,9 +1969,6 @@ func (cli *DockerCli) resizeTty(id string) {
 }
 
 func (cli *DockerCli) monitorTtySize(id string) error {
-	if !cli.isTerminal {
-		return fmt.Errorf("Impossible to monitor size on non-tty")
-	}
 	cli.resizeTty(id)
 
 	sigchan := make(chan os.Signal, 1)
