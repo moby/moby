@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -450,10 +451,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("Error init: %s\n", err)
-		return err
-	}
+	devices.ensureInit()
 
 	if devices.Devices[hash] != nil {
 		return fmt.Errorf("hash %s already exists", hash)
@@ -522,10 +520,7 @@ func (devices *DeviceSet) RemoveDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
-	}
+	devices.ensureInit()
 
 	return devices.removeDevice(hash)
 }
@@ -671,9 +666,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		return fmt.Errorf("Error initializing devmapper: %s", err)
-	}
+	devices.ensureInit()
 
 	if err := devices.activateDeviceIfNeeded(hash); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
@@ -736,9 +729,8 @@ func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
+	devices.ensureInit()
+
 	return devices.Devices[hash] != nil
 }
 
@@ -746,9 +738,7 @@ func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
+	devices.ensureInit()
 
 	info := devices.Devices[hash]
 	return info != nil && info.Initialized
@@ -758,9 +748,7 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
+	devices.ensureInit()
 
 	info := devices.Devices[hash]
 	if info == nil {
@@ -774,10 +762,7 @@ func (devices *DeviceSet) SetInitialized(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
-	}
+	devices.ensureInit()
 
 	info := devices.Devices[hash]
 	if info == nil {
@@ -800,9 +785,7 @@ func (devices *DeviceSet) Status() *Status {
 
 	status := &Status {}
 
-	if err := devices.ensureInit(); err != nil {
-		return status
-	}
+	devices.ensureInit()
 
 	status.PoolName = devices.getPoolName()
 	status.DataLoopback = path.Join( devices.loopbackDir(), "data")
@@ -827,15 +810,13 @@ func (devices *DeviceSet) Status() *Status {
 	return status
 }
 
-func (devices *DeviceSet) ensureInit() error {
+func (devices *DeviceSet) ensureInit() {
 	if !devices.initialized {
 		devices.initialized = true
 		if err := devices.initDevmapper(); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
+			log.Fatalf("Unable to initialize device mapper support: %v", err)
 		}
 	}
-	return nil
 }
 
 func NewDeviceSet(root string) *DeviceSet {
