@@ -9,7 +9,7 @@ type pathSorter struct {
 
 func sortByDepth(paths []string) {
 	s := &pathSorter{paths, func(i, j string) bool {
-		return pathDepth(i) > pathDepth(j)
+		return PathDepth(i) > PathDepth(j)
 	}}
 	sort.Sort(s)
 }

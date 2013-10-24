@@ -230,7 +230,8 @@ func (runtime *Runtime) restore() error {
 	if err != nil {
 		return err
 	}
-	containers := []*Container{}
+	containers := make(map[string]*Container)
+
 	for i, v := range dir {
 		id := v.Name()
 		container, err := runtime.load(id)
@@ -242,33 +243,34 @@ func (runtime *Runtime) restore() error {
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
-		containers = append(containers, container)
+		containers[container.ID] = container
 	}
-	sortContainers(containers, func(i, j *Container) bool {
-		ic, _ := i.ReadHostConfig()
-		jc, _ := j.ReadHostConfig()
 
-		if ic == nil || ic.Links == nil {
-			return true
+	register := func(container *Container) {
+		if err := runtime.Register(container); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
-		if jc == nil || jc.Links == nil {
-			return false
+	}
+
+	if entities := runtime.containerGraph.List("/", -1); entities != nil {
+		for _, p := range entities.Paths() {
+			e := entities[p]
+			if container, ok := containers[e.ID()]; ok {
+				register(container)
+				delete(containers, e.ID())
+			}
 		}
-		return len(ic.Links) < len(jc.Links)
-	})
+	}
+
+	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
-
 		// Try to set the default name for a container if it exists prior to links
-		// Ignore the error because if it already exists you will get an invalid constraint
 		if _, err := runtime.containerGraph.Set(fmt.Sprintf("/%s", container.ID), container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
-
-		if err := runtime.Register(container); err != nil {
-			utils.Debugf("Failed to register container %s: %s", container.ID, err)
-			continue
-		}
+		register(container)
 	}
+
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
@@ -481,14 +483,24 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	if name[0] != '/' {
-		name = "/" + name
+// Strip the leading slash from the name to look up if it
+// is a truncated id
+// Prepend the slash back after finding the name
+func (runtime *Runtime) getFullName(name string) string {
+	if name[0] == '/' {
+		name = name[1:]
 	}
-
 	if id, err := runtime.idIndex.Get(name); err == nil {
 		name = id
 	}
+	if name[0] != '/' {
+		name = "/" + name
+	}
+	return name
+}
+
+func (runtime *Runtime) GetByName(name string) (*Container, error) {
+	name = runtime.getFullName(name)
 
 	entity := runtime.containerGraph.Get(name)
 	if entity == nil {
@@ -520,17 +532,20 @@ func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
 }
 
 func (runtime *Runtime) RenameLink(oldName, newName string) error {
-	if id, err := runtime.idIndex.Get(oldName); err == nil {
-		oldName = id
-	}
+	oldName = runtime.getFullName(oldName)
+
 	entity := runtime.containerGraph.Get(oldName)
 	if entity == nil {
 		return fmt.Errorf("Could not find entity for %s", oldName)
 	}
 
+	if newName[0] != '/' {
+		newName = "/" + newName
+	}
+
 	// This is not rename but adding a new link for the default name
 	// Strip the leading '/'
-	if strings.HasPrefix(entity.ID(), oldName[1:]) {
+	if entity.ID() == oldName[1:] {
 		_, err := runtime.containerGraph.Set(newName, entity.ID())
 		return err
 	}

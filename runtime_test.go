@@ -572,7 +572,7 @@ func TestReloadContainerLinks(t *testing.T) {
 	}
 	h1 := &HostConfig{}
 	// Add a link to container 2
-	h1.Links = []string{utils.TruncateID(container2.ID) + ":first"}
+	h1.Links = []string{"/" + container2.ID + ":first"}
 	if err := container1.Start(h1); err != nil {
 		t.Fatal(err)
 	}
@@ -618,7 +618,7 @@ func TestReloadContainerLinks(t *testing.T) {
 		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
 	}
 
-	t.Logf("Number of links: %d", runtime2.containerGraph.Refs("engine"))
+	t.Logf("Number of links: %d", runtime2.containerGraph.Refs("0"))
 	// Verify that the link is still registered in the runtime
 	entity := runtime2.containerGraph.Get(fmt.Sprintf("/%s", container1.ID))
 	if entity == nil {

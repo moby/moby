@@ -11,7 +11,7 @@ func split(p string) []string {
 }
 
 // Returns the depth or number of / in a given path
-func pathDepth(p string) int {
+func PathDepth(p string) int {
 	parts := split(p)
 	if len(parts) == 2 && parts[1] == "" {
 		return 1
