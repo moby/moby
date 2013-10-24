@@ -549,7 +549,7 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
-		if err := devices.waitRemove(hash); err != nil {
+		if err := devices.waitRemove(devname); err != nil {
 			return err
 		}
 	}
@@ -560,13 +560,9 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 // waitRemove blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is removed,
 // or b) the 1 second timeout expires.
-func (devices *DeviceSet) waitRemove(hash string) error {
-	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, hash)
-	defer utils.Debugf("[deviceset %s] waitRemove END", devices.devicePrefix, hash)
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
-	}
+func (devices *DeviceSet) waitRemove(devname string) error {
+	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, devname)
+	defer utils.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
 	i := 0
 	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(devname)
