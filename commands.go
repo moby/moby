@@ -1420,19 +1420,19 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	outs := []APISearch{}
+	outs := []registry.SearchResult{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
+	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
 	_, width := cli.getTtySize()
 	if width == 0 {
 		width = 45
 	} else {
-		width = width - 33 //remote the first column
+		width = width - 10 - 54 //remote the first column
 	}
 	for _, out := range outs {
 		desc := strings.Replace(out.Description, "\n", " ", -1)
@@ -1440,7 +1440,16 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		if !*noTrunc && len(desc) > width {
 			desc = utils.Trunc(desc, width-3) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
+		if out.IsOfficial {
+			fmt.Fprint(w, "[OK]")
+
+		}
+		fmt.Fprint(w, "\t")
+		if out.IsTrusted {
+			fmt.Fprint(w, "[OK]")
+		}
+		fmt.Fprint(w, "\n")
 	}
 	w.Flush()
 	return nil

@@ -78,11 +78,6 @@ type APIContainersOld struct {
 	SizeRootFs int64
 }
 
-type APISearch struct {
-	Name        string
-	Description string
-}
-
 type APIID struct {
 	ID string `json:"Id"`
 }

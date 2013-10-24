@@ -615,10 +615,18 @@ func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
 	}
 }
 
+type SearchResult struct {
+	StarCount   int    `json:"star_count"`
+	IsOfficial  bool   `json:"is_official"`
+	Name        string `json:"name"`
+	IsTrusted   bool   `json:"is_trusted"`
+	Description string `json:"description"`
+}
+
 type SearchResults struct {
-	Query      string              `json:"query"`
-	NumResults int                 `json:"num_results"`
-	Results    []map[string]string `json:"results"`
+	Query      string         `json:"query"`
+	NumResults int            `json:"num_results"`
+	Results    []SearchResult `json:"results"`
 }
 
 type RepositoryData struct {
