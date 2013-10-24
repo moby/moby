@@ -1623,11 +1623,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	hijacked := make(chan bool)
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
-		if config.Tty {
-			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				utils.Errorf("Error monitoring TTY size: %s\n", err)
-			}
-		}
 
 		v := url.Values{}
 		v.Set("stream", "1")
@@ -1669,6 +1664,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	//start the container
 	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig); err != nil {
 		return err
+	}
+
+	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty {
+		if err := cli.monitorTtySize(runResult.ID); err != nil {
+			utils.Errorf("Error monitoring TTY size: %s\n", err)
+		}
 	}
 
 	if errCh != nil {
