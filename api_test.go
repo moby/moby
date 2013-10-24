@@ -731,7 +731,7 @@ func TestPostContainersRestart(t *testing.T) {
 	container, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
 	)
@@ -837,7 +837,7 @@ func TestPostContainersStop(t *testing.T) {
 	container, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
 	)
