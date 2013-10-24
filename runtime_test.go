@@ -340,7 +340,6 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		} else {
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
-		t.Log("Trying port", strPort)
 		container, err = runtime.Create(&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"sh", "-c", cmd},
@@ -353,7 +352,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 			nuke(runtime)
 			t.Fatal(err)
 		}
-		t.Logf("Port %v already in use", strPort)
+		t.Logf("Port %v already in use, trying another one", strPort)
 	}
 
 	if err := container.Start(&HostConfig{}); err != nil {
