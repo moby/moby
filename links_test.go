@@ -89,8 +89,8 @@ func TestLinkEnv(t *testing.T) {
 		}
 		env[parts[0]] = parts[1]
 	}
-	if env["DOCKER_PORT"] != "tcp://172.0.17.2:6379" {
-		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_PORT"])
+	if env["DOCKER_PORT"] != "172.0.17.2:6379" {
+		t.Fatalf("Expected 172.0.17.2:6379, got %s", env["DOCKER_PORT"])
 	}
 	if env["DOCKER_PORT_6379_TCP"] != "tcp://172.0.17.2:6379" {
 		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_PORT_6379_TCP"])
