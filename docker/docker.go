@@ -46,7 +46,12 @@ func main() {
 		flHosts = flHosts[1:] //trick to display a nice default value in the usage
 	}
 	for i, flHost := range flHosts {
-		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+		host, err := utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+		if err == nil {
+			flHosts[i] = host
+		} else {
+			log.Fatal(err)
+		}
 	}
 
 	if *bridgeName != "" {
