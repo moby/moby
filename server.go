@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 	"syscall"
+	"os/signal"
 )
 
 func (srv *Server) Close() error {
@@ -40,8 +41,31 @@ func JobServeApi(job *engine.Job) string {
 		return err.Error()
 	}
 	defer srv.Close()
-	// Parse addresses to serve on
-	protoAddrs := job.Args
+	if err := srv.Daemon(); err != nil {
+		return err.Error()
+	}
+	return "0"
+}
+
+// Daemon runs the remote api server `srv` as a daemon,
+// Only one api server can run at the same time - this is enforced by a pidfile.
+// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
+func (srv *Server) Daemon() error {
+	if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+		log.Fatal(err)
+	}
+	defer utils.RemovePidFile(srv.runtime.config.Pidfile)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		utils.RemovePidFile(srv.runtime.config.Pidfile)
+		os.Exit(0)
+	}()
+
+	protoAddrs := srv.runtime.config.ProtoAddresses
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
@@ -52,7 +76,7 @@ func JobServeApi(job *engine.Job) string {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
 		} else {
-			return "Invalid protocol format."
+			return fmt.Errorf("Invalid protocol format.")
 		}
 		go func() {
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, true)
@@ -61,11 +85,12 @@ func JobServeApi(job *engine.Job) string {
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
-			return err.Error()
+			return err
 		}
 	}
-	return "0"
+	return nil
 }
+
 
 func (srv *Server) DockerVersion() APIVersion {
 	return APIVersion{

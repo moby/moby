@@ -7,13 +7,9 @@ import (
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/engine"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/signal"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 var (
@@ -89,7 +85,7 @@ func main() {
 		job.SetenvList("ProtoAddresses", flHosts)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		if err := daemon(job, *pidfile); err != nil {
+		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -108,51 +104,4 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
-}
-
-func createPidFile(pidfile string) error {
-	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
-		pid, err := strconv.Atoi(string(pidString))
-		if err == nil {
-			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
-				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
-			}
-		}
-	}
-
-	file, err := os.Create(pidfile)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = fmt.Fprintf(file, "%d", os.Getpid())
-	return err
-}
-
-func removePidFile(pidfile string) {
-	if err := os.Remove(pidfile); err != nil {
-		log.Printf("Error removing %s: %s", pidfile, err)
-	}
-}
-
-// daemon runs `job` as a daemon. 
-// A pidfile is created for the duration of the job,
-// and all signals are intercepted.
-func daemon(job *engine.Job, pidfile string) error {
-	if err := createPidFile(pidfile); err != nil {
-		log.Fatal(err)
-	}
-	defer removePidFile(pidfile)
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		removePidFile(pidfile)
-		os.Exit(0)
-	}()
-	return job.Run()
 }
