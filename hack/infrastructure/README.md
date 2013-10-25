@@ -61,23 +61,31 @@ URL                                          | Service
 
 This should be the list of all services referenced above.
 
-Service             | Maintainer(s)      | How to update    | Source
---------------------|--------------------|------------------|-------
-blog                | @jbarbier          | dotcloud push    | https://github.com/dotcloud/blog.docker.io
-cdn                 | @jpetazzo @samalba | cloudflare panel | N/A
-ci                  | @mzdaniel          | See [docker-ci]  | See [docker-ci]
-docs                | @metalivedev       | github webhook   | docker repo
-docsproxy           | @dhrp              | dotcloud push    | https://github.com/dotcloud/docker-docs-dotcloud-proxy
-index               | @kencochrane       | dotcloud push    | private
-packages            | @jpetazzo          | hack/release     | docker repo
-registry            | @samalba           | dotcloud push    | https://github.com/dotcloud/docker-registry
-repository (github) | N/A                | N/A              | N/A
-ssl (dotcloud)      | @jpetazzo          | dotcloud ops     | N/A
-ssl (cloudflare)    | @jpetazzo          | cloudflare panel | N/A
-stackbrew           | @shin-             | manual           | https://github.com/dotcloud/stackbrew/stackbrew
-website             | @dhrp              | dotcloud push    | https://github.com/dotcloud/www.docker.io
+Service             | Maintainer(s)              | How to update    | Source
+--------------------|----------------------------|------------------|-------
+blog                | [@jbarbier]                | dotcloud push    | https://github.com/dotcloud/blog.docker.io
+cdn                 | [@jpetazzo][] [@samalba][] | cloudflare panel | N/A
+ci                  | [@mzdaniel]                | See [docker-ci]  | See [docker-ci]
+docs                | [@metalivedev]             | github webhook   | docker repo
+docsproxy           | [@dhrp]                    | dotcloud push    | https://github.com/dotcloud/docker-docs-dotcloud-proxy
+index               | [@kencochrane]             | dotcloud push    | private
+packages            | [@jpetazzo]                | hack/release     | docker repo
+registry            | [@samalba]                 | dotcloud push    | https://github.com/dotcloud/docker-registry
+repository (github) | N/A                        | N/A              | N/A
+ssl (dotcloud)      | [@jpetazzo]                | dotcloud ops     | N/A
+ssl (cloudflare)    | [@jpetazzo]                | cloudflare panel | N/A
+stackbrew           | [@shin-]                   | manual           | https://github.com/dotcloud/stackbrew/stackbrew
+website             | [@dhrp]                    | dotcloud push    | https://github.com/dotcloud/www.docker.io
 
 *Ordered-by: lexicographic*
 
 
 [docker-ci]: docker-ci.rst
+[@dhrp]: https://github.com/dhrp
+[@jbarbier]: https://github.com/jbarbier
+[@jpetazzo]: https://github.com/jpetazzo
+[@kencochrane]: https://github.com/kencochrane
+[@metalivedev]: https://github.com/metalivedev
+[@mzdaniel]: https://github.com/mzdaniel
+[@samalba]: https://github.com/samalba
+[@shin-]: https://github.com/shin-
