@@ -154,7 +154,7 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 			if err := container.Kill(); err != nil {
 				return fmt.Errorf("Cannot kill container %s: %s", name, err)
 			}
-			srv.LogEvent("kill", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
+			srv.LogEvent("kill", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(sig); err != nil {
@@ -180,7 +180,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 		if _, err := io.Copy(out, data); err != nil {
 			return err
 		}
-		srv.LogEvent("export", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
+		srv.LogEvent("export", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		return nil
 	}
 	return fmt.Errorf("No such container: %s", name)
@@ -230,7 +230,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 	out.Write(sf.FormatStatus("", img.ID))
-	return img.ShortID(), nil
+	return img.ID, nil
 }
 
 func (srv *Server) ImagesViz(out io.Writer) error {
@@ -250,9 +250,9 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 			return fmt.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
-			out.Write([]byte(" \"" + parentImage.ShortID() + "\" -> \"" + image.ShortID() + "\"\n"))
+			out.Write([]byte(" \"" + parentImage.ID + "\" -> \"" + image.ID + "\"\n"))
 		} else {
-			out.Write([]byte(" base -> \"" + image.ShortID() + "\" [style=invis]\n"))
+			out.Write([]byte(" base -> \"" + image.ID + "\" [style=invis]\n"))
 		}
 	}
 
@@ -465,7 +465,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 			continue
 		}
 		if before != "" {
-			if container.ShortID() == before {
+			if container.ID == before || utils.TruncateID(container.ID) == before {
 				foundBefore = true
 				continue
 			}
@@ -476,7 +476,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		if displayed == n {
 			break
 		}
-		if container.ShortID() == since {
+		if container.ID == since || utils.TruncateID(container.ID) == since {
 			break
 		}
 		displayed++
@@ -518,7 +518,7 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	if err != nil {
 		return "", err
 	}
-	return img.ShortID(), err
+	return img.ID, err
 }
 
 func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
@@ -1017,7 +1017,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 			return err
 		}
 	}
-	out.Write(sf.FormatStatus("", img.ShortID()))
+	out.Write(sf.FormatStatus("", img.ID))
 	return nil
 }
 
@@ -1046,8 +1046,8 @@ func (srv *Server) ContainerCreate(config *Config, name string) (string, []strin
 		}
 		return "", nil, err
 	}
-	srv.LogEvent("create", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
-	return container.ShortID(), buildWarnings, nil
+	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
+	return container.ID, buildWarnings, nil
 }
 
 func (srv *Server) ContainerRestart(name string, t int) error {
@@ -1055,7 +1055,7 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 		if err := container.Restart(t); err != nil {
 			return fmt.Errorf("Cannot restart container %s: %s", name, err)
 		}
-		srv.LogEvent("restart", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
+		srv.LogEvent("restart", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}
@@ -1111,7 +1111,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		if err := srv.runtime.Destroy(container); err != nil {
 			return fmt.Errorf("Cannot destroy container %s: %s", name, err)
 		}
-		srv.LogEvent("destroy", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
+		srv.LogEvent("destroy", container.ID, srv.runtime.repositories.ImageName(container.Image))
 
 		if removeVolume {
 			// Retrieve all volumes from all remaining containers
@@ -1228,8 +1228,8 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 			return nil, err
 		}
 		if tagDeleted {
-			imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
-			srv.LogEvent("untag", img.ShortID(), "")
+			imgs = append(imgs, APIRmi{Untagged: img.ID})
+			srv.LogEvent("untag", img.ID, "")
 		}
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
@@ -1364,7 +1364,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if err := container.Start(); err != nil {
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
-	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))
+	srv.LogEvent("start", container.ID, runtime.repositories.ImageName(container.Image))
 
 	return nil
 }
@@ -1374,7 +1374,7 @@ func (srv *Server) ContainerStop(name string, t int) error {
 		if err := container.Stop(t); err != nil {
 			return fmt.Errorf("Cannot stop container %s: %s", name, err)
 		}
-		srv.LogEvent("stop", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
+		srv.LogEvent("stop", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	} else {
 		return fmt.Errorf("No such container: %s", name)
 	}

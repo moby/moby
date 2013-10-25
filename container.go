@@ -1235,7 +1235,7 @@ func (container *Container) monitor() {
 	container.State.setStopped(exitCode)
 
 	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
+		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
 	}
 
 	// Cleanup
@@ -1302,7 +1302,7 @@ func (container *Container) kill(sig int) error {
 	}
 
 	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
-		log.Printf("error killing container %s (%s, %s)", container.ShortID(), output, err)
+		log.Printf("error killing container %s (%s, %s)", utils.TruncateID(container.ID), output, err)
 		return err
 	}
 
@@ -1322,9 +1322,9 @@ func (container *Container) Kill() error {
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		if container.cmd == nil {
-			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ShortID())
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
-		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", container.ShortID())
+		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
@@ -1458,14 +1458,6 @@ func (container *Container) Unmount() error {
 		return err
 	}
 	return Unmount(container.RootfsPath())
-}
-
-// ShortID returns a shorthand version of the container's id for convenience.
-// A collision with other container shorthands is very unlikely, but possible.
-// In case of a collision a lookup with Runtime.Get() will fail, and the caller
-// will need to use a langer prefix, or the full-length container Id.
-func (container *Container) ShortID() string {
-	return utils.TruncateID(container.ID)
 }
 
 func (container *Container) logPath(name string) string {

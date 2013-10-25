@@ -3,6 +3,7 @@ package docker
 import (
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -1005,7 +1006,7 @@ func TestEnv(t *testing.T) {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
 		"container=lxc",
-		"HOSTNAME=" + container.ShortID(),
+		"HOSTNAME=" + utils.TruncateID(container.ID),
 		"FALSE=true",
 		"TRUE=false",
 		"TRICKY=tri",
