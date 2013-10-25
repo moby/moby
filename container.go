@@ -85,6 +85,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	Privileged      bool
+	TmpfsRootOpts   string
 }
 
 type HostConfig struct {
@@ -161,6 +162,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	var flLxcOpts ListOpts
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+
+	flTmpfsRootOpts := cmd.String("tmpfsroot", "", "Make container root a tmpfs backed filesystem with these tmpfs options")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -252,6 +255,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Entrypoint:      entrypoint,
 		Privileged:      *flPrivileged,
 		WorkingDir:      *flWorkingDir,
+		TmpfsRootOpts:   *flTmpfsRootOpts,
 	}
 	hostConfig := &HostConfig{
 		Binds:           binds,
@@ -1226,6 +1230,17 @@ func (container *Container) Mount() error {
 	if err != nil {
 		return err
 	}
+
+	if err := os.Mkdir(container.rwPath(), 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	if opts := container.Config.TmpfsRootOpts; opts != "" {
+		if err := mount("none", container.rwPath(), "tmpfs", 0, opts); err != nil {
+			return err
+		}
+	}
+
 	return image.Mount(container.RootfsPath(), container.rwPath())
 }
 
@@ -1249,7 +1264,14 @@ func (container *Container) Mounted() (bool, error) {
 }
 
 func (container *Container) Unmount() error {
-	return Unmount(container.RootfsPath())
+	if err := Unmount(container.RootfsPath()); err != nil {
+		return err
+	}
+	mounted, err := Mounted(container.rwPath())
+	if err != nil || !mounted {
+		return err
+	}
+	return syscall.Unmount(container.rwPath(), 0)
 }
 
 // ShortID returns a shorthand version of the container's id for convenience.
