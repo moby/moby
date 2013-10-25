@@ -979,26 +979,31 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 }
 
 func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) error {
+	container := srv.runtime.Get(name)
+
 	if removeLink {
-		p := name
-		if p[0] != '/' {
-			p = "/" + p
+		if container == nil {
+			return fmt.Errorf("No such link: %s", name)
 		}
-		parent, n := path.Split(p)
-		l := len(parent)
-		if parent[l-1] == '/' {
-			parent = parent[:l-1]
-		}
+		name = srv.runtime.getFullName(name)
+
+		parent, n := path.Split(name)
 
 		pe := srv.runtime.containerGraph.Get(parent)
-		parentContainer := srv.runtime.Get(pe.ID())
+		if pe != nil {
+			parentContainer := srv.runtime.Get(pe.ID())
 
-		if parentContainer != nil && parentContainer.activeLinks != nil {
-			if link, exists := parentContainer.activeLinks[n]; exists {
-				link.Disable()
-			} else {
-				utils.Debugf("Could not find active link for %s", name)
+			if parentContainer != nil && parentContainer.activeLinks != nil {
+				if link, exists := parentContainer.activeLinks[n]; exists {
+					link.Disable()
+				} else {
+					utils.Debugf("Could not find active link for %s", name)
+				}
 			}
+		}
+
+		if name[1:] == container.ID {
+			return fmt.Errorf("Conflict, cannot remove default link %s", name)
 		}
 
 		if err := srv.runtime.containerGraph.Delete(name); err != nil {
@@ -1006,7 +1011,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		}
 		return nil
 	}
-	if container := srv.runtime.Get(name); container != nil {
+	if container != nil {
 		if container.State.Running {
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")
 		}
