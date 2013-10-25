@@ -291,6 +291,15 @@ func (srv *Server) DockerInfo() *APIInfo {
 	}
 }
 
+func (srv *Server) Resize(target string, newSize int64) error {
+	switch target {
+	case "pool":
+		return srv.runtime.deviceSet.ResizePool(newSize)
+	}
+
+	return fmt.Errorf("Invalid resize target: %s", target)
+}
+
 func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 	image, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {

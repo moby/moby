@@ -947,6 +947,23 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	return nil
 }
 
+func postResize(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	size, err := strconv.ParseInt(r.Form.Get("size"), 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid size: %s", err)
+	}
+
+	target := r.Form.Get("target")
+
+	return srv.Resize(target, size)
+}
+
 func optionsHandler(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1017,6 +1034,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/auth":                         postAuth,
 			"/commit":                       postCommit,
 			"/build":                        postBuild,
+			"/resize":                       postResize,
 			"/images/create":                postImagesCreate,
 			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/{name:.*}/push":        postImagesPush,
