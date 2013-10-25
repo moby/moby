@@ -41,9 +41,13 @@ var (
 	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 )
 
-func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
+func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
 	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
-	return reflect.TypeOf(cli).MethodByName(methodName)
+	method := reflect.ValueOf(cli).MethodByName(methodName)
+	if !method.IsValid() {
+		return nil, false
+	}
+	return method.Interface().(func(...string) error), true
 }
 
 func ParseCommands(proto, addr string, args ...string) error {
@@ -55,14 +59,7 @@ func ParseCommands(proto, addr string, args ...string) error {
 			fmt.Println("Error: Command not found:", args[0])
 			return cli.CmdHelp(args[1:]...)
 		}
-		ret := method.Func.CallSlice([]reflect.Value{
-			reflect.ValueOf(cli),
-			reflect.ValueOf(args[1:]),
-		})[0].Interface()
-		if ret == nil {
-			return nil
-		}
-		return ret.(error)
+		return method(args[1:]...)
 	}
 	return cli.CmdHelp(args...)
 }
@@ -73,10 +70,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		if !exists {
 			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[0])
 		} else {
-			method.Func.CallSlice([]reflect.Value{
-				reflect.ValueOf(cli),
-				reflect.ValueOf([]string{"--help"}),
-			})[0].Interface()
+			method("--help")
 			return nil
 		}
 	}
