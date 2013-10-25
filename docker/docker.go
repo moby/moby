@@ -143,7 +143,9 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
+			if err := syscall.Unlink(protoAddrParts[1]); err != nil {
+				log.Fatal(err)
+			}
 		} else if protoAddrParts[0] == "tcp" {
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
