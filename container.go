@@ -1249,6 +1249,12 @@ func (container *Container) Mounted() (bool, error) {
 }
 
 func (container *Container) Unmount() error {
+	if _, err := os.Stat(container.RootfsPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
 	return Unmount(container.RootfsPath())
 }
 

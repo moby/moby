@@ -44,7 +44,6 @@ func NewEchoServer(t *testing.T, proto, address string) EchoServer {
 		}
 		server = &UDPEchoServer{conn: socket, testCtx: t}
 	}
-	t.Logf("EchoServer listening on %v/%v\n", proto, server.LocalAddr().String())
 	return server
 }
 
@@ -56,10 +55,7 @@ func (server *TCPEchoServer) Run() {
 				return
 			}
 			go func(client net.Conn) {
-				server.testCtx.Logf("TCP client accepted on the EchoServer\n")
-				written, err := io.Copy(client, client)
-				server.testCtx.Logf("%v bytes echoed back to the client\n", written)
-				if err != nil {
+				if _, err := io.Copy(client, client); err != nil {
 					server.testCtx.Logf("can't echo to the client: %v\n", err.Error())
 				}
 				client.Close()
@@ -79,7 +75,6 @@ func (server *UDPEchoServer) Run() {
 			if err != nil {
 				return
 			}
-			server.testCtx.Logf("Writing UDP datagram back")
 			for i := 0; i != read; {
 				written, err := server.conn.WriteTo(readBuf[i:read], from)
 				if err != nil {

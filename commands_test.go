@@ -84,10 +84,24 @@ func TestRunHostname(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdir checks that 'docker run -w' correctly sets a custom working directory
@@ -115,10 +129,24 @@ func TestRunWorkdir(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdirExists checks that 'docker run -w' correctly sets a custom working directory, even if it exists
@@ -146,10 +174,24 @@ func TestRunWorkdirExists(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRunExit(t *testing.T) {
