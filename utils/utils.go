@@ -272,9 +272,32 @@ func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 }
 
 type JSONLog struct {
-	Log     string    `json:"log,omitempty"`
-	Stream  string    `json:"stream,omitempty"`
-	Created time.Time `json:"time"`
+	Log     interface{} `json:"log,omitempty"`
+	Stream  string      `json:"stream,omitempty"`
+	Created time.Time   `json:"time"`
+}
+
+func escapeLog(line string) (*json.RawMessage, error) {
+	var objmap *json.RawMessage
+	err := json.Unmarshal([]byte(line), &objmap)
+	return objmap, err
+}
+
+func CreateJSONLog(log string, stream string, created time.Time) JSONLog {
+	jsonLog := JSONLog{
+		Log:     log,
+		Stream:  stream,
+		Created: created,
+	}
+
+	// convert our string into a json.RawMessage if it's a
+	// string containing valid JSON.
+	jsonLine, err := escapeLog(log)
+	if err == nil {
+		(&jsonLog).Log = jsonLine
+	}
+
+	return jsonLog
 }
 
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
@@ -291,7 +314,8 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 					w.buf.Write([]byte(line))
 					break
 				}
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
+				jsonLog := CreateJSONLog(line, sw.stream, time.Now())
+				b, err := json.Marshal(&jsonLog)
 				if err != nil {
 					// On error, evict the writer
 					delete(w.writers, sw)
