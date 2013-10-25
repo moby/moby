@@ -104,6 +104,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
 		{"restart", "Restart a running container"},
+		{"resize", "Resize devices"},
 		{"rm", "Remove one or more containers"},
 		{"rmi", "Remove one or more images"},
 		{"run", "Run a command in a new container"},
@@ -547,6 +548,41 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
+	}
+	return nil
+}
+
+func (cli *DockerCli) CmdResize(args ...string) error {
+	cmd := Subcmd("resize", "[OPTIONS] pool [SIZE]", "Resize devicemapper pool")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	target := cmd.Args()[0]
+
+	if target != "pool" {
+		cmd.Usage()
+		return nil
+	}
+
+	sizeStr := cmd.Args()[1]
+	size, err := ByteSizeFromString(sizeStr)
+	if err != nil {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("target", target)
+	v.Set("size", strconv.FormatUint(size, 10))
+
+	_, _, err = cli.call("POST", "/resize?"+v.Encode(), nil)
+	if err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
 	}
 	return nil
 }

@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"strconv"
 	"syscall"
 )
 
@@ -231,4 +232,39 @@ func CopyFile(dstFile, srcFile *os.File) error {
 	// Fall back to normal copy
 	_, err = io.Copy(dstFile, srcFile)
 	return err
+}
+
+func ByteSizeFromString(arg string) (uint64, error) {
+	digits := ""
+	rest := ""
+	last := strings.LastIndexAny(arg, "0123456789")
+	if last >= 0 {
+		digits = arg[:last+1]
+		rest = arg[last+1:]
+	}
+
+	val, err := strconv.ParseUint(digits, 10, 64)
+	if err != nil {
+		return val, err
+	}
+
+	rest = strings.ToLower(strings.TrimSpace(rest))
+
+	var multiplier uint64 = 1
+	switch (rest) {
+	case "":
+		multiplier = 1
+	case "k", "kb":
+		multiplier = 1024
+	case "m", "mb":
+		multiplier = 1024*1024
+	case "g", "gb":
+		multiplier = 1024*1024*1024
+	case "t", "tb":
+		multiplier = 1024*1024*1024*1024
+	default:
+		return 0, fmt.Errorf("Unknown size unit: %s", rest)
+	}
+
+	return val*multiplier, nil
 }
