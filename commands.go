@@ -171,6 +171,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 	rm := cmd.Bool("rm", false, "Remove intermediate containers after a successful build")
+	filename := cmd.String("f", "", "Name of the file to be used as Dockerfile")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -224,6 +225,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *rm {
 		v.Set("rm", "1")
 	}
+
+	v.Set("filename", *filename)
+
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
 		return err

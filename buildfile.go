@@ -31,6 +31,7 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	dockerfile	string
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -468,7 +469,12 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	}
 	defer os.RemoveAll(name)
 	b.context = name
-	filename := path.Join(name, "Dockerfile")
+	var filename string
+	if b.dockerfile != "" {
+		filename = path.Join(name, b.dockerfile)
+	} else {
+		filename = path.Join(name, "Dockerfile")
+	}
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
@@ -518,7 +524,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool, filename string) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -529,5 +535,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) Bu
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		dockerfile:		filename,
 	}
 }
