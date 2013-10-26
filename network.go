@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"os"
+	"bufio"
 )
 
 var NetworkBridgeIface string
@@ -93,6 +95,69 @@ func iptables(args ...string) error {
 	return nil
 }
 
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+	 	lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
+func dnsReadConfig() ([]string, error) {
+
+	lines, err := readLines("/etc/resolv.conf")
+	if err != nil {
+		return nil, &net.DNSConfigError{err}
+	}
+	servers := make([]string, 3)[0:0] // small, but the standard limit
+	for _, line := range lines {
+		f := strings.Split(line, " ")
+		if len(f) < 1 {
+			continue
+		}
+		switch f[0] {
+		case "nameserver": // add one name server
+			a := servers
+			n := len(a)
+			if len(f) > 1 && n < cap(a) {
+				// One more check: make sure server name is
+				// just an IP address.  Otherwise we need DNS
+				// to look it up.
+				if parsed_ip := net.ParseIP(f[1]); parsed_ip != nil {
+ 					a = a[0 : n+1]
+					a[n] = f[1]
+					servers = a
+				}                   
+			}
+		}
+	}
+
+	return servers, nil
+}
+
+func checkNameServerOverlap(dockerNetwork *net.IPNet) error {
+	servers, dnserr := dnsReadConfig()
+	if dnserr != nil || servers == nil {
+		// When can not read dns config, assume it is OK and let route overlap checking decide
+		return nil
+	} else {
+		for i := 0; i < len(servers); i++ {
+			ip := net.ParseIP(servers[i])
+			if !dockerNetwork.Contains(ip) {
+       		    return nil
+     		}
+		}
+		return fmt.Errorf("Network %s conflicts with DNS setting", dockerNetwork) 
+	}
+}
+
 func checkRouteOverlaps(routes string, dockerNetwork *net.IPNet) error {
 	utils.Debugf("Routes:\n\n%s", routes)
 	for _, line := range strings.Split(routes, "\n") {
@@ -156,8 +221,13 @@ func CreateBridgeIface(ifaceName string) error {
 			return err
 		}
 		if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
-			ifaceAddr = addr
-			break
+			err := checkNameServerOverlap(dockerNetwork)
+			if err == nil {
+				ifaceAddr = addr
+				break
+			} else {
+				utils.Debugf("%s: %s", addr, err)
+			}
 		} else {
 			utils.Debugf("%s: %s", addr, err)
 		}
@@ -712,7 +782,6 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 		}
 		return manager, nil
 	}
-
 	addr, err := getIfaceAddr(bridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
