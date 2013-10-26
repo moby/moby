@@ -543,7 +543,7 @@ Insert file from github
       -privileged=false: Give extended privileges to this container
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
-      -p=[]: Map a network port to the container
+      -p=[]: Map a network port to the container with the format [host_port:]container_port
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
