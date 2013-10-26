@@ -62,6 +62,7 @@ func (srv *Server) Daemon() error {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
 		utils.RemovePidFile(srv.runtime.config.Pidfile)
+		srv.Close()
 		os.Exit(0)
 	}()
 
