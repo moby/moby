@@ -27,12 +27,30 @@ func rpcSocketPath() string {
 }
 
 type DockerInitRpc struct {
-	resume chan int
+	resume   chan int
+	cancel   chan int
+	exitCode chan int
 }
 
 // RPC: Resume container start or container exit
 func (dockerInitRpc *DockerInitRpc) Resume(_ int, _ *int) error {
 	dockerInitRpc.resume <- 1
+	return nil
+}
+
+// RPC: Wait for container app exit and return the exit code.
+//
+// For machine containers that have their own init, this function doesn't
+// actually return, but that's ok.  The init process (pid 1) will die, which
+// will automatically kill all the other container tasks, including the
+// non-pid-1 dockerinit.  Docker's RPC Wait() call will detect that the socket
+// closed and return an error.
+func (dockerInitRpc *DockerInitRpc) Wait(_ int, exitCode *int) error {
+	select {
+	case *exitCode = <-dockerInitRpc.exitCode:
+	case <-dockerInitRpc.cancel:
+		*exitCode = -1
+	}
 	return nil
 }
 
@@ -61,6 +79,10 @@ func rpcServer(dockerInitRpc *DockerInitRpc) {
 		rpc.ServeConn(conn)
 
 		conn.Close()
+
+		// The RPC connection has closed, which means the docker daemon
+		// exited.  Cancel the Wait() call.
+		dockerInitRpc.cancel <- 1
 	}
 }
 
@@ -152,7 +174,9 @@ func startServerAndWait(dockerInitRpc *DockerInitRpc) error {
 
 func dockerInitRpcNew() *DockerInitRpc {
 	return &DockerInitRpc{
-		resume: make(chan int),
+		resume:   make(chan int),
+		exitCode: make(chan int),
+		cancel:   make(chan int),
 	}
 }
 
@@ -223,7 +247,25 @@ func dockerInitApp(args *DockerInitArgs) error {
 		}
 	}
 
-	os.Exit(wstatus.ExitStatus())
+	// Update the exit code for Wait() and detect timeout if Wait() hadn't
+	// been called
+	exitCode := wstatus.ExitStatus()
+	select {
+	case dockerInitRpc.exitCode <- exitCode:
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout waiting for docker Wait()")
+	}
+
+	// Wait for docker to call Resume() again.  This gives docker a chance
+	// to get the exit code from the RPC socket call interface before we
+	// die.
+	select {
+	case <-dockerInitRpc.resume:
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout waiting for docker Resume()")
+	}
+
+	os.Exit(exitCode)
 	return nil
 }
 

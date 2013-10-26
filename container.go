@@ -1316,20 +1316,6 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-// FIXME: replace this with a control socket within dockerinit
-func (container *Container) waitLxc() error {
-	for {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
 // Wait for the program to exit
 func (container *Container) monitor(reconnect bool) {
 
@@ -1340,28 +1326,37 @@ func (container *Container) monitor(reconnect bool) {
 	if err != nil {
 		utils.Debugf("monitor: couldn't connect to dockerinit in container %s: %s", container.ID, err)
 	} else {
-		// Wait for it to exit...
 
-		// If the command does not exist, try to wait via lxc
-		// (This probably happens only for ghost containers, i.e. containers that were running when Docker started)
-		if container.cmd == nil {
-			utils.Debugf("monitor: waiting for container %s using waitLxc", container.ID)
-			if err := container.waitLxc(); err != nil {
-				// Discard the error as any signals or non 0 returns will generate an error
-				utils.Debugf("monitor: while waiting for container %s, waitLxc had a problem: %s", container.ShortID(), err)
-			}
+		utils.Debugf("monitor: waiting for container %s", container.ID)
+
+		var dummy1 int
+		err := container.dockerInitRpcCall("Wait", &dummy1, &exitCode)
+		if err != nil {
+			// Since non-zero exit status and signal terminations
+			// will cause err to be non-nil, we have to actually
+			// discard it. Still, log it anyway, just in case.
+			utils.Debugf("monitor: rpc wait exit status %s for container %s", err, container.ID)
 		} else {
-			utils.Debugf("monitor: waiting for container %s using cmd.Wait", container.ID)
-			if err := container.cmd.Wait(); err != nil {
-				// Since non-zero exit status and signal terminations will cause err to be non-nil,
-				// we have to actually discard it. Still, log it anyway, just in case.
-				utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
-			}
-
-			exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+			// Wait returned, now tell dockerinit it can die
+			var dummy2 int
+			container.dockerInitRpcCall("Resume", &dummy1, &dummy2)
 		}
 
 		utils.Debugf("monitor: container %s finished", container.ID)
+	}
+
+	// Wait for dockerinit and lxc-start to die
+	running := true
+	for startTime := time.Now(); time.Since(startTime) < time.Second; {
+		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
+		if err != nil || !strings.Contains(string(output), "RUNNING") {
+			running = false
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if running {
+		utils.Errorf("monitor: timeout waiting for lxc-start to die")
 	}
 
 	if container.runtime != nil && container.runtime.srv != nil {
