@@ -1652,3 +1652,29 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestRestartGhost(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, err := runtime.Create(&Config{
+		Image:   GetTestImage(runtime).ID,
+		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
+		Volumes: map[string]struct{}{"/test": {}},
+	},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := container.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	container.State.Ghost = true
+	_, err = container.Output()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
