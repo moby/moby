@@ -143,7 +143,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
 
 	var flPorts ListOpts
-	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
+	cmd.Var(&flPorts, "p", "Expose a container's port to the host with the format [host_port:]container_port (use 'docker port' to see the actual mapping)")
 
 	var flEnv ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
