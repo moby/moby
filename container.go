@@ -676,15 +676,16 @@ func parseBind(bind string, illegalDsts []string) (BindMap, error) {
 	var src, dst, mode string
 
 	arr := strings.Split(bind, ":")
-	if len(arr) == 2 {
+	switch len(arr) {
+	case 2:
 		src = arr[0]
 		dst = arr[1]
 		mode = "rw"
-	} else if len(arr) == 3 {
+	case 3:
 		src = arr[0]
 		dst = arr[1]
 		mode = arr[2]
-	} else {
+	default:
 		return BindMap{}, fmt.Errorf("Invalid bind specification: %s", bind)
 	}
 
@@ -695,7 +696,7 @@ func parseBind(bind string, illegalDsts []string) (BindMap, error) {
 		}
 	}
 
-	bindMap = BindMap{
+	bindMap := BindMap{
 		SrcPath: src,
 		DstPath: dst,
 		Mode:    mode,
