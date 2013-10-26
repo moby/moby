@@ -590,16 +590,19 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			}
 		}
 
+		var in io.ReadCloser
+
 		v := url.Values{}
 		v.Set("stream", "1")
 		if *openStdin && container.Config.OpenStdin {
 			v.Set("stdin", "1")
+			in = cli.in
 		}
 		v.Set("stdout", "1")
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil)
 		})
 	}
 
@@ -1340,10 +1343,13 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		}
 	}
 
+	var in io.ReadCloser
+
 	v := url.Values{}
 	v.Set("stream", "1")
 	if !*noStdin && container.Config.OpenStdin {
 		v.Set("stdin", "1")
+		in = cli.in
 	}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
@@ -1352,7 +1358,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cli.forwardAllSignals(cmd.Arg(0))
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1621,9 +1627,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v := url.Values{}
 		v.Set("stream", "1")
 		var out, stderr io.Writer
+		var in io.ReadCloser
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
+			in = cli.in
 		}
 		if config.AttachStdout {
 			v.Set("stdout", "1")
@@ -1639,7 +1647,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr, hijacked)
+			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
 		})
 	} else {
 		close(hijacked)
