@@ -672,7 +672,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func parseBind(bind string, illegalDsts []string) (bindMap BindMap, err error) {
+func parseBind(bind string, illegalDsts []string) (BindMap, error) {
 	var src, dst, mode string
 
 	arr := strings.Split(bind, ":")
