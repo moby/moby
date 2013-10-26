@@ -304,7 +304,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 
 		close(c1)
@@ -549,7 +549,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 

@@ -92,7 +92,7 @@ func StoreImage(img *Image, jsonData []byte, layerData Archive, root string) err
 		if err := Untar(layerData, layer); err != nil {
 			return err
 		}
-		utils.Debugf("Untar time: %vs\n", time.Now().Sub(start).Seconds())
+		utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
 	}
 
 	// If raw json is provided, then use it
@@ -335,7 +335,7 @@ func (img *Image) getParentsSize(size int64) int64 {
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	utils.Debugf("Json string: {%s}\n", src)
+	utils.Debugf("Json string: {%s}", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
