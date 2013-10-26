@@ -26,7 +26,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1255,6 +1254,10 @@ func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string
 }
 
 func displayablePorts(ports []APIPort) string {
+
+	var portSlice APIPortSlice = APIPortSlice(ports)
+	ports = portSlice.sortByPrivatePort()
+
 	result := []string{}
 	for _, port := range ports {
 		if port.IP == "" {
@@ -1263,7 +1266,7 @@ func displayablePorts(ports []APIPort) string {
 			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
 		}
 	}
-	sort.Strings(result)
+
 	return strings.Join(result, ", ")
 }
 

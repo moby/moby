@@ -2,6 +2,52 @@ package docker
 
 import "sort"
 
+type APIPortSorter struct {
+	APIPorts []APIPort
+	by       func(port1, port2 *APIPort) bool
+}
+
+func (portSorter *APIPortSorter) Len() int {
+	return len(portSorter.APIPorts)
+}
+
+func (portSorter *APIPortSorter) Swap(i, j int) {
+	portSorter.APIPorts[i], portSorter.APIPorts[j] = portSorter.APIPorts[j], portSorter.APIPorts[i]
+}
+
+func (portSorter *APIPortSorter) Less(i, j int) bool {
+	return portSorter.by(&portSorter.APIPorts[i], &portSorter.APIPorts[j])
+}
+
+type By func(port1, port2 *APIPort) bool
+
+func (by By) Sort(APIPorts []APIPort) {
+	portSorter := &APIPortSorter{
+		APIPorts: APIPorts,
+		by:       by,
+	}
+	sort.Sort(portSorter)
+}
+
+// APIPortSlice is a type to allow sorting functions on a slice of APIPort
+type APIPortSlice []APIPort
+
+func (ports APIPortSlice) sortByPrivatePort() []APIPort {
+	privatePort := func(port1, port2 *APIPort) bool {
+		return port1.PrivatePort < port2.PrivatePort
+	}
+	By(privatePort).Sort(ports)
+	return ports
+}
+
+func (ports APIPortSlice) sortByPublicPort() []APIPort {
+	publicPort := func(port1, port2 *APIPort) bool {
+		return port1.PublicPort < port2.PublicPort
+	}
+	By(publicPort).Sort(ports)
+	return ports
+}
+
 type imageSorter struct {
 	images []APIImages
 	by     func(i1, i2 *APIImages) bool // Closure used in the Less method.
