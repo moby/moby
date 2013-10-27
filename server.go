@@ -60,10 +60,10 @@ func jobInitApi(job *engine.Job) string {
 		os.Exit(0)
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
-	if err := engine.Register("start", srv.ContainerStart); err != nil {
+	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
 		return err.Error()
 	}
-	if err := engine.Register("serveapi", srv.ListenAndServe); err != nil {
+	if err := job.Eng.Register("serveapi", srv.ListenAndServe); err != nil {
 		return err.Error()
 	}
 	return "0"

@@ -18,6 +18,10 @@ func init() {
 }
 
 func Register(name string, handler Handler) error {
+	_, exists := globalHandlers[name]
+	if exists {
+		return fmt.Errorf("Can't overwrite global handler for command %s", name)
+	}
 	globalHandlers[name] = handler
 	return nil
 }
@@ -30,6 +34,17 @@ type Engine struct {
 	handlers	map[string]Handler
 	hack		Hack	// data for temporary hackery (see hack.go)
 }
+
+func (eng *Engine) Register(name string, handler Handler) error {
+	eng.Logf("Register(%s) (handlers=%v)", name, eng.handlers)
+	_, exists := eng.handlers[name]
+	if exists {
+		return fmt.Errorf("Can't overwrite handler for command %s", name)
+	}
+	eng.handlers[name] = handler
+	return nil
+}
+
 
 // New initializes a new engine managing the directory specified at `root`.
 // `root` is used to store containers and any other state private to the engine.
@@ -59,7 +74,12 @@ func New(root string) (*Engine, error) {
 	}
 	eng := &Engine{
 		root:		root,
-		handlers:	globalHandlers,
+		handlers:	make(map[string]Handler),
+		id:		utils.RandomString(),
+	}
+	// Copy existing global handlers
+	for k, v := range globalHandlers {
+		eng.handlers[k] = v
 	}
 	return eng, nil
 }
