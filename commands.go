@@ -1231,10 +1231,11 @@ func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string
 		imageID = utils.TruncateID(image.ID)
 	}
 
+	fmt.Fprintf(cli.out, "%s%s Size: %s (virtual %s)", prefix, imageID, utils.HumanSize(image.Size), utils.HumanSize(image.VirtualSize))
 	if image.RepoTags[0] != "<none>:<none>" {
-		fmt.Fprintf(cli.out, "%s%s Tags: %s\n", prefix, imageID, strings.Join(image.RepoTags, ","))
+		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ","))
 	} else {
-		fmt.Fprintf(cli.out, "%s%s\n", prefix, imageID)
+		fmt.Fprint(cli.out, "\n")
 	}
 }
 

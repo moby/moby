@@ -778,11 +778,11 @@ func TestImagesTree(t *testing.T) {
 		cmdOutput := string(cmdOutputBytes)
 
 		regexpStrings := []string{
-			fmt.Sprintf("└─%s Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
+			fmt.Sprintf("└─%s Size: (\\d+.\\d+ MB) \\(virtual \\d+.\\d+ MB\\) Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
 			"(?m)^  └─[0-9a-f]+",
 			"(?m)^    └─[0-9a-f]+",
 			"(?m)^      └─[0-9a-f]+",
-			fmt.Sprintf("        └─%s Tags: test:latest", utils.TruncateID(image.ID)),
+			fmt.Sprintf("        └─%s Size: \\d+.\\d+ kB \\(virtual \\d+.\\d+ MB\\) Tags: test:latest", utils.TruncateID(image.ID)),
 		}
 
 		compiledRegexps := []*regexp.Regexp{}
