@@ -44,8 +44,11 @@ func jobInitApi(job *engine.Job) string {
 	if err != nil {
 		return err.Error()
 	}
-	if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
-		log.Fatal(err)
+	if srv.runtime.config.Pidfile != "" {
+		job.Logf("Creating pidfile")
+		if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+			log.Fatal(err)
+		}
 	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
