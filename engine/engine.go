@@ -13,10 +13,11 @@ type Handler func(*Job) string
 
 var globalHandlers map[string]Handler
 
+func init() {
+	globalHandlers = make(map[string]Handler)
+}
+
 func Register(name string, handler Handler) error {
-	if globalHandlers == nil {
-		globalHandlers = make(map[string]Handler)
-	}
 	globalHandlers[name] = handler
 	return nil
 }
@@ -27,6 +28,7 @@ func Register(name string, handler Handler) error {
 type Engine struct {
 	root		string
 	handlers	map[string]Handler
+	hack		Hack	// data for temporary hackery (see hack.go)
 }
 
 // New initializes a new engine managing the directory specified at `root`.
@@ -66,7 +68,7 @@ func New(root string) (*Engine, error) {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		eng:		eng,
+		Eng:		eng,
 		Name:		name,
 		Args:		args,
 		Stdin:		os.Stdin,

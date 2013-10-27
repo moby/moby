@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -38,6 +39,18 @@ func mkRuntime(f Fataler) *Runtime {
 		f.Fatal(err)
 	}
 	return runtime
+}
+
+func mkServerFromEngine(eng *engine.Engine, t Fataler) *Server {
+	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
+	if iSrv == nil {
+		t.Fatal("Legacy server field not set in engine")
+	}
+	srv, ok := iSrv.(*Server)
+	if !ok {
+		t.Fatal("Legacy server field in engine does not cast to *Server")
+	}
+	return srv
 }
 
 // A common interface to access the Fatal method of

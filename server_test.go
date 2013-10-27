@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
@@ -109,10 +110,11 @@ func TestCreateRm(t *testing.T) {
 }
 
 func TestCreateRmVolumes(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	eng := engine.NewTestEngine(t)
 
-	srv := &Server{runtime: runtime}
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
+	defer nuke(runtime)
 
 	config, hostConfig, _, err := ParseRun([]string{"-v", "/srv", GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
@@ -128,8 +130,11 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -169,10 +174,10 @@ func TestCommit(t *testing.T) {
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := engine.NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
 
 	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
@@ -188,7 +193,11 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	if err := srv.ContainerStart(id, hostConfig); err != nil {
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +209,11 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerStart(id, hostConfig); err != nil {
+	job = eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -384,9 +397,10 @@ func TestLogEvent(t *testing.T) {
 }
 
 func TestRmi(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := engine.NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	initialImages, err := srv.Images(false, "")
 	if err != nil {
@@ -404,8 +418,11 @@ func TestRmi(t *testing.T) {
 	}
 
 	//To remove
-	err = srv.ContainerStart(containerID, hostConfig)
-	if err != nil {
+	job := eng.Job("start", containerID)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -425,8 +442,11 @@ func TestRmi(t *testing.T) {
 	}
 
 	//To remove
-	err = srv.ContainerStart(containerID, hostConfig)
-	if err != nil {
+	job = eng.Job("start", containerID)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 

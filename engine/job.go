@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"fmt"
@@ -22,7 +23,7 @@ import (
 // This allows for richer error reporting.
 // 
 type Job struct {
-	eng	*Engine
+	Eng	*Engine
 	Name	string
 	Args	[]string
 	env	[]string
@@ -110,4 +111,61 @@ func (job *Job) SetenvList(key string, value []string) error {
 
 func (job *Job) Setenv(key, value string) {
 	job.env = append(job.env, key + "=" + value)
+}
+
+// DecodeEnv decodes `src` as a json dictionary, and adds
+// each decoded key-value pair to the environment.
+//
+// If `text` cannot be decoded as a json dictionary, an error
+// is returned.
+func (job *Job) DecodeEnv(src io.Reader) error {
+	m := make(map[string]interface{})
+	if err := json.NewDecoder(src).Decode(&m); err != nil {
+		return err
+	}
+	for k, v := range m {
+		if sval, ok := v.(string); ok {
+			job.Setenv(k, sval)
+		} else	if val, err := json.Marshal(v); err == nil {
+			job.Setenv(k, string(val))
+		} else {
+			job.Setenv(k, fmt.Sprintf("%v", v))
+		}
+	}
+	return nil
+}
+
+func (job *Job) EncodeEnv(dst io.Writer) error {
+	return json.NewEncoder(dst).Encode(job.Environ())
+}
+
+func (job *Job) ExportEnv(dst interface{}) error {
+	var buf bytes.Buffer
+	if err := job.EncodeEnv(&buf); err != nil {
+		return err
+	}
+	if err := json.NewDecoder(&buf).Decode(dst); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (job *Job) ImportEnv(src interface{}) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(src); err != nil {
+		return err
+	}
+	if err := job.DecodeEnv(&buf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (job *Job) Environ() map[string]string {
+	m := make(map[string]string)
+	for _, kv := range job.env {
+		parts := strings.SplitN(kv, "=", 2)
+		m[parts[0]] = parts[1]
+	}
+	return m
 }

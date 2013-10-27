@@ -639,26 +639,20 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var hostConfig *HostConfig
-	// allow a nil body for backwards compatibility
-	if r.Body != nil {
-		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			hostConfig = &HostConfig{}
-			if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
-				return err
-			}
-		}
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	// Register any links from the host config before starting the container
-	if err := srv.RegisterLinks(name, hostConfig); err != nil {
-		return err
+	job := srv.Eng.Job("start", name)
+	// allow a nil body for backwards compatibility
+	if r.Body != nil {
+		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
+			if err := job.DecodeEnv(r.Body); err != nil {
+				return err
+			}
+		}
 	}
-	if err := srv.ContainerStart(name, hostConfig); err != nil {
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
