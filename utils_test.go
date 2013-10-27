@@ -41,11 +41,11 @@ func mkRuntime(f utils.Fataler) *Runtime {
 func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *Server {
 	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
 	if iSrv == nil {
-		t.Fatal("Legacy server field not set in engine")
+		panic("Legacy server field not set in engine")
 	}
 	srv, ok := iSrv.(*Server)
 	if !ok {
-		t.Fatal("Legacy server field in engine does not cast to *Server")
+		panic("Legacy server field in engine does not cast to *Server")
 	}
 	return srv
 }

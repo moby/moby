@@ -183,7 +183,7 @@ func GetTestImage(runtime *Runtime) *Image {
 			return image
 		}
 	}
-	log.Fatalf("Test image %v not found", unitTestImageID)
+	log.Fatalf("Test image %v not found in %s: %s", unitTestImageID, runtime.graph.Root, imgs)
 	return nil
 }
 
