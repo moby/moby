@@ -88,7 +88,8 @@ func (srv *Server) ListenAndServe(job *engine.Job) string {
 			return "Invalid protocol format."
 		}
 		go func() {
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, true)
+			// FIXME: merge Server.ListenAndServe with ListenAndServe
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"))
 		}()
 	}
 	for i := 0; i < len(protoAddrs); i += 1 {
