@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
@@ -110,7 +109,7 @@ func TestCreateRm(t *testing.T) {
 }
 
 func TestCreateRmVolumes(t *testing.T) {
-	eng := engine.NewTestEngine(t)
+	eng := NewTestEngine(t)
 
 	srv := mkServerFromEngine(eng, t)
 	runtime := srv.runtime
@@ -174,7 +173,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
-	eng := engine.NewTestEngine(t)
+	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
 	runtime := srv.runtime
 	defer nuke(runtime)
@@ -397,7 +396,7 @@ func TestLogEvent(t *testing.T) {
 }
 
 func TestRmi(t *testing.T) {
-	eng := engine.NewTestEngine(t)
+	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
 	runtime := srv.runtime
 	defer nuke(runtime)

@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"net/url"
 )
 
 const (
@@ -118,22 +120,19 @@ func init() {
 }
 
 func setupBaseImage() {
-	config := &DaemonConfig{
-		Root:        unitTestStoreBase,
-		AutoRestart: false,
-		BridgeIface: unitTestNetworkBridge,
-	}
-	runtime, err := NewRuntimeFromDirectory(config)
+	eng, err := engine.New(unitTestStoreBase)
 	if err != nil {
+		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
+	}
+	job := eng.Job("initapi")
+	job.Setenv("Root", unitTestStoreBase)
+	job.SetenvBool("Autorestart", false)
+	job.Setenv("BridgeIface", unitTestNetworkBridge)
+	if err := job.Run(); err != nil {
 		log.Fatalf("Unable to create a runtime for tests:", err)
 	}
-
-	// Create the "Server"
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := mkServerFromEngine(eng, log.New(os.Stderr, "", 0))
+	runtime := srv.runtime
 
 	// If the unit test is not found, try to download it.
 	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
@@ -149,18 +148,22 @@ func spawnGlobalDaemon() {
 		utils.Debugf("Global runtime already exists. Skipping.")
 		return
 	}
-	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
-	srv := &Server{
-		runtime:     globalRuntime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	t := log.New(os.Stderr, "", 0)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	globalRuntime = srv.runtime
 
 	// Spawn a Daemon
 	go func() {
 		utils.Debugf("Spawning global daemon for integration tests")
-		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
-			log.Fatalf("Unable to spawn the test daemon:", err)
+		listenURL := &url.URL{
+			Scheme:	testDaemonProto,
+			Host:	testDaemonAddr,
+		}
+		job := eng.Job("serveapi", listenURL.String())
+		job.SetenvBool("Logging", os.Getenv("DEBUG") != "")
+		if err := job.Run(); err != nil {
+			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
 	// Give some time to ListenAndServer to actually start

@@ -21,27 +21,24 @@ var globalTestID string
 
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(f Fataler) *Runtime {
-	// Use the caller function name as a prefix.
-	// This helps trace temp directories back to their test.
-	pc, _, _, _ := runtime.Caller(1)
-	callerLongName := runtime.FuncForPC(pc).Name()
-	parts := strings.Split(callerLongName, ".")
-	callerShortName := parts[len(parts)-1]
-	if globalTestID == "" {
-		globalTestID = GenerateID()[:4]
-	}
-	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, callerShortName)
-	utils.Debugf("prefix = '%s'", prefix)
-
-	runtime, err := newTestRuntime(prefix)
+func mkRuntime(f utils.Fataler) *Runtime {
+	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
 		f.Fatal(err)
 	}
-	return runtime
+	config := &DaemonConfig{
+		Root:   root,
+		AutoRestart: false,
+	}
+	r, err := NewRuntimeFromDirectory(config)
+	if err != nil {
+		f.Fatal(err)
+	}
+	r.UpdateCapabilities(true)
+	return r
 }
 
-func mkServerFromEngine(eng *engine.Engine, t Fataler) *Server {
+func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *Server {
 	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
 	if iSrv == nil {
 		t.Fatal("Legacy server field not set in engine")
@@ -53,42 +50,53 @@ func mkServerFromEngine(eng *engine.Engine, t Fataler) *Server {
 	return srv
 }
 
-// A common interface to access the Fatal method of
-// both testing.B and testing.T.
-type Fataler interface {
-	Fatal(args ...interface{})
+
+func NewTestEngine(t utils.Fataler) *engine.Engine {
+	root, err := newTestDirectory(unitTestStoreBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Load default plugins
+	// (This is manually copied and modified from main() until we have a more generic plugin system)
+	job := eng.Job("initapi")
+	job.Setenv("Root", root)
+	job.SetenvBool("AutoRestart", false)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	return eng
 }
 
-func newTestRuntime(prefix string) (runtime *Runtime, err error) {
+func newTestDirectory(templateDir string) (dir string, err error) {
+	if globalTestID == "" {
+		globalTestID = GenerateID()[:4]
+	}
+	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, getCallerName(2))
 	if prefix == "" {
 		prefix = "docker-test-"
 	}
-	utils.Debugf("prefix = %s", prefix)
-	utils.Debugf("newTestRuntime start")
-	root, err := ioutil.TempDir("", prefix)
-	defer func() {
-		utils.Debugf("newTestRuntime: %s", root)
-	}()
-	if err != nil {
-		return nil, err
+	dir, err = ioutil.TempDir("", prefix)
+	if err = os.Remove(dir); err != nil {
+		return
 	}
-	if err := os.Remove(root); err != nil {
-		return nil, err
+	if err = utils.CopyDirectory(templateDir, dir); err != nil {
+		return
 	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		return nil, err
-	}
+	return
+}
 
-	config := &DaemonConfig{
-		Root:   root,
-		AutoRestart: false,
-	}
-	runtime, err = NewRuntimeFromDirectory(config)
-	if err != nil {
-		return nil, err
-	}
-	runtime.UpdateCapabilities(true)
-	return runtime, nil
+func getCallerName(depth int) string {
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(depth + 1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts)-1]
+	return callerShortName
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
