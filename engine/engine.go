@@ -64,11 +64,7 @@ func New(root string) (*Engine, error) {
 
 // Job creates a new job which can later be executed.
 // This function mimics `Command` from the standard os/exec package.
-func (eng *Engine) Job(name string, args ...string) (*Job, error) {
-	handler, exists := eng.handlers[name]
-	if !exists || handler == nil {
-		return nil, fmt.Errorf("Undefined command; %s", name)
-	}
+func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
 		eng:		eng,
 		Name:		name,
@@ -76,8 +72,11 @@ func (eng *Engine) Job(name string, args ...string) (*Job, error) {
 		Stdin:		os.Stdin,
 		Stdout:		os.Stdout,
 		Stderr:		os.Stderr,
-		handler:	handler,
 	}
-	return job, nil
+	handler, exists := eng.handlers[name]
+	if exists {
+		job.handler = handler
+	}
+	return job
 }
 

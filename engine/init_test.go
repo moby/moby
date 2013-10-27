@@ -38,9 +38,5 @@ func mkEngine(t *testing.T) *Engine {
 }
 
 func mkJob(t *testing.T, name string, args ...string) *Job {
-	job, err := mkEngine(t).Job(name, args...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return job
+	return mkEngine(t).Job(name, args...)
 }

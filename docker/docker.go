@@ -71,10 +71,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		job, err := eng.Job("serveapi")
-		if err != nil {
-			log.Fatal(err)
-		}
+		job := eng.Job("serveapi")
 		job.Setenv("Pidfile", *pidfile)
 		job.Setenv("Root", *flRoot)
 		job.SetenvBool("AutoRestart", *flAutoRestart)
