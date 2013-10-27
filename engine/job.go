@@ -5,6 +5,7 @@ import (
 	"strings"
 	"fmt"
 	"encoding/json"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -36,17 +37,24 @@ type Job struct {
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
+	randId := utils.RandomString()[:4]
+	fmt.Printf("Job #%s: %s\n", randId, job)
+	defer fmt.Printf("Job #%s: %s = '%s'", randId, job, job.status)
 	if job.handler == nil {
-		return fmt.Errorf("Undefined job handler")
+		job.status = "command not found"
+	} else {
+		job.status = job.handler(job)
 	}
-	status := job.handler(job)
-	job.status = status
-	if status != "0" {
-		return fmt.Errorf("Job failed with status %s", status)
+	if job.status != "0" {
+		return fmt.Errorf("%s: %s", job.Name, job.status)
 	}
 	return nil
 }
 
+// String returns a human-readable description of `job`
+func (job *Job) String() string {
+	return strings.Join(append([]string{job.Name}, job.Args...), " ")
+}
 
 func (job *Job) Getenv(key string) (value string) {
         for _, kv := range job.env {
