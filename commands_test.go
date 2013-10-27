@@ -707,6 +707,9 @@ func TestImagesViz(t *testing.T) {
 	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalRuntime)
 
+	srv := &Server{runtime: globalRuntime}
+	image := buildTestImages(t, srv)
+
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
@@ -727,6 +730,7 @@ func TestImagesViz(t *testing.T) {
 			"digraph docker {",
 			fmt.Sprintf("base -> \"%s\" \\[style=invis]", unitTestImageIDShort),
 			fmt.Sprintf("label=\"%s\\\\n%s:latest\"", unitTestImageIDShort, unitTestImageName),
+			fmt.Sprintf("label=\"%s\\\\n%s:%s\"", utils.TruncateID(image.ID), "test", "latest"),
 			"base \\[style=invisible]",
 		}
 
@@ -746,4 +750,78 @@ func TestImagesViz(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestImagesTree(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	srv := &Server{runtime: globalRuntime}
+	image := buildTestImages(t, srv)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdImages("-tree"); err != nil {
+			t.Fatal(err)
+		}
+		stdoutPipe.Close()
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmdOutput := string(cmdOutputBytes)
+
+		regexpStrings := []string{
+			fmt.Sprintf("└─%s Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
+			"(?m)^  └─[0-9a-f]+",
+			"(?m)^    └─[0-9a-f]+",
+			"(?m)^      └─[0-9a-f]+",
+			fmt.Sprintf("        └─%s Tags: test:latest", utils.TruncateID(image.ID)),
+		}
+
+		compiledRegexps := []*regexp.Regexp{}
+		for _, regexpString := range regexpStrings {
+			regexp, err := regexp.Compile(regexpString)
+			if err != nil {
+				fmt.Println("Error in regex string: ", err)
+				return
+			}
+			compiledRegexps = append(compiledRegexps, regexp)
+		}
+
+		for _, regexp := range compiledRegexps {
+			if !regexp.MatchString(cmdOutput) {
+				t.Fatalf("images -tree content '%s' did not match regexp '%s'", cmdOutput, regexp)
+			}
+		}
+	})
+}
+
+func buildTestImages(t *testing.T, srv *Server) *Image {
+
+	var testBuilder = testContextTemplate{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	}
+	image := buildImage(testBuilder, t, srv, true)
+
+	err := srv.ContainerTag(image.ID, "test", "latest", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return image
 }
