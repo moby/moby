@@ -6,7 +6,6 @@ import (
 	"strings"
 	"fmt"
 	"encoding/json"
-	"github.com/dotcloud/docker/utils"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -38,9 +37,10 @@ type Job struct {
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
-	randId := utils.RandomString()[:4]
-	fmt.Printf("Job #%s: %s\n", randId, job)
-	defer fmt.Printf("Job #%s: %s = '%s'", randId, job, job.status)
+	job.Logf("{")
+	defer func() {
+		job.Logf("}")
+	}()
 	if job.handler == nil {
 		job.status = "command not found"
 	} else {
@@ -54,7 +54,20 @@ func (job *Job) Run() error {
 
 // String returns a human-readable description of `job`
 func (job *Job) String() string {
-	return strings.Join(append([]string{job.Name}, job.Args...), " ")
+	s := fmt.Sprintf("%s.%s(%s)", job.Eng, job.Name, strings.Join(job.Args, ", "))
+	// FIXME: if a job returns the empty string, it will be printed
+	// as not having returned.
+	// (this only affects String which is a convenience function).
+	if job.status != "" {
+		var okerr string
+		if job.status == "0" {
+			okerr = "OK"
+		} else {
+			okerr = "ERR"
+		}
+		s = fmt.Sprintf("%s = %s (%s)", s, okerr, job.status)
+	}
+	return s
 }
 
 func (job *Job) Getenv(key string) (value string) {
@@ -168,4 +181,9 @@ func (job *Job) Environ() map[string]string {
 		m[parts[0]] = parts[1]
 	}
 	return m
+}
+
+func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
+	prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
+	return fmt.Fprintf(job.Stdout, prefixedFormat, args...)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"log"
 	"runtime"
+	"strings"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -33,6 +34,11 @@ type Engine struct {
 	root		string
 	handlers	map[string]Handler
 	hack		Hack	// data for temporary hackery (see hack.go)
+	id		string
+}
+
+func (eng *Engine) Root() string {
+	return eng.root
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
@@ -84,6 +90,10 @@ func New(root string) (*Engine, error) {
 	return eng, nil
 }
 
+func (eng *Engine) String() string {
+	return fmt.Sprintf("%s|%s", eng.Root(), eng.id[:8])
+}
+
 // Job creates a new job which can later be executed.
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
@@ -102,3 +112,8 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	return job
 }
 
+
+func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
+	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+	return fmt.Printf(prefixedFormat, args...)
+}
