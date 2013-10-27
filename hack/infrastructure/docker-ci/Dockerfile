@@ -33,8 +33,10 @@
 
 from ubuntu:12.04
 
-run echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
-run apt-get update; apt-get install -y python2.7 python-dev python-pip ssh rsync less vim
+run echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' \
+    > /etc/apt/sources.list
+run apt-get update; apt-get install -y git python2.7 python-dev libevent-dev \
+    python-pip ssh rsync less vim
 run pip install boto fabric
 
 # Add deployment code and set default container command

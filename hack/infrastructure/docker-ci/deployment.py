@@ -100,8 +100,7 @@ sudo("echo '{}' >> /root/.ssh/authorized_keys".format(env['DOCKER_CI_PUB']))
 credentials = {
     'AWS_ACCESS_KEY': env['PKG_ACCESS_KEY'],
     'AWS_SECRET_KEY': env['PKG_SECRET_KEY'],
-    'GPG_PASSPHRASE': env['PKG_GPG_PASSPHRASE'],
-    'INDEX_AUTH': env['INDEX_AUTH']}
+    'GPG_PASSPHRASE': env['PKG_GPG_PASSPHRASE']}
 open(DOCKER_CI_PATH + '/nightlyrelease/release_credentials.json', 'w').write(
     base64.b64encode(json.dumps(credentials)))
 
@@ -143,7 +142,10 @@ sudo('ln -s /sbin/reboot /etc/cron.daily')
 
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
+sudo('cd {}; docker build -t docker-ci .'.format(DOCKER_CI_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
+    DOCKER_CI_PATH))
+sudo('cd {}/registry-coverage; docker build -t registry_coverage .'.format(
     DOCKER_CI_PATH))
 
 # Download docker-ci testing container

@@ -12,6 +12,7 @@ export DOCKER_REGISTRY_CONFIG=config_test.yml
 # Get latest docker registry
 git clone -q https://github.com/dotcloud/docker-registry.git
 cd docker-registry
+sed -Ei "s#(boto_bucket: ).+#\1_env:S3_BUCKET#" config_test.yml
 
 # Get dependencies
 pip install -q -r requirements.txt
