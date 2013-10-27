@@ -33,30 +33,20 @@ func (srv *Server) Close() error {
 }
 
 func init() {
-	engine.Register("serveapi", JobServeApi)
+	engine.Register("initapi", jobInitApi)
 }
 
-func JobServeApi(job *engine.Job) string {
+// jobInitApi runs the remote api server `srv` as a daemon,
+// Only one api server can run at the same time - this is enforced by a pidfile.
+// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
+func jobInitApi(job *engine.Job) string {
 	srv, err := NewServer(ConfigFromJob(job))
 	if err != nil {
 		return err.Error()
 	}
-	defer srv.Close()
-	if err := srv.Daemon(); err != nil {
-		return err.Error()
-	}
-	return "0"
-}
-
-// Daemon runs the remote api server `srv` as a daemon,
-// Only one api server can run at the same time - this is enforced by a pidfile.
-// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
-func (srv *Server) Daemon() error {
 	if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
 		log.Fatal(err)
 	}
-	defer utils.RemovePidFile(srv.runtime.config.Pidfile)
-
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
 	go func() {
@@ -66,8 +56,17 @@ func (srv *Server) Daemon() error {
 		srv.Close()
 		os.Exit(0)
 	}()
+	err = engine.Register("serveapi", func(job *engine.Job) string {
+		return srv.ListenAndServe(job.Args...).Error()
+	})
+	if err != nil {
+		return err.Error()
+	}
+	return "0"
+}
 
-	protoAddrs := srv.runtime.config.ProtoAddresses
+
+func (srv *Server) ListenAndServe(protoAddrs ...string) error {
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
