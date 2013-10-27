@@ -149,10 +149,22 @@ func (job *Job) DecodeEnv(src io.Reader) error {
 }
 
 func (job *Job) EncodeEnv(dst io.Writer) error {
-	return json.NewEncoder(dst).Encode(job.Environ())
+	m := make(map[string]interface{})
+	for k, v := range job.Environ() {
+		var val interface{}
+		if err := json.Unmarshal([]byte(v), &val); err == nil {
+			m[k] = val
+		} else {
+			m[k] = v
+		}
+	}
+	if err := json.NewEncoder(dst).Encode(&m); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (job *Job) ExportEnv(dst interface{}) error {
+func (job *Job) ExportEnv(dst interface{}) (err error) {
 	var buf bytes.Buffer
 	if err := job.EncodeEnv(&buf); err != nil {
 		return err
