@@ -69,7 +69,7 @@ to run LXC containers. Note that 2.6.32 has some documented issues regarding
 network namespace setup and teardown; those issues are not a risk if you
 run containers in a private environment, but can lead to denial-of-service
 attacks if you want to run untrusted code in your containers. For more details,
-see `[LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
+see `LP#720095 <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/720095>`_.
 
 Kernels 2.6.38, and every version since 3.2, have been deployed successfully
 to run containerized production workloads. Feature-wise, there is no huge
