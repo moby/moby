@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -469,11 +470,13 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				} else {
 					_, err = io.Copy(cStdin, stdin)
 				}
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
 					utils.Errorf("attach: stdin: %s", err)
 				}
-				// Discard error, expecting pipe error
-				errors <- nil
+				errors <- err
 			}()
 		}
 	}
@@ -847,15 +850,15 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	// Note: The container can run and finish correctly before
 	//       the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the container dies while waiting for it, just reutrn
+		// If the container dies while waiting for it, just return
 		if !container.State.Running {
 			return nil
 		}
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
 		if err != nil {
 			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
 
-			output, err = exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
+			output, err = exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
 			if err != nil {
 				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
 				return err
@@ -865,7 +868,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		if strings.Contains(string(output), "RUNNING") {
 			return nil
 		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s\n", container.State.Running, output)
+		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
 		time.Sleep(50 * time.Millisecond)
 	}
 
@@ -1246,6 +1249,12 @@ func (container *Container) Mounted() (bool, error) {
 }
 
 func (container *Container) Unmount() error {
+	if _, err := os.Stat(container.RootfsPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
 	return Unmount(container.RootfsPath())
 }
 

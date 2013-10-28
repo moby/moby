@@ -41,9 +41,13 @@ var (
 	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 )
 
-func (cli *DockerCli) getMethod(name string) (reflect.Method, bool) {
+func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
 	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
-	return reflect.TypeOf(cli).MethodByName(methodName)
+	method := reflect.ValueOf(cli).MethodByName(methodName)
+	if !method.IsValid() {
+		return nil, false
+	}
+	return method.Interface().(func(...string) error), true
 }
 
 func ParseCommands(proto, addr string, args ...string) error {
@@ -55,14 +59,7 @@ func ParseCommands(proto, addr string, args ...string) error {
 			fmt.Println("Error: Command not found:", args[0])
 			return cli.CmdHelp(args[1:]...)
 		}
-		ret := method.Func.CallSlice([]reflect.Value{
-			reflect.ValueOf(cli),
-			reflect.ValueOf(args[1:]),
-		})[0].Interface()
-		if ret == nil {
-			return nil
-		}
-		return ret.(error)
+		return method(args[1:]...)
 	}
 	return cli.CmdHelp(args...)
 }
@@ -73,10 +70,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		if !exists {
 			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[0])
 		} else {
-			method.Func.CallSlice([]reflect.Value{
-				reflect.ValueOf(cli),
-				reflect.ValueOf([]string{"--help"}),
-			})[0].Interface()
+			method("--help")
 			return nil
 		}
 	}
@@ -590,22 +584,25 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			cli.forwardAllSignals(cmd.Arg(0))
 		}
 
-		if container.Config.Tty {
+		if container.Config.Tty && cli.isTerminal {
 			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
 				return err
 			}
 		}
 
+		var in io.ReadCloser
+
 		v := url.Values{}
 		v.Set("stream", "1")
 		if *openStdin && container.Config.OpenStdin {
 			v.Set("stdin", "1")
+			in = cli.in
 		}
 		v.Set("stdout", "1")
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil)
 		})
 	}
 
@@ -645,30 +642,39 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	fmt.Fprintf(cli.out, "[")
-	for i, name := range args {
-		if i > 0 {
-			fmt.Fprintf(cli.out, ",")
-		}
+
+	indented := new(bytes.Buffer)
+	status := 0
+
+	for _, name := range args {
 		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
 				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
+				status = 1
 				continue
 			}
 		}
 
-		indented := new(bytes.Buffer)
 		if err = json.Indent(indented, obj, "", "    "); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
 			continue
 		}
-		if _, err := io.Copy(cli.out, indented); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-		}
+		indented.WriteString(",")
+	}
+	// Remove trailling ','
+	indented.Truncate(indented.Len() - 1)
+
+	fmt.Fprintf(cli.out, "[")
+	if _, err := io.Copy(cli.out, indented); err != nil {
+		return err
 	}
 	fmt.Fprintf(cli.out, "]")
+	if status != 0 {
+		return &utils.StatusError{Status: status}
+	}
 	return nil
 }
 
@@ -1336,16 +1342,19 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
-	if container.Config.Tty {
+	if container.Config.Tty && cli.isTerminal {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-			utils.Debugf("Error monitoring tty size: %s", err)
+			utils.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
+
+	var in io.ReadCloser
 
 	v := url.Values{}
 	v.Set("stream", "1")
 	if !*noStdin && container.Config.OpenStdin {
 		v.Set("stdin", "1")
+		in = cli.in
 	}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
@@ -1354,7 +1363,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cli.forwardAllSignals(cmd.Arg(0))
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, cli.in, cli.out, cli.err, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1619,18 +1628,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	hijacked := make(chan bool)
 
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
-		if config.Tty {
-			if err := cli.monitorTtySize(runResult.ID); err != nil {
-				utils.Errorf("Error monitoring TTY size: %s\n", err)
-			}
-		}
 
 		v := url.Values{}
 		v.Set("stream", "1")
 		var out, stderr io.Writer
+		var in io.ReadCloser
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
+			in = cli.in
 		}
 		if config.AttachStdout {
 			v.Set("stdout", "1")
@@ -1646,7 +1652,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, cli.in, out, stderr, hijacked)
+			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
 		})
 	} else {
 		close(hijacked)
@@ -1665,6 +1671,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	//start the container
 	if _, _, err = cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig); err != nil {
 		return err
+	}
+
+	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
+		if err := cli.monitorTtySize(runResult.ID); err != nil {
+			utils.Errorf("Error monitoring TTY size: %s\n", err)
+		}
 	}
 
 	if errCh != nil {
@@ -1964,9 +1976,6 @@ func (cli *DockerCli) resizeTty(id string) {
 }
 
 func (cli *DockerCli) monitorTtySize(id string) error {
-	if !cli.isTerminal {
-		return fmt.Errorf("Impossible to monitor size on non-tty")
-	}
 	cli.resizeTty(id)
 
 	sigchan := make(chan os.Signal, 1)

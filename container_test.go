@@ -1593,7 +1593,6 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Log(container3.Volumes)
 	if container3.Volumes["/test"] != container.Volumes["/test"] {
 		t.Fail()
 	}

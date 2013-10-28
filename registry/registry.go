@@ -499,11 +499,12 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	}
 	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
 	utils.Debugf("[registry] PUT %s", u)
-	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
+	utils.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	req.ContentLength = int64(len(imgListJSON))
 	req.Header.Set("X-Docker-Token", "true")
@@ -519,7 +520,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		utils.Debugf("Redirected to %s\n", res.Header.Get("Location"))
+		utils.Debugf("Redirected to %s", res.Header.Get("Location"))
 		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err

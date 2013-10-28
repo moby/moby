@@ -1067,15 +1067,16 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 
 func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
 	imgs := []APIRmi{}
+	tags := []string{}
 
 	//If delete by id, see if the id belong only to one repository
-	if strings.Contains(img.ID, repoName) && tag == "" {
+	if repoName == "" {
 		for _, repoAndTag := range srv.runtime.repositories.ByID()[img.ID] {
 			parsedRepo, parsedTag := utils.ParseRepositoryTag(repoAndTag)
-			if strings.Contains(img.ID, repoName) {
+			if repoName == "" || repoName == parsedRepo {
 				repoName = parsedRepo
-				if len(srv.runtime.repositories.ByID()[img.ID]) == 1 && len(parsedTag) > 1 {
-					tag = parsedTag
+				if parsedTag != "" {
+					tags = append(tags, parsedTag)
 				}
 			} else if repoName != parsedRepo {
 				// the id belongs to multiple repos, like base:latest and user:test,
@@ -1083,15 +1084,19 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 				return imgs, nil
 			}
 		}
+	} else {
+		tags = append(tags, tag)
 	}
 	//Untag the current image
-	tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
-	if err != nil {
-		return nil, err
-	}
-	if tagDeleted {
-		imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
-		srv.LogEvent("untag", img.ShortID(), "")
+	for _, tag := range tags {
+		tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
+		if err != nil {
+			return nil, err
+		}
+		if tagDeleted {
+			imgs = append(imgs, APIRmi{Untagged: img.ShortID()})
+			srv.LogEvent("untag", img.ShortID(), "")
+		}
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
 		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
@@ -1118,7 +1123,10 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		}
 		return nil, nil
 	}
-
+	if strings.Contains(img.ID, name) {
+		//delete via ID
+		return srv.deleteImage(img, "", "")
+	}
 	name, tag := utils.ParseRepositoryTag(name)
 	return srv.deleteImage(img, name, tag)
 }

@@ -32,7 +32,6 @@ type Runtime struct {
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
-	kernelVersion  *utils.KernelVersionInfo
 	autoRestart    bool
 	volumes        *Graph
 	srv            *Server
@@ -440,7 +439,6 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
 	} else {
-		runtime.kernelVersion = k
 		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 		}

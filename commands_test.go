@@ -84,10 +84,24 @@ func TestRunHostname(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdir checks that 'docker run -w' correctly sets a custom working directory
@@ -115,10 +129,24 @@ func TestRunWorkdir(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdirExists checks that 'docker run -w' correctly sets a custom working directory, even if it exists
@@ -146,10 +174,24 @@ func TestRunWorkdirExists(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRunExit(t *testing.T) {
@@ -262,7 +304,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 
 		close(c1)
@@ -507,7 +549,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 

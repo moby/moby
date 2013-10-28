@@ -46,7 +46,12 @@ func main() {
 		flHosts = flHosts[1:] //trick to display a nice default value in the usage
 	}
 	for i, flHost := range flHosts {
-		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+		host, err := utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+		if err == nil {
+			flHosts[i] = host
+		} else {
+			log.Fatal(err)
+		}
 	}
 
 	if *bridgeName != "" {
@@ -66,12 +71,10 @@ func main() {
 		}
 		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
 			log.Fatal(err)
-			os.Exit(-1)
 		}
 	} else {
 		if len(flHosts) > 1 {
 			log.Fatal("Please specify only one -H")
-			return
 		}
 		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
@@ -79,7 +82,6 @@ func main() {
 				os.Exit(sterr.Status)
 			}
 			log.Fatal(err)
-			os.Exit(-1)
 		}
 	}
 }
@@ -148,7 +150,6 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 			}
 		} else {
 			log.Fatal("Invalid protocol format.")
-			os.Exit(-1)
 		}
 		go func() {
 			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
