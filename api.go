@@ -236,6 +236,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	wf := utils.NewWriteFlusher(w)
+	wf.Write([]byte{})
 	if since != 0 {
 		// If since, send previous events that happened after the timestamp
 		for _, event := range srv.events {
