@@ -87,7 +87,7 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 			if err := container.kill(sig); err != nil {
 				return fmt.Errorf("Error signaling container %s: %s", name, err)
 			}
-			srv.LogEvent("signal", container.ShortID(), srv.runtime.repositories.ImageName(container.Image), strconv.Itoa(sig)))
+			srv.LogEvent("signal", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)
