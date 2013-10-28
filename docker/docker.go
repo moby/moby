@@ -143,8 +143,11 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if protoAddrParts[0] == "unix" {
-			if err := syscall.Unlink(protoAddrParts[1]); err != nil {
-				log.Fatal(err)
+			if _, err := os.Stat(protoAddrParts[1]); err == nil {
+				// unix socket file exists, try to remove it
+				if err := syscall.Unlink(protoAddrParts[1]); err != nil {
+					log.Fatal(err)
+				}
 			}
 		} else if protoAddrParts[0] == "tcp" {
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
