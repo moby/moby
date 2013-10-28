@@ -38,6 +38,22 @@ func mkRuntime(f utils.Fataler) *Runtime {
 	return r
 }
 
+func createNamedTestContainer(eng *engine.Engine, config *Config, f utils.Fataler, name string) (shortId string) {
+	job := eng.Job("create", name)
+	if err := job.ImportEnv(config); err != nil {
+		f.Fatal(err)
+	}
+	job.StdoutParseString(&shortId)
+	if err := job.Run(); err != nil {
+		f.Fatal(err)
+	}
+	return
+}
+
+func createTestContainer(eng *engine.Engine, config *Config, f utils.Fataler) (shortId string) {
+	return createNamedTestContainer(eng, config, f, "")
+}
+
 func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *Server {
 	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
 	if iSrv == nil {

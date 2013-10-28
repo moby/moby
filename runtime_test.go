@@ -645,20 +645,17 @@ func TestReloadContainerLinks(t *testing.T) {
 }
 
 func TestDefaultContainerName(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "some_name")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "some_name"))
 	containerID := container.ID
 
 	if container.Name != "/some_name" {
@@ -682,20 +679,17 @@ func TestDefaultContainerName(t *testing.T) {
 }
 
 func TestRandomContainerName(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createTestContainer(eng, config, t))
 	containerID := container.ID
 
 	if container.Name == "" {
@@ -719,20 +713,17 @@ func TestRandomContainerName(t *testing.T) {
 }
 
 func TestLinkChildContainer(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "/webapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "/webapp"))
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -748,12 +739,7 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	childContainer := runtime.Get(shortId)
+	childContainer := runtime.Get(createTestContainer(eng, config, t))
 
 	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
@@ -770,20 +756,17 @@ func TestLinkChildContainer(t *testing.T) {
 }
 
 func TestGetAllChildren(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "/webapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "/webapp"))
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -799,12 +782,7 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	childContainer := runtime.Get(shortId)
+	childContainer := runtime.Get(createTestContainer(eng, config, t))
 
 	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)

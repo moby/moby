@@ -634,10 +634,10 @@ func TestPostCommit(t *testing.T) {
 }
 
 func TestPostContainersCreate(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
 
 	configJSON, err := json.Marshal(&Config{
 		Image:  GetTestImage(runtime).ID,
@@ -786,22 +786,18 @@ func TestPostContainersStart(t *testing.T) {
 	runtime := srv.runtime
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(
+	id := createTestContainer(
+		eng,
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
+		t)
 
 	hostConfigJSON, err := json.Marshal(&HostConfig{})
 
-	req, err := http.NewRequest("POST", "/containers/"+container.ID+"/start", bytes.NewReader(hostConfigJSON))
+	req, err := http.NewRequest("POST", "/containers/"+id+"/start", bytes.NewReader(hostConfigJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -809,22 +805,26 @@ func TestPostContainersStart(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err != nil {
+	if err := postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": id}); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
 	}
 
+	container := runtime.Get(id)
+	if container == nil {
+		t.Fatalf("Container %s was not created", id)
+	}
 	// Give some time to the process to start
+	// FIXME: use Wait once it's available as a job
 	container.WaitTimeout(500 * time.Millisecond)
-
 	if !container.State.Running {
 		t.Errorf("Container should be running")
 	}
 
 	r = httptest.NewRecorder()
-	if err = postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": container.ID}); err == nil {
+	if err = postContainersStart(srv, APIVERSION, r, req, map[string]string{"name": id}); err == nil {
 		t.Fatalf("A running container should be able to be started")
 	}
 

@@ -62,6 +62,9 @@ func jobInitApi(job *engine.Job) string {
 		os.Exit(0)
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
+	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
+		return err.Error()
+	}
 	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
 		return err.Error()
 	}
@@ -1009,33 +1012,43 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(config *Config, name string) (string, []string, error) {
-	if config.Memory != 0 && config.Memory < 524288 {
-		return "", nil, fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
+func (srv *Server) ContainerCreate(job *engine.Job) string {
+	var name string
+	if len(job.Args) == 1 {
+		name = job.Args[0]
+	} else if len(job.Args) > 1 {
+		return fmt.Sprintf("Usage: %s ", job.Name)
 	}
-
+	var config Config
+	if err := job.ExportEnv(&config); err != nil {
+		return err.Error()
+	}
+	if config.Memory != 0 && config.Memory < 524288 {
+		return "Memory limit must be given in bytes (minimum 524288 bytes)"
+	}
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		config.Memory = 0
 	}
-
 	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
 		config.MemorySwap = -1
 	}
-	container, buildWarnings, err := srv.runtime.Create(config, name)
+	container, buildWarnings, err := srv.runtime.Create(&config, name)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
-
 			_, tag := utils.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = DEFAULTTAG
 			}
-
-			return "", nil, fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return fmt.Sprintf("No such image: %s (tag: %s)", config.Image, tag)
 		}
-		return "", nil, err
+		return err.Error()
 	}
 	srv.LogEvent("create", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
-	return container.ShortID(), buildWarnings, nil
+	job.Printf("%s\n", container.ShortID())
+	for _, warning := range buildWarnings {
+		job.Errorf("%s\n", warning)
+	}
+	return "0"
 }
 
 func (srv *Server) ContainerRestart(name string, t int) error {

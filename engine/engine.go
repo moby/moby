@@ -115,5 +115,5 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
 	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-	return fmt.Printf(prefixedFormat, args...)
+	return fmt.Fprintf(os.Stderr, prefixedFormat, args...)
 }
