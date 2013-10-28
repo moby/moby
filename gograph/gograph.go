@@ -132,6 +132,11 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	return e, nil
 }
 
+// Return true if a name already exists in the database
+func (db *Database) Exists(name string) bool {
+	return db.Get(name) != nil
+}
+
 func (db *Database) setEdge(parentPath, name string, e *Entity) error {
 	parent, err := db.get(parentPath)
 	if err != nil {
@@ -189,14 +194,22 @@ func (db *Database) get(name string) (*Entity, error) {
 // The key will be the full path of the entity
 func (db *Database) List(name string, depth int) Entities {
 	out := Entities{}
-	for c := range db.children(name, depth) {
+	e, err := db.get(name)
+	if err != nil {
+		return out
+	}
+	for c := range db.children(e, name, depth) {
 		out[c.FullPath] = c.Entity
 	}
 	return out
 }
 
 func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
-	for c := range db.children(name, depth) {
+	e, err := db.get(name)
+	if err != nil {
+		return err
+	}
+	for c := range db.children(e, name, depth) {
 		if err := walkFunc(c.FullPath, c.Entity); err != nil {
 			return err
 		}
@@ -327,10 +340,9 @@ type WalkMeta struct {
 	Edge     *Edge
 }
 
-func (db *Database) children(name string, depth int) <-chan WalkMeta {
+func (db *Database) children(e *Entity, name string, depth int) <-chan WalkMeta {
 	out := make(chan WalkMeta)
-	e, err := db.get(name)
-	if err != nil {
+	if e == nil {
 		close(out)
 		return out
 	}
@@ -370,7 +382,7 @@ func (db *Database) children(name string, depth int) <-chan WalkMeta {
 			if depth != -1 {
 				nDepth -= 1
 			}
-			sc := db.children(meta.FullPath, nDepth)
+			sc := db.children(child, meta.FullPath, nDepth)
 			for c := range sc {
 				out <- c
 			}

@@ -28,6 +28,7 @@ func TestNewDatabase(t *testing.T) {
 	if db == nil {
 		t.Fatal("Database should not be nil")
 	}
+	db.Close()
 	defer destroyTestDb(dbpath)
 }
 
@@ -464,4 +465,27 @@ func TestRefPaths(t *testing.T) {
 	if len(refs) != 2 {
 		t.Fatalf("Expected reference count to be 2, got %d", len(refs))
 	}
+}
+
+func TestExistsTrue(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	db.Set("/testing", "1")
+
+	if !db.Exists("/testing") {
+		t.Fatalf("/tesing should exist")
+	}
+}
+
+func TestExistsFalse(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	db.Set("toerhe", "1")
+
+	if db.Exists("/testing") {
+		t.Fatalf("/tesing should not exist")
+	}
+
 }

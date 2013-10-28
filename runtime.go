@@ -265,7 +265,10 @@ func (runtime *Runtime) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		if _, err := runtime.containerGraph.Set(fmt.Sprintf("/%s", container.ID), container.ID); err != nil {
+		name := generateRandomName(runtime)
+		container.Name = name
+
+		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
 		register(container)
@@ -306,8 +309,8 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 }
 
-// Create creates a new container from the given configuration.
-func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
+// Create creates a new container from the given configuration with a given name.
+func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
@@ -345,8 +348,15 @@ func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 	// Generate id
 	id := GenerateID()
 
-	// Set the default enitity in the graph
-	if _, err := runtime.containerGraph.Set(fmt.Sprintf("/%s", id), id); err != nil {
+	if name == "" {
+		name = generateRandomName(runtime)
+	}
+	if name[0] != '/' {
+		name = "/" + name
+	}
+
+	// Set the enitity in the graph using the default name specified
+	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		return nil, nil, err
 	}
 
@@ -378,6 +388,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, []string, error) {
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
+		Name:        name,
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -483,16 +494,7 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-// Strip the leading slash from the name to look up if it
-// is a truncated id
-// Prepend the slash back after finding the name
 func (runtime *Runtime) getFullName(name string) string {
-	if name[0] == '/' {
-		name = name[1:]
-	}
-	if id, err := runtime.idIndex.Get(name); err == nil {
-		name = id
-	}
 	if name[0] != '/' {
 		name = "/" + name
 	}
@@ -500,9 +502,7 @@ func (runtime *Runtime) getFullName(name string) string {
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	name = runtime.getFullName(name)
-
-	entity := runtime.containerGraph.Get(name)
+	entity := runtime.containerGraph.Get(runtime.getFullName(name))
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
@@ -514,6 +514,7 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
+	name = runtime.getFullName(name)
 	children := make(map[string]*Container)
 
 	err := runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
@@ -531,44 +532,13 @@ func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
 	return children, nil
 }
 
-func (runtime *Runtime) RenameLink(oldName, newName string) error {
-	oldName = runtime.getFullName(oldName)
-
-	entity := runtime.containerGraph.Get(oldName)
-	if entity == nil {
-		return fmt.Errorf("Could not find entity for %s", oldName)
-	}
-
-	if newName[0] != '/' {
-		newName = "/" + newName
-	}
-
-	// This is not rename but adding a new link for the default name
-	// Strip the leading '/'
-	if entity.ID() == oldName[1:] {
-		_, err := runtime.containerGraph.Set(newName, entity.ID())
+func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) error {
+	fullName := path.Join(parent.Name, alias)
+	if !runtime.containerGraph.Exists(fullName) {
+		_, err := runtime.containerGraph.Set(fullName, child.ID)
 		return err
 	}
-	return runtime.containerGraph.Rename(oldName, newName)
-}
-
-func (runtime *Runtime) Link(parentName, childName, alias string) error {
-	if id, err := runtime.idIndex.Get(parentName); err == nil {
-		parentName = id
-	}
-	parent := runtime.containerGraph.Get(parentName)
-	if parent == nil {
-		return fmt.Errorf("Could not get container for %s", parentName)
-	}
-	if id, err := runtime.idIndex.Get(childName); err == nil {
-		childName = id
-	}
-	child := runtime.containerGraph.Get(childName)
-	if child == nil {
-		return fmt.Errorf("Could not get container for %s", childName)
-	}
-	_, err := runtime.containerGraph.Set(path.Join(parentName, alias), child.ID())
-	return err
+	return nil
 }
 
 // FIXME: harmonize with NewGraph()

@@ -156,7 +156,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return "", err
 	}
 
-	c, _, err := srv.runtime.Create(config)
+	c, _, err := srv.runtime.Create(config, "")
 	if err != nil {
 		return "", err
 	}
@@ -937,7 +937,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(config *Config) (string, []string, error) {
+func (srv *Server) ContainerCreate(config *Config, name string) (string, []string, error) {
 	if config.Memory != 0 && config.Memory < 524288 {
 		return "", nil, fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
 	}
@@ -949,7 +949,7 @@ func (srv *Server) ContainerCreate(config *Config) (string, []string, error) {
 	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
 		config.MemorySwap = -1
 	}
-	container, buildWarnings, err := srv.runtime.Create(config)
+	container, buildWarnings, err := srv.runtime.Create(config, name)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
 
@@ -1209,13 +1209,12 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	return nil, nil
 }
 
-func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
+func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 	runtime := srv.runtime
 	container := runtime.Get(name)
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
 	// Register links
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
@@ -1223,15 +1222,27 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 			if err != nil {
 				return err
 			}
-
-			childName := parts["name"]
-			if childName[0] != '/' {
-				childName = "/" + childName
+			child, err := srv.runtime.GetByName(parts["name"])
+			if err != nil {
+				return err
 			}
-			if err := runtime.Link(fmt.Sprintf("/%s", container.ID), childName, parts["alias"]); err != nil {
+			if child == nil {
+				return fmt.Errorf("Could not get container for %s", parts["name"])
+			}
+
+			if err := runtime.RegisterLink(container, child, parts["alias"]); err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
+	runtime := srv.runtime
+	container := runtime.Get(name)
+	if container == nil {
+		return fmt.Errorf("No such container: %s", name)
 	}
 
 	if err := container.Start(hostConfig); err != nil {

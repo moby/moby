@@ -403,33 +403,6 @@ Insert file from github
 
     Kill a running container
 
-.. _cli_link:
-
-``link``
---------
-
-::
-
-    Usage: docker link CURRENT_NAME NEW_NAME
-
-    Link a container to a new name.
-
-
-Examples:
-~~~~~~~~~
-
-.. code-block:: bash
-
-    $ docker link /59669e088202c2ebe150b4346cb3301562d073b51261176a354a74e8f618bfbc /redis
-    $ docker ls
-    NAME                                                                      ID                                                                 IMAGE
-    /redis                                                                    59669e088202c2ebe150b4346cb3301562d073b51261176a354a74e8f618bfbc   crosbymichael/redis:latest
-    /59669e088202c2ebe150b4346cb3301562d073b51261176a354a74e8f618bfbc         59669e088202c2ebe150b4346cb3301562d073b51261176a354a74e8f618bfbc   crosbymichael/redis:latest
-
-
-This will create a new link for the existing name ``/59669e088202c2ebe150b4346cb3301562d073b51261176a354a74e8f618bfbc`` 
-with the new name ``/redis`` so that we can new reference the same container under the new name ``/redis``.
-
 .. _cli_login:
 
 ``login``
@@ -604,7 +577,8 @@ network communication.
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -sig-proxy=false: Proxify all received signal to the process (even in non-tty mode)
       -expose=[]: Expose a port from the container without publishing it to your host
-      -link="": Add link to another container (containerid:alias)
+      -link="": Add link to another container (name:alias)
+      -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
 
 Examples
 --------
@@ -680,12 +654,20 @@ without publishing the port to the host system's interfaces.
 
 .. code-block:: bash
 
-    docker run -link /redis:redis ubuntu bash
+    docker run -name console -t -i ubuntu bash
+
+This will create and run a new container with the container name 
+being ``console``.
+
+.. code-block:: bash
+
+    docker run -link /redis:redis -name console ubuntu bash
 
 The ``-link`` flag will link the container named ``/redis`` into the 
 newly created container with the alias ``redis``.  The new container
 can access the network and environment of the redis container via
-environment variables.
+environment variables.  The ``-name`` flag will assign the name ``console`` 
+to the newly created container.
 
 .. _cli_search:
 

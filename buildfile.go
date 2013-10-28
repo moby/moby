@@ -335,7 +335,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	b.config.Image = b.image
 	// Create the container and start it
-	container, _, err := b.runtime.Create(b.config)
+	container, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
 		return err
 	}
@@ -370,7 +370,7 @@ func (b *buildFile) run() (string, error) {
 	b.config.Image = b.image
 
 	// Create the container and start it
-	c, _, err := b.runtime.Create(b.config)
+	c, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
 		return "", err
 	}
@@ -433,7 +433,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, _, err := b.runtime.Create(b.config)
+		container, _, err := b.runtime.Create(b.config, "")
 		if err != nil {
 			return err
 		}

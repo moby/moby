@@ -121,9 +121,3 @@ type APICopy struct {
 	Resource string
 	HostPath string
 }
-
-type APILink struct {
-	Path        string
-	ContainerID string
-	Image       string
-}

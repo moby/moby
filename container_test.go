@@ -23,6 +23,7 @@ func TestIDFormat(t *testing.T) {
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -393,6 +394,7 @@ func TestOutput(t *testing.T) {
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -415,6 +417,7 @@ func TestContainerNetwork(t *testing.T) {
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -438,6 +441,7 @@ func TestKillDifferentUser(t *testing.T) {
 		OpenStdin: true,
 		User:      "daemon",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -492,7 +496,7 @@ func TestCreateVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, _, err := runtime.Create(config)
+	c, _, err := runtime.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -511,6 +515,7 @@ func TestKill(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -554,7 +559,7 @@ func TestExitCode(t *testing.T) {
 	trueContainer, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true", ""},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +574,7 @@ func TestExitCode(t *testing.T) {
 	falseContainer, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/false", ""},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -589,6 +594,7 @@ func TestRestart(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "-n", "foobar"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -621,6 +627,7 @@ func TestRestartStdin(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -697,6 +704,7 @@ func TestUser(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -717,6 +725,7 @@ func TestUser(t *testing.T) {
 
 		User: "root",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -737,6 +746,7 @@ func TestUser(t *testing.T) {
 
 		User: "0",
 	},
+		"",
 	)
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
@@ -757,6 +767,7 @@ func TestUser(t *testing.T) {
 
 		User: "1",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -779,6 +790,7 @@ func TestUser(t *testing.T) {
 
 		User: "daemon",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -799,6 +811,7 @@ func TestUser(t *testing.T) {
 
 		User: "unknownuser",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -818,6 +831,7 @@ func TestMultipleContainers(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -828,6 +842,7 @@ func TestMultipleContainers(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -874,6 +889,7 @@ func TestStdin(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -919,6 +935,7 @@ func TestTty(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -962,6 +979,7 @@ func TestEnv(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"env"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1013,6 +1031,7 @@ func TestEntrypoint(t *testing.T) {
 			Entrypoint: []string{"/bin/echo"},
 			Cmd:        []string{"-n", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1035,6 +1054,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 			Image:      GetTestImage(runtime).ID,
 			Entrypoint: []string{"/bin/echo", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1089,6 +1109,7 @@ func TestLXCConfig(t *testing.T) {
 		Memory:    int64(mem),
 		CpuShares: int64(cpu),
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1111,6 +1132,7 @@ func TestCustomLxcConfig(t *testing.T) {
 
 		Hostname: "foobar",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1140,6 +1162,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foo"},
 		},
+			"",
 		)
 		if err != nil {
 			b.Fatal(err)
@@ -1172,6 +1195,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				Image: GetTestImage(runtime).ID,
 				Cmd:   []string{"echo", "-n", "foo"},
 			},
+				"",
 			)
 			if err != nil {
 				complete <- err
@@ -1324,6 +1348,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 			Cmd:     []string{"/bin/echo", "-n", "foobar"},
 			Volumes: map[string]struct{}{"/test": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1343,6 +1368,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: container.ID,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1378,6 +1404,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		Cmd:     []string{"echo", "-n", "foobar"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1421,6 +1448,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1450,6 +1478,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 			VolumesFrom: container.ID,
 			Volumes:     map[string]struct{}{"/test": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1484,7 +1513,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, _, err := runtime.Create(config)
+	c, _, err := runtime.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1555,6 +1584,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1583,6 +1613,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
 			Volumes: map[string]struct{}{"/other": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1603,7 +1634,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
-		})
+		}, "")
 
 	if err != nil {
 		t.Fatal(err)

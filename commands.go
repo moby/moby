@@ -91,7 +91,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"insert", "Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
-		{"link", "Link the container with a new name"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
@@ -1163,12 +1162,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		if !*noTrunc {
 			out.ID = utils.TruncateID(out.ID)
 		}
+
+		// Remove the leading / from the names
+		for i := 0; i < len(out.Names); i++ {
+			out.Names[i] = out.Names[i][1:]
+		}
+
 		if !*quiet {
 			if !*noTrunc {
 				out.Command = utils.Trunc(out.Command, 20)
-				for i := 0; i < len(out.Names); i++ {
-					out.Names[i] = utils.Trunc(out.Names[i], 10)
-				}
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), strings.Join(out.Names, ","))
 			if *size {
@@ -1187,27 +1189,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	if !*quiet {
 		w.Flush()
-	}
-	return nil
-}
-
-func (cli *DockerCli) CmdLink(args ...string) error {
-	cmd := Subcmd("link", "CURRENT_NAME NEW_NAME", "Link the container with a new name")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() != 2 {
-		cmd.Usage()
-		return nil
-	}
-	body := map[string]string{
-		"currentName": cmd.Arg(0),
-		"newName":     cmd.Arg(1),
-	}
-
-	_, _, err := cli.call("POST", "/containers/link", body)
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -1535,6 +1516,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	flSigProxy := cmd.Lookup("sig-proxy")
 	sigProxy, _ := strconv.ParseBool(flSigProxy.Value.String())
+	flName := cmd.Lookup("name")
 
 	var containerIDFile *os.File
 	if len(hostConfig.ContainerIDFile) > 0 {
@@ -1547,9 +1529,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 		defer containerIDFile.Close()
 	}
+	containerValues := url.Values{}
+	name := flName.Value.String()
+	if name != "" {
+		containerValues.Set("name", name)
+	}
 
 	//create the container
-	body, statusCode, err := cli.call("POST", "/containers/create", config)
+	body, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), config)
 	//if image not found try to pull it
 	if statusCode == 404 {
 		_, tag := utils.ParseRepositoryTag(config.Image)
@@ -1590,7 +1577,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err != nil {
 			return err
 		}
-		body, _, err = cli.call("POST", "/containers/create", config)
+		body, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config)
 		if err != nil {
 			return err
 		}
