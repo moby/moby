@@ -142,13 +142,19 @@ func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
+		switch protoAddrParts[0] {
+		case "unix":
+			if _, err := os.Stat(protoAddrParts[1]); err == nil {
+				// unix socket file exists, try to remove it
+				if err := syscall.Unlink(protoAddrParts[1]); err != nil {
+					log.Fatal(err)
+				}
+			}
+		case "tcp":
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
-		} else {
+		default:
 			log.Fatal("Invalid protocol format.")
 		}
 		go func() {
