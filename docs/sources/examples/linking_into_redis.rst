@@ -54,26 +54,14 @@ Run the redis container
 
 .. code-block:: bash
     
-    docker run -d -e PASSWORD=docker crosbymichael/redis --requirepass docker
+    docker run -d -e PASSWORD=docker -name redis crosbymichael/redis --requirepass=docker
  
-This will run our redis container using the default port of 6379 and using
-as password to secure our service. Next we will link the redis container to 
-a new name using ``docker link``.
-
-
-Linking an existing container
------------------------------
-
-Docker will automatically create an initial link with the container's id but
-because the is long and not very user friendly we can link the container with
-a new name.
-
-.. code-block:: bash
-
-    docker link /39588b6a45100ef5b328b2c302ea085624f29e6cbab70f88be04793af02cec89 /redis
-
-Now we can reference our running redis service using the friendly name ``/redis``.  
-We can issue all the commands that you would expect; start, stop, attach, using the new name.
+This will run our redis container using the default port of 6379 and using docker 
+as password to secure our service.  By specifying the ``-name`` flag on run 
+we will assign the name ``redis`` to this container. 
+We can issue all the commands that you would expect; start, stop, attach, using the name.
+The name also allows us to link other containers into this one.  If you do not specify a 
+name on docker run, docker will automatically generate a name for your container. 
 
 Linking redis as a child
 ------------------------
@@ -90,12 +78,12 @@ Now lets start our web application with a link into redis.
 
 .. code-block:: bash
    
-    docker run -t -i -link /redis:db ubuntu bash
+    docker run -t -i -link /redis:db -name webapp ubuntu bash
 
     root@4c01db0b339c:/# env
 
     HOSTNAME=4c01db0b339c
-    DB_NAME=/4c01db0b339cf19958731255a796ee072040a652f51652a4ade190ab8c27006f/db
+    DB_NAME=/webapp/db
     TERM=xterm
     DB_PORT=tcp://172.17.0.8:6379
     DB_PORT_6379_TCP=tcp://172.17.0.8:6379
@@ -118,7 +106,7 @@ network and environment information from the child.
 .. code-block:: bash
 
     # The name of the child container
-    DB_NAME=/4c01db0b339cf19958731255a796ee072040a652f51652a4ade190ab8c27006f/db
+    DB_NAME=/webapp/db
     # The default protocol, ip, and port of the service running in the container
     DB_PORT=tcp://172.17.0.8:6379
     # A specific protocol, ip, and port of various services
@@ -129,4 +117,4 @@ network and environment information from the child.
 
 Accessing the network information along with the environment of the child container allows
 us to easily connect to the redis service on the specific ip and port and use the password
-specified in the environment.  
+specified in the environment.

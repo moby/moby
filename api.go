@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -522,8 +521,12 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
 	config := &Config{}
 	out := &APIRun{}
+	name := r.Form.Get("name")
 
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
@@ -539,7 +542,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		config.Dns = defaultDns
 	}
 
-	id, warnings, err := srv.ContainerCreate(config)
+	id, warnings, err := srv.ContainerCreate(config, name)
 	if err != nil {
 		return err
 	}
@@ -649,6 +652,10 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	// Register any links from the host config before starting the container
+	if err := srv.RegisterLinks(name, hostConfig); err != nil {
+		return err
+	}
 	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
@@ -1019,73 +1026,6 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 	}
 }
 
-func getContainersLinks(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
-		return err
-	}
-
-	runtime := srv.runtime
-	all, err := getBoolParam(r.Form.Get("all"))
-	if err != nil {
-		return err
-	}
-
-	out := []APILink{}
-	err = runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
-		if container := runtime.Get(e.ID()); container != nil {
-			if !all && strings.Contains(p, container.ID) {
-				return nil
-			}
-			out = append(out, APILink{
-				Path:        p,
-				ContainerID: container.ID,
-				Image:       runtime.repositories.ImageName(container.Image),
-			})
-		}
-		return nil
-	}, -1)
-
-	if err != nil {
-		return err
-	}
-	return writeJSON(w, http.StatusOK, out)
-}
-
-func postContainerLink(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	values := make(map[string]string)
-	if matchesContentType(r.Header.Get("Content-Type"), "application/json") && r.Body != nil {
-		defer r.Body.Close()
-
-		dec := json.NewDecoder(r.Body)
-		if err := dec.Decode(&values); err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("Invalid json body")
-	}
-	currentName := values["currentName"]
-	newName := values["newName"]
-
-	if currentName == "" {
-		return fmt.Errorf("currentName cannot be empty")
-	}
-	if newName == "" {
-		return fmt.Errorf("newName cannot be empty")
-	}
-
-	if err := srv.runtime.RenameLink(currentName, newName); err != nil {
-		if strings.HasSuffix(err.Error(), "name are not unique") {
-			return fmt.Errorf("Conflict, %s already exists", newName)
-		}
-		return err
-	}
-
-	return nil
-}
-
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
@@ -1106,7 +1046,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
-			"/containers/links":               getContainersLinks,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1125,7 +1064,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
-			"/containers/link":              postContainerLink,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

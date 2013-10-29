@@ -197,6 +197,7 @@ func TestRuntimeCreate(t *testing.T) {
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +235,7 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// Make sure create with bad parameters returns an error
-	if _, _, err = runtime.Create(&Config{Image: GetTestImage(runtime).ID}); err == nil {
+	if _, _, err = runtime.Create(&Config{Image: GetTestImage(runtime).ID}, ""); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
@@ -243,6 +244,7 @@ func TestRuntimeCreate(t *testing.T) {
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
 		},
+		"",
 	); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
@@ -252,7 +254,7 @@ func TestRuntimeCreate(t *testing.T) {
 		Cmd:       []string{"/bin/ls"},
 		PortSpecs: []string{"80"},
 	}
-	container, _, err = runtime.Create(config)
+	container, _, err = runtime.Create(config, "")
 
 	_, err = runtime.Commit(container, "testrepo", "testtag", "", "", config)
 	if err != nil {
@@ -267,7 +269,7 @@ func TestDestroy(t *testing.T) {
 	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +363,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 			Cmd:          []string{"sh", "-c", cmd},
 			PortSpecs:    []string{fmt.Sprintf("%s/%s", strPort, proto)},
 			ExposedPorts: ep,
-		})
+		}, "")
 		if err != nil {
 			nuke(runtime)
 			t.Fatal(err)
@@ -573,6 +575,9 @@ func TestReloadContainerLinks(t *testing.T) {
 	h1 := &HostConfig{}
 	// Add a link to container 2
 	h1.Links = []string{"/" + container2.ID + ":first"}
+	if err := runtime1.RegisterLink(container1, container2, "first"); err != nil {
+		t.Fatal(err)
+	}
 	if err := container1.Start(h1); err != nil {
 		t.Fatal(err)
 	}
@@ -620,7 +625,7 @@ func TestReloadContainerLinks(t *testing.T) {
 
 	t.Logf("Number of links: %d", runtime2.containerGraph.Refs("0"))
 	// Verify that the link is still registered in the runtime
-	entity := runtime2.containerGraph.Get(fmt.Sprintf("/%s", container1.ID))
+	entity := runtime2.containerGraph.Get(container1.Name)
 	if entity == nil {
 		t.Fatal("Entity should not be nil")
 	}
@@ -636,12 +641,16 @@ func TestDefaultContainerName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config)
+	shortId, _, err := srv.ContainerCreate(config, "some_name")
 	if err != nil {
 		t.Fatal(err)
 	}
 	container := runtime.Get(shortId)
 	containerID := container.ID
+
+	if container.Name != "/some_name" {
+		t.Fatalf("Expect /some_name got %s", container.Name)
+	}
 
 	paths := runtime.containerGraph.RefPaths(containerID)
 	if paths == nil || len(paths) == 0 {
@@ -654,12 +663,12 @@ func TestDefaultContainerName(t *testing.T) {
 	if edge.EntityID != containerID {
 		t.Fatalf("Expected %s got %s", containerID, edge.EntityID)
 	}
-	if edge.Name != containerID {
-		t.Fatalf("Expected %s got %s", containerID, edge.Name)
+	if edge.Name != "some_name" {
+		t.Fatalf("Expected some_name got %s", edge.Name)
 	}
 }
 
-func TestDefaultContainerRename(t *testing.T) {
+func TestRandomContainerName(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	srv := &Server{runtime: runtime}
@@ -669,24 +678,30 @@ func TestDefaultContainerRename(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config)
+	shortId, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	container := runtime.Get(shortId)
 	containerID := container.ID
 
-	if err := runtime.RenameLink(fmt.Sprintf("/%s", containerID), "/webapp"); err != nil {
-		t.Fatal(err)
+	if container.Name == "" {
+		t.Fatalf("Expected not empty container name")
 	}
 
-	webapp, err := runtime.GetByName("/webapp")
-	if err != nil {
-		t.Fatal(err)
+	paths := runtime.containerGraph.RefPaths(containerID)
+	if paths == nil || len(paths) == 0 {
+		t.Fatalf("Could not find edges for %s", containerID)
 	}
-
-	if webapp.ID != container.ID {
-		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
+	edge := paths[0]
+	if edge.ParentID != "0" {
+		t.Fatalf("Expected engine got %s", edge.ParentID)
+	}
+	if edge.EntityID != containerID {
+		t.Fatalf("Expected %s got %s", containerID, edge.EntityID)
+	}
+	if edge.Name == "" {
+		t.Fatalf("Expected not empty container name")
 	}
 }
 
@@ -700,15 +715,11 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config)
+	shortId, _, err := srv.ContainerCreate(config, "/webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
 	container := runtime.Get(shortId)
-
-	if err := runtime.RenameLink(fmt.Sprintf("/%s", container.ID), "/webapp"); err != nil {
-		t.Fatal(err)
-	}
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -724,17 +735,14 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config)
+	shortId, _, err = srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	childContainer := runtime.Get(shortId)
-	if err := runtime.RenameLink(fmt.Sprintf("/%s", childContainer.ID), "/db"); err != nil {
-		t.Fatal(err)
-	}
 
-	if err := runtime.Link("/webapp", "/db", "db"); err != nil {
+	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -758,15 +766,11 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config)
+	shortId, _, err := srv.ContainerCreate(config, "/webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
 	container := runtime.Get(shortId)
-
-	if err := runtime.RenameLink(fmt.Sprintf("/%s", container.ID), "/webapp"); err != nil {
-		t.Fatal(err)
-	}
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -782,17 +786,14 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config)
+	shortId, _, err = srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	childContainer := runtime.Get(shortId)
-	if err := runtime.RenameLink(fmt.Sprintf("/%s", childContainer.ID), "/db"); err != nil {
-		t.Fatal(err)
-	}
 
-	if err := runtime.Link("/webapp", "/db", "db"); err != nil {
+	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
 	}
 

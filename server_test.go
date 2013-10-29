@@ -89,7 +89,7 @@ func TestCreateRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,6 +231,7 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 			CpuShares: 1000,
 			Cmd:       []string{"/bin/cat"},
 		},
+		"",
 	); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
@@ -397,7 +398,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, _, err := srv.ContainerCreate(config)
+	containerID, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +419,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, _, err = srv.ContainerCreate(config)
+	containerID, _, err = srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}

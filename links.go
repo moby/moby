@@ -54,7 +54,7 @@ func (l *Link) ToEnv() []string {
 	alias := strings.ToUpper(l.Alias())
 
 	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s:%s", alias, l.ChildIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
 	// Load exposed ports into the environment

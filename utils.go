@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"strconv"
 	"strings"
@@ -288,4 +289,21 @@ func migratePortMappings(config *Config) error {
 // name:alias
 func parseLink(rawLink string) (map[string]string, error) {
 	return utils.PartParser("name:alias", rawLink)
+}
+
+type checker struct {
+	runtime *Runtime
+}
+
+func (c *checker) Exists(name string) bool {
+	return c.runtime.containerGraph.Exists("/" + name)
+}
+
+// Generate a random and unique name
+func generateRandomName(runtime *Runtime) string {
+	n, err := namesgenerator.GenerateRandomName(&checker{runtime})
+	if err != nil {
+		panic(err)
+	}
+	return n
 }

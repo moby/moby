@@ -44,6 +44,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	Name           string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -167,6 +168,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 	flSigProxy := cmd.Bool("sig-proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
+	cmd.String("name", "", "Assign a name to the container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -199,7 +201,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	var flLinks utils.ListOpts
-	cmd.Var(&flLinks, "link", "Add link to another container (containerid:alias)")
+	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -858,7 +860,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	// Init any links between the parent and children
 	runtime := container.runtime
 
-	children, err := runtime.Children(fmt.Sprintf("/%s", container.ID))
+	children, err := runtime.Children(container.Name)
 	if err != nil {
 		return err
 	}
