@@ -14,6 +14,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
@@ -332,6 +333,7 @@ func dockerInitApp(args *DockerInitArgs) error {
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Credential: credential}
 
+	// App runs in its own session
 	cmd.SysProcAttr.Setsid = true
 
 	// Console setup.  Hook up the container app's stdin/stdout/stderr to
@@ -445,6 +447,129 @@ func dockerInitApp(args *DockerInitArgs) error {
 	return nil
 }
 
+// Runs as pid 1 when starting a machine container that has its own init
+// process.  Start the dockerinit child, do some container setup, and then exec
+// the real init.
+func dockerInitMachineParent(args *DockerInitArgs) error {
+
+	// Create a pty slave to be used by the container for its console.  The
+	// pty master will be owned by the dockerinit child process.
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return err
+	}
+	defer ptyMaster.Close()
+	defer ptySlave.Close()
+
+	// Hook up /dev/console to the pty with a bind mount
+	err = syscall.Mount(ptySlave.Name(), "/dev/console", "", syscall.MS_BIND, "")
+	if err != nil {
+		return err
+	}
+
+	// Container setup
+	err = setupCommon(args)
+	if err != nil {
+		return err
+	}
+
+	// Hook up stdin/stdout/stderr to the pty
+	fd := int(ptySlave.Fd())
+	err = syscall.Dup2(fd, 0)
+	if err != nil {
+		return err
+	}
+	err = syscall.Dup2(fd, 1)
+	if err != nil {
+		return err
+	}
+	err = syscall.Dup2(fd, 2)
+	if err != nil {
+		return err
+	}
+
+	// Prepare to receive a signal from the child dockerinit
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGUSR1)
+
+	// Prepare to start the long-running dockerinit child via the
+	// dockerinit "-child" option
+	cmdArgs := append([]string{"-child"}, os.Args[1:]...)
+	cmd := exec.Command(os.Args[0], cmdArgs...)
+
+	// Pass the pty master FD to the child dockerinit so that it can access
+	// the parent's console
+	cmd.ExtraFiles = []*os.File{ptyMaster}
+
+	// Put child dockerinit in its own session so that it doesn't get a
+	// signal when e.g. systemd does TIOCNOTTY
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	// Set the child uid/gid credentials if needed.  Not sure if this
+	// really makes sense for a machine container, but if the user asked
+	// for it...
+	credential, err := getCredential(args)
+	if err != nil {
+		return err
+	}
+	cmd.SysProcAttr.Credential = credential
+
+	// Start the child
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	// Wait for signal to continue from the child
+	<-sigchan
+	signal.Stop(sigchan)
+
+	// Exec the container's real init process
+	path, err := exec.LookPath(args.args[0])
+	if err != nil {
+		return err
+	}
+	err = syscall.Exec(path, args.args, args.env)
+	return err
+}
+
+// Long-running non-pid-1 dockerinit for the machine container case.  Started
+// by dockerInitMachineParent().
+func dockerInitMachineChild(args *DockerInitArgs) error {
+
+	// Create the RPC struct to monitor pid 1 and send signals to it
+	dockerInitRpc := dockerInitRpcNew()
+	var err error
+	dockerInitRpc.process, err = os.FindProcess(1)
+	if err != nil {
+		return err
+	}
+	close(dockerInitRpc.processLock)
+
+	// Create the dockerInitConsole struct and pass it the ptyMaster that
+	// was sent by dockerInitMachineParent()
+	dockerInitConsole := dockerInitConsoleNew(args)
+	dockerInitConsole.ptyMaster = os.NewFile(3, "ptyMaster")
+
+	// Start the RPC and console FD servers and wait for the resume call
+	// from docker
+	err = startServersAndWait(dockerInitRpc, dockerInitConsole)
+	if err != nil {
+		return err
+	}
+
+	// We're ready now.  Tell dockerInitMachineParent() to exec the real init.
+	err = dockerInitRpc.process.Signal(syscall.SIGUSR1)
+	if err != nil {
+		return err
+	}
+
+	// Sleep forever while the servers run...
+	for {
+		time.Sleep(time.Hour)
+	}
+}
+
 type DockerInitArgs struct {
 	user       string
 	gateway    string
@@ -452,6 +577,7 @@ type DockerInitArgs struct {
 	tty        bool
 	openStdin  bool
 	privileged bool
+	child      bool
 	env        []string
 	args       []string
 }
@@ -472,6 +598,7 @@ func SysInit() {
 	tty := flag.Bool("tty", false, "use pseudo-tty")
 	openStdin := flag.Bool("stdin", false, "open stdin")
 	privileged := flag.Bool("privileged", false, "privileged mode")
+	child := flag.Bool("child", false, "is child dockerinit")
 	flag.Parse()
 
 	// Get env
@@ -492,11 +619,22 @@ func SysInit() {
 		tty:        *tty,
 		openStdin:  *openStdin,
 		privileged: *privileged,
+		child:      *child,
 		env:        env,
 		args:       flag.Args(),
 	}
 
-	err = dockerInitApp(args)
+	if args.child {
+		// Machine container child
+		err = dockerInitMachineChild(args)
+	} else if path.Base(args.args[0]) == "systemd" || args.args[0] == "/sbin/init" {
+		// Machine container parent
+		err = dockerInitMachineParent(args)
+	} else {
+		// Typical docker usage: app container
+		err = dockerInitApp(args)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
