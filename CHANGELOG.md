@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.5 (2013-10-29)
++ Runtime: Containers can now be named
++ Runtime: Containers can now be linked together for service discovery
++ Runtime: 'run -a', 'start -a' and 'attach' can forward signals to the container for better integration with process supervisors
++ Runtime: Automatically start crashed containers after a reboot
++ Runtime: Expose IP, port, and proto as separate environment vars for container links
+* Runtime: Allow ports to be published to specific ips
+* Runtime: Prohibit inter-container communication by default
+* Documentation: Fix the flags for nc in example
+- Client: Only pass stdin to hijack when needed to avoid closed pipe errors
+* Testing: Remove warnings and prevent mount issues
+* Client: Use less reflection in command-line method invocation
+- Runtime: Ignore ErrClosedPipe for stdin in Container.Attach
+- Testing: Change logic for tty resize to avoid warning in tests
+- Client: Monitor the tty size after starting the container, not prior
+- Hack: Update install.sh with $sh_c to get sudo/su for modprobe
+- Client: Remove useless os.Exit() calls after log.Fatal
+* Hack: Update all the mkimage scripts to use --numeric-owner as a tar argument
+* Hack: Update hack/release.sh process to automatically invoke hack/make.sh and bail on build and test issues
++ Hack: Add initial init scripts library and a safer Ubuntu packaging script that works for Debian
+- Runtime: Fix untag during removal of images 
+- Runtime: Remove unused field kernelVersion 
+* Hack: Add -p option to invoke debootstrap with http_proxy
+- Builder: Fix race condition in docker build with verbose output
+- Registry: Fix content-type for PushImageJSONIndex method
+* Runtime: Fix issue when mounting subdirectories of /mnt in container
+* Runtime: Check return value of syscall.Chdir when changing working directory inside dockerinit
+* Contrib: Improve helper tools to generate debian and Arch linux server images
+
 ## 0.6.4 (2013-10-16)
 - Runtime: Add cleanup of container when Start() fails
 - Testing: Catch errClosing error when TCP and UDP proxies are terminated
