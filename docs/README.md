@@ -57,6 +57,9 @@ docs inside the container, even starting a simple HTTP server on port
 build .`` and run the resulting image. This is the equivalent to
 ``make clean server`` since each container starts clean.
 
+In the ``docs/`` directory, run:
+    ```docker build -t docker:docs . && docker run -p 8000:8000 docker:docs```
+
 Usage
 -----
 * Follow the contribution guidelines (``../CONTRIBUTING.md``)
