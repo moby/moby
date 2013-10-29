@@ -40,4 +40,4 @@ Docker Github Repo:
 * `CentOS
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-centos.sh>`_
 * `Debian/Ubuntu
-  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debian.sh>`_
+  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debootstrap.sh>`_

@@ -112,6 +112,7 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetEvents(t *testing.T) {
 	runtime := mkRuntime(t)
+	defer nuke(runtime)
 	srv := &Server{
 		runtime:   runtime,
 		events:    make([]utils.JSONMessage, 0, 64),
@@ -346,10 +347,12 @@ func TestGetContainersJSON(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(&Config{
+	beginLen := runtime.containers.Len()
+
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "test"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,8 +371,8 @@ func TestGetContainersJSON(t *testing.T) {
 	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
 		t.Fatal(err)
 	}
-	if len(containers) != 1 {
-		t.Fatalf("Expected %d container, %d found", 1, len(containers))
+	if len(containers) != beginLen+1 {
+		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers), beginLen)
 	}
 	if containers[0].ID != container.ID {
 		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", container.ID, containers[0].ID)
@@ -383,11 +386,12 @@ func TestGetContainersExport(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -433,11 +437,12 @@ func TestGetContainersChanges(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/rm", "/etc/passwd"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -471,20 +476,18 @@ func TestGetContainersChanges(t *testing.T) {
 
 func TestGetContainersTop(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now. Reported error when testing using dind: 'api_test.go:527: Expected 2 processes, found 0.'")
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -561,11 +564,12 @@ func TestGetContainersByName(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -592,11 +596,12 @@ func TestPostCommit(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -686,12 +691,13 @@ func TestPostContainersKill(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -728,12 +734,13 @@ func TestPostContainersRestart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -782,12 +789,13 @@ func TestPostContainersStart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -834,12 +842,13 @@ func TestPostContainersStop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -881,12 +890,13 @@ func TestPostContainersWait(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sleep", "1"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -923,12 +933,13 @@ func TestPostContainersAttach(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1012,12 +1023,13 @@ func TestPostContainersAttachStderr(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1104,10 +1116,10 @@ func TestDeleteContainers(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"touch", "/test"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1142,7 +1154,8 @@ func TestOptionsRoute(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	runtime.config.EnableCors = true
+	srv := &Server{runtime: runtime}
 
 	r := httptest.NewRecorder()
 	router, err := createRouter(srv, false)
@@ -1165,7 +1178,8 @@ func TestGetEnabledCors(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	runtime.config.EnableCors = true
+	srv := &Server{runtime: runtime}
 
 	r := httptest.NewRecorder()
 
@@ -1292,11 +1306,12 @@ func TestPostContainersCopy(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test.txt"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)

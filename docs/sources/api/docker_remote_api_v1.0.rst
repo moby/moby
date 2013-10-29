@@ -970,28 +970,33 @@ Create a new image from a container's changes
 
 	**Example request**:
 
-        .. sourcecode:: http
+    .. sourcecode:: http
 
-           POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+       POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+       Content-Type: application/json
+   
+       {
+           "Cmd": ["cat", "/world"],
+           "PortSpecs":["22"]
+       }
 
-        **Example response**:
+    **Example response**:
 
-        .. sourcecode:: http
+    .. sourcecode:: http
 
-           HTTP/1.1 201 OK
-	   Content-Type: application/vnd.docker.raw-stream
+       HTTP/1.1 201 OK
+       Content-Type: application/vnd.docker.raw-stream
 
-           {"Id":"596069db4bf5"}
+       {"Id":"596069db4bf5"}
 
-	:query container: source container
-	:query repo: repository
-	:query tag: tag
-	:query m: commit message
-	:query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
-	:query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
-        :statuscode 201: no error
-	:statuscode 404: no such container
-        :statuscode 500: server error
+    :query container: source container
+    :query repo: repository
+    :query tag: tag
+    :query m: commit message
+    :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    :statuscode 201: no error
+    :statuscode 404: no such container
+    :statuscode 500: server error
 
 
 3. Going further

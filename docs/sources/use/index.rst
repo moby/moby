@@ -18,3 +18,4 @@ Contents:
    baseimages
    port_redirection
    puppet
+   host_integration

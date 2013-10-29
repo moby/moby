@@ -39,8 +39,7 @@ Getting Started
 To edit and test the docs, you'll need to install the Sphinx tool and
 its dependencies. There are two main ways to install this tool:
 
-Native Installation
-...................
+###Native Installation
 
 * Install sphinx: `pip install sphinx`
     * Mac OS X: `[sudo] pip-2.7 install sphinx`
@@ -48,8 +47,7 @@ Native Installation
     * Mac OS X: `[sudo] pip-2.7 install sphinxcontrib-httpdomain`
 * If pip is not available you can probably install it using your favorite package manager as **python-pip**
 
-Alternative Installation: Docker Container
-..........................................
+###Alternative Installation: Docker Container
 
 If you're running ``docker`` on your development machine then you may
 find it easier and cleaner to use the Dockerfile. This installs Sphinx
@@ -58,6 +56,9 @@ docs inside the container, even starting a simple HTTP server on port
 8000 so that you can connect and see your changes. Just run ``docker
 build .`` and run the resulting image. This is the equivalent to
 ``make clean server`` since each container starts clean.
+
+In the ``docs/`` directory, run:
+    ```docker build -t docker:docs . && docker run -p 8000:8000 docker:docs```
 
 Usage
 -----

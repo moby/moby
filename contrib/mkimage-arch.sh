@@ -21,18 +21,20 @@ mkdir $ROOTFS
 #packages to ignore for space savings
 PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
  
-expect -c "
+expect <<EOF
   set timeout 60
+  set send_slow {1 1}
   spawn pacstrap -c -d -G -i $ROOTFS base haveged --ignore $PKGIGNORE
   expect {
-    \"Install anyway\" { send "n\\r"; exp_continue }
-    \"(default=all)\" { send "\\r"; exp_continue }
-    \"Proceed with installation?\" { send "\\r"; exp_continue }
-    \"skip the above package\" {send "y\\r"; exp_continue }
-    \"checking\" { exp_continue }
-    \"loading\" { exp_continue }
-    \"installing\" { exp_continue }
-  }"
+    "Install anyway?" { send n\r; exp_continue }
+    "(default=all)" { send \r; exp_continue }
+    "Proceed with installation?" { send "\r"; exp_continue }
+    "skip the above package" {send "y\r"; exp_continue }
+    "checking" { exp_continue }
+    "loading" { exp_continue }
+    "installing" { exp_continue }
+  }
+EOF
 
 arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman -Rs --noconfirm haveged; pacman-key --populate archlinux"
 arch-chroot $ROOTFS /bin/sh -c "ln -s /usr/share/zoneinfo/UTC /etc/localtime"
@@ -60,6 +62,6 @@ mknod -m 666 ${DEV}/full c 1 7
 mknod -m 600 ${DEV}/initctl p
 mknod -m 666 ${DEV}/ptmx c 5 2
 
-tar -C $ROOTFS -c . | docker import - archlinux
+tar --numeric-owner -C $ROOTFS -c . | docker import - archlinux
 docker run -i -t archlinux echo Success.
 rm -rf $ROOTFS
