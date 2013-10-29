@@ -168,17 +168,44 @@ func setupHostname(args *DockerInitArgs) error {
 }
 
 func setupNetworking(args *DockerInitArgs) error {
-	if args.gateway == "" {
-		return nil
-	}
+	if args.ip != "" {
+		// eth0
+		iface, err := net.InterfaceByName("eth0")
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+		ip, ipNet, err := net.ParseCIDR(args.ip)
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+		err = netlink.NetworkLinkAddIp(iface, ip, ipNet)
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+		err = netlink.NetworkLinkUp(iface)
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
 
-	ip := net.ParseIP(args.gateway)
-	if ip == nil {
-		return fmt.Errorf("Unable to set up networking, %s is not a valid IP", args.gateway)
+		// loopback
+		iface, err = net.InterfaceByName("lo")
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+		err = netlink.NetworkLinkUp(iface)
+		if err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
 	}
+	if args.gateway != "" {
+		gw := net.ParseIP(args.gateway)
+		if gw == nil {
+			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.gateway)
+		}
 
-	if err := netlink.AddDefaultGw(ip); err != nil {
-		return fmt.Errorf("Unable to set up networking: %v", err)
+		if err := netlink.AddDefaultGw(gw); err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
 	}
 	return nil
 }
@@ -586,6 +613,7 @@ type DockerInitArgs struct {
 	user       string
 	gateway    string
 	workDir    string
+	ip         string
 	tty        bool
 	openStdin  bool
 	privileged bool
@@ -607,6 +635,7 @@ func SysInit() {
 	user := flag.String("u", "", "username or uid")
 	gateway := flag.String("g", "", "gateway address")
 	workDir := flag.String("w", "", "workdir")
+	ip := flag.String("i", "", "ip address")
 	tty := flag.Bool("tty", false, "use pseudo-tty")
 	openStdin := flag.Bool("stdin", false, "open stdin")
 	privileged := flag.Bool("privileged", false, "privileged mode")
@@ -628,6 +657,7 @@ func SysInit() {
 		user:       *user,
 		gateway:    *gateway,
 		workDir:    *workDir,
+		ip:         *ip,
 		tty:        *tty,
 		openStdin:  *openStdin,
 		privileged: *privileged,
