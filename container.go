@@ -10,7 +10,6 @@ import (
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
-	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
 	"log"
@@ -54,7 +53,8 @@ type Container struct {
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
-	ptyMaster io.Closer
+	ptyMaster *os.File
+	ptyLock   chan struct{}
 
 	runtime *Runtime
 
@@ -513,59 +513,6 @@ func (container *Container) generateLXCConfig() error {
 	return LxcTemplateCompiled.Execute(fo, container)
 }
 
-func (container *Container) startPty() error {
-	ptyMaster, ptySlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyMaster = ptyMaster
-	container.cmd.Stdout = ptySlave
-	container.cmd.Stderr = ptySlave
-
-	// Copy the PTYs to our broadcasters
-	go func() {
-		defer container.stdout.CloseWriters()
-		utils.Debugf("startPty: begin of stdout pipe")
-		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("startPty: end of stdout pipe")
-	}()
-
-	// stdin
-	if container.Config.OpenStdin {
-		container.cmd.Stdin = ptySlave
-		container.cmd.SysProcAttr.Setctty = true
-		go func() {
-			defer container.stdin.Close()
-			utils.Debugf("startPty: begin of stdin pipe")
-			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("startPty: end of stdin pipe")
-		}()
-	}
-	if err := container.cmd.Start(); err != nil {
-		return err
-	}
-	ptySlave.Close()
-	return nil
-}
-
-func (container *Container) start() error {
-	container.cmd.Stdout = container.stdout
-	container.cmd.Stderr = container.stderr
-	if container.Config.OpenStdin {
-		stdin, err := container.cmd.StdinPipe()
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer stdin.Close()
-			utils.Debugf("start: begin of stdin pipe")
-			io.Copy(stdin, container.stdin)
-			utils.Debugf("start: end of stdin pipe")
-		}()
-	}
-	return container.cmd.Start()
-}
-
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
 	var cStdout, cStderr io.ReadCloser
 
@@ -933,6 +880,11 @@ func (container *Container) Start() (err error) {
 
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
+		params = append(params, "-tty")
+	}
+
+	if container.Config.OpenStdin {
+		params = append(params, "-stdin")
 	}
 
 	// Init any links between the parent and children
@@ -1027,12 +979,13 @@ func (container *Container) Start() (err error) {
 
 	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	if container.Config.Tty {
-		err = container.startPty()
-	} else {
-		err = container.start()
-	}
-	if err != nil {
+	// Hook up stdout and stderr to the cmd so that any early error output
+	// that might occur (before hooking up the console FDs) gets logged
+	container.cmd.Stdout = container.stdout
+	container.cmd.Stderr = container.stderr
+
+	// Start it
+	if err := container.cmd.Start(); err != nil {
 		return err
 	}
 
@@ -1043,6 +996,7 @@ func (container *Container) Start() (err error) {
 	// Init the locks
 	container.waitLock = make(chan struct{})
 	container.rpcLock = make(chan struct{})
+	container.ptyLock = make(chan struct{})
 
 	container.ToDisk()
 	go container.monitor(false)
@@ -1097,7 +1051,7 @@ func (container *Container) dockerInitRpcCall(method string, args, reply interfa
 	return container.dockerInitRpc.Call("DockerInitRpc."+method, args, reply)
 }
 
-// Connect to the dockerinit RPC socket
+// Connect to the dockerinit RPC socket and hook up the console FDs
 func (container *Container) connectToDockerInit(reconnect bool) error {
 
 	// FIXME: The go net package has a really strange bug where rpc.Dial or
@@ -1134,6 +1088,85 @@ func (container *Container) connectToDockerInit(reconnect bool) error {
 		err = container.dockerInitRpcCall("Resume", &dummy1, &dummy2)
 		if err != nil {
 			return err
+		}
+	}
+
+	// FIXME: This is the same long socket name workaround as above
+	symlink = "/tmp/docker-con." + container.ID
+	os.Symlink(path.Join(container.SharedPath, sysinit.ConsoleSocketName), symlink)
+	defer os.Remove(symlink)
+
+	// Connect to the console FD passing socket
+	addr := &net.UnixAddr{Net: "unix", Name: symlink}
+	conn, err := net.DialUnix("unix", nil, addr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Get the console FDs
+	buf := make([]byte, 1)
+	oob := make([]byte, 32)
+	timeout := time.AfterFunc(time.Second, func() {
+		utils.Errorf("%s: console socket timeout", container.ID)
+		conn.Close()
+	})
+	_, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
+	timeout.Stop()
+	if err != nil {
+		return err
+	}
+	messages, err := syscall.ParseSocketControlMessage(oob[:oobn])
+	if err != nil {
+		return err
+	}
+	fds, err := syscall.ParseUnixRights(&messages[0])
+	if err != nil {
+		return err
+	}
+
+	// Set the CLOEXEC flag on the FDs so they won't be leaked into future
+	// lxc-start incantations
+	for i := range fds {
+		_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fds[i]), syscall.F_SETFD, syscall.FD_CLOEXEC)
+		if errno != 0 {
+			return errno
+		}
+	}
+
+	// Hook up the console FDs to the container struct for logging and
+	// attaching
+	if container.Config.Tty {
+		container.ptyMaster = os.NewFile(uintptr(fds[0]), "ptyMaster")
+		close(container.ptyLock)
+
+		if container.Config.OpenStdin {
+			go func() {
+				io.Copy(container.ptyMaster, container.stdin)
+				container.ptyMaster.Close()
+			}()
+		}
+		go func() {
+			io.Copy(container.stdout, container.ptyMaster)
+			container.ptyMaster.Close()
+		}()
+	} else {
+		stdout := os.NewFile(uintptr(fds[0]), "stdout")
+		stderr := os.NewFile(uintptr(fds[1]), "stderr")
+		go func() {
+			io.Copy(container.stdout, stdout)
+			stdout.Close()
+		}()
+		go func() {
+			io.Copy(container.stderr, stderr)
+			stderr.Close()
+		}()
+		if container.Config.OpenStdin && len(fds) == 3 {
+			stdin := os.NewFile(uintptr(fds[2]), "stdin")
+			go func() {
+				io.Copy(stdin, container.stdin)
+				stdin.Close()
+			}()
 		}
 	}
 
@@ -1512,11 +1545,12 @@ func (container *Container) Wait() int {
 }
 
 func (container *Container) Resize(h, w int) error {
-	pty, ok := container.ptyMaster.(*os.File)
-	if !ok {
-		return fmt.Errorf("ptyMaster does not have Fd() method")
+	select {
+	case <-container.ptyLock:
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout waiting for pty lock")
 	}
-	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return term.SetWinsize(container.ptyMaster.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
