@@ -482,10 +482,22 @@ func TestExistsFalse(t *testing.T) {
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
-	db.Set("toerhe", "1")
+	db.Set("/toerhe", "1")
 
 	if db.Exists("/testing") {
 		t.Fatalf("/tesing should not exist")
 	}
 
+}
+
+func TestGetNameWithTrailingSlash(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	db.Set("/todo", "1")
+
+	e := db.Get("/todo/")
+	if e == nil {
+		t.Fatalf("Entity should not be nil")
+	}
 }

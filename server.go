@@ -990,20 +990,17 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		parent, n := path.Split(name)
 
 		pe := srv.runtime.containerGraph.Get(parent)
-		if pe != nil {
-			parentContainer := srv.runtime.Get(pe.ID())
-
-			if parentContainer != nil && parentContainer.activeLinks != nil {
-				if link, exists := parentContainer.activeLinks[n]; exists {
-					link.Disable()
-				} else {
-					utils.Debugf("Could not find active link for %s", name)
-				}
-			}
+		if pe == nil {
+			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
+		parentContainer := srv.runtime.Get(pe.ID())
 
-		if name[1:] == container.ID {
-			return fmt.Errorf("Conflict, cannot remove default link %s", name)
+		if parentContainer != nil && parentContainer.activeLinks != nil {
+			if link, exists := parentContainer.activeLinks[n]; exists {
+				link.Disable()
+			} else {
+				utils.Debugf("Could not find active link for %s", name)
+			}
 		}
 
 		if err := srv.runtime.containerGraph.Delete(name); err != nil {
@@ -1011,6 +1008,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		}
 		return nil
 	}
+
 	if container != nil {
 		if container.State.Running {
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")
@@ -1215,6 +1213,7 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
+
 	// Register links
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
@@ -1233,6 +1232,13 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 			if err := runtime.RegisterLink(container, child, parts["alias"]); err != nil {
 				return err
 			}
+		}
+
+		// After we load all the links into the runtime
+		// set them to nil on the hostconfig
+		hostConfig.Links = nil
+		if err := container.SaveHostConfig(hostConfig); err != nil {
+			return err
 		}
 	}
 	return nil

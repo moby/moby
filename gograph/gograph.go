@@ -179,6 +179,9 @@ func (db *Database) get(name string) (*Entity, error) {
 	parts := split(name)
 	for i := 1; i < len(parts); i++ {
 		p := parts[i]
+		if p == "" {
+			continue
+		}
 
 		next := db.child(e, p)
 		if next == nil {
