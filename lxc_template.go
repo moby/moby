@@ -5,13 +5,6 @@ import (
 )
 
 const LxcTemplate = `
-# hostname
-{{if .Config.Hostname}}
-lxc.utsname = {{.Config.Hostname}}
-{{else}}
-lxc.utsname = {{.Id}}
-{{end}}
-
 {{if .Config.NetworkDisabled}}
 # network is disabled (-n=false)
 lxc.network.type = empty

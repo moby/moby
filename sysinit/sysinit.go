@@ -159,6 +159,14 @@ func consoleFdServer(dockerInitConsole *DockerInitConsole) {
 	}
 }
 
+func setupHostname(args *DockerInitArgs) error {
+	hostname := getEnv(args, "HOSTNAME")
+	if hostname == "" {
+		return nil
+	}
+	return syscall.Sethostname([]byte(hostname))
+}
+
 func setupNetworking(args *DockerInitArgs) error {
 	if args.gateway == "" {
 		return nil
@@ -268,7 +276,11 @@ func setupCapabilities(args *DockerInitArgs) error {
 
 func setupCommon(args *DockerInitArgs) error {
 
-	err := setupNetworking(args)
+	err := setupHostname(args)
+	if err != nil {
+		return err
+	}
+	err = setupNetworking(args)
 	if err != nil {
 		return err
 	}
