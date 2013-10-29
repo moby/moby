@@ -758,8 +758,13 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		return err
 	}
 
+	lxcStart, err := exec.LookPath("lxc-start")
+	if err != nil {
+		return err
+	}
+
 	params := []string{
-		"lxc-start",
+		lxcStart,
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
@@ -813,13 +818,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		// What we really want is to clone into a new namespace and then
 		// mount / MS_REC|MS_PRIVATE, but since we can't really clone or fork
 		// without exec in go we have to do this horrible shell hack...
-		shellString :=
-			"mount --make-rprivate /; exec " +
-				utils.ShellQuoteArguments(params)
-
-		params = []string{
-			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
-		}
+		params = append([]string{"/proc/self/exe", "--exec"}, params...)
 	}
 
 	container.cmd = exec.Command(params[0], params[1:]...)
