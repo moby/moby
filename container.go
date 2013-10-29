@@ -574,7 +574,11 @@ func (container *Container) Start() (err error) {
 
 	// Networking
 	if !container.Config.NetworkDisabled {
-		params = append(params, "-g", container.network.Gateway.String())
+		network := container.NetworkSettings
+		params = append(params,
+			"-g", network.Gateway,
+			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
+		)
 	}
 
 	// User
