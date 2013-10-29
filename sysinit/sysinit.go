@@ -26,6 +26,14 @@ type DockerInitArgs struct {
 	args       []string
 }
 
+func setupHostname(args *DockerInitArgs) error {
+	hostname := getEnv(args, "HOSTNAME")
+	if hostname == "" {
+		return nil
+	}
+	return syscall.Sethostname([]byte(hostname))
+}
+
 // Setup networking
 func setupNetworking(args *DockerInitArgs) error {
 	if args.gateway == "" {
@@ -132,8 +140,22 @@ func setupEnv(args *DockerInitArgs) {
 	}
 }
 
+func getEnv(args *DockerInitArgs, key string) string {
+	for _, kv := range args.env {
+		parts := strings.SplitN(kv, "=", 2)
+		if parts[0] == key && len(parts) == 2 {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
 func executeProgram(args *DockerInitArgs) error {
 	setupEnv(args)
+
+	if err := setupHostname(args); err != nil {
+		return err
+	}
 
 	if err := setupNetworking(args); err != nil {
 		return err
