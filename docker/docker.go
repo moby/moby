@@ -6,14 +6,10 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
+	"github.com/dotcloud/docker/engine"
 	"log"
-	"net"
 	"os"
-	"os/signal"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 var (
@@ -34,7 +30,7 @@ func main() {
 	flAutoRestart := flag.Bool("r", true, "Restart previously running containers")
 	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge. Use 'none' to disable container networking")
 	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flGraphPath := flag.String("g", "/var/lib/docker", "Path to graph storage base dir.")
+	flRoot := flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime.")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
 	flDns := flag.String("dns", "", "Set custom dns servers")
 	flHosts := utils.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
@@ -61,10 +57,6 @@ func main() {
 		}
 	}
 
-	bridge := docker.DefaultNetworkBridge
-	if *bridgeName != "" {
-		bridge = *bridgeName
-	}
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
@@ -75,26 +67,22 @@ func main() {
 			flag.Usage()
 			return
 		}
-		var dns []string
-		if *flDns != "" {
-			dns = []string{*flDns}
+		eng, err := engine.New(*flRoot)
+		if err != nil {
+			log.Fatal(err)
 		}
-
-		ip := net.ParseIP(*flDefaultIp)
-
-		config := &docker.DaemonConfig{
-			Pidfile:                     *pidfile,
-			GraphPath:                   *flGraphPath,
-			AutoRestart:                 *flAutoRestart,
-			EnableCors:                  *flEnableCors,
-			Dns:                         dns,
-			EnableIptables:              *flEnableIptables,
-			BridgeIface:                 bridge,
-			ProtoAddresses:              flHosts,
-			DefaultIp:                   ip,
-			InterContainerCommunication: *flInterContainerComm,
-		}
-		if err := daemon(config); err != nil {
+		job := eng.Job("serveapi")
+		job.Setenv("Pidfile", *pidfile)
+		job.Setenv("Root", *flRoot)
+		job.SetenvBool("AutoRestart", *flAutoRestart)
+		job.SetenvBool("EnableCors", *flEnableCors)
+		job.Setenv("Dns", *flDns)
+		job.SetenvBool("EnableIptables", *flEnableIptables)
+		job.Setenv("BridgeIface", *bridgeName)
+		job.SetenvList("ProtoAddresses", flHosts)
+		job.Setenv("DefaultIp", *flDefaultIp)
+		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -113,80 +101,4 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
-}
-
-func createPidFile(pidfile string) error {
-	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
-		pid, err := strconv.Atoi(string(pidString))
-		if err == nil {
-			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
-				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
-			}
-		}
-	}
-
-	file, err := os.Create(pidfile)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = fmt.Fprintf(file, "%d", os.Getpid())
-	return err
-}
-
-func removePidFile(pidfile string) {
-	if err := os.Remove(pidfile); err != nil {
-		log.Printf("Error removing %s: %s", pidfile, err)
-	}
-}
-
-func daemon(config *docker.DaemonConfig) error {
-	if err := createPidFile(config.Pidfile); err != nil {
-		log.Fatal(err)
-	}
-	defer removePidFile(config.Pidfile)
-
-	server, err := docker.NewServer(config)
-	if err != nil {
-		return err
-	}
-	defer server.Close()
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		server.Close()
-		removePidFile(config.Pidfile)
-		os.Exit(0)
-	}()
-
-	chErrors := make(chan error, len(config.ProtoAddresses))
-	for _, protoAddr := range config.ProtoAddresses {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		} else {
-			server.Close()
-			removePidFile(config.Pidfile)
-			log.Fatal("Invalid protocol format.")
-		}
-		go func() {
-			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
-		}()
-	}
-	for i := 0; i < len(config.ProtoAddresses); i += 1 {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -46,8 +46,8 @@ func nuke(runtime *Runtime) error {
 	wg.Wait()
 	runtime.Close()
 
-	os.Remove(filepath.Join(runtime.config.GraphPath, "linkgraph.db"))
-	return os.RemoveAll(runtime.config.GraphPath)
+	os.Remove(filepath.Join(runtime.config.Root, "linkgraph.db"))
+	return os.RemoveAll(runtime.config.Root)
 }
 
 func cleanup(runtime *Runtime) error {
@@ -119,7 +119,7 @@ func init() {
 
 func setupBaseImage() {
 	config := &DaemonConfig{
-		GraphPath:   unitTestStoreBase,
+		Root:   unitTestStoreBase,
 		AutoRestart: false,
 		BridgeIface: unitTestNetworkBridge,
 	}
