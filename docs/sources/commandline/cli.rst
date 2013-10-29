@@ -30,7 +30,7 @@ To list available commands, either run ``docker`` with no parameters or execute
     Attach to a running container.
 
       -nostdin=false: Do not attach stdin
-      -sig-proxy=false: Proxify all received signal to the process (even in non-tty mode)
+      -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
@@ -575,7 +575,7 @@ network communication.
       -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-      -sig-proxy=false: Proxify all received signal to the process (even in non-tty mode)
+      -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       -expose=[]: Expose a port from the container without publishing it to your host
       -link="": Add link to another container (name:alias)
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
