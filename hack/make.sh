@@ -38,6 +38,7 @@ DEFAULT_BUNDLES=(
 	dynbinary
 	dyntest
 	ubuntu
+	cross
 )
 
 VERSION=$(cat ./VERSION)
