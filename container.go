@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -43,6 +44,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	Name           string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -58,6 +60,8 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW map[string]bool
+
+	activeLinks map[string]*Link
 }
 
 type Config struct {
@@ -70,7 +74,8 @@ type Config struct {
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
-	PortSpecs       []string
+	PortSpecs       []string // Deprecated - Can be in the format of 8080/tcp
+	ExposedPorts    map[Port]struct{}
 	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
@@ -90,6 +95,8 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
+	PortBindings    map[Port][]PortBinding
+	Links           []string
 }
 
 type BindMap struct {
@@ -99,12 +106,44 @@ type BindMap struct {
 }
 
 var (
-	ErrInvaidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
+	ErrContainerStart           = errors.New("The container failed to start. Unkown error")
+	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
+	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
+	ErrConflictDetachAutoRemove = errors.New("Conflicting options: -rm and -d")
 )
 
 type KeyValuePair struct {
 	Key   string
 	Value string
+}
+
+type PortBinding struct {
+	HostIp   string
+	HostPort string
+}
+
+// 80/tcp
+type Port string
+
+func (p Port) Proto() string {
+	return strings.Split(string(p), "/")[1]
+}
+
+func (p Port) Port() string {
+	return strings.Split(string(p), "/")[0]
+}
+
+func (p Port) Int() int {
+	i, err := parsePort(p.Port())
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
+func NewPort(proto, port string) Port {
+	return Port(fmt.Sprintf("%s/%s", port, proto))
 }
 
 func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -127,6 +166,8 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
+	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
+	cmd.String("name", "", "Assign a name to the container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -135,35 +176,45 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
 
-	var flPorts ListOpts
-	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
+	var flPublish utils.ListOpts
+	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
 
-	var flEnv ListOpts
+	var flExpose utils.ListOpts
+	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
+
+	var flEnv utils.ListOpts
 	cmd.Var(&flEnv, "e", "Set environment variables")
 
-	var flDns ListOpts
+	var flDns utils.ListOpts
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	var flVolumesFrom ListOpts
+	var flVolumesFrom utils.ListOpts
 	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
 
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
-	var flLxcOpts ListOpts
+	var flLxcOpts utils.ListOpts
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+
+	var flLinks utils.ListOpts
+	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
 	}
 	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -a and -d")
+		return nil, nil, cmd, ErrConflictAttachDetach
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvaidWorikingDirectory
+		return nil, nil, cmd, ErrInvalidWorikingDirectory
 	}
+	if *flDetach && *flAutoRemove {
+		return nil, nil, cmd, ErrConflictDetachAutoRemove
+	}
+
 	// If neither -d or -a are set, attach to everything by default
 	if len(flAttach) == 0 && !*flDetach {
 		if !*flDetach {
@@ -173,10 +224,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 				flAttach.Set("stdin")
 			}
 		}
-	}
-
-	if *flDetach && *flAutoRemove {
-		return nil, nil, cmd, fmt.Errorf("Conflicting options: -rm and -d")
 	}
 
 	var binds []string
@@ -220,10 +267,28 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		hostname = parts[0]
 		domainname = parts[1]
 	}
+
+	ports, portBindings, err := parsePortSpecs(flPublish)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
+	// Merge in exposed ports to the map of published ports
+	for _, e := range flExpose {
+		if strings.Contains(e, ":") {
+			return nil, nil, cmd, fmt.Errorf("Invalid port format for -expose: %s", e)
+		}
+		p := NewPort(splitProtoPort(e))
+		if _, exists := ports[p]; !exists {
+			ports[p] = struct{}{}
+		}
+	}
+
 	config := &Config{
-		Hostname:        hostname,
+		Hostname:        *flHostname,
 		Domainname:      domainname,
-		PortSpecs:       flPorts,
+		PortSpecs:       nil, // Deprecated
+		ExposedPorts:    ports,
 		User:            *flUser,
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
@@ -243,10 +308,13 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Privileged:      *flPrivileged,
 		WorkingDir:      *flWorkingDir,
 	}
+
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
+		PortBindings:    portBindings,
+		Links:           flLinks,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -261,36 +329,38 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	return config, hostConfig, cmd, nil
 }
 
-type PortMapping map[string]string
+type PortMapping map[string]string // Deprecated
 
 type NetworkSettings struct {
 	IPAddress   string
 	IPPrefixLen int
 	Gateway     string
 	Bridge      string
-	PortMapping map[string]PortMapping
+	PortMapping map[string]PortMapping // Deprecated
+	Ports       map[Port][]PortBinding
 }
 
-// returns a more easy to process description of the port mapping defined in the settings
 func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 	var mapping []APIPort
-	for private, public := range settings.PortMapping["Tcp"] {
-		pubint, _ := strconv.ParseInt(public, 0, 0)
-		privint, _ := strconv.ParseInt(private, 0, 0)
-		mapping = append(mapping, APIPort{
-			PrivatePort: privint,
-			PublicPort:  pubint,
-			Type:        "tcp",
-		})
-	}
-	for private, public := range settings.PortMapping["Udp"] {
-		pubint, _ := strconv.ParseInt(public, 0, 0)
-		privint, _ := strconv.ParseInt(private, 0, 0)
-		mapping = append(mapping, APIPort{
-			PrivatePort: privint,
-			PublicPort:  pubint,
-			Type:        "udp",
-		})
+	for port, bindings := range settings.Ports {
+		p, _ := parsePort(port.Port())
+		if len(bindings) == 0 {
+			mapping = append(mapping, APIPort{
+				PublicPort: int64(p),
+				Type:       port.Proto(),
+			})
+			continue
+		}
+		for _, binding := range bindings {
+			p, _ := parsePort(port.Port())
+			h, _ := parsePort(binding.HostPort)
+			mapping = append(mapping, APIPort{
+				PrivatePort: int64(p),
+				PublicPort:  int64(h),
+				Type:        port.Proto(),
+				IP:          binding.HostIp,
+			})
+		}
 	}
 	return mapping
 }
@@ -460,11 +530,13 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				} else {
 					_, err = io.Copy(cStdin, stdin)
 				}
+				if err == io.ErrClosedPipe {
+					err = nil
+				}
 				if err != nil {
 					utils.Errorf("attach: stdin: %s", err)
 				}
-				// Discard error, expecting pipe error
-				errors <- nil
+				errors <- err
 			}()
 		}
 	}
@@ -590,7 +662,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
 	} else {
-		if err := container.allocateNetwork(); err != nil {
+		if err := container.allocateNetwork(hostConfig); err != nil {
 			return err
 		}
 	}
@@ -780,6 +852,46 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		"-e", "container=lxc",
 		"-e", "HOSTNAME="+container.Config.Hostname,
 	)
+
+	// Init any links between the parent and children
+	runtime := container.runtime
+
+	children, err := runtime.Children(container.Name)
+	if err != nil {
+		return err
+	}
+
+	if len(children) > 0 {
+		container.activeLinks = make(map[string]*Link, len(children))
+
+		// If we encounter an error make sure that we rollback any network
+		// config and ip table changes
+		rollback := func() {
+			for _, link := range container.activeLinks {
+				link.Disable()
+			}
+			container.activeLinks = nil
+		}
+
+		for p, child := range children {
+			link, err := NewLink(container, child, p, runtime.networkManager.bridgeIface)
+			if err != nil {
+				rollback()
+				return err
+			}
+
+			container.activeLinks[link.Alias()] = link
+			if err := link.Enable(); err != nil {
+				rollback()
+				return err
+			}
+
+			for _, envVar := range link.ToEnv() {
+				params = append(params, "-e", envVar)
+			}
+		}
+	}
+
 	if container.Config.WorkingDir != "" {
 		workingDir := path.Clean(container.Config.WorkingDir)
 		utils.Debugf("[working dir] working dir is %s", workingDir)
@@ -831,12 +943,43 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 	container.ToDisk()
 	container.SaveHostConfig(hostConfig)
 	go container.monitor(hostConfig)
-	return nil
+
+	defer utils.Debugf("Container running: %v", container.State.Running)
+	// We wait for the container to be fully running.
+	// Timeout after 5 seconds. In case of broken pipe, just retry.
+	// Note: The container can run and finish correctly before
+	//       the end of this loop
+	for now := time.Now(); time.Since(now) < 5*time.Second; {
+		// If the container dies while waiting for it, just return
+		if !container.State.Running {
+			return nil
+		}
+		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
+		if err != nil {
+			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
+
+			output, err = exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
+			if err != nil {
+				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
+				return err
+			}
+
+		}
+		if strings.Contains(string(output), "RUNNING") {
+			return nil
+		}
+		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if container.State.Running {
+		return ErrContainerStartTimeout
+	}
+	return ErrContainerStart
 }
 
 func (container *Container) Run() error {
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(&HostConfig{}); err != nil {
 		return err
 	}
 	container.Wait()
@@ -882,7 +1025,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) allocateNetwork() error {
+func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 	if container.Config.NetworkDisabled {
 		return nil
 	}
@@ -909,36 +1052,59 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 
-	var portSpecs []string
-	if !container.State.Ghost {
-		portSpecs = container.Config.PortSpecs
-	} else {
-		for backend, frontend := range container.NetworkSettings.PortMapping["Tcp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/tcp", frontend, backend))
+	if container.Config.PortSpecs != nil {
+		utils.Debugf("Migrating port mappings for container: %s", strings.Join(container.Config.PortSpecs, ", "))
+		if err := migratePortMappings(container.Config); err != nil {
+			return err
 		}
-		for backend, frontend := range container.NetworkSettings.PortMapping["Udp"] {
-			portSpecs = append(portSpecs, fmt.Sprintf("%s:%s/udp", frontend, backend))
+		container.Config.PortSpecs = nil
+	}
+
+	portSpecs := make(map[Port]struct{})
+	bindings := make(map[Port][]PortBinding)
+
+	if !container.State.Ghost {
+		if container.Config.ExposedPorts != nil {
+			portSpecs = container.Config.ExposedPorts
+		}
+		if hostConfig.PortBindings != nil {
+			bindings = hostConfig.PortBindings
+		}
+	} else {
+		if container.NetworkSettings.Ports != nil {
+			for port, binding := range container.NetworkSettings.Ports {
+				portSpecs[port] = struct{}{}
+				bindings[port] = binding
+			}
 		}
 	}
 
-	container.NetworkSettings.PortMapping = make(map[string]PortMapping)
-	container.NetworkSettings.PortMapping["Tcp"] = make(PortMapping)
-	container.NetworkSettings.PortMapping["Udp"] = make(PortMapping)
-	for _, spec := range portSpecs {
-		nat, err := iface.AllocatePort(spec)
-		if err != nil {
-			iface.Release()
-			return err
+	container.NetworkSettings.PortMapping = nil
+
+	for port := range portSpecs {
+		binding := bindings[port]
+		for i := 0; i < len(binding); i++ {
+			b := binding[i]
+			nat, err := iface.AllocatePort(port, b)
+			if err != nil {
+				iface.Release()
+				return err
+			}
+			utils.Debugf("Allocate port: %s:%s->%s", nat.Binding.HostIp, port, nat.Binding.HostPort)
+			binding[i] = nat.Binding
 		}
-		proto := strings.Title(nat.Proto)
-		backend, frontend := strconv.Itoa(nat.Backend), strconv.Itoa(nat.Frontend)
-		container.NetworkSettings.PortMapping[proto][backend] = frontend
+		bindings[port] = binding
 	}
+	container.SaveHostConfig(hostConfig)
+
+	container.NetworkSettings.Ports = bindings
 	container.network = iface
+
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
 	container.NetworkSettings.IPAddress = iface.IPNet.IP.String()
 	container.NetworkSettings.IPPrefixLen, _ = iface.IPNet.Mask.Size()
 	container.NetworkSettings.Gateway = iface.Gateway.String()
+
 	return nil
 }
 
@@ -951,7 +1117,7 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-// FIXME: replace this with a control socket within docker-init
+// FIXME: replace this with a control socket within dockerinit
 func (container *Container) waitLxc() error {
 	for {
 		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
@@ -1021,6 +1187,14 @@ func (container *Container) monitor(hostConfig *HostConfig) {
 
 func (container *Container) cleanup() {
 	container.releaseNetwork()
+
+	// Disable all active links
+	if container.activeLinks != nil {
+		for _, link := range container.activeLinks {
+			link.Disable()
+		}
+	}
+
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
@@ -1044,54 +1218,57 @@ func (container *Container) cleanup() {
 	}
 }
 
-func (container *Container) kill() error {
+func (container *Container) kill(sig int) error {
+	container.State.Lock()
+	defer container.State.Unlock()
+
 	if !container.State.Running {
 		return nil
 	}
 
-	// Sending SIGKILL to the process via lxc
-	output, err := exec.Command("lxc-kill", "-n", container.ID, "9").CombinedOutput()
-	if err != nil {
-		log.Printf("error killing container %s (%s, %s)", container.ID, output, err)
+	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
+		log.Printf("error killing container %s (%s, %s)", container.ShortID(), output, err)
+		return err
+	}
+
+	return nil
+}
+
+func (container *Container) Kill() error {
+	if !container.State.Running {
+		return nil
+	}
+
+	// 1. Send SIGKILL
+	if err := container.kill(9); err != nil {
+		return err
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		if container.cmd == nil {
-			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ID)
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ShortID())
 		}
-		log.Printf("Container %s failed to exit within 10 seconds of lxc SIGKILL - trying direct SIGKILL", container.ID)
+		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", container.ShortID())
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
 	}
 
-	// Wait for the container to be actually stopped
 	container.Wait()
 	return nil
 }
 
-func (container *Container) Kill() error {
-	container.State.Lock()
-	defer container.State.Unlock()
-	if !container.State.Running {
-		return nil
-	}
-	return container.kill()
-}
-
 func (container *Container) Stop(seconds int) error {
-	container.State.Lock()
-	defer container.State.Unlock()
 	if !container.State.Running {
 		return nil
 	}
 
 	// 1. Send a SIGTERM
-	if output, err := exec.Command("lxc-kill", "-n", container.ID, "15").CombinedOutput(); err != nil {
-		log.Print(string(output))
+	if err := container.kill(15); err != nil {
+		utils.Debugf("Error sending kill SIGTERM: %s", err)
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.kill(); err != nil {
+		if err := container.kill(9); err != nil {
 			return err
 		}
 	}
@@ -1099,7 +1276,8 @@ func (container *Container) Stop(seconds int) error {
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		if err := container.kill(); err != nil {
+		// 3. If it doesn't, then send SIGKILL
+		if err := container.Kill(); err != nil {
 			return err
 		}
 	}
@@ -1202,6 +1380,12 @@ func (container *Container) Mounted() (bool, error) {
 }
 
 func (container *Container) Unmount() error {
+	if _, err := os.Stat(container.RootfsPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
 	return Unmount(container.RootfsPath())
 }
 
@@ -1291,4 +1475,10 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		basePath = path.Dir(basePath)
 	}
 	return TarFilter(basePath, Uncompressed, filter)
+}
+
+// Returns true if the container exposes a certain port
+func (container *Container) Exposes(p Port) bool {
+	_, exists := container.Config.ExposedPorts[p]
+	return exists
 }

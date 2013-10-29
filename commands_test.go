@@ -84,10 +84,24 @@ func TestRunHostname(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	container := globalRuntime.List()[0]
+
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdir checks that 'docker run -w' correctly sets a custom working directory
@@ -115,10 +129,24 @@ func TestRunWorkdir(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	container := globalRuntime.List()[0]
+
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRunWorkdirExists checks that 'docker run -w' correctly sets a custom working directory, even if it exists
@@ -146,10 +174,24 @@ func TestRunWorkdirExists(t *testing.T) {
 		}
 	})
 
+	container := globalRuntime.List()[0]
+
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
 	})
 
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRunExit(t *testing.T) {
@@ -262,7 +304,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 
 		close(c1)
@@ -393,11 +435,13 @@ func TestRunDetach(t *testing.T) {
 	container := globalRuntime.List()[0]
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{'', ''})
+		stdinPipe.Write([]byte{16, 17})
 		if err := stdinPipe.Close(); err != nil {
 			t.Fatal(err)
 		}
 	})
+
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdRun timed out", 15*time.Second, func() {
@@ -411,7 +455,6 @@ func TestRunDetach(t *testing.T) {
 
 	setTimeout(t, "Waiting for container to die timed out", 20*time.Second, func() {
 		container.Kill()
-		container.Wait()
 	})
 }
 
@@ -423,39 +466,62 @@ func TestAttachDetach(t *testing.T) {
 	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalRuntime)
 
-	go stdout.Read(make([]byte, 1024))
-	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
 		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
 			t.Fatal(err)
 		}
-	})
+	}()
 
-	container := globalRuntime.List()[0]
+	var container *Container
+
+	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
+		buf := make([]byte, 1024)
+		n, err := stdout.Read(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		container = globalRuntime.List()[0]
+
+		if strings.Trim(string(buf[:n]), " \r\n") != container.ShortID() {
+			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ShortID(), buf[:n])
+		}
+	})
+	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
+		<-ch
+	})
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
 	cli = NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 
-	ch := make(chan struct{})
+	ch = make(chan struct{})
 	go func() {
 		defer close(ch)
 		if err := cli.CmdAttach(container.ShortID()); err != nil {
-			t.Fatal(err)
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
 		}
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
-			t.Fatal(err)
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
 		}
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{'', ''})
+		stdinPipe.Write([]byte{16, 17})
 		if err := stdinPipe.Close(); err != nil {
 			t.Fatal(err)
 		}
 	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
@@ -469,7 +535,6 @@ func TestAttachDetach(t *testing.T) {
 
 	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
 		container.Kill()
-		container.Wait()
 	})
 }
 
@@ -484,7 +549,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s\n", err)
+			utils.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 
@@ -570,7 +635,7 @@ func TestRunAutoRemove(t *testing.T) {
 		}
 	})
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
 	})
 

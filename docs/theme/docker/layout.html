@@ -13,6 +13,12 @@
     {%- set url_root = pathto('', 1) %}
     {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
 
+    {%- if current_version == 'latest' %}
+      {% set github_tag = 'master' %}
+    {% else %}
+      {% set github_tag = current_version %}
+    {% endif %}
+
     <script type="text/javascript">
         // This is included here for Javascript that doesn't have access to the templates.
         var doc_version = "{{ current_version }}";
@@ -107,7 +113,7 @@
                 {% block body %}{% endblock %}
             </section>
 
-            <div class="pull-right"><a href="https://github.com/dotcloud/docker/blob/{{ current_version }}/docs/sources/{{ pagename }}.rst" title="edit this article">Edit this article on GitHub</a></div>
+            <div class="pull-right"><a href="https://github.com/dotcloud/docker/blob/{{ github_tag }}/docs/sources/{{ pagename }}.rst" title="edit this article">Edit this article on GitHub</a></div>
         </div>
     </div>
 </div>

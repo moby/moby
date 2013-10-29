@@ -44,6 +44,6 @@ do
 done
 
 chmod 0755 $ROOTFS # See #486
-tar -cf- . | docker import - docker-ut
+tar --numeric-owner -cf- . | docker import - docker-ut
 docker run -i -u root docker-ut /bin/echo Success.
 rm -rf $ROOTFS

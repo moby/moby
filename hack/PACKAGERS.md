@@ -36,10 +36,10 @@ To build docker, you will need the following system dependencies
 
 * An amd64 machine
 * A recent version of git and mercurial
-* Go version 1.1.2
+* Go version 1.2rc1 or later (see notes below regarding using Go 1.1.2 and dynbinary)
+* SQLite version 3.7.9 or later
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
-under the path *src/github.com/dotcloud/docker*. See 
-
+under the path *src/github.com/dotcloud/docker*.
 
 ## Go dependencies
 
@@ -54,7 +54,6 @@ easy-to-parse list of the exact version for each.
 NOTE: if you''re not able to package the exact version (to the exact commit) of a given dependency,
 please get in touch so we can remediate! Who knows what discrepancies can be caused by even the
 slightest deviation. We promise to do our best to make everybody happy.
-
 
 ## Disabling CGO
 
@@ -71,7 +70,7 @@ cd /tmp && echo 'package main' > t.go && go test -a -i -v
 To build the docker binary, run the following command with the source checkout as the
 working directory:
 
-```
+```bash
 ./hack/make.sh binary
 ```
 
@@ -82,7 +81,7 @@ You are encouraged to use ./hack/make.sh without modification. If you must absol
 your own script (are you really, really sure you need to? make.sh is really not that complicated),
 then please take care the respect the following:
 
-* In *./hack/make.sh*: $LDFLAGS, $VERSION and $GITCOMMIT
+* In *./hack/make.sh*: $LDFLAGS, $BUILDFLAGS, $VERSION and $GITCOMMIT
 * In *./hack/make/binary*: the exact build command to run
 
 You may be tempted to tweak these settings. In particular, being a rigorous maintainer, you may want
@@ -91,6 +90,17 @@ You would do the users of your distro a disservice and "void the docker warranty
 
 A good comparison is Busybox: all distros package it as a statically linked binary, because it just
 makes sense. Docker is the same way.
+
+If you *must* have a non-static Docker binary, or require Go 1.1.2 (since Go 1.2 is not yet officially
+released at the time of this writing), please use:
+
+```bash
+./hack/make.sh dynbinary
+```
+
+This will create *./bundles/$VERSION/dynbinary/docker-$VERSION* and *./bundles/$VERSION/binary/dockerinit-$VERSION*.
+The first of these would usually be installed at */usr/bin/docker*, while the second must be installed
+at */usr/libexec/docker/dockerinit*.
 
 ## Testing Docker
 
@@ -106,16 +116,15 @@ dependencies to be installed (see below).
 
 The test suite will also download a small test container, so you will need internet connectivity.
 
-
 ## Runtime dependencies
 
 To run properly, docker needs the following software to be installed at runtime:
 
 * GNU Tar version 1.26 or later
-* iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility.
+* iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
 * iptables version 1.4 or later
-* The lxc utility scripts (http://lxc.sourceforge.net) version 0.8 or later.
-* Git version 1.7 or later 
+* The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
+* Git version 1.7 or later
 * XZ Utils 4.9 or later
 
 ## Kernel dependencies
@@ -133,6 +142,6 @@ for your distro''s process supervisor of choice.
 
 Docker should be run as root, with the following arguments:
 
-```
+```bash
 docker -d
 ```

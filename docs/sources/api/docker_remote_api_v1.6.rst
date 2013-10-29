@@ -13,9 +13,12 @@ Docker Remote API v1.6
 1. Brief introduction
 =====================
 
-- The Remote API is replacing rcli
-- Default port in the docker daemon is 4243
-- The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
+- The Remote API has replaced rcli
+- The daemon listens on ``unix:///var/run/docker.sock``, but you can
+  :ref:`bind_docker`.
+- The API tends to be REST, but for some complex commands, like
+  ``attach`` or ``pull``, the HTTP connection is hijacked to transport
+  ``stdout, stdin`` and ``stderr``
 
 2. Endpoints
 ============
@@ -148,6 +151,7 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
+ 	:query name: container name to use
 	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 406: impossible to attach (container not running)
@@ -442,7 +446,8 @@ Kill a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 204 OK
-	   	
+
+	:query signal: Signal to send to the container (integer). When not set, SIGKILL is assumed and the call will waits for the container to exit.
 	:statuscode 204: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
@@ -1131,7 +1136,13 @@ Create a new image from a container's changes
 
     .. sourcecode:: http
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+       POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+       Content-Type: application/json
+       
+       {
+           "Cmd": ["cat", "/world"],
+           "PortSpecs":["22"]
+       }
 
     **Example response**:
 
@@ -1147,7 +1158,6 @@ Create a new image from a container's changes
     :query tag: tag
     :query m: commit message
     :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
-    :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
     :statuscode 201: no error
     :statuscode 404: no such container
     :statuscode 500: server error

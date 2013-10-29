@@ -81,6 +81,8 @@ lxc.cgroup.devices.allow = c 10:200 rwm
 {{end}}
 
 # standard mount point
+# Use mnt.putold as per https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/986385
+lxc.pivotdir = lxc_putold
 #  WARNING: procfs is a known attack vector and should probably be disabled
 #           if your userspace allows it. eg. see http://blog.zx2c4.com/749
 lxc.mount.entry = proc {{$ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
@@ -92,7 +94,7 @@ lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,no
 #lxc.mount.entry = varlock {{$ROOTFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
 lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
-# Inject docker-init
+# Inject dockerinit
 lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/.dockerinit none bind,ro 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container

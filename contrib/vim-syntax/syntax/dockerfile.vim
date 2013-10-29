@@ -20,3 +20,5 @@ highlight link dockerfileString String
 
 syntax match dockerfileComment "\v^\s*#.*$"
 highlight link dockerfileComment Comment
+
+set commentstring=#\ %s

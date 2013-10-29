@@ -266,20 +266,23 @@ func TestHumanSize(t *testing.T) {
 }
 
 func TestParseHost(t *testing.T) {
-	if addr := ParseHost("127.0.0.1", 4243, "0.0.0.0"); addr != "tcp://0.0.0.0:4243" {
+	if addr, err := ParseHost("127.0.0.1", 4243, "0.0.0.0"); err != nil || addr != "tcp://0.0.0.0:4243" {
 		t.Errorf("0.0.0.0 -> expected tcp://0.0.0.0:4243, got %s", addr)
 	}
-	if addr := ParseHost("127.0.0.1", 4243, "0.0.0.1:5555"); addr != "tcp://0.0.0.1:5555" {
+	if addr, err := ParseHost("127.0.0.1", 4243, "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
 		t.Errorf("0.0.0.1:5555 -> expected tcp://0.0.0.1:5555, got %s", addr)
 	}
-	if addr := ParseHost("127.0.0.1", 4243, ":6666"); addr != "tcp://127.0.0.1:6666" {
+	if addr, err := ParseHost("127.0.0.1", 4243, ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
 		t.Errorf(":6666 -> expected tcp://127.0.0.1:6666, got %s", addr)
 	}
-	if addr := ParseHost("127.0.0.1", 4243, "tcp://:7777"); addr != "tcp://127.0.0.1:7777" {
+	if addr, err := ParseHost("127.0.0.1", 4243, "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
 		t.Errorf("tcp://:7777 -> expected tcp://127.0.0.1:7777, got %s", addr)
 	}
-	if addr := ParseHost("127.0.0.1", 4243, "unix:///var/run/docker.sock"); addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost("127.0.0.1", 4243, "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
+	}
+	if addr, err := ParseHost("127.0.0.1", 4243, "udp://127.0.0.1"); err == nil {
+		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
 }
 
@@ -419,5 +422,25 @@ func TestDependencyGraph(t *testing.T) {
 
 	if len(res[2]) != 1 || res[2][0] != "d" {
 		t.Fatalf("Expected [d], found %v instead", res[2])
+	}
+}
+
+func TestParsePortMapping(t *testing.T) {
+	data, err := PartParser("ip:public:private", "192.168.1.1:80:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) != 3 {
+		t.FailNow()
+	}
+	if data["ip"] != "192.168.1.1" {
+		t.Fail()
+	}
+	if data["public"] != "80" {
+		t.Fail()
+	}
+	if data["private"] != "8080" {
+		t.Fail()
 	}
 }

@@ -220,7 +220,7 @@ The copy obeys the following rules:
   (``http://example.com`` will not work).
 * If ``<src>`` is a directory, the entire directory is copied,
   including filesystem metadata.
-* If ``<src>``` is a tar archive in a recognized compression format
+* If ``<src>`` is a tar archive in a recognized compression format
   (identity, gzip, bzip2 or xz), it is unpacked as a directory.
 
   When a directory is copied or unpacked, it has the same behavior as
