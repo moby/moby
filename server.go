@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 func (srv *Server) Close() error {
@@ -342,16 +342,18 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 			if len(line) == 0 {
 				continue
 			}
-			words := []string{}
-			scanner := bufio.NewScanner(strings.NewReader(line))
-			scanner.Split(bufio.ScanWords)
-			if !scanner.Scan() {
+			limit := -1
+			if i != 0 {
+				limit = len(procs.Titles)
+			}
+			words := utils.FieldsFuncN(line, unicode.IsSpace, limit)
+			if len(words) == 0 {
 				return nil, fmt.Errorf("Error trying to use lxc-ps")
 			}
-			// no scanner.Text because we skip container id
-			for scanner.Scan() {
-				words = append(words, scanner.Text())
-			}
+
+			// skip container id
+			words = words[1:]
+
 			if i == 0 {
 				procs.Titles = words
 			} else {

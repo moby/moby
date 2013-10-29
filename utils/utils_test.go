@@ -3,10 +3,12 @@ package utils
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 func TestBufReader(t *testing.T) {
@@ -442,5 +444,42 @@ func TestParsePortMapping(t *testing.T) {
 	}
 	if data["private"] != "8080" {
 		t.Fail()
+	}
+}
+
+func TestFieldsFuncN(t *testing.T) {
+	type Case struct {
+		line     string
+		limit    int
+		expected string
+	}
+	cases := []Case{
+		Case{"", -1, "[]"},
+		Case{" ", -1, "[]"},
+		Case{"", 1, "[]"},
+		Case{" ", 1, "[]"},
+		Case{"abc def", 1, "[`abc` `def`]"},
+		Case{" a", -1, "[`a`]"},
+		Case{" a", 0, "[`a`]"},
+		Case{" a", 1, "[`a`]"},
+		Case{" a ", -1, "[`a`]"},
+		Case{" a ", 0, "[`a `]"},
+		Case{"a b c", -1, "[`a` `b` `c`]"},
+		Case{"a b c", 0, "[`a b c`]"},
+		Case{"a b c ", 0, "[`a b c `]"},
+		Case{"a b c", 1, "[`a` `b c`]"},
+		Case{"a b c ", 1, "[`a` `b c `]"},
+		Case{"a b c", 2, "[`a` `b` `c`]"},
+		Case{"a b c ", 2, "[`a` `b` `c `]"},
+		Case{"a b c", 3, "[`a` `b` `c`]"},
+		Case{"a b c ", 3, "[`a` `b` `c`]"},
+	}
+	for i := 0; i < len(cases); i++ {
+		c := cases[i]
+		words := FieldsFuncN(c.line, unicode.IsSpace, c.limit)
+		output := fmt.Sprintf("%#q", words)
+		if output != c.expected {
+			t.Fatalf("Expected %s, found %s instead. for f('%s', %d)", c.expected, output, c.line, c.limit)
+		}
 	}
 }
