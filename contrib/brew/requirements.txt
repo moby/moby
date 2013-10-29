@@ -1,2 +1,0 @@
-dulwich==0.9.0
--e git://github.com/dotcloud/docker-py.git#egg=docker-py
