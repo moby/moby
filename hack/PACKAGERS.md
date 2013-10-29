@@ -36,9 +36,10 @@ To build docker, you will need the following system dependencies
 
 * An amd64 machine
 * A recent version of git and mercurial
-* Go version 1.1.2
+* Go version 1.1.2 or later
+* SQLite version 3.7.9 or later
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
-under the path *src/github.com/dotcloud/docker*. See 
+under the path *src/github.com/dotcloud/docker*.
 
 ## Go dependencies
 
@@ -119,10 +120,10 @@ The test suite will also download a small test container, so you will need inter
 To run properly, docker needs the following software to be installed at runtime:
 
 * GNU Tar version 1.26 or later
-* iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility.
+* iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
 * iptables version 1.4 or later
-* The lxc utility scripts (http://lxc.sourceforge.net) version 0.8 or later.
-* Git version 1.7 or later 
+* The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
+* Git version 1.7 or later
 * XZ Utils 4.9 or later
 
 ## Kernel dependencies
