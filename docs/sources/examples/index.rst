@@ -1,6 +1,6 @@
 :title: Docker Examples
 :description: Examples on how to use Docker
-:keywords: docker, hello world, node, nodejs, python, couch, couchdb, redis, ssh, sshd, examples, postgresql
+:keywords: docker, hello world, node, nodejs, python, couch, couchdb, redis, ssh, sshd, examples, postgresql, link
 
 
 .. _example_list:
@@ -24,3 +24,4 @@ to more substantial services like you might find in production.
    postgresql_service
    mongodb
    running_riak_service
+   linking_into_redis

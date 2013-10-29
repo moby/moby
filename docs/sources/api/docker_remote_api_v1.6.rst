@@ -151,6 +151,7 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
+ 	:query name: container name to use
 	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 406: impossible to attach (container not running)

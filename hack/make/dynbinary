@@ -1,0 +1,15 @@
+#!/bin/sh
+
+DEST=$1
+
+# dockerinit still needs to be a static binary, even if docker is dynamic
+CGO_ENABLED=0 go build -a -o $DEST/dockerinit-$VERSION -ldflags "$LDFLAGS -d" $BUILDFLAGS ./dockerinit
+echo "Created binary: $DEST/dockerinit-$VERSION"
+ln -sf dockerinit-$VERSION $DEST/dockerinit
+
+# sha1 our new dockerinit to ensure separate docker and dockerinit always run in a perfect pair compiled for one another
+export DOCKER_INITSHA1="$(sha1sum $DEST/dockerinit-$VERSION | cut -d' ' -f1)"
+# exported so that "dyntest" can easily access it later without recalculating it
+
+go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS ./docker
+echo "Created binary: $DEST/docker-$VERSION"

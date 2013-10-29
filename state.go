@@ -9,12 +9,12 @@ import (
 
 type State struct {
 	sync.Mutex
-	Running   bool
-	Pid       int
-	ExitCode  int
-	StartedAt time.Time
+	Running    bool
+	Pid        int
+	ExitCode   int
+	StartedAt  time.Time
 	FinishedAt time.Time
-	Ghost     bool
+	Ghost      bool
 }
 
 // String returns a human-readable description of the state

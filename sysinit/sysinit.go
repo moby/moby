@@ -1,10 +1,12 @@
-package docker
+package sysinit
 
 import (
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strconv"
@@ -17,7 +19,14 @@ func setupNetworking(gw string) {
 	if gw == "" {
 		return
 	}
-	if _, err := ip("route", "add", "default", "via", gw); err != nil {
+
+	ip := net.ParseIP(gw)
+	if ip == nil {
+		log.Fatalf("Unable to set up networking, %s is not a valid IP", gw)
+		return
+	}
+
+	if err := netlink.AddDefaultGw(ip); err != nil {
 		log.Fatalf("Unable to set up networking: %v", err)
 	}
 }
@@ -60,7 +69,7 @@ func changeUser(u string) {
 }
 
 // Clear environment pollution introduced by lxc-start
-func cleanupEnv(env ListOpts) {
+func cleanupEnv(env utils.ListOpts) {
 	os.Clearenv()
 	for _, kv := range env {
 		parts := strings.SplitN(kv, "=", 2)
@@ -88,14 +97,14 @@ func executeProgram(name string, args []string) {
 // up the environment before running the actual process
 func SysInit() {
 	if len(os.Args) <= 1 {
-		fmt.Println("You should not invoke docker-init manually")
+		fmt.Println("You should not invoke dockerinit manually")
 		os.Exit(1)
 	}
 	var u = flag.String("u", "", "username or uid")
 	var gw = flag.String("g", "", "gateway address")
 	var workdir = flag.String("w", "", "workdir")
 
-	var flEnv ListOpts
+	var flEnv utils.ListOpts
 	flag.Var(&flEnv, "e", "Set environment variables")
 
 	flag.Parse()
