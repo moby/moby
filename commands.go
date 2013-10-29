@@ -1207,6 +1207,9 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return nil
 	}
 	name, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	if tag == "" && strings.Contains(repository, ":") {
+		repository, tag, _ = strings.Split(repository, ":")
+	}
 	if name == "" {
 		cmd.Usage()
 		return nil
