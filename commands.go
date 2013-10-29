@@ -1324,7 +1324,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
 	noStdin := cmd.Bool("nostdin", false, "Do not attach stdin")
-	proxy := cmd.Bool("sig-proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
+	proxy := cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1523,6 +1523,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	flSigProxy := cmd.Lookup("sig-proxy")
 	sigProxy, _ := strconv.ParseBool(flSigProxy.Value.String())
 	flName := cmd.Lookup("name")
+	if config.Tty {
+		sigProxy = false
+	}
 
 	var containerIDFile *os.File
 	if len(hostConfig.ContainerIDFile) > 0 {

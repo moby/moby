@@ -109,7 +109,6 @@ var (
 	ErrContainerStart           = errors.New("The container failed to start. Unkown error")
 	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
 	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictTtySigProxy      = errors.New("TTY mode (-t) already imply signal proxying (-sig-proxy)")
 	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove = errors.New("Conflicting options: -rm and -d")
 )
@@ -167,7 +166,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
-	flSigProxy := cmd.Bool("sig-proxy", false, "Proxify all received signal to the process (even in non-tty mode)")
+	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	cmd.String("name", "", "Assign a name to the container")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
@@ -211,9 +210,6 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorikingDirectory
-	}
-	if *flTty && *flSigProxy {
-		return nil, nil, cmd, ErrConflictTtySigProxy
 	}
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
