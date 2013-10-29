@@ -87,6 +87,9 @@ Now lets start our web application with a link into redis.
     TERM=xterm
     DB_PORT=tcp://172.17.0.8:6379
     DB_PORT_6379_TCP=tcp://172.17.0.8:6379
+    DB_PORT_6379_TCP_PROTO=tcp
+    DB_PORT_6379_TCP_ADDR=172.17.0.8
+    DB_PORT_6379_TCP_PORT=6379
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     PWD=/
     DB_ENV_PASSWORD=dockerpass
@@ -111,6 +114,9 @@ network and environment information from the child.
     DB_PORT=tcp://172.17.0.8:6379
     # A specific protocol, ip, and port of various services
     DB_PORT_6379_TCP=tcp://172.17.0.8:6379
+    DB_PORT_6379_TCP_PROTO=tcp
+    DB_PORT_6379_TCP_ADDR=172.17.0.8
+    DB_PORT_6379_TCP_PORT=6379
     # Get environment variables of the container 
     DB_ENV_PASSWORD=dockerpass
 
