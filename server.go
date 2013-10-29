@@ -1691,10 +1691,6 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 
 	//stream
 	if stream {
-		if container.State.Ghost {
-			return fmt.Errorf("Impossible to attach to a ghost container")
-		}
-
 		var (
 			cStdin           io.ReadCloser
 			cStdout, cStderr io.Writer

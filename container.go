@@ -670,7 +670,7 @@ func (container *Container) Start() (err error) {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
-		if err := container.allocateNetwork(); err != nil {
+		if err := container.allocateNetwork(false); err != nil {
 			return err
 		}
 		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
@@ -1243,14 +1243,14 @@ ff02::2		ip6-allrouters
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
-func (container *Container) allocateNetwork() error {
+func (container *Container) allocateNetwork(reconnect bool) error {
 	if container.Config.NetworkDisabled {
 		return nil
 	}
 
 	var iface *NetworkInterface
 	var err error
-	if container.State.Ghost {
+	if reconnect {
 		manager := container.runtime.networkManager
 		if manager.disabled {
 			iface = &NetworkInterface{disabled: true}
@@ -1291,7 +1291,7 @@ func (container *Container) allocateNetwork() error {
 	portSpecs := make(map[Port]struct{})
 	bindings := make(map[Port][]PortBinding)
 
-	if !container.State.Ghost {
+	if !reconnect {
 		if container.Config.ExposedPorts != nil {
 			portSpecs = container.Config.ExposedPorts
 		}
