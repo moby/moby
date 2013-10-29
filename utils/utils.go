@@ -1142,3 +1142,48 @@ func PartParser(template, data string) (map[string]string, error) {
 	}
 	return out, nil
 }
+
+// strings.FieldsFunc with split limit support added
+func FieldsFuncN(s string, f func(rune) bool, limit int) []string {
+	if limit < 0 {
+		limit = len(s) + 1
+	}
+
+	// First count the fields.
+	n := 0
+	inField := false
+	for _, rune := range s {
+		wasInField := inField
+		inField = !f(rune)
+		if inField && !wasInField {
+			n++
+		}
+		if n > limit {
+			break
+		}
+	}
+
+	// Now create them.
+	a := make([]string, n)
+	na := 0
+	fieldStart := -1 // Set to -1 when looking for start of field.
+	for i, rune := range s {
+		if f(rune) {
+			if fieldStart >= 0 {
+				a[na] = s[fieldStart:i]
+				na++
+				fieldStart = -1
+			}
+		} else if fieldStart == -1 {
+			fieldStart = i
+			if na >= limit {
+				break
+			}
+		}
+	}
+
+	if fieldStart >= 0 { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
+}
