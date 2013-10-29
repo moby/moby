@@ -21,6 +21,7 @@ type Capabilities struct {
 	MemoryLimit            bool
 	SwapLimit              bool
 	IPv4ForwardingDisabled bool
+	AppArmor               bool
 }
 
 type Runtime struct {
@@ -152,8 +153,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				hostConfig := &HostConfig{}
-				if err := container.Start(hostConfig); err != nil {
+				if err := container.Start(); err != nil {
 					return err
 				}
 				nomonitor = true
@@ -173,8 +173,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		close(container.waitLock)
 	} else if !nomonitor {
 		container.allocateNetwork()
-		// hostConfig isn't needed here and can be nil
-		go container.monitor(nil)
+		go container.monitor()
 	}
 	return nil
 }
@@ -271,6 +270,15 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
+
+	// Check if AppArmor seems to be enabled on this system.
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
+		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
+		runtime.capabilities.AppArmor = false
+	} else {
+		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
+		runtime.capabilities.AppArmor = true
+	}
 }
 
 // Create creates a new container from the given configuration.
@@ -319,6 +327,7 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
+		hostConfig:      &HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
@@ -454,6 +463,9 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 
+	if err := copyLxcStart(root); err != nil {
+		return nil, err
+	}
 	g, err := NewGraph(path.Join(root, "graph"))
 	if err != nil {
 		return nil, err
@@ -490,6 +502,27 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+func copyLxcStart(root string) error {
+	sourcePath, err := exec.LookPath("lxc-start")
+	if err != nil {
+		return err
+	}
+	targetPath := path.Join(root, "lxc-start-unconfined")
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+	targetFile, err := os.Create(targetPath)
+	if err != nil {
+		return err
+	}
+	defer targetFile.Close()
+	os.Chmod(targetPath, 0755)
+	_, err = io.Copy(targetFile, sourceFile)
+	return err
 }
 
 // History is a convenience type for storing a list of containers,

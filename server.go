@@ -1163,7 +1163,11 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if container := srv.runtime.Get(name); container != nil {
-		if err := container.Start(hostConfig); err != nil {
+		if hostConfig != nil {
+			container.hostConfig = hostConfig
+			container.ToDisk()
+		}
+		if err := container.Start(); err != nil {
 			return fmt.Errorf("Error starting container %s: %s", name, err)
 		}
 		srv.LogEvent("start", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
