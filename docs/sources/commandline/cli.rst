@@ -401,7 +401,9 @@ Insert file from github
 
     Usage: docker kill CONTAINER [CONTAINER...]
 
-    Kill a running container
+    Kill a running container (Send SIGKILL)
+    
+The main process inside the container will be sent SIGKILL.
 
 .. _cli_login:
 
@@ -704,9 +706,11 @@ to the newly created container.
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container
+    Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
 
       -t=10: Number of seconds to wait for the container to stop before killing it.
+      
+The main process inside the container will receive SIGTERM, and after a grace period, SIGKILL
 
 .. _cli_tag:
 
