@@ -540,7 +540,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) forwardAllSignals(cid string) {
+func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
 	utils.CatchAll(sigc)
 	go func() {
@@ -550,6 +550,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) {
 			}
 		}
 	}()
+	return sigc
 }
 
 func (cli *DockerCli) CmdStart(args ...string) error {
@@ -582,7 +583,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		if !container.Config.Tty {
-			cli.forwardAllSignals(cmd.Arg(0))
+			sigc := cli.forwardAllSignals(cmd.Arg(0))
+			defer utils.StopCatch(sigc)
 		}
 
 		if container.Config.Tty && cli.isTerminal {
@@ -1366,7 +1368,8 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *proxy && !container.Config.Tty {
-		cli.forwardAllSignals(cmd.Arg(0))
+		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		defer utils.StopCatch(sigc)
 	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
@@ -1611,7 +1614,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if sigProxy {
-		cli.forwardAllSignals(runResult.ID)
+		sigc := cli.forwardAllSignals(runResult.ID)
+		defer utils.StopCatch(sigc)
 	}
 
 	var (
