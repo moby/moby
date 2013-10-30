@@ -9,7 +9,8 @@ to keep it up-to-date.
 ### 1. Pull from master and create a release branch
 
 ```bash
-git checkout master
+export VERSION=vXXX
+git checkout release
 git pull
 git checkout -b bump_$VERSION
 ```
@@ -55,7 +56,9 @@ EXAMPLES:
 
 ### 4. Run all tests
 
-FIXME
+```bash
+docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh test
+```
 
 ### 5. Test the docs
 
@@ -66,21 +69,17 @@ the docs are in ``docs/README.md``
 ### 6. Commit and create a pull request to the "release" branch
 
 ```bash
-git add CHANGELOG.md
+git add VERSION CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 git push origin bump_$VERSION
 ```
 
 ### 7. Get 2 other maintainers to validate the pull request
 
-### 8. Merge the pull request and apply tags
+### 8. Apply tag
 
 ```bash
-git checkout release
-git merge bump_$VERSION
 git tag -a v$VERSION # Don't forget the v!
-git tag -f -a latest
-git push
 git push --tags
 ```
 
@@ -90,28 +89,35 @@ should see the updated docs 5-10 minutes after the merge. The docs
 will appear on http://docs.docker.io/. For more information about
 documentation releases, see ``docs/README.md``
 
-### 9. Publish binaries
+### 9. Go to github to merge the bump_$VERSION into release
+
+### 10. Publish binaries
 
 To run this you will need access to the release credentials.
 Get them from [the infrastructure maintainers](
 https://github.com/dotcloud/docker/blob/master/hack/infrastructure/MAINTAINERS).
 
 ```bash
+git checkout release
+git fetch
+git reset --hard origin/release
 docker build -t docker .
 docker run  \
-	-e AWS_S3_BUCKET=get-nightly.docker.io \
-	-e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
-	-e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
-	-e GPG_PASSPHRASE=supersecretsesame \
-	docker
-	hack/release.sh
+       -e AWS_S3_BUCKET=test.docker.io \
+       -e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
+       -e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
+       -e GPG_PASSPHRASE=supersecretsesame \
+       -privileged -lxc-conf=lxc.aa_profile=unconfined \
+       -t -i \
+       docker \
+       hack/release.sh
 ```
 
 It will build and upload the binaries on the specified bucket (you should
-use get-nightly.docker.io for general testing, and once everything is fine,
+use test.docker.io for general testing, and once everything is fine,
 switch to get.docker.io).
 
 
-### 10. Rejoice!
+### 11. Rejoice!
 
 Congratulations! You're done.
