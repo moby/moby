@@ -1,14 +1,16 @@
 # VERSION:        0.22
 # DOCKER-VERSION  0.6.3
 # AUTHOR:         Daniel Mizyrycki <daniel@dotcloud.com>
-# DESCRIPTION:    Deploy docker-ci on Amazon EC2
+# DESCRIPTION:    Deploy docker-ci on Digital Ocean
 # COMMENTS:
 #     CONFIG_JSON is an environment variable json string loaded as:
 #
 # export CONFIG_JSON='
-#     { "AWS_TAG":             "EC2_instance_name",
-#       "AWS_ACCESS_KEY":      "EC2_access_key",
-#       "AWS_SECRET_KEY":      "EC2_secret_key",
+#     { "DROPLET_NAME":        "docker-ci",
+#       "DO_CLIENT_ID":        "Digital_Ocean_client_id",
+#       "DO_API_KEY":          "Digital_Ocean_api_key",
+#       "DOCKER_KEY_ID":       "Digital_Ocean_ssh_key_id",
+#       "DOCKER_CI_KEY_PATH":  "docker-ci_private_key_path",
 #       "DOCKER_CI_PUB":       "$(cat docker-ci_ssh_public_key.pub)",
 #       "DOCKER_CI_KEY":       "$(cat docker-ci_ssh_private_key.key)",
 #       "BUILDBOT_PWD":        "Buildbot_server_password",
@@ -37,7 +39,7 @@ run echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' \
     > /etc/apt/sources.list
 run apt-get update; apt-get install -y git python2.7 python-dev libevent-dev \
     python-pip ssh rsync less vim
-run pip install boto fabric
+run pip install requests fabric
 
 # Add deployment code and set default container command
 add . /docker-ci
