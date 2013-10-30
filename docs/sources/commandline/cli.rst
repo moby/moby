@@ -728,7 +728,7 @@ to the newly created container.
 
 ::
 
-    Usage: docker top CONTAINER
+    Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
