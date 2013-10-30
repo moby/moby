@@ -272,7 +272,7 @@ func TestRuntimeCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if warnings == nil {
+	if warnings == nil || len(warnings) != 1 {
 		t.Error("Expected a warning, got none")
 	}
 }
