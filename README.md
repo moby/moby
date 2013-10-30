@@ -13,7 +13,7 @@ deploying and scaling web apps, databases and backend services without
 depending on a particular stack or provider.
 
 Docker is an open-source implementation of the deployment engine which
-powers [dotCloud](http://dotcloud.com), a popular
+powers [Docker, Inc](http://docker.com), a popular
 Platform-as-a-Service.  It benefits directly from the experience
 accumulated over several years of large-scale operation and support of
 hundreds of thousands of applications and databases.
