@@ -349,10 +349,10 @@ func TestGetContainersJSON(t *testing.T) {
 
 	beginLen := runtime.containers.Len()
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "test"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,11 +386,12 @@ func TestGetContainersExport(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -436,11 +437,12 @@ func TestGetContainersChanges(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/rm", "/etc/passwd"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -479,12 +481,13 @@ func TestGetContainersTop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -561,11 +564,12 @@ func TestGetContainersByName(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -592,11 +596,12 @@ func TestPostCommit(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -686,12 +691,13 @@ func TestPostContainersKill(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -728,12 +734,13 @@ func TestPostContainersRestart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -782,12 +789,13 @@ func TestPostContainersStart(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -834,12 +842,13 @@ func TestPostContainersStop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -881,12 +890,13 @@ func TestPostContainersWait(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sleep", "1"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -923,12 +933,13 @@ func TestPostContainersAttach(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1012,12 +1023,13 @@ func TestPostContainersAttachStderr(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
 			OpenStdin: true,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1104,10 +1116,10 @@ func TestDeleteContainers(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"touch", "/test"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1142,7 +1154,8 @@ func TestOptionsRoute(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	runtime.config.EnableCors = true
+	srv := &Server{runtime: runtime}
 
 	r := httptest.NewRecorder()
 	router, err := createRouter(srv, false)
@@ -1165,7 +1178,8 @@ func TestGetEnabledCors(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{runtime: runtime, enableCors: true}
+	runtime.config.EnableCors = true
+	srv := &Server{runtime: runtime}
 
 	r := httptest.NewRecorder()
 
@@ -1292,11 +1306,12 @@ func TestPostContainersCopy(t *testing.T) {
 	srv := &Server{runtime: runtime}
 
 	// Create a container and remove a file
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"touch", "/test.txt"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
