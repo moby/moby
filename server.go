@@ -90,7 +90,7 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(sig); err != nil {
-				return fmt.Errorf("Cannot kil container %s: %s", name, err)
+				return fmt.Errorf("Cannot kill container %s: %s", name, err)
 			}
 			// FIXME: Add event for signals
 		}

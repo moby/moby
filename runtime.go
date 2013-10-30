@@ -326,7 +326,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	if config.PortSpecs != nil {
 		for _, p := range config.PortSpecs {
 			if strings.Contains(p, ":") {
-				warnings = append(warnings, "The mapping to a public ports on your host has been deprecated. Use -p to publish the ports.")
+				warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
 				break
 			}
 		}
