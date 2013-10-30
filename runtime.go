@@ -317,18 +317,27 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
+	checkDeprecatedExpose := func(config *Config) bool {
+		if config != nil {
+			if config.PortSpecs != nil {
+				for _, p := range config.PortSpecs {
+					if strings.Contains(p, ":") {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	warnings := []string{}
+	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
+		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+	}
+
 	if img.Config != nil {
 		if err := MergeConfig(config, img.Config); err != nil {
 			return nil, nil, err
-		}
-	}
-	warnings := []string{}
-	if config.PortSpecs != nil {
-		for _, p := range config.PortSpecs {
-			if strings.Contains(p, ":") {
-				warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
-				break
-			}
 		}
 	}
 
