@@ -208,6 +208,9 @@ a remote file URL.
 ``<dest>`` is the path at which the source will be copied in the
 destination container.
 
+All new files and directories are created with mode 0755, uid and gid
+0.
+
 The copy obeys the following rules:
 
 * If ``<src>`` is a URL and ``<dest>`` does not end with a trailing slash,
@@ -220,8 +223,9 @@ The copy obeys the following rules:
   (``http://example.com`` will not work).
 * If ``<src>`` is a directory, the entire directory is copied,
   including filesystem metadata.
-* If ``<src>`` is a tar archive in a recognized compression format
-  (identity, gzip, bzip2 or xz), it is unpacked as a directory.
+* If ``<src>`` is a *local* tar archive in a recognized compression
+  format (identity, gzip, bzip2 or xz) then it is unpacked as a
+  directory. Resources from *remote* URLs are **not** decompressed.
 
   When a directory is copied or unpacked, it has the same behavior as
   ``tar -x``: the result is the union of
@@ -229,7 +233,7 @@ The copy obeys the following rules:
   1. whatever existed at the destination path and
   2. the contents of the source tree,
 
-  with conflicts resolved in favor of 2) on a file-by-file basis.
+  with conflicts resolved in favor of "2." on a file-by-file basis.
 
 * If ``<src>`` is any other kind of file, it is copied individually
   along with its metadata. In this case, if ``<dest>`` ends with a
@@ -237,10 +241,9 @@ The copy obeys the following rules:
   contents of ``<src>`` will be written at ``<dest>/base(<src>)``.
 * If ``<dest>`` does not end with a trailing slash, it will be
   considered a regular file and the contents of ``<src>`` will be
-  written at ``<dst>``.
+  written at ``<dest>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
-  directories in its path. All new files and directories are created
-  with mode 0755, uid and gid 0.
+  directories in its path. 
 
 .. _entrypoint_def:
 
