@@ -317,20 +317,18 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	warnings := []string{}
 	if img.Config != nil {
-		if img.Config.PortSpecs != nil && warnings != nil {
-			for _, p := range img.Config.PortSpecs {
-				if strings.Contains(p, ":") {
-					warnings = append(warnings, "This image expects private ports to be mapped to public ports on your host. "+
-						"This has been deprecated and the public mappings will not be honored."+
-						"Use -p to publish the ports.")
-					break
-				}
-			}
-		}
 		if err := MergeConfig(config, img.Config); err != nil {
 			return nil, nil, err
+		}
+	}
+	warnings := []string{}
+	if config.PortSpecs != nil {
+		for _, p := range config.PortSpecs {
+			if strings.Contains(p, ":") {
+				warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+				break
+			}
 		}
 	}
 
@@ -357,6 +355,9 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
+		if strings.HasSuffix(err.Error(), "name are not unique") {
+			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+		}
 		return nil, nil, err
 	}
 
