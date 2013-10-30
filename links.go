@@ -22,7 +22,7 @@ func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, err
 		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
 	}
 	if !child.State.Running {
-		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.ID, name)
+		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, name)
 	}
 
 	ports := make([]Port, len(child.Config.ExposedPorts))

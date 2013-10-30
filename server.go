@@ -84,13 +84,13 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 		// If no signal is passed, perform regular Kill (SIGKILL + wait())
 		if sig == 0 {
 			if err := container.Kill(); err != nil {
-				return fmt.Errorf("Error killing container %s: %s", name, err)
+				return fmt.Errorf("Cannot kill container %s: %s", name, err)
 			}
 			srv.LogEvent("kill", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(sig); err != nil {
-				return fmt.Errorf("Error killing container %s: %s", name, err)
+				return fmt.Errorf("Cannot kil container %s: %s", name, err)
 			}
 			// FIXME: Add event for signals
 		}
@@ -187,7 +187,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
-			return fmt.Errorf("Error while getting parent image: %v", err)
+			return err
 		}
 		if parentImage != nil {
 			out.Write([]byte(" \"" + parentImage.ShortID() + "\" -> \"" + image.ShortID() + "\"\n"))
@@ -335,7 +335,7 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", ps_args).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Error trying to use lxc-ps: %s (%s)", err, output)
+			return nil, fmt.Errorf("lxc-ps: %s (%s)", err, output)
 		}
 		procs := APITop{}
 		for i, line := range strings.Split(string(output), "\n") {
@@ -346,7 +346,7 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 			scanner := bufio.NewScanner(strings.NewReader(line))
 			scanner.Split(bufio.ScanWords)
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("Error trying to use lxc-ps")
+				return nil, fmt.Errorf("Wrong output using lxc-ps")
 			}
 			// no scanner.Text because we skip container id
 			for scanner.Scan() {
@@ -819,7 +819,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.graph.Root, imgID, "json"))
 	if err != nil {
-		return "", fmt.Errorf("Error while retrieving the path for {%s}: %s", imgID, err)
+		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
 	out.Write(sf.FormatStatus("", "Pushing %s", imgID))
 
@@ -969,7 +969,7 @@ func (srv *Server) ContainerCreate(config *Config, name string) (string, []strin
 func (srv *Server) ContainerRestart(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(t); err != nil {
-			return fmt.Errorf("Error restarting container %s: %s", name, err)
+			return fmt.Errorf("Cannot restart container %s: %s", name, err)
 		}
 		srv.LogEvent("restart", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
 	} else {
@@ -986,9 +986,10 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 			return fmt.Errorf("No such link: %s", name)
 		}
 		name = srv.runtime.getFullName(name)
-
 		parent, n := path.Split(name)
-
+		if parent == "/" {
+			return fmt.Errorf("Conflict, cannot remove the default name of the container")
+		}
 		pe := srv.runtime.containerGraph.Get(parent)
 		if pe == nil {
 			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
@@ -1021,7 +1022,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
-			return fmt.Errorf("Error destroying container %s: %s", name, err)
+			return fmt.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		srv.LogEvent("destroy", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
 
@@ -1165,7 +1166,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	}
 	if !autoPrune {
 		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Error deleting image %s: %s", name, err)
+			return nil, fmt.Errorf("Cannot delete image %s: %s", name, err)
 		}
 		return nil, nil
 	}
@@ -1252,7 +1253,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	}
 
 	if err := container.Start(hostConfig); err != nil {
-		return fmt.Errorf("Error starting container %s: %s", name, err)
+		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))
 
@@ -1262,7 +1263,7 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStop(name string, t int) error {
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(t); err != nil {
-			return fmt.Errorf("Error stopping container %s: %s", name, err)
+			return fmt.Errorf("Cannot stop container %s: %s", name, err)
 		}
 		srv.LogEvent("stop", container.ShortID(), srv.runtime.repositories.ImageName(container.Image))
 	} else {
