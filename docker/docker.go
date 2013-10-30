@@ -41,7 +41,7 @@ func main() {
 	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
 	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
 	flDefaultIp := flag.String("ip", "0.0.0.0", "Default ip address to use when binding a containers ports")
-	flInterContainerComm := flag.Bool("enable-container-comm", false, "Enable inter-container communication")
+	flInterContainerComm := flag.Bool("icc", true, "Enable inter-container communication")
 
 	flag.Parse()
 
