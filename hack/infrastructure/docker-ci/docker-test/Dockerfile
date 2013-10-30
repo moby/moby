@@ -17,13 +17,12 @@
 from docker
 maintainer Daniel Mizyrycki <daniel@dotcloud.com>
 
-# Setup go environment. Extracted from /Dockerfile
-env     CGO_ENABLED 0
-env     GOROOT  /goroot
-env     PATH    $PATH:/goroot/bin
-env     GOPATH  /go:/go/src/github.com/dotcloud/docker/vendor
-volume  /var/lib/docker
-workdir /go/src/github.com/dotcloud/docker
+#### FIXME. Temporarily install docker and dind with proper apparmor handling
+run wget -q -O /go/src/github.com/dotcloud/docker/hack/dind http://raw.github.com/jpetazzo/docker/escape-apparmor-confinement/hack/dind
+run chmod +x /go/src/github.com/dotcloud/docker/hack/dind
+
+# Setup go to the PATH. Extracted from /Dockerfile
+env PATH /usr/local/go/bin:$PATH
 
 # Add test_docker.sh
 add test_docker.sh /usr/bin/test_docker.sh
