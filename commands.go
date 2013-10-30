@@ -853,7 +853,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
-	signal := cmd.Int("signal", 0, "Send specified signal.")
+	signal := cmd.Int("s", 0, "Send specified signal.")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
