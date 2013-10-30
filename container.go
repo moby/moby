@@ -1054,10 +1054,13 @@ func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 
 	if container.Config.PortSpecs != nil {
 		utils.Debugf("Migrating port mappings for container: %s", strings.Join(container.Config.PortSpecs, ", "))
-		if err := migratePortMappings(container.Config); err != nil {
+		if err := migratePortMappings(container.Config, hostConfig); err != nil {
 			return err
 		}
 		container.Config.PortSpecs = nil
+		if err := container.SaveHostConfig(hostConfig); err != nil {
+			return err
+		}
 	}
 
 	portSpecs := make(map[Port]struct{})
