@@ -133,7 +133,6 @@ to the ``docker`` daemon.  ``ADD`` doesn't work when running in this
 mode because the absence of the context provides no source files to
 copy to the container.
 
-
 .. code-block:: bash
 
     sudo docker build github.com/creack/docker-firefox
@@ -151,7 +150,7 @@ by using the ``git://`` schema.
 
 ::
 
-    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY [TAG]]
+    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
     Create a new image from a container's changes
 
@@ -160,7 +159,26 @@ by using the ``git://`` schema.
       -run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Full -run example (multiline is ok within a single quote ``'``)
+Simple commit of an existing container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+	$ docker ps
+	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+	f5283438590d
+	$ docker images | head
+	REPOSITORY                        TAG                 ID                  CREATED             SIZE
+	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
+	S
+
+Full -run example
+.................
+
+(multiline is ok within a single quote ``'``)
 
 ::
 
@@ -317,7 +335,7 @@ Displaying images visually
 
 ::
 
-    Usage: docker import URL|- [REPOSITORY [TAG]]
+    Usage: docker import URL|- [REPOSITORY[:TAG]]
 
     Create a new filesystem image from the contents of a tarball
 
@@ -333,14 +351,16 @@ Examples
 Import from a remote location
 .............................
 
-``$ sudo docker import http://example.com/exampleimage.tgz exampleimagerepo``
+This will create a new untagged image.
+
+``$ sudo docker import http://example.com/exampleimage.tgz``
 
 Import from a local file
 ........................
 
 Import to docker via pipe and standard in
 
-``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal``
+``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new``
 
 Import from a local directory
 .............................
@@ -716,7 +736,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY [TAG]
+    Usage: docker tag [OPTIONS] IMAGE REPOSITORY[:TAG]
 
     Tag an image into a repository
 
