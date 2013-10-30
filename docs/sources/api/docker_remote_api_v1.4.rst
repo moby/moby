@@ -945,34 +945,34 @@ Build an image from Dockerfile via stdin
 
    Build an image from Dockerfile via stdin
 
-   **Example request**:
+    **Example request**:
 
-   .. sourcecode:: http
+    .. sourcecode:: http
 
-      POST /build HTTP/1.1
+        POST /build HTTP/1.1
 
-      {{ STREAM }}
+        {{ STREAM }}
 
-   **Example response**:
+    **Example response**:
 
-   .. sourcecode:: http
+    .. sourcecode:: http
 
-      HTTP/1.1 200 OK
+        HTTP/1.1 200 OK
 
-      {{ STREAM }}
+        {{ STREAM }}
 
 
-       The stream must be a tar archive compressed with one of the following algorithms:
-       identity (no compression), gzip, bzip2, xz. The archive must include a file called
-       `Dockerfile` at its root. It may include any number of other files, which will be
-       accessible in the build context (See the ADD build command).
+    The stream must be a tar archive compressed with one of the following algorithms:
+    identity (no compression), gzip, bzip2, xz. The archive must include a file called
+    `Dockerfile` at its root. It may include any number of other files, which will be
+    accessible in the build context (See the ADD build command).
 
-       The Content-type header should be set to "application/tar".
+    The Content-type header should be set to "application/tar".
 
-	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
-	:query q: suppress verbose build output
+    :query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
+    :query q: suppress verbose build output
     :query nocache: do not use the cache when building the image
-	:statuscode 200: no error
+    :statuscode 200: no error
     :statuscode 500: server error
 
 
@@ -1069,8 +1069,8 @@ Show the docker version information
 		"GoVersion":"go1.0.3"
 	   }
 
-        :statuscode 200: no error
-	:statuscode 500: server error
+    :statuscode 200: no error
+    :statuscode 500: server error
 
 
 Create a new image from a container's changes
