@@ -260,6 +260,21 @@ func TestRuntimeCreate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	// test expose 80:8000
+	container, warnings, err := runtime.Create(&Config{
+		Image:     GetTestImage(runtime).ID,
+		Cmd:       []string{"ls", "-al"},
+		PortSpecs: []string{"80:8000"},
+	},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warnings == nil {
+		t.Error("Expected a warning, got none")
+	}
 }
 
 func TestDestroy(t *testing.T) {
