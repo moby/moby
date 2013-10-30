@@ -187,9 +187,6 @@ func (b *buildFile) CmdCmd(args string) error {
 }
 
 func (b *buildFile) CmdExpose(args string) error {
-	if strings.Contains(args, ":") {
-		return fmt.Errorf("EXPOSE cannot be used to bind to a host ip or port")
-	}
 	ports := strings.Split(args, " ")
 	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
@@ -433,9 +430,12 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, _, err := b.runtime.Create(b.config, "")
+		container, warnings, err := b.runtime.Create(b.config, "")
 		if err != nil {
 			return err
+		}
+		for _, warning := range warnings {
+			fmt.Fprintf(b.out, " ---> [Warning] %s\n", warning)
 		}
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
