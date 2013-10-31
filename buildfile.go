@@ -468,17 +468,16 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	// FIXME: @creack "name" is a terrible variable name
-	name, err := ioutil.TempDir("", "docker-build")
+	buildDir, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return "", err
 	}
-	if err := Untar(context, name); err != nil {
+	if err := Untar(context, buildDir); err != nil {
 		return "", err
 	}
-	defer os.RemoveAll(name)
-	b.context = name
-	filename := path.Join(name, "Dockerfile")
+	defer os.RemoveAll(buildDir)
+	b.context = buildDir
+	filename := path.Join(buildDir, "Dockerfile")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
@@ -490,14 +489,27 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
-		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
-		// Skip comments and empty line
+		// Skip comments
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+		line = strings.Trim(line, " \t\r\n")
+		// empty line
+		if len(line) == 0 {
+			continue
+		}
+		whiteSpaceIndex := strings.IndexAny(line, " \t")
+		if whiteSpaceIndex == -1 {
+			return "", fmt.Errorf("Invalid Dockerfile format (%s)", line)
+		}
+
+		var tmp [2]string
+		//Trim as we could have multiple whitespace of either kind
+		tmp[0] = strings.Trim(line[:whiteSpaceIndex], " \t")
+		tmp[1] = strings.Trim(line[whiteSpaceIndex:], " \t")
+
+		if len(tmp[0]) == 0 || len(tmp[1]) == 0 {
+			return "", fmt.Errorf("Invalid Dockerfile format (%s)", line)
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
