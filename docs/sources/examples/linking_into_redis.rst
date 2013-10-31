@@ -62,7 +62,7 @@ Run the redis container
     
     docker run -d -e PASSWORD=docker -name redis redis-2.6 --requirepass docker
  
-This will run our redis container wit the password docker 
+This will run our redis container with the password docker 
 to secure our service.  By specifying the ``-name`` flag on run 
 we will assign the name ``redis`` to this container.  If we do not specify a name  for 
 our container via the ``-name`` flag docker will automatically generate a name for us.
