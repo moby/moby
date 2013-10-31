@@ -1304,7 +1304,7 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 		// After we load all the links into the runtime
 		// set them to nil on the hostconfig
 		hostConfig.Links = nil
-		if err := container.SaveHostConfig(hostConfig); err != nil {
+		if err := container.writeHostConfig(); err != nil {
 			return err
 		}
 	}
@@ -1317,8 +1317,11 @@ func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
-	if err := container.Start(hostConfig); err != nil {
+	if hostConfig != nil {
+		container.hostConfig = hostConfig
+		container.ToDisk()
+	}
+	if err := container.Start(); err != nil {
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))

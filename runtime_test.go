@@ -325,13 +325,13 @@ func TestGet(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container1, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container1, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container1)
 
-	container2, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container2, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container2)
 
-	container3, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container3, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container3)
 
 	if runtime.Get(container1.ID) != container1 {
@@ -390,13 +390,13 @@ func startEchoServerContainer(t *testing.T, proto string) (*Runtime, *Container,
 		t.Logf("Port %v already in use, trying another one", strPort)
 	}
 
-	hostConfig := &HostConfig{
+	container.hostConfig = &HostConfig{
 		PortBindings: make(map[Port][]PortBinding),
 	}
-	hostConfig.PortBindings[p] = []PortBinding{
+	container.hostConfig.PortBindings[p] = []PortBinding{
 		{},
 	}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		nuke(runtime)
 		t.Fatal(err)
 	}
@@ -503,16 +503,15 @@ func TestRestore(t *testing.T) {
 	runtime1 := mkRuntime(t)
 	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
+	container1, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	container2, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
-	hostConfig := &HostConfig{}
-	if err := container2.Start(hostConfig); err != nil {
+	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -575,25 +574,23 @@ func TestReloadContainerLinks(t *testing.T) {
 	runtime1 := mkRuntime(t)
 	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
+	container1, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	container2, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
-	hostConfig := &HostConfig{}
-	if err := container2.Start(hostConfig); err != nil {
+	if err := container2.Start(); err != nil {
 		t.Fatal(err)
 	}
-	h1 := &HostConfig{}
 	// Add a link to container 2
-	h1.Links = []string{"/" + container2.ID + ":first"}
+	container1.hostConfig.Links = []string{"/" + container2.ID + ":first"}
 	if err := runtime1.RegisterLink(container1, container2, "first"); err != nil {
 		t.Fatal(err)
 	}
-	if err := container1.Start(h1); err != nil {
+	if err := container1.Start(); err != nil {
 		t.Fatal(err)
 	}
 

@@ -13,9 +13,6 @@ cd /
 git clone -q http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
 cd /go/src/github.com/dotcloud/docker
 
-echo FIXME. Temporarily skip TestPrivilegedCanMount until DinD works reliable on AWS
-git pull -q https://github.com/mzdaniel/docker.git dind-aws || exit 1
-
 # Launch docker daemon using dind inside the container
 ./hack/dind /usr/bin/docker -d &
 sleep 5
@@ -27,7 +24,7 @@ date > timestamp
 docker build -t docker .
 
 # Run Docker unittests binary and Ubuntu package
-docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh
+docker run -privileged docker hack/make.sh
 exit_status=$?
 
 # Display load if test fails
