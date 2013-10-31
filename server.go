@@ -320,10 +320,11 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 	outs := []APIHistory{} //produce [] when empty instead of 'null'
 	err = image.WalkHistory(func(img *Image) error {
 		var out APIHistory
-		out.ID = srv.runtime.repositories.ImageName(img.ShortID())
+		out.ID = img.ID
 		out.Created = img.Created.Unix()
 		out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
 		out.Tags = lookupMap[img.ID]
+		out.Size = img.Size
 		outs = append(outs, out)
 		return nil
 	})
