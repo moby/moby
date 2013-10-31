@@ -97,6 +97,7 @@ type HostConfig struct {
 	LxcConf         []KeyValuePair
 	PortBindings    map[Port][]PortBinding
 	Links           []string
+	PublishAllPorts bool
 }
 
 type BindMap struct {
@@ -168,6 +169,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	cmd.String("name", "", "Assign a name to the container")
+	flPublishAll := cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -327,6 +329,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		LxcConf:         lxcConf,
 		PortBindings:    portBindings,
 		Links:           flLinks,
+		PublishAllPorts: *flPublishAll,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
@@ -1111,6 +1114,9 @@ func (container *Container) allocateNetwork(hostConfig *HostConfig) error {
 
 	for port := range portSpecs {
 		binding := bindings[port]
+		if hostConfig.PublishAllPorts && len(binding) == 0 {
+			binding = append(binding, PortBinding{})
+		}
 		for i := 0; i < len(binding); i++ {
 			b := binding[i]
 			nat, err := iface.AllocatePort(port, b)
