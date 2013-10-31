@@ -147,7 +147,7 @@ Expose a service on a TCP port
   JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
 
   # Which public port is NATed to my container?
-  PORT=$(sudo docker port $JOB 4444)
+  PORT=$(sudo docker port $JOB 4444 | awk -F: '{ print $2 }')
 
   # Connect to the public port via the host's public address
   # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
