@@ -943,7 +943,7 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-   Build an image from Dockerfile via stdin
+    Build an image from Dockerfile via stdin
 
     **Example request**:
 
