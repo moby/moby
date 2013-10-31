@@ -638,7 +638,7 @@ using the container, but inside the current working directory.
 
     docker run -p 127.0.0.0::80 ubuntu bash
 
-This the ``-p`` flag now allows you to bind a port to a specific
+The ``-p`` flag now allows you to bind a port to a specific
 interface of the host machine.  In this example port ``80`` of the 
 container will have a dynamically allocated port bound to 127.0.0.1 
 of the host.
