@@ -89,7 +89,7 @@ func TestCreateRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestCreateRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	if err = srv.ContainerDestroy(id, true); err != nil {
+	if err = srv.ContainerDestroy(id, true, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -106,6 +106,45 @@ func TestCreateRm(t *testing.T) {
 		t.Errorf("Expected 0 container, %v found", len(runtime.List()))
 	}
 
+}
+
+func TestCreateRmVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
+
+	config, hostConfig, _, err := ParseRun([]string{"-v", "/srv", GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, _, err := srv.ContainerCreate(config, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
+	}
+
+	err = srv.ContainerStart(id, hostConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srv.ContainerStop(id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = srv.ContainerDestroy(id, true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.List()) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(runtime.List()))
+	}
 }
 
 func TestCommit(t *testing.T) {
@@ -119,7 +158,7 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +179,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,33 +188,28 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	if err := srv.ContainerStart(id, hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerRestart(id, 1)
-	if err != nil {
+	if err := srv.ContainerRestart(id, 15); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStop(id, 1)
-	if err != nil {
+	if err := srv.ContainerStop(id, 15); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	if err := srv.ContainerStart(id, hostConfig); err != nil {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerKill(id)
-	if err != nil {
+	if err := srv.ContainerKill(id, 0); err != nil {
 		t.Fatal(err)
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	if err = srv.ContainerDestroy(id, true); err != nil {
+	if err := srv.ContainerDestroy(id, true, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,20 +220,19 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 }
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
-	var err error
 	runtime := mkRuntime(t)
-	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
+
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
-	_, err = srv.ContainerCreate(
+	if _, _, err := (*Server).ContainerCreate(&Server{runtime: runtime},
 		&Config{
 			Image:     GetTestImage(runtime).ID,
 			Memory:    524287,
 			CpuShares: 1000,
 			Cmd:       []string{"/bin/cat"},
 		},
-	)
-	if err == nil {
+		"",
+	); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
 
@@ -207,9 +240,11 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 
 func TestContainerTop(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now. Reported error: 'server_test.go:236: Expected 2 processes, found 1.'")
+
 	runtime := mkRuntime(t)
-	srv := &Server{runtime: runtime}
 	defer nuke(runtime)
+
+	srv := &Server{runtime: runtime}
 
 	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
 	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
@@ -312,6 +347,7 @@ func TestPools(t *testing.T) {
 
 func TestLogEvent(t *testing.T) {
 	runtime := mkRuntime(t)
+	defer nuke(runtime)
 	srv := &Server{
 		runtime:   runtime,
 		events:    make([]utils.JSONMessage, 0, 64),
@@ -362,7 +398,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, err := srv.ContainerCreate(config)
+	containerID, _, err := srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +419,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, err = srv.ContainerCreate(config)
+	containerID, _, err = srv.ContainerCreate(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}

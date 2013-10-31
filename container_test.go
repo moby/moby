@@ -18,11 +18,12 @@ import (
 func TestIDFormat(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container1, err := runtime.Create(
+	container1, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -388,11 +389,12 @@ func TestRun(t *testing.T) {
 func TestOutput(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -407,16 +409,39 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestContainerNetwork(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, err := runtime.Create(
+		&Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if container.State.ExitCode != 0 {
+		t.Errorf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", container.State.ExitCode)
+	}
+}
+
 func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image:     GetTestImage(runtime).ID,
 		Cmd:       []string{"cat"},
 		OpenStdin: true,
 		User:      "daemon",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -471,7 +496,7 @@ func TestCreateVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := runtime.Create(config)
+	c, _, err := runtime.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,10 +511,11 @@ func TestCreateVolume(t *testing.T) {
 func TestKill(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -530,10 +556,10 @@ func TestExitCode(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	trueContainer, err := runtime.Create(&Config{
+	trueContainer, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true", ""},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -545,10 +571,10 @@ func TestExitCode(t *testing.T) {
 		t.Errorf("Unexpected exit code %d (expected 0)", trueContainer.State.ExitCode)
 	}
 
-	falseContainer, err := runtime.Create(&Config{
+	falseContainer, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/false", ""},
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,10 +590,11 @@ func TestExitCode(t *testing.T) {
 func TestRestart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "-n", "foobar"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -594,12 +621,13 @@ func TestRestart(t *testing.T) {
 func TestRestartStdin(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -672,10 +700,11 @@ func TestUser(t *testing.T) {
 	defer nuke(runtime)
 
 	// Default user must be root
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -690,12 +719,13 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a username
-	container, err = runtime.Create(&Config{
+	container, _, err = runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
 		User: "root",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -710,12 +740,13 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a UID
-	container, err = runtime.Create(&Config{
+	container, _, err = runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
 		User: "0",
 	},
+		"",
 	)
 	if err != nil || container.State.ExitCode != 0 {
 		t.Fatal(err)
@@ -730,12 +761,13 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by uid
-	container, err = runtime.Create(&Config{
+	container, _, err = runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
 		User: "1",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -752,12 +784,13 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by username
-	container, err = runtime.Create(&Config{
+	container, _, err = runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
 		User: "daemon",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -772,12 +805,13 @@ func TestUser(t *testing.T) {
 	}
 
 	// Test an wrong username
-	container, err = runtime.Create(&Config{
+	container, _, err = runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
 		User: "unknownuser",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -793,20 +827,22 @@ func TestMultipleContainers(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container1, err := runtime.Create(&Config{
+	container1, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container1)
 
-	container2, err := runtime.Create(&Config{
+	container2, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -847,12 +883,13 @@ func TestMultipleContainers(t *testing.T) {
 func TestStdin(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -892,12 +929,13 @@ func TestStdin(t *testing.T) {
 func TestTty(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -935,13 +973,15 @@ func TestTty(t *testing.T) {
 }
 
 func TestEnv(t *testing.T) {
+	os.Setenv("TRUE", "false")
+	os.Setenv("TRICKY", "tri\ncky\n")
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
-		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"env"},
-	},
-	)
+	config, _, _, err := ParseRun([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(runtime).ID, "env"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, _, err := runtime.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -971,6 +1011,11 @@ func TestEnv(t *testing.T) {
 		"HOME=/",
 		"container=lxc",
 		"HOSTNAME=" + container.ShortID(),
+		"FALSE=true",
+		"TRUE=false",
+		"TRICKY=tri",
+		"cky",
+		"",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -986,12 +1031,13 @@ func TestEnv(t *testing.T) {
 func TestEntrypoint(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:      GetTestImage(runtime).ID,
 			Entrypoint: []string{"/bin/echo"},
 			Cmd:        []string{"-n", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1009,11 +1055,12 @@ func TestEntrypoint(t *testing.T) {
 func TestEntrypointNoCmd(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:      GetTestImage(runtime).ID,
 			Entrypoint: []string{"/bin/echo", "foobar"},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1060,7 +1107,7 @@ func TestLXCConfig(t *testing.T) {
 	cpuMin := 100
 	cpuMax := 10000
 	cpu := cpuMin + rand.Intn(cpuMax-cpuMin)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true"},
 
@@ -1068,6 +1115,7 @@ func TestLXCConfig(t *testing.T) {
 		Memory:    int64(mem),
 		CpuShares: int64(cpu),
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1084,12 +1132,13 @@ func TestLXCConfig(t *testing.T) {
 func TestCustomLxcConfig(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true"},
 
 		Hostname: "foobar",
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1115,10 +1164,11 @@ func BenchmarkRunSequencial(b *testing.B) {
 	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
-		container, err := runtime.Create(&Config{
+		container, _, err := runtime.Create(&Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foo"},
 		},
+			"",
 		)
 		if err != nil {
 			b.Fatal(err)
@@ -1147,10 +1197,11 @@ func BenchmarkRunParallel(b *testing.B) {
 		complete := make(chan error)
 		tasks = append(tasks, complete)
 		go func(i int, complete chan error) {
-			container, err := runtime.Create(&Config{
+			container, _, err := runtime.Create(&Config{
 				Image: GetTestImage(runtime).ID,
 				Cmd:   []string{"echo", "-n", "foo"},
 			},
+				"",
 			)
 			if err != nil {
 				complete <- err
@@ -1189,7 +1240,7 @@ func BenchmarkRunParallel(b *testing.B) {
 }
 
 func tempDir(t *testing.T) string {
-	tmpDir, err := ioutil.TempDir("", "docker-test")
+	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1297,12 +1348,13 @@ func TestBindMounts(t *testing.T) {
 func TestVolumesFromReadonlyMount(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"/bin/echo", "-n", "foobar"},
 			Volumes: map[string]struct{}{"/test": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1316,12 +1368,13 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 		t.Fail()
 	}
 
-	container2, err := runtime.Create(
+	container2, _, err := runtime.Create(
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: container.ID,
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1352,11 +1405,12 @@ func TestRestartWithVolumes(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"echo", "-n", "foobar"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1395,11 +1449,12 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1422,13 +1477,14 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 		t.Fail()
 	}
 
-	container2, err := runtime.Create(
+	container2, _, err := runtime.Create(
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"cat", "/test/foo"},
 			VolumesFrom: container.ID,
 			Volumes:     map[string]struct{}{"/test": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1463,7 +1519,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := runtime.Create(config)
+	c, _, err := runtime.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1529,11 +1585,12 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, err := runtime.Create(&Config{
+	container, _, err := runtime.Create(&Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1556,12 +1613,13 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fail()
 	}
 
-	container2, err := runtime.Create(
+	container2, _, err := runtime.Create(
 		&Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
 			Volumes: map[string]struct{}{"/other": {}},
 		},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1577,12 +1635,12 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container3, err := runtime.Create(
+	container3, _, err := runtime.Create(
 		&Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
-		})
+		}, "")
 
 	if err != nil {
 		t.Fatal(err)
@@ -1593,7 +1651,6 @@ func TestMultipleVolumesFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Log(container3.Volumes)
 	if container3.Volumes["/test"] != container.Volumes["/test"] {
 		t.Fail()
 	}

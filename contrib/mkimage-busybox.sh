@@ -35,5 +35,5 @@ do
     cp -a /dev/$X dev
 done
 
-tar -cf- . | docker import - busybox
+tar --numeric-owner -cf- . | docker import - busybox
 docker run -i -u root busybox /bin/echo Success.

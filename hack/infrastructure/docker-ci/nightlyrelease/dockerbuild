@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Variables AWS_ACCESS_KEY, AWS_SECRET_KEY, PG_PASSPHRASE and INDEX_AUTH
+# are decoded from /root/release_credentials.json
+# Variable AWS_S3_BUCKET is passed to the environment from docker run -e
+
+# Enable debugging
+set -x
+
+# Fetch docker master branch
+rm -rf  /go/src/github.com/dotcloud/docker
+cd /
+git clone -q http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
+cd /go/src/github.com/dotcloud/docker
+
+echo FIXME. Temporarily skip TestPrivilegedCanMount until DinD works reliable on AWS
+git pull -q https://github.com/mzdaniel/docker.git dind-aws || exit 1
+
+# Launch docker daemon using dind inside the container
+./hack/dind /usr/bin/docker -d &
+sleep 5
+
+# Add an uncommitted change to generate a timestamped release
+date > timestamp
+
+# Build the docker package using /Dockerfile
+docker build -t docker .
+
+# Run Docker unittests binary and Ubuntu package
+docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh
+exit_status=$?
+
+# Display load if test fails
+if [ $exit_status -eq 1 ] ; then
+    uptime; echo; free
+    exit 1
+fi
+
+# Commit binary and ubuntu bundles for release
+docker commit -run '{"Env": ["PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"], "WorkingDir": "/go/src/github.com/dotcloud/docker"}' $(docker ps -l -q) release
+
+# Turn debug off to load credentials from the environment
+set +x
+eval $(cat /root/release_credentials.json  | python -c '
+import sys,json,base64;
+d=json.loads(base64.b64decode(sys.stdin.read()));
+exec("""for k in d: print "export {0}=\\"{1}\\"".format(k,d[k])""")')
+set -x
+
+# Push docker nightly
+echo docker run -i -t -privileged -e AWS_S3_BUCKET=$AWS_S3_BUCKET -e AWS_ACCESS_KEY=XXXXX -e AWS_SECRET_KEY=XXXXX -e GPG_PASSPHRASE=XXXXX release  hack/release.sh
+set +x
+docker run -i -t -privileged -e AWS_S3_BUCKET=$AWS_S3_BUCKET -e AWS_ACCESS_KEY=$AWS_ACCESS_KEY -e AWS_SECRET_KEY=$AWS_SECRET_KEY -e GPG_PASSPHRASE=$GPG_PASSPHRASE  release  hack/release.sh

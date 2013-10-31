@@ -14,5 +14,5 @@ Your programs and scripts can access Docker's functionality via these interfaces
   registry_api
   index_api
   docker_remote_api
-
+  remote_api_client_libraries
 

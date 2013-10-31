@@ -332,7 +332,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	b.config.Image = b.image
 	// Create the container and start it
-	container, err := b.runtime.Create(b.config)
+	container, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func (b *buildFile) run() (string, error) {
 	b.config.Image = b.image
 
 	// Create the container and start it
-	c, err := b.runtime.Create(b.config)
+	c, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
 		return "", err
 	}
@@ -378,15 +378,22 @@ func (b *buildFile) run() (string, error) {
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
 
+	var errCh chan error
+
+	if b.verbose {
+		errCh = utils.Go(func() error {
+			return <-c.Attach(nil, nil, b.out, b.out)
+		})
+	}
+
 	//start the container
 	hostConfig := &HostConfig{}
 	if err := c.Start(hostConfig); err != nil {
 		return "", err
 	}
 
-	if b.verbose {
-		err = <-c.Attach(nil, nil, b.out, b.out)
-		if err != nil {
+	if errCh != nil {
+		if err := <-errCh; err != nil {
 			return "", err
 		}
 	}
@@ -423,9 +430,12 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			}
 		}
 
-		container, err := b.runtime.Create(b.config)
+		container, warnings, err := b.runtime.Create(b.config, "")
 		if err != nil {
 			return err
+		}
+		for _, warning := range warnings {
+			fmt.Fprintf(b.out, " ---> [Warning] %s\n", warning)
 		}
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(container.ID))
@@ -458,9 +468,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	// FIXME: @creack any reason for using /tmp instead of ""?
 	// FIXME: @creack "name" is a terrible variable name
-	name, err := ioutil.TempDir("/tmp", "docker-build")
+	name, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return "", err
 	}

@@ -78,6 +78,8 @@ To execute the test cases, run this command:
 	sudo docker run -lxc-conf=lxc.aa_profile=unconfined -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh test
 
 
+Note: if you're running the tests in vagrant, you need to specify a dns entry in the command: `-dns 8.8.8.8`
+
 If the test are successful then the tail of the output should look something like this
 
 .. code-block:: bash
@@ -124,7 +126,7 @@ You can run an interactive session in the newly built container:
 
 
 
-.. note:: The binary is availalbe outside the container in the directory  ``./bundles/<version>-dev/binary/``.
+.. note:: The binary is available outside the container in the directory  ``./bundles/<version>-dev/binary/``. You can swap your host docker executable with this binary for live testing - for example, on ubuntu: ``sudo service docker stop ; sudo cp $(which docker) $(which docker)_ ; sudo cp ./bundles/<version>-dev/binary/docker-<version>-dev $(which docker);sudo service docker start``.
 
 
 **Need More Help?**

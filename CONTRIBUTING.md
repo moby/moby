@@ -3,6 +3,10 @@
 Want to hack on Docker? Awesome! Here are instructions to get you started. They are probably not perfect, please let us know if anything feels
 wrong or incomplete.
 
+## Build Environment
+
+For instructions on setting up your development environment, please see our dedicated [dev environment setup docs](http://docs.docker.io/en/latest/contributing/devenvironment/).
+
 ## Contribution guidelines
 
 ### Pull requests are always welcome
@@ -55,8 +59,10 @@ Submit unit tests for your changes.  Go has a great test framework built in; use
 it! Take a look at existing tests for inspiration. Run the full test suite on
 your branch before submitting a pull request.
 
-Make sure you include relevant updates or additions to documentation when
-creating or modifying features.
+Update the documentation when creating or modifying features. Test
+your documentation changes for clarity, concision, and correctness, as
+well as a clean docmuent build. See ``docs/README.md`` for more
+information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `go fmt` before committing your changes. Most
@@ -89,6 +95,17 @@ name and email address match your git configuration. The AUTHORS file is
 regenerated occasionally from the git commit history, so a mismatch may result
 in your changes being overwritten.
 
+### Approval
+
+Docker maintainers use LGTM (looks good to me) in comments on the code review
+to indicate acceptance.
+
+A change requires LGTMs from an absolute majority of the maintainers of each
+component affected. For example, if a change affects docs/ and registry/, it
+needs an absolute majority from the maintainers of docs/ AND, separately, an
+absolute majority of the maintainers of registry
+
+For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
 
 ### How can I become a maintainer?
 

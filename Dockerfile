@@ -12,7 +12,7 @@
 #
 #
 # # Run the test suite:
-# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker go test -v
+# docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh test
 #
 # # Publish a release:
 # docker run -privileged -lxc-conf=lxc.aa_profile=unconfined \
@@ -33,15 +33,13 @@ run	apt-get update
 run	apt-get install -y -q curl
 run	apt-get install -y -q git
 run	apt-get install -y -q mercurial
-run	apt-get install -y -q build-essential
+run apt-get install -y -q build-essential libsqlite3-dev
 
-# Install Go from source (for eventual cross-compiling)
-env	CGO_ENABLED 0
-run	curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
-run	cd /goroot/src && ./make.bash
-env GOROOT	/goroot
-env	PATH	$PATH:/goroot/bin
+# Install Go
+run	curl -s https://go.googlecode.com/files/go1.2rc2.src.tar.gz | tar -v -C /usr/local -xz
+env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
+run cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
 
 # Ubuntu stuff
 run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
@@ -57,6 +55,7 @@ run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 # Runtime dependencies
 run	apt-get install -y -q iptables
 run	apt-get install -y -q lxc
+run	apt-get install -y -q aufs-tools
 
 volume	/var/lib/docker
 workdir	/go/src/github.com/dotcloud/docker

@@ -160,16 +160,16 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	}
 	req.Header.Set("Authorization", "Token "+strings.Join(token, ", "))
 	res, err := doWithCookies(r.client, req)
-	if err != nil || res.StatusCode != 200 {
-		if res != nil {
-			if res.StatusCode == 401 {
-				return nil, ErrLoginRequired
-			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
-		}
+	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		if res.StatusCode == 401 {
+			return nil, ErrLoginRequired
+		}
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
+	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -240,6 +240,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 		return nil, err
 	}
 	if res.StatusCode != 200 {
+		res.Body.Close()
 		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
 			res.StatusCode, imgID)
 	}
@@ -498,11 +499,12 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	}
 	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
 	utils.Debugf("[registry] PUT %s", u)
-	utils.Debugf("Image list pushed to index:\n%s\n", imgListJSON)
+	utils.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Content-type", "application/json")
 	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	req.ContentLength = int64(len(imgListJSON))
 	req.Header.Set("X-Docker-Token", "true")
@@ -518,7 +520,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		utils.Debugf("Redirected to %s\n", res.Header.Get("Location"))
+		utils.Debugf("Redirected to %s", res.Header.Get("Location"))
 		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err

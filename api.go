@@ -42,6 +42,9 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 
 //If we don't do this, POST method without Content-type (even with empty body) will fail
 func parseForm(r *http.Request) error {
+	if r == nil {
+		return nil
+	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
 	}
@@ -70,8 +73,11 @@ func httpError(w http.ResponseWriter, err error) {
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
 	}
-	utils.Debugf("[error %d] %s", statusCode, err)
-	http.Error(w, err.Error(), statusCode)
+
+	if err != nil {
+		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		http.Error(w, err.Error(), statusCode)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -102,7 +108,7 @@ func getBoolParam(value string) (bool, error) {
 func matchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		utils.Debugf("Error parsing media type: %s error: %s", contentType, err.Error())
+		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
 	}
 	return err == nil && mimetype == expectedType
 }
@@ -132,8 +138,23 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
-	if err := srv.ContainerKill(name); err != nil {
+
+	signal := 0
+	if r != nil {
+		s := r.Form.Get("signal")
+		if s != "" {
+			if s, err := strconv.Atoi(s); err != nil {
+				return err
+			} else {
+				signal = s
+			}
+		}
+	}
+	if err := srv.ContainerKill(name, signal); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -147,7 +168,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	name := vars["name"]
 
 	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Debugf("%s", err)
+		utils.Errorf("%s", err)
 		return err
 	}
 	return nil
@@ -192,7 +213,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		_, err = wf.Write(b)
 		if err != nil {
 			// On error, evict the listener
-			utils.Debugf("%s", err)
+			utils.Errorf("%s", err)
 			srv.Lock()
 			delete(srv.listeners, r.RemoteAddr)
 			srv.Unlock()
@@ -346,8 +367,8 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		return err
 	}
 	config := &Config{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		utils.Debugf("%s", err)
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
+		utils.Errorf("%s", err)
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
@@ -500,8 +521,12 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
 	config := &Config{}
 	out := &APIRun{}
+	name := r.Form.Get("name")
 
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
@@ -512,16 +537,19 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		config.Dns = defaultDns
 	}
 
-	id, err := srv.ContainerCreate(config)
+	id, warnings, err := srv.ContainerCreate(config, name)
 	if err != nil {
 		return err
 	}
 	out.ID = id
+	for _, warning := range warnings {
+		out.Warnings = append(out.Warnings, warning)
+	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -567,12 +595,17 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+
 	removeVolume, err := getBoolParam(r.Form.Get("v"))
 	if err != nil {
 		return err
 	}
+	removeLink, err := getBoolParam(r.Form.Get("link"))
+	if err != nil {
+		return err
+	}
 
-	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
+	if err := srv.ContainerDestroy(name, removeVolume, removeLink); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -619,6 +652,10 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	// Register any links from the host config before starting the container
+	if err := srv.RegisterLinks(name, hostConfig); err != nil {
+		return err
+	}
 	if err := srv.ContainerStart(name, hostConfig); err != nil {
 		return err
 	}
@@ -652,6 +689,7 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+
 	status, err := srv.ContainerWait(name)
 	if err != nil {
 		return err
@@ -792,7 +830,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		defer ws.Close()
 
 		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws, ws); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -905,8 +943,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
 	id, err := b.Build(context)
 	if err != nil {
-		fmt.Fprintf(w, "Error build: %s\n", err)
-		return err
+		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
@@ -938,7 +975,7 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
-		utils.Debugf("%s", err.Error())
+		utils.Errorf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -973,7 +1010,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		if err != nil {
 			version = APIVERSION
 		}
-		if srv.enableCors {
+		if srv.runtime.config.EnableCors {
 			writeCorsHeaders(w, r)
 		}
 
@@ -983,7 +1020,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		}
 
 		if err := handlerFunc(srv, version, w, r, mux.Vars(r)); err != nil {
-			utils.Debugf("Error: %s", err)
+			utils.Errorf("Error: %s", err)
 			httpError(w, err)
 		}
 	}

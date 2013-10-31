@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,7 +11,6 @@ import (
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,6 +21,23 @@ import (
 	"sync"
 	"time"
 )
+
+var (
+	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
+	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
+)
+
+// ListOpts type
+type ListOpts []string
+
+func (opts *ListOpts) String() string {
+	return fmt.Sprint(*opts)
+}
+
+func (opts *ListOpts) Set(value string) error {
+	*opts = append(*opts, value)
+	return nil
+}
 
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
 // and returns a channel which will later return the function's return value.
@@ -45,22 +62,29 @@ func Download(url string, stderr io.Writer) (*http.Response, error) {
 	return resp, nil
 }
 
+func logf(level string, format string, a ...interface{}) {
+	// Retrieve the stack infos
+	_, file, line, ok := runtime.Caller(2)
+	if !ok {
+		file = "<unknown>"
+		line = -1
+	} else {
+		file = file[strings.LastIndex(file, "/")+1:]
+	}
+
+	fmt.Fprintf(os.Stderr, fmt.Sprintf("[%s] %s:%d %s\n", level, file, line, format), a...)
+}
+
 // Debug function, if the debug flag is set, then display. Do nothing otherwise
 // If Docker is in damon mode, also send the debug info on the socket
 func Debugf(format string, a ...interface{}) {
 	if os.Getenv("DEBUG") != "" {
-
-		// Retrieve the stack infos
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "<unknown>"
-			line = -1
-		} else {
-			file = file[strings.LastIndex(file, "/")+1:]
-		}
-
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
+		logf("debug", format, a...)
 	}
+}
+
+func Errorf(format string, a ...interface{}) {
+	logf("error", format, a...)
 }
 
 // Reader with progress bar
@@ -170,6 +194,67 @@ func SelfPath() string {
 		panic(err)
 	}
 	return path
+}
+
+func dockerInitSha1(target string) string {
+	f, err := os.Open(target)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	h := sha1.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
+	if IAMSTATIC {
+		if target == selfPath {
+			return true
+		}
+		targetFileInfo, err := os.Lstat(target)
+		if err != nil {
+			return false
+		}
+		selfPathFileInfo, err := os.Lstat(selfPath)
+		if err != nil {
+			return false
+		}
+		return os.SameFile(targetFileInfo, selfPathFileInfo)
+	}
+	return INITSHA1 != "" && dockerInitSha1(target) == INITSHA1
+}
+
+// Figure out the path of our dockerinit (which may be SelfPath())
+func DockerInitPath() string {
+	selfPath := SelfPath()
+	if isValidDockerInitPath(selfPath, selfPath) {
+		// if we're valid, don't bother checking anything else
+		return selfPath
+	}
+	var possibleInits = []string{
+		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
+		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		"/usr/libexec/docker/dockerinit",
+		"/usr/local/libexec/docker/dockerinit",
+	}
+	for _, dockerInit := range possibleInits {
+		path, err := exec.LookPath(dockerInit)
+		if err == nil {
+			path, err = filepath.Abs(path)
+			if err != nil {
+				// LookPath already validated that this file exists and is executable (following symlinks), so how could Abs fail?
+				panic(err)
+			}
+			if isValidDockerInitPath(path, selfPath) {
+				return path
+			}
+		}
+	}
+	return ""
 }
 
 type NopWriter struct{}
@@ -319,7 +404,7 @@ func NewWriteBroadcaster() *WriteBroadcaster {
 
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		Debugf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+		Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
 	} else {
 		return len(fds)
 	}
@@ -771,7 +856,7 @@ func IsGIT(str string) bool {
 func GetResolvConf() ([]byte, error) {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
-		Debugf("Error openning resolv.conf: %s", err)
+		Errorf("Error openning resolv.conf: %s", err)
 		return nil, err
 	}
 	return resolv, nil
@@ -811,18 +896,25 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 	return output
 }
 
-func ParseHost(host string, port int, addr string) string {
-	if strings.HasPrefix(addr, "unix://") {
-		return addr
-	}
-	if strings.HasPrefix(addr, "tcp://") {
+func ParseHost(host string, port int, addr string) (string, error) {
+	var proto string
+	switch {
+	case strings.HasPrefix(addr, "unix://"):
+		return addr, nil
+	case strings.HasPrefix(addr, "tcp://"):
+		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	default:
+		if strings.Contains(addr, "://") {
+			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
+		}
+		proto = "tcp"
 	}
+
 	if strings.Contains(addr, ":") {
 		hostParts := strings.Split(addr, ":")
 		if len(hostParts) != 2 {
-			log.Fatal("Invalid bind address format.")
-			os.Exit(-1)
+			return "", fmt.Errorf("Invalid bind address format: %s", addr)
 		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
@@ -833,7 +925,7 @@ func ParseHost(host string, port int, addr string) string {
 	} else {
 		host = addr
 	}
-	return fmt.Sprintf("tcp://%s:%d", host, port)
+	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
 
 func GetReleaseVersion() string {
@@ -1020,4 +1112,33 @@ type StatusError struct {
 
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("Status: %d", e.Status)
+}
+
+func IsClosedError(err error) bool {
+	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.
+	 * See:
+	 * http://golang.org/src/pkg/net/net.go
+	 * https://code.google.com/p/go/issues/detail?id=4337
+	 * https://groups.google.com/forum/#!msg/golang-nuts/0_aaCvBmOcM/SptmDyX1XJMJ
+	 */
+	return strings.HasSuffix(err.Error(), "use of closed network connection")
+}
+
+func PartParser(template, data string) (map[string]string, error) {
+	// ip:public:private
+	templateParts := strings.Split(template, ":")
+	parts := strings.Split(data, ":")
+	if len(parts) != len(templateParts) {
+		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
+	}
+	out := make(map[string]string, len(templateParts))
+
+	for i, t := range templateParts {
+		value := ""
+		if len(parts) > i {
+			value = parts[i]
+		}
+		out[t] = value
+	}
+	return out, nil
 }

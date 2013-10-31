@@ -1,8 +1,11 @@
 package docker
 
 import (
+	_ "code.google.com/p/gosqlite/sqlite3"
 	"container/list"
+	"database/sql"
 	"fmt"
+	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -24,7 +27,6 @@ type Capabilities struct {
 }
 
 type Runtime struct {
-	root           string
 	repository     string
 	containers     *list.List
 	networkManager *NetworkManager
@@ -32,17 +34,10 @@ type Runtime struct {
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
 	capabilities   *Capabilities
-	kernelVersion  *utils.KernelVersionInfo
-	autoRestart    bool
 	volumes        *Graph
 	srv            *Server
-	Dns            []string
-}
-
-var sysInitPath string
-
-func init() {
-	sysInitPath = utils.SelfPath()
+	config         *DaemonConfig
+	containerGraph *gograph.Database
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -67,10 +62,15 @@ func (runtime *Runtime) getContainerElement(id string) *list.Element {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (runtime *Runtime) Get(name string) *Container {
+	if c, _ := runtime.GetByName(name); c != nil {
+		return c
+	}
+
 	id, err := runtime.idIndex.Get(name)
 	if err != nil {
 		return nil
 	}
+
 	e := runtime.getContainerElement(id)
 	if e == nil {
 		return nil
@@ -88,10 +88,9 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
-// Load reads the contents of a container from disk and registers
-// it with Register.
+// Load reads the contents of a container from disk
 // This is typically done at startup.
-func (runtime *Runtime) Load(id string) (*Container, error) {
+func (runtime *Runtime) load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
@@ -101,9 +100,6 @@ func (runtime *Runtime) Load(id string) (*Container, error) {
 	}
 	if container.State.Running {
 		container.State.Ghost = true
-	}
-	if err := runtime.Register(container); err != nil {
-		return nil, err
 	}
 	return container, nil
 }
@@ -149,11 +145,11 @@ func (runtime *Runtime) Register(container *Container) error {
 		}
 		if !strings.Contains(string(output), "RUNNING") {
 			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
-			if runtime.autoRestart {
+			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				hostConfig := &HostConfig{}
+				hostConfig, _ := container.ReadHostConfig()
 				if err := container.Start(hostConfig); err != nil {
 					return err
 				}
@@ -173,9 +169,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	if !container.State.Running {
 		close(container.waitLock)
 	} else if !nomonitor {
-		container.allocateNetwork()
-		// hostConfig isn't needed here and can be nil
-		go container.monitor(nil)
+		hostConfig, _ := container.ReadHostConfig()
+		container.allocateNetwork(hostConfig)
+		go container.monitor(hostConfig)
 	}
 	return nil
 }
@@ -203,6 +199,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	if err := container.Stop(3); err != nil {
 		return err
 	}
+
 	if mounted, err := container.Mounted(); err != nil {
 		return err
 	} else if mounted {
@@ -210,6 +207,11 @@ func (runtime *Runtime) Destroy(container *Container) error {
 			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
 		}
 	}
+
+	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
+		utils.Debugf("Unable to remove container from link graph: %s", err)
+	}
+
 	// Deregister the container before removing its directory, to avoid race conditions
 	runtime.idIndex.Delete(container.ID)
 	runtime.containers.Remove(element)
@@ -228,21 +230,57 @@ func (runtime *Runtime) restore() error {
 	if err != nil {
 		return err
 	}
+	containers := make(map[string]*Container)
+
 	for i, v := range dir {
 		id := v.Name()
-		container, err := runtime.Load(id)
+		container, err := runtime.load(id)
 		if i%21 == 0 && os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 			fmt.Printf("\b%c", wheel[i%4])
 		}
 		if err != nil {
-			utils.Debugf("Failed to load container %v: %v", id, err)
+			utils.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
 		utils.Debugf("Loaded container %v", container.ID)
+		containers[container.ID] = container
 	}
+
+	register := func(container *Container) {
+		if err := runtime.Register(container); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+		}
+	}
+
+	if entities := runtime.containerGraph.List("/", -1); entities != nil {
+		for _, p := range entities.Paths() {
+			e := entities[p]
+			if container, ok := containers[e.ID()]; ok {
+				register(container)
+				delete(containers, e.ID())
+			}
+		}
+	}
+
+	// Any containers that are left over do not exist in the graph
+	for _, container := range containers {
+		// Try to set the default name for a container if it exists prior to links
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			container.Name = container.ShortID()
+		}
+		container.Name = name
+
+		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
+			utils.Debugf("Setting default id - %s", err)
+		}
+		register(container)
+	}
+
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("\bdone.\n")
 	}
+
 	return nil
 }
 
@@ -274,26 +312,70 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 }
 
-// Create creates a new container from the given configuration.
-func (runtime *Runtime) Create(config *Config) (*Container, error) {
+// Create creates a new container from the given configuration with a given name.
+func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	checkDeprecatedExpose := func(config *Config) bool {
+		if config != nil {
+			if config.PortSpecs != nil {
+				for _, p := range config.PortSpecs {
+					if strings.Contains(p, ":") {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	warnings := []string{}
+	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
+		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
 	}
 
 	if img.Config != nil {
-		MergeConfig(config, img.Config)
+		if err := MergeConfig(config, img.Config); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	if len(config.Entrypoint) != 0 && config.Cmd == nil {
 		config.Cmd = []string{}
 	} else if config.Cmd == nil || len(config.Cmd) == 0 {
-		return nil, fmt.Errorf("No command specified")
+		return nil, nil, fmt.Errorf("No command specified")
+	}
+
+	sysInitPath := utils.DockerInitPath()
+	if sysInitPath == "" {
+		return nil, nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
 	}
 
 	// Generate id
 	id := GenerateID()
+
+	if name == "" {
+		name, err = generateRandomName(runtime)
+		if err != nil {
+			name = utils.TruncateID(id)
+		}
+	}
+	if name[0] != '/' {
+		name = "/" + name
+	}
+
+	// Set the enitity in the graph using the default name specified
+	if _, err := runtime.containerGraph.Set(name, id); err != nil {
+		if strings.HasSuffix(err.Error(), "name are not unique") {
+			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+		}
+		return nil, nil, err
+	}
+
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
@@ -322,41 +404,42 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
+		Name:        name,
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if len(config.Dns) == 0 && len(runtime.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.Dns = defaultDns
+		runtime.config.Dns = defaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(runtime.Dns) > 0 {
+	if len(config.Dns) > 0 || len(runtime.config.Dns) > 0 {
 		var dns []string
 		if len(config.Dns) > 0 {
 			dns = config.Dns
 		} else {
-			dns = runtime.Dns
+			dns = runtime.config.Dns
 		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
 		f, err := os.Create(container.ResolvConfPath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		defer f.Close()
 		for _, dns := range dns {
 			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	} else {
@@ -365,14 +448,14 @@ func (runtime *Runtime) Create(config *Config) (*Container, error) {
 
 	// Step 2: save the container json
 	if err := container.ToDisk(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Step 3: register the container
 	if err := runtime.Register(container); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return container, nil
+	return container, warnings, nil
 }
 
 // Commit creates a new filesystem image from the current state of a container.
@@ -402,18 +485,63 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-// FIXME: harmonize with NewGraph()
-func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(flGraphPath, autoRestart)
+func (runtime *Runtime) getFullName(name string) string {
+	if name[0] != '/' {
+		name = "/" + name
+	}
+	return name
+}
+
+func (runtime *Runtime) GetByName(name string) (*Container, error) {
+	entity := runtime.containerGraph.Get(runtime.getFullName(name))
+	if entity == nil {
+		return nil, fmt.Errorf("Could not find entity for %s", name)
+	}
+	e := runtime.getContainerElement(entity.ID())
+	if e == nil {
+		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
+	}
+	return e.Value.(*Container), nil
+}
+
+func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
+	name = runtime.getFullName(name)
+	children := make(map[string]*Container)
+
+	err := runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+		c := runtime.Get(e.ID())
+		if c == nil {
+			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
+		}
+		children[p] = c
+		return nil
+	}, 0)
+
 	if err != nil {
 		return nil, err
 	}
-	runtime.Dns = dns
+	return children, nil
+}
+
+func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) error {
+	fullName := path.Join(parent.Name, alias)
+	if !runtime.containerGraph.Exists(fullName) {
+		_, err := runtime.containerGraph.Set(fullName, child.ID)
+		return err
+	}
+	return nil
+}
+
+// FIXME: harmonize with NewGraph()
+func NewRuntime(config *DaemonConfig) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(config)
+	if err != nil {
+		return nil, err
+	}
 
 	if k, err := utils.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
 	} else {
-		runtime.kernelVersion = k
 		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 		}
@@ -422,34 +550,52 @@ func NewRuntime(flGraphPath string, autoRestart bool, dns []string) (*Runtime, e
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
-	runtimeRepo := path.Join(root, "containers")
+func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+	runtimeRepo := path.Join(config.GraphPath, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(root, "graph"))
+	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(root, "volumes"))
+	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(config.GraphPath, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
-	if NetworkBridgeIface == "" {
-		NetworkBridgeIface = DefaultNetworkBridge
+	if config.BridgeIface == "" {
+		config.BridgeIface = DefaultNetworkBridge
 	}
-	netManager, err := newNetworkManager(NetworkBridgeIface)
+	netManager, err := newNetworkManager(config)
 	if err != nil {
 		return nil, err
 	}
+
+	gographPath := path.Join(config.GraphPath, "linkgraph.db")
+	initDatabase := false
+	if _, err := os.Stat(gographPath); err != nil {
+		if os.IsNotExist(err) {
+			initDatabase = true
+		} else {
+			return nil, err
+		}
+	}
+	conn, err := sql.Open("sqlite3", gographPath)
+	if err != nil {
+		return nil, err
+	}
+	graph, err := gograph.NewDatabase(conn, initDatabase)
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
-		root:           root,
 		repository:     runtimeRepo,
 		containers:     list.New(),
 		networkManager: netManager,
@@ -457,14 +603,20 @@ func NewRuntimeFromDirectory(root string, autoRestart bool) (*Runtime, error) {
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
 		capabilities:   &Capabilities{},
-		autoRestart:    autoRestart,
 		volumes:        volumes,
+		config:         config,
+		containerGraph: graph,
 	}
 
 	if err := runtime.restore(); err != nil {
 		return nil, err
 	}
 	return runtime, nil
+}
+
+func (runtime *Runtime) Close() error {
+	runtime.networkManager.Close()
+	return runtime.containerGraph.Close()
 }
 
 // History is a convenience type for storing a list of containers,

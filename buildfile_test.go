@@ -229,10 +229,7 @@ func TestBuild(t *testing.T) {
 
 func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache bool) *Image {
 	if srv == nil {
-		runtime, err := newTestRuntime()
-		if err != nil {
-			t.Fatal(err)
-		}
+		runtime := mkRuntime(t)
 		defer nuke(runtime)
 
 		srv = &Server{
@@ -370,10 +367,7 @@ func TestBuildEntrypoint(t *testing.T) {
 // testing #1405 - config.Cmd does not get cleaned up if
 // utilizing cache
 func TestBuildEntrypointRunCleanup(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
@@ -402,10 +396,7 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 }
 
 func TestBuildImageWithCache(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
@@ -433,10 +424,7 @@ func TestBuildImageWithCache(t *testing.T) {
 }
 
 func TestBuildImageWithoutCache(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
@@ -464,10 +452,7 @@ func TestBuildImageWithoutCache(t *testing.T) {
 }
 
 func TestForbiddenContextPath(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
@@ -513,10 +498,7 @@ func TestForbiddenContextPath(t *testing.T) {
 }
 
 func TestBuildADDFileNotFound(t *testing.T) {
-	runtime, err := newTestRuntime()
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{
