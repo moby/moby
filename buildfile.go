@@ -2,6 +2,7 @@ package docker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -31,6 +32,7 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	allowUnsafe  bool
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -246,6 +248,15 @@ func (b *buildFile) CmdVolume(args string) error {
 		return err
 	}
 	return nil
+}
+
+func (b *buildFile) CmdTag(repoName string) error {
+	if !b.allowUnsafe {
+		return errors.New("TAG command not allowed unless --allow-unsafe specified")
+	}
+	repoName, tag := utils.ParseRepositoryTag(repoName)
+	err := b.srv.runtime.repositories.Set(repoName, tag, b.image, false)
+	return err
 }
 
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
@@ -528,7 +539,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool, allowUnsafe bool) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -539,5 +550,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) Bu
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		allowUnsafe: allowUnsafe,
 	}
 }

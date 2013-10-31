@@ -37,6 +37,9 @@ before finally outputting the ID of your new image.
 
 When you're done with your build, you're ready to look into :ref:`image_push`.
 
+If you want to use the ``TAG`` command in your Dockerfile, pass the
+``--allow-unsafe`` option to ``docker build``.
+
 2. Format
 =========
 
@@ -316,6 +319,16 @@ the image.
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
 
+3.12 TAG
+--------
+
+    ``TAG image_tag_name``
+
+The ``TAG`` instruction tags the current image state with the
+``image_tag_name``, enabling you to build multiple tagged images in a
+single Docker file.  If you are only building one tagged image, it has the
+same effect as psasing the ``-t`` option to ``docker build``.  To use this
+tag, the ``--allow-unsafe`` option must be passed.
 
 4. Dockerfile Examples
 ======================
@@ -366,10 +379,13 @@ the command given by ``CMD`` is executed.
     FROM ubuntu
     RUN echo foo > bar
     # Will output something like ===> 907ad6c2736f
+    TAG image_with_bar
 
     FROM ubuntu
     RUN echo moo > oink
     # Will output something like ===> 695d7793cbe4
+    TAG image_with_oink
 
-    # You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
-    # /oink.
+    # You'll now have two images, 907ad6c2736f tagged with the name
+    # image_with bar, with /bar, and 695d7793cbe4 tagged with
+    # image_with_oink, with /oink.

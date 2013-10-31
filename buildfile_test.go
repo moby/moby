@@ -254,7 +254,7 @@ func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache
 	ip := srv.runtime.networkManager.bridgeNetwork.IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, useCache, false)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, useCache, false, false)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)
@@ -483,7 +483,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	ip := srv.runtime.networkManager.bridgeNetwork.IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false, false)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -528,7 +528,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	ip := srv.runtime.networkManager.bridgeNetwork.IP
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false)
+	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false, false)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
