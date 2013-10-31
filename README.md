@@ -170,8 +170,7 @@ Under the hood, Docker is built on the following components:
   and
   [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
   capabilities of the Linux kernel;
-* [AUFS](http://aufs.sourceforge.net/aufs.html), a powerful union
-  filesystem with copy-on-write capabilities;
+* [device mapper thin provisioning](https://www.kernel.org/doc/Documentation/device-mapper/thin-provisioning.txt);
 * The [Go](http://golang.org) programming language;
 * [lxc](http://lxc.sourceforge.net/), a set of convenience scripts to
   simplify the creation of Linux containers.
