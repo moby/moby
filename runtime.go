@@ -563,34 +563,26 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if k, err := utils.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
-	} else {
-		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
-		}
-	}
 	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
-	runtimeRepo := path.Join(config.GraphPath, "containers")
+	runtimeRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
+	g, err := NewGraph(path.Join(config.Root, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(config.GraphPath, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(config.Root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -602,7 +594,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	gographPath := path.Join(config.GraphPath, "linkgraph.db")
+	gographPath := path.Join(config.Root, "linkgraph.db")
 	initDatabase := false
 	if _, err := os.Stat(gographPath); err != nil {
 		if os.IsNotExist(err) {

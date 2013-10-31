@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/engine"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,11 +23,75 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"syscall"
+	"os/signal"
 )
 
 func (srv *Server) Close() error {
 	return srv.runtime.Close()
 }
+
+func init() {
+	engine.Register("serveapi", JobServeApi)
+}
+
+func JobServeApi(job *engine.Job) string {
+	srv, err := NewServer(ConfigFromJob(job))
+	if err != nil {
+		return err.Error()
+	}
+	defer srv.Close()
+	if err := srv.Daemon(); err != nil {
+		return err.Error()
+	}
+	return "0"
+}
+
+// Daemon runs the remote api server `srv` as a daemon,
+// Only one api server can run at the same time - this is enforced by a pidfile.
+// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
+func (srv *Server) Daemon() error {
+	if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+		log.Fatal(err)
+	}
+	defer utils.RemovePidFile(srv.runtime.config.Pidfile)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		utils.RemovePidFile(srv.runtime.config.Pidfile)
+		srv.Close()
+		os.Exit(0)
+	}()
+
+	protoAddrs := srv.runtime.config.ProtoAddresses
+	chErrors := make(chan error, len(protoAddrs))
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if protoAddrParts[0] == "unix" {
+			syscall.Unlink(protoAddrParts[1])
+		} else if protoAddrParts[0] == "tcp" {
+			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
+				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			}
+		} else {
+			return fmt.Errorf("Invalid protocol format.")
+		}
+		go func() {
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, true)
+		}()
+	}
+	for i := 0; i < len(protoAddrs); i += 1 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 
 func (srv *Server) DockerVersion() APIVersion {
 	return APIVersion{
@@ -119,7 +184,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, nil, srv.HTTPRequestFactory(nil))
+	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +729,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err != nil {
 		return err
 	}
@@ -873,7 +938,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err2 := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err2 != nil {
 		return err2
 	}
@@ -1410,9 +1475,6 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 }
 
 func NewServer(config *DaemonConfig) (*Server, error) {
-	if runtime.GOARCH != "amd64" {
-		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
 	runtime, err := NewRuntime(config)
 	if err != nil {
 		return nil, err
