@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
+	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"log"
 	"net"
@@ -17,11 +18,12 @@ import (
 )
 
 type DockerInitArgs struct {
-	user    string
-	gateway string
-	workDir string
-	env     []string
-	args    []string
+	user       string
+	gateway    string
+	workDir    string
+	privileged bool
+	env        []string
+	args       []string
 }
 
 // Setup networking
@@ -82,6 +84,42 @@ func changeUser(args *DockerInitArgs) error {
 	return nil
 }
 
+func setupCapabilities(args *DockerInitArgs) error {
+
+	if args.privileged {
+		return nil
+	}
+
+	drop := []capability.Cap{
+		capability.CAP_SETPCAP,
+		capability.CAP_SYS_MODULE,
+		capability.CAP_SYS_RAWIO,
+		capability.CAP_SYS_PACCT,
+		capability.CAP_SYS_ADMIN,
+		capability.CAP_SYS_NICE,
+		capability.CAP_SYS_RESOURCE,
+		capability.CAP_SYS_TIME,
+		capability.CAP_SYS_TTY_CONFIG,
+		capability.CAP_MKNOD,
+		capability.CAP_AUDIT_WRITE,
+		capability.CAP_AUDIT_CONTROL,
+		capability.CAP_MAC_OVERRIDE,
+		capability.CAP_MAC_ADMIN,
+	}
+
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	c.Unset(capability.CAPS|capability.BOUNDS, drop...)
+
+	if err := c.Apply(capability.CAPS | capability.BOUNDS); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Clear environment pollution introduced by lxc-start
 func setupEnv(args *DockerInitArgs) {
 	os.Clearenv()
@@ -98,6 +136,10 @@ func executeProgram(args *DockerInitArgs) error {
 	setupEnv(args)
 
 	if err := setupNetworking(args); err != nil {
+		return err
+	}
+
+	if err := setupCapabilities(args); err != nil {
 		return err
 	}
 
@@ -136,6 +178,7 @@ func SysInit() {
 	user := flag.String("u", "", "username or uid")
 	gateway := flag.String("g", "", "gateway address")
 	workDir := flag.String("w", "", "workdir")
+	privileged := flag.Bool("privileged", false, "privileged mode")
 	flag.Parse()
 
 	// Get env
@@ -149,11 +192,12 @@ func SysInit() {
 	}
 
 	args := &DockerInitArgs{
-		user:    *user,
-		gateway: *gateway,
-		workDir: *workDir,
-		env:     env,
-		args:    flag.Args(),
+		user:       *user,
+		gateway:    *gateway,
+		workDir:    *workDir,
+		privileged: *privileged,
+		env:        env,
+		args:       flag.Args(),
 	}
 
 	if err := executeProgram(args); err != nil {
