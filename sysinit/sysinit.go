@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
+	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"log"
 	"net"
@@ -227,6 +228,56 @@ func getCmdPath(args *DockerInitArgs) (string, error) {
 	return cmdPath, nil
 }
 
+func setupCapabilities(args *DockerInitArgs) error {
+
+	if args.privileged {
+		return nil
+	}
+
+	drop := []capability.Cap{
+		capability.CAP_SETPCAP,
+		capability.CAP_SYS_MODULE,
+		capability.CAP_SYS_RAWIO,
+		capability.CAP_SYS_PACCT,
+		capability.CAP_SYS_ADMIN,
+		capability.CAP_SYS_NICE,
+		capability.CAP_SYS_RESOURCE,
+		capability.CAP_SYS_TIME,
+		capability.CAP_SYS_TTY_CONFIG,
+		capability.CAP_MKNOD,
+		capability.CAP_AUDIT_WRITE,
+		capability.CAP_AUDIT_CONTROL,
+		capability.CAP_MAC_OVERRIDE,
+		capability.CAP_MAC_ADMIN,
+	}
+
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	c.Unset(capability.CAPS|capability.BOUNDS, drop...)
+
+	err = c.Apply(capability.CAPS | capability.BOUNDS)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func setupCommon(args *DockerInitArgs) error {
+
+	err := setupNetworking(args)
+	if err != nil {
+		return err
+	}
+	err = setupCapabilities(args)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Start the RPC and console FD servers and wait for docker to tell us to
 // resume starting the container.  This gives docker a chance to get the
 // console FDs before we start so that it won't miss any console output.
@@ -334,8 +385,8 @@ func dockerInitApp(args *DockerInitArgs) error {
 		return err
 	}
 
-	// Network setup
-	err = setupNetworking(args)
+	// Container setup
+	err = setupCommon(args)
 	if err != nil {
 		return err
 	}
@@ -395,13 +446,14 @@ func dockerInitApp(args *DockerInitArgs) error {
 }
 
 type DockerInitArgs struct {
-	user      string
-	gateway   string
-	workDir   string
-	tty       bool
-	openStdin bool
-	env       []string
-	args      []string
+	user       string
+	gateway    string
+	workDir    string
+	tty        bool
+	openStdin  bool
+	privileged bool
+	env        []string
+	args       []string
 }
 
 // Sys Init code
@@ -419,6 +471,7 @@ func SysInit() {
 	workDir := flag.String("w", "", "workdir")
 	tty := flag.Bool("tty", false, "use pseudo-tty")
 	openStdin := flag.Bool("stdin", false, "open stdin")
+	privileged := flag.Bool("privileged", false, "privileged mode")
 	flag.Parse()
 
 	// Get env
@@ -433,13 +486,14 @@ func SysInit() {
 	}
 
 	args := &DockerInitArgs{
-		user:      *user,
-		gateway:   *gateway,
-		workDir:   *workDir,
-		tty:       *tty,
-		openStdin: *openStdin,
-		env:       env,
-		args:      flag.Args(),
+		user:       *user,
+		gateway:    *gateway,
+		workDir:    *workDir,
+		tty:        *tty,
+		openStdin:  *openStdin,
+		privileged: *privileged,
+		env:        env,
+		args:       flag.Args(),
 	}
 
 	err = dockerInitApp(args)

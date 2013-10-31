@@ -887,6 +887,10 @@ func (container *Container) Start() (err error) {
 		params = append(params, "-stdin")
 	}
 
+	if container.hostConfig.Privileged {
+		params = append(params, "-privileged")
+	}
+
 	// Init any links between the parent and children
 	runtime := container.runtime
 

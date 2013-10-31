@@ -29,6 +29,8 @@ git_clone github.com/gorilla/mux/ 9b36453141c
 
 git_clone github.com/dotcloud/tar/ e5ea6bb21a
 
+git_clone github.com/syndtr/gocapability 3454319be2
+
 # Docker requires code.google.com/p/go.net/websocket
 PKG=code.google.com/p/go.net REV=84a4013f96e0
 (

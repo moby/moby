@@ -110,18 +110,11 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 
 {{if (getHostConfig .).Privileged}}
-# retain all capabilities; no lxc.cap.drop line
 {{if (getCapabilities .).AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
 {{end}}
-{{else}}
-# drop linux capabilities (apply mainly to the user root in the container)
-#  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
-#         security principle 'deny all unless explicitly permitted', see
-#         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
-lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setpcap sys_admin sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 {{end}}
 
 # limits
