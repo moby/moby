@@ -169,7 +169,7 @@ func daemon(config *docker.DaemonConfig) error {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		switch protoAddrParts[0] {
 		case "unix":
-			if err := syscall.Unlink(protoAddrParts[1]); !os.IsNotExist(err) {
+			if err := syscall.Unlink(protoAddrParts[1]); err != nil && !os.IsNotExist(err) {
 				log.Fatal(err)
 			}
 		case "tcp":
