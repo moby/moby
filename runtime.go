@@ -265,7 +265,10 @@ func (runtime *Runtime) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		name := generateRandomName(runtime)
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			container.Name = container.ShortID()
+		}
 		container.Name = name
 
 		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
@@ -317,18 +320,25 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	warnings := []string{}
-	if img.Config != nil {
-		if img.Config.PortSpecs != nil && warnings != nil {
-			for _, p := range img.Config.PortSpecs {
-				if strings.Contains(p, ":") {
-					warnings = append(warnings, "This image expects private ports to be mapped to public ports on your host. "+
-						"This has been deprecated and the public mappings will not be honored."+
-						"Use -p to publish the ports.")
-					break
+	checkDeprecatedExpose := func(config *Config) bool {
+		if config != nil {
+			if config.PortSpecs != nil {
+				for _, p := range config.PortSpecs {
+					if strings.Contains(p, ":") {
+						return true
+					}
 				}
 			}
 		}
+		return false
+	}
+
+	warnings := []string{}
+	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
+		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+	}
+
+	if img.Config != nil {
 		if err := MergeConfig(config, img.Config); err != nil {
 			return nil, nil, err
 		}
@@ -349,7 +359,10 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	id := GenerateID()
 
 	if name == "" {
-		name = generateRandomName(runtime)
+		name, err = generateRandomName(runtime)
+		if err != nil {
+			name = utils.TruncateID(id)
+		}
 	}
 	if name[0] != '/' {
 		name = "/" + name
@@ -357,6 +370,9 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
+		if strings.HasSuffix(err.Error(), "name are not unique") {
+			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+		}
 		return nil, nil, err
 	}
 

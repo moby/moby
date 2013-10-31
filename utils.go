@@ -265,15 +265,19 @@ func parsePort(rawPort string) (int, error) {
 	return int(port), nil
 }
 
-func migratePortMappings(config *Config) error {
+func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	if config.PortSpecs != nil {
-		// We don't have to worry about migrating the bindings to the host
-		// This is our breaking change
-		ports, _, err := parsePortSpecs(config.PortSpecs)
+		ports, bindings, err := parsePortSpecs(config.PortSpecs)
 		if err != nil {
 			return err
 		}
 		config.PortSpecs = nil
+		if len(bindings) > 0 {
+			if hostConfig == nil {
+				hostConfig = &HostConfig{}
+			}
+			hostConfig.PortBindings = bindings
+		}
 
 		if config.ExposedPorts == nil {
 			config.ExposedPorts = make(map[Port]struct{}, len(ports))
@@ -300,10 +304,6 @@ func (c *checker) Exists(name string) bool {
 }
 
 // Generate a random and unique name
-func generateRandomName(runtime *Runtime) string {
-	n, err := namesgenerator.GenerateRandomName(&checker{runtime})
-	if err != nil {
-		panic(err)
-	}
-	return n
+func generateRandomName(runtime *Runtime) (string, error) {
+	return namesgenerator.GenerateRandomName(&checker{runtime})
 }
