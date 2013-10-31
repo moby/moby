@@ -174,10 +174,10 @@ override the default specified in CMD.
 
     ``EXPOSE <port> [<port>...]``
 
-The ``EXPOSE`` instruction sets ports to be publicly exposed when
-running the image. This is functionally equivalent to running ``docker
-commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`` outside the
-builder. Take a look at :ref:`port_redirection` for more information.
+The ``EXPOSE`` instruction exposes ports for use within links. This is
+functionally equivalent to running ``docker commit -run '{"PortSpecs":
+["<port>", "<port2>"]}'`` outside the builder. Refer to
+:ref:`port_redirection` for detailed information.
 
 3.6 ENV
 -------
@@ -243,7 +243,7 @@ The copy obeys the following rules:
   considered a regular file and the contents of ``<src>`` will be
   written at ``<dest>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
-  directories in its path. 
+  directories in its path.
 
 .. _entrypoint_def:
 
