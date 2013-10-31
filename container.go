@@ -226,6 +226,18 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		}
 	}
 
+	envs := []string{}
+
+	for _, env := range flEnv {
+		arr := strings.Split(env, "=")
+		if len(arr) > 1 {
+			envs = append(envs, env)
+		} else {
+			v := os.Getenv(env)
+			envs = append(envs, env+"="+v)
+		}
+	}
+
 	var binds []string
 
 	// add any bind targets to the list of container volumes
@@ -298,7 +310,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv,
+		Env:             envs,
 		Cmd:             runCmd,
 		Dns:             flDns,
 		Image:           image,
@@ -429,6 +441,15 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 		return
 	}
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
+}
+
+func (container *Container) generateEnvConfig(env []string) error {
+	data, err := json.Marshal(env)
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile(container.EnvConfigPath(), data, 0600)
+	return nil
 }
 
 func (container *Container) generateLXCConfig(hostConfig *HostConfig) error {
@@ -841,17 +862,17 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		params = append(params, "-u", container.Config.User)
 	}
 
-	if container.Config.Tty {
-		params = append(params, "-e", "TERM=xterm")
+	// Setup environment
+	env := []string{
+		"HOME=/",
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"container=lxc",
+		"HOSTNAME=" + container.Config.Hostname,
 	}
 
-	// Setup environment
-	params = append(params,
-		"-e", "HOME=/",
-		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"-e", "container=lxc",
-		"-e", "HOSTNAME="+container.Config.Hostname,
-	)
+	if container.Config.Tty {
+		env = append(env, "TERM=xterm")
+	}
 
 	// Init any links between the parent and children
 	runtime := container.runtime
@@ -887,9 +908,17 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 			}
 
 			for _, envVar := range link.ToEnv() {
-				params = append(params, "-e", envVar)
+				env = append(env, envVar)
 			}
 		}
+	}
+
+	for _, elem := range container.Config.Env {
+		env = append(env, elem)
+	}
+
+	if err := container.generateEnvConfig(env); err != nil {
+		return err
 	}
 
 	if container.Config.WorkingDir != "" {
@@ -903,10 +932,6 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		params = append(params,
 			"-w", workingDir,
 		)
-	}
-
-	for _, elem := range container.Config.Env {
-		params = append(params, "-e", elem)
 	}
 
 	// Program
@@ -1414,6 +1439,10 @@ func (container *Container) hostConfigPath() string {
 
 func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
+}
+
+func (container *Container) EnvConfigPath() string {
+	return path.Join(container.root, "config.env")
 }
 
 func (container *Container) lxcConfigPath() string {
