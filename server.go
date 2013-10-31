@@ -1104,8 +1104,12 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		volumes := make(map[string]struct{})
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
-			volumeId = strings.TrimRight(volumeId, "/layer")
-			volumeId = filepath.Base(volumeId)
+                        trim_volumeId := strings.TrimSuffix(volumeId, "/layer")
+			// Skip the volumes mounted
+                        if trim_volumeId == volumeId {
+                                continue
+                        }
+                        volumeId = filepath.Base(trim_volumeId)
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
