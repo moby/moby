@@ -1140,6 +1140,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	nLatest := cmd.Bool("l", false, "Show only the latest created container, include non-running ones.")
+        delete := cmd.Bool("d", false, "Delete listed containers with associated volumes.")
 	since := cmd.String("sinceId", "", "Show only containers created since Id, include non-running ones.")
 	before := cmd.String("beforeId", "", "Show only container created before Id, include non-running ones.")
 	last := cmd.Int("n", -1, "Show n last created containers, include non-running ones.")
@@ -1178,7 +1179,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
+	if !*quiet && !*delete {
 		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
@@ -1187,7 +1188,21 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
+        val := url.Values{}
+        val.Set("v", "1")
+
 	for _, out := range outs {
+
+                if *delete {   
+
+                        _, _, err := cli.call("DELETE", "/containers/"+out.ID+"?"+val.Encode(), nil)
+                        if err != nil {
+                                fmt.Fprintf(cli.err, "%s\n", err)
+                        } else {
+                                fmt.Fprintf(cli.out, "%s\n", out.ID)
+                        }
+                }
+
 		if !*noTrunc {
 			out.ID = utils.TruncateID(out.ID)
 		}
@@ -1197,7 +1212,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			out.Names[i] = out.Names[i][1:]
 		}
 
-		if !*quiet {
+		if !*quiet && !*delete {
 			if !*noTrunc {
 				out.Command = utils.Trunc(out.Command, 20)
 			}
