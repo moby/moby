@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -291,17 +292,17 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		return fmt.Errorf("%s: no such file or directory", orig)
 	}
 	if fi.IsDir() {
-		if err := CopyWithTar(origPath, destPath); err != nil {
+		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 		// First try to unpack the source as an archive
-	} else if err := UntarPath(origPath, destPath); err != nil {
+	} else if err := archive.UntarPath(origPath, destPath); err != nil {
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
 		}
-		if err := CopyWithTar(origPath, destPath); err != nil {
+		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 	}
@@ -473,7 +474,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := Untar(context, name); err != nil {
+	if err := archive.Untar(context, name); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(name)
