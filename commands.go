@@ -491,7 +491,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 }
 
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
+	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM, and then SIGKILL after grace period)")
 	nSeconds := cmd.Int("t", 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -876,7 +876,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
-	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
+	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container (send SIGKILL)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
