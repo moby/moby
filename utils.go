@@ -304,10 +304,6 @@ func (c *checker) Exists(name string) bool {
 }
 
 // Generate a random and unique name
-func generateRandomName(runtime *Runtime) string {
-	n, err := namesgenerator.GenerateRandomName(&checker{runtime})
-	if err != nil {
-		panic(err)
-	}
-	return n
+func generateRandomName(runtime *Runtime) (string, error) {
+	return namesgenerator.GenerateRandomName(&checker{runtime})
 }

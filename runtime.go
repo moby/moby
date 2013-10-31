@@ -265,7 +265,10 @@ func (runtime *Runtime) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		name := generateRandomName(runtime)
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			container.Name = container.ShortID()
+		}
 		container.Name = name
 
 		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
@@ -356,7 +359,10 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	id := GenerateID()
 
 	if name == "" {
-		name = generateRandomName(runtime)
+		name, err = generateRandomName(runtime)
+		if err != nil {
+			name = utils.TruncateID(id)
+		}
 	}
 	if name[0] != '/' {
 		name = "/" + name
