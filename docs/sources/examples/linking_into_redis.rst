@@ -124,7 +124,7 @@ network and environment information from the containers that are linked into it.
     DB_PORT_6379_TCP_PORT=6379
 
     # Get environment variables of the container 
-    DB_ENV_PASSWORD=dockerpass
+    DB_ENV_PASSWORD=docker
 
 
 Accessing the network information along with the environment of the child container allows
