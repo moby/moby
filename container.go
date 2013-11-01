@@ -304,7 +304,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	}
 
 	config := &Config{
-		Hostname:        *flHostname,
+		Hostname:        hostname,
 		Domainname:      domainname,
 		PortSpecs:       nil, // Deprecated
 		ExposedPorts:    ports,
