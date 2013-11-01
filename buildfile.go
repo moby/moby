@@ -388,8 +388,7 @@ func (b *buildFile) run() (string, error) {
 	}
 
 	//start the container
-	hostConfig := &HostConfig{}
-	if err := c.Start(hostConfig); err != nil {
+	if err := c.Start(); err != nil {
 		return "", err
 	}
 

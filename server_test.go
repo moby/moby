@@ -246,14 +246,14 @@ func TestContainerTop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
-	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer runtime.Destroy(c)
-	if err := c.Start(hostConfig); err != nil {
+	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
 
