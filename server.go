@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/engine"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,14 +18,14 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 	"syscall"
-	"os/signal"
+	"time"
 )
 
 func (srv *Server) Close() error {
@@ -91,7 +92,6 @@ func (srv *Server) Daemon() error {
 	}
 	return nil
 }
-
 
 func (srv *Server) DockerVersion() APIVersion {
 	return APIVersion{
@@ -902,7 +902,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 		return "", err
 	}
 
-	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, Uncompressed, sf, out)
+	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, archive.Uncompressed, sf, out)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}

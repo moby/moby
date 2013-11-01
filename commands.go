@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/term"
@@ -137,7 +138,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 // mkBuildContext returns an archive of an empty context with the contents
 // of `dockerfile` at the path ./Dockerfile
-func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
+func mkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	files = append(files, [2]string{"Dockerfile", dockerfile})
@@ -175,7 +176,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	var (
-		context  Archive
+		context  archive.Archive
 		isRemote bool
 		err      error
 	)
@@ -194,7 +195,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := os.Stat(cmd.Arg(0)); err != nil {
 			return err
 		}
-		context, err = Tar(cmd.Arg(0), Uncompressed)
+		context, err = archive.Tar(cmd.Arg(0), archive.Uncompressed)
 	}
 	var body io.Reader
 	// Setup an upload progress bar
@@ -1773,7 +1774,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	if statusCode == 200 {
 		r := bytes.NewReader(data)
-		if err := Untar(r, copyData.HostPath); err != nil {
+		if err := archive.Untar(r, copyData.HostPath); err != nil {
 			return err
 		}
 	}

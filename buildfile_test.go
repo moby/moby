@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
-func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
+func mkTestContext(dockerfile string, files [][2]string, t *testing.T) archive.Archive {
 	context, err := mkBuildContext(dockerfile, files)
 	if err != nil {
 		t.Fatal(err)

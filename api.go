@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -905,7 +906,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
-		c, err := Tar(root, Bzip2)
+		c, err := archive.Tar(root, archive.Bzip2)
 		if err != nil {
 			return err
 		}

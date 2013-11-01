@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
@@ -817,7 +818,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 				}
 				if len(srcList) == 0 {
 					// If the source volume is empty copy files from the root into the volume
-					if err := CopyWithTar(rootVolPath, srcPath); err != nil {
+					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
 						return err
 					}
 
@@ -1337,23 +1338,23 @@ func (container *Container) Resize(h, w int) error {
 	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (container *Container) ExportRw() (Archive, error) {
-	return Tar(container.rwPath(), Uncompressed)
+func (container *Container) ExportRw() (archive.Archive, error) {
+	return archive.Tar(container.rwPath(), archive.Uncompressed)
 }
 
 func (container *Container) RwChecksum() (string, error) {
-	rwData, err := Tar(container.rwPath(), Xz)
+	rwData, err := archive.Tar(container.rwPath(), archive.Xz)
 	if err != nil {
 		return "", err
 	}
 	return utils.HashData(rwData)
 }
 
-func (container *Container) Export() (Archive, error) {
+func (container *Container) Export() (archive.Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err
 	}
-	return Tar(container.RootfsPath(), Uncompressed)
+	return archive.Tar(container.RootfsPath(), archive.Uncompressed)
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1488,7 +1489,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (Archive, error) {
+func (container *Container) Copy(resource string) (archive.Archive, error) {
 	if err := container.EnsureMounted(); err != nil {
 		return nil, err
 	}
@@ -1506,7 +1507,7 @@ func (container *Container) Copy(resource string) (Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return TarFilter(basePath, Uncompressed, filter)
+	return archive.TarFilter(basePath, archive.Uncompressed, filter)
 }
 
 // Returns true if the container exposes a certain port
