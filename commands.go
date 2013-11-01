@@ -1403,8 +1403,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	cmd := Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	trusted := cmd.Bool("trusted", false, "Only show trusted builds")
+	stars := cmd.Int("stars", 0, "Only displays with at least xxx stars")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1425,7 +1427,6 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
 	_, width := cli.getTtySize()
@@ -1435,6 +1436,9 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		width = width - 10 - 54 //remote the first column
 	}
 	for _, out := range outs {
+		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
+			continue
+		}
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !*noTrunc && len(desc) > width {
