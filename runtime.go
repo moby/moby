@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
+	"github.com/dotcloud/docker/aufs"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -581,12 +582,16 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-
-	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
+	backend, err := aufs.NewBackend()
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
+
+	g, err := NewGraph(path.Join(config.GraphPath, "graph"), backend)
+	if err != nil {
+		return nil, err
+	}
+	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"), backend)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +647,39 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 func (runtime *Runtime) Close() error {
 	runtime.networkManager.Close()
 	return runtime.containerGraph.Close()
+}
+
+func (runtime *Runtime) Mount(container *Container) error {
+	if mounted, err := runtime.Mounted(container); err != nil {
+		return err
+	} else if mounted {
+		return fmt.Errorf("%s is already mounted", container.RootfsPath())
+	}
+	img, err := container.GetImage()
+	if err != nil {
+		return err
+	}
+	return runtime.graph.backend.Mount(img, container.root)
+}
+
+func (runtime *Runtime) Unmount(container *Container) error {
+	return runtime.graph.backend.Unmount(container.root)
+}
+
+func (runtime *Runtime) Mounted(container *Container) (bool, error) {
+	return runtime.graph.backend.Mounted(container.root)
+}
+
+func (runtime *Runtime) Changes(container *Container) ([]Change, error) {
+	img, err := container.GetImage()
+	if err != nil {
+		return nil, err
+	}
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, err
+	}
+	return Changes(layers, container.rwPath())
 }
 
 // History is a convenience type for storing a list of containers,

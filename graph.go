@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/graphbackend"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -16,11 +17,12 @@ import (
 type Graph struct {
 	Root    string
 	idIndex *utils.TruncIndex
+	backend graphbackend.GraphBackend
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
-func NewGraph(root string) (*Graph, error) {
+func NewGraph(root string, backend graphbackend.GraphBackend) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -32,6 +34,7 @@ func NewGraph(root string) (*Graph, error) {
 	graph := &Graph{
 		Root:    abspath,
 		idIndex: utils.NewTruncIndex(),
+		backend: backend,
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -238,7 +241,7 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 
 func (graph *Graph) tmp() (*Graph, error) {
 	// Changed to _tmp from :tmp:, because it messed with ":" separators in aufs branch syntax...
-	return NewGraph(path.Join(graph.Root, "_tmp"))
+	return NewGraph(path.Join(graph.Root, "_tmp"), graph.backend)
 }
 
 // Check if given error is "not empty".

@@ -8,9 +8,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -136,31 +134,6 @@ func jsonPath(root string) string {
 	return path.Join(root, "json")
 }
 
-func MountAUFS(ro []string, rw string, target string) error {
-	// FIXME: Now mount the layers
-	rwBranch := fmt.Sprintf("%v=rw", rw)
-	roBranches := ""
-	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
-	}
-	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-
-	branches += ",xino=/dev/shm/aufs.xino"
-
-	//if error, try to load aufs kernel module
-	if err := mount("none", target, "aufs", 0, branches); err != nil {
-		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
-		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
-		}
-		log.Printf("...module loaded.")
-		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
-		}
-	}
-	return nil
-}
-
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (image *Image) TarLayer(compression Compression) (Archive, error) {
 	layerPath, err := image.layer()
@@ -168,37 +141,6 @@ func (image *Image) TarLayer(compression Compression) (Archive, error) {
 		return nil, err
 	}
 	return Tar(layerPath, compression)
-}
-
-func (image *Image) Mount(root, rw string) error {
-	if mounted, err := Mounted(root); err != nil {
-		return err
-	} else if mounted {
-		return fmt.Errorf("%s is already mounted", root)
-	}
-	layers, err := image.layers()
-	if err != nil {
-		return err
-	}
-	// Create the target directories if they don't exist
-	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := MountAUFS(layers, rw, root); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (image *Image) Changes(rw string) ([]Change, error) {
-	layers, err := image.layers()
-	if err != nil {
-		return nil, err
-	}
-	return Changes(layers, rw)
 }
 
 func (image *Image) ShortID() string {
@@ -243,7 +185,11 @@ func (img *Image) History() ([]*Image, error) {
 // layers returns all the filesystem layers needed to mount an image
 // FIXME: @shykes refactor this function with the new error handling
 //        (I'll do it if I have time tonight, I focus on the rest)
-func (img *Image) layers() ([]string, error) {
+func (img *Image) Layers() ([]string, error) {
+	if img.graph == nil {
+
+		return nil, fmt.Errorf("Can't lookup dockerinit layer of unregistered image")
+	}
 	var list []string
 	var e error
 	if err := img.WalkHistory(
@@ -265,7 +211,7 @@ func (img *Image) layers() ([]string, error) {
 	}
 
 	// Inject the dockerinit layer (empty place-holder for mount-binding dockerinit)
-	if dockerinitLayer, err := img.getDockerInitLayer(); err != nil {
+	if dockerinitLayer, err := img.graph.getDockerInitLayer(); err != nil {
 		return nil, err
 	} else {
 		list = append([]string{dockerinitLayer}, list...)
@@ -297,13 +243,6 @@ func (img *Image) GetParent() (*Image, error) {
 		return nil, fmt.Errorf("Can't lookup parent of unregistered image")
 	}
 	return img.graph.Get(img.Parent)
-}
-
-func (img *Image) getDockerInitLayer() (string, error) {
-	if img.graph == nil {
-		return "", fmt.Errorf("Can't lookup dockerinit layer of unregistered image")
-	}
-	return img.graph.getDockerInitLayer()
 }
 
 func (img *Image) root() (string, error) {

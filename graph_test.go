@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"github.com/dotcloud/docker/aufs"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -144,12 +145,12 @@ func TestMount(t *testing.T) {
 	if err := os.MkdirAll(rw, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := image.Mount(rootfs, rw); err != nil {
+	if err := graph.backend.Mount(image, tmp); err != nil {
 		t.Fatal(err)
 	}
 	// FIXME: test for mount contents
 	defer func() {
-		if err := Unmount(rootfs); err != nil {
+		if err := graph.backend.Unmount(tmp); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -294,7 +295,11 @@ func tempGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := NewGraph(tmp)
+	backend, err := aufs.NewBackend()
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := NewGraph(tmp, backend)
 	if err != nil {
 		t.Fatal(err)
 	}
