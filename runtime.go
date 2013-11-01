@@ -312,6 +312,20 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	}
 }
 
+// Returns a slice of the hostname (and aliases) in order to generate /etc/hosts.
+func getContainerHosts(config *Config) []string {
+	hosts := make([]string, 0, 2)
+	indexDot := strings.IndexRune(config.Hostname, '.')
+	if indexDot > 0 {
+		hosts = append(hosts, config.Hostname, config.Hostname[:indexDot])
+	} else if config.Domainname != "" {
+		hosts = append(hosts, fmt.Sprintf("%s.%s", config.Hostname, config.Domainname), config.Hostname)
+	} else {
+		hosts = append(hosts, config.Hostname)
+	}
+	return hosts
+}
+
 // Create creates a new container from the given configuration with a given name.
 func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
 	// Lookup image
@@ -465,14 +479,9 @@ ff02::2		ip6-allrouters
 `)
 
 	container.HostsPath = path.Join(container.root, "hosts")
-
-	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", container.Config.Hostname)), hostsContent...)
-	}
+	containerHosts := strings.Join(getContainerHosts(container.Config), " ")
+	hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", containerHosts)), hostsContent...)
+	hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", containerHosts)), hostsContent...)
 
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 
