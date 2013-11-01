@@ -584,6 +584,7 @@ network communication.
       -expose=[]: Expose a port from the container without publishing it to your host
       -link="": Add link to another container (name:alias)
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
+      -P=false: Publish all exposed ports to the host interfaces
 
 Examples
 --------
