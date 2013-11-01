@@ -62,7 +62,9 @@ func newTestRuntime(prefix string) (runtime *Runtime, err error) {
 	if err := os.Remove(root); err != nil {
 		return nil, err
 	}
+	utils.Debugf("Copying %s to %s", unitTestStoreBase, root)
 	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
+		utils.Debugf("ERROR: Copying %s to %s returned %s", unitTestStoreBase, root, err)
 		return nil, err
 	}
 

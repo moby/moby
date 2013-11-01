@@ -1507,7 +1507,7 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return archive.TarFilter(basePath, archive.Uncompressed, filter)
+	return archive.TarFilter(basePath, archive.Uncompressed, filter, true, nil)
 }
 
 // Returns true if the container exposes a certain port
