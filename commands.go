@@ -655,7 +655,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
-				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
+				if strings.Contains(err.Error(), "No such") {
+					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
+				} else {
+					fmt.Fprintf(cli.err, "%s", err)
+				}
 				status = 1
 				continue
 			}
@@ -668,9 +672,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 		indented.WriteString(",")
 	}
-	// Remove trailling ','
-	indented.Truncate(indented.Len() - 1)
 
+	if indented.Len() > 0 {
+		// Remove trailing ','
+		indented.Truncate(indented.Len() - 1)
+	}
 	fmt.Fprintf(cli.out, "[")
 	if _, err := io.Copy(cli.out, indented); err != nil {
 		return err
