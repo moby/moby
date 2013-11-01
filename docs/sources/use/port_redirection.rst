@@ -17,6 +17,8 @@ A port redirect is specified as *PUBLIC:PRIVATE*, where TCP port
 the public port can be omitted, in which case a random public port
 will be allocated.
 
+Use multiple ``-p port:port`` statements to specify more than one port redirection.
+
 .. code-block:: bash
 
     # A random PUBLIC port is redirected to PRIVATE port 80 on the container
@@ -32,5 +34,10 @@ To redirect a UDP port the redirection must be expressed as *PUBLIC:PRIVATE/udp*
     # PUBLIC port 5300 is redirected to the PRIVATE port 53 using UDP
     sudo docker run -p 5300:53/udp <image> <cmd>
 
-Default port redirects can be built into a container with the
-``EXPOSE`` build command.
+Use the ``docker ps`` (or ``docker inspect IMAGE``) command to find out 
+what ports are exposed and/or redirected that have been applied to a container.
+
+Ports that have been exposed, using the ``EXPOSE`` build command, or the 
+``-expose`` run option but not redirected using ``-p``, can be connected to
+using an inter-container ``--link``.
+

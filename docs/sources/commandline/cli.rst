@@ -179,7 +179,7 @@ Full -run example (multiline is ok within a single quote ``'``)
       "OpenStdin" : false,
       "Volumes" : null,
       "Hostname" : "122612f45831",
-      "PortSpecs" : ["22", "80", "443"],
+      "PortSpecs" : ["22", "8080:80", "127.0.0.1:443:443"],
       "Image" : "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
       "Tty" : false,
       "Env" : [
@@ -556,34 +556,34 @@ network communication.
 
 ::
 
-    Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 
     Run a command in a new container
 
-      -a=map[]: Attach to stdin, stdout or stderr
+      -a=map[]: Attach to stdin, stdout or stderr.
       -c=0: CPU shares (relative weight)
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
+      -dns=[]: Set custom dns servers
       -e=[]: Set environment variables
+      -entrypoint="": Overwrite the default entrypoint of the image
+      -expose=[]: Expose a port from the container without publishing it to your host
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
-      -privileged=false: Give extended privileges to this container
+      -link=[]: Add link to another container (name:alias)
+      -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
-      -p=[]: Map a network port to the container
+      -name="": Assign a name to the container
+      -p=[]: Publish a container's port to the host (use 'docker port' to see the actual mapping)
+      -privileged=false: Give extended privileges to this container
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
+      -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       -t=false: Allocate a pseudo-tty
       -u="": Username or UID
-      -dns=[]: Set custom dns servers for the container
-      -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container
-      -entrypoint="": Overwrite the default entrypoint set by the image
+      -v=map[]: Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
+      -volumes-from=[]: Mount volumes from the specified container
       -w="": Working directory inside the container
-      -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-      -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
-      -expose=[]: Expose a port from the container without publishing it to your host
-      -link="": Add link to another container (name:alias)
-      -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
 
 Examples
 --------
@@ -645,10 +645,12 @@ of the host.
 
 .. code-block:: bash
 
-    docker run -p 127.0.0.1:80:80 ubuntu bash
+    docker run -p 2222:22 -p 127.0.0.1:80:80 -p 4242 ubuntu bash
 
-This will bind port ``80`` of the container to port ``80`` on 127.0.0.1 of your
-host machine.
+This will bind port ``22`` of the container to port ``2222`` on all 
+network interfaces of your host, port ``80`` of the container to port 
+``80`` on 127.0.0.1 of your host machine and  port ``4242`` of the 
+container to a random port on your host machine.
 
 .. code-block:: bash
 
