@@ -637,7 +637,7 @@ using the container, but inside the current working directory.
 
 .. code-block:: bash
 
-    docker run -p 127.0.0.0:80:8080 ubuntu bash
+    docker run -p 127.0.0.1:80:8080 ubuntu bash
 
 This binds port ``8080`` of the container to port ``80`` on 127.0.0.1 of the
 host machine. :ref:`port_redirection` explains in detail how to manipulate ports
