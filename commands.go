@@ -683,7 +683,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 }
 
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
+	cmd := Subcmd("top", "CONTAINER [ps OPTIONS]", "Lookup the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

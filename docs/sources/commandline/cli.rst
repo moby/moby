@@ -729,7 +729,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker top CONTAINER
+    Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 

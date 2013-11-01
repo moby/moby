@@ -416,7 +416,11 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 			}
 			// no scanner.Text because we skip container id
 			for scanner.Scan() {
-				words = append(words, scanner.Text())
+				if i != 0 && len(words) == len(procs.Titles) {
+					words[len(words)-1] = fmt.Sprintf("%s %s", words[len(words)-1], scanner.Text())
+				} else {
+					words = append(words, scanner.Text())
+				}
 			}
 			if i == 0 {
 				procs.Titles = words
