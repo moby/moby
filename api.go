@@ -72,12 +72,12 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
-	}	
-	
+	}
+
 	if err != nil {
 		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
-		http.Error(w, err.Error(), statusCode)		
-	}	
+		http.Error(w, err.Error(), statusCode)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
@@ -236,7 +236,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	wf := utils.NewWriteFlusher(w)
-	wf.Write([]byte{})
+	wf.Flush()
 	if since != 0 {
 		// If since, send previous events that happened after the timestamp
 		for _, event := range srv.events {
