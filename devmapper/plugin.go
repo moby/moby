@@ -1,8 +1,14 @@
 package devmapper
 
 import (
+	"fmt"
+	"os"
+	"path"
 	"github.com/dotcloud/docker/archive"
 )
+
+// Placeholder interfaces, to be replaced
+// at integration.
 
 type Image interface {
 	ID() string
@@ -10,23 +16,35 @@ type Image interface {
 	Path() string
 }
 
+type Change interface {
+
+}
+
+// End of placeholder interfaces.
+
+
+
 type DMBackend struct {
 	*DeviceSet
+	home string
 }
 
-func (b *DMBackend) Init(home string) error {
-	b.DeviceSet = NewDeviceSet(home)
-	if err := b.DeviceSet.ensureInit(); err != nil {
-		return err
+func Init(home string) (*DMBackend, error) {
+	b := &DMBackend{
+		DeviceSet: NewDeviceSet(home),
+		home: home,
 	}
-	return nil
+	if err := b.DeviceSet.ensureInit(); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
-func (b *DMBackend) Shutdown() error {
+func (b *DMBackend) Cleanup() error {
 	return b.DeviceSet.Shutdown()
 }
 
-func (b *DMBackend) Create(img image, layer archive.Archive) error {
+func (b *DMBackend) Create(img Image, layer archive.Archive) error {
 	// Determine the source of the snapshot (parent id or init device)
 	var parentID string
 	if parent, err := img.Parent(); err != nil {
@@ -39,11 +57,11 @@ func (b *DMBackend) Create(img image, layer archive.Archive) error {
 		return err
 	}
 	// Mount the device in rootfs
-	mp := b.mountpoint(id)
-	if err := os.MkdirAll(mp); err != nil {
+	mp := b.mountpoint(img.ID())
+	if err := os.MkdirAll(mp, 0700); err != nil {
 		return err
 	}
-	if err := b.DeviceSet.MountDevice(id, mp, false); err != nil {
+	if err := b.DeviceSet.MountDevice(img.ID(), mp, false); err != nil {
 		return err
 	}
 	// Apply the layer as a diff 
@@ -67,6 +85,6 @@ func (b *DMBackend) Changes(img *Image, dest string) ([]Change, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (b *DMBackend) Layer(img *Image, dest string) (Archive, error) {
+func (b *DMBackend) Layer(img *Image, dest string) (archive.Archive, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
