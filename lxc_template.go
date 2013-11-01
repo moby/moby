@@ -1,6 +1,7 @@
 package docker
 
 import (
+    "strings"
 	"text/template"
 )
 
@@ -109,6 +110,12 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 {{end}}
 
+{{if .Config.Capabilities}}
+# Least-priviledge, granular capabilities
+{{with $capabilities := getCapabilities .Config}}
+lxc.cap.keep = {{$capabilities}}
+{{end}}
+{{else}}
 {{if .Config.Privileged}}
 # retain all capabilities; no lxc.cap.drop line
 {{else}}
@@ -117,6 +124,7 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 #         security principle 'deny all unless explicitly permitted', see
 #         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
 lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setpcap sys_admin sys_boot sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
+{{end}}
 {{end}}
 
 # limits
@@ -143,6 +151,10 @@ const LxcHostConfigTemplate = `
 var LxcTemplateCompiled *template.Template
 var LxcHostConfigTemplateCompiled *template.Template
 
+func getCapabilities(config *Config) string {
+    return strings.Join(config.Capabilities, " ")
+}
+
 func getMemorySwap(config *Config) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
@@ -156,6 +168,7 @@ func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap": getMemorySwap,
+        "getCapabilities": getCapabilities,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

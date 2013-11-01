@@ -568,6 +568,7 @@ network communication.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
+      -cap=[]: Privileges to allow on container with default-deny policy
       -m=0: Memory limit (in bytes)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
@@ -611,11 +612,30 @@ allow it to run:
 
    docker run -privileged mount -t tmpfs none /var/spool/squid
 
-The ``-privileged`` flag gives *all* capabilities to the container,
-and it also lifts all the limitations enforced by the ``device``
-cgroup controller. In other words, the container can then do almost
-everything that the host can do. This flag exists to allow special
-use-cases, like running Docker within Docker.
+The ``-privileged`` flag lifts all the limitations enforced by the ``device``
+cgroup controller and unless specific ``-cap`` arguments are provided,
+gives *all* capabilities to the container. In other words, the container
+can then do almost everything that the host can do. This flag exists to
+allow special use-cases, like running Docker within Docker.
+
+Alternatively, it is possible to enable the specific capabilities required
+by your applications:
+
+.. code-block:: bash
+
+   docker run -cap sys_admin mount -t tmpfs none /var/spool/squid
+
+The ``-cap`` flag gives limited capabilities to the container according
+to the principle of default-deny. This can be used either to reduce or
+enhance the priviledges of a container versus the default capabilities set.
+
+This option is a more granular alternative to the ``-priviledged`` option,
+but is more difficult to use as a consequence.
+
+If paired with the ``-priviledged`` option, only the capabilities
+set with ``-cap`` will be available to the container. However,
+the ``-priviledged`` option will, as usual, lift the limitations
+enforced by the ``device`` cgroup controller.
 
 .. code-block:: bash
 

@@ -399,7 +399,7 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -c -cidfile -d -dns -e -entrypoint -h -i -lxc-conf -m -n -p -privileged -t -u -v -volumes-from -w" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a -c -cap -cidfile -d -dns -e -entrypoint -h -i -lxc-conf -m -n -p -privileged -t -u -v -volumes-from -w" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
