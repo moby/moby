@@ -944,7 +944,7 @@ func (container *Container) Start() (err error) {
 
 	var lxcStart string = "lxc-start"
 	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
-		lxcStart = path.Join(container.runtime.config.GraphPath, "lxc-start-unconfined")
+		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
 	}
 	container.cmd = exec.Command(lxcStart, params...)
 	// Setup logging of stdout and stderr to disk
@@ -1116,7 +1116,7 @@ func (container *Container) allocateNetwork() error {
 
 	for port := range portSpecs {
 		binding := bindings[port]
-		if hostConfig.PublishAllPorts && len(binding) == 0 {
+		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
 			binding = append(binding, PortBinding{})
 		}
 		for i := 0; i < len(binding); i++ {
