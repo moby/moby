@@ -667,9 +667,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 		indented.WriteString(",")
 	}
-	// Remove trailling ','
-	indented.Truncate(indented.Len() - 1)
 
+	if indented.Len() > 0 {
+		// Remove trailling ','
+		indented.Truncate(indented.Len() - 1)
+	}
 	fmt.Fprintf(cli.out, "[")
 	if _, err := io.Copy(cli.out, indented); err != nil {
 		return err
