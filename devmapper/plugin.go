@@ -44,7 +44,7 @@ func (b *DMBackend) Cleanup() error {
 	return b.DeviceSet.Shutdown()
 }
 
-func (b *DMBackend) Create(img Image, layer archive.Archive) error {
+func (b *DMBackend) OnCreate(img Image, layer archive.Archive) error {
 	// Determine the source of the snapshot (parent id or init device)
 	var parentID string
 	if parent, err := img.Parent(); err != nil {

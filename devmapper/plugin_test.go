@@ -2,7 +2,7 @@ package devmapper
 
 import (
 	"io/ioutil"
-	_ "os"
+	"os"
 	"testing"
 )
 
@@ -42,7 +42,7 @@ func mkTestDirectory(t *testing.T) string {
 
 func TestInit(t *testing.T) {
 	home := mkTestDirectory(t)
-	// defer os.RemoveAll(home)
+	defer os.RemoveAll(home)
 	plugin, err := Init(home)
 	if err != nil {
 		t.Fatal(err)
@@ -54,8 +54,8 @@ func TestInit(t *testing.T) {
 		}
 	}()
 	img := mkTestImage(t)
-	// defer os.RemoveAll(img.(*TestImage).path)
-	if err := plugin.Create(img, nil); err != nil {
+	defer os.RemoveAll(img.(*TestImage).path)
+	if err := plugin.OnCreate(img, nil); err != nil {
 		t.Fatal(err)
 	}
 }
