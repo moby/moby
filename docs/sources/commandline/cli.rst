@@ -565,6 +565,7 @@ Known Issues (kill)
 --------
 
 ::
+
     Usage: docker load < repository.tar
 
     Loads a tarred repository from the standard input stream.
