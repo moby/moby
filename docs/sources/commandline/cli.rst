@@ -492,6 +492,7 @@ Known Issues (kill)
 --------
 
 ::
+
     Usage: docker load < repository.tar
 
     Loads a tarred repository from the standard input stream.
@@ -789,6 +790,7 @@ in the same mode (rw or ro) as the reference container.
 --------
 
 ::
+
     Usage: docker save image > repository.tar
 
     Streams a tarred repository to the standard output stream.
