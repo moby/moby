@@ -73,6 +73,13 @@ func (b *DMBackend) OnCreate(img Image, layer archive.Archive) error {
 	return nil
 }
 
+func (b *DMBackend) OnRemove(img Image) error {
+	id := img.ID()
+	if err := b.DeviceSet.RemoveDevice(id); err != nil {
+		return fmt.Errorf("Unable to remove device for %v: %v", id, err)
+	}
+	return nil
+}
 
 func (b *DMBackend) mountpoint(id string) string {
 	if b.home == "" {
