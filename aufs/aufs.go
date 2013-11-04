@@ -2,23 +2,23 @@ package aufs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/graphbackend"
+	"github.com/dotcloud/docker/graphdriver"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 )
 
-type AufsBackend struct {
+type AufsDriver struct {
 }
 
-// Return a new AUFS backend
-// An error is returned if AUFS is not supported
-func NewBackend() (*AufsBackend, error) {
-	return &AufsBackend{}, nil
+// New returns a new AUFS driver.
+// An error is returned if AUFS is not supported.
+func New() (*AufsDriver, error) {
+	return &AufsDriver{}, nil
 }
 
-func (a *AufsBackend) Mount(img graphbackend.Image, root string) error {
+func (a *AufsDriver) Mount(img graphdriver.Image, root string) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func (a *AufsBackend) Mount(img graphbackend.Image, root string) error {
 	return nil
 }
 
-func (a *AufsBackend) Unmount(root string) error {
+func (a *AufsDriver) Unmount(root string) error {
 	target := path.Join(root, "rootfs")
 	if _, err := os.Stat(target); err != nil {
 		if os.IsNotExist(err) {
@@ -51,11 +51,11 @@ func (a *AufsBackend) Unmount(root string) error {
 	return Unmount(target)
 }
 
-func (a *AufsBackend) Mounted(root string) (bool, error) {
+func (a *AufsDriver) Mounted(root string) (bool, error) {
 	return Mounted(path.Join(root, "rootfs"))
 }
 
-func (a *AufsBackend) aufsMount(ro []string, rw, target string) error {
+func (a *AufsDriver) aufsMount(ro []string, rw, target string) error {
 	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {

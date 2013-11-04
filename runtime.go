@@ -582,16 +582,16 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	backend, err := aufs.NewBackend()
+	driver, err := aufs.New()
 	if err != nil {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(config.GraphPath, "graph"), backend)
+	g, err := NewGraph(path.Join(config.GraphPath, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"), backend)
+	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"), driver)
 	if err != nil {
 		return nil, err
 	}
@@ -659,15 +659,15 @@ func (runtime *Runtime) Mount(container *Container) error {
 	if err != nil {
 		return err
 	}
-	return runtime.graph.backend.Mount(img, container.root)
+	return runtime.graph.driver.Mount(img, container.root)
 }
 
 func (runtime *Runtime) Unmount(container *Container) error {
-	return runtime.graph.backend.Unmount(container.root)
+	return runtime.graph.driver.Unmount(container.root)
 }
 
 func (runtime *Runtime) Mounted(container *Container) (bool, error) {
-	return runtime.graph.backend.Mounted(container.root)
+	return runtime.graph.driver.Mounted(container.root)
 }
 
 func (runtime *Runtime) Changes(container *Container) ([]Change, error) {
