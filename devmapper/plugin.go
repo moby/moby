@@ -24,27 +24,27 @@ type Change interface {
 
 
 
-type DMBackend struct {
+type Driver struct {
 	*DeviceSet
 	home string
 }
 
-func Init(home string) (*DMBackend, error) {
-	b := &DMBackend{
+func Init(home string) (*Driver, error) {
+	d := &Driver{
 		DeviceSet: NewDeviceSet(home),
 		home: home,
 	}
-	if err := b.DeviceSet.ensureInit(); err != nil {
+	if err := d.DeviceSet.ensureInit(); err != nil {
 		return nil, err
 	}
-	return b, nil
+	return d, nil
 }
 
-func (b *DMBackend) Cleanup() error {
-	return b.DeviceSet.Shutdown()
+func (d *Driver) Cleanup() error {
+	return d.DeviceSet.Shutdown()
 }
 
-func (b *DMBackend) OnCreate(img Image, layer archive.Archive) error {
+func (d *Driver) OnCreate(img Image, layer archive.Archive) error {
 	// Determine the source of the snapshot (parent id or init device)
 	var parentID string
 	if parent, err := img.Parent(); err != nil {
@@ -53,15 +53,15 @@ func (b *DMBackend) OnCreate(img Image, layer archive.Archive) error {
 		parentID = parent.ID()
 	}
 	// Create the device for this image by snapshotting source
-	if err := b.DeviceSet.AddDevice(img.ID(), parentID); err != nil {
+	if err := d.DeviceSet.AddDevice(img.ID(), parentID); err != nil {
 		return err
 	}
 	// Mount the device in rootfs
-	mp := b.mountpoint(img.ID())
+	mp := d.mountpoint(img.ID())
 	if err := os.MkdirAll(mp, 0700); err != nil {
 		return err
 	}
-	if err := b.DeviceSet.MountDevice(img.ID(), mp, false); err != nil {
+	if err := d.DeviceSet.MountDevice(img.ID(), mp, false); err != nil {
 		return err
 	}
 	// Apply the layer as a diff 
@@ -73,25 +73,25 @@ func (b *DMBackend) OnCreate(img Image, layer archive.Archive) error {
 	return nil
 }
 
-func (b *DMBackend) OnRemove(img Image) error {
+func (d *Driver) OnRemove(img Image) error {
 	id := img.ID()
-	if err := b.DeviceSet.RemoveDevice(id); err != nil {
+	if err := d.DeviceSet.RemoveDevice(id); err != nil {
 		return fmt.Errorf("Unable to remove device for %v: %v", id, err)
 	}
 	return nil
 }
 
-func (b *DMBackend) mountpoint(id string) string {
-	if b.home == "" {
+func (d *Driver) mountpoint(id string) string {
+	if d.home == "" {
 		return ""
 	}
-	return path.Join(b.home, "mnt", id)
+	return path.Join(d.home, "mnt", id)
 }
 
-func (b *DMBackend) Changes(img *Image, dest string) ([]Change, error) {
+func (d *Driver) Changes(img *Image, dest string) ([]Change, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (b *DMBackend) Layer(img *Image, dest string) (archive.Archive, error) {
+func (d *Driver) Layer(img *Image, dest string) (archive.Archive, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
