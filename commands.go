@@ -1429,20 +1429,14 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
-	_, width := cli.getTtySize()
-	if width == 0 {
-		width = 45
-	} else {
-		width = width - 10 - 54 //remote the first column
-	}
 	for _, out := range outs {
 		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
 			continue
 		}
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !*noTrunc && len(desc) > width {
-			desc = utils.Trunc(desc, width-3) + "..."
+		if !*noTrunc && len(desc) > 45 {
+			desc = utils.Trunc(desc, 42) + "..."
 		}
 		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
 		if out.IsOfficial {
