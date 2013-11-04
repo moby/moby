@@ -1382,19 +1382,11 @@ func (container *Container) EnsureMounted() error {
 }
 
 func (container *Container) Mount() error {
-	image, err := container.GetImage()
-	if err != nil {
-		return err
-	}
-	return image.Mount(container.RootfsPath(), container.rwPath())
+	return container.runtime.Mount(container)
 }
 
 func (container *Container) Changes() ([]Change, error) {
-	image, err := container.GetImage()
-	if err != nil {
-		return nil, err
-	}
-	return image.Changes(container.rwPath())
+	return container.runtime.Changes(container)
 }
 
 func (container *Container) GetImage() (*Image, error) {
@@ -1405,17 +1397,11 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Mounted() (bool, error) {
-	return Mounted(container.RootfsPath())
+	return container.runtime.Mounted(container)
 }
 
 func (container *Container) Unmount() error {
-	if _, err := os.Stat(container.RootfsPath()); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	return Unmount(container.RootfsPath())
+	return container.runtime.Unmount(container)
 }
 
 // ShortID returns a shorthand version of the container's id for convenience.
