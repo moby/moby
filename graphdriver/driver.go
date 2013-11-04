@@ -1,10 +1,10 @@
-package graphbackend
+package graphdriver
 
 type Image interface {
 	Layers() ([]string, error)
 }
 
-type GraphBackend interface {
+type Driver interface {
 	//	Create(img *Image) error
 	//	Delete(img *Image) error
 	Mount(img Image, root string) error
