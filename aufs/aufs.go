@@ -9,12 +9,20 @@ import (
 	"path"
 )
 
+func init() {
+	graphdriver.Register("aufs", Init)
+}
+
 type AufsDriver struct {
 }
 
 // New returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func New() (*AufsDriver, error) {
+func Init(root string) (graphdriver.Driver, error) {
+	// Try to load the aufs kernel module
+	if err := exec.Command("modprobe", "aufs").Run(); err != nil {
+		return nil, err
+	}
 	return &AufsDriver{}, nil
 }
 
