@@ -10,7 +10,7 @@ CouchDB Service
 .. include:: example_header.inc
 
 Here's an example of using data volumes to share the same data between
-2 CouchDB containers.  This could be used for hot upgrades, testing
+two CouchDB containers.  This could be used for hot upgrades, testing
 different versions of CouchDB on the same data, etc.
 
 Create first database
@@ -25,8 +25,8 @@ Note that we're marking ``/var/lib/couchdb`` as a data volume.
 Add data to the first database
 ------------------------------
 
-We're assuming your docker host is reachable at `localhost`. If not,
-replace `localhost` with the public IP of your docker host.
+We're assuming your Docker host is reachable at ``localhost``. If not,
+replace ``localhost`` with the public IP of your Docker host.
 
 .. code-block:: bash
 
@@ -37,7 +37,7 @@ replace `localhost` with the public IP of your docker host.
 Create second database
 ----------------------
 
-This time, we're requesting shared access to $COUCH1's volumes.
+This time, we're requesting shared access to ``$COUCH1``'s volumes.
 
 .. code-block:: bash
 
@@ -52,5 +52,5 @@ Browse data on the second database
     URL="http://$HOST:$(sudo docker port $COUCH2 5984)/_utils/"
     echo "Navigate to $URL in your browser. You should see the same data as in the first database"'!'
 
-Congratulations, you are running 2 Couchdb containers, completely
+Congratulations, you are now running two Couchdb containers, completely
 isolated from each other *except* for their data.

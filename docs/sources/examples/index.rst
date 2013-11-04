@@ -10,7 +10,7 @@ Examples
 
 Here are some examples of how to use Docker to create running
 processes, starting from a very simple *Hello World* and progressing
-to more substantial services like you might find in production.
+to more substantial services like those which you might find in production.
 
 .. toctree::
    :maxdepth: 1
