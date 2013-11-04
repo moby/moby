@@ -153,11 +153,10 @@ func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
 	return res, err
 }
 
-func setTokenAuth(req *http.Request, token []string) *http.Request {
+func setTokenAuth(req *http.Request, token []string) {
 	if req.Header.Get("Authorization") == "" { // Don't override
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	}
-	return req
 }
 
 // Retrieve the history of a given image from the Registry.
@@ -167,7 +166,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	if err != nil {
 		return nil, err
 	}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, err
@@ -200,7 +199,7 @@ func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) boo
 	if err != nil {
 		return false
 	}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return false
@@ -216,7 +215,7 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
@@ -243,7 +242,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return nil, err
@@ -269,7 +268,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		if err != nil {
 			return nil, err
 		}
-		req = setTokenAuth(req, token)
+		setTokenAuth(req, token)
 		res, err := doWithCookies(r.client, req)
 		if err != nil {
 			return nil, err
@@ -372,7 +371,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 	if err != nil {
 		return err
 	}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
 
 	res, err := doWithCookies(r.client, req)
@@ -409,7 +408,7 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
@@ -444,7 +443,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	}
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
 		return "", fmt.Errorf("Failed to upload layer: %s", err)
@@ -473,7 +472,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 		return err
 	}
 	req.Header.Add("Content-type", "application/json")
-	req = setTokenAuth(req, token)
+	setTokenAuth(req, token)
 	req.ContentLength = int64(len(revision))
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
