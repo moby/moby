@@ -695,6 +695,13 @@ func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+// Flush the stream immediately.
+func (wf *WriteFlusher) Flush() {
+	wf.Lock()
+	defer wf.Unlock()
+	wf.flusher.Flush()
+}
+
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var flusher http.Flusher
 	if f, ok := w.(http.Flusher); ok {
