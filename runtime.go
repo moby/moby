@@ -5,7 +5,6 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
-	"github.com/dotcloud/docker/aufs"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -574,16 +573,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	driver, err := aufs.New()
-	if err != nil {
-		return nil, err
-	}
 
-	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
+	g, err := NewGraph(path.Join(config.Root, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"), driver)
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
 	if err != nil {
 		return nil, err
 	}

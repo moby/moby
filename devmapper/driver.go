@@ -2,10 +2,15 @@ package devmapper
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"os"
 	"path"
-	"github.com/dotcloud/docker/archive"
 )
+
+func init() {
+	graphdriver.Register("devicemapper", Init)
+}
 
 // Placeholder interfaces, to be replaced
 // at integration.
@@ -17,22 +22,19 @@ type Image interface {
 }
 
 type Change interface {
-
 }
 
 // End of placeholder interfaces.
-
-
 
 type Driver struct {
 	*DeviceSet
 	home string
 }
 
-func Init(home string) (*Driver, error) {
+func Init(home string) (graphdriver.Driver, error) {
 	d := &Driver{
 		DeviceSet: NewDeviceSet(home),
-		home: home,
+		home:      home,
 	}
 	if err := d.DeviceSet.ensureInit(); err != nil {
 		return nil, err
@@ -64,7 +66,7 @@ func (d *Driver) OnCreate(img Image, layer archive.Archive) error {
 	if err := d.DeviceSet.MountDevice(img.ID(), mp, false); err != nil {
 		return err
 	}
-	// Apply the layer as a diff 
+	// Apply the layer as a diff
 	if layer != nil {
 		if err := archive.ApplyLayer(mp, layer); err != nil {
 			return err
