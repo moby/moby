@@ -10,7 +10,6 @@ import (
 type State struct {
 	sync.Mutex
 	Running    bool
-	Pid        int
 	ExitCode   int
 	StartedAt  time.Time
 	FinishedAt time.Time
@@ -24,16 +23,14 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exit %d", s.ExitCode)
 }
 
-func (s *State) setRunning(pid int) {
+func (s *State) setRunning() {
 	s.Running = true
 	s.ExitCode = 0
-	s.Pid = pid
 	s.StartedAt = time.Now()
 }
 
 func (s *State) setStopped(exitCode int) {
 	s.Running = false
-	s.Pid = 0
 	s.FinishedAt = time.Now()
 	s.ExitCode = exitCode
 }
