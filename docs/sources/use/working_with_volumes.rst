@@ -71,17 +71,3 @@ For example::
 The command above mounts the host directory ``/var/logs`` into the container with read only permissions as ``/var/host_logs``.
 
 .. versionadded:: v0.5.0
-
-Volumes & persistent data storage
-=================================
-
-Current status
-..............
-
-Docker has volumes which can be reused from container to container. These volumes have the following limitations:
-
-* they can't be imported and exported (without piping data into and out of the container)
-* they can't be backed up and restored from backups (without piping data into and out of the container)
-* they can't be stored on custom storage (e.g.: use high IOPS storage for a volume and regular IOPS storage for others)
-* it's not possible to cherry pick the volumes to be used from an old container in a new container
-* it's not possible to manage the volumes after deleting the containers to which they were attached
