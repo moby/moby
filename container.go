@@ -881,9 +881,11 @@ func (container *Container) Start() (err error) {
 	// Init any links between the parent and children
 	runtime := container.runtime
 
-	children, err := runtime.Children(container.Name)
-	if err != nil {
-		return err
+	if container.Name != nil {
+		children, err := runtime.Children(container.Name)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(children) > 0 {
