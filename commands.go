@@ -1347,8 +1347,18 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 	name := cmd.Arg(0)
+	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
+	if err != nil {
+		return err
+	}
 
-	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err, nil); err != nil {
+	container := &Container{}
+	err = json.Unmarshal(body, container)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
