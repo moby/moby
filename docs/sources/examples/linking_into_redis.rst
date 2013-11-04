@@ -9,12 +9,14 @@ Linking Redis
 
 .. include:: example_header.inc
 
-Building a redis container to link as a child of our web application.
+Building a Redis container to link as a child of our web application.
 
-Building the redis container
+Building the Redis container
 ----------------------------
 
-Lets build a redis image with the following Dockerfile.
+Lets build a Redis image with the following Dockerfile.
+
+First checkout the Redis source code.
 
 .. code-block:: bash
 
@@ -22,7 +24,10 @@ Lets build a redis image with the following Dockerfile.
     cd redis
     git checkout 2.6
 
-    # Save this Dockerfile to the root of the redis repository.  
+
+Now let's create a Dockerfile in the root of the Redis repository.
+
+.. code-block:: bash
 
     # Build redis from source
     # Make sure you have the redis source code checked out in
@@ -51,37 +56,37 @@ Lets build a redis image with the following Dockerfile.
 
 
 We need to ``EXPOSE`` the default port of 6379 so that our link knows what ports 
-to connect to our redis container on.  If you do not expose any ports for the
+to connect to our Redis container on.  If you do not expose any ports for the
 image then docker will not be able to establish the link between containers.
 
 
-Run the redis container
+Run the Redis container
 -----------------------
 
 .. code-block:: bash
-    
-    docker run -d -e PASSWORD=docker -name redis redis-2.6 --requirepass docker
- 
-This will run our redis container with the password docker 
+
+    sudo docker run -d -e PASSWORD=docker -name redis redis-2.6 --requirepass docker
+
+This will run our Redis container with the password docker 
 to secure our service.  By specifying the ``-name`` flag on run 
-we will assign the name ``redis`` to this container.  If we do not specify a name  for 
+we will assign the name ``redis`` to this container.  If we do not specify a name for 
 our container via the ``-name`` flag docker will automatically generate a name for us.
 We can issue all the commands that you would expect; start, stop, attach, using the name for our container.
 The name also allows us to link other containers into this one.
 
-Linking redis as a child
+Linking Redis as a child
 ------------------------
 
-Next we can start a new web application that has a dependency on redis and apply a link 
-to connect both containers.  If you noticed when running our redis server we did not use
-the ``-p`` flag to publish the redis port to the host system.  Redis exposed port 6379 via the Dockerfile 
+Next we can start a new web application that has a dependency on Redis and apply a link 
+to connect both containers.  If you noticed when running our Redis server we did not use
+the ``-p`` flag to publish the Redis port to the host system.  Redis exposed port 6379 via the Dockerfile 
 and this is all we need to establish a link.
 
-Now lets start our web application with a link into redis.
+Now let's start our web application with a link into Redis.
 
 .. code-block:: bash
-   
-    docker run -t -i -link redis:db -name webapp ubuntu bash
+
+    sudo docker run -t -i -link redis:db -name webapp ubuntu bash
 
     root@4c01db0b339c:/# env
 
@@ -105,7 +110,7 @@ Now lets start our web application with a link into redis.
 
 When we inspect the environment of the linked container we can see a few extra environment 
 variables have been added.  When you specified ``-link redis:db`` you are telling docker
-to link the container named ``redis`` into this new container with the alias ``db``.  
+to link the container named ``redis`` into this new container with the alias ``db``.
 Environment variables are prefixed with the alias so that the parent container can access
 network and environment information from the containers that are linked into it.
 
@@ -128,5 +133,5 @@ network and environment information from the containers that are linked into it.
 
 
 Accessing the network information along with the environment of the child container allows
-us to easily connect to the redis service on the specific ip and port and use the password
+us to easily connect to the Redis service on the specific IP and port and use the password
 specified in the environment.
