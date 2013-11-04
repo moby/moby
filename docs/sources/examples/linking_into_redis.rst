@@ -22,7 +22,9 @@ Lets build a redis image with the following Dockerfile.
     cd redis
     git checkout 2.6
 
-    # Save this Dockerfile to the root of the redis repository.  
+Save this Dockerfile to the root of the redis repository.  
+
+.. code-block::
 
     # Build redis from source
     # Make sure you have the redis source code checked out in
@@ -46,7 +48,10 @@ Lets build a redis image with the following Dockerfile.
     ENTRYPOINT ["/redis/src/redis-server"]
     CMD ["--dir", "/redis-data"]
 
-    # docker build our new redis image from source
+docker build our new redis image from source
+
+.. code-block:: bash
+
     docker build -t redis-2.6 .
 
 
