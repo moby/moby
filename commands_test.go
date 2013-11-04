@@ -645,3 +645,19 @@ func TestRunAutoRemove(t *testing.T) {
 		t.Fatalf("failed to remove container automatically: container %s still exists", temporaryContainerID)
 	}
 }
+
+func TestCmdLogs(t *testing.T) {
+	cli := NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	if err := cli.CmdRun(unitTestImageID, "sh", "-c", "ls -l"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cli.CmdRun("-t", unitTestImageID, "sh", "-c", "ls -l"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cli.CmdLogs(globalRuntime.List()[0].ID); err != nil {
+		t.Fatal(err)
+	}
+}
