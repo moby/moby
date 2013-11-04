@@ -23,7 +23,7 @@
 #  docker hack/release.sh
 #
 
-docker-version 0.6.1
+docker-version	0.6.1
 from	ubuntu:12.04
 maintainer	Solomon Hykes <solomon@dotcloud.com>
 
@@ -33,13 +33,13 @@ run	apt-get update
 run	apt-get install -y -q curl
 run	apt-get install -y -q git
 run	apt-get install -y -q mercurial
-run apt-get install -y -q build-essential libsqlite3-dev
+run	apt-get install -y -q build-essential libsqlite3-dev
 
 # Install Go
 run	curl -s https://go.googlecode.com/files/go1.2rc2.src.tar.gz | tar -v -C /usr/local -xz
 env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
-run cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
+run	cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
 
 # Ubuntu stuff
 run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
@@ -61,7 +61,7 @@ volume	/var/lib/docker
 workdir	/go/src/github.com/dotcloud/docker
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
-entrypoint ["hack/dind"]
+entrypoint	["hack/dind"]
 
 # Upload docker source
-add	.       /go/src/github.com/dotcloud/docker
+add	.	/go/src/github.com/dotcloud/docker
