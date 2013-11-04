@@ -272,6 +272,9 @@ func (runtime *Runtime) restore() error {
 		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("Save container name failed %s", err)
+		}
 		register(container)
 	}
 
