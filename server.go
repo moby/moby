@@ -1055,7 +1055,10 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		if container == nil {
 			return fmt.Errorf("No such link: %s", name)
 		}
-		name = srv.runtime.getFullName(name)
+		name, err := srv.runtime.getFullName(name)
+		if err != nil {
+			return err
+		}
 		parent, n := path.Split(name)
 		if parent == "/" {
 			return fmt.Errorf("Conflict, cannot remove the default name of the container")

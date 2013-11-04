@@ -113,6 +113,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateID(container.ID); err != nil {
 		return err
 	}
+	if err := runtime.ensureName(container); err != nil {
+		return err
+	}
 
 	// init the wait lock
 	container.waitLock = make(chan struct{})
@@ -170,6 +173,26 @@ func (runtime *Runtime) Register(container *Container) error {
 		close(container.waitLock)
 	} else if !nomonitor {
 		go container.monitor()
+	}
+	return nil
+}
+
+func (runtime *Runtime) ensureName(container *Container) error {
+	if container.Name == "" {
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			name = container.ShortID()
+		}
+		container.Name = name
+
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("Error saving container name %s", err)
+		}
+		if !runtime.containerGraph.Exists(name) {
+			if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
+				utils.Debugf("Setting default id - %s", err)
+			}
+		}
 	}
 	return nil
 }
@@ -518,15 +541,22 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func (runtime *Runtime) getFullName(name string) string {
+func (runtime *Runtime) getFullName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("Container name cannot be empty")
+	}
 	if name[0] != '/' {
 		name = "/" + name
 	}
-	return name
+	return name, nil
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	entity := runtime.containerGraph.Get(runtime.getFullName(name))
+	fullName, err := runtime.getFullName(name)
+	if err != nil {
+		return nil, err
+	}
+	entity := runtime.containerGraph.Get(fullName)
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
@@ -538,10 +568,13 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
-	name = runtime.getFullName(name)
+	name, err := runtime.getFullName(name)
+	if err != nil {
+		return nil, err
+	}
 	children := make(map[string]*Container)
 
-	err := runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+	err = runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
 		c := runtime.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)

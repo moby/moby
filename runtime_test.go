@@ -119,7 +119,7 @@ func init() {
 
 func setupBaseImage() {
 	config := &DaemonConfig{
-		Root:   unitTestStoreBase,
+		Root:        unitTestStoreBase,
 		AutoRestart: false,
 		BridgeIface: unitTestNetworkBridge,
 	}
@@ -826,5 +826,21 @@ func TestGetAllChildren(t *testing.T) {
 		if value.ID != childContainer.ID {
 			t.Fatalf("Expected id %s got %s", childContainer.ID, value.ID)
 		}
+	}
+}
+
+func TestGetFullName(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	name, err := runtime.getFullName("testing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "/testing" {
+		t.Fatalf("Expected /testing got %s", name)
+	}
+	if _, err := runtime.getFullName(""); err == nil {
+		t.Fatal("Error should not be nil")
 	}
 }
