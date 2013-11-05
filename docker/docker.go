@@ -86,8 +86,8 @@ func main() {
 			log.Fatal(err)
 		}
 		// Serve api
-		job := eng.Job("serveapi", flHosts...)
-		job.Setenv("Logging", true)
+		job = eng.Job("serveapi", flHosts...)
+		job.SetenvBool("Logging", true)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
