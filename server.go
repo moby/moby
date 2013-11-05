@@ -219,7 +219,7 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 			tmpImageDir := path.Join(tempdir, i.ID)
 			os.Mkdir(tmpImageDir, os.ModeDir)
 			defer os.RemoveAll(tempdir)
-			var version = "0.7"
+			var version = "1.0"
 			var versionBuf = []byte(version)
 			ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend)
 
