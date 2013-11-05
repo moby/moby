@@ -183,43 +183,6 @@ func (img *Image) History() ([]*Image, error) {
 	return parents, nil
 }
 
-// layers returns all the filesystem layers needed to mount an image
-// FIXME: @shykes refactor this function with the new error handling
-//        (I'll do it if I have time tonight, I focus on the rest)
-func (img *Image) Layers() ([]string, error) {
-	if img.graph == nil {
-
-		return nil, fmt.Errorf("Can't lookup dockerinit layer of unregistered image")
-	}
-	var list []string
-	var e error
-	if err := img.WalkHistory(
-		func(img *Image) (err error) {
-			if layer, err := img.layer(); err != nil {
-				e = err
-			} else if layer != "" {
-				list = append(list, layer)
-			}
-			return err
-		},
-	); err != nil {
-		return nil, err
-	} else if e != nil { // Did an error occur inside the handler?
-		return nil, e
-	}
-	if len(list) == 0 {
-		return nil, fmt.Errorf("No layer found for image %s\n", img.ID)
-	}
-
-	// Inject the dockerinit layer (empty place-holder for mount-binding dockerinit)
-	if dockerinitLayer, err := img.graph.getDockerInitLayer(); err != nil {
-		return nil, err
-	} else {
-		list = append([]string{dockerinitLayer}, list...)
-	}
-	return list, nil
-}
-
 func (img *Image) WalkHistory(handler func(*Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
