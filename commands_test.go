@@ -660,6 +660,7 @@ func TestCmdLogs(t *testing.T) {
 	if err := cli.CmdLogs(globalRuntime.List()[0].ID); err != nil {
 		t.Fatal(err)
 	}
+}
 
 // Expected behaviour: using / as a bind mount source should throw an error
 func TestRunErrorBindMountRootSource(t *testing.T) {
