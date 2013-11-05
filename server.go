@@ -71,13 +71,16 @@ func (srv *Server) Daemon() error {
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
+		switch protoAddrParts[0] {
+		case "unix":
+			if err := syscall.Unlink(protoAddrParts[1]); err != nil && !os.IsNotExist(err) {
+				log.Fatal(err)
+			}
+		case "tcp":
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
-		} else {
+		default:
 			return fmt.Errorf("Invalid protocol format.")
 		}
 		go func() {
