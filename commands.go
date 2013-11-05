@@ -904,7 +904,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
+	cmd := Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -913,7 +913,8 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	src := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1230,14 +1231,16 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
+	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	name := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
 	if name == "" {
 		cmd.Usage()
 		return nil
@@ -1532,7 +1535,7 @@ func (opts PathOpts) Set(val string) error {
 }
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
+	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1543,10 +1546,10 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("repo", cmd.Arg(1))
-	if cmd.NArg() == 3 {
-		v.Set("tag", cmd.Arg(2))
-	}
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	v.Set("repo", repository)
+	v.Set("tag", tag)
 
 	if *force {
 		v.Set("force", "1")
