@@ -138,7 +138,14 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 
 // Return true if a name already exists in the database
 func (db *Database) Exists(name string) bool {
-	return db.Get(name) != nil
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	e, err := db.get(name)
+	if err != nil {
+		return false
+	}
+	return e != nil
 }
 
 func (db *Database) setEdge(parentPath, name string, e *Entity) error {
@@ -165,6 +172,9 @@ func (db *Database) RootEntity() *Entity {
 
 // Return the entity for a given path
 func (db *Database) Get(name string) *Entity {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	e, err := db.get(name)
 	if err != nil {
 		return nil
@@ -200,6 +210,9 @@ func (db *Database) get(name string) (*Entity, error) {
 // List all entities by from the name
 // The key will be the full path of the entity
 func (db *Database) List(name string, depth int) Entities {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	out := Entities{}
 	e, err := db.get(name)
 	if err != nil {
@@ -212,6 +225,9 @@ func (db *Database) List(name string, depth int) Entities {
 }
 
 func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	e, err := db.get(name)
 	if err != nil {
 		return err
@@ -226,6 +242,9 @@ func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
 
 // Return the refrence count for a specified id
 func (db *Database) Refs(id string) int {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	var count int
 	if err := db.conn.QueryRow("SELECT COUNT(*) FROM edge WHERE entity_id = ?;", id).Scan(&count); err != nil {
 		return 0
@@ -235,6 +254,9 @@ func (db *Database) Refs(id string) int {
 
 // Return all the id's path references
 func (db *Database) RefPaths(id string) Edges {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	refs := Edges{}
 
 	rows, err := db.conn.Query("SELECT name, parent_id FROM edge WHERE entity_id = ?;", id)
