@@ -251,6 +251,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	for bind := range flVolumes {
 		arr := strings.Split(bind, ":")
 		if len(arr) > 1 {
+			if arr[0] == "/" {
+				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
+			}
 			dstDir := arr[1]
 			flVolumes[dstDir] = struct{}{}
 			binds = append(binds, bind)

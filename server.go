@@ -1316,6 +1316,25 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	runtime := srv.runtime
 	container := runtime.Get(name)
+
+	if hostConfig != nil {
+		for _, bind := range hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+
+			// refuse to bind mount "/" to the container
+			if source == "/" {
+				return fmt.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
+			}
+
+			// ensure the source exists on the host
+			_, err := os.Stat(source)
+			if err != nil && os.IsNotExist(err) {
+				return fmt.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
+			}
+		}
+	}
+
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
