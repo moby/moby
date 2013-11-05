@@ -1420,8 +1420,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	cmd := Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	trusted := cmd.Bool("trusted", false, "Only show trusted builds")
+	stars := cmd.Int("stars", 0, "Only displays with at least xxx stars")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1437,27 +1439,32 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	outs := []APISearch{}
+	outs := []registry.SearchResult{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
-	_, width := cli.getTtySize()
-	if width == 0 {
-		width = 45
-	} else {
-		width = width - 33 //remote the first column
-	}
+	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
 	for _, out := range outs {
+		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
+			continue
+		}
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !*noTrunc && len(desc) > width {
-			desc = utils.Trunc(desc, width-3) + "..."
+		if !*noTrunc && len(desc) > 45 {
+			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
+		if out.IsOfficial {
+			fmt.Fprint(w, "[OK]")
+
+		}
+		fmt.Fprint(w, "\t")
+		if out.IsTrusted {
+			fmt.Fprint(w, "[OK]")
+		}
+		fmt.Fprint(w, "\n")
 	}
 	w.Flush()
 	return nil

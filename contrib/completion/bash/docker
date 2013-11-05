@@ -426,7 +426,7 @@ _docker_run()
 
 _docker_search()
 {
-	COMPREPLY=( $( compgen -W "-notrunc" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "-notrunc" "-stars" "-trusted" -- "$cur" ) )
 }
 
 _docker_start()

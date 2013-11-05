@@ -677,8 +677,11 @@ to the newly created container.
 
     Usage: docker search TERM
 
-    Searches for the TERM parameter on the Docker index and prints out
-    a list of repositories that match.
+    Search the docker index for images
+
+     -notrunc=false: Don't truncate output
+     -stars=0: Only displays with at least xxx stars
+     -trusted=false: Only show trusted builds
 
 .. _cli_start:
 
