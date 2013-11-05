@@ -1332,14 +1332,11 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 }
 
 func (srv *Server) ContainerStart(job *engine.Job) string {
-	job.Logf("srv engine = %s", srv.Eng.Root())
-	job.Logf("job engine = %s", job.Eng.Root())
 	if len(job.Args) < 1 {
 		return fmt.Sprintf("Usage: %s container_id", job.Name)
 	}
 	name := job.Args[0]
 	runtime := srv.runtime
-	job.Logf("loading containers from %s", runtime.repository)
 	container := runtime.Get(name)
 	if container == nil {
 		return fmt.Sprintf("No such container: %s", name)

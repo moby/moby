@@ -239,17 +239,14 @@ func (job *Job) DecodeEnv(src io.Reader) error {
 		// encoding/json decodes integers to float64, but cannot encode them back.
 		// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
 		if fval, ok := v.(float64); ok {
-			job.Logf("Converted to float: %v->%v", v, fval)
 			job.SetenvInt(k, int64(fval))
 		} else if sval, ok := v.(string); ok {
-			job.Logf("Converted to string: %v->%v", v, sval)
 			job.Setenv(k, sval)
 		} else	if val, err := json.Marshal(v); err == nil {
 			job.Setenv(k, string(val))
 		} else {
 			job.Setenv(k, fmt.Sprintf("%v", v))
 		}
-		job.Logf("Decoded %s=%#v to %s=%#v", k, v, k, job.Getenv(k))
 	}
 	return nil
 }
@@ -269,7 +266,6 @@ func (job *Job) EncodeEnv(dst io.Writer) error {
 		} else {
 			m[k] = v
 		}
-		job.Logf("Encoded %s=%#v to %s=%#v", k, v, k, m[k])
 	}
 	if err := json.NewEncoder(dst).Encode(&m); err != nil {
 		return err
@@ -278,24 +274,20 @@ func (job *Job) EncodeEnv(dst io.Writer) error {
 }
 
 func (job *Job) ExportEnv(dst interface{}) (err error) {
-	fmt.Fprintf(os.Stderr, "ExportEnv()\n")
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("ExportEnv %s", err)
 		}
 	}()
 	var buf bytes.Buffer
-	job.Logf("ExportEnv: step 1: encode/marshal the env to an intermediary json representation")
-	fmt.Fprintf(os.Stderr, "Printed ExportEnv step 1\n")
+	// step 1: encode/marshal the env to an intermediary json representation
 	if err := job.EncodeEnv(&buf); err != nil {
 		return err
 	}
-	job.Logf("ExportEnv: step 1 complete: json=|%s|", buf)
-	job.Logf("ExportEnv: step 2: decode/unmarshal the intermediary json into the destination object")
+	// step 2: decode/unmarshal the intermediary json into the destination object
 	if err := json.NewDecoder(&buf).Decode(dst); err != nil {
 		return err
 	}
-	job.Logf("ExportEnv: step 2 complete")
 	return nil
 }
 
@@ -309,7 +301,6 @@ func (job *Job) ImportEnv(src interface{}) (err error) {
 	if err := json.NewEncoder(&buf).Encode(src); err != nil {
 		return err
 	}
-	job.Logf("ImportEnv: json=|%s|", buf)
 	if err := job.DecodeEnv(&buf); err != nil {
 		return err
 	}
