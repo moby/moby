@@ -68,8 +68,9 @@ type Container struct {
 
 	activeLinks map[string]*Link
 
-	dockerInitRpc *rpc.Client
-	rpcLock       chan struct{}
+	dockerInitRpcSocket net.Conn // needed to prevent rpc FD leak bug
+	dockerInitRpc       *rpc.Client
+	rpcLock             chan struct{}
 }
 
 // Note: the Config structure should hold only portable information about the container.
@@ -1111,8 +1112,9 @@ func (container *Container) connectToDockerInit(reconnect bool) error {
 	// Connect to the dockerinit RPC socket with a 1 second timeout
 	var err error
 	for startTime := time.Now(); time.Since(startTime) < time.Second; time.Sleep(10 * time.Millisecond) {
-		container.dockerInitRpc, err = rpc.Dial("unix", symlink)
+		container.dockerInitRpcSocket, err = net.Dial("unix", symlink)
 		if err == nil {
+			container.dockerInitRpc = rpc.NewClient(container.dockerInitRpcSocket)
 			break
 		}
 
@@ -1421,14 +1423,16 @@ func (container *Container) cleanup() {
 
 	if container.dockerInitRpc != nil {
 		if err := container.dockerInitRpc.Close(); err != nil {
-			// FIXME: We have an FD leak caused by an apparent bug
-			// in net/rpc.  It isn't closing the socket when the
-			// connection gets closed by dockerinit before we get
-			// here.  So the rpc Close() call sees that the
-			// connection is closed and returns an error without
-			// actually closing the socket.
+			// FIXME: Prevent an FD leak by closing the socket
+			// directly.  Due to a bug, rpc client Close() returns
+			// an error if the connection has closed on the other
+			// end, and doesn't close the actual socket FD.
+			if err := container.dockerInitRpcSocket.Close(); err != nil {
+				utils.Errorf("%s: Error closing RPC socket: %s", container.ID, err)
+			}
 		}
 		container.dockerInitRpc = nil
+		container.dockerInitRpcSocket = nil
 	}
 
 	if err := container.Unmount(); err != nil {
