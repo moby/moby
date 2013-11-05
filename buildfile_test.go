@@ -542,3 +542,39 @@ func TestBuildADDFileNotFound(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestBuildInheritance(t *testing.T) {
+	runtime, err := newTestRuntime("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	img := buildImage(testContextTemplate{`
+            from {IMAGE}
+            expose 4243
+            `,
+		nil, nil}, t, srv, true)
+
+	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
+            from %s
+            entrypoint ["/bin/echo"]
+            `, img.ID),
+		nil, nil}, t, srv, true)
+
+	// from child
+	if img2.Config.Entrypoint[0] != "/bin/echo" {
+		t.Fail()
+	}
+
+	// from parent
+	if img.Config.PortSpecs[0] != "4243" {
+		t.Fail()
+	}
+}
