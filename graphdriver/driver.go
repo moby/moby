@@ -2,9 +2,29 @@ package graphdriver
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 )
 
 type InitFunc func(root string) (Driver, error)
+
+type Dir interface {
+	ID() string
+	Path() string
+	Parent() (Dir, error)
+}
+
+type Driver interface {
+	OnCreate(dir Dir, layer archive.Archive) error
+	OnRemove(dir Dir) error
+
+	OnMount(dir Dir, dest string) error
+	OnUnmount(dest string) error
+	Mounted(dest string) (bool, error)
+
+	Layer(dir Dir, dest string) (archive.Archive, error)
+
+	Cleanup() error
+}
 
 var (
 	// All registred drivers
@@ -48,19 +68,4 @@ func New(root string) (Driver, error) {
 		return driver, nil
 	}
 	return nil, lastError
-}
-
-type Image interface {
-	Layers() ([]string, error)
-}
-
-type Driver interface {
-	//	Create(img *Image) error
-	//	Delete(img *Image) error
-	Mount(img Image, root string) error
-	Unmount(root string) error
-	Mounted(root string) (bool, error)
-	//	UnmountAll(img *Image) error
-	//	Changes(img *Image, dest string) ([]Change, error)
-	//	Layer(img *Image, dest string) (Archive, error)
 }
