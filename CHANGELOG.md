@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.6.6 (2013-11-06)
+
+#### Runtime
+
+* Ensure container name on register
+* Fix regression in /etc/hosts
++ Add lock around write operations in graph
+* Check if port is valid
+* Fix restart runtime error with ghost container networking
++ Added some more colors and animals to increase the pool of generated names
+* Fix issues in docker inspect
++ Escape apparmor confinement
++ Set environment variables using a file.
+* Prevent docker insert to erase something
++ Prevent DNS server conflicts in CreateBridgeIface
++ Validate bind mounts on the server side
++ Use parent image config in docker build
+* Fix regression in /etc/hosts
+
+#### Client
+
++ Add -P flag to publish all exposed ports
++ Add -notrunc and -q flags to docker history
+* Fix docker commit, tag and import usage
++ Add stars, trusted builds and library flags in docker search
+* Fix docker logs with tty
+
+#### RemoteAPI
+
+* Make /events API send headers immediately
+* Do not split last column docker top
++ Add size to history
+
+#### Other
+
++ Contrib: Desktop integration. Firefox usecase.
++ Dockerfile: bump to go1.2rc3
+
 ## 0.6.5 (2013-10-29)
 
 #### Runtime
