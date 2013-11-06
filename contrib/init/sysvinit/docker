@@ -29,6 +29,10 @@ if [ -f /etc/default/$BASE ]; then
 	. /etc/default/$BASE
 fi
 
+if [ -f /etc/default/docker ]; then
+	. /etc/default/docker
+fi
+
 if [ "$1" = start ] && which initctl >/dev/null && initctl version | grep -q upstart; then
 	exit 1
 fi
