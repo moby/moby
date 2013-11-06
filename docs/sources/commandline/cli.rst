@@ -315,8 +315,10 @@ Shell 1: (Again .. now showing events)
     List images
 
       -a=false: show all images
+      -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+      -tree=false: output graph in tree format
+      -viz=false: output graph in graphviz format
 
 Displaying images visually
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
