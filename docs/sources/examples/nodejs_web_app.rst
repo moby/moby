@@ -10,7 +10,7 @@ Node.js Web App
 .. include:: example_header.inc
 
 The goal of this example is to show you how you can build your own
-docker images from a parent image using a ``Dockerfile`` . We will do
+Docker images from a parent image using a ``Dockerfile`` . We will do
 that by making a simple Node.js hello world web application running on
 CentOS. You can get the full source code at
 https://github.com/gasi/docker-node-hello.
@@ -55,7 +55,7 @@ Then, create an ``index.js`` file that defines a web app using the
 
 
 In the next steps, we’ll look at how you can run this app inside a CentOS
-container using docker. First, you’ll need to build a docker image of your app.
+container using Docker. First, you’ll need to build a Docker image of your app.
 
 Creating a ``Dockerfile``
 +++++++++++++++++++++++++
@@ -67,8 +67,8 @@ Create an empty file called ``Dockerfile``:
     touch Dockerfile
 
 Open the ``Dockerfile`` in your favorite text editor and add the following line
-that defines the version of docker the image requires to build
-(this example uses docker 0.3.4):
+that defines the version of Docker the image requires to build
+(this example uses Docker 0.3.4):
 
 .. code-block:: bash
 
@@ -76,7 +76,7 @@ that defines the version of docker the image requires to build
 
 Next, define the parent image you want to use to build your own image on top of.
 Here, we’ll use `CentOS <https://index.docker.io/_/centos/>`_ (tag: ``6.4``)
-available on the `docker index`_:
+available on the `Docker index`_:
 
 .. code-block:: bash
 
@@ -95,23 +95,23 @@ To install the right package for CentOS, we’ll use the instructions from the
     # Install Node.js and npm
     RUN     yum install -y npm
 
-To bundle your app’s source code inside the docker image, use the ``ADD``
-command:
+To bundle your app’s source code inside the Docker image, use the ``ADD``
+instruction:
 
 .. code-block:: bash
 
     # Bundle app source
     ADD . /src
 
-Install your app dependencies using npm:
+Install your app dependencies using the ``npm`` binary:
 
 .. code-block:: bash
 
     # Install app dependencies
     RUN cd /src; npm install
 
-Your app binds to port ``8080`` so you’ll use the ``EXPOSE`` command
-to have it mapped by the docker daemon:
+Your app binds to port ``8080`` so you’ll use the ``EXPOSE`` instruction
+to have it mapped by the ``docker`` daemon:
 
 .. code-block:: bash
 
@@ -152,7 +152,7 @@ Building your image
 +++++++++++++++++++
 
 Go to the directory that has your ``Dockerfile`` and run the following
-command to build a docker image. The ``-t`` flag let’s you tag your
+command to build a Docker image. The ``-t`` flag let’s you tag your
 image so it’s easier to find later using the ``docker images``
 command:
 
@@ -160,7 +160,7 @@ command:
 
     sudo docker build -t <your username>/centos-node-hello .
 
-Your image will now be listed by docker:
+Your image will now be listed by Docker:
 
 .. code-block:: bash
 
@@ -199,17 +199,17 @@ Print the output of your app:
 Test
 ++++
 
-To test your app, get the the port of your app that docker mapped:
+To test your app, get the the port of your app that Docker mapped:
 
 .. code-block:: bash
 
-    docker ps
+    sudo docker ps
 
     > # Example
     > ID            IMAGE                          COMMAND              ...   PORTS
     > ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
 
-In the example above, docker mapped the ``8080`` port of the container to
+In the example above, Docker mapped the ``8080`` port of the container to
 ``49160``.
 
 Now you can call your app using ``curl`` (install if needed via:
@@ -229,7 +229,7 @@ Now you can call your app using ``curl`` (install if needed via:
     > Hello World
 
 We hope this tutorial helped you get up and running with Node.js and
-CentOS on docker. You can get the full source code at
+CentOS on Docker. You can get the full source code at
 https://github.com/gasi/docker-node-hello.
 
 Continue to :ref:`running_redis_service`.

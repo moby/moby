@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
-func mkTestContext(dockerfile string, files [][2]string, t *testing.T) Archive {
+func mkTestContext(dockerfile string, files [][2]string, t *testing.T) archive.Archive {
 	context, err := mkBuildContext(dockerfile, files)
 	if err != nil {
 		t.Fatal(err)
@@ -538,6 +539,42 @@ func TestBuildADDFileNotFound(t *testing.T) {
 
 	if err.Error() != "foo: no such file or directory" {
 		t.Logf("Error message is not expected: %s", err.Error())
+		t.Fail()
+	}
+}
+
+func TestBuildInheritance(t *testing.T) {
+	runtime, err := newTestRuntime("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nuke(runtime)
+
+	srv := &Server{
+		runtime:     runtime,
+		pullingPool: make(map[string]struct{}),
+		pushingPool: make(map[string]struct{}),
+	}
+
+	img := buildImage(testContextTemplate{`
+            from {IMAGE}
+            expose 4243
+            `,
+		nil, nil}, t, srv, true)
+
+	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
+            from %s
+            entrypoint ["/bin/echo"]
+            `, img.ID),
+		nil, nil}, t, srv, true)
+
+	// from child
+	if img2.Config.Entrypoint[0] != "/bin/echo" {
+		t.Fail()
+	}
+
+	// from parent
+	if img.Config.PortSpecs[0] != "4243" {
 		t.Fail()
 	}
 }

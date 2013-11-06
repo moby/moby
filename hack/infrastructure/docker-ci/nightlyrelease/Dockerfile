@@ -11,7 +11,7 @@
 #         "GPG_PASSPHRASE='Test_docker_GPG_passphrase_signature'
 #         "INDEX_AUTH='Encripted_index_authentication' }
 # TO_BUILD:       docker build -t dockerbuilder .
-# TO_RELEASE:     docker run -i -t -privileged -lxc-conf="lxc.aa_profile = unconfined" -e AWS_S3_BUCKET="test.docker.io" dockerbuilder
+# TO_RELEASE:     docker run -i -t -privileged  -e AWS_S3_BUCKET="test.docker.io" dockerbuilder
 
 from docker
 maintainer Daniel Mizyrycki <daniel@dotcloud.com>
@@ -22,9 +22,6 @@ run apt-get update; apt-get install -y -q wget python2.7
 
 # Add production docker binary
 run wget -q -O /usr/bin/docker http://get.docker.io/builds/Linux/x86_64/docker-latest; chmod +x /usr/bin/docker
-
-#### FIXME. Temporarily install docker with proper apparmor handling
-run wget -q -O /usr/bin/docker http://test.docker.io/test/docker; chmod +x /usr/bin/docker
 
 # Add proto docker builder
 add ./dockerbuild /usr/bin/dockerbuild

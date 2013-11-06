@@ -24,6 +24,7 @@ type Capabilities struct {
 	MemoryLimit            bool
 	SwapLimit              bool
 	IPv4ForwardingDisabled bool
+	AppArmor               bool
 }
 
 type Runtime struct {
@@ -112,6 +113,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateID(container.ID); err != nil {
 		return err
 	}
+	if err := runtime.ensureName(container); err != nil {
+		return err
+	}
 
 	// init the wait lock
 	container.waitLock = make(chan struct{})
@@ -149,8 +153,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				utils.Debugf("Restarting")
 				container.State.Ghost = false
 				container.State.setStopped(0)
-				hostConfig, _ := container.ReadHostConfig()
-				if err := container.Start(hostConfig); err != nil {
+				if err := container.Start(); err != nil {
 					return err
 				}
 				nomonitor = true
@@ -169,9 +172,27 @@ func (runtime *Runtime) Register(container *Container) error {
 	if !container.State.Running {
 		close(container.waitLock)
 	} else if !nomonitor {
-		hostConfig, _ := container.ReadHostConfig()
-		container.allocateNetwork(hostConfig)
-		go container.monitor(hostConfig)
+		go container.monitor()
+	}
+	return nil
+}
+
+func (runtime *Runtime) ensureName(container *Container) error {
+	if container.Name == "" {
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			name = container.ShortID()
+		}
+		container.Name = name
+
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("Error saving container name %s", err)
+		}
+		if !runtime.containerGraph.Exists(name) {
+			if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
+				utils.Debugf("Setting default id - %s", err)
+			}
+		}
 	}
 	return nil
 }
@@ -265,7 +286,10 @@ func (runtime *Runtime) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		name := generateRandomName(runtime)
+		name, err := generateRandomName(runtime)
+		if err != nil {
+			container.Name = container.ShortID()
+		}
 		container.Name = name
 
 		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
@@ -306,6 +330,15 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
 	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
+	}
+
+	// Check if AppArmor seems to be enabled on this system.
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
+		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
+		runtime.capabilities.AppArmor = false
+	} else {
+		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
+		runtime.capabilities.AppArmor = true
 	}
 }
 
@@ -356,7 +389,10 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	id := GenerateID()
 
 	if name == "" {
-		name = generateRandomName(runtime)
+		name, err = generateRandomName(runtime)
+		if err != nil {
+			name = utils.TruncateID(id)
+		}
 	}
 	if name[0] != '/' {
 		name = "/" + name
@@ -394,6 +430,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
+		hostConfig:      &HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
@@ -504,15 +541,22 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func (runtime *Runtime) getFullName(name string) string {
+func (runtime *Runtime) getFullName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("Container name cannot be empty")
+	}
 	if name[0] != '/' {
 		name = "/" + name
 	}
-	return name
+	return name, nil
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	entity := runtime.containerGraph.Get(runtime.getFullName(name))
+	fullName, err := runtime.getFullName(name)
+	if err != nil {
+		return nil, err
+	}
+	entity := runtime.containerGraph.Get(fullName)
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
@@ -524,10 +568,13 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
-	name = runtime.getFullName(name)
+	name, err := runtime.getFullName(name)
+	if err != nil {
+		return nil, err
+	}
 	children := make(map[string]*Container)
 
-	err := runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+	err = runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
 		c := runtime.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
@@ -557,34 +604,29 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if k, err := utils.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
-	} else {
-		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
-		}
-	}
 	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
-	runtimeRepo := path.Join(config.GraphPath, "containers")
+	runtimeRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(config.GraphPath, "graph"))
+	if err := linkLxcStart(config.Root); err != nil {
+		return nil, err
+	}
+	g, err := NewGraph(path.Join(config.Root, "graph"))
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.GraphPath, "volumes"))
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(config.GraphPath, "repositories"), g)
+	repositories, err := NewTagStore(path.Join(config.Root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -596,7 +638,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	gographPath := path.Join(config.GraphPath, "linkgraph.db")
+	gographPath := path.Join(config.Root, "linkgraph.db")
 	initDatabase := false
 	if _, err := os.Stat(gographPath); err != nil {
 		if os.IsNotExist(err) {
@@ -636,6 +678,23 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 func (runtime *Runtime) Close() error {
 	runtime.networkManager.Close()
 	return runtime.containerGraph.Close()
+}
+
+func linkLxcStart(root string) error {
+	sourcePath, err := exec.LookPath("lxc-start")
+	if err != nil {
+		return err
+	}
+	targetPath := path.Join(root, "lxc-start-unconfined")
+
+	if _, err := os.Stat(targetPath); err != nil && !os.IsNotExist(err) {
+		return err
+	} else if err == nil {
+		if err := os.Remove(targetPath); err != nil {
+			return err
+		}
+	}
+	return os.Symlink(sourcePath, targetPath)
 }
 
 // History is a convenience type for storing a list of containers,

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -695,6 +696,13 @@ func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+// Flush the stream immediately.
+func (wf *WriteFlusher) Flush() {
+	wf.Lock()
+	defer wf.Unlock()
+	wf.flusher.Flush()
+}
+
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var flusher http.Flusher
 	if f, ok := w.(http.Flusher); ok {
@@ -894,6 +902,23 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 		output = append(output, []byte("\n")...)
 	}
 	return output
+}
+
+// GetNameserversAsCIDR returns nameservers (if any) listed in 
+// /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
+// This function's output is intended for net.ParseCIDR
+func GetNameserversAsCIDR(resolvConf []byte) []string {
+	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
+	nameservers := []string{}
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]\.){3}([0-9]))\s*$`)
+	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
+		var ns = re.FindSubmatch(line)
+		if len(ns) > 0 {
+			nameservers = append(nameservers, string(ns[1])+"/32")
+		}
+	}
+
+	return nameservers
 }
 
 func ParseHost(host string, port int, addr string) (string, error) {

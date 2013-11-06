@@ -9,7 +9,7 @@ Redis Service
 
 .. include:: example_header.inc
 
-Very simple, no frills, redis service.
+Very simple, no frills, Redis service.
 
 Open a docker container
 -----------------------
@@ -35,13 +35,13 @@ Snapshot the installation
 
 .. code-block:: bash
 
-    docker ps -a  # grab the container id (this will be the first one in the list)
-    docker commit <container_id> <your username>/redis
+    sudo docker ps -a  # grab the container id (this will be the first one in the list)
+    sudo docker commit <container_id> <your username>/redis
 
 Run the service
 ---------------
 
-Running the service with `-d` runs the container in detached mode, leaving the
+Running the service with ``-d`` runs the container in detached mode, leaving the
 container running in the background. Use your snapshot.
 
 .. code-block:: bash
@@ -51,7 +51,7 @@ container running in the background. Use your snapshot.
 Test 1
 ++++++
 
-Connect to the container with the redis-cli.
+Connect to the container with the ``redis-cli`` binary.
 
 .. code-block:: bash
 
@@ -67,7 +67,7 @@ Connect to the container with the redis-cli.
 Test 2
 ++++++
 
-Connect to the host os with the redis-cli.
+Connect to the host os with the ``redis-cli`` binary.
 
 .. code-block:: bash
 

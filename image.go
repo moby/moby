@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -72,7 +73,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData Archive, root string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root string) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.ID)
@@ -89,7 +90,7 @@ func StoreImage(img *Image, jsonData []byte, layerData Archive, root string) err
 	if layerData != nil {
 		start := time.Now()
 		utils.Debugf("Start untar layer")
-		if err := Untar(layerData, layer); err != nil {
+		if err := archive.Untar(layerData, layer); err != nil {
 			return err
 		}
 		utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
@@ -162,12 +163,12 @@ func MountAUFS(ro []string, rw string, target string) error {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (image *Image) TarLayer(compression Compression) (Archive, error) {
+func (image *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
 	layerPath, err := image.layer()
 	if err != nil {
 		return nil, err
 	}
-	return Tar(layerPath, compression)
+	return archive.Tar(layerPath, compression)
 }
 
 func (image *Image) Mount(root, rw string) error {

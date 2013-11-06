@@ -135,15 +135,16 @@ sudo('curl -s https://phantomjs.googlecode.com/files/'
     'phantomjs-1.9.1-linux-x86_64.tar.bz2 | tar jx -C /usr/bin'
     ' --strip-components=2 phantomjs-1.9.1-linux-x86_64/bin/phantomjs')
 
-#### FIXME. Temporarily install docker with proper apparmor handling
-sudo('stop docker')
-sudo('wget -q -O /usr/bin/docker http://test.docker.io/test/docker')
-sudo('start docker')
+# Preventively reboot docker-ci daily
+sudo('ln -s /sbin/reboot /etc/cron.daily')
 
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
     DOCKER_CI_PATH))
+
+# Download docker-ci testing container
+sudo('docker pull mzdaniel/test_docker')
 
 # Setup buildbot
 sudo('mkdir /data')

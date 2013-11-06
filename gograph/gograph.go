@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path"
+	"sync"
 )
 
 const (
@@ -47,6 +48,7 @@ type WalkFunc func(fullPath string, entity *Entity) error
 // Graph database for storing entities and their relationships
 type Database struct {
 	conn *sql.DB
+	mux  sync.Mutex
 }
 
 // Create a new graph database initialized with a root entity
@@ -54,7 +56,7 @@ func NewDatabase(conn *sql.DB, init bool) (*Database, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("Database connection cannot be nil")
 	}
-	db := &Database{conn}
+	db := &Database{conn: conn}
 
 	if init {
 		if _, err := conn.Exec(createEntityTable); err != nil {
@@ -99,7 +101,9 @@ func (db *Database) Close() error {
 
 // Set the entity id for a given path
 func (db *Database) Set(fullPath, id string) (*Entity, error) {
-	// FIXME: is rollback implicit when closing the connection?
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	rollback := func() {
 		db.conn.Exec("ROLLBACK")
 	}
@@ -256,6 +260,9 @@ func (db *Database) RefPaths(id string) Edges {
 
 // Delete the reference to an entity at a given path
 func (db *Database) Delete(name string) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	if name == "/" {
 		return fmt.Errorf("Cannot delete root entity")
 	}
@@ -276,6 +283,9 @@ func (db *Database) Delete(name string) error {
 // Walk the graph to make sure all references to the entity
 // are removed and return the number of references removed
 func (db *Database) Purge(id string) (int, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	rollback := func() {
 		db.conn.Exec("ROLLBACK")
 	}
@@ -310,6 +320,9 @@ func (db *Database) Purge(id string) (int, error) {
 
 // Rename an edge for a given path
 func (db *Database) Rename(currentName, newName string) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	parentPath, name := splitPath(currentName)
 	newParentPath, newEdgeName := splitPath(newName)
 

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
@@ -16,16 +18,82 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
 func (srv *Server) Close() error {
 	return srv.runtime.Close()
+}
+
+func init() {
+	engine.Register("serveapi", JobServeApi)
+}
+
+func JobServeApi(job *engine.Job) string {
+	srv, err := NewServer(ConfigFromJob(job))
+	if err != nil {
+		return err.Error()
+	}
+	defer srv.Close()
+	if err := srv.Daemon(); err != nil {
+		return err.Error()
+	}
+	return "0"
+}
+
+// Daemon runs the remote api server `srv` as a daemon,
+// Only one api server can run at the same time - this is enforced by a pidfile.
+// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
+func (srv *Server) Daemon() error {
+	if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+		log.Fatal(err)
+	}
+	defer utils.RemovePidFile(srv.runtime.config.Pidfile)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		utils.RemovePidFile(srv.runtime.config.Pidfile)
+		srv.Close()
+		os.Exit(0)
+	}()
+
+	protoAddrs := srv.runtime.config.ProtoAddresses
+	chErrors := make(chan error, len(protoAddrs))
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		switch protoAddrParts[0] {
+		case "unix":
+			if err := syscall.Unlink(protoAddrParts[1]); err != nil && !os.IsNotExist(err) {
+				log.Fatal(err)
+			}
+		case "tcp":
+			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
+				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			}
+		default:
+			return fmt.Errorf("Invalid protocol format.")
+		}
+		go func() {
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, true)
+		}()
+	}
+	for i := 0; i < len(protoAddrs); i += 1 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -118,8 +186,8 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
-	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, nil, srv.HTTPRequestFactory(nil))
+func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
+	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return nil, err
 	}
@@ -127,15 +195,7 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var outs []APISearch
-	for _, repo := range results.Results {
-		var out APISearch
-		out.Description = repo["description"]
-		out.Name = repo["name"]
-		outs = append(outs, out)
-	}
-	return outs, nil
+	return results.Results, nil
 }
 
 func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
@@ -320,10 +380,11 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 	outs := []APIHistory{} //produce [] when empty instead of 'null'
 	err = image.WalkHistory(func(img *Image) error {
 		var out APIHistory
-		out.ID = srv.runtime.repositories.ImageName(img.ShortID())
+		out.ID = img.ID
 		out.Created = img.Created.Unix()
 		out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
 		out.Tags = lookupMap[img.ID]
+		out.Size = img.Size
 		outs = append(outs, out)
 		return nil
 	})
@@ -350,7 +411,11 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 			}
 			// no scanner.Text because we skip container id
 			for scanner.Scan() {
-				words = append(words, scanner.Text())
+				if i != 0 && len(words) == len(procs.Titles) {
+					words[len(words)-1] = fmt.Sprintf("%s %s", words[len(words)-1], scanner.Text())
+				} else {
+					words = append(words, scanner.Text())
+				}
 			}
 			if i == 0 {
 				procs.Titles = words
@@ -663,7 +728,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err != nil {
 		return err
 	}
@@ -836,7 +901,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 		return "", err
 	}
 
-	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, Uncompressed, sf, out)
+	layerData, err := srv.runtime.graph.TempLayerArchive(imgID, archive.Uncompressed, sf, out)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
@@ -872,7 +937,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.config.GraphPath, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err2 := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
 	if err2 != nil {
 		return err2
 	}
@@ -985,7 +1050,10 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		if container == nil {
 			return fmt.Errorf("No such link: %s", name)
 		}
-		name = srv.runtime.getFullName(name)
+		name, err := srv.runtime.getFullName(name)
+		if err != nil {
+			return err
+		}
 		parent, n := path.Split(name)
 		if parent == "/" {
 			return fmt.Errorf("Conflict, cannot remove the default name of the container")
@@ -1238,7 +1306,7 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 		// After we load all the links into the runtime
 		// set them to nil on the hostconfig
 		hostConfig.Links = nil
-		if err := container.SaveHostConfig(hostConfig); err != nil {
+		if err := container.writeHostConfig(); err != nil {
 			return err
 		}
 	}
@@ -1248,11 +1316,33 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	runtime := srv.runtime
 	container := runtime.Get(name)
+
+	if hostConfig != nil {
+		for _, bind := range hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+
+			// refuse to bind mount "/" to the container
+			if source == "/" {
+				return fmt.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
+			}
+
+			// ensure the source exists on the host
+			_, err := os.Stat(source)
+			if err != nil && os.IsNotExist(err) {
+				return fmt.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
+			}
+		}
+	}
+
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
-	if err := container.Start(hostConfig); err != nil {
+	if hostConfig != nil {
+		container.hostConfig = hostConfig
+		container.ToDisk()
+	}
+	if err := container.Start(); err != nil {
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))
@@ -1409,9 +1499,6 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
 }
 
 func NewServer(config *DaemonConfig) (*Server, error) {
-	if runtime.GOARCH != "amd64" {
-		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
 	runtime, err := NewRuntime(config)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,14 @@ mountpoint -q $CGROUP ||
 		exit 1
 	}
 
+if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security
+then
+    mount -t securityfs none /sys/kernel/security || {
+	echo "Could not mount /sys/kernel/security."
+	echo "AppArmor detection and -privileged mode might break."
+    }
+fi
+
 # Mount the cgroup hierarchies exactly as they are in the parent system.
 for SUBSYS in $(cut -d: -f2 /proc/1/cgroup)
 do

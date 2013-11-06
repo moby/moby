@@ -295,3 +295,19 @@ func TestCheckRouteOverlaps(t *testing.T) {
 		t.Fatalf("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
 	}
 }
+
+func TestCheckNameserverOverlaps(t *testing.T) {
+	nameservers := []string{"10.0.2.3/32", "192.168.102.1/32"}
+
+	_, netX, _ := net.ParseCIDR("10.0.2.3/32")
+
+	if err := checkNameserverOverlaps(nameservers, netX); err == nil {
+		t.Fatalf("%s should overlap 10.0.2.3/32 but doesn't", netX)
+	}
+
+	_, netX, _ = net.ParseCIDR("192.168.102.2/32")
+
+	if err := checkNameserverOverlaps(nameservers, netX); err != nil {
+		t.Fatalf("%s should not overlap %v but it does", netX, nameservers)
+	}
+}

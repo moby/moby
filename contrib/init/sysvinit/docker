@@ -6,43 +6,52 @@
 # Required-Stop:      $syslog $remote_fs
 # Default-Start:      2 3 4 5
 # Default-Stop:       0 1 6
-# Short-Description:  Linux container runtime
-# Description:        Linux container runtime
+# Short-Description:  Create lightweight, portable, self-sufficient containers.
+# Description:
+#  Docker is an open-source project to easily create lightweight, portable,
+#  self-sufficient containers from any application. The same container that a
+#  developer builds and tests on a laptop can run at scale, in production, on
+#  VMs, bare metal, OpenStack clusters, public clouds and more.
 ### END INIT INFO
 
-DOCKER=/usr/bin/docker
-DOCKER_PIDFILE=/var/run/docker.pid
+BASE=$(basename $0)
+
+DOCKER=/usr/bin/$BASE
+DOCKER_PIDFILE=/var/run/$BASE.pid
 DOCKER_OPTS=
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-# Check lxc-docker is present
-[ -x $DOCKER ] || (log_failure_msg "docker not present"; exit 1)
-
 # Get lsb functions
 . /lib/lsb/init-functions
 
-if [ -f /etc/default/lxc ]; then
-	. /etc/default/lxc
+if [ -f /etc/default/$BASE ]; then
+	. /etc/default/$BASE
 fi
 
 if [ "$1" = start ] && which initctl >/dev/null && initctl version | grep -q upstart; then
 	exit 1
 fi
 
-check_root_id ()
-{
-	if [ "$(id -u)" != "0" ]; then
-		log_failure_msg "Docker must be run as root"; exit 1
+# Check docker is present
+if [ ! -x $DOCKER ]; then
+	log_failure_msg "$DOCKER not present or not executable"
+	exit 1
+fi
+
+fail_unless_root() {
+	if [ "$(id -u)" != '0' ]; then
+		log_failure_msg "Docker must be run as root"
+		exit 1
 	fi
 }
 
 case "$1" in
 	start)
-		check_root_id || exit 1
-		log_begin_msg "Starting Docker"
+		fail_unless_root
+		log_begin_msg "Starting Docker: $BASE"
 		mount | grep cgroup >/dev/null || mount -t cgroup none /sys/fs/cgroup 2>/dev/null
-		start-stop-daemon --start --background $NO_CLOSE \
+		start-stop-daemon --start --background \
 			--exec "$DOCKER" \
 			--pidfile "$DOCKER_PIDFILE" \
 			-- -d -p "$DOCKER_PIDFILE" \
@@ -51,15 +60,15 @@ case "$1" in
 		;;
 
 	stop)
-		check_root_id || exit 1
-		log_begin_msg "Stopping Docker"
+		fail_unless_root
+		log_begin_msg "Stopping Docker: $BASE"
 		start-stop-daemon --stop \
 			--pidfile "$DOCKER_PIDFILE"
 		log_end_msg $?
 		;;
 
 	restart)
-		check_root_id || exit 1
+		fail_unless_root
 		docker_pid=`cat "$DOCKER_PIDFILE" 2>/dev/null`
 		[ -n "$docker_pid" ] \
 			&& ps -p $docker_pid > /dev/null 2>&1 \
@@ -68,7 +77,7 @@ case "$1" in
 		;;
 
 	force-reload)
-		check_root_id || exit 1
+		fail_unless_root
 		$0 restart
 		;;
 

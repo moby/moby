@@ -138,22 +138,19 @@ Listing all running containers
 
   sudo docker ps
 
-Expose a service on a TCP port
+Bind a service on a TCP port
 ------------------------------
 
 .. code-block:: bash
 
-  # Expose port 4444 of this container, and tell netcat to listen on it
+  # Bind port 4444 of this container, and tell netcat to listen on it
   JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
 
   # Which public port is NATed to my container?
-  PORT=$(sudo docker port $JOB 4444)
+  PORT=$(sudo docker port $JOB 4444 | awk -F: '{ print $2 }')
 
-  # Connect to the public port via the host's public address
-  # Please note that because of how routing works connecting to localhost or 127.0.0.1 $PORT will not work.
-  # Replace *eth0* according to your local interface name.
-  IP=$(ip -o -4 addr list eth0 | perl -n -e 'if (m{inet\s([\d\.]+)\/\d+\s}xms) { print $1 }')
-  echo hello world | nc $IP $PORT
+  # Connect to the public port
+  echo hello world | nc 127.0.0.1 $PORT
 
   # Verify that the network connection worked
   echo "Daemon received: $(sudo docker logs $JOB)"
@@ -183,4 +180,3 @@ You now have a image state from which you can create new instances.
 
 Read more about :ref:`working_with_the_repository` or continue to the
 complete :ref:`cli`
-

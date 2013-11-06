@@ -10,9 +10,9 @@ Python Web App
 .. include:: example_header.inc
 
 The goal of this example is to show you how you can author your own
-docker images using a parent image, making changes to it, and then
+Docker images using a parent image, making changes to it, and then
 saving the results as a new image. We will do that by making a simple
-hello flask web application image.
+hello Flask web application image.
 
 **Steps:**
 
@@ -20,22 +20,22 @@ hello flask web application image.
 
     sudo docker pull shykes/pybuilder
 
-We are downloading the "shykes/pybuilder" docker image
+We are downloading the ``shykes/pybuilder`` Docker image
 
 .. code-block:: bash
 
     URL=http://github.com/shykes/helloflask/archive/master.tar.gz
 
-We set a URL variable that points to a tarball of a simple helloflask web app
+We set a ``URL`` variable that points to a tarball of a simple helloflask web app
 
 .. code-block:: bash
 
     BUILD_JOB=$(sudo docker run -d -t shykes/pybuilder:latest /usr/local/bin/buildapp $URL)
 
-Inside of the "shykes/pybuilder" image there is a command called
-buildapp, we are running that command and passing the $URL variable
+Inside of the ``shykes/pybuilder`` image there is a command called
+``buildapp``, we are running that command and passing the ``$URL`` variable
 from step 2 to it, and running the whole thing inside of a new
-container. BUILD_JOB will be set with the new container_id.
+container. The ``BUILD_JOB`` environment variable will be set with the new container ID.
 
 .. code-block:: bash
 
@@ -43,13 +43,13 @@ container. BUILD_JOB will be set with the new container_id.
     [...]
 
 While this container is running, we can attach to the new container to
-see what is going on. Ctrl-C to disconnect.
+see what is going on. You can use Ctrl-C to disconnect.
 
 .. code-block:: bash
 
     sudo docker ps -a
-    
-List all docker containers. If this container has already finished
+
+List all Docker containers. If this container has already finished
 running, it will still be listed here.
 
 .. code-block:: bash
@@ -57,8 +57,8 @@ running, it will still be listed here.
     BUILD_IMG=$(sudo docker commit $BUILD_JOB _/builds/github.com/shykes/helloflask/master)
 
 Save the changes we just made in the container to a new image called
-``_/builds/github.com/hykes/helloflask/master`` and save the image id in
-the BUILD_IMG variable name.
+``_/builds/github.com/hykes/helloflask/master`` and save the image ID in
+the ``BUILD_IMG`` variable name.
 
 .. code-block:: bash
 
@@ -72,24 +72,24 @@ the BUILD_IMG variable name.
 - **/usr/local/bin/runapp** is the command which starts the web app.
 
 Use the new image we just created and create a new container with
-network port 5000, and return the container id and store in the
-WEB_WORKER variable.
+network port 5000, and return the container ID and store in the
+``WEB_WORKER`` variable.
 
 .. code-block:: bash
 
     sudo docker logs $WEB_WORKER
      * Running on http://0.0.0.0:5000/
 
-View the logs for the new container using the WEB_WORKER variable, and
-if everything worked as planned you should see the line "Running on
-http://0.0.0.0:5000/" in the log output.
+View the logs for the new container using the ``WEB_WORKER`` variable, and
+if everything worked as planned you should see the line ``Running on
+http://0.0.0.0:5000/`` in the log output.
 
 .. code-block:: bash
 
     WEB_PORT=$(sudo docker port $WEB_WORKER 5000)
 
 Look up the public-facing port which is NAT-ed. Find the private port
-used by the container and store it inside of the WEB_PORT variable.
+used by the container and store it inside of the ``WEB_PORT`` variable.
 
 .. code-block:: bash
 
@@ -97,8 +97,8 @@ used by the container and store it inside of the WEB_PORT variable.
     curl http://127.0.0.1:$WEB_PORT
       Hello world!
 
-Access the web app using curl. If everything worked as planned you
-should see the line "Hello world!" inside of your console.
+Access the web app using the ``curl`` binary. If everything worked as planned you
+should see the line ``Hello world!`` inside of your console.
 
 **Video:**
 

@@ -225,6 +225,12 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
+		if _, err := strconv.ParseUint(containerPort, 10, 16); err != nil {
+			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
+		}
+		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
+			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+		}
 
 		port := NewPort(proto, containerPort)
 		if _, exists := exposedPorts[port]; !exists {
@@ -304,10 +310,6 @@ func (c *checker) Exists(name string) bool {
 }
 
 // Generate a random and unique name
-func generateRandomName(runtime *Runtime) string {
-	n, err := namesgenerator.GenerateRandomName(&checker{runtime})
-	if err != nil {
-		panic(err)
-	}
-	return n
+func generateRandomName(runtime *Runtime) (string, error) {
+	return namesgenerator.GenerateRandomName(&checker{runtime})
 }
