@@ -157,6 +157,57 @@ Create a container
 	:statuscode 406: impossible to attach (container not running)
 	:statuscode 500: server error
 
+	**More Complex Example request, in 2 steps.**
+	**First, use create to expose a Private Port, which can be bound back to a Public Port at startup**:
+
+	.. sourcecode:: http
+
+	   POST /containers/create HTTP/1.1
+	   Content-Type: application/json
+
+	   {
+		"Cmd":[
+			"/usr/sbin/sshd","-D"
+		],
+		"Image":"image-with-sshd",
+		"ExposedPorts":{"22/tcp":{}}
+		}
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 201 OK
+	   Content-Type: application/json
+
+	   {
+		"Id":"e90e34656806"
+		"Warnings":[]
+	   }
+
+	** Second, start (using the ID returned above) the image we just created, mapping the ssh port 22 to something on the host**:
+
+	.. sourcecode:: http
+
+	   POST /containers/e90e34656806/start HTTP/1.1
+	   Content-Type: application/json
+
+	   {
+		"PortBindings": { "22/tcp": [{ "HostPort": "11022" }]} 
+		}
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+		HTTP/1.1 204 No Content
+		Content-Type: text/plain; charset=utf-8
+		Content-Length: 0
+
+	** Now you can ssh into your new container on port 11022.**
+
+
+
 
 Inspect a container
 *******************
