@@ -218,26 +218,46 @@ func (db *Database) List(name string, depth int) Entities {
 	if err != nil {
 		return out
 	}
-	for c := range db.children(e, name, depth) {
+
+	children, err := db.children(e, name, depth, nil)
+	if err != nil {
+		return out
+	}
+
+	for _, c := range children {
 		out[c.FullPath] = c.Entity
 	}
 	return out
 }
 
+// Walk through the child graph of an entity, calling walkFunc for each child entity.
+// It is safe for walkFunc to call graph functions.
 func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
-	db.mux.RLock()
-	defer db.mux.RUnlock()
-
-	e, err := db.get(name)
+	children, err := db.Children(name, depth)
 	if err != nil {
 		return err
 	}
-	for c := range db.children(e, name, depth) {
+
+	// Note: the database lock must not be held while calling walkFunc
+	for _, c := range children {
 		if err := walkFunc(c.FullPath, c.Entity); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Return the children of the specified entity
+func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+
+	e, err := db.get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.children(e, name, depth, nil)
 }
 
 // Return the refrence count for a specified id
@@ -378,56 +398,51 @@ type WalkMeta struct {
 	Edge     *Edge
 }
 
-func (db *Database) children(e *Entity, name string, depth int) <-chan WalkMeta {
-	out := make(chan WalkMeta)
+func (db *Database) children(e *Entity, name string, depth int, entities []WalkMeta) ([]WalkMeta, error) {
 	if e == nil {
-		close(out)
-		return out
+		return entities, nil
 	}
 
-	go func() {
-		rows, err := db.conn.Query("SELECT entity_id, name FROM edge where parent_id = ?;", e.id)
-		if err != nil {
-			close(out)
+	rows, err := db.conn.Query("SELECT entity_id, name FROM edge where parent_id = ?;", e.id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var entityId, entityName string
+		if err := rows.Scan(&entityId, &entityName); err != nil {
+			return nil, err
 		}
-		defer rows.Close()
+		child := &Entity{entityId}
+		edge := &Edge{
+			ParentID: e.id,
+			Name:     entityName,
+			EntityID: child.id,
+		}
 
-		for rows.Next() {
-			var entityId, entityName string
-			if err := rows.Scan(&entityId, &entityName); err != nil {
-				// Log error
-				continue
-			}
-			child := &Entity{entityId}
-			edge := &Edge{
-				ParentID: e.id,
-				Name:     entityName,
-				EntityID: child.id,
-			}
+		meta := WalkMeta{
+			Parent:   e,
+			Entity:   child,
+			FullPath: path.Join(name, edge.Name),
+			Edge:     edge,
+		}
 
-			meta := WalkMeta{
-				Parent:   e,
-				Entity:   child,
-				FullPath: path.Join(name, edge.Name),
-				Edge:     edge,
-			}
+		entities = append(entities, meta)
 
-			out <- meta
-			if depth == 0 {
-				continue
-			}
+		if depth != 0 {
 			nDepth := depth
 			if depth != -1 {
 				nDepth -= 1
 			}
-			sc := db.children(child, meta.FullPath, nDepth)
-			for c := range sc {
-				out <- c
+			entities, err = db.children(child, meta.FullPath, nDepth, entities)
+			if err != nil {
+				return nil, err
 			}
 		}
-		close(out)
-	}()
-	return out
+	}
+
+	return entities, nil
 }
 
 // Return the entity based on the parent path and name
