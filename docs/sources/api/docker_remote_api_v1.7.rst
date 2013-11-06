@@ -615,9 +615,7 @@ Copy files or folders from a container
 List Images
 ***********
 
-.. http:get:: /images/(format)
-
-	List images ``format`` could be json or viz (json default)
+.. http:get:: /images/json
 
 	**Example request**:
 
