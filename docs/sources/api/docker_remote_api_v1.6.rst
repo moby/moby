@@ -121,8 +121,7 @@ Create a container
 		"AttachStdin":false,
 		"AttachStdout":true,
 		"AttachStderr":true,
-		"PortSpecs":null,
-		"Privileged": false,
+		"ExposedPorts":{},
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -135,7 +134,6 @@ Create a container
 		"Volumes":{},
 		"VolumesFrom":"",
 		"WorkingDir":""
-
 	   }
 	   
 	**Example response**:
@@ -191,7 +189,7 @@ Inspect a container
 				"AttachStdin": false,
 				"AttachStdout": true,
 				"AttachStderr": true,
-				"PortSpecs": null,
+				"ExposedPorts": {},
 				"Tty": false,
 				"OpenStdin": false,
 				"StdinOnce": false,
@@ -362,7 +360,12 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":{"lxc.utsname":"docker"},
+                "ContainerIDFile": "",
+                "Privileged": false,
+                "PortBindings": {"22/tcp": [{HostIp:"", HostPort:""}]},
+                "Links": [],
+                "PublishAllPorts": false
            }
 
         **Example response**:
@@ -795,7 +798,7 @@ Inspect an image
 				"AttachStdin":false,
 				"AttachStdout":false,
 				"AttachStderr":false,
-				"PortSpecs":null,
+				"ExposedPorts":{},
 				"Tty":true,
 				"OpenStdin":true,
 				"StdinOnce":false,
@@ -1141,7 +1144,7 @@ Create a new image from a container's changes
        
        {
            "Cmd": ["cat", "/world"],
-           "PortSpecs":["22"]
+           "ExposedPorts":{"22/tcp":{}}
        }
 
     **Example response**:
