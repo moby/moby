@@ -48,7 +48,7 @@ type WalkFunc func(fullPath string, entity *Entity) error
 // Graph database for storing entities and their relationships
 type Database struct {
 	conn *sql.DB
-	mux  sync.Mutex
+	mux  sync.RWMutex
 }
 
 // Create a new graph database initialized with a root entity
@@ -138,8 +138,8 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 
 // Return true if a name already exists in the database
 func (db *Database) Exists(name string) bool {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	e, err := db.get(name)
 	if err != nil {
@@ -172,8 +172,8 @@ func (db *Database) RootEntity() *Entity {
 
 // Return the entity for a given path
 func (db *Database) Get(name string) *Entity {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	e, err := db.get(name)
 	if err != nil {
@@ -210,8 +210,8 @@ func (db *Database) get(name string) (*Entity, error) {
 // List all entities by from the name
 // The key will be the full path of the entity
 func (db *Database) List(name string, depth int) Entities {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	out := Entities{}
 	e, err := db.get(name)
@@ -225,8 +225,8 @@ func (db *Database) List(name string, depth int) Entities {
 }
 
 func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	e, err := db.get(name)
 	if err != nil {
@@ -242,8 +242,8 @@ func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
 
 // Return the refrence count for a specified id
 func (db *Database) Refs(id string) int {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	var count int
 	if err := db.conn.QueryRow("SELECT COUNT(*) FROM edge WHERE entity_id = ?;", id).Scan(&count); err != nil {
@@ -254,8 +254,8 @@ func (db *Database) Refs(id string) int {
 
 // Return all the id's path references
 func (db *Database) RefPaths(id string) Edges {
-	db.mux.Lock()
-	defer db.mux.Unlock()
+	db.mux.RLock()
+	defer db.mux.RUnlock()
 
 	refs := Edges{}
 
