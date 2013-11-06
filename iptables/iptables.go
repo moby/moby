@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -122,10 +123,12 @@ func Raw(args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, ErrIptablesNotFound
 	}
+	if os.Getenv("DEBUG") != "" {
+		fmt.Printf("[DEBUG] [iptables]: %s, %v\n", path, args)
+	}
 	output, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 	return output, err
-
 }
