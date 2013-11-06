@@ -13,10 +13,6 @@ cd /
 git clone -q http://github.com/dotcloud/docker /go/src/github.com/dotcloud/docker
 cd /go/src/github.com/dotcloud/docker
 
-echo FIXME. Temporarily add Jerome changeset with proper apparmor handling
-git fetch  http://github.com/jpetazzo/docker escape-apparmor-confinement:escape-apparmor-confinement
-git rebase --onto master master escape-apparmor-confinement
-
 # Launch docker daemon using dind inside the container
 ./hack/dind /usr/bin/docker -d &
 sleep 5
@@ -28,7 +24,17 @@ date > timestamp
 docker build -t docker .
 
 # Run Docker unittests binary and Ubuntu package
-docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh || exit 1
+docker run -privileged docker hack/make.sh
+exit_status=$?
+
+# Display load if test fails
+if [ $exit_status -eq 1 ] ; then
+    uptime; echo; free
+    exit 1
+fi
+
+# Commit binary and ubuntu bundles for release
+docker commit -run '{"Env": ["PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"], "WorkingDir": "/go/src/github.com/dotcloud/docker"}' $(docker ps -l -q) release
 
 # Turn debug off to load credentials from the environment
 set +x
@@ -36,7 +42,6 @@ eval $(cat /root/release_credentials.json  | python -c '
 import sys,json,base64;
 d=json.loads(base64.b64decode(sys.stdin.read()));
 exec("""for k in d: print "export {0}=\\"{1}\\"".format(k,d[k])""")')
-echo '{"https://index.docker.io/v1/":{"auth":"'$INDEX_AUTH'","email":"engineering@dotcloud.com"}}' > /.dockercfg
 set -x
 
 # Push docker nightly

@@ -1,5 +1,5 @@
 [Unit]
-Description=Easily create lightweight, portable, self-sufficient containers from any application!
+Description=Docker Application Container Engine 
 Documentation=http://docs.docker.io
 Requires=network.target
 After=multi-user.target

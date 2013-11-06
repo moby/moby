@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -235,6 +236,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	wf := utils.NewWriteFlusher(w)
+	wf.Flush()
 	if since != 0 {
 		// If since, send previous events that happened after the timestamp
 		for _, event := range srv.events {
@@ -905,7 +907,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
-		c, err := Tar(root, Bzip2)
+		c, err := archive.Tar(root, archive.Bzip2)
 		if err != nil {
 			return err
 		}

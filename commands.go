@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/term"
@@ -137,7 +138,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 // mkBuildContext returns an archive of an empty context with the contents
 // of `dockerfile` at the path ./Dockerfile
-func mkBuildContext(dockerfile string, files [][2]string) (Archive, error) {
+func mkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	files = append(files, [2]string{"Dockerfile", dockerfile})
@@ -175,7 +176,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	var (
-		context  Archive
+		context  archive.Archive
 		isRemote bool
 		err      error
 	)
@@ -194,7 +195,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := os.Stat(cmd.Arg(0)); err != nil {
 			return err
 		}
-		context, err = Tar(cmd.Arg(0), Uncompressed)
+		context, err = archive.Tar(cmd.Arg(0), archive.Uncompressed)
 	}
 	var body io.Reader
 	// Setup an upload progress bar
@@ -491,7 +492,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 }
 
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container")
+	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM, and then SIGKILL after grace period)")
 	nSeconds := cmd.Int("t", 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -654,7 +655,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
-				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
+				if strings.Contains(err.Error(), "No such") {
+					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
+				} else {
+					fmt.Fprintf(cli.err, "%s", err)
+				}
 				status = 1
 				continue
 			}
@@ -667,9 +672,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 		indented.WriteString(",")
 	}
-	// Remove trailling ','
-	indented.Truncate(indented.Len() - 1)
 
+	if indented.Len() > 0 {
+		// Remove trailing ','
+		indented.Truncate(indented.Len() - 1)
+	}
 	fmt.Fprintf(cli.out, "[")
 	if _, err := io.Copy(cli.out, indented); err != nil {
 		return err
@@ -682,7 +689,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 }
 
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
+	cmd := Subcmd("top", "CONTAINER [ps OPTIONS]", "Lookup the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -788,7 +795,10 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := Subcmd("history", "IMAGE", "Show the history of an image")
+	cmd := Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
+	quiet := cmd.Bool("q", false, "only show numeric IDs")
+	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -807,14 +817,35 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	if err != nil {
 		return err
 	}
+
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "ID\tCREATED\tCREATED BY")
+	if !*quiet {
+		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE")
+	}
 
 	for _, out := range outs {
-		if out.Tags != nil {
-			out.ID = out.Tags[0]
+		if !*quiet {
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t", out.ID)
+			} else {
+				fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
+			}
+
+			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t", out.CreatedBy)
+			} else {
+				fmt.Fprintf(w, "%s\t", utils.Trunc(out.CreatedBy, 45))
+			}
+			fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+		} else {
+			if *noTrunc {
+				fmt.Fprintln(w, out.ID)
+			} else {
+				fmt.Fprintln(w, utils.TruncateID(out.ID))
+			}
 		}
-		fmt.Fprintf(w, "%s \t%s ago\t%s\n", out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.CreatedBy)
 	}
 	w.Flush()
 	return nil
@@ -852,7 +883,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
-	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container")
+	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container (send SIGKILL)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -873,7 +904,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
+	cmd := Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -882,7 +913,8 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	src := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1062,7 +1094,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
 		}
 
 		for _, out := range outs {
@@ -1155,7 +1187,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1199,14 +1231,16 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
+	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	name := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
 	if name == "" {
 		cmd.Usage()
 		return nil
@@ -1316,8 +1350,18 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 	name := cmd.Arg(0)
+	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
+	if err != nil {
+		return err
+	}
 
-	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err, nil); err != nil {
+	container := &Container{}
+	err = json.Unmarshal(body, container)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1379,8 +1423,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	cmd := Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	trusted := cmd.Bool("trusted", false, "Only show trusted builds")
+	stars := cmd.Int("stars", 0, "Only displays with at least xxx stars")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1396,27 +1442,32 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	outs := []APISearch{}
+	outs := []registry.SearchResult{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
-	_, width := cli.getTtySize()
-	if width == 0 {
-		width = 45
-	} else {
-		width = width - 33 //remote the first column
-	}
+	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
 	for _, out := range outs {
+		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
+			continue
+		}
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !*noTrunc && len(desc) > width {
-			desc = utils.Trunc(desc, width-3) + "..."
+		if !*noTrunc && len(desc) > 45 {
+			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
+		if out.IsOfficial {
+			fmt.Fprint(w, "[OK]")
+
+		}
+		fmt.Fprint(w, "\t")
+		if out.IsTrusted {
+			fmt.Fprint(w, "[OK]")
+		}
+		fmt.Fprint(w, "\n")
 	}
 	w.Flush()
 	return nil
@@ -1484,7 +1535,7 @@ func (opts PathOpts) Set(val string) error {
 }
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
+	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1495,10 +1546,10 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("repo", cmd.Arg(1))
-	if cmd.NArg() == 3 {
-		v.Set("tag", cmd.Arg(2))
-	}
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	v.Set("repo", repository)
+	v.Set("tag", tag)
 
 	if *force {
 		v.Set("force", "1")
@@ -1749,7 +1800,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	if statusCode == 200 {
 		r := bytes.NewReader(data)
-		if err := Untar(r, copyData.HostPath); err != nil {
+		if err := archive.Untar(r, copyData.HostPath); err != nil {
 			return err
 		}
 	}

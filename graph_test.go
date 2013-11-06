@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -301,7 +302,7 @@ func tempGraph(t *testing.T) *Graph {
 	return graph
 }
 
-func testArchive(t *testing.T) Archive {
+func testArchive(t *testing.T) archive.Archive {
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)

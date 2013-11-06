@@ -499,8 +499,7 @@ func TestGetContainersTop(t *testing.T) {
 		container.WaitTimeout(2 * time.Second)
 	}()
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -704,8 +703,7 @@ func TestPostContainersKill(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -747,8 +745,7 @@ func TestPostContainersRestart(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -855,8 +852,7 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -903,8 +899,7 @@ func TestPostContainersWait(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -947,8 +942,7 @@ func TestPostContainersAttach(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	// Start the process
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1037,8 +1031,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	// Start the process
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 

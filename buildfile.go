@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -64,6 +65,9 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	b.image = image.ID
 	b.config = &Config{}
+	if image.Config != nil {
+		b.config = image.Config
+	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
@@ -291,17 +295,17 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		return fmt.Errorf("%s: no such file or directory", orig)
 	}
 	if fi.IsDir() {
-		if err := CopyWithTar(origPath, destPath); err != nil {
+		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 		// First try to unpack the source as an archive
-	} else if err := UntarPath(origPath, destPath); err != nil {
+	} else if err := archive.UntarPath(origPath, destPath); err != nil {
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 		// If that fails, just copy it as a regular file
 		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 			return err
 		}
-		if err := CopyWithTar(origPath, destPath); err != nil {
+		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
 	}
@@ -387,8 +391,7 @@ func (b *buildFile) run() (string, error) {
 	}
 
 	//start the container
-	hostConfig := &HostConfig{}
-	if err := c.Start(hostConfig); err != nil {
+	if err := c.Start(); err != nil {
 		return "", err
 	}
 
@@ -473,7 +476,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := Untar(context, name); err != nil {
+	if err := archive.Untar(context, name); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(name)

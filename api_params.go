@@ -5,6 +5,7 @@ type APIHistory struct {
 	Tags      []string `json:",omitempty"`
 	Created   int64
 	CreatedBy string `json:",omitempty"`
+	Size      int64
 }
 
 type APIImages struct {
@@ -75,11 +76,6 @@ type APIContainersOld struct {
 	Ports      string
 	SizeRw     int64
 	SizeRootFs int64
-}
-
-type APISearch struct {
-	Name        string
-	Description string
 }
 
 type APIID struct {
