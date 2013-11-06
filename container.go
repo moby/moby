@@ -390,11 +390,22 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
+	// Return error if path exists
+	if _, err := os.Stat(path.Join(container.rwPath(), pth)); err == nil {
+		// Since err is nil, the path could be stat'd and it exists
+		return fmt.Errorf("%s exists", pth)
+	} else if ! os.IsNotExist(err) {
+		// Expect err might be that the file doesn't exist, so
+		// if it's some other error, return that. 
+
+		return err
+	}
+
 	// Make sure the directory exists
 	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
 		return err
 	}
-	// FIXME: Handle permissions/already existing dest
+
 	dest, err := os.Create(path.Join(container.rwPath(), pth))
 	if err != nil {
 		return err
