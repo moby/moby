@@ -109,7 +109,7 @@ func TestCreateRmVolumes(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := docker.ParseRun([]string{"-v", "/srv", unitTestImageID, "echo test"}, nil)
+	config, hostConfig, _, err := docker.ParseRun([]string{"-v", "/srv", unitTestImageID, "echo", "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, hostConfig, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, hostConfig, _, err := docker.ParseRun([]string{unitTestImageID, "echo", "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
