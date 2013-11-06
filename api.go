@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -104,14 +103,6 @@ func getBoolParam(value string) (bool, error) {
 		return false, fmt.Errorf("Bad parameter")
 	}
 	return ret, nil
-}
-
-func matchesContentType(contentType, expectedType string) bool {
-	mimetype, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
-	}
-	return err == nil && mimetype == expectedType
 }
 
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -642,7 +633,7 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	var hostConfig *HostConfig
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
-		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
+		if utils.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
 			hostConfig = &HostConfig{}
 			if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
 				return err
