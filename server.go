@@ -9,9 +9,9 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"io"
 	"io/ioutil"
 	"log"

@@ -7,9 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -26,8 +26,8 @@ import (
 )
 
 type Container struct {
-	root string	// Path to the "home" of the container, including metadata.
-	rootfs string	// Path to the root filesystem of the container.
+	root   string // Path to the "home" of the container, including metadata.
+	rootfs string // Path to the root filesystem of the container.
 
 	ID string
 

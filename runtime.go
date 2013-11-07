@@ -5,10 +5,10 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
-	"github.com/dotcloud/docker/gograph"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/graphdriver"
 	_ "github.com/dotcloud/docker/devmapper"
+	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -682,7 +682,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -694,7 +693,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
-		driver:		driver,
+		driver:         driver,
 	}
 
 	if err := runtime.restore(); err != nil {

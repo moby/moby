@@ -25,10 +25,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/namesgenerator"
 	"github.com/dotcloud/docker/utils"
-	"strconv"
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 )

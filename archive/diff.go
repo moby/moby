@@ -1,9 +1,9 @@
 package archive
 
 import (
-	"path/filepath"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -56,4 +56,3 @@ func ApplyLayer(dest string, layer Archive) error {
 	}
 	return nil
 }
-

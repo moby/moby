@@ -3,8 +3,8 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -32,7 +32,6 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-
 
 	graph := &Graph{
 		Root:    abspath,
