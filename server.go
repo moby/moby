@@ -257,7 +257,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
-			return err
+			return fmt.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
 			out.Write([]byte(" \"" + parentImage.ShortID() + "\" -> \"" + image.ShortID() + "\"\n"))
@@ -294,7 +294,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	if err != nil {
 		return nil, err
 	}
-	outs := []APIImages{} //produce [] when empty instead of 'null'
+	lookup := make(map[string]APIImages)
 	for name, repository := range srv.runtime.repositories.Repositories {
 		if filter != "" {
 			if match, _ := path.Match(filter, name); !match {
@@ -302,27 +302,46 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			}
 		}
 		for tag, id := range repository {
-			var out APIImages
 			image, err := srv.runtime.graph.Get(id)
 			if err != nil {
 				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
 				continue
 			}
-			delete(allImages, id)
-			out.Repository = name
-			out.Tag = tag
-			out.ID = image.ID
-			out.Created = image.Created.Unix()
-			out.Size = image.Size
-			out.VirtualSize = image.getParentsSize(0) + image.Size
-			outs = append(outs, out)
+
+			if out, exists := lookup[id]; exists {
+				out.RepoTags = append(out.RepoTags, fmt.Sprintf("%s:%s", name, tag))
+
+				lookup[id] = out
+			} else {
+				var out APIImages
+
+				delete(allImages, id)
+
+				out.ParentId = image.Parent
+				out.RepoTags = []string{fmt.Sprintf("%s:%s", name, tag)}
+				out.ID = image.ID
+				out.Created = image.Created.Unix()
+				out.Size = image.Size
+				out.VirtualSize = image.getParentsSize(0) + image.Size
+
+				lookup[id] = out
+			}
+
 		}
 	}
-	// Display images which aren't part of a
+
+	outs := make([]APIImages, 0, len(lookup))
+	for _, value := range lookup {
+		outs = append(outs, value)
+	}
+
+	// Display images which aren't part of a repository/tag
 	if filter == "" {
 		for _, image := range allImages {
 			var out APIImages
 			out.ID = image.ID
+			out.ParentId = image.Parent
+			out.RepoTags = []string{"<none>:<none>"}
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
 			out.VirtualSize = image.getParentsSize(0) + image.Size
@@ -1338,6 +1357,7 @@ func (srv *Server) ContainerStart(job *engine.Job) string {
 	name := job.Args[0]
 	runtime := srv.runtime
 	container := runtime.Get(name)
+
 	if container == nil {
 		return fmt.Sprintf("No such container: %s", name)
 	}
@@ -1346,6 +1366,26 @@ func (srv *Server) ContainerStart(job *engine.Job) string {
 		var hostConfig HostConfig
 		if err := job.ExportEnv(&hostConfig); err != nil {
 			return err.Error()
+		}
+		// Validate the HostConfig binds. Make sure that:
+		// 1) the source of a bind mount isn't /
+		// 	The bind mount "/:/foo" isn't allowed.
+		// 2) Check that the source exists
+		//	The source to be bind mounted must exist.
+		for _, bind := range hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+
+			// refuse to bind mount "/" to the container
+			if source == "/" {
+				return fmt.Sprintf("Invalid bind mount '%s' : source can't be '/'", bind)
+			}
+
+			// ensure the source exists on the host
+			_, err := os.Stat(source)
+			if err != nil && os.IsNotExist(err) {
+				return fmt.Sprintf("Invalid bind mount '%s' : source doesn't exist", bind)
+			}
 		}
 		// Register any links from the host config before starting the container
 		// FIXME: we could just pass the container here, no need to lookup by name again.

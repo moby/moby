@@ -133,7 +133,6 @@ to the ``docker`` daemon.  ``ADD`` doesn't work when running in this
 mode because the absence of the context provides no source files to
 copy to the container.
 
-
 .. code-block:: bash
 
     sudo docker build github.com/creack/docker-firefox
@@ -151,7 +150,7 @@ by using the ``git://`` schema.
 
 ::
 
-    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY [TAG]]
+    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
     Create a new image from a container's changes
 
@@ -160,7 +159,26 @@ by using the ``git://`` schema.
       -run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Full -run example (multiline is ok within a single quote ``'``)
+Simple commit of an existing container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+	$ docker ps
+	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+	f5283438590d
+	$ docker images | head
+	REPOSITORY                        TAG                 ID                  CREATED             SIZE
+	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
+	S
+
+Full -run example
+.................
+
+(multiline is ok within a single quote ``'``)
 
 ::
 
@@ -297,8 +315,10 @@ Shell 1: (Again .. now showing events)
     List images
 
       -a=false: show all images
+      -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+      -tree=false: output graph in tree format
+      -viz=false: output graph in graphviz format
 
 Displaying images visually
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -310,6 +330,36 @@ Displaying images visually
 .. image:: docker_images.gif
    :alt: Example inheritance graph of Docker images.
 
+
+Displaying image hierarchy
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    sudo docker images -tree
+
+    |─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
+    └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
+      └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
+        |─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
+        | └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
+        |   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
+        |     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
+        |       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
+        |         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
+        └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
+          └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
+            └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
+              └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
+                └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
+                  └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
+                    └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
+                      └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
+                        └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
+                          └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
+                            └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
+                              └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
+
 .. _cli_import:
 
 ``import``
@@ -317,7 +367,7 @@ Displaying images visually
 
 ::
 
-    Usage: docker import URL|- [REPOSITORY [TAG]]
+    Usage: docker import URL|- [REPOSITORY[:TAG]]
 
     Create a new filesystem image from the contents of a tarball
 
@@ -333,14 +383,16 @@ Examples
 Import from a remote location
 .............................
 
-``$ sudo docker import http://example.com/exampleimage.tgz exampleimagerepo``
+This will create a new untagged image.
+
+``$ sudo docker import http://example.com/exampleimage.tgz``
 
 Import from a local file
 ........................
 
 Import to docker via pipe and standard in
 
-``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal``
+``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new``
 
 Import from a local directory
 .............................
@@ -719,7 +771,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY [TAG]
+    Usage: docker tag [OPTIONS] IMAGE REPOSITORY[:TAG]
 
     Tag an image into a repository
 

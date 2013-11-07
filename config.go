@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"net"
 	"github.com/dotcloud/docker/engine"
+	"net"
 )
 
 // FIXME: separate runtime configuration from http api configuration

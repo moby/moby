@@ -1,11 +1,11 @@
-:title: Remote API v1.6
+:title: Remote API v1.7
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 :orphan:
 
 ======================
-Docker Remote API v1.6
+Docker Remote API v1.7
 ======================
 
 .. contents:: Table of Contents
@@ -13,12 +13,9 @@ Docker Remote API v1.6
 1. Brief introduction
 =====================
 
-- The Remote API has replaced rcli
-- The daemon listens on ``unix:///var/run/docker.sock``, but you can
-  :ref:`bind_docker`.
-- The API tends to be REST, but for some complex commands, like
-  ``attach`` or ``pull``, the HTTP connection is hijacked to transport
-  ``stdout, stdin`` and ``stderr``
+- The Remote API is replacing rcli
+- Default port in the docker daemon is 4243
+- The API tends to be REST, but for some complex commands, like attach or pull, the HTTP connection is hijacked to transport stdout stdin and stderr
 
 2. Endpoints
 ============
@@ -151,62 +148,10 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
- 	:query name: container name to use
 	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 406: impossible to attach (container not running)
 	:statuscode 500: server error
-
-	**More Complex Example request, in 2 steps.**
-	**First, use create to expose a Private Port, which can be bound back to a Public Port at startup**:
-
-	.. sourcecode:: http
-
-	   POST /containers/create HTTP/1.1
-	   Content-Type: application/json
-
-	   {
-		"Cmd":[
-			"/usr/sbin/sshd","-D"
-		],
-		"Image":"image-with-sshd",
-		"ExposedPorts":{"22/tcp":{}}
-		}
-
-	**Example response**:
-
-	.. sourcecode:: http
-
-	   HTTP/1.1 201 OK
-	   Content-Type: application/json
-
-	   {
-		"Id":"e90e34656806"
-		"Warnings":[]
-	   }
-
-	**Second, start (using the ID returned above) the image we just created, mapping the ssh port 22 to something on the host**:
-
-	.. sourcecode:: http
-
-	   POST /containers/e90e34656806/start HTTP/1.1
-	   Content-Type: application/json
-
-	   {
-		"PortBindings": { "22/tcp": [{ "HostPort": "11022" }]} 
-		}
-
-	**Example response**:
-
-	.. sourcecode:: http
-
-		HTTP/1.1 204 No Content
-		Content-Type: text/plain; charset=utf-8
-		Content-Length: 0
-
-	**Now you can ssh into your new container on port 11022.**
-
-
 
 
 Inspect a container
@@ -497,8 +442,7 @@ Kill a container
 	.. sourcecode:: http
 
 	   HTTP/1.1 204 OK
-
-	:query signal: Signal to send to the container (integer). When not set, SIGKILL is assumed and the call will waits for the container to exit.
+	   	
 	:statuscode 204: no error
 	:statuscode 404: no such container
 	:statuscode 500: server error
@@ -671,9 +615,7 @@ Copy files or folders from a container
 List Images
 ***********
 
-.. http:get:: /images/(format)
-
-	List images ``format`` could be json or viz (json default)
+.. http:get:: /images/json
 
 	**Example request**:
 
@@ -689,60 +631,29 @@ List Images
 	   Content-Type: application/json
 	   
 	   [
-		{
-			"Repository":"base",
-			"Tag":"ubuntu-12.10",
-			"Id":"b750fe79269d",
-			"Created":1364102658,
-			"Size":24653,
-			"VirtualSize":180116135
-		},
-		{
-			"Repository":"base",
-			"Tag":"ubuntu-quantal",
-			"Id":"b750fe79269d",
-			"Created":1364102658,
-			"Size":24653,
-			"VirtualSize":180116135
-		}
+	     {
+	   	"RepoTag": [
+	   	  "ubuntu:12.04",
+	   	  "ubuntu:precise",
+	   	  "ubuntu:latest"
+	   	],
+	   	"Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+	   	"Created": 1365714795,
+	   	"Size": 131506275,
+	   	"VirtualSize": 131506275
+	     },
+	     {
+	   	"RepoTag": [
+	   	  "ubuntu:12.10",
+	   	  "ubuntu:quantal"
+	   	],
+	   	"ParentId": "27cf784147099545",
+	   	"Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+	   	"Created": 1364102658,
+	   	"Size": 24653,
+	   	"VirtualSize": 180116135
+	     }
 	   ]
-
-
-	**Example request**:
-
-	.. sourcecode:: http
-
-	   GET /images/viz HTTP/1.1
-
-	**Example response**:
-
-	.. sourcecode:: http
-
-	   HTTP/1.1 200 OK
-	   Content-Type: text/plain
-
-	   digraph docker {
-	   "d82cbacda43a" -> "074be284591f"
-	   "1496068ca813" -> "08306dc45919"
-	   "08306dc45919" -> "0e7893146ac2"
-	   "b750fe79269d" -> "1496068ca813"
-	   base -> "27cf78414709" [style=invis]
-	   "f71189fff3de" -> "9a33b36209ed"
-	   "27cf78414709" -> "b750fe79269d"
-	   "0e7893146ac2" -> "d6434d954665"
-	   "d6434d954665" -> "d82cbacda43a"
-	   base -> "e9aa60c60128" [style=invis]
-	   "074be284591f" -> "f71189fff3de"
-	   "b750fe79269d" [label="b750fe79269d\nbase",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "e9aa60c60128" [label="e9aa60c60128\nbase2",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   "9a33b36209ed" [label="9a33b36209ed\ntest",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
-	   base [style=invisible]
-	   }
- 
-	:query all: 1/True/true or 0/False/false, Show all containers. Only running containers are shown by default
-	:statuscode 200: no error
-	:statuscode 400: bad parameter
-	:statuscode 500: server error
 
 
 Create an image
@@ -1046,36 +957,36 @@ Build an image from Dockerfile via stdin
 
 .. http:post:: /build
 
-    Build an image from Dockerfile via stdin
+   Build an image from Dockerfile via stdin
 
-    **Example request**:
+   **Example request**:
 
-    .. sourcecode:: http
+   .. sourcecode:: http
 
-        POST /build HTTP/1.1
+      POST /build HTTP/1.1
 
-        {{ STREAM }}
+      {{ STREAM }}
 
-    **Example response**:
+   **Example response**:
 
-    .. sourcecode:: http
+   .. sourcecode:: http
 
-        HTTP/1.1 200 OK
+      HTTP/1.1 200 OK
 
-        {{ STREAM }}
+      {{ STREAM }}
 
 
-    The stream must be a tar archive compressed with one of the following algorithms:
-    identity (no compression), gzip, bzip2, xz. The archive must include a file called
-    `Dockerfile` at its root. It may include any number of other files, which will be
-    accessible in the build context (See the ADD build command).
-    
-    The Content-type header should be set to "application/tar".
+       The stream must be a tar archive compressed with one of the following algorithms:
+       identity (no compression), gzip, bzip2, xz. The archive must include a file called
+       `Dockerfile` at its root. It may include any number of other files, which will be
+       accessible in the build context (See the ADD build command).
 
-    :query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
-    :query q: suppress verbose build output
+       The Content-type header should be set to "application/tar".
+
+	:query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
+	:query q: suppress verbose build output
     :query nocache: do not use the cache when building the image
-    :statuscode 200: no error
+	:statuscode 200: no error
     :statuscode 500: server error
 
 
@@ -1187,13 +1098,7 @@ Create a new image from a container's changes
 
     .. sourcecode:: http
 
-       POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
-       Content-Type: application/json
-       
-       {
-           "Cmd": ["cat", "/world"],
-           "PortSpecs":["22"]
-       }
+        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
 
     **Example response**:
 
@@ -1209,6 +1114,7 @@ Create a new image from a container's changes
     :query tag: tag
     :query m: commit message
     :query author: author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+    :query run: config automatically applied when the image is run. (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
     :statuscode 201: no error
     :statuscode 404: no such container
     :statuscode 500: server error

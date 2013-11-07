@@ -176,11 +176,11 @@ Run the image
 +++++++++++++
 
 Running your image with ``-d`` runs the container in detached mode, leaving the
-container running in the background. Run the image you previously built:
+container running in the background. The ``-p`` flag redirects a public port to a private port in the container. Run the image you previously built:
 
 .. code-block:: bash
 
-    sudo docker run -d <your username>/centos-node-hello
+    sudo docker run -p 49160:8080 -d <your username>/centos-node-hello
 
 Print the output of your app:
 

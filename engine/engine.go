@@ -2,13 +2,12 @@ package engine
 
 import (
 	"fmt"
-	"os"
+	"github.com/dotcloud/docker/utils"
 	"log"
+	"os"
 	"runtime"
 	"strings"
-	"github.com/dotcloud/docker/utils"
 )
-
 
 type Handler func(*Job) string
 
@@ -111,7 +110,6 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	}
 	return job
 }
-
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
 	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
