@@ -6,32 +6,6 @@ import (
 	"testing"
 )
 
-type TestImage struct {
-	id	string
-	path	string
-}
-
-func (img *TestImage) ID() string {
-	return img.id
-}
-
-func (img *TestImage) Path() string {
-	return img.path
-}
-
-func (img *TestImage) Parent() (Image, error) {
-	return nil, nil
-}
-
-
-
-func mkTestImage(t *testing.T) Image {
-	return &TestImage{
-		path:	mkTestDirectory(t),
-		id:	"4242",
-	}
-}
-
 func mkTestDirectory(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "docker-test-devmapper-")
 	if err != nil {
@@ -43,19 +17,27 @@ func mkTestDirectory(t *testing.T) string {
 func TestInit(t *testing.T) {
 	home := mkTestDirectory(t)
 	defer os.RemoveAll(home)
-	plugin, err := Init(home)
+	driver, err := Init(home)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		return
-		if err := plugin.Cleanup(); err != nil {
+		if err := driver.Cleanup(); err != nil {
 			t.Fatal(err)
 		}
 	}()
-	img := mkTestImage(t)
-	defer os.RemoveAll(img.(*TestImage).path)
-	if err := plugin.OnCreate(img, nil); err != nil {
+	id := "foo"
+	if err := driver.Create(id, ""); err != nil {
 		t.Fatal(err)
+	}
+	dir, err := driver.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(dir); err != nil {
+		t.Fatal(err)
+	} else if !st.IsDir() {
+		t.Fatalf("Get(%V) did not return a directory", id)
 	}
 }

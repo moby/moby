@@ -15,15 +15,6 @@ func init() {
 // Placeholder interfaces, to be replaced
 // at integration.
 
-type Image interface {
-	ID() string
-	Parent() (Image, error)
-	Path() string
-}
-
-type Change interface {
-}
-
 // End of placeholder interfaces.
 
 type Driver struct {
@@ -46,54 +37,45 @@ func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }
 
-func (d *Driver) OnCreate(img Image, layer archive.Archive) error {
-	// Determine the source of the snapshot (parent id or init device)
-	var parentID string
-	if parent, err := img.Parent(); err != nil {
-		return err
-	} else if parent != nil {
-		parentID = parent.ID()
-	}
-	// Create the device for this image by snapshotting source
-	if err := d.DeviceSet.AddDevice(img.ID(), parentID); err != nil {
-		return err
-	}
-	// Mount the device in rootfs
-	mp := d.mountpoint(img.ID())
-	if err := os.MkdirAll(mp, 0700); err != nil {
-		return err
-	}
-	if err := d.DeviceSet.MountDevice(img.ID(), mp, false); err != nil {
-		return err
-	}
-	// Apply the layer as a diff
-	if layer != nil {
-		if err := archive.ApplyLayer(mp, layer); err != nil {
-			return err
-		}
-	}
-	return nil
+func (d *Driver) Create(id string, parent string) error {
+	return d.DeviceSet.AddDevice(id, parent)
 }
 
-func (d *Driver) OnRemove(img Image) error {
-	id := img.ID()
-	if err := d.DeviceSet.RemoveDevice(id); err != nil {
-		return fmt.Errorf("Unable to remove device for %v: %v", id, err)
-	}
-	return nil
+func (d *Driver) Remove(id string) error {
+	return d.DeviceSet.RemoveDevice(id)
 }
 
-func (d *Driver) mountpoint(id string) string {
-	if d.home == "" {
-		return ""
+func (d *Driver) Get(id string) (string, error) {
+	mp := path.Join(d.home, "mnt", id)
+	if err := d.mount(id, mp); err != nil {
+		return "", err
 	}
-	return path.Join(d.home, "mnt", id)
+	return mp, nil
 }
 
-func (d *Driver) Changes(img *Image, dest string) ([]Change, error) {
+func (d *Driver) Diff(id string) (archive.Archive, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (d *Driver) Layer(img *Image, dest string) (archive.Archive, error) {
+func (d *Driver) DiffSize(id string) (int64, error) {
+	return -1, fmt.Errorf("Not implemented")
+}
+
+func (d *Driver) Changes(id string) ([]graphdriver.Change, error) {
 	return nil, fmt.Errorf("Not implemented")
+}
+
+func (d *Driver) mount(id, mp string) error {
+	// Create the target directories if they don't exist
+	if err := os.MkdirAll(mp, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	// If mountpoint is already mounted, do nothing
+	if mounted, err := Mounted(mp); err != nil {
+		return fmt.Errorf("Error checking mountpoint: %s", err)
+	} else if mounted {
+		return nil
+	}
+	// Mount the device
+	return d.DeviceSet.MountDevice(id, mp, false)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/graphdriver"
+	_ "github.com/dotcloud/docker/devmapper"
 	"io"
 	"io/ioutil"
 	"log"
