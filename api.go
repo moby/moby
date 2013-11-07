@@ -46,9 +46,11 @@ func parseForm(r *http.Request) error {
 	if r == nil {
 		return nil
 	}
+
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
 	}
+
 	return nil
 }
 
@@ -537,15 +539,30 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
 	if err := parseForm(r); err != nil {
 		return nil
 	}
-	config := &Config{}
-	out := &APIRun{}
-	name := r.Form.Get("name")
 
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
-		return err
+	var (
+		config = &Config{}
+		out    = &APIRun{}
+		name   = r.Form.Get("name")
+	)
+
+	if r.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+		if len(r.PostForm) != 1 {
+			return fmt.Errorf("Wrong Content-Type for Create.")
+		}
+		for key := range r.PostForm {
+			if err := json.Unmarshal([]byte(key), config); err != nil {
+				return fmt.Errorf("Impossible to unmarshall config: %s", err)
+			}
+		}
+	} else {
+		if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+			return err
+		}
 	}
 
 	resolvConf, err := utils.GetResolvConf()
@@ -1009,6 +1026,7 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 
 func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		// log the request
 		utils.Debugf("Calling %s %s", localMethod, localRoute)
 
@@ -1022,10 +1040,12 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 				utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], VERSION)
 			}
 		}
+
 		version, err := strconv.ParseFloat(mux.Vars(r)["version"], 64)
 		if err != nil {
 			version = APIVERSION
 		}
+
 		if srv.runtime.config.EnableCors {
 			writeCorsHeaders(w, r)
 		}
