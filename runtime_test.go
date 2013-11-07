@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,7 +19,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	"net/url"
 )
 
 const (
@@ -158,8 +158,8 @@ func spawnGlobalDaemon() {
 	go func() {
 		utils.Debugf("Spawning global daemon for integration tests")
 		listenURL := &url.URL{
-			Scheme:	testDaemonProto,
-			Host:	testDaemonAddr,
+			Scheme: testDaemonProto,
+			Host:   testDaemonAddr,
 		}
 		job := eng.Job("serveapi", listenURL.String())
 		job.SetenvBool("Logging", os.Getenv("DEBUG") != "")

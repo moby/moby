@@ -74,7 +74,6 @@ func jobInitApi(job *engine.Job) string {
 	return "0"
 }
 
-
 func (srv *Server) ListenAndServe(job *engine.Job) string {
 	protoAddrs := job.Args
 	chErrors := make(chan error, len(protoAddrs))

@@ -30,10 +30,10 @@ func Register(name string, handler Handler) error {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	root		string
-	handlers	map[string]Handler
-	hack		Hack	// data for temporary hackery (see hack.go)
-	id		string
+	root     string
+	handlers map[string]Handler
+	hack     Hack // data for temporary hackery (see hack.go)
+	id       string
 }
 
 func (eng *Engine) Root() string {
@@ -49,7 +49,6 @@ func (eng *Engine) Register(name string, handler Handler) error {
 	eng.handlers[name] = handler
 	return nil
 }
-
 
 // New initializes a new engine managing the directory specified at `root`.
 // `root` is used to store containers and any other state private to the engine.
@@ -78,9 +77,9 @@ func New(root string) (*Engine, error) {
 		return nil, err
 	}
 	eng := &Engine{
-		root:		root,
-		handlers:	make(map[string]Handler),
-		id:		utils.RandomString(),
+		root:     root,
+		handlers: make(map[string]Handler),
+		id:       utils.RandomString(),
 	}
 	// Copy existing global handlers
 	for k, v := range globalHandlers {
@@ -97,12 +96,12 @@ func (eng *Engine) String() string {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		Eng:		eng,
-		Name:		name,
-		Args:		args,
-		Stdin:		os.Stdin,
-		Stdout:		os.Stdout,
-		Stderr:		os.Stderr,
+		Eng:    eng,
+		Name:   name,
+		Args:   args,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	handler, exists := eng.handlers[name]
 	if exists {
