@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	APIVERSION        = 1.6
+	APIVERSION        = 1.7
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
@@ -191,10 +191,24 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, outs)
+	if version < 1.7 {
+		outs2 := []APIImagesOld{}
+		for _, ctnr := range outs {
+			outs2 = append(outs2, ctnr.ToLegacy()...)
+		}
+
+		return writeJSON(w, http.StatusOK, outs2)
+	} else {
+		return writeJSON(w, http.StatusOK, outs)
+	}
 }
 
 func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version > 1.6 {
+		w.WriteHeader(http.StatusNotFound)
+		return fmt.Errorf("This is now implemented in the client.")
+	}
+
 	if err := srv.ImagesViz(w); err != nil {
 		return err
 	}

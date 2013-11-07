@@ -1057,6 +1057,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	all := cmd.Bool("a", false, "show all images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
+	flTree := cmd.Bool("tree", false, "output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1067,11 +1068,77 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	}
 
 	if *flViz {
-		body, _, err := cli.call("GET", "/images/viz", false)
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cli.out, "%s", body)
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "digraph docker {\n")
+
+		for _, image := range outs {
+			if image.ParentId == "" {
+				fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", utils.TruncateID(image.ID))
+			} else {
+				fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", utils.TruncateID(image.ParentId), utils.TruncateID(image.ID))
+			}
+			if image.RepoTags[0] != "<none>:<none>" {
+				fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", utils.TruncateID(image.ID), utils.TruncateID(image.ID), strings.Join(image.RepoTags, "\\n"))
+			}
+		}
+
+		fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
+	} else if *flTree {
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
+		if err != nil {
+			return err
+		}
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		var startImageArg = cmd.Arg(0)
+		var startImage APIImages
+
+		var roots []APIImages
+		var byParent = make(map[string][]APIImages)
+		for _, image := range outs {
+			if image.ParentId == "" {
+				roots = append(roots, image)
+			} else {
+				if children, exists := byParent[image.ParentId]; exists {
+					byParent[image.ParentId] = append(children, image)
+				} else {
+					byParent[image.ParentId] = []APIImages{image}
+				}
+			}
+
+			if startImageArg != "" {
+				if startImageArg == image.ID || startImageArg == utils.TruncateID(image.ID) {
+					startImage = image
+				}
+
+				for _, repotag := range image.RepoTags {
+					if repotag == startImageArg {
+						startImage = image
+					}
+				}
+			}
+		}
+
+		if startImageArg != "" {
+			WalkTree(cli, noTrunc, []APIImages{startImage}, byParent, "")
+		} else {
+			WalkTree(cli, noTrunc, roots, byParent, "")
+		}
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {
@@ -1097,27 +1164,29 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
 		}
 
+		var repo string
+		var tag string
 		for _, out := range outs {
-			if out.Repository == "" {
-				out.Repository = "<none>"
-			}
-			if out.Tag == "" {
-				out.Tag = "<none>"
-			}
+			for _, repotag := range out.RepoTags {
 
-			if !*noTrunc {
-				out.ID = utils.TruncateID(out.ID)
-			}
+				components := strings.SplitN(repotag, ":", 2)
+				repo = components[0]
+				tag = components[1]
 
-			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", out.Repository, out.Tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
-				if out.VirtualSize > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
-				} else {
-					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+				if !*noTrunc {
+					out.ID = utils.TruncateID(out.ID)
 				}
-			} else {
-				fmt.Fprintln(w, out.ID)
+
+				if !*quiet {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+					if out.VirtualSize > 0 {
+						fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
+					} else {
+						fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+					}
+				} else {
+					fmt.Fprintln(w, out.ID)
+				}
 			}
 		}
 
@@ -1126,6 +1195,48 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	}
 	return nil
+}
+
+func WalkTree(cli *DockerCli, noTrunc *bool, images []APIImages, byParent map[string][]APIImages, prefix string) {
+	if len(images) > 1 {
+		length := len(images)
+		for index, image := range images {
+			if index+1 == length {
+				PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+				}
+			} else {
+				PrintTreeNode(cli, noTrunc, image, prefix+"|─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"| ")
+				}
+			}
+		}
+	} else {
+		for _, image := range images {
+			PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+			if subimages, exists := byParent[image.ID]; exists {
+				WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+			}
+		}
+	}
+}
+
+func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string) {
+	var imageID string
+	if *noTrunc {
+		imageID = image.ID
+	} else {
+		imageID = utils.TruncateID(image.ID)
+	}
+
+	fmt.Fprintf(cli.out, "%s%s Size: %s (virtual %s)", prefix, imageID, utils.HumanSize(image.Size), utils.HumanSize(image.VirtualSize))
+	if image.RepoTags[0] != "<none>:<none>" {
+		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ","))
+	} else {
+		fmt.Fprint(cli.out, "\n")
+	}
 }
 
 func displayablePorts(ports []APIPort) string {
