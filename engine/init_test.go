@@ -1,18 +1,18 @@
 package engine
 
 import (
-	"testing"
+	"fmt"
+	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"runtime"
 	"strings"
-	"fmt"
-	"io/ioutil"
-	"github.com/dotcloud/docker/utils"
+	"testing"
 )
 
 var globalTestID string
 
 func init() {
-	Register("dummy", func(job *Job) string { return ""; })
+	Register("dummy", func(job *Job) string { return "" })
 }
 
 func mkEngine(t *testing.T) *Engine {
