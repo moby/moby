@@ -185,7 +185,7 @@ Create a container
 		"Warnings":[]
 	   }
 
-	** Second, start (using the ID returned above) the image we just created, mapping the ssh port 22 to something on the host**:
+	**Second, start (using the ID returned above) the image we just created, mapping the ssh port 22 to something on the host**:
 
 	.. sourcecode:: http
 
@@ -204,7 +204,7 @@ Create a container
 		Content-Type: text/plain; charset=utf-8
 		Content-Length: 0
 
-	** Now you can ssh into your new container on port 11022.**
+	**Now you can ssh into your new container on port 11022.**
 
 
 
