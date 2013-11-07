@@ -2,12 +2,11 @@ package engine
 
 import (
 	"fmt"
-	"os"
-	"log"
-	"runtime"
 	"github.com/dotcloud/docker/utils"
+	"log"
+	"os"
+	"runtime"
 )
-
 
 type Handler func(*Job) string
 
@@ -25,8 +24,8 @@ func Register(name string, handler Handler) error {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	root		string
-	handlers	map[string]Handler
+	root     string
+	handlers map[string]Handler
 }
 
 // New initializes a new engine managing the directory specified at `root`.
@@ -56,8 +55,8 @@ func New(root string) (*Engine, error) {
 		return nil, err
 	}
 	eng := &Engine{
-		root:		root,
-		handlers:	globalHandlers,
+		root:     root,
+		handlers: globalHandlers,
 	}
 	return eng, nil
 }
@@ -66,12 +65,12 @@ func New(root string) (*Engine, error) {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		eng:		eng,
-		Name:		name,
-		Args:		args,
-		Stdin:		os.Stdin,
-		Stdout:		os.Stdout,
-		Stderr:		os.Stderr,
+		eng:    eng,
+		Name:   name,
+		Args:   args,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	handler, exists := eng.handlers[name]
 	if exists {
@@ -79,4 +78,3 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	}
 	return job
 }
-

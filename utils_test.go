@@ -67,7 +67,7 @@ func newTestRuntime(prefix string) (runtime *Runtime, err error) {
 	}
 
 	config := &DaemonConfig{
-		Root:   root,
+		Root:        root,
 		AutoRestart: false,
 	}
 	runtime, err = NewRuntimeFromDirectory(config)

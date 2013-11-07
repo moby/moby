@@ -394,9 +394,9 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	if _, err := os.Stat(path.Join(container.rwPath(), pth)); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
-	} else if ! os.IsNotExist(err) {
+	} else if !os.IsNotExist(err) {
 		// Expect err might be that the file doesn't exist, so
-		// if it's some other error, return that. 
+		// if it's some other error, return that.
 
 		return err
 	}
@@ -1086,7 +1086,7 @@ func (container *Container) allocateNetwork() error {
 				Gateway: manager.bridgeNetwork.IP,
 				manager: manager,
 			}
-			if iface !=nil && iface.IPNet.IP != nil {
+			if iface != nil && iface.IPNet.IP != nil {
 				ipNum := ipToInt(iface.IPNet.IP)
 				manager.ipAllocator.inUse[ipNum] = struct{}{}
 			} else {
