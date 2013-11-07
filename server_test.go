@@ -34,8 +34,8 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+3 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+3 {
+		t.Errorf("Expected %d images, %d found", len(initialImages)+3, len(images))
 	}
 
 	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
@@ -47,7 +47,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+2 {
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+2 {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
 	}
 
@@ -60,7 +60,7 @@ func TestContainerTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+1 {
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
@@ -246,14 +246,14 @@ func TestContainerTop(t *testing.T) {
 
 	srv := &Server{runtime: runtime}
 
-	c, hostConfig, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
-	c, hostConfig, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
+	c, err := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "sleep 2"}, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer runtime.Destroy(c)
-	if err := c.Start(hostConfig); err != nil {
+	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -462,7 +462,7 @@ func TestRmi(t *testing.T) {
 		if strings.Contains(unitTestImageID, image.ID) {
 			continue
 		}
-		if image.Repository == "" {
+		if image.RepoTags[0] == "<none>:<none>" {
 			t.Fatalf("Expected tagged image, got untagged one.")
 		}
 	}
@@ -490,7 +490,7 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 2 {
+	if len(images[0].RepoTags) != 2 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
@@ -499,7 +499,7 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
@@ -508,7 +508,7 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
@@ -517,7 +517,7 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 }

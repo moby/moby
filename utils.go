@@ -250,6 +250,12 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
+		if _, err := strconv.ParseUint(containerPort, 10, 16); err != nil {
+			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
+		}
+		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
+			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+		}
 
 		port := NewPort(proto, containerPort)
 		if _, exists := exposedPorts[port]; !exists {

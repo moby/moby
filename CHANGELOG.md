@@ -1,43 +1,78 @@
 # Changelog
 
+## 0.6.6 (2013-11-06)
+
+#### Runtime
+
+* Ensure container name on register
+* Fix regression in /etc/hosts
++ Add lock around write operations in graph
+* Check if port is valid
+* Fix restart runtime error with ghost container networking
++ Added some more colors and animals to increase the pool of generated names
+* Fix issues in docker inspect
++ Escape apparmor confinement
++ Set environment variables using a file.
+* Prevent docker insert to erase something
++ Prevent DNS server conflicts in CreateBridgeIface
++ Validate bind mounts on the server side
++ Use parent image config in docker build
+* Fix regression in /etc/hosts
+
+#### Client
+
++ Add -P flag to publish all exposed ports
++ Add -notrunc and -q flags to docker history
+* Fix docker commit, tag and import usage
++ Add stars, trusted builds and library flags in docker search
+* Fix docker logs with tty
+
+#### RemoteAPI
+
+* Make /events API send headers immediately
+* Do not split last column docker top
++ Add size to history
+
+#### Other
+
++ Contrib: Desktop integration. Firefox usecase.
++ Dockerfile: bump to go1.2rc3
+
 ## 0.6.5 (2013-10-29)
 
 #### Runtime
 
-+ Runtime: Containers can now be named
-+ Runtime: Containers can now be linked together for service discovery
-+ Runtime: 'run -a', 'start -a' and 'attach' can forward signals to the container for better integration with process supervisors
-+ Runtime: Automatically start crashed containers after a reboot
-+ Runtime: Expose IP, port, and proto as separate environment vars for container links
-* Runtime: Allow ports to be published to specific ips
-* Runtime: Prohibit inter-container communication by default
-- Runtime: Ignore ErrClosedPipe for stdin in Container.Attach
-- Runtime: Fix untag during removal of images
-- Runtime: Remove unused field kernelVersion
-* Runtime: Fix issue when mounting subdirectories of /mnt in container
-* Runtime: Check return value of syscall.Chdir when changing working directory inside dockerinit
-
-#### Documentation
-
-* Documentation: Fix the flags for nc in example
++ Containers can now be named
++ Containers can now be linked together for service discovery
++ 'run -a', 'start -a' and 'attach' can forward signals to the container for better integration with process supervisors
++ Automatically start crashed containers after a reboot
++ Expose IP, port, and proto as separate environment vars for container links
+* Allow ports to be published to specific ips
+* Prohibit inter-container communication by default
+- Ignore ErrClosedPipe for stdin in Container.Attach
+- Remove unused field kernelVersion
+* Fix issue when mounting subdirectories of /mnt in container
+- Fix untag during removal of images
+* Check return value of syscall.Chdir when changing working directory inside dockerinit
 
 #### Client
 
-- Client: Only pass stdin to hijack when needed to avoid closed pipe errors
-* Client: Use less reflection in command-line method invocation
-- Client: Monitor the tty size after starting the container, not prior
-- Client: Remove useless os.Exit() calls after log.Fatal
+- Only pass stdin to hijack when needed to avoid closed pipe errors
+* Use less reflection in command-line method invocation
+- Monitor the tty size after starting the container, not prior
+- Remove useless os.Exit() calls after log.Fatal
 
 #### Hack
 
-- Hack: Update install.sh with $sh_c to get sudo/su for modprobe
-* Hack: Update all the mkimage scripts to use --numeric-owner as a tar argument
-* Hack: Update hack/release.sh process to automatically invoke hack/make.sh and bail on build and test issues
-+ Hack: Add initial init scripts library and a safer Ubuntu packaging script that works for Debian
-* Hack: Add -p option to invoke debootstrap with http_proxy
++ Add initial init scripts library and a safer Ubuntu packaging script that works for Debian
+* Add -p option to invoke debootstrap with http_proxy
+- Update install.sh with $sh_c to get sudo/su for modprobe
+* Update all the mkimage scripts to use --numeric-owner as a tar argument
+* Update hack/release.sh process to automatically invoke hack/make.sh and bail on build and test issues
 
 #### Other
 
+* Documentation: Fix the flags for nc in example
 * Testing: Remove warnings and prevent mount issues
 - Testing: Change logic for tty resize to avoid warning in tests
 - Builder: Fix race condition in docker build with verbose output

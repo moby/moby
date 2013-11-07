@@ -72,13 +72,16 @@ func (srv *Server) Daemon() error {
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
+		switch protoAddrParts[0] {
+		case "unix":
+			if err := syscall.Unlink(protoAddrParts[1]); err != nil && !os.IsNotExist(err) {
+				log.Fatal(err)
+			}
+		case "tcp":
 			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
-		} else {
+		default:
 			return fmt.Errorf("Invalid protocol format.")
 		}
 		go func() {
@@ -184,7 +187,7 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
+func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
 	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return nil, err
@@ -193,15 +196,7 @@ func (srv *Server) ImagesSearch(term string) ([]APISearch, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var outs []APISearch
-	for _, repo := range results.Results {
-		var out APISearch
-		out.Description = repo["description"]
-		out.Name = repo["name"]
-		outs = append(outs, out)
-	}
-	return outs, nil
+	return results.Results, nil
 }
 
 func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
@@ -253,7 +248,7 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
-			return err
+			return fmt.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
 			out.Write([]byte(" \"" + parentImage.ShortID() + "\" -> \"" + image.ShortID() + "\"\n"))
@@ -290,7 +285,7 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	if err != nil {
 		return nil, err
 	}
-	outs := []APIImages{} //produce [] when empty instead of 'null'
+	lookup := make(map[string]APIImages)
 	for name, repository := range srv.runtime.repositories.Repositories {
 		if filter != "" {
 			if match, _ := path.Match(filter, name); !match {
@@ -298,27 +293,46 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			}
 		}
 		for tag, id := range repository {
-			var out APIImages
 			image, err := srv.runtime.graph.Get(id)
 			if err != nil {
 				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
 				continue
 			}
-			delete(allImages, id)
-			out.Repository = name
-			out.Tag = tag
-			out.ID = image.ID
-			out.Created = image.Created.Unix()
-			out.Size = image.Size
-			out.VirtualSize = image.getParentsSize(0) + image.Size
-			outs = append(outs, out)
+
+			if out, exists := lookup[id]; exists {
+				out.RepoTags = append(out.RepoTags, fmt.Sprintf("%s:%s", name, tag))
+
+				lookup[id] = out
+			} else {
+				var out APIImages
+
+				delete(allImages, id)
+
+				out.ParentId = image.Parent
+				out.RepoTags = []string{fmt.Sprintf("%s:%s", name, tag)}
+				out.ID = image.ID
+				out.Created = image.Created.Unix()
+				out.Size = image.Size
+				out.VirtualSize = image.getParentsSize(0) + image.Size
+
+				lookup[id] = out
+			}
+
 		}
 	}
-	// Display images which aren't part of a
+
+	outs := make([]APIImages, 0, len(lookup))
+	for _, value := range lookup {
+		outs = append(outs, value)
+	}
+
+	// Display images which aren't part of a repository/tag
 	if filter == "" {
 		for _, image := range allImages {
 			var out APIImages
 			out.ID = image.ID
+			out.ParentId = image.Parent
+			out.RepoTags = []string{"<none>:<none>"}
 			out.Created = image.Created.Unix()
 			out.Size = image.Size
 			out.VirtualSize = image.getParentsSize(0) + image.Size
@@ -417,7 +431,11 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 			}
 			// no scanner.Text because we skip container id
 			for scanner.Scan() {
-				words = append(words, scanner.Text())
+				if i != 0 && len(words) == len(procs.Titles) {
+					words[len(words)-1] = fmt.Sprintf("%s %s", words[len(words)-1], scanner.Text())
+				} else {
+					words = append(words, scanner.Text())
+				}
 			}
 			if i == 0 {
 				procs.Titles = words
@@ -1052,7 +1070,10 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		if container == nil {
 			return fmt.Errorf("No such link: %s", name)
 		}
-		name = srv.runtime.getFullName(name)
+		name, err := srv.runtime.getFullName(name)
+		if err != nil {
+			return err
+		}
 		parent, n := path.Split(name)
 		if parent == "/" {
 			return fmt.Errorf("Conflict, cannot remove the default name of the container")
@@ -1305,7 +1326,7 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 		// After we load all the links into the runtime
 		// set them to nil on the hostconfig
 		hostConfig.Links = nil
-		if err := container.SaveHostConfig(hostConfig); err != nil {
+		if err := container.writeHostConfig(); err != nil {
 			return err
 		}
 	}
@@ -1315,11 +1336,33 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 func (srv *Server) ContainerStart(name string, hostConfig *HostConfig) error {
 	runtime := srv.runtime
 	container := runtime.Get(name)
+
+	if hostConfig != nil {
+		for _, bind := range hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+
+			// refuse to bind mount "/" to the container
+			if source == "/" {
+				return fmt.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
+			}
+
+			// ensure the source exists on the host
+			_, err := os.Stat(source)
+			if err != nil && os.IsNotExist(err) {
+				return fmt.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
+			}
+		}
+	}
+
 	if container == nil {
 		return fmt.Errorf("No such container: %s", name)
 	}
-
-	if err := container.Start(hostConfig); err != nil {
+	if hostConfig != nil {
+		container.hostConfig = hostConfig
+		container.ToDisk()
+	}
+	if err := container.Start(); err != nil {
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ShortID(), runtime.repositories.ImageName(container.Image))

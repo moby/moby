@@ -3,6 +3,7 @@ package gograph
 import (
 	_ "code.google.com/p/gosqlite/sqlite3"
 	"database/sql"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -499,5 +500,41 @@ func TestGetNameWithTrailingSlash(t *testing.T) {
 	e := db.Get("/todo/")
 	if e == nil {
 		t.Fatalf("Entity should not be nil")
+	}
+}
+
+func TestConcurrentWrites(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	errs := make(chan error, 2)
+
+	save := func(name string, id string) {
+		if _, err := db.Set(fmt.Sprintf("/%s", name), id); err != nil {
+			errs <- err
+		}
+		errs <- nil
+	}
+	purge := func(id string) {
+		if _, err := db.Purge(id); err != nil {
+			errs <- err
+		}
+		errs <- nil
+	}
+
+	save("/1", "1")
+
+	go purge("1")
+	go save("/2", "2")
+
+	any := false
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			any = true
+			t.Log(err)
+		}
+	}
+	if any {
+		t.Fatal()
 	}
 }

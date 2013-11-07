@@ -184,7 +184,7 @@ func TestGetImagesJSON(t *testing.T) {
 
 	found := false
 	for _, img := range images {
-		if img.Repository == unitTestImageName {
+		if strings.Contains(img.RepoTags[0], unitTestImageName) {
 			found = true
 			break
 		}
@@ -272,31 +272,6 @@ func TestGetImagesJSON(t *testing.T) {
 
 	if r4.Code != http.StatusBadRequest {
 		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
-	}
-}
-
-func TestGetImagesViz(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
-
-	r := httptest.NewRecorder()
-	if err := getImagesViz(srv, APIVERSION, r, nil, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-
-	reader := bufio.NewReader(r.Body)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		t.Fatal(err)
-	}
-	if line != "digraph docker {\n" {
-		t.Errorf("Expected digraph docker {\n, %s found", line)
 	}
 }
 
@@ -499,8 +474,7 @@ func TestGetContainersTop(t *testing.T) {
 		container.WaitTimeout(2 * time.Second)
 	}()
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -704,8 +678,7 @@ func TestPostContainersKill(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -747,8 +720,7 @@ func TestPostContainersRestart(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -855,8 +827,7 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -903,8 +874,7 @@ func TestPostContainersWait(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -947,8 +917,7 @@ func TestPostContainersAttach(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	// Start the process
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1037,8 +1006,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	defer runtime.Destroy(container)
 
 	// Start the process
-	hostConfig := &HostConfig{}
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1233,7 +1201,7 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages)+1 {
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
 		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
 	}
 
@@ -1272,7 +1240,7 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages) {
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags) {
 		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 

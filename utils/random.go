@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"io"
 	"crypto/rand"
 	"encoding/hex"
+	"io"
 )
 
 func RandomString() string {

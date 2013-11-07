@@ -69,7 +69,7 @@ func newTestRuntime(prefix string) (runtime *Runtime, err error) {
 	}
 
 	config := &DaemonConfig{
-		Root:   root,
+		Root:        root,
 		AutoRestart: false,
 	}
 	runtime, err = NewRuntimeFromDirectory(config)
@@ -118,7 +118,7 @@ func readFile(src string, t *testing.T) (content string) {
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
+func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, error) {
 	config, hostConfig, _, err := ParseRun(args, nil)
 	defer func() {
 		if err != nil && t != nil {
@@ -126,16 +126,17 @@ func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConf
 		}
 	}()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if config.Image == "_" {
 		config.Image = GetTestImage(r).ID
 	}
 	c, _, err := r.Create(config, "")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return c, hostConfig, nil
+	c.hostConfig = hostConfig
+	return c, nil
 }
 
 // Create a test container, start it, wait for it to complete, destroy it,
@@ -148,7 +149,7 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 			t.Fatal(err)
 		}
 	}()
-	container, hostConfig, err := mkContainer(r, args, t)
+	container, err := mkContainer(r, args, t)
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +159,7 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 		return "", err
 	}
 	defer stdout.Close()
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		return "", err
 	}
 	container.Wait()

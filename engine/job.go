@@ -1,11 +1,11 @@
 package engine
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/dotcloud/docker/utils"
 	"io"
 	"strings"
-	"fmt"
-	"encoding/json"
-	"github.com/dotcloud/docker/utils"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -20,17 +20,17 @@ import (
 // One slight variation is that jobs report their status as a string. The
 // string "0" indicates success, and any other strings indicates an error.
 // This allows for richer error reporting.
-// 
+//
 type Job struct {
-	eng	*Engine
-	Name	string
-	Args	[]string
-	env	[]string
-	Stdin	io.ReadCloser
-	Stdout	io.WriteCloser
-	Stderr	io.WriteCloser
-	handler	func(*Job) string
-	status	string
+	eng     *Engine
+	Name    string
+	Args    []string
+	env     []string
+	Stdin   io.ReadCloser
+	Stdout  io.WriteCloser
+	Stderr  io.WriteCloser
+	handler func(*Job) string
+	status  string
 }
 
 // Run executes the job and blocks until the job completes.
@@ -57,21 +57,21 @@ func (job *Job) String() string {
 }
 
 func (job *Job) Getenv(key string) (value string) {
-        for _, kv := range job.env {
-                if strings.Index(kv, "=") == -1 {
-                        continue
-                }
-                parts := strings.SplitN(kv, "=", 2)
-                if parts[0] != key {
-                        continue
-                }
-                if len(parts) < 2 {
-                        value = ""
-                } else {
-                        value = parts[1]
-                }
-        }
-        return
+	for _, kv := range job.env {
+		if strings.Index(kv, "=") == -1 {
+			continue
+		}
+		parts := strings.SplitN(kv, "=", 2)
+		if parts[0] != key {
+			continue
+		}
+		if len(parts) < 2 {
+			value = ""
+		} else {
+			value = parts[1]
+		}
+	}
+	return
 }
 
 func (job *Job) GetenvBool(key string) (value bool) {
@@ -109,5 +109,5 @@ func (job *Job) SetenvList(key string, value []string) error {
 }
 
 func (job *Job) Setenv(key, value string) {
-	job.env = append(job.env, key + "=" + value)
+	job.env = append(job.env, key+"="+value)
 }

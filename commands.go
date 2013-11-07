@@ -655,7 +655,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
 			if err != nil {
-				fmt.Fprintf(cli.err, "No such image or container: %s\n", name)
+				if strings.Contains(err.Error(), "No such") {
+					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
+				} else {
+					fmt.Fprintf(cli.err, "%s", err)
+				}
 				status = 1
 				continue
 			}
@@ -668,9 +672,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 		indented.WriteString(",")
 	}
-	// Remove trailling ','
-	indented.Truncate(indented.Len() - 1)
 
+	if indented.Len() > 0 {
+		// Remove trailing ','
+		indented.Truncate(indented.Len() - 1)
+	}
 	fmt.Fprintf(cli.out, "[")
 	if _, err := io.Copy(cli.out, indented); err != nil {
 		return err
@@ -683,7 +689,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 }
 
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := Subcmd("top", "CONTAINER", "Lookup the running processes of a container")
+	cmd := Subcmd("top", "CONTAINER [ps OPTIONS]", "Lookup the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -814,7 +820,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "ID\tCREATED\tCREATED BY\tSIZE")
+		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE")
 	}
 
 	for _, out := range outs {
@@ -898,7 +904,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := Subcmd("import", "URL|- [REPOSITORY [TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
+	cmd := Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -907,7 +913,8 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	src := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1050,6 +1057,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	all := cmd.Bool("a", false, "show all images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
+	flTree := cmd.Bool("tree", false, "output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1060,11 +1068,77 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	}
 
 	if *flViz {
-		body, _, err := cli.call("GET", "/images/viz", false)
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cli.out, "%s", body)
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "digraph docker {\n")
+
+		for _, image := range outs {
+			if image.ParentId == "" {
+				fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", utils.TruncateID(image.ID))
+			} else {
+				fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", utils.TruncateID(image.ParentId), utils.TruncateID(image.ID))
+			}
+			if image.RepoTags[0] != "<none>:<none>" {
+				fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", utils.TruncateID(image.ID), utils.TruncateID(image.ID), strings.Join(image.RepoTags, "\\n"))
+			}
+		}
+
+		fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
+	} else if *flTree {
+		body, _, err := cli.call("GET", "/images/json?all=1", nil)
+		if err != nil {
+			return err
+		}
+
+		var outs []APIImages
+		err = json.Unmarshal(body, &outs)
+		if err != nil {
+			return err
+		}
+
+		var startImageArg = cmd.Arg(0)
+		var startImage APIImages
+
+		var roots []APIImages
+		var byParent = make(map[string][]APIImages)
+		for _, image := range outs {
+			if image.ParentId == "" {
+				roots = append(roots, image)
+			} else {
+				if children, exists := byParent[image.ParentId]; exists {
+					byParent[image.ParentId] = append(children, image)
+				} else {
+					byParent[image.ParentId] = []APIImages{image}
+				}
+			}
+
+			if startImageArg != "" {
+				if startImageArg == image.ID || startImageArg == utils.TruncateID(image.ID) {
+					startImage = image
+				}
+
+				for _, repotag := range image.RepoTags {
+					if repotag == startImageArg {
+						startImage = image
+					}
+				}
+			}
+		}
+
+		if startImageArg != "" {
+			WalkTree(cli, noTrunc, []APIImages{startImage}, byParent, "")
+		} else {
+			WalkTree(cli, noTrunc, roots, byParent, "")
+		}
 	} else {
 		v := url.Values{}
 		if cmd.NArg() == 1 {
@@ -1087,30 +1161,32 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tID\tCREATED\tSIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
 		}
 
+		var repo string
+		var tag string
 		for _, out := range outs {
-			if out.Repository == "" {
-				out.Repository = "<none>"
-			}
-			if out.Tag == "" {
-				out.Tag = "<none>"
-			}
+			for _, repotag := range out.RepoTags {
 
-			if !*noTrunc {
-				out.ID = utils.TruncateID(out.ID)
-			}
+				components := strings.SplitN(repotag, ":", 2)
+				repo = components[0]
+				tag = components[1]
 
-			if !*quiet {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", out.Repository, out.Tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
-				if out.VirtualSize > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
-				} else {
-					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+				if !*noTrunc {
+					out.ID = utils.TruncateID(out.ID)
 				}
-			} else {
-				fmt.Fprintln(w, out.ID)
+
+				if !*quiet {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+					if out.VirtualSize > 0 {
+						fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
+					} else {
+						fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+					}
+				} else {
+					fmt.Fprintln(w, out.ID)
+				}
 			}
 		}
 
@@ -1119,6 +1195,48 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	}
 	return nil
+}
+
+func WalkTree(cli *DockerCli, noTrunc *bool, images []APIImages, byParent map[string][]APIImages, prefix string) {
+	if len(images) > 1 {
+		length := len(images)
+		for index, image := range images {
+			if index+1 == length {
+				PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+				}
+			} else {
+				PrintTreeNode(cli, noTrunc, image, prefix+"|─")
+				if subimages, exists := byParent[image.ID]; exists {
+					WalkTree(cli, noTrunc, subimages, byParent, prefix+"| ")
+				}
+			}
+		}
+	} else {
+		for _, image := range images {
+			PrintTreeNode(cli, noTrunc, image, prefix+"└─")
+			if subimages, exists := byParent[image.ID]; exists {
+				WalkTree(cli, noTrunc, subimages, byParent, prefix+"  ")
+			}
+		}
+	}
+}
+
+func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string) {
+	var imageID string
+	if *noTrunc {
+		imageID = image.ID
+	} else {
+		imageID = utils.TruncateID(image.ID)
+	}
+
+	fmt.Fprintf(cli.out, "%s%s Size: %s (virtual %s)", prefix, imageID, utils.HumanSize(image.Size), utils.HumanSize(image.VirtualSize))
+	if image.RepoTags[0] != "<none>:<none>" {
+		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ","))
+	} else {
+		fmt.Fprint(cli.out, "\n")
+	}
 }
 
 func displayablePorts(ports []APIPort) string {
@@ -1180,7 +1298,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1224,14 +1342,16 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY [TAG]]", "Create a new image from a container's changes")
+	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name, repository, tag := cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	name := cmd.Arg(0)
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
 	if name == "" {
 		cmd.Usage()
 		return nil
@@ -1341,8 +1461,18 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return nil
 	}
 	name := cmd.Arg(0)
+	body, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
+	if err != nil {
+		return err
+	}
 
-	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", false, nil, cli.out, cli.err, nil); err != nil {
+	container := &Container{}
+	err = json.Unmarshal(body, container)
+	if err != nil {
+		return err
+	}
+
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
@@ -1404,8 +1534,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "NAME", "Search the docker index for images")
+	cmd := Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
+	trusted := cmd.Bool("trusted", false, "Only show trusted builds")
+	stars := cmd.Int("stars", 0, "Only displays with at least xxx stars")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1421,27 +1553,32 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	outs := []APISearch{}
+	outs := []registry.SearchResult{}
 	err = json.Unmarshal(body, &outs)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cli.out, "Found %d results matching your query (\"%s\")\n", len(outs), cmd.Arg(0))
-	w := tabwriter.NewWriter(cli.out, 33, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\n")
-	_, width := cli.getTtySize()
-	if width == 0 {
-		width = 45
-	} else {
-		width = width - 33 //remote the first column
-	}
+	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
 	for _, out := range outs {
+		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
+			continue
+		}
 		desc := strings.Replace(out.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !*noTrunc && len(desc) > width {
-			desc = utils.Trunc(desc, width-3) + "..."
+		if !*noTrunc && len(desc) > 45 {
+			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\n", out.Name, desc)
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
+		if out.IsOfficial {
+			fmt.Fprint(w, "[OK]")
+
+		}
+		fmt.Fprint(w, "\t")
+		if out.IsTrusted {
+			fmt.Fprint(w, "[OK]")
+		}
+		fmt.Fprint(w, "\n")
 	}
 	w.Flush()
 	return nil
@@ -1509,7 +1646,7 @@ func (opts PathOpts) Set(val string) error {
 }
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY [TAG]", "Tag an image into a repository")
+	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1520,10 +1657,10 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("repo", cmd.Arg(1))
-	if cmd.NArg() == 3 {
-		v.Set("tag", cmd.Arg(2))
-	}
+	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	v.Set("repo", repository)
+	v.Set("tag", tag)
 
 	if *force {
 		v.Set("force", "1")

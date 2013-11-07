@@ -1,5 +1,7 @@
 package docker
 
+import "strings"
+
 type APIHistory struct {
 	ID        string   `json:"Id"`
 	Tags      []string `json:",omitempty"`
@@ -9,12 +11,41 @@ type APIHistory struct {
 }
 
 type APIImages struct {
+	ID          string   `json:"Id"`
+	RepoTags    []string `json:",omitempty"`
+	Created     int64
+	Size        int64
+	VirtualSize int64
+	ParentId    string `json:",omitempty"`
+}
+
+type APIImagesOld struct {
 	Repository  string `json:",omitempty"`
 	Tag         string `json:",omitempty"`
 	ID          string `json:"Id"`
 	Created     int64
 	Size        int64
 	VirtualSize int64
+}
+
+func (self *APIImages) ToLegacy() []APIImagesOld {
+
+	outs := []APIImagesOld{}
+	for _, repotag := range self.RepoTags {
+
+		components := strings.SplitN(repotag, ":", 2)
+
+		outs = append(outs, APIImagesOld{
+			ID:          self.ID,
+			Repository:  components[0],
+			Tag:         components[1],
+			Created:     self.Created,
+			Size:        self.Size,
+			VirtualSize: self.VirtualSize,
+		})
+	}
+
+	return outs
 }
 
 type APIInfo struct {
@@ -76,11 +107,6 @@ type APIContainersOld struct {
 	Ports      string
 	SizeRw     int64
 	SizeRootFs int64
-}
-
-type APISearch struct {
-	Name        string
-	Description string
 }
 
 type APIID struct {

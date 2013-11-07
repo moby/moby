@@ -107,7 +107,7 @@ Create a ``supervisord`` configuration file
 +++++++++++++++++++++++++++++++++++++++++++
 
 Create an empty file called ``supervisord.conf``. Make sure it's at the same
-level as your ``Dockerfile``:
+directory level as your ``Dockerfile``:
 
 .. code-block:: bash
 

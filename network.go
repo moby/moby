@@ -76,6 +76,21 @@ func checkRouteOverlaps(networks []*net.IPNet, dockerNetwork *net.IPNet) error {
 	return nil
 }
 
+func checkNameserverOverlaps(nameservers []string, dockerNetwork *net.IPNet) error {
+	if len(nameservers) > 0 {
+		for _, ns := range nameservers {
+			_, nsNetwork, err := net.ParseCIDR(ns)
+			if err != nil {
+				return err
+			}
+			if networkOverlaps(dockerNetwork, nsNetwork) {
+				return fmt.Errorf("%s overlaps nameserver %s", dockerNetwork, nsNetwork)
+			}
+		}
+	}
+	return nil
+}
+
 // CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
 // and attempts to configure it with an address which doesn't conflict with any other interface on the host.
 // If it can't find an address which doesn't conflict, it will return an error.
@@ -100,6 +115,16 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		"192.168.44.1/24",
 	}
 
+	nameservers := []string{}
+	resolvConf, _ := utils.GetResolvConf()
+	// we don't check for an error here, because we don't really care
+	// if we can't read /etc/resolv.conf. So instead we skip the append
+	// if resolvConf is nil. It either doesn't exist, or we can't read it
+	// for some reason.
+	if resolvConf != nil {
+		nameservers = append(nameservers, utils.GetNameserversAsCIDR(resolvConf)...)
+	}
+
 	var ifaceAddr string
 	for _, addr := range addrs {
 		_, dockerNetwork, err := net.ParseCIDR(addr)
@@ -111,8 +136,10 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			return err
 		}
 		if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
-			ifaceAddr = addr
-			break
+			if err := checkNameserverOverlaps(nameservers, dockerNetwork); err == nil {
+				ifaceAddr = addr
+				break
+			}
 		} else {
 			utils.Debugf("%s: %s", addr, err)
 		}
@@ -141,9 +168,11 @@ func CreateBridgeIface(config *DaemonConfig) error {
 	}
 
 	if config.EnableIptables {
-		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+		if output, err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables postrouting: %s", output)
 		}
 	}
 	return nil
@@ -656,8 +685,10 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		if !config.InterContainerCommunication {
 			if !iptables.Exists(args...) {
 				utils.Debugf("Disable inter-container communication")
-				if err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
 					return nil, fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+				} else if len(output) != 0 {
+					return nil, fmt.Errorf("Error enabling iptables: %s", output)
 				}
 			}
 		} else {
