@@ -168,9 +168,11 @@ func CreateBridgeIface(config *DaemonConfig) error {
 	}
 
 	if config.EnableIptables {
-		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+		if output, err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables postrouting: %s", output)
 		}
 	}
 	return nil
@@ -683,8 +685,10 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		if !config.InterContainerCommunication {
 			if !iptables.Exists(args...) {
 				utils.Debugf("Disable inter-container communication")
-				if err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
 					return nil, fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+				} else if len(output) != 0 {
+					return nil, fmt.Errorf("Error enabling iptables: %s", output)
 				}
 			}
 		} else {

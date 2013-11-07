@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -27,8 +28,10 @@ type Chain struct {
 }
 
 func NewChain(name, bridge string) (*Chain, error) {
-	if err := Raw("-t", "nat", "-N", name); err != nil {
+	if output, err := Raw("-t", "nat", "-N", name); err != nil {
 		return nil, err
+	} else if len(output) != 0 {
+		return nil, fmt.Errorf("Error creating new iptables chain: %s", output)
 	}
 	chain := &Chain{
 		Name:   name,
@@ -52,13 +55,18 @@ func RemoveExistingChain(name string) error {
 }
 
 func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr string, dest_port int) error {
-	return Raw("-t", "nat", fmt.Sprint(action), c.Name,
+	if output, err := Raw("-t", "nat", fmt.Sprint(action), c.Name,
 		"-p", proto,
 		"-d", ip.String(),
 		"--dport", strconv.Itoa(port),
 		"!", "-i", c.Bridge,
 		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port)))
+		"--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port))); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error iptables forward: %s", output)
+	}
+	return nil
 }
 
 func (c *Chain) Prerouting(action Action, args ...string) error {
@@ -66,7 +74,12 @@ func (c *Chain) Prerouting(action Action, args ...string) error {
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
-	return Raw(append(a, "-j", c.Name)...)
+	if output, err := Raw(append(a, "-j", c.Name)...); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error iptables prerouting: %s", output)
+	}
+	return nil
 }
 
 func (c *Chain) Output(action Action, args ...string) error {
@@ -74,7 +87,12 @@ func (c *Chain) Output(action Action, args ...string) error {
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
-	return Raw(append(a, "-j", c.Name)...)
+	if output, err := Raw(append(a, "-j", c.Name)...); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error iptables output: %s", output)
+	}
+	return nil
 }
 
 func (c *Chain) Remove() error {
@@ -94,17 +112,23 @@ func (c *Chain) Remove() error {
 
 // Check if an existing rule exists
 func Exists(args ...string) bool {
-	return Raw(append([]string{"-C"}, args...)...) == nil
+	if _, err := Raw(append([]string{"-C"}, args...)...); err != nil {
+		return false
+	}
+	return true
 }
 
-func Raw(args ...string) error {
+func Raw(args ...string) ([]byte, error) {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
-		return ErrIptablesNotFound
+		return nil, ErrIptablesNotFound
 	}
-	if err := exec.Command(path, args...).Run(); err != nil {
-		return fmt.Errorf("iptables failed: iptables %v", strings.Join(args, " "))
+	if os.Getenv("DEBUG") != "" {
+		fmt.Printf("[DEBUG] [iptables]: %s, %v\n", path, args)
 	}
-	return nil
-
+	output, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
+	}
+	return output, err
 }
