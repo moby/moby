@@ -20,6 +20,13 @@ type APIImages struct {
 type APIInfo struct {
 	Debug              bool
 	Containers         int
+	RunningContainers  int
+	MemUsageRunning    int64
+	MemUsageTotal      int64
+	CPUCores           int
+	CPUAverage         [3]float64
+	FreeRAM            uint64
+	TotalRAM           uint64
 	Images             int
 	NFd                int    `json:",omitempty"`
 	NGoroutines        int    `json:",omitempty"`
