@@ -129,11 +129,7 @@ func setupBaseImage() {
 	}
 
 	// Create the "Server"
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	// If the unit test is not found, try to download it.
 	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
@@ -150,11 +146,7 @@ func spawnGlobalDaemon() {
 		return
 	}
 	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
-	srv := &Server{
-		runtime:     globalRuntime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(globalRuntime)
 
 	// Spawn a Daemon
 	go func() {
@@ -644,7 +636,7 @@ func TestReloadContainerLinks(t *testing.T) {
 func TestDefaultContainerName(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
+	srv := newServer(runtime)
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
@@ -681,7 +673,7 @@ func TestDefaultContainerName(t *testing.T) {
 func TestRandomContainerName(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
+	srv := newServer(runtime)
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
@@ -718,7 +710,7 @@ func TestRandomContainerName(t *testing.T) {
 func TestLinkChildContainer(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
+	srv := newServer(runtime)
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
@@ -769,7 +761,7 @@ func TestLinkChildContainer(t *testing.T) {
 func TestGetAllChildren(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
+	srv := newServer(runtime)
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
