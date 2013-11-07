@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"io"
 	"io/ioutil"
 	"log"
@@ -430,7 +431,7 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerChanges(name string) ([]Change, error) {
+func (srv *Server) ContainerChanges(name string) ([]graphdriver.Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Changes()
 	}

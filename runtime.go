@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/graphdriver"
 	"io"
 	"io/ioutil"
 	"log"
@@ -38,6 +39,7 @@ type Runtime struct {
 	srv            *Server
 	config         *DaemonConfig
 	containerGraph *gograph.Database
+	driver         graphdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -112,6 +114,13 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := validateID(container.ID); err != nil {
 		return err
 	}
+
+	// Get the root filesystem from the driver
+	rootfs, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
+	}
+	container.rootfs = rootfs
 
 	// init the wait lock
 	container.waitLock = make(chan struct{})
@@ -200,12 +209,8 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return err
 	}
 
-	if mounted, err := container.Mounted(); err != nil {
-		return err
-	} else if mounted {
-		if err := container.Unmount(); err != nil {
-			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
-		}
+	if err := runtime.driver.Remove(container.ID); err != nil {
+		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", runtime.driver, container.ID, err)
 	}
 
 	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
@@ -413,6 +418,21 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
+	initID := fmt.Sprintf("%s-init", container.ID)
+	if err := runtime.driver.Create(initID, img.ID); err != nil {
+		return nil, nil, err
+	}
+	initPath, err := runtime.driver.Get(initID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := setupInitLayer(initPath); err != nil {
+		return nil, nil, err
+	}
+
+	if err := runtime.driver.Create(container.ID, initID); err != nil {
+		return nil, nil, err
+	}
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return nil, nil, err
@@ -568,17 +588,23 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+	// Load storage driver
+	driver, err := graphdriver.New(config.Root)
+	if err != nil {
+		return nil, err
+	}
+
 	runtimeRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	g, err := NewGraph(path.Join(config.Root, "graph"))
+	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"), driver)
 	if err != nil {
 		return nil, err
 	}
@@ -612,6 +638,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -623,6 +650,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
+		driver:		driver,
 	}
 
 	if err := runtime.restore(); err != nil {
@@ -633,40 +661,32 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 func (runtime *Runtime) Close() error {
 	runtime.networkManager.Close()
+	runtime.driver.Cleanup()
 	return runtime.containerGraph.Close()
 }
 
 func (runtime *Runtime) Mount(container *Container) error {
-	if mounted, err := runtime.Mounted(container); err != nil {
-		return err
-	} else if mounted {
-		return fmt.Errorf("%s is already mounted", container.RootfsPath())
-	}
-	img, err := container.GetImage()
+	dir, err := runtime.driver.Get(container.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, runtime.driver, err)
 	}
-	return runtime.graph.driver.Mount(img, container.root)
+	if container.rootfs == "" {
+		container.rootfs = dir
+	} else if container.rootfs != dir {
+		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+			runtime.driver, container.ID, container.rootfs, dir)
+	}
+	return nil
 }
 
 func (runtime *Runtime) Unmount(container *Container) error {
-	return runtime.graph.driver.Unmount(container.root)
+	// FIXME: Unmount is deprecated because drivers are responsible for mounting
+	// and unmounting when necessary. Use driver.Remove() instead.
+	return nil
 }
 
-func (runtime *Runtime) Mounted(container *Container) (bool, error) {
-	return runtime.graph.driver.Mounted(container.root)
-}
-
-func (runtime *Runtime) Changes(container *Container) ([]Change, error) {
-	img, err := container.GetImage()
-	if err != nil {
-		return nil, err
-	}
-	layers, err := img.Layers()
-	if err != nil {
-		return nil, err
-	}
-	return Changes(layers, container.rwPath())
+func (runtime *Runtime) Changes(container *Container) ([]graphdriver.Change, error) {
+	return runtime.driver.Changes(container.ID)
 }
 
 // History is a convenience type for storing a list of containers,

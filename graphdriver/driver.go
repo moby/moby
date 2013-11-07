@@ -7,21 +7,20 @@ import (
 
 type InitFunc func(root string) (Driver, error)
 
-type Dir interface {
-	ID() string
-	Path() string
-	Parent() (Dir, error)
+// FIXME: this is a temporary placeholder for archive.Change
+// (to be merged from master)
+type Change interface {
 }
 
 type Driver interface {
-	OnCreate(dir Dir, layer archive.Archive) error
-	OnRemove(dir Dir) error
+	Create(id, parent string) error
+	Remove(id string) error
 
-	OnMount(dir Dir, dest string) error
-	OnUnmount(dest string) error
-	Mounted(dest string) (bool, error)
+	Get(id string) (dir string, err error)
 
-	Layer(dir Dir, dest string) (archive.Archive, error)
+	Diff(id string) (archive.Archive, error)
+	DiffSize(id string) (bytes int64, err error)
+	Changes(id string) ([]Change, error)
 
 	Cleanup() error
 }

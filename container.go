@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
@@ -25,7 +26,8 @@ import (
 )
 
 type Container struct {
-	root string
+	root string	// Path to the "home" of the container, including metadata.
+	rootfs string	// Path to the root filesystem of the container.
 
 	ID string
 
@@ -767,6 +769,7 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 		}
 	}
 
+	volumesDriver := container.runtime.volumes.driver
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
 		volPath = path.Clean(volPath)
@@ -790,9 +793,9 @@ func (container *Container) Start(hostConfig *HostConfig) (err error) {
 			if err != nil {
 				return err
 			}
-			srcPath, err = c.layer()
+			srcPath, err = volumesDriver.Get(c.ID)
 			if err != nil {
-				return err
+				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
 			}
 			srcRW = true // RW by default
 		}
@@ -1338,15 +1341,10 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
-	return archive.Tar(container.rwPath(), archive.Uncompressed)
-}
-
-func (container *Container) RwChecksum() (string, error) {
-	rwData, err := archive.Tar(container.rwPath(), archive.Xz)
-	if err != nil {
-		return "", err
+	if container.runtime == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
 	}
-	return utils.HashData(rwData)
+	return container.runtime.driver.Diff(container.ID)
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -1372,11 +1370,8 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 }
 
 func (container *Container) EnsureMounted() error {
-	if mounted, err := container.Mounted(); err != nil {
-		return err
-	} else if mounted {
-		return nil
-	}
+	// FIXME: EnsureMounted is deprecated because drivers are now responsible
+	// for re-entrant mounting in their Get() method.
 	return container.Mount()
 }
 
@@ -1384,7 +1379,7 @@ func (container *Container) Mount() error {
 	return container.runtime.Mount(container)
 }
 
-func (container *Container) Changes() ([]Change, error) {
+func (container *Container) Changes() ([]graphdriver.Change, error) {
 	return container.runtime.Changes(container)
 }
 
@@ -1393,10 +1388,6 @@ func (container *Container) GetImage() (*Image, error) {
 		return nil, fmt.Errorf("Can't get image of unregistered container")
 	}
 	return container.runtime.graph.Get(container.Image)
-}
-
-func (container *Container) Mounted() (bool, error) {
-	return container.runtime.Mounted(container)
 }
 
 func (container *Container) Unmount() error {
@@ -1437,11 +1428,7 @@ func (container *Container) lxcConfigPath() string {
 
 // This method must be exported to be used from the lxc template
 func (container *Container) RootfsPath() string {
-	return path.Join(container.root, "rootfs")
-}
-
-func (container *Container) rwPath() string {
-	return path.Join(container.root, "rw")
+	return container.rootfs
 }
 
 func validateID(id string) error {
@@ -1455,18 +1442,20 @@ func validateID(id string) error {
 func (container *Container) GetSize() (int64, int64) {
 	var sizeRw, sizeRootfs int64
 
-	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
-		if fileInfo != nil {
-			sizeRw += fileInfo.Size()
-		}
-		return nil
-	})
+	driver := container.runtime.driver
+	sizeRw, err := driver.DiffSize(container.ID)
+	if err != nil {
+		utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+		// FIXME: GetSize should return an error. Not changing it now in case
+		// there is a side-effect.
+		sizeRw = -1
+	}
 
 	if err := container.EnsureMounted(); err != nil {
 		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
-	_, err := os.Stat(container.RootfsPath())
+	_, err = os.Stat(container.RootfsPath())
 	if err == nil {
 		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
 			if fileInfo != nil {

@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -59,19 +58,10 @@ func LoadImage(root string) (*Image, error) {
 		}
 	}
 
-	// Check that the filesystem layer exists
-	if stat, err := os.Stat(layerPath(root)); err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Couldn't load image %s: no filesystem layer", img.ID)
-		}
-		return nil, err
-	} else if !stat.IsDir() {
-		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.ID, layerPath(root))
-	}
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, rootfs string) error {
 	// Check that root doesn't already exist
 	if _, err := os.Stat(root); err == nil {
 		return fmt.Errorf("Image %s already exists", img.ID)
@@ -79,7 +69,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 		return err
 	}
 	// Store the layer
-	layer := layerPath(root)
+	layer := rootfs
 	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
 	}
@@ -106,29 +96,25 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 			return err
 		}
 	}
-
-	return StoreSize(img, root)
-}
-
-func StoreSize(img *Image, root string) error {
-	layer := layerPath(root)
-
-	var totalSize int64 = 0
-	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
-		totalSize += fileInfo.Size()
-		return nil
-	})
-	img.Size = totalSize
-
-	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(totalSize))), 0600); err != nil {
-		return nil
+	// Compute and save the size of the rootfs
+	size, err := utils.TreeSize(rootfs)
+	if err != nil {
+		return fmt.Errorf("Error computing size of rootfs %s: %s", img.ID, err)
+	}
+	img.Size = size
+	if err := img.SaveSize(root); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func layerPath(root string) string {
-	return path.Join(root, "layer")
+// SaveSize stores the current `size` value of `img` in the directory `root`.
+func (img *Image) SaveSize(root string) error {
+	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(img.Size))), 0600); err != nil {
+		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
+	}
+	return nil
 }
 
 func jsonPath(root string) string {
@@ -137,7 +123,10 @@ func jsonPath(root string) string {
 
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (image *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
-	layerPath, err := image.layer()
+	if image.graph == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", image.ID)
+	}
+	layerPath, err := image.graph.driver.Get(image.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,15 +203,6 @@ func (img *Image) root() (string, error) {
 		return "", fmt.Errorf("Can't lookup root of unregistered image")
 	}
 	return img.graph.imageRoot(img.ID), nil
-}
-
-// Return the path of an image's layer
-func (img *Image) layer() (string, error) {
-	root, err := img.root()
-	if err != nil {
-		return "", err
-	}
-	return layerPath(root), nil
 }
 
 func (img *Image) getParentsSize(size int64) int64 {
