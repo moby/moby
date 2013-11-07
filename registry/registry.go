@@ -25,6 +25,33 @@ var (
 	ErrLoginRequired         = errors.New("Authentication is required.")
 )
 
+func traceLog(req *http.Request, resp *http.Response, reqBody string) ([]byte, error) {
+	utils.Errorf("An HTTP request has failed. See information below.")
+	utils.Errorf("Request URL: %s %s %s", req.Method, req.Proto, req.URL.String())
+
+	headers := ""
+	for k, v := range req.Header {
+		headers += fmt.Sprintf("%s: %s\n", k, strings.Join(v, "; "))
+	}
+	utils.Errorf("Request headers:\n%s", headers)
+	utils.Errorf("Request body:\n%s", reqBody)
+
+	utils.Errorf("Response status code: %d", resp.StatusCode)
+	utils.Errorf("Response length: %d", resp.ContentLength)
+	respHeaders := ""
+	for k, v := range resp.Header {
+		respHeaders += fmt.Sprintf("%s: %s\n", k, strings.Join(v, "; "))
+	}
+	utils.Errorf("Response headers:\n%s", respHeaders)
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		utils.Errorf("Error while reading response body: %v", err)
+		return nil, err
+	}
+	utils.Errorf("Response body:\n%s", string(respBody))
+	return respBody, nil
+}
+
 func pingRegistryEndpoint(endpoint string) error {
 	if endpoint == auth.IndexServerAddress() {
 		// Skip the check, we now this one is valid
@@ -165,6 +192,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
+		traceLog(req, res, "")
 		if res.StatusCode == 401 {
 			return nil, ErrLoginRequired
 		}
@@ -186,7 +214,6 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 
 // Check if an image exists in the Registry
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
-
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
 		return false
@@ -214,6 +241,7 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
+		traceLog(req, res, "")
 		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
@@ -240,6 +268,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 		return nil, err
 	}
 	if res.StatusCode != 200 {
+		traceLog(req, res, "")
 		res.Body.Close()
 		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
 			res.StatusCode, imgID)
@@ -270,6 +299,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 		defer res.Body.Close()
 
 		if res.StatusCode != 200 && res.StatusCode != 404 {
+			traceLog(req, res, "")
 			continue
 		} else if res.StatusCode == 404 {
 			return nil, fmt.Errorf("Repository not found")
@@ -313,6 +343,7 @@ func (r *Registry) GetRepositoryData(indexEp, remote string) (*RepositoryData, e
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
 	if res.StatusCode != 200 {
+		traceLog(req, res, "")
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
 	}
 
@@ -374,7 +405,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 		r.client.Jar.SetCookies(req.URL, res.Cookies())
 	}
 	if res.StatusCode != 200 {
-		errBody, err := ioutil.ReadAll(res.Body)
+		errBody, err := traceLog(req, res, "")
 		if err != nil {
 			return fmt.Errorf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err)
 		}
@@ -407,7 +438,7 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		errBody, err := ioutil.ReadAll(res.Body)
+		errBody, err := traceLog(req, res, string(jsonRaw))
 		if err != nil {
 			return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
@@ -442,7 +473,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		errBody, err := ioutil.ReadAll(res.Body)
+		errBody, err := traceLog(req, res, "{layer+tarsum}")
 		if err != nil {
 			return "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
@@ -471,6 +502,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	}
 	res.Body.Close()
 	if res.StatusCode != 200 && res.StatusCode != 201 {
+		traceLog(req, res, revision)
 		return utils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote), res)
 	}
 	return nil
@@ -542,7 +574,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	var urlScheme = indexEp[:strings.Index(indexEp, ":")]
 	if !validate {
 		if res.StatusCode != 200 && res.StatusCode != 201 {
-			errBody, err := ioutil.ReadAll(res.Body)
+			errBody, err := traceLog(req, res, string(imgListJSON))
 			if err != nil {
 				return nil, err
 			}
@@ -566,7 +598,7 @@ func (r *Registry) PushImageJSONIndex(indexEp, remote string, imgList []*ImgData
 	}
 	if validate {
 		if res.StatusCode != 204 {
-			errBody, err := ioutil.ReadAll(res.Body)
+			errBody, err := traceLog(req, res, string(imgListJSON))
 			if err != nil {
 				return nil, err
 			}
@@ -592,6 +624,7 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
+		traceLog(req, res, "")
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
 	}
 	rawData, err := ioutil.ReadAll(res.Body)
