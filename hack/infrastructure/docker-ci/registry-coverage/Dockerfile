@@ -11,7 +11,7 @@ maintainer Daniel Mizyrycki <daniel@dotcloud.com>
 
 # Add registry_coverager.sh and dependencies
 run pip install coverage flask pyyaml requests simplejson python-glanceclient \
-    blinker redis gevent
+    blinker redis boto gevent rsa mock
 add registry_coverage.sh /usr/bin/registry_coverage.sh
 run chmod +x /usr/bin/registry_coverage.sh
 

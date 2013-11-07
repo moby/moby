@@ -8,6 +8,10 @@ BRANCH=${3-master}
 # Compute test paths
 DOCKER_PATH=/go/src/github.com/dotcloud/docker
 
+# Timestamp
+echo
+date; echo
+
 # Fetch latest master
 cd /
 rm -rf /go
@@ -16,13 +20,13 @@ cd $DOCKER_PATH
 
 # Merge commit
 git fetch -q "$REPO" "$BRANCH"
-git merge --no-edit $COMMIT || exit 1
+git merge --no-edit $COMMIT || exit 255
 
 # Test commit
 ./hack/make.sh test; exit_status=$?
 
 # Display load if test fails
-if [ $exit_status -eq 1 ] ; then
+if [ $exit_status -ne 0 ] ; then
     uptime; echo; free
 fi
 

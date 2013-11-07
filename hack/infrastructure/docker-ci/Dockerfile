@@ -1,6 +1,6 @@
-# VERSION:        0.22
-# DOCKER-VERSION  0.6.3
-# AUTHOR:         Daniel Mizyrycki <daniel@dotcloud.com>
+# VERSION:        0.25
+# DOCKER-VERSION  0.6.6
+# AUTHOR:         Daniel Mizyrycki <daniel@docker.com>
 # DESCRIPTION:    Deploy docker-ci on Digital Ocean
 # COMMENTS:
 #     CONFIG_JSON is an environment variable json string loaded as:

@@ -32,7 +32,7 @@ DOCKER_CI_PATH = '/docker-ci'
 CFG_PATH = '{}/buildbot'.format(DOCKER_CI_PATH)
 
 
-class digital_ocean():
+class DigitalOcean():
 
     def __init__(self, key, client):
         '''Set default API parameters'''
@@ -62,7 +62,7 @@ def json_fmt(data):
     return json.dumps(data, sort_keys = True, indent = 2)
 
 
-do = digital_ocean(env['DO_API_KEY'], env['DO_CLIENT_ID'])
+do = DigitalOcean(env['DO_API_KEY'], env['DO_CLIENT_ID'])
 
 # Get DROPLET_NAME data
 data = do.droplet_data(DROPLET_NAME)
@@ -147,9 +147,6 @@ sudo('curl -s https://phantomjs.googlecode.com/files/'
     'phantomjs-1.9.1-linux-x86_64.tar.bz2 | tar jx -C /usr/bin'
     ' --strip-components=2 phantomjs-1.9.1-linux-x86_64/bin/phantomjs')
 
-# Preventively reboot docker-ci daily
-sudo('ln -s /sbin/reboot /etc/cron.daily')
-
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}; docker build -t docker-ci .'.format(DOCKER_CI_PATH))
@@ -169,3 +166,6 @@ sudo('{0}/setup.sh root {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10}'
     env['SMTP_PWD'], env['EMAIL_RCP'], env['REGISTRY_USER'],
     env['REGISTRY_PWD'], env['REGISTRY_BUCKET'], env['REGISTRY_ACCESS_KEY'],
     env['REGISTRY_SECRET_KEY']))
+
+# Preventively reboot docker-ci daily
+sudo('ln -s /sbin/reboot /etc/cron.daily')

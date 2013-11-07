@@ -34,7 +34,7 @@ exit_status=$?
 
 # Display load if test fails
 set -x
-if [ $exit_status -eq 1 ] ; then
+if [ $exit_status -ne 0 ] ; then
     uptime; echo; free
     exit 1
 fi
