@@ -36,6 +36,10 @@ var (
 	}
 )
 
+func init() {
+	drivers = make(map[string]InitFunc)
+}
+
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("Name already registered %s", name)
