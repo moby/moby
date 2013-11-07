@@ -27,6 +27,17 @@ type Capabilities struct {
 	AppArmor               bool
 }
 
+type MemUsage struct {
+	running int64
+	total   int64
+}
+
+type ContainerInfo struct {
+	NumRunning int
+	NumTotal   int
+	MemInfo    *MemUsage
+}
+
 type Runtime struct {
 	repository     string
 	containers     *list.List
@@ -58,6 +69,32 @@ func (runtime *Runtime) ListRunning() []*Container {
 		}
 	}
 	return *running
+}
+
+func (runtime *Runtime) ContainerMemUsage() *MemUsage {
+	containers := runtime.List()
+	usage := new(MemUsage)
+	for _, container := range containers {
+		used, err := container.GetMemStat()
+		if err != nil {
+			return usage
+		}
+		total_usage := (used.rss + used.cache + used.swap)
+		if container.State.Running {
+			usage.running += total_usage
+		}
+		usage.total += container.Config.Memory
+	}
+	return usage
+}
+
+func (runtime *Runtime) NewContainerInfo() *ContainerInfo {
+	info := ContainerInfo{
+		NumRunning: len(runtime.ListRunning()),
+		NumTotal:   len(runtime.List()),
+		MemInfo:    runtime.ContainerMemUsage(),
+	}
+	return &info
 }
 
 func (runtime *Runtime) getContainerElement(id string) *list.Element {
