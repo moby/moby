@@ -21,7 +21,8 @@ smooth, but gives you a good idea.
    daemon is unprotected and available via a TCP port. When you run
    through the same steps in a newer version of Docker, you will
    need to add ``sudo`` in front of each ``docker`` command in order
-   to reach the daemon over its protected Unix socket.
+   to reach the daemon over its protected Unix socket or you can add
+   your user to docker's group: ``sudo usermod -a -G docker <user>``.
 
 .. raw:: html
 

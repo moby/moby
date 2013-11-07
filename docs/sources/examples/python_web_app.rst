@@ -39,11 +39,12 @@ container. The ``BUILD_JOB`` environment variable will be set with the new conta
 
 .. code-block:: bash
 
-    sudo docker attach $BUILD_JOB
+    sudo docker attach -sig-proxy=false $BUILD_JOB
     [...]
 
 While this container is running, we can attach to the new container to
-see what is going on. You can use Ctrl-C to disconnect.
+see what is going on. The flag ``-sig-proxy`` set as ``false`` allows you to connect and
+disconnect (Ctrl-C) to it without stopping the container.
 
 .. code-block:: bash
 
