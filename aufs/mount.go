@@ -49,5 +49,6 @@ func Mounted(mountpoint string) (bool, error) {
 	}
 	mntpointSt := mntpoint.Sys().(*syscall.Stat_t)
 	parentSt := parent.Sys().(*syscall.Stat_t)
+
 	return mntpointSt.Dev != parentSt.Dev, nil
 }
