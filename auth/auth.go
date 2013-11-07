@@ -223,6 +223,28 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 		} else {
 			return "", fmt.Errorf("Registration: %s", reqBody)
 		}
+	} else if reqStatusCode == 401 {
+		// This case would happen with private registries where /v1/users is
+		// protected, so people can use `docker login` as an auth check.
+		req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
+		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+    	}
+		if resp.StatusCode == 200 {
+			status = "Login Succeeded"
+		} else if resp.StatusCode == 401 {
+			return "", fmt.Errorf("Wrong login/password, please try again")
+		} else {
+			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+				resp.StatusCode, resp.Header)
+		}
 	} else {
 		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
 	}
