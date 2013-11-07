@@ -35,7 +35,7 @@ func ApplyLayer(dest string, layer Archive) error {
 			return err
 		} else if matched {
 			log.Printf("Removing aufs metadata %s", fullPath)
-			_ = os.Remove(fullPath)
+			_ = os.RemoveAll(fullPath)
 		}
 
 		filename := filepath.Base(path)
@@ -47,7 +47,7 @@ func ApplyLayer(dest string, layer Archive) error {
 			_ = os.Remove(rmTargetPath)
 			// Remove the whiteout itself
 			log.Printf("Removing whiteout %s", fullPath)
-			_ = os.Remove(fullPath)
+			_ = os.RemoveAll(fullPath)
 		}
 		return nil
 	})
