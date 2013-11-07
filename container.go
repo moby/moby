@@ -380,12 +380,11 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
-		return err
+	if err := container.EnsureMounted(); err != nil {
+		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
 	}
 	// FIXME: Handle permissions/already existing dest
-	dest, err := os.Create(path.Join(container.rwPath(), pth))
+	dest, err := os.Create(path.Join(container.RootfsPath(), pth))
 	if err != nil {
 		return err
 	}
@@ -1463,6 +1462,10 @@ func (container *Container) GetSize() (int64, int64) {
 		return nil
 	})
 
+	if err := container.EnsureMounted(); err != nil {
+		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
+		return sizeRw, sizeRootfs
+	}
 	_, err := os.Stat(container.RootfsPath())
 	if err == nil {
 		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {

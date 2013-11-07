@@ -676,7 +676,7 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err != nil {
+	if _, err := os.Stat(path.Join(container.RootfsPath(), "test")); err != nil {
 		if os.IsNotExist(err) {
 			utils.Debugf("Err: %s", err)
 			t.Fatalf("The test file has not been created")
@@ -1145,7 +1145,7 @@ func TestDeleteContainers(t *testing.T) {
 		t.Fatalf("The container as not been deleted")
 	}
 
-	if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
+	if _, err := os.Stat(path.Join(container.RootfsPath(), "test")); err == nil {
 		t.Fatalf("The test file has not been deleted")
 	}
 }
@@ -1276,13 +1276,7 @@ func TestDeleteImages(t *testing.T) {
 		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 
-	/*	if c := runtime.Get(container.Id); c != nil {
-			t.Fatalf("The container as not been deleted")
-		}
-
-		if _, err := os.Stat(path.Join(container.rwPath(), "test")); err == nil {
-			t.Fatalf("The test file has not been deleted")
-		} */
+	// FIXME: check that container has been deleted, and its filesystem too
 }
 
 func TestJsonContentType(t *testing.T) {
