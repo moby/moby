@@ -50,6 +50,16 @@ func (runtime *Runtime) List() []*Container {
 	return *containers
 }
 
+func (runtime *Runtime) ListRunning() []*Container {
+	running := new(History)
+	for e := runtime.containers.Front(); e != nil; e = e.Next() {
+		if container := e.Value.(*Container); container.State.Running {
+			running.Add(container)
+		}
+	}
+	return *running
+}
+
 func (runtime *Runtime) getContainerElement(id string) *list.Element {
 	for e := runtime.containers.Front(); e != nil; e = e.Next() {
 		container := e.Value.(*Container)
