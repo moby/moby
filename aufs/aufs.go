@@ -21,6 +21,7 @@ aufs driver directory structure
 package aufs
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
@@ -29,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 func init() {
@@ -43,7 +45,7 @@ type AufsDriver struct {
 // An error is returned if AUFS is not supported.
 func Init(root string) (graphdriver.Driver, error) {
 	// Try to load the aufs kernel module
-	if err := exec.Command("modprobe", "aufs").Run(); err != nil {
+	if err := supportsAufs(); err != nil {
 		return nil, err
 	}
 	paths := []string{
@@ -69,6 +71,25 @@ func Init(root string) (graphdriver.Driver, error) {
 		}
 	}
 	return &AufsDriver{root}, nil
+}
+
+// Return a nil error if the kernel supports aufs
+// We cannot modprobe because inside dind modprobe fails
+// to run
+func supportsAufs() error {
+	f, err := os.Open("/proc/filesystems")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if strings.Contains(s.Text(), "aufs") {
+			return nil
+		}
+	}
+	return fmt.Errorf("AUFS was not found in /proc/filesystems")
 }
 
 func (a *AufsDriver) rootPath() string {
