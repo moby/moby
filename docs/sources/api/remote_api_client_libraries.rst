@@ -17,8 +17,6 @@ and we will add the libraries here.
 +======================+================+============================================+
 | Python               | docker-py      | https://github.com/dotcloud/docker-py      |
 +----------------------+----------------+--------------------------------------------+
-| Ruby                 | docker-client  | https://github.com/geku/docker-client      |
-+----------------------+----------------+--------------------------------------------+
 | Ruby                 | docker-api     | https://github.com/swipely/docker-api      |
 +----------------------+----------------+--------------------------------------------+
 | Javascript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  |
