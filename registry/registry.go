@@ -647,7 +647,7 @@ func NewRegistry(root string, authConfig *auth.AuthConfig, factory *utils.HTTPRe
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config { InsecureSkipVerify: authConfig.InsecureSSL }
+		TLSClientConfig: &tls.Config { InsecureSkipVerify: authConfig.InsecureSSL },
 	}
 
 	r = &Registry{
