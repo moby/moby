@@ -837,7 +837,7 @@ func (container *Container) Start() (err error) {
 		// Create the mountpoint
 		rootVolPath := path.Join(container.RootfsPath(), volPath)
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-			return nil
+			return err
 		}
 
 		// Do not copy or change permissions if we are mounting from the host
