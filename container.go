@@ -133,7 +133,11 @@ type PortBinding struct {
 type Port string
 
 func (p Port) Proto() string {
-	return strings.Split(string(p), "/")[1]
+	parts := strings.Split(string(p), "/")
+	if len(parts) == 1 {
+		return "tcp"
+	}
+	return parts[1]
 }
 
 func (p Port) Port() string {
