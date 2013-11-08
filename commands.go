@@ -252,23 +252,29 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+auth.IndexServerAddress()+"\" is the default.")
 
 	var username, password, email string
+	var insecureSSL bool
 
 	cmd.StringVar(&username, "u", "", "username")
 	cmd.StringVar(&password, "p", "", "password")
 	cmd.StringVar(&email, "e", "", "email")
+	cmd.BoolVar(&insecureSSL, "allow-insecure-ssl", false, "trust unverified registry server ssl certificates")
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil
 	}
 	serverAddress := auth.IndexServerAddress()
 	if len(cmd.Args()) > 0 {
-		serverAddress, err = registry.ExpandAndVerifyRegistryUrl(cmd.Arg(0))
+		serverAddress, err = registry.ExpandAndVerifyRegistryUrl(cmd.Arg(0), insecureSSL)
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(cli.out, "Login against server at %s\n", serverAddress)
 	}
 
+	return cli.Login(serverAddress, username, password, email, insecureSSL)
+}
+
+func (cli *DockerCli) Login(serverAddress string, username string, password string, email string, insecureSSL bool) error {
 	promptDefault := func(prompt string, configDefault string) {
 		if configDefault == "" {
 			fmt.Fprintf(cli.out, "%s: ", prompt)
@@ -330,6 +336,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
+	authconfig.InsecureSSL = insecureSSL
 	cli.configFile.Configs[serverAddress] = authconfig
 
 	body, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress])
@@ -959,6 +966,8 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 
 func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	var allowInsecureSSL bool
+	cmd.BoolVar(&allowInsecureSSL, "allow-insecure-ssl", false, "trust unverified registry server ssl certificates")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -981,6 +990,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
+	v.Set("allowInsecureSSL", strconv.FormatBool(allowInsecureSSL))
 
 	var in io.Reader
 
@@ -993,6 +1003,9 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME", "Push an image or a repository to the registry")
+	var allowInsecureSSL bool
+	cmd.BoolVar(&allowInsecureSSL, "allow-insecure-ssl", false, "trust unverified registry server ssl certificates")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1006,7 +1019,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	cli.LoadConfigFile()
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, _, err := registry.ResolveRepositoryName(name)
+	endpoint, _, err := registry.ResolveRepositoryName(name, allowInsecureSSL)
 	if err != nil {
 		return err
 	}
@@ -1025,6 +1038,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
+	v.Set("allowInsecureSSL", strconv.FormatBool(allowInsecureSSL))
 	push := func(authConfig auth.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1042,7 +1056,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	if err := push(authConfig); err != nil {
 		if err.Error() == registry.ErrLoginRequired.Error() {
 			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
-			if err := cli.CmdLogin(endpoint); err != nil {
+			if err := cli.Login(endpoint, "", "", "", allowInsecureSSL); err != nil {
 				return err
 			}
 			authConfig := cli.configFile.ResolveAuthConfig(endpoint)
@@ -1055,6 +1069,9 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
+
+	var allowInsecureSSL bool
+	cmd.BoolVar(&allowInsecureSSL, "allow-insecure-ssl", false, "trust unverified registry server ssl certificates")
 	tag := cmd.String("t", "", "Download tagged image in repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1071,7 +1088,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, _, err := registry.ResolveRepositoryName(remote)
+	endpoint, _, err := registry.ResolveRepositoryName(remote, allowInsecureSSL)
 	if err != nil {
 		return err
 	}
@@ -1083,6 +1100,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	v := url.Values{}
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
+	v.Set("allowInsecureSSL", strconv.FormatBool(allowInsecureSSL))
 
 	pull := func(authConfig auth.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
@@ -1101,7 +1119,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	if err := pull(authConfig); err != nil {
 		if err.Error() == registry.ErrLoginRequired.Error() {
 			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
-			if err := cli.CmdLogin(endpoint); err != nil {
+			if err := cli.Login(endpoint, "", "", "", allowInsecureSSL); err != nil {
 				return err
 			}
 			authConfig := cli.configFile.ResolveAuthConfig(endpoint)
@@ -1983,7 +2001,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v.Set("tag", tag)
 
 		// Resolve the Repository name from fqn to endpoint + name
-		endpoint, _, err := registry.ResolveRepositoryName(repos)
+		endpoint, _, err := registry.ResolveRepositoryName(repos, false)
 		if err != nil {
 			return err
 		}

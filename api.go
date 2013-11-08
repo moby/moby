@@ -436,6 +436,10 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	image := r.Form.Get("fromImage")
 	tag := r.Form.Get("tag")
 	repo := r.Form.Get("repo")
+	allowInsecureSSL, err := getBoolParam(r.Form.Get("allowInsecureSSL"))
+	if err != nil {
+		return err
+	}
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &auth.AuthConfig{}
@@ -458,7 +462,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 				metaHeaders[k] = v
 			}
 		}
-		if err := srv.ImagePull(image, tag, w, sf, authConfig, metaHeaders, version > 1.3); err != nil {
+		if err := srv.ImagePull(image, tag, w, sf, authConfig, metaHeaders, version > 1.3, allowInsecureSSL); err != nil {
 			if sf.Used() {
 				w.Write(sf.FormatError(err))
 				return nil
@@ -528,6 +532,10 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 	if err := parseForm(r); err != nil {
 		return err
 	}
+	allowInsecureSSL, err := getBoolParam(r.Form.Get("allowInsecureSSL"))
+	if err != nil {
+		return err
+	}
 	authConfig := &auth.AuthConfig{}
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
@@ -554,7 +562,7 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, w, sf, authConfig, metaHeaders); err != nil {
+	if err := srv.ImagePush(name, w, sf, authConfig, metaHeaders, allowInsecureSSL); err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil

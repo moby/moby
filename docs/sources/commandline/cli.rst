@@ -793,6 +793,7 @@ Known Issues (kill)
     -e="": email
     -p="": password
     -u="": username
+    -insecure-ssl=false: trust unverified registry server ssl certificates
 
     If you want to login to a private registry you can
     specify this by adding the server name.
