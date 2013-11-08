@@ -18,9 +18,12 @@ type Driver interface {
 
 	Diff(id string) (archive.Archive, error)
 	DiffSize(id string) (bytes int64, err error)
-	Changes(id string) ([]archive.Change, error)
 
 	Cleanup() error
+}
+
+type Changer interface {
+	Changes(id string) ([]archive.Change, error)
 }
 
 var (

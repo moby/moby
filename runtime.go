@@ -733,6 +733,9 @@ func (runtime *Runtime) Unmount(container *Container) error {
 }
 
 func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
+	if changer, ok := runtime.driver.(graphdriver.Changer); ok {
+		return changer.Changes(container.ID)
+	}
 	cDir, err := runtime.driver.Get(container.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
