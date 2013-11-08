@@ -384,6 +384,46 @@ func TestChanges(t *testing.T) {
 	if change.Kind != archive.ChangeAdd {
 		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
+
+	if err := d.Create("3", "2"); err != nil {
+		t.Fatal(err)
+	}
+	mntPoint, err = d.Get("3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file to save in the mountpoint
+	f, err = os.Create(path.Join(mntPoint, "test2.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.WriteString("testline"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err = d.Changes("3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(changes) != 1 {
+		t.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
+	}
+	change = changes[0]
+
+	expectedPath = "/test2.txt"
+	if change.Path != expectedPath {
+		t.Fatalf("Expected path %s got %s", expectedPath, change.Path)
+	}
+
+	if change.Kind != archive.ChangeAdd {
+		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
+	}
 }
 
 /* FIXME: How to properly test this?
