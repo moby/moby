@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	tmp = path.Join(os.TempDir(), "aufs-tests")
+	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
 )
 
 func newDriver(t *testing.T) *AufsDriver {
@@ -58,7 +58,7 @@ func TestCreateDirStructure(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p)); err != nil {
+		if _, err := os.Stat(path.Join(tmp, p)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -103,7 +103,7 @@ func TestCreateNewDirStructure(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p, "1")); err != nil {
+		if _, err := os.Stat(path.Join(tmp, p, "1")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -128,7 +128,7 @@ func TestRemoveImage(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p, "1")); err == nil {
+		if _, err := os.Stat(path.Join(tmp, p, "1")); err == nil {
 			t.Fatalf("Error should not be nil because dirs with id 1 should be delted: %s", p)
 		}
 	}
@@ -146,7 +146,7 @@ func TestGetWithoutParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := path.Join(tmp, "aufs", "diff", "1")
+	expected := path.Join(tmp, "diff", "1")
 	if diffPath != expected {
 		t.Fatalf("Expected path %s got %s", expected, diffPath)
 	}
@@ -244,7 +244,7 @@ func TestMountWithParent(t *testing.T) {
 		t.Fatal("mntPath should not be empty string")
 	}
 
-	expected := path.Join(tmp, "aufs", "mnt", "2")
+	expected := path.Join(tmp, "mnt", "2")
 	if mntPath != expected {
 		t.Fatalf("Expected %s got %s", expected, mntPath)
 	}

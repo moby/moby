@@ -57,8 +57,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	// Create the root aufs driver dir and return
 	// if it already exists
 	// If not populate the dir structure
-	aufsPath := path.Join(root, "aufs")
-	if err := os.MkdirAll(aufsPath, 0755); err != nil {
+	if err := os.MkdirAll(root, 0755); err != nil {
 		if os.IsExist(err) {
 			return &AufsDriver{root}, nil
 		}
@@ -66,7 +65,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	}
 
 	for _, p := range paths {
-		if err := os.MkdirAll(path.Join(aufsPath, p), 0755); err != nil {
+		if err := os.MkdirAll(path.Join(root, p), 0755); err != nil {
 			return nil, err
 		}
 	}
@@ -93,7 +92,7 @@ func supportsAufs() error {
 }
 
 func (a *AufsDriver) rootPath() string {
-	return path.Join(a.root, "aufs")
+	return a.root
 }
 
 func (a *AufsDriver) String() string {
