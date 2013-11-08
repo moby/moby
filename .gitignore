@@ -18,3 +18,4 @@ bundles/
 .hg/
 .git/
 vendor/pkg/
+pyenv
