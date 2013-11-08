@@ -10,6 +10,7 @@ import (
 	_ "github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/graphdriver"
+	_ "github.com/dotcloud/docker/graphdriver/dummy"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
