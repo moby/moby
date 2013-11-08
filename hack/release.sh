@@ -107,7 +107,7 @@ s3_url() {
 			echo "https://$BUCKET"
 			;;
 		*)
-			echo "http://$BUCKET.s3.amazonaws.com"
+			s3cmd ws-info s3://$BUCKET | awk -v 'FS=: +' '/http:\/\/'$BUCKET'/ { gsub(/\/+$/, "", $2); print $2 }'
 			;;
 	esac
 }
