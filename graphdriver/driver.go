@@ -3,6 +3,7 @@ package graphdriver
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"os"
 )
 
 
@@ -45,18 +46,27 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
+func getDriver(name, home string) (Driver, error) {
+	if initFunc, exists := drivers[name]; exists {
+		return initFunc(home)
+	}
+	return nil, fmt.Errorf("No such driver: %s", name)
+}
+
 func New(root string) (Driver, error) {
 	var driver Driver
 	var lastError error
+	// Use environment variable DOCKER_DRIVER to force a choice of driver
+	if name := os.Getenv("DOCKER_DRIVER"); name != "" {
+		return getDriver(name, root)
+	}
 	// Check for priority drivers first
 	for _, name := range priority {
-		if initFunc, exists := drivers[name]; exists {
-			driver, lastError = initFunc(root)
-			if lastError != nil {
-				continue
-			}
-			return driver, nil
+		driver, lastError = getDriver(name, root)
+		if lastError != nil {
+			continue
 		}
+		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
