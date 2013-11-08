@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -1000,46 +999,16 @@ func (container *Container) Start() (err error) {
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
 	container.State.setRunning()
 
+	container.ToDisk()
+
 	// Init the locks
 	container.waitLock = make(chan struct{})
 	container.rpcLock = make(chan struct{})
 	container.ptyLock = make(chan struct{})
 
-	container.ToDisk()
 	go container.monitor(false)
 
-	defer utils.Debugf("Container running: %v", container.State.Running)
-	// We wait for the container to be fully running.
-	// Timeout after 5 seconds. In case of broken pipe, just retry.
-	// Note: The container can run and finish correctly before
-	//       the end of this loop
-	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the container dies while waiting for it, just return
-		if !container.State.Running {
-			return nil
-		}
-		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
-
-			output, err = exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
-			if err != nil {
-				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
-				return err
-			}
-
-		}
-		if strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	if container.State.Running {
-		return ErrContainerStartTimeout
-	}
-	return ErrContainerStart
+	return nil
 }
 
 func (container *Container) dockerInitRpcCall(method string, args, reply interface{}) error {
