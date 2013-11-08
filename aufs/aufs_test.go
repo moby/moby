@@ -1,13 +1,14 @@
 package aufs
 
 import (
+	"github.com/dotcloud/docker/archive"
 	"os"
 	"path"
 	"testing"
 )
 
 var (
-	tmp = path.Join(os.TempDir(), "aufs-tests")
+	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
 )
 
 func newDriver(t *testing.T) *AufsDriver {
@@ -57,7 +58,7 @@ func TestCreateDirStructure(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p)); err != nil {
+		if _, err := os.Stat(path.Join(tmp, p)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -102,7 +103,7 @@ func TestCreateNewDirStructure(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p, "1")); err != nil {
+		if _, err := os.Stat(path.Join(tmp, p, "1")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -127,7 +128,7 @@ func TestRemoveImage(t *testing.T) {
 	}
 
 	for _, p := range paths {
-		if _, err := os.Stat(path.Join(tmp, "aufs", p, "1")); err == nil {
+		if _, err := os.Stat(path.Join(tmp, p, "1")); err == nil {
 			t.Fatalf("Error should not be nil because dirs with id 1 should be delted: %s", p)
 		}
 	}
@@ -145,7 +146,7 @@ func TestGetWithoutParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := path.Join(tmp, "aufs", "diff", "1")
+	expected := path.Join(tmp, "diff", "1")
 	if diffPath != expected {
 		t.Fatalf("Expected path %s got %s", expected, diffPath)
 	}
@@ -229,6 +230,12 @@ func TestMountWithParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	mntPath, err := d.Get("2")
 	if err != nil {
 		t.Fatal(err)
@@ -237,12 +244,47 @@ func TestMountWithParent(t *testing.T) {
 		t.Fatal("mntPath should not be empty string")
 	}
 
-	expected := path.Join(tmp, "aufs", "mnt", "2")
+	expected := path.Join(tmp, "mnt", "2")
 	if mntPath != expected {
 		t.Fatalf("Expected %s got %s", expected, mntPath)
 	}
+}
 
-	if err := d.Cleanup(); err != nil {
+func TestRemoveMountedDir(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Create("2", "1"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	mntPath, err := d.Get("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mntPath == "" {
+		t.Fatal("mntPath should not be empty string")
+	}
+
+	mounted, err := d.mounted("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !mounted {
+		t.Fatalf("Dir id 2 should be mounted")
+	}
+
+	if err := d.Remove("2"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -287,6 +329,60 @@ func TestGetDiff(t *testing.T) {
 	}
 	if a == nil {
 		t.Fatalf("Archive should not be nil")
+	}
+}
+
+func TestChanges(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Create("2", "1"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	mntPoint, err := d.Get("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file to save in the mountpoint
+	f, err := os.Create(path.Join(mntPoint, "test.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.WriteString("testline"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := d.Changes("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
+	}
+	change := changes[0]
+
+	expectedPath := "/test.txt"
+	if change.Path != expectedPath {
+		t.Fatalf("Expected path %s got %s", expectedPath, change.Path)
+	}
+
+	if change.Kind != archive.ChangeAdd {
+		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 }
 

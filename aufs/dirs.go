@@ -38,10 +38,9 @@ func getParentIds(root, id string) ([]string, error) {
 	s := bufio.NewScanner(f)
 
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
+		if t := s.Text(); t != "" {
+			out = append(out, s.Text())
 		}
-		out = append(out, s.Text())
 	}
-	return out, nil
+	return out, s.Err()
 }

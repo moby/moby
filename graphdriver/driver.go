@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
 	"os"
+	"path"
 )
 
 type InitFunc func(root string) (Driver, error)
@@ -48,7 +49,7 @@ func Register(name string, initFunc InitFunc) error {
 
 func getDriver(name, home string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(home)
+		return initFunc(path.Join(home, name))
 	}
 	return nil, fmt.Errorf("No such driver: %s", name)
 }
