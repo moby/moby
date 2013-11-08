@@ -396,7 +396,8 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	}
 
 	// Return error if path exists
-	if _, err := os.Stat(path.Join(container.RootfsPath(), pth)); err == nil {
+	destPath := path.Join(container.RootfsPath(), pth)
+	if _, err := os.Stat(destPath); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
 	} else if !os.IsNotExist(err) {
@@ -405,10 +406,18 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 
 		return err
 	}
-	dest, err := os.Create(path.Join(container.RootfsPath(), pth))
+
+	// Make sure the directory exists
+	if err := os.MkdirAll(path.Join(container.RootfsPath(), path.Dir(pth)), 0755); err != nil {
+		return err
+	}
+
+	dest, err := os.Create(destPath)
 	if err != nil {
 		return err
 	}
+	defer dest.Close()
+
 	if _, err := io.Copy(dest, file); err != nil {
 		return err
 	}
