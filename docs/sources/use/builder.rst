@@ -319,6 +319,22 @@ the image.
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
 
+3.12 INTERACTIVE
+----------------
+
+    ``INTERACTIVE true``
+
+The ``INTERACTIVE`` instruction keeps stdin open when running the
+image.
+
+3.13 TTY
+--------
+
+    ``TTY true``
+
+The ``TTY`` instruction allocates a pseudo-tty when running the 
+image.
+
 
 4. Dockerfile Examples
 ======================

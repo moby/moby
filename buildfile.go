@@ -12,6 +12,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -221,6 +222,30 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 		b.config.Entrypoint = entrypoint
 	}
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %s", args)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *buildFile) CmdTty(args string) error {
+	if arg, err := strconv.ParseBool(args); err != nil {
+		return err
+	} else {
+		b.config.Tty = arg
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("TTY %s", args)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *buildFile) CmdInteractive(args string) error {
+	if arg, err := strconv.ParseBool(args); err != nil {
+		return err
+	} else {
+		b.config.OpenStdin = arg
+	}
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("INTERACTIVE %s", args)); err != nil {
 		return err
 	}
 	return nil
