@@ -1,6 +1,7 @@
 package aufs
 
 import (
+	"github.com/dotcloud/docker/archive"
 	"os"
 	"path"
 	"testing"
@@ -328,6 +329,60 @@ func TestGetDiff(t *testing.T) {
 	}
 	if a == nil {
 		t.Fatalf("Archive should not be nil")
+	}
+}
+
+func TestChanges(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Create("2", "1"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	mntPoint, err := d.Get("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file to save in the mountpoint
+	f, err := os.Create(path.Join(mntPoint, "test.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.WriteString("testline"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := d.Changes("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
+	}
+	change := changes[0]
+
+	expectedPath := "/test.txt"
+	if change.Path != expectedPath {
+		t.Fatalf("Expected path %s got %s", expectedPath, change.Path)
+	}
+
+	if change.Kind != archive.ChangeAdd {
+		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 }
 

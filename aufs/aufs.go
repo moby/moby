@@ -119,9 +119,13 @@ func (a *AufsDriver) Create(id, parent string) error {
 			return err
 		}
 
-		fmt.Fprintln(f, parent)
+		if _, err := fmt.Fprintln(f, parent); err != nil {
+			return err
+		}
 		for _, i := range ids {
-			fmt.Fprintln(f, i)
+			if _, err := fmt.Fprintln(f, i); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -212,7 +216,28 @@ func (a *AufsDriver) DiffSize(id string) (int64, error) {
 }
 
 func (a *AufsDriver) Changes(id string) ([]archive.Change, error) {
-	return nil, nil
+	layers, err := a.getParentLayerPaths(id)
+	if err != nil {
+		return nil, err
+	}
+	return archive.Changes(layers, path.Join(a.rootPath(), "diff", id))
+}
+
+func (a *AufsDriver) getParentLayerPaths(id string) ([]string, error) {
+	parentIds, err := getParentIds(a.rootPath(), id)
+	if err != nil {
+		return nil, err
+	}
+	if len(parentIds) == 0 {
+		return nil, fmt.Errorf("Dir %s does not have any parent layers", id)
+	}
+	layers := make([]string, len(parentIds))
+
+	// Get the diff paths for all the parent ids
+	for i, p := range parentIds {
+		layers[i] = path.Join(a.rootPath(), "diff", p)
+	}
+	return layers, nil
 }
 
 func (a *AufsDriver) mount(id string) error {
@@ -221,22 +246,14 @@ func (a *AufsDriver) mount(id string) error {
 		return err
 	}
 
-	parentIds, err := getParentIds(a.rootPath(), id)
-	if err != nil {
-		return err
-	}
-	if len(parentIds) == 0 {
-		return fmt.Errorf("Dir %s does not have any parent layers", id)
-	}
 	var (
 		target = path.Join(a.rootPath(), "mnt", id)
 		rw     = path.Join(a.rootPath(), "diff", id)
-		layers = make([]string, len(parentIds))
 	)
 
-	// Get the diff paths for all the parent ids
-	for i, p := range parentIds {
-		layers[i] = path.Join(a.rootPath(), "diff", p)
+	layers, err := a.getParentLayerPaths(id)
+	if err != nil {
+		return err
 	}
 
 	if err := a.aufsMount(layers, rw, target); err != nil {
