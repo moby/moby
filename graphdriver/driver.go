@@ -3,9 +3,9 @@ package graphdriver
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/utils"
 	"os"
 )
-
 
 type InitFunc func(root string) (Driver, error)
 
@@ -64,6 +64,7 @@ func New(root string) (Driver, error) {
 	for _, name := range priority {
 		driver, lastError = getDriver(name, root)
 		if lastError != nil {
+			utils.Debugf("Error loading driver %s: %s", name, lastError)
 			continue
 		}
 		return driver, nil
