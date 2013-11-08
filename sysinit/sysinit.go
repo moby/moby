@@ -9,13 +9,60 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
+
+const SharedPath = "/.docker-shared"
+const RpcSocketName = "rpc.sock"
+
+func rpcSocketPath() string {
+	return path.Join(SharedPath, RpcSocketName)
+}
+
+type DockerInitRpc struct {
+	resume chan int
+}
+
+// RPC: Resume container start or container exit
+func (dockerInitRpc *DockerInitRpc) Resume(_ int, _ *int) error {
+	dockerInitRpc.resume <- 1
+	return nil
+}
+
+// Serve RPC commands over a UNIX socket
+func rpcServer(dockerInitRpc *DockerInitRpc) {
+
+	err := rpc.Register(dockerInitRpc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	os.Remove(rpcSocketPath())
+	addr := &net.UnixAddr{Net: "unix", Name: rpcSocketPath()}
+	listener, err := net.ListenUnix("unix", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Printf("rpc socket accept error: %s", err)
+			continue
+		}
+
+		rpc.ServeConn(conn)
+
+		conn.Close()
+	}
+}
 
 func setupNetworking(args *DockerInitArgs) error {
 	if args.gateway == "" {
@@ -87,6 +134,28 @@ func getCmdPath(args *DockerInitArgs) (string, error) {
 	return cmdPath, nil
 }
 
+// Start the RPC server and wait for docker to tell us to
+// resume starting the container.
+func startServerAndWait(dockerInitRpc *DockerInitRpc) error {
+
+	go rpcServer(dockerInitRpc)
+
+	select {
+	case <-dockerInitRpc.resume:
+		break
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout waiting for docker Resume()")
+	}
+
+	return nil
+}
+
+func dockerInitRpcNew() *DockerInitRpc {
+	return &DockerInitRpc{
+		resume: make(chan int),
+	}
+}
+
 // Run as pid 1 in the typical Docker usage: an app container that doesn't
 // need its own init process.  Running as pid 1 allows us to monitor the
 // container app and return its exit code.
@@ -110,6 +179,14 @@ func dockerInitApp(args *DockerInitArgs) error {
 		return err
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Credential: credential}
+
+	dockerInitRpc := dockerInitRpcNew()
+
+	// Start the RPC and server and wait for the resume call from docker
+	err = startServerAndWait(dockerInitRpc)
+	if err != nil {
+		return err
+	}
 
 	// Network setup
 	err = setupNetworking(args)
