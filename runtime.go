@@ -733,7 +733,15 @@ func (runtime *Runtime) Unmount(container *Container) error {
 }
 
 func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
-	return runtime.driver.Changes(container.ID)
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	initDir, err := runtime.driver.Get(container.ID + "-init")
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	return archive.ChangesDirs(cDir, initDir)
 }
 
 func linkLxcStart(root string) error {
