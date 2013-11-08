@@ -137,7 +137,6 @@ func SaveConfig(configFile *ConfigFile) error {
 		authCopy.Username = ""
 		authCopy.Password = ""
 		authCopy.ServerAddress = ""
-		authCopy.InsecureSSL = false
 		configs[k] = authCopy
 	}
 
@@ -178,7 +177,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
