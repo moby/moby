@@ -913,8 +913,16 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var src, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
+		src, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		src = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1349,8 +1357,16 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var name, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'CONTAINER [REPOSITORY [TAG]]' as been deprecated. Please use CONTAINER [REPOSITORY[:TAG]]\n")
+		name, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		name = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 
 	if name == "" {
 		cmd.Usage()
@@ -1666,9 +1682,16 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+	var repository, tag string
 
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REPOSITORY[:TAG]]\n")
+		repository, tag = cmd.Arg(1), cmd.Arg(2)
+	} else {
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
+
+	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 
