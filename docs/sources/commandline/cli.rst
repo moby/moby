@@ -480,6 +480,12 @@ Insert file from github
 
 The main process inside the container will be sent SIGKILL.
 
+Known Issues (kill)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
 .. _cli_login:
 
 ``login``
@@ -587,6 +593,12 @@ The main process inside the container will be sent SIGKILL.
 
     Remove one or more containers
         -link="": Remove the link instead of the actual container
+
+Known Issues (rm)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
 
 
 Examples:
