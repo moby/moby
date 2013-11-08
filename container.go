@@ -1378,11 +1378,7 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 	if container.runtime == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
 	}
-	imgDir, err := container.runtime.driver.Get(container.Image)
-	if err != nil {
-		return nil, err
-	}
-	return archive.ExportChanges(container.RootfsPath(), imgDir)
+	return container.runtime.driver.Diff(container.ID)
 }
 
 func (container *Container) Export() (archive.Archive, error) {
