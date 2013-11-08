@@ -58,7 +58,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	// if it already exists
 	// If not populate the dir structure
 	aufsPath := path.Join(root, "aufs")
-	if err := os.Mkdir(aufsPath, 0755); err != nil {
+	if err := os.MkdirAll(aufsPath, 0755); err != nil {
 		if os.IsExist(err) {
 			return &AufsDriver{root}, nil
 		}

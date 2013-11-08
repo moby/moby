@@ -33,6 +33,10 @@ func Init(home string) (graphdriver.Driver, error) {
 	return d, nil
 }
 
+func (d *Driver) String() string {
+	return "devicemapper"
+}
+
 func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }

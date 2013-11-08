@@ -1,11 +1,11 @@
 package dummy
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"os"
 	"path"
-	"fmt"
 )
 
 func init() {
@@ -14,13 +14,17 @@ func init() {
 
 func Init(home string) (graphdriver.Driver, error) {
 	d := &Driver{
-		home:      home,
+		home: home,
 	}
 	return d, nil
 }
 
 type Driver struct {
 	home string
+}
+
+func (d *Driver) String() string {
+	return "dummy"
 }
 
 func (d *Driver) Cleanup() error {
@@ -52,7 +56,6 @@ func (d *Driver) dir(id string) string {
 	return path.Join(d.home, "dir", path.Base(id))
 }
 
-
 func (d *Driver) Remove(id string) error {
 	if _, err := os.Stat(d.dir(id)); err != nil {
 		return err
@@ -81,4 +84,3 @@ func (d *Driver) DiffSize(id string) (int64, error) {
 func (d *Driver) Changes(id string) ([]archive.Change, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
-
