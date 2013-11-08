@@ -198,39 +198,39 @@ func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
 	return results.Results, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) (string, error) {
+func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	file, err := utils.Download(url, out)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer file.Body.Close()
 
 	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	c, _, err := srv.runtime.Create(config, "")
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("", "Downloading", "%8v/%v (%v)"), sf, true), path); err != nil {
-		return "", err
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("", "Downloading", "%8v/%v (%v)"), sf, false), path); err != nil {
+		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
 	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
-		return "", err
+		return err
 	}
-	out.Write(sf.FormatStatus("", img.ID))
-	return img.ShortID(), nil
+	out.Write(sf.FormatStatus(utils.TruncateID(img.ID), "Image created"))
+	return nil
 }
 
 func (srv *Server) ImagesViz(out io.Writer) error {

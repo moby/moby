@@ -479,15 +479,12 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	imgID, err := srv.ImageInsert(name, url, path, w, sf)
+	err := srv.ImageInsert(name, url, path, w, sf)
 	if err != nil {
-		if sf.Used() {
-			w.Write(sf.FormatError(err))
-			return nil
-		}
+		w.Write(sf.FormatError(err))
 	}
 
-	return writeJSON(w, http.StatusOK, &APIID{ID: imgID})
+	return nil
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
