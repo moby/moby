@@ -1387,7 +1387,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
-	since := cmd.String("since", "", "Show events previously created (used for polling).")
+	since := cmd.String("since", "", "Show previously created events and then stream.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1399,7 +1399,17 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	v := url.Values{}
 	if *since != "" {
-		v.Set("since", *since)
+		loc := time.FixedZone(time.Now().Zone())
+		format := "2006-01-02 15:04:05 -0700 MST"
+		if len(*since) < len(format) {
+			format = format[:len(*since)]
+		}
+
+		if t, err := time.ParseInLocation(format, *since, loc); err == nil {
+			v.Set("since", strconv.FormatInt(t.Unix(), 10))
+		} else {
+			v.Set("since", *since)
+		}
 	}
 
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {

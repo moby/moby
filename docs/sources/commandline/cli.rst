@@ -245,6 +245,9 @@ Full -run example
     Usage: docker events
 
     Get real time events from the server
+    
+    -since="": Show previously created events and then stream.
+               (either seconds since epoch, or date string as below)
 
 .. _cli_events_example:
 
@@ -277,6 +280,23 @@ Shell 1: (Again .. now showing events)
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
+Show events in the past from a specified time
+.............................................
+
+.. code-block:: bash
+
+    $ sudo docker events -since 1378216169
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03'
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
 .. _cli_export:
 
