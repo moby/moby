@@ -5,12 +5,8 @@ import (
 	"github.com/dotcloud/docker/archive"
 )
 
-type InitFunc func(root string) (Driver, error)
 
-// FIXME: this is a temporary placeholder for archive.Change
-// (to be merged from master)
-type Change interface {
-}
+type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
 	Create(id, parent string) error
@@ -20,7 +16,7 @@ type Driver interface {
 
 	Diff(id string) (archive.Archive, error)
 	DiffSize(id string) (bytes int64, err error)
-	Changes(id string) ([]Change, error)
+	Changes(id string) ([]archive.Change, error)
 
 	Cleanup() error
 }

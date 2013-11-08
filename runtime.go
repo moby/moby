@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	_ "github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/graphdriver"
@@ -728,7 +729,7 @@ func (runtime *Runtime) Unmount(container *Container) error {
 	return nil
 }
 
-func (runtime *Runtime) Changes(container *Container) ([]graphdriver.Change, error) {
+func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
 	return runtime.driver.Changes(container.ID)
 }
 

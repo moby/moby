@@ -23,6 +23,7 @@ btrfs_reflink(int fd_out, int fd_in)
 import "C"
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -32,6 +33,12 @@ import (
 	"strings"
 	"syscall"
 )
+
+
+type Change struct {
+	archive.Change
+}
+
 
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs

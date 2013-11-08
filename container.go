@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/graphdriver" // FIXME: graphdriver.Change is a placeholder for archive.Change
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
@@ -397,7 +396,7 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	}
 
 	// Return error if path exists
-	if _, err := os.Stat(path.Join(container.rwPath(), pth)); err == nil {
+	if _, err := os.Stat(path.Join(container.RootfsPath(), pth)); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
 	} else if !os.IsNotExist(err) {
@@ -1402,7 +1401,7 @@ func (container *Container) Mount() error {
 	return container.runtime.Mount(container)
 }
 
-func (container *Container) Changes() ([]graphdriver.Change, error) {
+func (container *Container) Changes() ([]archive.Change, error) {
 	return container.runtime.Changes(container)
 }
 
