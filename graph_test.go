@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/aufs"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -296,7 +296,7 @@ func tempGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend, err := aufs.Init(path.Join(tmp, "driver"))
+	backend, err := graphdriver.New(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
