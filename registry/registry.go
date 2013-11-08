@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+    "crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +42,11 @@ func pingRegistryEndpoint(endpoint string) error {
 		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
 		return conn, nil
 	}
-	httpTransport := &http.Transport{Dial: httpDial}
+	
+	// at this point we don't care if the server cert is verified or not, we are just trying to see if the 
+	// url is valid and the endpoint is a docker registry
+	// if we care about a verified cert, we will detect it on other operations
+	httpTransport := &http.Transport{Dial: httpDial, TLSClientConfig: &tls.Config { InsecureSkipVerify: true }}
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
@@ -642,6 +647,7 @@ func NewRegistry(root string, authConfig *auth.AuthConfig, factory *utils.HTTPRe
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config { InsecureSkipVerify: authConfig.InsecureSSL }
 	}
 
 	r = &Registry{

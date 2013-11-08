@@ -267,10 +267,12 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+auth.IndexServerAddress()+"\" is the default.")
 
 	var username, password, email string
+	var insecureSSL bool
 
 	cmd.StringVar(&username, "u", "", "username")
 	cmd.StringVar(&password, "p", "", "password")
 	cmd.StringVar(&email, "e", "", "email")
+	cmd.BoolVar(&insecureSSL, "insecure-ssl", false, "trust unverified registry server ssl certificates")
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil
@@ -345,6 +347,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
+	authconfig.InsecureSSL = insecureSSL
 	cli.configFile.Configs[serverAddress] = authconfig
 
 	body, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress])
