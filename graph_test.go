@@ -146,12 +146,12 @@ func TestMount(t *testing.T) {
 	if err := os.MkdirAll(rw, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := graph.driver.Mount(image, tmp); err != nil {
+	if _, err := graph.driver.Get(image.ID); err != nil {
 		t.Fatal(err)
 	}
 	// FIXME: test for mount contents
 	defer func() {
-		if err := graph.driver.Unmount(tmp); err != nil {
+		if err := graph.driver.Cleanup(); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -296,7 +296,7 @@ func tempGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend, err := aufs.New()
+	backend, err := aufs.Init(path.Join(tmp, "driver"))
 	if err != nil {
 		t.Fatal(err)
 	}
