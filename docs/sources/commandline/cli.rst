@@ -648,7 +648,7 @@ network communication.
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container
+      -volumes-from="": Mount all volumes from the given container(s)
       -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -739,6 +739,17 @@ newly created container with the alias ``redis``.  The new container
 can access the network and environment of the redis container via
 environment variables.  The ``-name`` flag will assign the name ``console``
 to the newly created container.
+
+.. code-block:: bash
+
+   docker run -volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+
+The ``-volumes-from`` flag mounts all the defined volumes from the
+refrence containers. Containers can be specified by a comma seperated
+list or by repetitions of the ``-volumes-from`` argument. The container
+id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+in the same mode (rw or ro) as the reference container.
 
 .. _cli_search:
 
