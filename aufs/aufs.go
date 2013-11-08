@@ -145,8 +145,7 @@ func (a *AufsDriver) createDirsFor(id string) error {
 // Unmount and remove the dir information
 func (a *AufsDriver) Remove(id string) error {
 	// Make sure the dir is umounted first
-	mntPoint := path.Join(a.rootPath(), "mnt", id)
-	if err := a.unmount(mntPoint); err != nil {
+	if err := a.unmount(id); err != nil {
 		return err
 	}
 	tmpDirs := []string{

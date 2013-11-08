@@ -229,6 +229,12 @@ func TestMountWithParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	mntPath, err := d.Get("2")
 	if err != nil {
 		t.Fatal(err)
@@ -241,8 +247,43 @@ func TestMountWithParent(t *testing.T) {
 	if mntPath != expected {
 		t.Fatalf("Expected %s got %s", expected, mntPath)
 	}
+}
 
-	if err := d.Cleanup(); err != nil {
+func TestRemoveMountedDir(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Create("2", "1"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := d.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	mntPath, err := d.Get("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mntPath == "" {
+		t.Fatal("mntPath should not be empty string")
+	}
+
+	mounted, err := d.mounted("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !mounted {
+		t.Fatalf("Dir id 2 should be mounted")
+	}
+
+	if err := d.Remove("2"); err != nil {
 		t.Fatal(err)
 	}
 }
