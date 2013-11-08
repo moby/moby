@@ -89,6 +89,15 @@ func MergeConfig(userConf, imageConf *Config) error {
 	}
 	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
+	} else if imageConf.ExposedPorts != nil {
+		if userConf.ExposedPorts == nil {
+			userConf.ExposedPorts = make(map[Port]struct{})
+		}
+		for port := range imageConf.ExposedPorts {
+			if _, exists := userConf.ExposedPorts[port]; !exists {
+				userConf.ExposedPorts[port] = struct{}{}
+			}
+		}
 	}
 
 	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
