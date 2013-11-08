@@ -913,8 +913,16 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var src, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
+		src, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		src = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1349,8 +1357,16 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var name, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'CONTAINER [REPOSITORY [TAG]]' as been deprecated. Please use CONTAINER [REPOSITORY[:TAG]]\n")
+		name, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		name = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 
 	if name == "" {
 		cmd.Usage()
@@ -1387,7 +1403,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
-	since := cmd.String("since", "", "Show events previously created (used for polling).")
+	since := cmd.String("since", "", "Show previously created events and then stream.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1399,7 +1415,17 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	v := url.Values{}
 	if *since != "" {
-		v.Set("since", *since)
+		loc := time.FixedZone(time.Now().Zone())
+		format := "2006-01-02 15:04:05 -0700 MST"
+		if len(*since) < len(format) {
+			format = format[:len(*since)]
+		}
+
+		if t, err := time.ParseInLocation(format, *since, loc); err == nil {
+			v.Set("since", strconv.FormatInt(t.Unix(), 10))
+		} else {
+			v.Set("since", *since)
+		}
 	}
 
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
@@ -1656,9 +1682,16 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+	var repository, tag string
 
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REPOSITORY[:TAG]]\n")
+		repository, tag = cmd.Arg(1), cmd.Arg(2)
+	} else {
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
+
+	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 

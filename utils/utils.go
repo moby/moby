@@ -15,8 +15,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -904,7 +904,7 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 	return output
 }
 
-// GetNameserversAsCIDR returns nameservers (if any) listed in 
+// GetNameserversAsCIDR returns nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {

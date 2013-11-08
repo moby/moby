@@ -133,7 +133,11 @@ type PortBinding struct {
 type Port string
 
 func (p Port) Proto() string {
-	return strings.Split(string(p), "/")[1]
+	parts := strings.Split(string(p), "/")
+	if len(parts) == 1 {
+		return "tcp"
+	}
+	return parts[1]
 }
 
 func (p Port) Port() string {
@@ -199,7 +203,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
 	var flVolumesFrom utils.ListOpts
-	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
@@ -394,9 +398,9 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	if _, err := os.Stat(path.Join(container.rwPath(), pth)); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
-	} else if ! os.IsNotExist(err) {
+	} else if !os.IsNotExist(err) {
 		// Expect err might be that the file doesn't exist, so
-		// if it's some other error, return that. 
+		// if it's some other error, return that.
 
 		return err
 	}
@@ -763,9 +767,23 @@ func (container *Container) Start() (err error) {
 
 	// Apply volumes from another container if requested
 	if container.Config.VolumesFrom != "" {
-		volumes := strings.Split(container.Config.VolumesFrom, ",")
-		for _, v := range volumes {
-			c := container.runtime.Get(v)
+		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
+		for _, containerSpec := range containerSpecs {
+			mountRW := true
+			specParts := strings.SplitN(containerSpec, ":", 2)
+			switch len(specParts) {
+			case 0:
+				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
+			case 2:
+				switch specParts[1] {
+				case "ro":
+					mountRW = false
+				case "rw": // mountRW is already true
+				default:
+					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
+				}
+			}
+			c := container.runtime.Get(specParts[0])
 			if c == nil {
 				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
 			}
@@ -778,7 +796,7 @@ func (container *Container) Start() (err error) {
 				}
 				container.Volumes[volPath] = id
 				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW
+					container.VolumesRW[volPath] = isRW && mountRW
 				}
 			}
 
@@ -819,7 +837,7 @@ func (container *Container) Start() (err error) {
 		// Create the mountpoint
 		rootVolPath := path.Join(container.RootfsPath(), volPath)
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-			return nil
+			return err
 		}
 
 		// Do not copy or change permissions if we are mounting from the host
@@ -1086,7 +1104,7 @@ func (container *Container) allocateNetwork() error {
 				Gateway: manager.bridgeNetwork.IP,
 				manager: manager,
 			}
-			if iface !=nil && iface.IPNet.IP != nil {
+			if iface != nil && iface.IPNet.IP != nil {
 				ipNum := ipToInt(iface.IPNet.IP)
 				manager.ipAllocator.inUse[ipNum] = struct{}{}
 			} else {

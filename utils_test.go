@@ -67,7 +67,7 @@ func newTestRuntime(prefix string) (runtime *Runtime, err error) {
 	}
 
 	config := &DaemonConfig{
-		Root:   root,
+		Root:        root,
 		AutoRestart: false,
 	}
 	runtime, err = NewRuntimeFromDirectory(config)
@@ -247,7 +247,9 @@ func TestMergeConfig(t *testing.T) {
 		Volumes:   volumesUser,
 	}
 
-	MergeConfig(configUser, configImage)
+	if err := MergeConfig(configUser, configImage); err != nil {
+		t.Error(err)
+	}
 
 	if len(configUser.Dns) != 3 {
 		t.Fatalf("Expected 3 dns, 1.1.1.1, 2.2.2.2 and 3.3.3.3, found %d", len(configUser.Dns))
@@ -259,7 +261,7 @@ func TestMergeConfig(t *testing.T) {
 	}
 
 	if len(configUser.ExposedPorts) != 3 {
-		t.Fatalf("Expected 3 portSpecs, 1111, 2222 and 3333, found %d", len(configUser.PortSpecs))
+		t.Fatalf("Expected 3 ExposedPorts, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
 		if portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
@@ -287,6 +289,28 @@ func TestMergeConfig(t *testing.T) {
 	if configUser.VolumesFrom != "1111" {
 		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
+
+	ports, _, err := parsePortSpecs([]string{"0000"})
+	if err != nil {
+		t.Error(err)
+	}
+	configImage2 := &Config{
+		ExposedPorts: ports,
+	}
+
+	if err := MergeConfig(configUser, configImage2); err != nil {
+		t.Error(err)
+	}
+
+	if len(configUser.ExposedPorts) != 4 {
+		t.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
+	}
+	for portSpecs := range configUser.ExposedPorts {
+		if portSpecs.Port() != "0000" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
+			t.Fatalf("Expected 0000 or 1111 or 2222 or 3333, found %s", portSpecs)
+		}
+	}
+
 }
 
 func TestParseLxcConfOpt(t *testing.T) {
