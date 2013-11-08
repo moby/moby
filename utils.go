@@ -34,11 +34,9 @@ import (
 	"syscall"
 )
 
-
 type Change struct {
 	archive.Change
 }
-
 
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs

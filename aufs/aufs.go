@@ -1,9 +1,30 @@
+/*
+
+aufs driver directory structure
+
+.
+├── layers // Metadata of layers
+│   ├── 1
+│   ├── 2
+│   └── 3
+├── diffs  // Content of the layer
+│   ├── 1  // Contains layers that need to be mounted for the id
+│   ├── 2
+│   └── 3
+└── mnt    // Mount points for the rw layers to be mounted
+    ├── 1
+    ├── 2
+    └── 3
+
+*/
+
 package aufs
 
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/utils"
 	"log"
 	"os"
 	"os/exec"
@@ -25,105 +46,210 @@ func Init(root string) (graphdriver.Driver, error) {
 	if err := exec.Command("modprobe", "aufs").Run(); err != nil {
 		return nil, err
 	}
+	paths := []string{
+		"mnt",
+		"diff",
+		"layers",
+	}
+
+	// Create the root aufs driver dir and return
+	// if it already exists
+	// If not populate the dir structure
+	aufsPath := path.Join(root, "aufs")
+	if err := os.Mkdir(aufsPath, 0755); err != nil {
+		if os.IsExist(err) {
+			return &AufsDriver{root}, nil
+		}
+		return nil, err
+	}
+
+	for _, p := range paths {
+		if err := os.MkdirAll(path.Join(aufsPath, p), 0755); err != nil {
+			return nil, err
+		}
+	}
 	return &AufsDriver{root}, nil
 }
 
-func (a *AufsDriver) OnCreate(dir graphdriver.Dir, layer archive.Archive) error {
-	tmp := path.Join(os.TempDir(), dir.ID())
-	if err := os.MkdirAll(tmp, 0755); err != nil {
+func (a *AufsDriver) rootPath() string {
+	return path.Join(a.root, "aufs")
+}
+
+func (a *AufsDriver) String() string {
+	return "aufs"
+}
+
+// Three folders are created for each id
+// mnt, layers, and diff
+func (a *AufsDriver) Create(id, parent string) error {
+	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
-
-	layerRoot := path.Join(a.root, dir.ID())
-	if err := os.MkdirAll(layerRoot, 0755); err != nil {
+	// Write the layers metadata
+	f, err := os.Create(path.Join(a.rootPath(), "layers", id))
+	if err != nil {
 		return err
 	}
+	defer f.Close()
 
-	if layer != nil {
-		if err := archive.Untar(layer, tmp); err != nil {
+	if parent != "" {
+		ids, err := getParentIds(a.rootPath(), parent)
+		if err != nil {
 			return err
 		}
-	}
 
-	if err := os.Rename(tmp, layerRoot); err != nil {
-		return err
+		fmt.Fprintln(f, parent)
+		for _, i := range ids {
+			fmt.Fprintln(f, i)
+		}
 	}
 	return nil
 }
 
-func (a *AufsDriver) OnRemove(dir graphdriver.Dir) error {
-	tmp := path.Join(os.TempDir(), dir.ID())
-
-	if err := os.MkdirAll(tmp, 0755); err != nil {
-		return err
+func (a *AufsDriver) createDirsFor(id string) error {
+	paths := []string{
+		"mnt",
+		"diff",
 	}
 
-	if err := os.Rename(path.Join(a.root, dir.ID()), tmp); err != nil {
-		return err
+	for _, p := range paths {
+		dir := path.Join(a.rootPath(), p, id)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 	}
-	return os.RemoveAll(tmp)
+	return nil
 }
 
-func (a *AufsDriver) OnMount(dir graphdriver.Dir, dest string) error {
-	layers, err := a.getLayers(dir)
+// Unmount and remove the dir information
+func (a *AufsDriver) Remove(id string) error {
+	// Make sure the dir is umounted first
+	mntPoint := path.Join(a.rootPath(), "mnt", id)
+	if err := a.unmount(mntPoint); err != nil {
+		return err
+	}
+	tmpDirs := []string{
+		"mnt",
+		"diff",
+	}
+
+	// Remove the dirs atomically
+	for _, p := range tmpDirs {
+		tmp := path.Join(os.TempDir(), p, id)
+		if err := os.MkdirAll(tmp, 0755); err != nil {
+			return err
+		}
+		realPath := path.Join(a.rootPath(), p, id)
+		if err := os.Rename(realPath, tmp); err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmp)
+	}
+
+	// Remove the layers file for the id
+	return os.Remove(path.Join(a.rootPath(), "layers", id))
+}
+
+// Return the rootfs path for the id
+// This will mount the dir at it's given path
+func (a *AufsDriver) Get(id string) (string, error) {
+	ids, err := getParentIds(a.rootPath(), id)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		ids = []string{}
+	}
+
+	// If a dir does not have a parent ( no layers )do not try to mount
+	// just return the diff path to the data
+	out := path.Join(a.rootPath(), "diff", id)
+	if len(ids) > 0 {
+		out = path.Join(a.rootPath(), "mnt", id)
+		if err := a.mount(id); err != nil {
+			return "", err
+		}
+	}
+	return out, nil
+}
+
+// Returns an archive of the contents for the id
+func (a *AufsDriver) Diff(id string) (archive.Archive, error) {
+	p, err := a.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return archive.Tar(p, archive.Uncompressed)
+}
+
+// Returns the size of the contents for the id
+func (a *AufsDriver) DiffSize(id string) (int64, error) {
+	p, err := a.Get(id)
+	if err != nil {
+		return -1, err
+	}
+	return utils.TreeSize(p)
+}
+
+func (a *AufsDriver) Changes(id string) ([]archive.Change, error) {
+	return nil, nil
+}
+
+func (a *AufsDriver) mount(id string) error {
+	// If the id is mounted or we get an error return
+	if mounted, err := a.mounted(id); err != nil || mounted {
+		return err
+	}
+
+	parentIds, err := getParentIds(a.rootPath(), id)
 	if err != nil {
 		return err
 	}
-
-	target := path.Join(dest, "rootfs")
-	rw := path.Join(dest, "rw")
-
-	// Create the target directories if they don't exist
-	if err := os.Mkdir(target, 0755); err != nil && !os.IsExist(err) {
-		return err
+	if len(parentIds) == 0 {
+		return fmt.Errorf("Dir %s does not have any parent layers", id)
 	}
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-		return err
+	var (
+		target = path.Join(a.rootPath(), "mnt", id)
+		rw     = path.Join(a.rootPath(), "diff", id)
+		layers = make([]string, len(parentIds))
+	)
+
+	// Get the diff paths for all the parent ids
+	for i, p := range parentIds {
+		layers[i] = path.Join(a.rootPath(), "diff", p)
 	}
+
 	if err := a.aufsMount(layers, rw, target); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *AufsDriver) OnUnmount(dest string) error {
-	target := path.Join(dest, "rootfs")
-	if _, err := os.Stat(target); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
+func (a *AufsDriver) unmount(id string) error {
+	if mounted, err := a.mounted(id); err != nil || !mounted {
 		return err
 	}
+	target := path.Join(a.rootPath(), "mnt", id)
 	return Unmount(target)
 }
 
-func (a *AufsDriver) Mounted(dest string) (bool, error) {
-	return Mounted(path.Join(dest, "rootfs"))
+func (a *AufsDriver) mounted(id string) (bool, error) {
+	target := path.Join(a.rootPath(), "mnt", id)
+	return Mounted(target)
 }
 
-func (a *AufsDriver) Layer(dir graphdriver.Dir, dest string) (archive.Archive, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
+// During cleanup aufs needs to unmount all mountpoints
 func (a *AufsDriver) Cleanup() error {
-	return nil
-}
-
-func (a *AufsDriver) getLayers(dir graphdriver.Dir) ([]string, error) {
-	var (
-		err     error
-		layers  = []string{}
-		current = dir
-	)
-
-	for current != nil {
-		layers = append(layers, current.Path())
-		if current, err = current.Parent(); err != nil {
-			return nil, err
+	ids, err := loadIds(path.Join(a.rootPath(), "layers"))
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := a.unmount(id); err != nil {
+			return err
 		}
 	}
-	return layers, nil
+	return nil
 }
 
 func (a *AufsDriver) aufsMount(ro []string, rw, target string) error {
@@ -142,7 +268,7 @@ func (a *AufsDriver) aufsMount(ro []string, rw, target string) error {
 		}
 		log.Printf("...module loaded.")
 		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
+			return fmt.Errorf("Unable to mount using aufs %s", err)
 		}
 	}
 	return nil

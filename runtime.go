@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	_ "github.com/dotcloud/docker/aufs"
 	_ "github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/gograph"
 	"github.com/dotcloud/docker/graphdriver"
@@ -635,6 +636,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	utils.Debugf("Using graph driver %s", driver)
 
 	runtimeRepo := path.Join(config.Root, "containers")
 
