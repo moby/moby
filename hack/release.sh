@@ -114,7 +114,7 @@ s3_url() {
 
 # Upload the 'ubuntu' bundle to S3:
 # 1. A full APT repository is published at $BUCKET/ubuntu/
-# 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/info
+# 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
 release_ubuntu() {
 	[ -e bundles/$VERSION/ubuntu ] || {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
@@ -168,7 +168,7 @@ EOF
 
 	# Upload repo
 	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
-	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/info
+	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
 # Add the repository to your APT sources
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 # Then import the repository key
@@ -180,7 +180,12 @@ apt-get update ; apt-get install -y lxc-docker
 # Alternatively, just use the curl-able install.sh script provided at $(s3_url)
 #
 EOF
-	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu/info"
+
+	# Add redirect at /ubuntu/info for URL-backwards-compatibility
+	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/ubuntu/info
+
+	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
 # Upload a static binary to S3
@@ -189,14 +194,20 @@ release_binary() {
 		echo >&2 './hack/make.sh must be run before release_binary'
 		exit 1
 	}
+
 	S3DIR=s3://$BUCKET/builds/Linux/x86_64
 	s3cmd --acl-public put bundles/$VERSION/binary/docker-$VERSION $S3DIR/docker-$VERSION
-	cat <<EOF | write_to_s3 s3://$BUCKET/builds/info
+	cat <<EOF | write_to_s3 s3://$BUCKET/builds/index
 # To install, run the following command as root:
 curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
 sudo /usr/local/bin/docker -d
 EOF
+
+	# Add redirect at /builds/info for URL-backwards-compatibility
+	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/builds/info
+
 	if [ -z "$NOLATEST" ]; then
 		echo "Copying docker-$VERSION to docker-latest"
 		s3cmd --acl-public cp $S3DIR/docker-$VERSION $S3DIR/docker-latest
