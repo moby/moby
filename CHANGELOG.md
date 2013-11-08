@@ -17,7 +17,6 @@
 + Prevent DNS server conflicts in CreateBridgeIface
 + Validate bind mounts on the server side
 + Use parent image config in docker build
-* Fix regression in /etc/hosts
 
 #### Client
 
