@@ -568,7 +568,7 @@ func TestExitCode(t *testing.T) {
 
 	trueContainer, _, err := runtime.Create(&docker.Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"/bin/true", ""},
+		Cmd:   []string{"/bin/true"},
 	}, "")
 	if err != nil {
 		t.Fatal(err)
@@ -583,7 +583,7 @@ func TestExitCode(t *testing.T) {
 
 	falseContainer, _, err := runtime.Create(&docker.Config{
 		Image: GetTestImage(runtime).ID,
-		Cmd:   []string{"/bin/false", ""},
+		Cmd:   []string{"/bin/false"},
 	}, "")
 	if err != nil {
 		t.Fatal(err)
