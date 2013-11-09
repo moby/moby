@@ -170,11 +170,11 @@ func TestDiff(t *testing.T) {
 	// Commit the container
 	rwTar, err := container1.ExportRw()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	img, err := runtime.graph.Create(rwTar, container1, "unit test commited image - diff", "", nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Create a new container from the commited image

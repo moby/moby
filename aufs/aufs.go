@@ -158,7 +158,10 @@ func (a *AufsDriver) Remove(id string) error {
 
 	// Remove the dirs atomically
 	for _, p := range tmpDirs {
-		tmp := path.Join(os.TempDir(), p, id)
+		// We need to use a temp dir in the same dir as the driver so Rename
+		// does not fall back to the slow copy if /tmp and the driver dir
+		// are on different devices
+		tmp := path.Join(a.rootPath(), "tmp", p, id)
 		if err := os.MkdirAll(tmp, 0755); err != nil {
 			return err
 		}
