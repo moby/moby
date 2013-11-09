@@ -185,18 +185,9 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	if id == "" {
-		id = GenerateID()
-	}
-	// FIXME: use a separate "tmp" driver instead of the regular driver,
-	// to allow for removal at cleanup.
-	// Right now temp directories are never removed!
-	if err := graph.driver.Create(id, ""); err != nil {
-		return "", fmt.Errorf("Driver %s couldn't create temporary directory %s: %s", graph.driver, id, err)
-	}
-	dir, err := graph.driver.Get(id)
-	if err != nil {
-		return "", fmt.Errorf("Driver %s couldn't get temporary directory %s: %s", graph.driver, id, err)
+	dir := path.Join(graph.Root, "_tmp", GenerateID())
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
 	}
 	return dir, nil
 }
