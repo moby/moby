@@ -97,7 +97,7 @@ write_to_s3() {
 	DEST=$1
 	F=`mktemp`
 	cat > $F
-	s3cmd --acl-public put $F $DEST
+	s3cmd --acl-public --mime-type='text/plain' put $F $DEST
 	rm -f $F
 }
 
