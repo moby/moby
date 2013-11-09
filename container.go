@@ -813,7 +813,11 @@ func (container *Container) Start() (err error) {
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+
+			// Do not pass a container as the parameter for the volume creation.
+			// The graph driver using the container's information ( Image ) to
+			// create the parent.
+			c, err := container.runtime.volumes.Create(nil, nil, "", "", nil)
 			if err != nil {
 				return err
 			}
