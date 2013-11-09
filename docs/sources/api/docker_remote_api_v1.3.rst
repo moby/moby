@@ -872,18 +872,18 @@ Search images
 	   Content-Type: application/json
 	   
 	   [
-		{
-			"Name":"cespare/sshd",
-			"Description":""
-		},
-		{
-			"Name":"johnfuller/sshd",
-			"Description":""
-		},
-		{
-			"Name":"dhrp/mongodb-sshd",
-			"Description":""
-		}
+		   {
+			"description": "",
+			"name": "tekknolagi/sshd",
+		   },
+		   {
+			"description": "Ubuntu 12.04\nNodeJS 0.10.18\nsshd",
+			"name": "realyze/ubuntu-node-sshd",
+		   },
+		   {
+			"description": "",
+			"name": "hyao/sshd",
+		   }
 	   ]
 
 	   :query term: term to search
