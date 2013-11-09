@@ -627,9 +627,9 @@ network communication.
     $ docker rm `docker ps -a -q`
 
 
-This command will delete all the stopped containers. The command ``docker ps -a -q`` will return all
-the existing container's id and the ``rm`` command takes those id's and delete them. The running containers
-will not be deleted, even though they will appear on that id's list.
+This command will delete all stopped containers. The command ``docker ps -a -q`` will return all
+existing container IDs and pass them to the ``rm`` command which will delete them. Any running
+containers will not be deleted.
 
 .. _cli_rmi:
 
