@@ -55,9 +55,16 @@ func RemoveExistingChain(name string) error {
 }
 
 func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr string, dest_port int) error {
+	daddr := ip.String()
+	if ip.IsUnspecified() {
+		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
+		// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
+		// value" by both iptables and ip6tables.
+		daddr = "0/0"
+	}
 	if output, err := Raw("-t", "nat", fmt.Sprint(action), c.Name,
 		"-p", proto,
-		"-d", ip.String(),
+		"-d", daddr,
 		"--dport", strconv.Itoa(port),
 		"!", "-i", c.Bridge,
 		"-j", "DNAT",
