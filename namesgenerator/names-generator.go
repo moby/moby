@@ -18,7 +18,7 @@ var (
 func GenerateRandomName(checker NameChecker) (string, error) {
 	retry := 5
 	rand.Seed(time.Now().UnixNano())
-	name := fmt.Sprintf("%s_%s", colors[rand.Intn(len(colors))], animals[rand.Intn(len(animals))])
+	name := fmt.Sprintf("%s-%s", colors[rand.Intn(len(colors))], animals[rand.Intn(len(animals))])
 	for checker != nil && checker.Exists(name) && retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
 		retry = retry - 1
