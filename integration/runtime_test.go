@@ -231,6 +231,18 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Exists() returned false for a newly created container")
 	}
 
+	// Test that conflict error displays correct details
+	testContainer, _, _ := runtime.Create(
+		&docker.Config{
+			Image: GetTestImage(runtime).ID,
+			Cmd:   []string{"ls", "-al"},
+		},
+		"conflictname",
+	)
+	if _, _, err := runtime.Create(&docker.Config{Image: GetTestImage(runtime).ID, Cmd: []string{"ls", "-al"}}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
+		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %s", err.Error())
+	}
+
 	// Make sure create with bad parameters returns an error
 	if _, _, err = runtime.Create(&docker.Config{Image: GetTestImage(runtime).ID}, ""); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
