@@ -481,7 +481,11 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	sf := utils.NewStreamFormatter(version > 1.0)
 	err := srv.ImageInsert(name, url, path, w, sf)
 	if err != nil {
-		w.Write(sf.FormatError(err))
+		if sf.Used() {
+			w.Write(sf.FormatError(err))
+			return nil
+		}
+		return err
 	}
 
 	return nil
