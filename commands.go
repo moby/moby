@@ -376,15 +376,17 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		status, err := waitForExit(cli, name)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to wait one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%d\n", status)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 // 'docker version': show version information
@@ -505,15 +507,17 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to stop one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
@@ -530,15 +534,17 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to  restart one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
@@ -772,15 +778,19 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		return nil
 	}
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		body, _, err := cli.call("DELETE", "/images/"+name, nil)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
 			var outs []APIRmi
 			err = json.Unmarshal(body, &outs)
 			if err != nil {
-				return err
+				fmt.Fprintf(cli.err, "%s\n", err)
+				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
+				continue
 			}
 			for _, out := range outs {
 				if out.Deleted != "" {
@@ -791,7 +801,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
@@ -870,15 +880,18 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *link {
 		val.Set("link", "1")
 	}
+
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 // 'docker kill NAME' kills a running container
@@ -892,18 +905,16 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 		return nil
 	}
 
-	failure := []error{}
+	var encounteredError error
 	for _, name := range args {
 		if _, _, err := cli.call("POST", "/containers/"+name+"/kill", nil); err != nil {
-			failure = append(failure, err)
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to kill one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(failure) != 0 {
-		return fmt.Errorf("Some container failed to get killed: %v\n", failure)
-	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
@@ -2005,7 +2016,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		if len(body) == 0 {
 			return nil, resp.StatusCode, fmt.Errorf("Error: %s", http.StatusText(resp.StatusCode))
 		}
-		return nil, resp.StatusCode, fmt.Errorf("Error: %s", body)
+		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 	return body, resp.StatusCode, nil
 }
@@ -2061,7 +2072,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		if len(body) == 0 {
 			return fmt.Errorf("Error :%s", http.StatusText(resp.StatusCode))
 		}
-		return fmt.Errorf("Error: %s", body)
+		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
 	if matchesContentType(resp.Header.Get("Content-Type"), "application/json") {
