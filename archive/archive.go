@@ -15,7 +15,15 @@ import (
 
 type Archive io.Reader
 
-type Compression uint32
+type Compression int
+
+type TarOptions struct {
+	Includes    []string
+	Excludes    []string
+	Recursive   bool
+	Compression Compression
+	CreateFiles []string
+}
 
 const (
 	Uncompressed Compression = iota
@@ -80,7 +88,7 @@ func (compression *Compression) Extension() string {
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
 func Tar(path string, compression Compression) (io.Reader, error) {
-	return TarFilter(path, compression, nil, true, nil)
+	return TarFilter(path, &TarOptions{Recursive: true, Compression: compression})
 }
 
 func escapeName(name string) string {
@@ -101,25 +109,29 @@ func escapeName(name string) string {
 
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
-func TarFilter(path string, compression Compression, filter []string, recursive bool, createFiles []string) (io.Reader, error) {
+func TarFilter(path string, options *TarOptions) (io.Reader, error) {
 	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
-	if filter == nil {
-		filter = []string{"."}
+	if options.Includes == nil {
+		options.Includes = []string{"."}
 	}
-	args = append(args, "-c"+compression.Flag())
+	args = append(args, "-c"+options.Compression.Flag())
 
-	if !recursive {
+	for _, exclude := range options.Excludes {
+		args = append(args, fmt.Sprintf("--exclude=%s", exclude))
+	}
+
+	if !options.Recursive {
 		args = append(args, "--no-recursion")
 	}
 
 	files := ""
-	for _, f := range filter {
+	for _, f := range options.Includes {
 		files = files + escapeName(f) + "\n"
 	}
 
 	tmpDir := ""
 
-	if createFiles != nil {
+	if options.CreateFiles != nil {
 		var err error // Can't use := here or we override the outer tmpDir
 		tmpDir, err = ioutil.TempDir("", "docker-tar")
 		if err != nil {
@@ -127,7 +139,7 @@ func TarFilter(path string, compression Compression, filter []string, recursive 
 		}
 
 		files = files + "-C" + tmpDir + "\n"
-		for _, f := range createFiles {
+		for _, f := range options.CreateFiles {
 			path := filepath.Join(tmpDir, f)
 			err := os.MkdirAll(filepath.Dir(path), 0600)
 			if err != nil {
@@ -194,7 +206,7 @@ func Untar(archive io.Reader, path string) error {
 // TarUntar aborts and returns the error.
 func TarUntar(src string, filter []string, dst string) error {
 	utils.Debugf("TarUntar(%s %s %s)", src, filter, dst)
-	archive, err := TarFilter(src, Uncompressed, filter, true, nil)
+	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed, Includes: filter, Recursive: true})
 	if err != nil {
 		return err
 	}

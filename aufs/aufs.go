@@ -137,8 +137,7 @@ func (a *AufsDriver) createDirsFor(id string) error {
 	}
 
 	for _, p := range paths {
-		dir := path.Join(a.rootPath(), p, id)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(path.Join(a.rootPath(), p, id), 0755); err != nil {
 			return err
 		}
 	}
@@ -201,11 +200,14 @@ func (a *AufsDriver) Get(id string) (string, error) {
 
 // Returns an archive of the contents for the id
 func (a *AufsDriver) Diff(id string) (archive.Archive, error) {
-	p, err := a.Get(id)
-	if err != nil {
-		return nil, err
-	}
-	return archive.Tar(p, archive.Uncompressed)
+	// Exclude top level aufs metadata from the diff
+	return archive.TarFilter(
+		path.Join(a.rootPath(), "diff", id),
+		&archive.TarOptions{
+			Excludes:    []string{".wh*"},
+			Recursive:   true,
+			Compression: archive.Uncompressed,
+		})
 }
 
 // Returns the size of the contents for the id
