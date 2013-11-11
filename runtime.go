@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -745,6 +746,37 @@ func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) 
 		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
 	return archive.ChangesDirs(cDir, initDir)
+}
+
+func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Diff(container.ID)
+	}
+
+	changes, err := runtime.Changes(container)
+	if err != nil {
+		return nil, err
+	}
+
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+
+	files := make([]string, 0)
+	deletions := make([]string, 0)
+	for _, change := range changes {
+		if change.Kind == archive.ChangeModify || change.Kind == archive.ChangeAdd {
+			files = append(files, change.Path)
+		}
+		if change.Kind == archive.ChangeDelete {
+			base := filepath.Base(change.Path)
+			dir := filepath.Dir(change.Path)
+			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+		}
+	}
+
+	return archive.TarFilter(cDir, archive.Uncompressed, files, false, deletions)
 }
 
 func linkLxcStart(root string) error {
