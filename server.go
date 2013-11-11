@@ -1023,7 +1023,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 
 func (srv *Server) ContainerCreate(config *Config, name string) (string, []string, error) {
 	if config.Memory != 0 && config.Memory < 524288 {
-		return "", nil, fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
+		return "", nil, fmt.Errorf("Minimum memory limit allowed is 512k")
 	}
 
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
