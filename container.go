@@ -699,6 +699,38 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
+func parseBind(bind string, illegalDsts []string) (BindMap, error) {
+	var src, dst, mode string
+
+	arr := strings.Split(bind, ":")
+	switch len(arr) {
+	case 2:
+		src = arr[0]
+		dst = arr[1]
+		mode = "rw"
+	case 3:
+		src = arr[0]
+		dst = arr[1]
+		mode = arr[2]
+	default:
+		return BindMap{}, fmt.Errorf("Invalid bind specification: %s", bind)
+	}
+
+	// Bail if trying to mount to an illegal destination
+	for _, illegal := range illegalDsts {
+		if dst == illegal {
+			return BindMap{}, fmt.Errorf("Illegal bind destination: %s", dst)
+		}
+	}
+
+	bindMap := BindMap{
+		SrcPath: src,
+		DstPath: dst,
+		Mode:    mode,
+	}
+	return bindMap, nil
+}
+
 func (container *Container) Start() (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
@@ -744,34 +776,11 @@ func (container *Container) Start() (err error) {
 	illegalDsts := []string{"/", "."}
 
 	for _, bind := range container.hostConfig.Binds {
-		// FIXME: factorize bind parsing in parseBind
-		var src, dst, mode string
-		arr := strings.Split(bind, ":")
-		if len(arr) == 2 {
-			src = arr[0]
-			dst = arr[1]
-			mode = "rw"
-		} else if len(arr) == 3 {
-			src = arr[0]
-			dst = arr[1]
-			mode = arr[2]
+		if bindMap, err := parseBind(bind, illegalDsts); err != nil {
+			return err
 		} else {
-			return fmt.Errorf("Invalid bind specification: %s", bind)
+			binds[path.Clean(bindMap.DstPath)] = bindMap
 		}
-
-		// Bail if trying to mount to an illegal destination
-		for _, illegal := range illegalDsts {
-			if dst == illegal {
-				return fmt.Errorf("Illegal bind destination: %s", dst)
-			}
-		}
-
-		bindMap := BindMap{
-			SrcPath: src,
-			DstPath: dst,
-			Mode:    mode,
-		}
-		binds[path.Clean(dst)] = bindMap
 	}
 
 	if container.Volumes == nil || len(container.Volumes) == 0 {
