@@ -892,13 +892,16 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 		return nil
 	}
 
+	failure := []error{}
 	for _, name := range args {
-		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
-		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
+		if _, _, err := cli.call("POST", "/containers/"+name+"/kill", nil); err != nil {
+			failure = append(failure, err)
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
+	}
+	if len(failure) != 0 {
+		return fmt.Errorf("Some container failed to get killed: %v\n", failure)
 	}
 	return nil
 }
