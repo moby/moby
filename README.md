@@ -193,6 +193,8 @@ wrong or incomplete.
 *Brought to you courtesy of our legal counsel. For more context,
 please see the Notice document.*
 
+This is purely nonbinding advice on how to comply with US law.
+
 Transfers of Docker shall be in accordance with applicable export controls 
 of any country and all other applicable legal requirements. Without limiting the 
 foregoing, Docker shall not be distributed or downloaded to any individual or 
