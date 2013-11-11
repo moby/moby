@@ -182,7 +182,7 @@ func (runtime *Runtime) ensureName(container *Container) error {
 	if container.Name == "" {
 		name, err := generateRandomName(runtime)
 		if err != nil {
-			name = container.ShortID()
+			name = utils.TruncateID(container.ID)
 		}
 		container.Name = name
 
@@ -289,7 +289,7 @@ func (runtime *Runtime) restore() error {
 		// Try to set the default name for a container if it exists prior to links
 		container.Name, err = generateRandomName(runtime)
 		if err != nil {
-			container.Name = container.ShortID()
+			container.Name = utils.TruncateID(container.ID)
 		}
 
 		if _, err := runtime.containerGraph.Set(container.Name, container.ID); err != nil {

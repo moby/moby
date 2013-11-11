@@ -6,6 +6,8 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"os"
+	"path"
 	"regexp"
 	"strings"
 	"testing"
@@ -381,8 +383,8 @@ func TestRunAttachStdin(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cmdOutput != container.ShortID()+"\n" {
-			t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortID()+"\n", cmdOutput)
+		if cmdOutput != container.ID+"\n" {
+			t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ID+"\n", cmdOutput)
 		}
 	})
 
@@ -459,7 +461,7 @@ func TestRunDetach(t *testing.T) {
 	})
 }
 
-// TestAttachDetach checks that attach in tty mode can be detached
+// TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func TestAttachDetach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
@@ -486,8 +488,8 @@ func TestAttachDetach(t *testing.T) {
 
 		container = globalRuntime.List()[0]
 
-		if strings.Trim(string(buf[:n]), " \r\n") != container.ShortID() {
-			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ShortID(), buf[:n])
+		if strings.Trim(string(buf[:n]), " \r\n") != container.ID {
+			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ID, buf[:n])
 		}
 	})
 	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
@@ -501,7 +503,69 @@ func TestAttachDetach(t *testing.T) {
 	ch = make(chan struct{})
 	go func() {
 		defer close(ch)
-		if err := cli.CmdAttach(container.ShortID()); err != nil {
+		if err := cli.CmdAttach(container.ID); err != nil {
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
+		}
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
+		stdinPipe.Write([]byte{16, 17})
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
+		<-ch
+	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.Running {
+		t.Fatal("The detached container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
+		container.Kill()
+	})
+}
+
+// TestAttachDetachTruncatedID checks that attach in tty mode can be detached
+func TestAttachDetachTruncatedID(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	go stdout.Read(make([]byte, 1024))
+	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
+		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	stdin, stdinPipe = io.Pipe()
+	stdout, stdoutPipe = io.Pipe()
+	cli = NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		if err := cli.CmdAttach(utils.TruncateID(container.ID)); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -824,4 +888,56 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 	}
 
 	return image
+}
+
+// #2098 - Docker cidFiles only contain short version of the containerId
+//sudo docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
+// TestRunCidFile tests that run -cidfile returns the longid
+func TestRunCidFile(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpCidFile := path.Join(tmpDir, "cid")
+
+	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalRuntime)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("-cidfile", tmpCidFile, unitTestImageID, "ls"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	defer os.RemoveAll(tmpDir)
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(cmdOutput) < 1 {
+			t.Fatalf("'ls' should return something , not '%s'", cmdOutput)
+		}
+		//read the tmpCidFile
+		buffer, err := ioutil.ReadFile(tmpCidFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := string(buffer)
+
+		if len(id) != len("2bf44ea18873287bd9ace8a4cb536a7cbe134bed67e805fdf2f58a57f69b320c") {
+			t.Fatalf("-cidfile should be a long id, not '%s'", id)
+		}
+		//test that its a valid cid? (though the container is gone..)
+		//remove the file and dir.
+	})
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
+
 }
