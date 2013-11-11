@@ -123,6 +123,18 @@ func dockerInitApp(args *DockerInitArgs) error {
 		return err
 	}
 
+	// Forward all signals to the app
+	sigchan := make(chan os.Signal, 1)
+	utils.CatchAll(sigchan)
+	go func() {
+		for sig := range sigchan {
+			if sig == syscall.SIGCHLD {
+				continue
+			}
+			cmd.Process.Signal(sig)
+		}
+	}()
+
 	// Wait for the app to exit.  Also, as pid 1 it's our job to reap all
 	// orphaned zombies.
 	var wstatus syscall.WaitStatus
