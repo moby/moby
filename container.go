@@ -1479,10 +1479,13 @@ func validateID(id string) error {
 
 // GetSize, return real size, virtual size
 func (container *Container) GetSize() (int64, int64) {
-	var sizeRw, sizeRootfs int64
+	var (
+		sizeRw, sizeRootfs int64
+		err                error
+		driver             = container.runtime.driver
+	)
 
-	driver := container.runtime.driver
-	sizeRw, err := driver.DiffSize(container.ID)
+	sizeRw, err = driver.DiffSize(container.ID)
 	if err != nil {
 		utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case

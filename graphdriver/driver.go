@@ -17,16 +17,10 @@ type Driver interface {
 	Get(id string) (dir string, err error)
 
 	DiffSize(id string) (bytes int64, err error)
+	Diff(id string) (archive.Archive, error)
+	Changes(id string) ([]archive.Change, error)
 
 	Cleanup() error
-}
-
-type Changer interface {
-	Changes(id string) ([]archive.Change, error)
-}
-
-type Differ interface {
-	Diff(id string) (archive.Archive, error)
 }
 
 var (
