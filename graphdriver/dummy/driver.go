@@ -73,14 +73,6 @@ func (d *Driver) Get(id string) (string, error) {
 	return dir, nil
 }
 
-func (d *Driver) Diff(id string) (archive.Archive, error) {
-	p, err := d.Get(id)
-	if err != nil {
-		return nil, err
-	}
-	return archive.Tar(p, archive.Uncompressed)
-}
-
 func (d *Driver) DiffSize(id string) (int64, error) {
 	return -1, fmt.Errorf("Not implemented")
 }
