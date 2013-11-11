@@ -404,8 +404,18 @@ func TestImageInsert(t *testing.T) {
 		t.Fatal("expected an error and got none")
 	}
 
-	// success returns nil
+	// bad filename fails
+	if err := srv.ImageInsert(unitTestImageID, "/tmp/foobar1234abc", "/foo", ioutil.Discard, sf); err == nil {
+		t.Fatal("expected an error and got none")
+	}
+
+	// url success returns nil
 	if err := srv.ImageInsert(unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err != nil {
+		t.Fatalf("expected no error, but got %v", err)
+	}
+
+	// local file success returns nil
+	if err := srv.ImageInsert(unitTestImageID, "/etc/issue", "/foo", ioutil.Discard, sf); err != nil {
 		t.Fatalf("expected no error, but got %v", err)
 	}
 }

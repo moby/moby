@@ -470,20 +470,41 @@ func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
 	return results.Results, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) error {
+func (srv *Server) ImageInsert(name, src, path string, out io.Writer, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return err
 	}
 
-	file, err := utils.Download(url)
-	if err != nil {
-		return err
-	}
-	defer file.Body.Close()
+	var (
+		content io.ReadCloser
+		size    int
+	)
+	if utils.IsURL(src) {
+		file, err := utils.Download(src, out)
+		if err != nil {
+			return err
+		}
+		content = file.Body
+		size = int(file.ContentLength)
+	} else {
+		info, err := os.Stat(src)
+		if err != nil {
+			return err
+		}
+		size = int(info.Size())
 
-	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
+		file, err := os.Open(src)
+		if err != nil {
+			return err
+		}
+		content = file
+	}
+
+	defer content.Close()
+
+	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", src, path}, srv.runtime.capabilities)
 	if err != nil {
 		return err
 	}
@@ -493,7 +514,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, "", "Downloading"), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(content, size, out, sf.FormatProgress("", "Downloading", "%8v/%v (%v)"), sf, false), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author

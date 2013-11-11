@@ -727,7 +727,14 @@ Insert a file in an image
 
 .. http:post:: /images/(name)/insert
 
-	Insert a file from ``url`` in the image ``name`` at ``path``
+	Insert a file from ``url`` to the image ``name``. Within the image,
+	put the file at ``path``.
+
+	The ``url`` can be a Unix file path or it can be a URL.
+
+	If a path to a file is given, the file that is evaluated for existence
+	and added to the image will be the path that is local to the docker daemon
+	(and not the client if they are run on different hosts.)
 
 	**Example request**:
 
