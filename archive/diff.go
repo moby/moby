@@ -20,6 +20,11 @@ func ApplyLayer(dest string, layer Archive) error {
 	// Step 2: walk for whiteouts and apply them, removing them in the process
 	err := filepath.Walk(dest, func(fullPath string, f os.FileInfo, err error) error {
 		if err != nil {
+			if os.IsNotExist(err) {
+				// This happens in the case of whiteouts in parent dir removing a directory
+				// We just ignore it
+				return filepath.SkipDir
+			}
 			return err
 		}
 
