@@ -29,7 +29,8 @@ if [ -f /etc/default/$BASE ]; then
 	. /etc/default/$BASE
 fi
 
-if [ "$1" = start ] && which initctl >/dev/null && initctl version | grep -q upstart; then
+if which initctl >/dev/null && initctl version | grep -q upstart; then
+	log_failure_msg "Docker is managed via upstart, try using service $BASE $1"
 	exit 1
 fi
 
