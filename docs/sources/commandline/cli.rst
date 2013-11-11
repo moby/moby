@@ -652,7 +652,7 @@ network communication.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
-      -m=0: Memory limit (in bytes)
+      -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
