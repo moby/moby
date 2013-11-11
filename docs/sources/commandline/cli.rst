@@ -622,6 +622,15 @@ This will remove the container referenced under the link ``/redis``.
 This will remove the underlying link between ``/webapp`` and the ``/redis`` containers removing all
 network communication.
 
+.. code-block:: bash
+
+    $ docker rm `docker ps -a -q`
+
+
+This command will delete all stopped containers. The command ``docker ps -a -q`` will return all
+existing container IDs and pass them to the ``rm`` command which will delete them. Any running
+containers will not be deleted.
+
 .. _cli_rmi:
 
 ``rmi``
