@@ -229,7 +229,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	if err != nil {
 		return err
 	}
-	out.Write(sf.FormatStatus(img.ID, "Image created"))
+	out.Write(sf.FormatStatus(img.ID, ""))
 	return nil
 }
 
