@@ -140,7 +140,7 @@ func setupBaseImage() {
 	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
 		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
-			log.Fatalf("Unable to pull the test image:", err)
+			log.Fatalf("Unable to pull the test image: %s", err)
 		}
 	}
 }
