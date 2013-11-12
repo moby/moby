@@ -10,7 +10,8 @@
 
     Usage: docker insert IMAGE URL PATH
 
-    Use the specified IMAGE as the parent for a new image, and Insert a file from URL into that new image at PATH
+    Use the specified IMAGE as the parent for a new image, and Insert a file 
+    from URL into that new image at PATH
 
     ie. this does not modify the specified image.
 
