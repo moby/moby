@@ -13,7 +13,7 @@ func ApplyLayer(dest string, layer Archive) error {
 	// Poor man's diff applyer in 2 steps:
 
 	// Step 1: untar everything in place
-	if err := Untar(layer, dest); err != nil {
+	if err := Untar(layer, dest, nil); err != nil {
 		return err
 	}
 

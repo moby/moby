@@ -15,12 +15,15 @@ type Driver interface {
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
-
-	DiffSize(id string) (bytes int64, err error)
-	Diff(id string) (archive.Archive, error)
-	Changes(id string) ([]archive.Change, error)
+	Size(id string) (bytes int64, err error)
 
 	Cleanup() error
+}
+
+type Differ interface {
+	Diff(id string) (archive.Archive, error)
+	Changes(id string) ([]archive.Change, error)
+	ApplyDiff(id string, diff archive.Archive) error
 }
 
 var (

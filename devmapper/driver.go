@@ -2,7 +2,6 @@ package devmapper
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"os"
 	"path"
@@ -57,16 +56,8 @@ func (d *Driver) Get(id string) (string, error) {
 	return mp, nil
 }
 
-func (d *Driver) DiffSize(id string) (int64, error) {
+func (d *Driver) Size(id string) (int64, error) {
 	return -1, fmt.Errorf("Not implemented")
-}
-
-func (d *Driver) Diff(id string) (archive.Archive, error) {
-	return nil, fmt.Errorf("Not implemented)")
-}
-
-func (d *Driver) Changes(id string) ([]archive.Change, error) {
-	return nil, fmt.Errorf("asdlfj)")
 }
 
 func (d *Driver) mount(id, mp string) error {

@@ -83,7 +83,7 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	if err := Untar(archive, tmp); err != nil {
+	if err := Untar(archive, tmp, nil); err != nil {
 		return err
 	}
 	if _, err := os.Stat(tmp); err != nil {

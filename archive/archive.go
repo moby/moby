@@ -167,7 +167,7 @@ func TarFilter(path string, options *TarOptions) (io.Reader, error) {
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, path string) error {
+func Untar(archive io.Reader, path string, options *TarOptions) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
 	}
@@ -188,8 +188,15 @@ func Untar(archive io.Reader, path string) error {
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
+	args := []string{"--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
 
-	cmd := exec.Command("tar", "--numeric-owner", "-f", "-", "-C", path, "-x"+compression.Flag())
+	if options != nil {
+		for _, exclude := range options.Excludes {
+			args = append(args, fmt.Sprintf("--exclude=%s", exclude))
+		}
+	}
+
+	cmd := exec.Command("tar", args...)
 	cmd.Stdin = io.MultiReader(bytes.NewReader(buf), archive)
 	// Hardcode locale environment for predictable outcome regardless of host configuration.
 	//   (see https://github.com/dotcloud/docker/issues/355)
@@ -210,7 +217,7 @@ func TarUntar(src string, filter []string, dst string) error {
 	if err != nil {
 		return err
 	}
-	return Untar(archive, dst)
+	return Untar(archive, dst, nil)
 }
 
 // UntarPath is a convenience function which looks for an archive
@@ -218,7 +225,7 @@ func TarUntar(src string, filter []string, dst string) error {
 func UntarPath(src, dst string) error {
 	if archive, err := os.Open(src); err != nil {
 		return err
-	} else if err := Untar(archive, dst); err != nil {
+	} else if err := Untar(archive, dst, nil); err != nil {
 		return err
 	}
 	return nil
@@ -287,7 +294,7 @@ func CopyFileWithTar(src, dst string) error {
 		return err
 	}
 	tw.Close()
-	return Untar(buf, filepath.Dir(dst))
+	return Untar(buf, filepath.Dir(dst), nil)
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.

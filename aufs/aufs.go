@@ -200,18 +200,18 @@ func (a *AufsDriver) Get(id string) (string, error) {
 
 // Returns an archive of the contents for the id
 func (a *AufsDriver) Diff(id string) (archive.Archive, error) {
-	// Exclude top level aufs metadata from the diff
-	return archive.TarFilter(
-		path.Join(a.rootPath(), "diff", id),
-		&archive.TarOptions{
-			Excludes:    []string{".wh*"},
-			Recursive:   true,
-			Compression: archive.Uncompressed,
-		})
+	return archive.TarFilter(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
+		Recursive:   true,
+		Compression: archive.Uncompressed,
+	})
+}
+
+func (a *AufsDriver) ApplyDiff(id string, diff archive.Archive) error {
+	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
 // Returns the size of the contents for the id
-func (a *AufsDriver) DiffSize(id string) (int64, error) {
+func (a *AufsDriver) Size(id string) (int64, error) {
 	return utils.TreeSize(path.Join(a.rootPath(), "diff", id))
 }
 

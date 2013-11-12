@@ -1485,7 +1485,7 @@ func (container *Container) GetSize() (int64, int64) {
 		driver             = container.runtime.driver
 	)
 
-	sizeRw, err = driver.DiffSize(container.ID)
+	sizeRw, err = driver.Size(container.ID)
 	if err != nil {
 		utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
