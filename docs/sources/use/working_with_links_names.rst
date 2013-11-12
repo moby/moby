@@ -7,9 +7,9 @@
 Working with Links and Names
 ============================
 
-From version 0.6.5 you are able to ``name`` a container and ``link`` it to another
-container by referring its name. This will create a relation parent->child where
-the parent container can see all the important information about its child.
+From version 0.6.5 you are now able to ``name`` a container and ``link`` it to another
+container by referring to its name. This will create a parent -> child relationship
+where the parent container can see selected information about its child.
 
 .. _run_name:
 
@@ -18,13 +18,18 @@ Container Naming
 
 .. versionadded:: v0.6.5
 
-You can now name your container by using ``-name`` flag. If no name is provided,
-Docker will automatically generate a name which can be seen by typing: ``docker ps``.
+You can now name your container by using the ``-name`` flag. If no name is provided, Docker
+will automatically generate a name. You can see this name using the ``docker ps`` command.
 
 .. code-block:: bash
 
     # format is "sudo docker run -name <container_name> <image_name> <command>"
     $ sudo docker run -name test ubuntu /bin/bash
+
+    # the flag "-a" Show all containers. Only running containers are shown by default.
+    $ sudo docker ps -a
+    CONTAINER ID        IMAGE                            COMMAND             CREATED             STATUS              PORTS               NAMES
+    2522602a0d99        ubuntu:12.04                     /bin/bash           14 seconds ago      Exit 0                                  test
 
 .. _run_link:
 
@@ -39,7 +44,8 @@ flag ``-icc=false``. With this flag set to false, Container A cannot access Cont
 unless explicitly allowed via a link. This is a huge win for securing your containers.
 When two containers are linked together Docker creates a parent child relationship
 between the containers. The parent container will be able to access information via
-env variables of the child such as name, exposed ports, ip, and environment variables.
+environment variables of the child such as name, exposed ports, IP and other selected
+environment variables.
 
 When linking two containers Docker will use the exposed ports of the container to create
 a secure tunnel for the parent to access. If a database container only exposes port 8080
@@ -76,7 +82,7 @@ about the child container.
 
 .. code-block:: bash
 
-    $ sroot@4c01db0b339c:/# env
+    $ root@4c01db0b339c:/# env
 
     HOSTNAME=4c01db0b339c
     DB_NAME=/webapp/db
