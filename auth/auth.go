@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/base64"
+    "crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ type AuthConfig struct {
 	Auth          string `json:"auth"`
 	Email         string `json:"email"`
 	ServerAddress string `json:"serveraddress,omitempty"`
+	InsecureSSL   bool `json:"insecuressl,omitempty"`
 }
 
 type ConfigFile struct {
@@ -151,7 +153,8 @@ func SaveConfig(configFile *ConfigFile) error {
 
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
-	client := &http.Client{}
+	httpTransport := &http.Transport{TLSClientConfig: &tls.Config { InsecureSkipVerify: authConfig.InsecureSSL }}
+	client := &http.Client{Transport: httpTransport}
 	reqStatusCode := 0
 	var status string
 	var reqBody []byte
@@ -174,7 +177,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
