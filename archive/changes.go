@@ -207,24 +207,22 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	return changes, nil
 }
 
-
 func ExportChanges(root, rw string) (Archive, error) {
-        changes, err := ChangesDirs(root, rw)
-        if err != nil {
-                return nil, err
-        }
-        files := make([]string, 0)
-        deletions := make([]string, 0)
-        for _, change := range changes {
-                if change.Kind == ChangeModify || change.Kind == ChangeAdd {
-                        files = append(files, change.Path)
-                }
-                if change.Kind == ChangeDelete {
-                        base := filepath.Base(change.Path)
-                        dir := filepath.Dir(change.Path)
-                        deletions = append(deletions, filepath.Join(dir, ".wh."+base))
-                }
-        }
-        return TarFilter(root, Uncompressed, files, false, deletions)
+	changes, err := ChangesDirs(root, rw)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0)
+	deletions := make([]string, 0)
+	for _, change := range changes {
+		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
+			files = append(files, change.Path)
+		}
+		if change.Kind == ChangeDelete {
+			base := filepath.Base(change.Path)
+			dir := filepath.Dir(change.Path)
+			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+		}
+	}
+	return TarFilter(root, &TarOptions{Compression: Uncompressed, Recursive: false, Includes: files, CreateFiles: deletions})
 }
-

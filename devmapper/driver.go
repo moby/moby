@@ -56,7 +56,7 @@ func (d *Driver) Get(id string) (string, error) {
 	return mp, nil
 }
 
-func (d *Driver) DiffSize(id string) (int64, error) {
+func (d *Driver) Size(id string) (int64, error) {
 	return -1, fmt.Errorf("Not implemented")
 }
 

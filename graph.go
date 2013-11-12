@@ -151,6 +151,7 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 	}
+	img.graph = graph
 	if err := StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err
 	}
@@ -158,7 +159,6 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
 		return err
 	}
-	img.graph = graph
 	graph.idIndex.Add(img.ID)
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -70,12 +71,18 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, ro
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		start := time.Now()
-		utils.Debugf("Start untar layer")
-		if err := archive.Untar(layerData, layer); err != nil {
-			return err
+		if differ, ok := img.graph.driver.(graphdriver.Differ); ok {
+			if err := differ.ApplyDiff(img.ID, layerData); err != nil {
+				return err
+			}
+		} else {
+			start := time.Now()
+			utils.Debugf("Start untar layer")
+			if err := archive.ApplyLayer(layer, layerData); err != nil {
+				return err
+			}
+			utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
 		}
-		utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
 	}
 
 	// If raw json is provided, then use it

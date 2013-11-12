@@ -1479,10 +1479,13 @@ func validateID(id string) error {
 
 // GetSize, return real size, virtual size
 func (container *Container) GetSize() (int64, int64) {
-	var sizeRw, sizeRootfs int64
+	var (
+		sizeRw, sizeRootfs int64
+		err                error
+		driver             = container.runtime.driver
+	)
 
-	driver := container.runtime.driver
-	sizeRw, err := driver.DiffSize(container.ID)
+	sizeRw, err = driver.Size(container.ID)
 	if err != nil {
 		utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
@@ -1524,7 +1527,11 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return archive.TarFilter(basePath, archive.Uncompressed, filter, true, nil)
+	return archive.TarFilter(basePath, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		Includes:    filter,
+		Recursive:   true,
+	})
 }
 
 // Returns true if the container exposes a certain port

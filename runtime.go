@@ -734,8 +734,8 @@ func (runtime *Runtime) Unmount(container *Container) error {
 }
 
 func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
-	if changer, ok := runtime.driver.(graphdriver.Changer); ok {
-		return changer.Changes(container.ID)
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Changes(container.ID)
 	}
 	cDir, err := runtime.driver.Get(container.ID)
 	if err != nil {
@@ -775,8 +775,13 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
 		}
 	}
-
-	return archive.TarFilter(cDir, archive.Uncompressed, files, false, deletions)
+	// FIXME: Why do we create whiteout files inside Tar code ?
+	return archive.TarFilter(cDir, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		Includes:    files,
+		Recursive:   false,
+		CreateFiles: deletions,
+	})
 }
 
 func linkLxcStart(root string) error {
