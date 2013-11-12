@@ -256,6 +256,10 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if _, err := srv.ContainerWait(containerID); err != nil {
+		t.Fatal(err)
+	}
+
 	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -274,6 +278,10 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := srv.ContainerWait(containerID); err != nil {
 		t.Fatal(err)
 	}
 
