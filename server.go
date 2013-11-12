@@ -455,7 +455,7 @@ func (srv *Server) ContainerChanges(name string) ([]Change, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
+func (srv *Server) Containers(all, size bool, n int, since, before, imageFilter string) []APIContainers {
 	var foundBefore bool
 	var displayed int
 	out := []APIContainers{}
@@ -478,6 +478,12 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		}
 		if container.ID == since || utils.TruncateID(container.ID) == since {
 			break
+		}
+		imageName := srv.runtime.repositories.ImageName(container.Image)
+		if imageFilter != "" {
+			if matches, _ := path.Match(imageFilter, imageName); !matches {
+				continue
+			}
 		}
 		displayed++
 		c := createAPIContainer(container, size, srv.runtime)

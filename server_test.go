@@ -521,3 +521,51 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal("incorrect number of matches returned")
 	}
 }
+
+func TestContainersFilterByImage(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	
+	srv := &Server{runtime: runtime}
+	
+	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a container from the test image
+	container, _, err := srv.ContainerCreate(config, "testcontainer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	// commit the container into a new image
+	if _, err := srv.ContainerCommit(container, "testrepo", "testtag", "", "", config); err != nil {
+		t.Fatal(err)
+	}
+	
+	// create a container from the new image
+	_, err = mkContainer(runtime, []string{"testrepo:testtag", "echo test"}, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	// both containers should be return when no image name is specified
+	containers := srv.Containers(true, false, -1, "", "", "")
+	if count := len(containers); len(containers) != 2 {
+		t.Fatalf("Expected 2 containers, found %d", count)
+	}
+	
+	// verify only the specified container is returned
+	containers = srv.Containers(true, false, -1, "", "", "testrepo:testtag")
+	if count := len(containers); len(containers) != 1 {
+		t.Fatalf("Expected 1 containers, found %d", count)
+	}
+	
+	// verify wildcard matching works
+	containers = srv.Containers(true, false, -1, "", "", "test*")
+	if count := len(containers); len(containers) != 1 {
+		t.Fatalf("Expected 1 containers, found %d", count)
+	}
+
+}

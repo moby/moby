@@ -337,12 +337,13 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	}
 	since := r.Form.Get("since")
 	before := r.Form.Get("before")
+	imageFilter := r.Form.Get("imageFilter")
 	n, err := strconv.Atoi(r.Form.Get("limit"))
 	if err != nil {
 		n = -1
 	}
 
-	outs := srv.Containers(all, size, n, since, before)
+	outs := srv.Containers(all, size, n, since, before, imageFilter)
 
 	if version < 1.5 {
 		outs2 := []APIContainersOld{}
