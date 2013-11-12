@@ -1100,16 +1100,18 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		var outs []APIImages
-		err = json.Unmarshal(body, &outs)
-		if err != nil {
+		if err := json.Unmarshal(body, &outs); err != nil {
 			return err
 		}
 
-		var startImageArg = cmd.Arg(0)
-		var startImage APIImages
+		var (
+			startImageArg = cmd.Arg(0)
+			startImage    APIImages
 
-		var roots []APIImages
-		var byParent = make(map[string][]APIImages)
+			roots    []APIImages
+			byParent = make(map[string][]APIImages)
+		)
+
 		for _, image := range outs {
 			if image.ParentId == "" {
 				roots = append(roots, image)
