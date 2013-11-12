@@ -36,6 +36,6 @@ Examples
 	9bbd19793b44        docker:latest       hack/dind /bin/hash    7 hours ago         Exit 1                                  
 	3cbe352798b0        ubuntu:12.04        /bin/bash              26 hours ago        Exit 137  
 	
-	$docker_orig kill 3cbe352798b3
+	$docker kill 3cbe352798b3
 	Error: No such container: 3cbe352798b3
 
