@@ -322,6 +322,37 @@ func TestDestroy(t *testing.T) {
 	}
 }
 
+func TestRuntimeListRunning(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
+	defer runtime.Destroy(container)
+
+	if len(runtime.ListRunning()) != 0 {
+		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
+	}
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if len(runtime.ListRunning()) != 1 {
+		t.Errorf("Expected 1 containers, %v found", len(runtime.List()))
+	}
+
+	if err := container.Stop(10); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(runtime.ListRunning()) != 0 {
+		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
+	}
+
+}
+
 func TestGet(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)

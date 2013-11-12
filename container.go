@@ -1530,6 +1530,15 @@ func (container *Container) rwPath() string {
 	return path.Join(container.root, "rw")
 }
 
+func (container *Container) cgroupPath(cgroupType string) (string, error) {
+	cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint(cgroupType)
+	if err != nil {
+		return "", err
+	}
+	cgroup_path := path.Join(cgroupMemoryMountpoint, "lxc", container.ID)
+	return cgroup_path, nil
+}
+
 func validateID(id string) error {
 	if id == "" {
 		return fmt.Errorf("Invalid empty id")
@@ -1585,4 +1594,50 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 func (container *Container) Exposes(p Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
+}
+
+type MemStat struct {
+	rss   int64
+	cache int64
+	swap  int64
+}
+
+func (container *Container) GetMemStat() (*MemStat, error) {
+	cgroup_path, err := container.cgroupPath("memory")
+	if err != nil {
+		return nil, err
+	}
+
+	cgroup_file := path.Join(cgroup_path, "memory.stat")
+	content, err := ioutil.ReadFile(cgroup_file)
+	if err != nil {
+		return nil, err
+	}
+	buf := bytes.NewBuffer(content)
+	memory := new(MemStat)
+
+	for {
+		line, err := buf.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		info := strings.Fields(line)
+		switch info[0] {
+		case "rss":
+			memory.rss, err = strconv.ParseInt(info[1], 10, 64)
+		case "cache":
+			memory.cache, err = strconv.ParseInt(info[1], 10, 64)
+		case "swap":
+			memory.swap, err = strconv.ParseInt(info[1], 10, 64)
+		default:
+			err = nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return memory, nil
 }
