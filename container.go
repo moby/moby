@@ -702,15 +702,14 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func (container *Container) Start() (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
+	if container.State.Running {
+		return fmt.Errorf("The container %s is already running.", container.ID)
+	}
 	defer func() {
 		if err != nil {
 			container.cleanup()
 		}
 	}()
-
-	if container.State.Running {
-		return fmt.Errorf("The container %s is already running.", container.ID)
-	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
