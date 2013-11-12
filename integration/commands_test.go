@@ -329,7 +329,7 @@ func TestRunDisconnectTty(t *testing.T) {
 	// Client disconnect after run -i should keep stdin out in TTY mode
 	container := globalRuntime.List()[0]
 
-	setTimeout(t, "Read/Write assertion timed out", 2000*time.Second, func() {
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
