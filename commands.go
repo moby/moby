@@ -549,6 +549,9 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	utils.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
+			if s == syscall.SIGCHLD {
+				continue
+			}
 			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
