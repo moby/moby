@@ -481,12 +481,12 @@ func TestParsePortMapping(t *testing.T) {
 func TestGetNameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
-nameserver 4.3.2.1
-search example.com`: {"1.2.3.4/32", "4.3.2.1/32"},
+nameserver 40.3.200.10
+search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
 		`search example.com`: {},
 		`nameserver 1.2.3.4
 search example.com
-nameserver 4.3.2.1`: {"1.2.3.4/32", "4.3.2.1/32"},
+nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
 		``: {},
 		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
 		`search example.com
