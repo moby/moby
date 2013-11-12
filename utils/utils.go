@@ -944,7 +944,7 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 func GetNameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]\.){3}([0-9]))\s*$`)
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
 	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
 		var ns = re.FindSubmatch(line)
 		if len(ns) > 0 {
