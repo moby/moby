@@ -164,7 +164,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := docker.ParseRun([]string{unitTestImageID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := docker.ParseRun([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
