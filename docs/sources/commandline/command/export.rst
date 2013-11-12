@@ -10,7 +10,7 @@
 
     Usage: docker export CONTAINER
 
-    Export the contents of a filesystem as a tar archive to STDIO
+    Export the contents of a filesystem as a tar archive to STDOUT
 
 Examples
 --------
