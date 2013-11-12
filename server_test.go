@@ -3,6 +3,7 @@ package docker
 import (
 	"github.com/dotcloud/docker/utils"
 	"strings"
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -519,5 +520,27 @@ func TestImagesFilter(t *testing.T) {
 
 	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
+	}
+}
+
+func TestImageInsert(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+	sf := utils.NewStreamFormatter(true)
+
+	// bad image name fails
+	if err := srv.ImageInsert("foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err == nil {
+		t.Fatal("expected an error and got none")
+	}
+
+	// bad url fails
+	if err := srv.ImageInsert(GetTestImage(runtime).ID, "http://bad_host_name_that_will_totally_fail.com/", "/foo", ioutil.Discard, sf); err == nil {
+		t.Fatal("expected an error and got none")
+	}
+
+	// success returns nil
+	if err := srv.ImageInsert(GetTestImage(runtime).ID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err != nil {
+		t.Fatalf("expected no error, but got %v", err)
 	}
 }
