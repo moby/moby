@@ -1,163 +1,11 @@
 package devmapper
 
-/*
-#cgo LDFLAGS: -L. -ldevmapper
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <libdevmapper.h>
-#include <linux/loop.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <errno.h>
-
-#ifndef LOOP_CTL_GET_FREE
-#define LOOP_CTL_GET_FREE       0x4C82
-#endif
-
-// FIXME: this could easily be rewritten in go
-char*			attach_loop_device(const char *filename, int *loop_fd_out)
-{
-  struct loop_info64	loopinfo = {0};
-  struct stat		st;
-  char			buf[64];
-  int			i, loop_fd, fd, start_index;
-  char*			loopname;
-
-
-  *loop_fd_out = -1;
-
-  start_index = 0;
-  fd = open("/dev/loop-control", O_RDONLY);
-  if (fd >= 0) {
-    start_index = ioctl(fd, LOOP_CTL_GET_FREE);
-    close(fd);
-
-    if (start_index < 0)
-      start_index = 0;
-  }
-
-  fd = open(filename, O_RDWR);
-  if (fd < 0) {
-    perror("open");
-    return NULL;
-  }
-
-  loop_fd = -1;
-  for (i = start_index ; loop_fd < 0 ; i++ ) {
-    if (sprintf(buf, "/dev/loop%d", i) < 0) {
-	close(fd);
-	return NULL;
-    }
-
-    if (stat(buf, &st)) {
-      if (!S_ISBLK(st.st_mode)) {
-	 fprintf(stderr, "[error] Loopback device %s is not a block device.\n", buf);
-      } else if (errno == ENOENT) {
-	fprintf(stderr, "[error] There are no more loopback device available.\n");
-      } else {
-	fprintf(stderr, "[error] Unkown error trying to stat the loopback device %s (errno: %d).\n", buf, errno);
-      }
-      close(fd);
-      return NULL;
-    }
-
-    loop_fd = open(buf, O_RDWR);
-    if (loop_fd < 0 && errno == ENOENT) {
-      fprintf(stderr, "[error] The loopback device %s does not exists.\n", buf);
-      close(fd);
-      return NULL;
-    } else if (loop_fd < 0) {
-	fprintf(stderr, "[error] Unkown error openning the loopback device %s. (errno: %d)\n", buf, errno);
-	continue;
-    }
-
-    if (ioctl(loop_fd, LOOP_SET_FD, (void *)(size_t)fd) < 0) {
-      int errsv = errno;
-      close(loop_fd);
-      loop_fd = -1;
-      if (errsv != EBUSY) {
-        close(fd);
-        fprintf(stderr, "cannot set up loopback device %s: %s", buf, strerror(errsv));
-        return NULL;
-      }
-      continue;
-    }
-
-    close(fd);
-
-    strncpy((char*)loopinfo.lo_file_name, buf, LO_NAME_SIZE);
-    loopinfo.lo_offset = 0;
-    loopinfo.lo_flags = LO_FLAGS_AUTOCLEAR;
-
-    if (ioctl(loop_fd, LOOP_SET_STATUS64, &loopinfo) < 0) {
-      perror("ioctl LOOP_SET_STATUS64");
-      if (ioctl(loop_fd, LOOP_CLR_FD, 0) < 0) {
-        perror("ioctl LOOP_CLR_FD");
-      }
-      close(loop_fd);
-      fprintf (stderr, "cannot set up loopback device info");
-      return (NULL);
-    }
-
-    loopname = strdup(buf);
-    if (loopname == NULL) {
-      close(loop_fd);
-      return (NULL);
-    }
-
-    *loop_fd_out = loop_fd;
-    return (loopname);
-  }
-
-  return (NULL);
-}
-
-static int64_t	get_block_size(int fd)
-{
-  uint64_t	size;
-
-  if (ioctl(fd, BLKGETSIZE64, &size) == -1)
-    return -1;
-  return ((int64_t)size);
-}
-
-extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
-
-static void
-log_cb(int level, const char *file, int line,
-       int dm_errno_or_class, const char *f, ...)
-{
-  char buffer[256];
-  va_list ap;
-
-  va_start(ap, f);
-  vsnprintf(buffer, 256, f, ap);
-  va_end(ap);
-
-  DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
-}
-
-static void
-log_with_errno_init ()
-{
-  dm_log_with_errno_init(log_cb);
-}
-
-*/
-import "C"
-
 import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"runtime"
-	"syscall"
-	"unsafe"
 )
 
 type DevmapperLogger interface {
@@ -198,7 +46,11 @@ var (
 	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
 	ErrTaskSetRO            = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
+	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
+	ErrGetInfo              = errors.New("dm_task_get_info failed")
 	ErrGetDriverVersion     = errors.New("dm_task_get_driver_version failed")
+	ErrTaskSetCookie        = errors.New("dm_task_set_cookie failed")
+	ErrNilCookie            = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice = errors.New("loopback mounting failed")
 	ErrGetBlockSize         = errors.New("Can't get block size")
 	ErrUdevWait             = errors.New("wait on udev cookie failed")
@@ -210,7 +62,7 @@ var (
 
 type (
 	Task struct {
-		unmanaged *C.struct_dm_task
+		unmanaged *CDmTask
 	}
 	Info struct {
 		Exists        int
@@ -230,167 +82,134 @@ type (
 
 func (t *Task) destroy() {
 	if t != nil {
-		C.dm_task_destroy(t.unmanaged)
+		DmTaskDestory(t.unmanaged)
 		runtime.SetFinalizer(t, nil)
 	}
 }
 
 func TaskCreate(tasktype TaskType) *Task {
-	c_task := C.dm_task_create(C.int(tasktype))
-	if c_task == nil {
+	Ctask := DmTaskCreate(int(tasktype))
+	if Ctask == nil {
 		return nil
 	}
-	task := &Task{unmanaged: c_task}
+	task := &Task{unmanaged: Ctask}
 	runtime.SetFinalizer(task, (*Task).destroy)
 	return task
 }
 
 func (t *Task) Run() error {
-	if res := C.dm_task_run(t.unmanaged); res != 1 {
+	if res := DmTaskRun(t.unmanaged); res != 1 {
 		return ErrTaskRun
 	}
 	return nil
 }
 
 func (t *Task) SetName(name string) error {
-	c_name := C.CString(name)
-	defer free(c_name)
-
-	if res := C.dm_task_set_name(t.unmanaged, c_name); res != 1 {
+	if res := DmTaskSetName(t.unmanaged, name); res != 1 {
 		return ErrTaskSetName
 	}
 	return nil
 }
 
 func (t *Task) SetMessage(message string) error {
-	c_message := C.CString(message)
-	defer free(c_message)
-
-	if res := C.dm_task_set_message(t.unmanaged, c_message); res != 1 {
+	if res := DmTaskSetMessage(t.unmanaged, message); res != 1 {
 		return ErrTaskSetMessage
 	}
 	return nil
 }
 
 func (t *Task) SetSector(sector uint64) error {
-	if res := C.dm_task_set_sector(t.unmanaged, C.uint64_t(sector)); res != 1 {
-		return ErrTaskSetAddNode
+	if res := DmTaskSetSector(t.unmanaged, sector); res != 1 {
+		return ErrTaskSetSector
 	}
 	return nil
 }
 
-func (t *Task) SetCookie(cookie *uint32, flags uint16) error {
-	c_cookie := C.uint32_t(*cookie)
-	if res := C.dm_task_set_cookie(t.unmanaged, &c_cookie, C.uint16_t(flags)); res != 1 {
-		return ErrTaskSetAddNode
+func (t *Task) SetCookie(cookie *uint, flags uint16) error {
+	if cookie == nil {
+		return ErrNilCookie
 	}
-	*cookie = uint32(c_cookie)
+	if res := DmTaskSetCookie(t.unmanaged, cookie, flags); res != 1 {
+		return ErrTaskSetCookie
+	}
 	return nil
 }
 
-func (t *Task) SetAddNode(add_node AddNodeType) error {
-	if res := C.dm_task_set_add_node(t.unmanaged, C.dm_add_node_t(add_node)); res != 1 {
+func (t *Task) SetAddNode(addNode AddNodeType) error {
+	if res := DmTaskSetAddNode(t.unmanaged, addNode); res != 1 {
 		return ErrTaskSetAddNode
 	}
 	return nil
 }
 
 func (t *Task) SetRo() error {
-	if res := C.dm_task_set_ro(t.unmanaged); res != 1 {
+	if res := DmTaskSetRo(t.unmanaged); res != 1 {
 		return ErrTaskSetRO
 	}
 	return nil
 }
 
-func (t *Task) AddTarget(start uint64, size uint64, ttype string, params string) error {
-	c_ttype := C.CString(ttype)
-	defer free(c_ttype)
-
-	c_params := C.CString(params)
-	defer free(c_params)
-
-	if res := C.dm_task_add_target(t.unmanaged, C.uint64_t(start), C.uint64_t(size), c_ttype, c_params); res != 1 {
+func (t *Task) AddTarget(start, size uint64, ttype, params string) error {
+	if res := DmTaskAddTarget(t.unmanaged, start, size,
+		ttype, params); res != 1 {
 		return ErrTaskAddTarget
 	}
 	return nil
 }
 
 func (t *Task) GetDriverVersion() (string, error) {
-	buffer := C.CString(string(make([]byte, 128)))
-	defer free(buffer)
-
-	if res := C.dm_task_get_driver_version(t.unmanaged, buffer, 128); res != 1 {
+	var version string
+	if res := DmTaskGetDriverVersion(t.unmanaged, &version); res != 1 {
 		return "", ErrGetDriverVersion
 	}
-	return C.GoString(buffer), nil
+	return version, nil
 }
 
 func (t *Task) GetInfo() (*Info, error) {
-	c_info := C.struct_dm_info{}
-	if res := C.dm_task_get_info(t.unmanaged, &c_info); res != 1 {
-		return nil, ErrGetDriverVersion
+	info := &Info{}
+	if res := DmTaskGetInfo(t.unmanaged, info); res != 1 {
+		return nil, ErrGetInfo
 	}
-	return &Info{
-		Exists:        int(c_info.exists),
-		Suspended:     int(c_info.suspended),
-		LiveTable:     int(c_info.live_table),
-		InactiveTable: int(c_info.inactive_table),
-		OpenCount:     int32(c_info.open_count),
-		EventNr:       uint32(c_info.event_nr),
-		Major:         uint32(c_info.major),
-		Minor:         uint32(c_info.minor),
-		ReadOnly:      int(c_info.read_only),
-		TargetCount:   int32(c_info.target_count),
-	}, nil
+	return info, nil
 }
 
-func (t *Task) GetNextTarget(next uintptr) (uintptr, uint64, uint64, string, string) {
-	var (
-		c_start, c_length       C.uint64_t
-		c_target_type, c_params *C.char
-	)
+func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
+	length uint64, targetType string, params string) {
 
-	nextp := C.dm_get_next_target(t.unmanaged, unsafe.Pointer(next), &c_start, &c_length, &c_target_type, &c_params)
-	return uintptr(nextp), uint64(c_start), uint64(c_length), C.GoString(c_target_type), C.GoString(c_params)
+	return DmGetNextTarget(t.unmanaged, next, &start, &length,
+			&targetType, &params),
+		start, length, targetType, params
 }
 
 func AttachLoopDevice(filename string) (*os.File, error) {
-	c_filename := C.CString(filename)
-	defer free(c_filename)
-
-	var fd C.int
-	res := C.attach_loop_device(c_filename, &fd)
-	if res == nil {
-		if os.Getenv("DEBUG") != "" {
-			C.perror(C.CString(fmt.Sprintf("[debug] Error attach_loop_device(%s, %d)", filename, int(fd))))
-		}
+	var fd int
+	res := DmAttachLoopDevice(filename, &fd)
+	if res == "" {
 		return nil, ErrAttachLoopbackDevice
 	}
-	defer free(res)
-
-	return os.NewFile(uintptr(fd), C.GoString(res)), nil
+	return os.NewFile(uintptr(fd), res), nil
 }
 
 func getBlockSize(fd uintptr) int {
 	var size uint64
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size))); err != 0 {
-		utils.Debugf("Error ioctl: %s", err)
+	if err := SysGetBlockSize(fd, &size); err != 0 {
+		utils.Debugf("Error ioctl (getBlockSize: %s)", err)
 		return -1
 	}
 	return int(size)
 }
 
 func GetBlockDeviceSize(file *os.File) (uint64, error) {
-	if size := C.get_block_size(C.int(file.Fd())); size == -1 {
+	size := DmGetBlockSize(file.Fd())
+	if size == -1 {
 		return 0, ErrGetBlockSize
-	} else {
-		return uint64(size), nil
 	}
+	return uint64(size), nil
 }
 
-func UdevWait(cookie uint32) error {
-	if res := C.dm_udev_wait(C.uint32_t(cookie)); res != 1 {
+func UdevWait(cookie uint) error {
+	if res := DmUdevWait(cookie); res != 1 {
 		utils.Debugf("Failed to wait on udev cookie %d", cookie)
 		return ErrUdevWait
 	}
@@ -398,21 +217,18 @@ func UdevWait(cookie uint32) error {
 }
 
 func LogInitVerbose(level int) {
-	C.dm_log_init_verbose(C.int(level))
+	DmLogInitVerbose(level)
 }
 
 var dmLogger DevmapperLogger = nil
 
 func logInit(logger DevmapperLogger) {
 	dmLogger = logger
-	C.log_with_errno_init()
+	LogWithErrnoInit()
 }
 
 func SetDevDir(dir string) error {
-	c_dir := C.CString(dir)
-	defer free(c_dir)
-
-	if res := C.dm_set_dev_dir(c_dir); res != 1 {
+	if res := DmSetDevDir(dir); res != 1 {
 		utils.Debugf("Error dm_set_dev_dir")
 		return ErrSetDevDir
 	}
@@ -420,13 +236,11 @@ func SetDevDir(dir string) error {
 }
 
 func GetLibraryVersion() (string, error) {
-	buffer := C.CString(string(make([]byte, 128)))
-	defer free(buffer)
-
-	if res := C.dm_get_library_version(buffer, 128); res != 1 {
+	var version string
+	if res := DmGetLibraryVersion(&version); res != 1 {
 		return "", ErrGetLibraryVersion
 	}
-	return C.GoString(buffer), nil
+	return version, nil
 }
 
 // Useful helper for cleanup
@@ -443,10 +257,6 @@ func RemoveDevice(name string) error {
 		return ErrRunRemoveDevice
 	}
 	return nil
-}
-
-func free(p *C.char) {
-	C.free(unsafe.Pointer(p))
 }
 
 // This is the programmatic example of "dmsetup create"
@@ -466,7 +276,7 @@ func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error
 		return fmt.Errorf("Can't add target")
 	}
 
-	var cookie uint32 = 0
+	var cookie uint = 0
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
@@ -564,7 +374,7 @@ func resumeDevice(name string) error {
 		return err
 	}
 
-	var cookie uint32 = 0
+	var cookie uint = 0
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
@@ -646,7 +456,7 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't add node")
 	}
 
-	var cookie uint32 = 0
+	var cookie uint = 0
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie")
 	}
