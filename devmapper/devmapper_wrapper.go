@@ -127,9 +127,8 @@ static int64_t	get_block_size(int fd)
 
 extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
 
-static void
-log_cb(int level, const char *file, int line,
-       int dm_errno_or_class, const char *f, ...)
+static void	log_cb(int level, const char *file, int line,
+		       int dm_errno_or_class, const char *f, ...)
 {
   char buffer[256];
   va_list ap;
@@ -141,8 +140,7 @@ log_cb(int level, const char *file, int line,
   DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
 }
 
-static void
-log_with_errno_init ()
+static void	log_with_errno_init()
 {
   dm_log_with_errno_init(log_cb);
 }

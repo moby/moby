@@ -46,8 +46,11 @@ var (
 	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
 	ErrTaskSetRO            = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
+	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
 	ErrGetInfo              = errors.New("dm_task_get_info failed")
 	ErrGetDriverVersion     = errors.New("dm_task_get_driver_version failed")
+	ErrTaskSetCookie        = errors.New("dm_task_set_cookie failed")
+	ErrNilCookie            = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice = errors.New("loopback mounting failed")
 	ErrGetBlockSize         = errors.New("Can't get block size")
 	ErrUdevWait             = errors.New("wait on udev cookie failed")
@@ -117,14 +120,17 @@ func (t *Task) SetMessage(message string) error {
 
 func (t *Task) SetSector(sector uint64) error {
 	if res := DmTaskSetSector(t.unmanaged, sector); res != 1 {
-		return ErrTaskSetAddNode
+		return ErrTaskSetSector
 	}
 	return nil
 }
 
 func (t *Task) SetCookie(cookie *uint, flags uint16) error {
+	if cookie == nil {
+		return ErrNilCookie
+	}
 	if res := DmTaskSetCookie(t.unmanaged, cookie, flags); res != 1 {
-		return ErrTaskSetAddNode
+		return ErrTaskSetCookie
 	}
 	return nil
 }
