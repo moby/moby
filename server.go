@@ -464,14 +464,11 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
 			continue
 		}
-		if before != "" {
+		if before != "" && !foundBefore {
 			if container.ID == before || utils.TruncateID(container.ID) == before {
 				foundBefore = true
-				continue
 			}
-			if !foundBefore {
-				continue
-			}
+			continue
 		}
 		if displayed == n {
 			break
