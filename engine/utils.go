@@ -15,7 +15,7 @@ func init() {
 	Register("dummy", func(job *Job) string { return "" })
 }
 
-func mkEngine(t *testing.T) *Engine {
+func newTestEngine(t *testing.T) *Engine {
 	// Use the caller function name as a prefix.
 	// This helps trace temp directories back to their test.
 	pc, _, _, _ := runtime.Caller(1)
@@ -38,5 +38,5 @@ func mkEngine(t *testing.T) *Engine {
 }
 
 func mkJob(t *testing.T, name string, args ...string) *Job {
-	return mkEngine(t).Job(name, args...)
+	return newTestEngine(t).Job(name, args...)
 }
