@@ -16,6 +16,9 @@ either of the following AUR packages:
 The lxc-docker package will install the latest tagged version of docker. 
 The lxc-docker-git package will build from the current master branch.
 
+**Note :** for Arch Linux running on a Raspberry Pi, an installation procedure can be found at `resin.io <http://resin.io/docker-on-raspberry-pi//>`_
+
+
 Dependencies
 ------------
 
