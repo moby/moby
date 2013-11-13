@@ -38,7 +38,6 @@ type MetaData struct {
 type DeviceSet struct {
 	MetaData
 	sync.Mutex
-	initialized      bool
 	root             string
 	devicePrefix     string
 	TransactionId    uint64
@@ -450,11 +449,6 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("Error init: %s\n", err)
-		return err
-	}
-
 	if devices.Devices[hash] != nil {
 		return fmt.Errorf("hash %s already exists", hash)
 	}
@@ -521,11 +515,6 @@ func (devices *DeviceSet) removeDevice(hash string) error {
 func (devices *DeviceSet) RemoveDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
-	}
 
 	return devices.removeDevice(hash)
 }
@@ -635,10 +624,6 @@ func (devices *DeviceSet) Shutdown() error {
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer devices.Unlock()
 
-	if !devices.initialized {
-		return nil
-	}
-
 	for path, count := range devices.activeMounts {
 		for i := count; i > 0; i-- {
 			if err := syscall.Unmount(path, 0); err != nil {
@@ -670,10 +655,6 @@ func (devices *DeviceSet) Shutdown() error {
 func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	devices.Lock()
 	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		return fmt.Errorf("Error initializing devmapper: %s", err)
-	}
 
 	if err := devices.activateDeviceIfNeeded(hash); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
@@ -736,19 +717,12 @@ func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
 	return devices.Devices[hash] != nil
 }
 
 func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
 
 	info := devices.Devices[hash]
 	return info != nil && info.Initialized
@@ -757,10 +731,6 @@ func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		return false
-	}
 
 	info := devices.Devices[hash]
 	if info == nil {
@@ -773,11 +743,6 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 func (devices *DeviceSet) SetInitialized(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
-
-	if err := devices.ensureInit(); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
-		return err
-	}
 
 	info := devices.Devices[hash]
 	if info == nil {
@@ -799,10 +764,6 @@ func (devices *DeviceSet) Status() *Status {
 	defer devices.Unlock()
 
 	status := &Status{}
-
-	if err := devices.ensureInit(); err != nil {
-		return status
-	}
 
 	status.PoolName = devices.getPoolName()
 	status.DataLoopback = path.Join(devices.loopbackDir(), "data")
@@ -827,24 +788,18 @@ func (devices *DeviceSet) Status() *Status {
 	return status
 }
 
-func (devices *DeviceSet) ensureInit() error {
-	if !devices.initialized {
-		devices.initialized = true
-		if err := devices.initDevmapper(); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func NewDeviceSet(root string) *DeviceSet {
+func NewDeviceSet(root string) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
-	return &DeviceSet{
-		initialized:  false,
+	devices := &DeviceSet{
 		root:         root,
 		MetaData:     MetaData{Devices: make(map[string]*DevInfo)},
 		activeMounts: make(map[string]int),
 	}
+
+	if err := devices.initDevmapper(); err != nil {
+		return nil, err
+	}
+
+	return devices, nil
 }
