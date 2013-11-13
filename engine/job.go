@@ -3,14 +3,14 @@ package engine
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
-	"fmt"
 	"sync"
-	"encoding/json"
-	"os"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -27,16 +27,16 @@ import (
 // This allows for richer error reporting.
 //
 type Job struct {
-	Eng	*Engine
-	Name	string
-	Args	[]string
-	env	[]string
-	Stdin	io.Reader
-	Stdout	io.Writer
-	Stderr	io.Writer
-	handler	func(*Job) string
-	status	string
-	onExit	[]func()
+	Eng     *Engine
+	Name    string
+	Args    []string
+	env     []string
+	Stdin   io.Reader
+	Stdout  io.Writer
+	Stderr  io.Writer
+	handler func(*Job) string
+	status  string
+	onExit  []func()
 }
 
 // Run executes the job and blocks until the job completes.
@@ -106,29 +106,32 @@ func (job *Job) parseLines(src io.Reader, dst *[]string, limit int) {
 func (job *Job) StdoutParseString(dst *string) {
 	lines := make([]string, 0, 1)
 	job.StdoutParseLines(&lines, 1)
-	job.onExit = append(job.onExit, func() { if len(lines) >= 1 { *dst = lines[0] }})
+	job.onExit = append(job.onExit, func() {
+		if len(lines) >= 1 {
+			*dst = lines[0]
+		}
+	})
 }
 
 func (job *Job) StderrParseString(dst *string) {
 	lines := make([]string, 0, 1)
 	job.StderrParseLines(&lines, 1)
-	job.onExit = append(job.onExit, func() { *dst = lines[0]; })
+	job.onExit = append(job.onExit, func() { *dst = lines[0] })
 }
 
 func (job *Job) StdoutPipe() io.ReadCloser {
 	r, w := io.Pipe()
 	job.Stdout = w
-	job.onExit = append(job.onExit, func(){ w.Close() })
+	job.onExit = append(job.onExit, func() { w.Close() })
 	return r
 }
 
 func (job *Job) StderrPipe() io.ReadCloser {
 	r, w := io.Pipe()
 	job.Stderr = w
-	job.onExit = append(job.onExit, func(){ w.Close() })
+	job.onExit = append(job.onExit, func() { w.Close() })
 	return r
 }
-
 
 func (job *Job) CallString() string {
 	return fmt.Sprintf("%s(%s)", job.Name, strings.Join(job.Args, ", "))
@@ -242,7 +245,7 @@ func (job *Job) DecodeEnv(src io.Reader) error {
 			job.SetenvInt(k, int64(fval))
 		} else if sval, ok := v.(string); ok {
 			job.Setenv(k, sval)
-		} else	if val, err := json.Marshal(v); err == nil {
+		} else if val, err := json.Marshal(v); err == nil {
 			job.Setenv(k, string(val))
 		} else {
 			job.Setenv(k, fmt.Sprintf("%v", v))

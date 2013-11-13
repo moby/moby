@@ -266,23 +266,23 @@ func TestHumanSize(t *testing.T) {
 }
 
 func TestRAMInBytes(t *testing.T) {
-	assertRAMInBytes(t, "32",   false, 32)
-	assertRAMInBytes(t, "32b",  false, 32)
-	assertRAMInBytes(t, "32B",  false, 32)
-	assertRAMInBytes(t, "32k",  false, 32*1024)
-	assertRAMInBytes(t, "32K",  false, 32*1024)
+	assertRAMInBytes(t, "32", false, 32)
+	assertRAMInBytes(t, "32b", false, 32)
+	assertRAMInBytes(t, "32B", false, 32)
+	assertRAMInBytes(t, "32k", false, 32*1024)
+	assertRAMInBytes(t, "32K", false, 32*1024)
 	assertRAMInBytes(t, "32kb", false, 32*1024)
 	assertRAMInBytes(t, "32Kb", false, 32*1024)
 	assertRAMInBytes(t, "32Mb", false, 32*1024*1024)
 	assertRAMInBytes(t, "32Gb", false, 32*1024*1024*1024)
 
-	assertRAMInBytes(t, "",      true, -1)
+	assertRAMInBytes(t, "", true, -1)
 	assertRAMInBytes(t, "hello", true, -1)
-	assertRAMInBytes(t, "-32",   true, -1)
-	assertRAMInBytes(t, " 32 ",  true, -1)
+	assertRAMInBytes(t, "-32", true, -1)
+	assertRAMInBytes(t, " 32 ", true, -1)
 	assertRAMInBytes(t, "32 mb", true, -1)
 	assertRAMInBytes(t, "32m b", true, -1)
-	assertRAMInBytes(t, "32bm",  true, -1)
+	assertRAMInBytes(t, "32bm", true, -1)
 }
 
 func assertRAMInBytes(t *testing.T, size string, expectError bool, expectedBytes int64) {

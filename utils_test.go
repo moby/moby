@@ -27,7 +27,7 @@ func mkRuntime(f utils.Fataler) *Runtime {
 		f.Fatal(err)
 	}
 	config := &DaemonConfig{
-		Root:   root,
+		Root:        root,
 		AutoRestart: false,
 	}
 	r, err := NewRuntimeFromDirectory(config)
@@ -65,7 +65,6 @@ func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *Server {
 	}
 	return srv
 }
-
 
 func NewTestEngine(t utils.Fataler) *engine.Engine {
 	root, err := newTestDirectory(unitTestStoreBase)

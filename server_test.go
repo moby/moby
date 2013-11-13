@@ -2,8 +2,8 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
-	"strings"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 )
