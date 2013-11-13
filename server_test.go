@@ -296,53 +296,39 @@ func TestContainerTop(t *testing.T) {
 
 func TestPools(t *testing.T) {
 	runtime := mkRuntime(t)
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 	defer nuke(runtime)
 
-	err := srv.poolAdd("pull", "test1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = srv.poolAdd("pull", "test2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = srv.poolAdd("push", "test1")
-	if err == nil || err.Error() != "pull test1 is already in progress" {
-		t.Fatalf("Expected `pull test1 is already in progress`")
-	}
-	err = srv.poolAdd("pull", "test1")
-	if err == nil || err.Error() != "pull test1 is already in progress" {
-		t.Fatalf("Expected `pull test1 is already in progress`")
-	}
-	err = srv.poolAdd("wait", "test3")
-	if err == nil || err.Error() != "Unknown pool type" {
-		t.Fatalf("Expected `Unknown pool type`")
+	srv.poolLock("test1")
+	srv.poolLock("test2")
+
+	c := make(chan bool)
+
+	go func() {
+		srv.poolLock("test1")
+		c <- true
+	}()
+
+	select {
+	case <-c:
+		t.Fatalf("Expected test1 lock to block")
+	case <-time.After(1 * time.Second):
 	}
 
-	err = srv.poolRemove("pull", "test2")
-	if err != nil {
-		t.Fatal(err)
+	srv.poolUnlock("test2")
+
+	select {
+	case <-c:
+		t.Fatalf("Expected test1 lock to block")
+	case <-time.After(1 * time.Second):
 	}
-	err = srv.poolRemove("pull", "test2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = srv.poolRemove("pull", "test1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = srv.poolRemove("push", "test1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = srv.poolRemove("wait", "test3")
-	if err == nil || err.Error() != "Unknown pool type" {
-		t.Fatalf("Expected `Unknown pool type`")
+
+	srv.poolUnlock("test1")
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatalf("Expected test1 lock to be unlocked")
+	case <-c:
 	}
 }
 

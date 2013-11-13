@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -228,16 +229,18 @@ func TestBuild(t *testing.T) {
 	}
 }
 
+func newServer(runtime *Runtime) *Server {
+	return &Server{
+		runtime: runtime,
+		pool:    make(map[string]*sync.Mutex),
+	}
+}
+
 func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache bool) *Image {
 	if srv == nil {
 		runtime := mkRuntime(t)
 		defer nuke(runtime)
-
-		srv = &Server{
-			runtime:     runtime,
-			pullingPool: make(map[string]struct{}),
-			pushingPool: make(map[string]struct{}),
-		}
+		srv = newServer(runtime)
 	}
 
 	httpServer, err := mkTestingFileServer(context.remoteFiles)
@@ -371,11 +374,7 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
@@ -400,11 +399,7 @@ func TestBuildImageWithCache(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	template := testContextTemplate{`
         from {IMAGE}
@@ -428,11 +423,7 @@ func TestBuildImageWithoutCache(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	template := testContextTemplate{`
         from {IMAGE}
@@ -456,11 +447,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	context := testContextTemplate{`
         from {IMAGE}
@@ -502,11 +489,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := newServer(runtime)
 
 	context := testContextTemplate{`
         from {IMAGE}

@@ -540,11 +540,9 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	for _, id := range history {
 
 		// ensure no two downloads of the same layer happen at the same time
-		if err := srv.poolAdd("pull", "layer:"+id); err != nil {
-			utils.Errorf("Image (id: %s) pull is already running, skipping: %v", id, err)
-			return nil
-		}
-		defer srv.poolRemove("pull", "layer:"+id)
+		name := "layer:" + id
+		srv.poolLock(name)
+		defer srv.poolUnlock(name)
 
 		if !srv.runtime.graph.Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
@@ -637,14 +635,9 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			if err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
-				utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
-				if parallel {
-					errors <- nil
-				}
-				return
-			}
-			defer srv.poolRemove("pull", "img:"+img.ID)
+			name := "img:" + img.ID
+			srv.poolLock(name)
+			defer srv.poolUnlock(name)
 
 			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s", img.Tag, localName)))
 			success := false
@@ -708,42 +701,28 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (srv *Server) poolAdd(kind, key string) error {
+func (srv *Server) poolLock(key string) {
 	srv.Lock()
-	defer srv.Unlock()
-
-	if _, exists := srv.pullingPool[key]; exists {
-		return fmt.Errorf("pull %s is already in progress", key)
+	// Cannot use defer to unlock due to need for careful ordering of locking and unlocking
+	mutex, exists := srv.pool[key]
+	if exists {
+		// Unlock the server lock before taking the pool lock to avoid blocking unrelated operations
+		srv.Unlock()
+		mutex.Lock()
+	} else {
+		mutex = new(sync.Mutex)
+		srv.pool[key] = mutex
+		// Lock the pool lock before releasing the server lock to ensure that we nobody else takes it first
+		mutex.Lock()
+		srv.Unlock()
 	}
-	if _, exists := srv.pushingPool[key]; exists {
-		return fmt.Errorf("push %s is already in progress", key)
-	}
-
-	switch kind {
-	case "pull":
-		srv.pullingPool[key] = struct{}{}
-		break
-	case "push":
-		srv.pushingPool[key] = struct{}{}
-		break
-	default:
-		return fmt.Errorf("Unknown pool type")
-	}
-	return nil
 }
 
-func (srv *Server) poolRemove(kind, key string) error {
-	switch kind {
-	case "pull":
-		delete(srv.pullingPool, key)
-		break
-	case "push":
-		delete(srv.pushingPool, key)
-		break
-	default:
-		return fmt.Errorf("Unknown pool type")
-	}
-	return nil
+func (srv *Server) poolUnlock(key string) {
+	srv.Lock()
+	defer srv.Unlock()
+	mutex := srv.pool[key]
+	mutex.Unlock()
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
@@ -751,10 +730,10 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 	if err != nil {
 		return err
 	}
-	if err := srv.poolAdd("pull", localName+":"+tag); err != nil {
-		return err
-	}
-	defer srv.poolRemove("pull", localName+":"+tag)
+
+	name := localName + ":" + tag
+	srv.poolLock(name)
+	defer srv.poolUnlock(name)
 
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
@@ -943,10 +922,8 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
 func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string) error {
-	if err := srv.poolAdd("push", localName); err != nil {
-		return err
-	}
-	defer srv.poolRemove("push", localName)
+	srv.poolLock(localName)
+	defer srv.poolUnlock(localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
@@ -1543,12 +1520,11 @@ func NewServer(config *DaemonConfig) (*Server, error) {
 		return nil, err
 	}
 	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[string]chan utils.JSONMessage),
-		reqFactory:  nil,
+		runtime:    runtime,
+		pool:       make(map[string]*sync.Mutex),
+		events:     make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		listeners:  make(map[string]chan utils.JSONMessage),
+		reqFactory: nil,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -1580,10 +1556,9 @@ func (srv *Server) LogEvent(action, id, from string) {
 
 type Server struct {
 	sync.Mutex
-	runtime     *Runtime
-	pullingPool map[string]struct{}
-	pushingPool map[string]struct{}
-	events      []utils.JSONMessage
-	listeners   map[string]chan utils.JSONMessage
-	reqFactory  *utils.HTTPRequestFactory
+	runtime    *Runtime
+	pool       map[string]*sync.Mutex
+	events     []utils.JSONMessage
+	listeners  map[string]chan utils.JSONMessage
+	reqFactory *utils.HTTPRequestFactory
 }
