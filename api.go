@@ -1116,8 +1116,6 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 }
 
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
@@ -1148,5 +1146,10 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 		}
 	}
 	httpSrv := http.Server{Addr: addr, Handler: r}
+
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
+	// Tell the init daemon we are accepting requests
+	go sd_notify("READY=1")
+
 	return httpSrv.Serve(l)
 }
