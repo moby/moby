@@ -1,8 +1,6 @@
 package engine
 
-
 type Hack map[string]interface{}
-
 
 func (eng *Engine) Hack_GetGlobalVar(key string) interface{} {
 	if eng.hack == nil {

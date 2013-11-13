@@ -74,7 +74,6 @@ func jobInitApi(job *engine.Job) string {
 	return "0"
 }
 
-
 func (srv *Server) ListenAndServe(job *engine.Job) string {
 	protoAddrs := job.Args
 	chErrors := make(chan error, len(protoAddrs))
@@ -1388,25 +1387,25 @@ func (srv *Server) ContainerStart(job *engine.Job) string {
 			return err.Error()
 		}
 		// Validate the HostConfig binds. Make sure that:
-                // 1) the source of a bind mount isn't /
-                //         The bind mount "/:/foo" isn't allowed.
-                // 2) Check that the source exists
-                //        The source to be bind mounted must exist.
-                for _, bind := range hostConfig.Binds {
-                        splitBind := strings.Split(bind, ":")
-                        source := splitBind[0]
+		// 1) the source of a bind mount isn't /
+		//         The bind mount "/:/foo" isn't allowed.
+		// 2) Check that the source exists
+		//        The source to be bind mounted must exist.
+		for _, bind := range hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
 
-                        // refuse to bind mount "/" to the container
-                        if source == "/" {
-                                return fmt.Sprintf("Invalid bind mount '%s' : source can't be '/'", bind)
-                        }
+			// refuse to bind mount "/" to the container
+			if source == "/" {
+				return fmt.Sprintf("Invalid bind mount '%s' : source can't be '/'", bind)
+			}
 
-                        // ensure the source exists on the host
-                        _, err := os.Stat(source)
-                        if err != nil && os.IsNotExist(err) {
-                                return fmt.Sprintf("Invalid bind mount '%s' : source doesn't exist", bind)
-                        }
-                }
+			// ensure the source exists on the host
+			_, err := os.Stat(source)
+			if err != nil && os.IsNotExist(err) {
+				return fmt.Sprintf("Invalid bind mount '%s' : source doesn't exist", bind)
+			}
+		}
 		// Register any links from the host config before starting the container
 		// FIXME: we could just pass the container here, no need to lookup by name again.
 		if err := srv.RegisterLinks(name, &hostConfig); err != nil {
