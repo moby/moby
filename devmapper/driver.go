@@ -22,7 +22,7 @@ type Driver struct {
 }
 
 func Init(home string) (graphdriver.Driver, error) {
-	deviceSet, err := NewDeviceSet(home);
+	deviceSet, err := NewDeviceSet(home)
 	if err != nil {
 		return nil, err
 	}
@@ -61,17 +61,17 @@ func (d *Driver) Size(id string) (int64, error) {
 	return -1, fmt.Errorf("Not implemented")
 }
 
-func (d *Driver) mount(id, mp string) error {
+func (d *Driver) mount(id, mountPoint string) error {
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mp, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(mountPoint, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	// If mountpoint is already mounted, do nothing
-	if mounted, err := Mounted(mp); err != nil {
+	if mounted, err := Mounted(mountPoint); err != nil {
 		return fmt.Errorf("Error checking mountpoint: %s", err)
 	} else if mounted {
 		return nil
 	}
 	// Mount the device
-	return d.DeviceSet.MountDevice(id, mp, false)
+	return d.DeviceSet.MountDevice(id, mountPoint, false)
 }

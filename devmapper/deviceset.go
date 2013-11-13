@@ -679,7 +679,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 	count := devices.activeMounts[path]
 	devices.activeMounts[path] = count + 1
 
-	return nil
+	return devices.setInitialized(hash)
 }
 
 func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) error {
@@ -740,10 +740,7 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	return devinfo != nil && devinfo.Exists != 0
 }
 
-func (devices *DeviceSet) SetInitialized(hash string) error {
-	devices.Lock()
-	defer devices.Unlock()
-
+func (devices *DeviceSet) setInitialized(hash string) error {
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
