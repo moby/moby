@@ -232,7 +232,7 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 			ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend)
 
 			// serialize filesystem
-			fs, err := Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), Uncompressed)
+			fs, err := archive.Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), archive.Uncompressed)
 			if err != nil {
 				utils.Debugf("%s", err)
 				return err
@@ -269,7 +269,7 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 
 	ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend)
 
-	fs, err := Tar(tempdir, Uncompressed)
+	fs, err := archive.Tar(tempdir, archive.Uncompressed)
 	defer os.RemoveAll(tempdir)
 	if err != nil {
 		return err
@@ -292,7 +292,7 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 	tarFile.Close()
 	repoFile, _ := os.Open(repoTarFile)
 	os.Mkdir(repoDir, os.ModeDir)
-	Untar(repoFile, repoDir)
+	archive.Untar(repoFile, repoDir)
 	repositoriesJson, _ := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
 	repositories := map[string]Repository{}
 	json.Unmarshal(repositoriesJson, &repositories)
