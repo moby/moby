@@ -426,7 +426,6 @@ func TestChanges(t *testing.T) {
 	}
 }
 
-/* FIXME: How to properly test this?
 func TestDiffSize(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
@@ -457,7 +456,7 @@ func TestDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err := d.DiffSize("1")
+	diffSize, err := d.Size("1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,4 +464,3 @@ func TestDiffSize(t *testing.T) {
 		t.Fatalf("Expected size to be %d got %d", size, diffSize)
 	}
 }
-*/
