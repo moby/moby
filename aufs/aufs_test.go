@@ -464,3 +464,54 @@ func TestDiffSize(t *testing.T) {
 		t.Fatalf("Expected size to be %d got %d", size, diffSize)
 	}
 }
+
+func TestApplyDiff(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	diffPath, err := d.Get("1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a file to the diff path with a fixed size
+	size := int64(1024)
+
+	f, err := os.Create(path.Join(diffPath, "test_file"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Truncate(size)
+	f.Close()
+
+	diff, err := d.Diff("1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Create("2", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Create("3", "2"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.ApplyDiff("3", diff); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure that the file is in the mount point for id 3
+
+	mountPoint, err := d.Get("3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path.Join(mountPoint, "test_file")); err != nil {
+		t.Fatal(err)
+	}
+}
