@@ -223,7 +223,7 @@ All new files and directories are created with mode 0755, uid and gid
 
 .. note::
    if you build using STDIN (``docker build - < somefile``), there is no build 
-   context, so the Dockerfile cannot contain an ADD statement.
+   context, so the Dockerfile can only contain an URL based ADD statement.
 
 The copy obeys the following rules:
 
