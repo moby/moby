@@ -169,7 +169,7 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 			if err := container.kill(sig); err != nil {
 				return fmt.Errorf("Cannot kill container %s: %s", name, err)
 			}
-			// FIXME: Add event for signals
+			srv.LogEvent("signal", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		}
 	} else {
 		return fmt.Errorf("No such container: %s", name)

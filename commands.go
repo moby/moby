@@ -893,7 +893,9 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
-	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container (send SIGKILL)")
+	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Send a specific signal to a running container. If no signal is specified, send SIGKILL and wait for container to exit")
+	signal := cmd.Int("s", 0, "Send specified signal.")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -902,9 +904,12 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 		return nil
 	}
 
+	v := url.Values{}
+	v.Set("signal", strconv.Itoa(*signal))
+
 	var encounteredError error
 	for _, name := range args {
-		if _, _, err := cli.call("POST", "/containers/"+name+"/kill", nil); err != nil {
+		if _, _, err := cli.call("POST", "/containers/"+name+"/kill?"+v.Encode(), nil); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to kill one or more containers")
 		} else {
