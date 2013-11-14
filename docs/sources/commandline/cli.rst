@@ -41,7 +41,7 @@ To stop a container, use ``docker stop``
 To kill the container, use ``docker kill``
 
 .. _cli_attach_examples:
- 
+
 Examples:
 ~~~~~~~~~
 
@@ -55,8 +55,8 @@ Examples:
      Mem:    373572k total,   355560k used,    18012k free,    27872k buffers
      Swap:   786428k total,        0k used,   786428k free,   221740k cached
 
-     PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND            
-      1 root      20   0 17200 1116  912 R    0  0.3   0:00.03 top                
+     PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+      1 root      20   0 17200 1116  912 R    0  0.3   0:00.03 top
 
       top - 02:05:55 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
       Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
@@ -64,8 +64,8 @@ Examples:
       Mem:    373572k total,   355244k used,    18328k free,    27872k buffers
       Swap:   786428k total,        0k used,   786428k free,   221776k cached
 
-        PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND            
-	    1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top                
+        PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+	    1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
 
 
       top - 02:05:58 up  3:06,  0 users,  load average: 0.01, 0.02, 0.05
@@ -74,9 +74,9 @@ Examples:
       Mem:    373572k total,   355780k used,    17792k free,    27880k buffers
       Swap:   786428k total,        0k used,   786428k free,   221776k cached
 
-      PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND            
-           1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top                
-     ^C$ 
+      PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+           1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
+     ^C$
      $ sudo docker stop $ID
 
 .. _cli_build:
@@ -133,7 +133,6 @@ to the ``docker`` daemon.  ``ADD`` doesn't work when running in this
 mode because the absence of the context provides no source files to
 copy to the container.
 
-
 .. code-block:: bash
 
     sudo docker build github.com/creack/docker-firefox
@@ -151,16 +150,35 @@ by using the ``git://`` schema.
 
 ::
 
-    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY [TAG]]
+    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
     Create a new image from a container's changes
 
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      -run="": Configuration to be applied when the image is launched with `docker run`. 
+      -run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Full -run example (multiline is ok within a single quote ``'``)
+Simple commit of an existing container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+	$ docker ps
+	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+	f5283438590d
+	$ docker images | head
+	REPOSITORY                        TAG                 ID                  CREATED             SIZE
+	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
+	S
+
+Full -run example
+.................
+
+(multiline is ok within a single quote ``'``)
 
 ::
 
@@ -227,6 +245,9 @@ Full -run example (multiline is ok within a single quote ``'``)
     Usage: docker events
 
     Get real time events from the server
+    
+    -since="": Show previously created events and then stream.
+               (either seconds since epoch, or date string as below)
 
 .. _cli_events_example:
 
@@ -239,7 +260,7 @@ Shell 1: Listening for events
 .............................
 
 .. code-block:: bash
-    
+
     $ sudo docker events
 
 Shell 2: Start and Stop a Container
@@ -259,6 +280,23 @@ Shell 1: (Again .. now showing events)
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
+Show events in the past from a specified time
+.............................................
+
+.. code-block:: bash
+
+    $ sudo docker events -since 1378216169
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03'
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
 .. _cli_export:
 
@@ -297,8 +335,10 @@ Shell 1: (Again .. now showing events)
     List images
 
       -a=false: show all images
+      -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+      -tree=false: output graph in tree format
+      -viz=false: output graph in graphviz format
 
 Displaying images visually
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -310,6 +350,36 @@ Displaying images visually
 .. image:: docker_images.gif
    :alt: Example inheritance graph of Docker images.
 
+
+Displaying image hierarchy
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    sudo docker images -tree
+
+    |─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
+    └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
+      └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
+        |─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
+        | └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
+        |   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
+        |     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
+        |       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
+        |         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
+        └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
+          └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
+            └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
+              └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
+                └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
+                  └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
+                    └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
+                      └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
+                        └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
+                          └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
+                            └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
+                              └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
+
 .. _cli_import:
 
 ``import``
@@ -317,7 +387,7 @@ Displaying images visually
 
 ::
 
-    Usage: docker import URL|- [REPOSITORY [TAG]]
+    Usage: docker import URL|- [REPOSITORY[:TAG]]
 
     Create a new filesystem image from the contents of a tarball
 
@@ -333,14 +403,16 @@ Examples
 Import from a remote location
 .............................
 
-``$ sudo docker import http://example.com/exampleimage.tgz exampleimagerepo``
+This will create a new untagged image.
+
+``$ sudo docker import http://example.com/exampleimage.tgz``
 
 Import from a local file
 ........................
 
 Import to docker via pipe and standard in
 
-``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal``
+``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new``
 
 Import from a local directory
 .............................
@@ -405,8 +477,14 @@ Insert file from github
     Usage: docker kill CONTAINER [CONTAINER...]
 
     Kill a running container (Send SIGKILL)
-    
+
 The main process inside the container will be sent SIGKILL.
+
+Known Issues (kill)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
 
 .. _cli_login:
 
@@ -515,7 +593,13 @@ The main process inside the container will be sent SIGKILL.
 
     Remove one or more containers
         -link="": Remove the link instead of the actual container
- 
+
+Known Issues (rm)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
 
 Examples:
 ~~~~~~~~~
@@ -537,6 +621,15 @@ This will remove the container referenced under the link ``/redis``.
 
 This will remove the underlying link between ``/webapp`` and the ``/redis`` containers removing all
 network communication.
+
+.. code-block:: bash
+
+    $ docker rm `docker ps -a -q`
+
+
+This command will delete all stopped containers. The command ``docker ps -a -q`` will return all
+existing container IDs and pass them to the ``rm`` command which will delete them. Any running
+containers will not be deleted.
 
 .. _cli_rmi:
 
@@ -568,7 +661,7 @@ network communication.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
-      -m=0: Memory limit (in bytes)
+      -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
@@ -576,7 +669,7 @@ network communication.
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container
+      -volumes-from="": Mount all volumes from the given container(s)
       -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -584,6 +677,7 @@ network communication.
       -expose=[]: Expose a port from the container without publishing it to your host
       -link="": Add link to another container (name:alias)
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
+      -P=false: Publish all exposed ports to the host interfaces
 
 Examples
 --------
@@ -620,59 +714,63 @@ use-cases, like running Docker within Docker.
 
    docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
-The ``-w`` lets the command being executed inside directory given, 
-here /path/to/dir/. If the path does not exists it is created inside the 
+The ``-w`` lets the command being executed inside directory given,
+here /path/to/dir/. If the path does not exists it is created inside the
 container.
 
 .. code-block:: bash
 
    docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
 
-The ``-v`` flag mounts the current working directory into the container. 
-The ``-w`` lets the command being executed inside the current 
+The ``-v`` flag mounts the current working directory into the container.
+The ``-w`` lets the command being executed inside the current
 working directory, by changing into the directory to the value
 returned by ``pwd``. So this combination executes the command
 using the container, but inside the current working directory.
 
 .. code-block:: bash
 
-    docker run -p 127.0.0.0::80 ubuntu bash
+    docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This the ``-p`` flag now allows you to bind a port to a specific
-interface of the host machine.  In this example port ``80`` of the 
-container will have a dynamically allocated port bound to 127.0.0.1 
-of the host.
-
-.. code-block:: bash
-
-    docker run -p 127.0.0.1:80:80 ubuntu bash
-
-This will bind port ``80`` of the container to port ``80`` on 127.0.0.1 of your
-host machine.
+This binds port ``8080`` of the container to port ``80`` on 127.0.0.1 of the
+host machine. :ref:`port_redirection` explains in detail how to manipulate ports
+in Docker.
 
 .. code-block:: bash
 
     docker run -expose 80 ubuntu bash
 
-This will expose port ``80`` of the container for use within a link
-without publishing the port to the host system's interfaces.  
+This exposes port ``80`` of the container for use within a link without
+publishing the port to the host system's interfaces. :ref:`port_redirection`
+explains in detail how to manipulate ports in Docker.
 
 .. code-block:: bash
 
     docker run -name console -t -i ubuntu bash
 
-This will create and run a new container with the container name 
+This will create and run a new container with the container name
 being ``console``.
 
 .. code-block:: bash
 
     docker run -link /redis:redis -name console ubuntu bash
 
-The ``-link`` flag will link the container named ``/redis`` into the 
+The ``-link`` flag will link the container named ``/redis`` into the
 newly created container with the alias ``redis``.  The new container
 can access the network and environment of the redis container via
-environment variables.  The ``-name`` flag will assign the name ``console`` 
+environment variables.  The ``-name`` flag will assign the name ``console``
 to the newly created container.
+
+.. code-block:: bash
+
+   docker run -volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+
+The ``-volumes-from`` flag mounts all the defined volumes from the
+refrence containers. Containers can be specified by a comma seperated
+list or by repetitions of the ``-volumes-from`` argument. The container
+id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+in the same mode (rw or ro) as the reference container.
 
 .. _cli_search:
 
@@ -683,8 +781,11 @@ to the newly created container.
 
     Usage: docker search TERM
 
-    Searches for the TERM parameter on the Docker index and prints out
-    a list of repositories that match.
+    Search the docker index for images
+
+     -notrunc=false: Don't truncate output
+     -stars=0: Only displays with at least xxx stars
+     -trusted=false: Only show trusted builds
 
 .. _cli_start:
 
@@ -712,7 +813,7 @@ to the newly created container.
     Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
 
       -t=10: Number of seconds to wait for the container to stop before killing it.
-      
+
 The main process inside the container will receive SIGTERM, and after a grace period, SIGKILL
 
 .. _cli_tag:
@@ -722,7 +823,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY [TAG]
+    Usage: docker tag [OPTIONS] IMAGE REPOSITORY[:TAG]
 
     Tag an image into a repository
 
@@ -735,7 +836,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker top CONTAINER
+    Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
@@ -757,6 +858,3 @@ Show the version of the docker client, daemon, and latest released version.
     Usage: docker wait [OPTIONS] NAME
 
     Block until a container stops, then print its exit code.
-
-
-

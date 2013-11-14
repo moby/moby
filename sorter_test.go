@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestServerListOrderedImagesByCreationDate(t *testing.T) {
@@ -34,27 +35,44 @@ func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	archive, err := fakeTar()
+	err := generateImage("bar", runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := runtime.graph.Create(archive, nil, "Testing", "", nil)
+
+	time.Sleep(time.Second)
+
+	err = generateImage("zed", runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	srv := &Server{runtime: runtime}
-	srv.ContainerTag(image.ID, "repo", "foo", false)
-	srv.ContainerTag(image.ID, "repo", "bar", false)
-
 	images, err := srv.Images(true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if images[0].Created != images[1].Created || images[0].Tag >= images[1].Tag {
-		t.Error("Expected []APIImges to be ordered by most recent creation date and tag name.")
+	if images[0].RepoTags[0] != "repo:zed" && images[0].RepoTags[0] != "repo:bar" {
+		t.Errorf("Expected []APIImges to be ordered by most recent creation date. %s", images)
 	}
+}
+
+func generateImage(name string, runtime *Runtime) error {
+
+	archive, err := fakeTar()
+	if err != nil {
+		return err
+	}
+	image, err := runtime.graph.Create(archive, nil, "Testing", "", nil)
+	if err != nil {
+		return err
+	}
+
+	srv := &Server{runtime: runtime}
+	srv.ContainerTag(image.ID, "repo", name, false)
+
+	return nil
 }
 
 func TestSortUniquePorts(t *testing.T) {

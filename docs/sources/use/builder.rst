@@ -116,6 +116,16 @@ core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
 
+Known Issues (RUN)
+..................
+
+* :issue:`783` is about file permissions problems that can occur when
+  using the AUFS file system. You might notice it during an attempt to
+  ``rm`` a file, for example. The issue describes a workaround.
+* :issue:`2424` Locale will not be set automatically.
+
+
+
 3.4 CMD
 -------
 
@@ -174,10 +184,10 @@ override the default specified in CMD.
 
     ``EXPOSE <port> [<port>...]``
 
-The ``EXPOSE`` instruction sets ports to be publicly exposed when
-running the image. This is functionally equivalent to running ``docker
-commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`` outside the
-builder. Take a look at :ref:`port_redirection` for more information.
+The ``EXPOSE`` instruction exposes ports for use within links. This is
+functionally equivalent to running ``docker commit -run '{"PortSpecs":
+["<port>", "<port2>"]}'`` outside the builder. Refer to
+:ref:`port_redirection` for detailed information.
 
 3.6 ENV
 -------
@@ -211,8 +221,16 @@ destination container.
 All new files and directories are created with mode 0755, uid and gid
 0.
 
+.. note::
+   if you build using STDIN (``docker build - < somefile``), there is no build 
+   context, so the Dockerfile cannot contain an ADD statement.
+
 The copy obeys the following rules:
 
+* The ``<src>`` path must be inside the *context* of the build; you cannot 
+  ``ADD ../something /something``, because the first step of a 
+  ``docker build`` is to send the context directory (and subdirectories) to 
+  the docker daemon.
 * If ``<src>`` is a URL and ``<dest>`` does not end with a trailing slash,
   then a file is downloaded from the URL and copied to ``<dest>``.
 * If ``<src>`` is a URL and ``<dest>`` does end with a trailing slash,
@@ -243,7 +261,7 @@ The copy obeys the following rules:
   considered a regular file and the contents of ``<src>`` will be
   written at ``<dest>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
-  directories in its path. 
+  directories in its path.
 
 .. _entrypoint_def:
 

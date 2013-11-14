@@ -102,26 +102,45 @@ Docker that way too. Vagrant 1.1 or higher is required.
    we need to set them there first. Make sure you have everything on
    amazon aws setup so you can (manually) deploy a new image to EC2.
 
+   Note that where possible these variables are the same as those honored by
+   the ec2 api tools.
    ::
 
-       export AWS_ACCESS_KEY_ID=xxx
-       export AWS_SECRET_ACCESS_KEY=xxx
+       export AWS_ACCESS_KEY=xxx
+       export AWS_SECRET_KEY=xxx
        export AWS_KEYPAIR_NAME=xxx
-       export AWS_SSH_PRIVKEY=xxx
+       export SSH_PRIVKEY_PATH=xxx
 
-   The environment variables are:
+       export BOX_NAME=xxx
+       export AWS_REGION=xxx
+       export AWS_AMI=xxx
+       export AWS_INSTANCE_TYPE=xxx
 
-   * ``AWS_ACCESS_KEY_ID`` - The API key used to make requests to AWS
-   * ``AWS_SECRET_ACCESS_KEY`` - The secret key to make AWS API requests
+   The required environment variables are:
+
+   * ``AWS_ACCESS_KEY`` - The API key used to make requests to AWS
+   * ``AWS_SECRET_KEY`` - The secret key to make AWS API requests
    * ``AWS_KEYPAIR_NAME`` - The name of the keypair used for this EC2 instance
-   * ``AWS_SSH_PRIVKEY`` - The path to the private key for the named
+   * ``SSH_PRIVKEY_PATH`` - The path to the private key for the named
      keypair, for example ``~/.ssh/docker.pem``
+
+   There are a number of optional environment variables:
+
+   * ``BOX_NAME`` - The name of the vagrant box to use.  Defaults to
+     ``ubuntu``.
+   * ``AWS_REGION`` - The aws region to spawn the vm in.  Defaults to
+     ``us-east-1``.
+   * ``AWS_AMI`` - The aws AMI to start with as a base.  This must be
+     be an ubuntu 12.04 precise image.  You must change this value if
+     ``AWS_REGION`` is set to a value other than ``us-east-1``.
+     This is because AMIs are region specific.  Defaults to ``ami-69f5a900``.
+   * ``AWS_INSTANCE_TYPE`` - The aws instance type.  Defaults to ``t1.micro``.
 
    You can check if they are set correctly by doing something like
 
    ::
 
-      echo $AWS_ACCESS_KEY_ID
+      echo $AWS_ACCESS_KEY
 
 6. Do the magic!
 

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -26,6 +27,12 @@ var (
 	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
 	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
 )
+
+// A common interface to access the Fatal method of
+// both testing.B and testing.T.
+type Fataler interface {
+	Fatal(args ...interface{})
+}
 
 // ListOpts type
 type ListOpts []string
@@ -174,6 +181,40 @@ func HumanSize(size int64) string {
 		i++
 	}
 	return fmt.Sprintf("%.4g %s", sizef, units[i])
+}
+
+// Parses a human-readable string representing an amount of RAM
+// in bytes, kibibytes, mebibytes or gibibytes, and returns the
+// number of bytes, or -1 if the string is unparseable.
+// Units are case-insensitive, and the 'b' suffix is optional.
+func RAMInBytes(size string) (bytes int64, err error) {
+	re, error := regexp.Compile("^(\\d+)([kKmMgG])?[bB]?$")
+	if error != nil {
+		return -1, error
+	}
+
+	matches := re.FindStringSubmatch(size)
+
+	if len(matches) != 3 {
+		return -1, fmt.Errorf("Invalid size: '%s'", size)
+	}
+
+	memLimit, error := strconv.ParseInt(matches[1], 10, 0)
+	if error != nil {
+		return -1, error
+	}
+
+	unit := strings.ToLower(matches[2])
+
+	if unit == "k" {
+		memLimit *= 1024
+	} else if unit == "m" {
+		memLimit *= 1024 * 1024
+	} else if unit == "g" {
+		memLimit *= 1024 * 1024 * 1024
+	}
+
+	return memLimit, nil
 }
 
 func Trunc(s string, maxlen int) string {
@@ -695,6 +736,13 @@ func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+// Flush the stream immediately.
+func (wf *WriteFlusher) Flush() {
+	wf.Lock()
+	defer wf.Unlock()
+	wf.flusher.Flush()
+}
+
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var flusher http.Flusher
 	if f, ok := w.(http.Flusher); ok {
@@ -894,6 +942,23 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 		output = append(output, []byte("\n")...)
 	}
 	return output
+}
+
+// GetNameserversAsCIDR returns nameservers (if any) listed in
+// /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
+// This function's output is intended for net.ParseCIDR
+func GetNameserversAsCIDR(resolvConf []byte) []string {
+	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
+	nameservers := []string{}
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
+	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
+		var ns = re.FindSubmatch(line)
+		if len(ns) > 0 {
+			nameservers = append(nameservers, string(ns[1])+"/32")
+		}
+	}
+
+	return nameservers
 }
 
 func ParseHost(host string, port int, addr string) (string, error) {

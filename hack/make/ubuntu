@@ -10,7 +10,7 @@ fi
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.io/"
 PACKAGE_MAINTAINER="docker@dotcloud.com"
-PACKAGE_DESCRIPTION="lxc-docker is a Linux container runtime
+PACKAGE_DESCRIPTION="Linux container runtime
 Docker complements LXC with a high-level API which operates at the process
 level. It runs unix processes with strong guarantees of isolation and
 repeatability across servers.
@@ -37,27 +37,51 @@ bundle_ubuntu() {
 	# This will fail if the binary bundle hasn't been built
 	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
 
-	# Generate postinst/prerm scripts
-	cat >/tmp/postinst <<'EOF'
+	# Generate postinst/prerm/postrm scripts
+	cat > /tmp/postinst <<'EOF'
 #!/bin/sh
-service docker stop || true
-grep -q '^docker:' /etc/group || groupadd --system docker || true
-service docker start
-EOF
-	cat >/tmp/prerm <<'EOF'
-#!/bin/sh
-service docker stop || true
+set -e
+set -u
 
-case "$1" in
-	purge|remove|abort-install)
-		groupdel docker || true
-		;;
-		
-	upgrade|failed-upgrade|abort-upgrade)
-		# don't touch docker group
-		;;
-esac
+getent group docker > /dev/null || groupadd --system docker || true
+
+update-rc.d docker defaults > /dev/null || true
+if [ -n "$2" ]; then
+	_dh_action=restart
+else
+	_dh_action=start
+fi
+service docker $_dh_action 2>/dev/null || true
+
+#DEBHELPER#
 EOF
+	cat > /tmp/prerm <<'EOF'
+#!/bin/sh
+set -e
+set -u
+
+service docker stop 2>/dev/null || true
+
+#DEBHELPER#
+EOF
+	cat > /tmp/postrm <<'EOF'
+#!/bin/sh
+set -e
+set -u
+
+if [ "$1" = "purge" ] ; then
+	update-rc.d docker remove > /dev/null || true
+fi
+
+# In case this system is running systemd, we make systemd reload the unit files
+# to pick up changes.
+if [ -d /run/systemd/system ] ; then
+	systemctl --system daemon-reload > /dev/null || true
+fi
+
+#DEBHELPER#
+EOF
+	# TODO swaths of these were borrowed from debhelper's auto-inserted stuff, because we're still using fpm - we need to use debhelper instead, and somehow reconcile Ubuntu that way
 	chmod +x /tmp/postinst /tmp/prerm
 
 	(
@@ -66,6 +90,7 @@ EOF
 		    --name lxc-docker-$VERSION --version $PKGVERSION \
 		    --after-install /tmp/postinst \
 		    --before-remove /tmp/prerm \
+		    --after-remove /tmp/postrm \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
 		    --depends lxc \
@@ -82,6 +107,8 @@ EOF
 		    --vendor "$PACKAGE_VENDOR" \
 		    --config-files /etc/init/docker.conf \
 		    --config-files /etc/init.d/docker \
+		    --config-files /etc/default/docker \
+		    --deb-compression xz \
 		    -t deb .
 		mkdir empty
 		fpm -s dir -C empty \
@@ -92,7 +119,12 @@ EOF
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
 		    --vendor "$PACKAGE_VENDOR" \
+		    --config-files /etc/init/docker.conf \
+		    --config-files /etc/init.d/docker \
+		    --config-files /etc/default/docker \
+		    --deb-compression xz \
 		    -t deb .
+		# note: the --config-files lines have to be duplicated to stop overwrite on package upgrade (since we have to use this funky virtual package)
 	)
 }
 

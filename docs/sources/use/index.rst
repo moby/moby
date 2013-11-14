@@ -19,3 +19,5 @@ Contents:
    port_redirection
    puppet
    host_integration
+   working_with_volumes
+   working_with_links_names

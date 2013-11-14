@@ -89,6 +89,15 @@ func MergeConfig(userConf, imageConf *Config) error {
 	}
 	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
+	} else if imageConf.ExposedPorts != nil {
+		if userConf.ExposedPorts == nil {
+			userConf.ExposedPorts = make(map[Port]struct{})
+		}
+		for port := range imageConf.ExposedPorts {
+			if _, exists := userConf.ExposedPorts[port]; !exists {
+				userConf.ExposedPorts[port] = struct{}{}
+			}
+		}
 	}
 
 	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
@@ -224,6 +233,12 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
+		}
+		if _, err := strconv.ParseUint(containerPort, 10, 16); err != nil {
+			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
+		}
+		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
+			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
 		}
 
 		port := NewPort(proto, containerPort)

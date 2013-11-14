@@ -208,6 +208,10 @@ configuration / Device configuration)
 
 .. image:: images/win/hp_bios_vm.JPG
 
+On some machines the BIOS menu can only be accessed before startup.
+To access BIOS in this scenario you should restart your computer and 
+press ESC/Enter when prompted to access the boot and BIOS controls. Typically
+the option to allow virtualization is contained within the BIOS/Security menu.
 
 Docker is not installed
 ```````````````````````

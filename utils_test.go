@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -20,62 +21,97 @@ var globalTestID string
 
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(f Fataler) *Runtime {
-	// Use the caller function name as a prefix.
-	// This helps trace temp directories back to their test.
-	pc, _, _, _ := runtime.Caller(1)
-	callerLongName := runtime.FuncForPC(pc).Name()
-	parts := strings.Split(callerLongName, ".")
-	callerShortName := parts[len(parts)-1]
-	if globalTestID == "" {
-		globalTestID = GenerateID()[:4]
-	}
-	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, callerShortName)
-	utils.Debugf("prefix = '%s'", prefix)
-
-	runtime, err := newTestRuntime(prefix)
+func mkRuntime(f utils.Fataler) *Runtime {
+	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
 		f.Fatal(err)
 	}
-	return runtime
+	config := &DaemonConfig{
+		Root:        root,
+		AutoRestart: false,
+	}
+	r, err := NewRuntimeFromDirectory(config)
+	if err != nil {
+		f.Fatal(err)
+	}
+	r.UpdateCapabilities(true)
+	return r
 }
 
-// A common interface to access the Fatal method of
-// both testing.B and testing.T.
-type Fataler interface {
-	Fatal(args ...interface{})
+func createNamedTestContainer(eng *engine.Engine, config *Config, f utils.Fataler, name string) (shortId string) {
+	job := eng.Job("create", name)
+	if err := job.ImportEnv(config); err != nil {
+		f.Fatal(err)
+	}
+	job.StdoutParseString(&shortId)
+	if err := job.Run(); err != nil {
+		f.Fatal(err)
+	}
+	return
 }
 
-func newTestRuntime(prefix string) (runtime *Runtime, err error) {
+func createTestContainer(eng *engine.Engine, config *Config, f utils.Fataler) (shortId string) {
+	return createNamedTestContainer(eng, config, f, "")
+}
+
+func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *Server {
+	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
+	if iSrv == nil {
+		panic("Legacy server field not set in engine")
+	}
+	srv, ok := iSrv.(*Server)
+	if !ok {
+		panic("Legacy server field in engine does not cast to *Server")
+	}
+	return srv
+}
+
+func NewTestEngine(t utils.Fataler) *engine.Engine {
+	root, err := newTestDirectory(unitTestStoreBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Load default plugins
+	// (This is manually copied and modified from main() until we have a more generic plugin system)
+	job := eng.Job("initapi")
+	job.Setenv("Root", root)
+	job.SetenvBool("AutoRestart", false)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	return eng
+}
+
+func newTestDirectory(templateDir string) (dir string, err error) {
+	if globalTestID == "" {
+		globalTestID = GenerateID()[:4]
+	}
+	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, getCallerName(2))
 	if prefix == "" {
 		prefix = "docker-test-"
 	}
-	utils.Debugf("prefix = %s", prefix)
-	utils.Debugf("newTestRuntime start")
-	root, err := ioutil.TempDir("", prefix)
-	defer func() {
-		utils.Debugf("newTestRuntime: %s", root)
-	}()
-	if err != nil {
-		return nil, err
+	dir, err = ioutil.TempDir("", prefix)
+	if err = os.Remove(dir); err != nil {
+		return
 	}
-	if err := os.Remove(root); err != nil {
-		return nil, err
+	if err = utils.CopyDirectory(templateDir, dir); err != nil {
+		return
 	}
-	if err := utils.CopyDirectory(unitTestStoreBase, root); err != nil {
-		return nil, err
-	}
+	return
+}
 
-	config := &DaemonConfig{
-		GraphPath:   root,
-		AutoRestart: false,
-	}
-	runtime, err = NewRuntimeFromDirectory(config)
-	if err != nil {
-		return nil, err
-	}
-	runtime.UpdateCapabilities(true)
-	return runtime, nil
+func getCallerName(depth int) string {
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(depth + 1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts)-1]
+	return callerShortName
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
@@ -116,7 +152,7 @@ func readFile(src string, t *testing.T) (content string) {
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConfig, error) {
+func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, error) {
 	config, hostConfig, _, err := ParseRun(args, nil)
 	defer func() {
 		if err != nil && t != nil {
@@ -124,16 +160,17 @@ func mkContainer(r *Runtime, args []string, t *testing.T) (*Container, *HostConf
 		}
 	}()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if config.Image == "_" {
 		config.Image = GetTestImage(r).ID
 	}
 	c, _, err := r.Create(config, "")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return c, hostConfig, nil
+	c.hostConfig = hostConfig
+	return c, nil
 }
 
 // Create a test container, start it, wait for it to complete, destroy it,
@@ -146,7 +183,7 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 			t.Fatal(err)
 		}
 	}()
-	container, hostConfig, err := mkContainer(r, args, t)
+	container, err := mkContainer(r, args, t)
 	if err != nil {
 		return "", err
 	}
@@ -156,7 +193,7 @@ func runContainer(r *Runtime, args []string, t *testing.T) (output string, err e
 		return "", err
 	}
 	defer stdout.Close()
-	if err := container.Start(hostConfig); err != nil {
+	if err := container.Start(); err != nil {
 		return "", err
 	}
 	container.Wait()
@@ -246,7 +283,9 @@ func TestMergeConfig(t *testing.T) {
 		Volumes:   volumesUser,
 	}
 
-	MergeConfig(configUser, configImage)
+	if err := MergeConfig(configUser, configImage); err != nil {
+		t.Error(err)
+	}
 
 	if len(configUser.Dns) != 3 {
 		t.Fatalf("Expected 3 dns, 1.1.1.1, 2.2.2.2 and 3.3.3.3, found %d", len(configUser.Dns))
@@ -258,7 +297,7 @@ func TestMergeConfig(t *testing.T) {
 	}
 
 	if len(configUser.ExposedPorts) != 3 {
-		t.Fatalf("Expected 3 portSpecs, 1111, 2222 and 3333, found %d", len(configUser.PortSpecs))
+		t.Fatalf("Expected 3 ExposedPorts, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
 		if portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
@@ -286,6 +325,28 @@ func TestMergeConfig(t *testing.T) {
 	if configUser.VolumesFrom != "1111" {
 		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
+
+	ports, _, err := parsePortSpecs([]string{"0000"})
+	if err != nil {
+		t.Error(err)
+	}
+	configImage2 := &Config{
+		ExposedPorts: ports,
+	}
+
+	if err := MergeConfig(configUser, configImage2); err != nil {
+		t.Error(err)
+	}
+
+	if len(configUser.ExposedPorts) != 4 {
+		t.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
+	}
+	for portSpecs := range configUser.ExposedPorts {
+		if portSpecs.Port() != "0000" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
+			t.Fatalf("Expected 0000 or 1111 or 2222 or 3333, found %s", portSpecs)
+		}
+	}
+
 }
 
 func TestParseLxcConfOpt(t *testing.T) {

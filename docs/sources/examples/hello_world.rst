@@ -12,16 +12,16 @@ Hello World
 Running the Examples
 ====================
 
-All the examples assume your machine is running the docker daemon. To
-run the docker daemon in the background, simply type:
+All the examples assume your machine is running the ``docker`` daemon. To
+run the ``docker`` daemon in the background, simply type:
 
 .. code-block:: bash
 
    sudo docker -d &
 
-Now you can run docker in client mode: by default all commands will be
+Now you can run Docker in client mode: by default all commands will be
 forwarded to the ``docker`` daemon via a protected Unix socket, so you
-must run as root.
+must run as the ``root`` or via the ``sudo`` command.
 
 .. code-block:: bash
 
@@ -38,22 +38,23 @@ Hello World
 
 This is the most basic example available for using Docker.
 
-Download the base image (named "ubuntu"):
+Download the base image which is named ``ubuntu``:
 
 .. code-block:: bash
 
     # Download an ubuntu image
     sudo docker pull ubuntu
 
-Alternatively to the *ubuntu* image, you can select *busybox*, a bare
+Alternatively to the ``ubuntu`` image, you can select ``busybox``, a bare
 minimal Linux system. The images are retrieved from the Docker
 repository.
 
 
 .. code-block:: bash
 
-    #run a simple echo command, that will echo hello world back to the console over standard out.
     sudo docker run ubuntu /bin/echo hello world
+
+This command will run a simple ``echo`` command, that will echo ``hello world`` back to the console over standard out.
 
 **Explanation:**
 
@@ -100,9 +101,9 @@ we stop it.
     CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container
-made from the *ubuntu* image.
+made from the ``ubuntu`` image.
 
-- **"docker run -d "** run a command in a new container. We pass "-d"
+- **"sudo docker run -d "** run a command in a new container. We pass "-d"
   so it runs as a daemon.
 - **"ubuntu"** is the image we want to run the command inside of.
 - **"/bin/sh -c"** is the command we want to run in the container
