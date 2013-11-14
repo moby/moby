@@ -76,6 +76,10 @@ func Init(root string) (graphdriver.Driver, error) {
 // We cannot modprobe because inside dind modprobe fails
 // to run
 func supportsAufs() error {
+	// We can try to modprobe aufs first before looking at
+	// proc/filesystems for when aufs is supported
+	exec.Command("modprobe", "aufs").Run()
+
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
 		return err
