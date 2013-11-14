@@ -186,6 +186,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	if !container.State.Running {
 		close(container.waitLock)
 	} else if !nomonitor {
+		container.allocateNetwork()
 		go container.monitor()
 	}
 	return nil
@@ -195,7 +196,7 @@ func (runtime *Runtime) ensureName(container *Container) error {
 	if container.Name == "" {
 		name, err := generateRandomName(runtime)
 		if err != nil {
-			name = container.ShortID()
+			name = utils.TruncateID(container.ID)
 		}
 		container.Name = name
 
@@ -298,7 +299,7 @@ func (runtime *Runtime) restore() error {
 		// Try to set the default name for a container if it exists prior to links
 		container.Name, err = generateRandomName(runtime)
 		if err != nil {
-			container.Name = container.ShortID()
+			container.Name = utils.TruncateID(container.ID)
 		}
 
 		if _, err := runtime.containerGraph.Set(container.Name, container.ID); err != nil {
@@ -506,32 +507,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	// Step 3: if hostname, build hostname and hosts files
-	container.HostnamePath = path.Join(container.root, "hostname")
-	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
-
-	hostsContent := []byte(`
-127.0.0.1	localhost
-::1		localhost ip6-localhost ip6-loopback
-fe00::0		ip6-localnet
-ff00::0		ip6-mcastprefix
-ff02::1		ip6-allnodes
-ff02::2		ip6-allrouters
-`)
-
-	container.HostsPath = path.Join(container.root, "hosts")
-
-	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", container.Config.Hostname)), hostsContent...)
-	}
-
-	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
-
-	// Step 4: register the container
+	// Step 3: register the container
 	if err := runtime.Register(container); err != nil {
 		return nil, nil, err
 	}

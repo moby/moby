@@ -1,11 +1,14 @@
 # Contributing to Docker
 
-Want to hack on Docker? Awesome! Here are instructions to get you started. They are probably not perfect, please let us know if anything feels
-wrong or incomplete.
+Want to hack on Docker? Awesome! Here are instructions to get you
+started. They are probably not perfect, please let us know if anything
+feels wrong or incomplete.
 
 ## Build Environment
 
-For instructions on setting up your development environment, please see our dedicated [dev environment setup docs](http://docs.docker.io/en/latest/contributing/devenvironment/).
+For instructions on setting up your development environment, please
+see our dedicated [dev environment setup
+docs](http://docs.docker.io/en/latest/contributing/devenvironment/).
 
 ## Contribution guidelines
 

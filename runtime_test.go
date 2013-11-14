@@ -3,11 +3,13 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,22 +124,19 @@ func init() {
 }
 
 func setupBaseImage() {
-	config := &DaemonConfig{
-		Root:        unitTestStoreBase,
-		AutoRestart: false,
-		BridgeIface: unitTestNetworkBridge,
-	}
-	runtime, err := NewRuntimeFromDirectory(config)
+	eng, err := engine.New(unitTestStoreBase)
 	if err != nil {
+		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
+	}
+	job := eng.Job("initapi")
+	job.Setenv("Root", unitTestStoreBase)
+	job.SetenvBool("Autorestart", false)
+	job.Setenv("BridgeIface", unitTestNetworkBridge)
+	if err := job.Run(); err != nil {
 		log.Fatalf("Unable to create a runtime for tests:", err)
 	}
-
-	// Create the "Server"
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	srv := mkServerFromEngine(eng, log.New(os.Stderr, "", 0))
+	runtime := srv.runtime
 
 	// If the unit test is not found, try to download it.
 	if img, err := runtime.repositories.LookupImage(unitTestImageName); err != nil || img.ID != unitTestImageID {
@@ -153,18 +152,22 @@ func spawnGlobalDaemon() {
 		utils.Debugf("Global runtime already exists. Skipping.")
 		return
 	}
-	globalRuntime = mkRuntime(log.New(os.Stderr, "", 0))
-	srv := &Server{
-		runtime:     globalRuntime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	t := log.New(os.Stderr, "", 0)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	globalRuntime = srv.runtime
 
 	// Spawn a Daemon
 	go func() {
 		utils.Debugf("Spawning global daemon for integration tests")
-		if err := ListenAndServe(testDaemonProto, testDaemonAddr, srv, os.Getenv("DEBUG") != ""); err != nil {
-			log.Fatalf("Unable to spawn the test daemon:", err)
+		listenURL := &url.URL{
+			Scheme: testDaemonProto,
+			Host:   testDaemonAddr,
+		}
+		job := eng.Job("serveapi", listenURL.String())
+		job.SetenvBool("Logging", os.Getenv("DEBUG") != "")
+		if err := job.Run(); err != nil {
+			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
 	// Give some time to ListenAndServer to actually start
@@ -184,7 +187,7 @@ func GetTestImage(runtime *Runtime) *Image {
 			return image
 		}
 	}
-	log.Fatalf("Test image %v not found", unitTestImageID)
+	log.Fatalf("Test image %v not found in %s: %s", unitTestImageID, runtime.graph.Root, imgs)
 	return nil
 }
 
@@ -646,20 +649,17 @@ func TestReloadContainerLinks(t *testing.T) {
 }
 
 func TestDefaultContainerName(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "some_name")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "some_name"))
 	containerID := container.ID
 
 	if container.Name != "/some_name" {
@@ -683,20 +683,17 @@ func TestDefaultContainerName(t *testing.T) {
 }
 
 func TestRandomContainerName(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createTestContainer(eng, config, t))
 	containerID := container.ID
 
 	if container.Name == "" {
@@ -720,20 +717,17 @@ func TestRandomContainerName(t *testing.T) {
 }
 
 func TestLinkChildContainer(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "/webapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "/webapp"))
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -749,12 +743,7 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	childContainer := runtime.Get(shortId)
+	childContainer := runtime.Get(createTestContainer(eng, config, t))
 
 	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
@@ -771,20 +760,17 @@ func TestLinkChildContainer(t *testing.T) {
 }
 
 func TestGetAllChildren(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shortId, _, err := srv.ContainerCreate(config, "/webapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	container := runtime.Get(shortId)
+	container := runtime.Get(createNamedTestContainer(eng, config, t, "/webapp"))
 
 	webapp, err := runtime.GetByName("/webapp")
 	if err != nil {
@@ -800,12 +786,7 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shortId, _, err = srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	childContainer := runtime.Get(shortId)
+	childContainer := runtime.Get(createTestContainer(eng, config, t))
 
 	if err := runtime.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)

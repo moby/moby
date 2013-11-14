@@ -22,14 +22,30 @@ specify the path to it and manually start it.
     # Run docker in daemon mode
     sudo <path to>/docker -d &
 
-
-Running an interactive shell
-----------------------------
+Download a pre-built image
+--------------------------
 
 .. code-block:: bash
 
   # Download an ubuntu image
   sudo docker pull ubuntu
+
+This will find the ``ubuntu`` image by name in the :ref:`Central Index 
+<searching_central_index>` and download it from the top-level Central 
+Repository to a local image cache.
+
+.. NOTE:: When the image has successfully downloaded, you will see a 12 
+character hash ``539c0211cd76: Download complete`` which is the short 
+form of the image ID. These short image IDs are the first 12 characters 
+of the full image ID - which can be found using ``docker inspect`` or 
+``docker images -notrunc=true``
+
+.. _dockergroup:
+
+Running an interactive shell
+----------------------------
+
+.. code-block:: bash
 
   # Run an interactive shell in the ubuntu image,
   # allocate a tty, attach stdin and stdout
@@ -37,7 +53,6 @@ Running an interactive shell
   # use the escape sequence Ctrl-p + Ctrl-q
   sudo docker run -i -t ubuntu /bin/bash
 
-.. _dockergroup:
 
 Why ``sudo``?
 -------------

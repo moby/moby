@@ -16,7 +16,12 @@ bundle_test() {
 		for test_dir in $(find_test_dirs); do (
 			set -x
 			cd $test_dir
+			
+			# Install packages that are dependencies of the tests.
+			#   Note: Does not run the tests.
 			go test -i -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS
+			
+			# Run the tests with the optional $TESTFLAGS.
 			go test -v -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
 		)  done
 	} 2>&1 | tee $DEST/test.log

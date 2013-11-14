@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -79,20 +80,17 @@ func TestContainerTagImageDelete(t *testing.T) {
 }
 
 func TestCreateRm(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := createTestContainer(eng, config, t)
 
 	if len(runtime.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
@@ -109,27 +107,28 @@ func TestCreateRm(t *testing.T) {
 }
 
 func TestCreateRmVolumes(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	eng := NewTestEngine(t)
 
-	srv := &Server{runtime: runtime}
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
+	defer nuke(runtime)
 
 	config, hostConfig, _, err := ParseRun([]string{"-v", "/srv", GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := createTestContainer(eng, config, t)
 
 	if len(runtime.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	err = srv.ContainerStart(id, hostConfig)
-	if err != nil {
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,20 +147,17 @@ func TestCreateRmVolumes(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
 
 	config, _, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := createTestContainer(eng, config, t)
 
 	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
 		t.Fatal(err)
@@ -169,26 +165,27 @@ func TestCommit(t *testing.T) {
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-
-	srv := &Server{runtime: runtime}
 
 	config, hostConfig, _, err := ParseRun([]string{GetTestImage(runtime).ID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := createTestContainer(eng, config, t)
 
 	if len(runtime.List()) != 1 {
 		t.Errorf("Expected 1 container, %v found", len(runtime.List()))
 	}
 
-	if err := srv.ContainerStart(id, hostConfig); err != nil {
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +197,11 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerStart(id, hostConfig); err != nil {
+	job = eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,22 +221,22 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 }
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
 
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
-	if _, _, err := (*Server).ContainerCreate(&Server{runtime: runtime},
-		&Config{
-			Image:     GetTestImage(runtime).ID,
-			Memory:    524287,
-			CpuShares: 1000,
-			Cmd:       []string{"/bin/cat"},
-		},
-		"",
-	); err == nil {
+	job := eng.Job("create")
+	job.Setenv("Image", GetTestImage(runtime).ID)
+	job.Setenv("Memory", "524287")
+	job.Setenv("CpuShares", "1000")
+	job.SetenvList("Cmd", []string{"/bin/cat"})
+	var id string
+	job.StdoutParseString(&id)
+	if err := job.Run(); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
-
 }
 
 func TestContainerTop(t *testing.T) {
@@ -384,9 +385,10 @@ func TestLogEvent(t *testing.T) {
 }
 
 func TestRmi(t *testing.T) {
-	runtime := mkRuntime(t)
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := srv.runtime
 	defer nuke(runtime)
-	srv := &Server{runtime: runtime}
 
 	initialImages, err := srv.Images(false, "")
 	if err != nil {
@@ -398,14 +400,14 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, _, err := srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	containerID := createTestContainer(eng, config, t)
 
 	//To remove
-	err = srv.ContainerStart(containerID, hostConfig)
-	if err != nil {
+	job := eng.Job("start", containerID)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -419,14 +421,14 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	containerID, _, err = srv.ContainerCreate(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	containerID = createTestContainer(eng, config, t)
 
 	//To remove
-	err = srv.ContainerStart(containerID, hostConfig)
-	if err != nil {
+	job = eng.Job("start", containerID)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -519,5 +521,27 @@ func TestImagesFilter(t *testing.T) {
 
 	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
+	}
+}
+
+func TestImageInsert(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	srv := &Server{runtime: runtime}
+	sf := utils.NewStreamFormatter(true)
+
+	// bad image name fails
+	if err := srv.ImageInsert("foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err == nil {
+		t.Fatal("expected an error and got none")
+	}
+
+	// bad url fails
+	if err := srv.ImageInsert(GetTestImage(runtime).ID, "http://bad_host_name_that_will_totally_fail.com/", "/foo", ioutil.Discard, sf); err == nil {
+		t.Fatal("expected an error and got none")
+	}
+
+	// success returns nil
+	if err := srv.ImageInsert(GetTestImage(runtime).ID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err != nil {
+		t.Fatalf("expected no error, but got %v", err)
 	}
 }

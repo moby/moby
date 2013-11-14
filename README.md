@@ -193,10 +193,9 @@ wrong or incomplete.
 *Brought to you courtesy of our legal counsel. For more context,
 please see the Notice document.*
 
-Transfers of Docker shall be in accordance with applicable export controls 
-of any country and all other applicable legal requirements. Without limiting the 
-foregoing, Docker shall not be distributed or downloaded to any individual or 
-location if such distribution or download would violate the applicable US 
-government export regulations. 
+Use and transfer of Docker may be subject to certain restrictions by the
+United States and other governments.  
+It is your responsibility to ensure that your use and/or transfer does not
+violate applicable laws. 
 
 For more information, please see http://www.bis.doc.gov

@@ -116,6 +116,16 @@ core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
 
+Known Issues (RUN)
+..................
+
+* :issue:`783` is about file permissions problems that can occur when
+  using the AUFS file system. You might notice it during an attempt to
+  ``rm`` a file, for example. The issue describes a workaround.
+* :issue:`2424` Locale will not be set automatically.
+
+
+
 3.4 CMD
 -------
 
@@ -211,8 +221,16 @@ destination container.
 All new files and directories are created with mode 0755, uid and gid
 0.
 
+.. note::
+   if you build using STDIN (``docker build - < somefile``), there is no build 
+   context, so the Dockerfile can only contain an URL based ADD statement.
+
 The copy obeys the following rules:
 
+* The ``<src>`` path must be inside the *context* of the build; you cannot 
+  ``ADD ../something /something``, because the first step of a 
+  ``docker build`` is to send the context directory (and subdirectories) to 
+  the docker daemon.
 * If ``<src>`` is a URL and ``<dest>`` does not end with a trailing slash,
   then a file is downloaded from the URL and copied to ``<dest>``.
 * If ``<src>`` is a URL and ``<dest>`` does end with a trailing slash,

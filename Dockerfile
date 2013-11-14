@@ -36,7 +36,7 @@ run	apt-get install -y -q mercurial
 run	apt-get install -y -q build-essential libsqlite3-dev
 
 # Install Go
-run	curl -s https://go.googlecode.com/files/go1.2rc3.src.tar.gz | tar -v -C /usr/local -xz
+run	curl -s https://go.googlecode.com/files/go1.2rc4.src.tar.gz | tar -v -C /usr/local -xz
 env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
 run	cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std

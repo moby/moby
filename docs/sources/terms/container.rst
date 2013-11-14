@@ -38,3 +38,10 @@ was when the container was stopped.
 You can promote a container to an :ref:`image_def` with ``docker
 commit``. Once a container is an image, you can use it as a parent for
 new containers.
+
+Container IDs
+.............
+All containers are identified by a 64 hexadecimal digit string (internally a 256bit 
+value). To simplify their use, a short ID of the first 12 characters can be used 
+on the commandline. There is a small possibility of short id collisions, so the 
+docker server will always return the long ID.
