@@ -130,10 +130,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	if err := cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, cli.out, nil); err != nil {
-		return err
-	}
-	return nil
+	return cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, cli.out, nil)
 }
 
 // mkBuildContext returns an archive of an empty context with the contents
@@ -376,15 +373,17 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		status, err := waitForExit(cli, name)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to wait one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%d\n", status)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 // 'docker version': show version information
@@ -505,15 +504,17 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to stop one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
@@ -530,15 +531,17 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to  restart one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
@@ -772,15 +775,19 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		return nil
 	}
 
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		body, _, err := cli.call("DELETE", "/images/"+name, nil)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
 			var outs []APIRmi
 			err = json.Unmarshal(body, &outs)
 			if err != nil {
-				return err
+				fmt.Fprintf(cli.err, "%s\n", err)
+				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
+				continue
 			}
 			for _, out := range outs {
 				if out.Deleted != "" {
@@ -791,7 +798,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
@@ -870,15 +877,18 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *link {
 		val.Set("link", "1")
 	}
+
+	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 // 'docker kill NAME' kills a running container
@@ -892,15 +902,16 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 		return nil
 	}
 
+	var encounteredError error
 	for _, name := range args {
-		_, _, err := cli.call("POST", "/containers/"+name+"/kill", nil)
-		if err != nil {
+		if _, _, err := cli.call("POST", "/containers/"+name+"/kill", nil); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to kill one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return nil
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
@@ -913,8 +924,16 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	src := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var src, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
+		src, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		src = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
@@ -1166,14 +1185,10 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
 		}
 
-		var repo string
-		var tag string
 		for _, out := range outs {
 			for _, repotag := range out.RepoTags {
 
-				components := strings.SplitN(repotag, ":", 2)
-				repo = components[0]
-				tag = components[1]
+				repo, tag := utils.ParseRepositoryTag(repotag)
 
 				if !*noTrunc {
 					out.ID = utils.TruncateID(out.ID)
@@ -1235,7 +1250,7 @@ func PrintTreeNode(cli *DockerCli, noTrunc *bool, image APIImages, prefix string
 
 	fmt.Fprintf(cli.out, "%s%s Size: %s (virtual %s)", prefix, imageID, utils.HumanSize(image.Size), utils.HumanSize(image.VirtualSize))
 	if image.RepoTags[0] != "<none>:<none>" {
-		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ","))
+		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ", "))
 	} else {
 		fmt.Fprint(cli.out, "\n")
 	}
@@ -1351,8 +1366,16 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	name := cmd.Arg(0)
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+
+	var name, repository, tag string
+
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'CONTAINER [REPOSITORY [TAG]]' as been deprecated. Please use CONTAINER [REPOSITORY[:TAG]]\n")
+		name, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
+	} else {
+		name = cmd.Arg(0)
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
 
 	if name == "" {
 		cmd.Usage()
@@ -1389,7 +1412,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
-	since := cmd.String("since", "", "Show events previously created (used for polling).")
+	since := cmd.String("since", "", "Show previously created events and then stream.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1401,7 +1424,17 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	v := url.Values{}
 	if *since != "" {
-		v.Set("since", *since)
+		loc := time.FixedZone(time.Now().Zone())
+		format := "2006-01-02 15:04:05 -0700 MST"
+		if len(*since) < len(format) {
+			format = format[:len(*since)]
+		}
+
+		if t, err := time.ParseInLocation(format, *since, loc); err == nil {
+			v.Set("since", strconv.FormatInt(t.Unix(), 10))
+		} else {
+			v.Set("since", *since)
+		}
 	}
 
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
@@ -1658,9 +1691,16 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	repository, tag := utils.ParseRepositoryTag(cmd.Arg(1))
+	var repository, tag string
 
+	if cmd.NArg() == 3 {
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REPOSITORY[:TAG]]\n")
+		repository, tag = cmd.Arg(1), cmd.Arg(2)
+	} else {
+		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+	}
+
+	v := url.Values{}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 
@@ -1971,7 +2011,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) ([]byte, int, 
 		if len(body) == 0 {
 			return nil, resp.StatusCode, fmt.Errorf("Error: %s", http.StatusText(resp.StatusCode))
 		}
-		return nil, resp.StatusCode, fmt.Errorf("Error: %s", body)
+		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 	return body, resp.StatusCode, nil
 }
@@ -2027,7 +2067,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		if len(body) == 0 {
 			return fmt.Errorf("Error :%s", http.StatusText(resp.StatusCode))
 		}
-		return fmt.Errorf("Error: %s", body)
+		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
 	if matchesContentType(resp.Header.Get("Content-Type"), "application/json") {

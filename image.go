@@ -134,10 +134,6 @@ func (image *Image) TarLayer(compression archive.Compression) (archive.Archive, 
 	return archive.Tar(layerPath, compression)
 }
 
-func (image *Image) ShortID() string {
-	return utils.TruncateID(image.ID)
-}
-
 func ValidateID(id string) error {
 	if id == "" {
 		return fmt.Errorf("Image id can't be empty")

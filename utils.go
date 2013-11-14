@@ -119,6 +119,15 @@ func MergeConfig(userConf, imageConf *Config) error {
 	}
 	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
+	} else if imageConf.ExposedPorts != nil {
+		if userConf.ExposedPorts == nil {
+			userConf.ExposedPorts = make(map[Port]struct{})
+		}
+		for port := range imageConf.ExposedPorts {
+			if _, exists := userConf.ExposedPorts[port]; !exists {
+				userConf.ExposedPorts[port] = struct{}{}
+			}
+		}
 	}
 
 	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
@@ -325,20 +334,6 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	return nil
 }
 
-func RootIsShared() bool {
-	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			cols := strings.Split(line, " ")
-			if len(cols) >= 6 && cols[4] == "/" {
-				return strings.HasPrefix(cols[6], "shared")
-			}
-		}
-	}
-
-	// No idea, probably safe to assume so
-	return true
-}
-
 func BtrfsReflink(fd_out, fd_in uintptr) error {
 	res := C.btrfs_reflink(C.int(fd_out), C.int(fd_in))
 	if res != 0 {
@@ -351,6 +346,20 @@ func BtrfsReflink(fd_out, fd_in uintptr) error {
 // name:alias
 func parseLink(rawLink string) (map[string]string, error) {
 	return utils.PartParser("name:alias", rawLink)
+}
+
+func RootIsShared() bool {
+	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			cols := strings.Split(line, " ")
+			if len(cols) >= 6 && cols[4] == "/" {
+				return strings.HasPrefix(cols[6], "shared")
+			}
+		}
+	}
+
+	// No idea, probably safe to assume so
+	return true
 }
 
 type checker struct {

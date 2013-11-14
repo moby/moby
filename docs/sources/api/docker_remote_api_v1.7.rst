@@ -914,7 +914,12 @@ Search images
 
 .. http:get:: /images/search
 
-	Search for an image in the docker index
+	Search for an image in the docker index.
+	
+	.. note::
+	
+	   The response keys have changed from API v1.6 to reflect the JSON 
+	   sent by the registry server to the docker daemon's request.
 	
 	**Example request**:
 
@@ -930,18 +935,28 @@ Search images
 	   Content-Type: application/json
 	   
 	   [
-		{
-			"Name":"cespare/sshd",
-			"Description":""
-		},
-		{
-			"Name":"johnfuller/sshd",
-			"Description":""
-		},
-		{
-			"Name":"dhrp/mongodb-sshd",
-			"Description":""
-		}
+		   {
+		       "description": "",
+		       "is_official": false,
+		       "is_trusted": false,
+		       "name": "wma55/u1210sshd",
+		       "star_count": 0
+		   },
+		   {
+		       "description": "",
+		       "is_official": false,
+		       "is_trusted": false,
+		       "name": "jdswinbank/sshd",
+		       "star_count": 0
+		   },
+		   {
+		       "description": "",
+		       "is_official": false,
+		       "is_trusted": false,
+		       "name": "vgauthier/sshd",
+		       "star_count": 0
+		   }
+	   ...
 	   ]
 
 	   :query term: term to search

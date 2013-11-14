@@ -479,15 +479,16 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 		w.Header().Set("Content-Type", "application/json")
 	}
 	sf := utils.NewStreamFormatter(version > 1.0)
-	imgID, err := srv.ImageInsert(name, url, path, w, sf)
+	err := srv.ImageInsert(name, url, path, w, sf)
 	if err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
 			return nil
 		}
+		return err
 	}
 
-	return writeJSON(w, http.StatusOK, &APIID{ID: imgID})
+	return nil
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -540,43 +541,36 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if err := parseForm(r); err != nil {
 		return nil
 	}
-	config := &Config{}
 	out := &APIRun{}
-	name := r.Form.Get("name")
-
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	job := srv.Eng.Job("create", r.Form.Get("name"))
+	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
-
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return err
 	}
-
-	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !job.GetenvBool("NetworkDisabled") && len(job.Getenv("Dns")) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
-		config.Dns = defaultDns
+		job.SetenvList("Dns", defaultDns)
 	}
-
-	id, warnings, err := srv.ContainerCreate(config, name)
-	if err != nil {
+	// Read container ID from the first line of stdout
+	job.StdoutParseString(&out.ID)
+	// Read warnings from stderr
+	job.StderrParseLines(&out.Warnings, 0)
+	if err := job.Run(); err != nil {
 		return err
 	}
-	out.ID = id
-	for _, warning := range warnings {
-		out.Warnings = append(out.Warnings, warning)
-	}
-
-	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 	}
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.SwapLimit {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 
-	if !config.NetworkDisabled && srv.runtime.capabilities.IPv4ForwardingDisabled {
+	if !job.GetenvBool("NetworkDisabled") && srv.runtime.capabilities.IPv4ForwardingDisabled {
 		log.Println("Warning: IPv4 forwarding is disabled.")
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
@@ -653,26 +647,23 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var hostConfig *HostConfig
-	// allow a nil body for backwards compatibility
-	if r.Body != nil {
-		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			hostConfig = &HostConfig{}
-			if err := json.NewDecoder(r.Body).Decode(hostConfig); err != nil {
-				return err
-			}
-		}
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
-	// Register any links from the host config before starting the container
-	if err := srv.RegisterLinks(name, hostConfig); err != nil {
-		return err
+	job := srv.Eng.Job("start", name)
+	if err := job.ImportEnv(HostConfig{}); err != nil {
+		return fmt.Errorf("Couldn't initialize host configuration")
 	}
-	if err := srv.ContainerStart(name, hostConfig); err != nil {
+	// allow a nil body for backwards compatibility
+	if r.Body != nil {
+		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {
+			if err := job.DecodeEnv(r.Body); err != nil {
+				return err
+			}
+		}
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

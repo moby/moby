@@ -5,7 +5,7 @@ It is a curated selection of planned improvements which are either important, di
 
 For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/dotcloud/docker/issues).
 
-Tu suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
+To suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
 
 
 ## Container wiring and service discovery

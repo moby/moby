@@ -544,10 +544,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 }
 
 func TestBuildInheritance(t *testing.T) {
-	runtime, err := newTestRuntime("")
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
 	srv := &Server{

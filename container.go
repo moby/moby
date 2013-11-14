@@ -134,7 +134,11 @@ type PortBinding struct {
 type Port string
 
 func (p Port) Proto() string {
-	return strings.Split(string(p), "/")[1]
+	parts := strings.Split(string(p), "/")
+	if len(parts) == 1 {
+		return "tcp"
+	}
+	return parts[1]
 }
 
 func (p Port) Port() string {
@@ -168,7 +172,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
 	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	flMemory := cmd.Int64("m", 0, "Memory limit (in bytes)")
+	flMemoryString := cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
@@ -177,9 +181,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.String("name", "", "Assign a name to the container")
 	flPublishAll := cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
 
-	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
+	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		*flMemory = 0
+		*flMemoryString = ""
 	}
 
 	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
@@ -200,7 +204,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
 	var flVolumesFrom utils.ListOpts
-	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container")
+	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 
 	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
@@ -244,6 +248,18 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 			v := os.Getenv(env)
 			envs = append(envs, env+"="+v)
 		}
+	}
+
+	var flMemory int64
+
+	if *flMemoryString != "" {
+		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
+
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		flMemory = parsedMemory
 	}
 
 	var binds []string
@@ -316,7 +332,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          *flMemory,
+		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
@@ -341,7 +357,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		PublishAllPorts: *flPublishAll,
 	}
 
-	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
+	if capabilities != nil && flMemory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
@@ -694,24 +710,25 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func (container *Container) Start() (err error) {
 	container.State.Lock()
 	defer container.State.Unlock()
+	if container.State.Running {
+		return fmt.Errorf("The container %s is already running.", container.ID)
+	}
 	defer func() {
 		if err != nil {
 			container.cleanup()
 		}
 	}()
-
-	if container.State.Running {
-		return fmt.Errorf("The container %s is already running.", container.ID)
-	}
 	if err := container.EnsureMounted(); err != nil {
 		return err
 	}
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
+		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
+		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 	}
 
 	// Make sure the config is compatible with the current kernel
@@ -771,9 +788,23 @@ func (container *Container) Start() (err error) {
 
 	// Apply volumes from another container if requested
 	if container.Config.VolumesFrom != "" {
-		volumes := strings.Split(container.Config.VolumesFrom, ",")
-		for _, v := range volumes {
-			c := container.runtime.Get(v)
+		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
+		for _, containerSpec := range containerSpecs {
+			mountRW := true
+			specParts := strings.SplitN(containerSpec, ":", 2)
+			switch len(specParts) {
+			case 0:
+				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
+			case 2:
+				switch specParts[1] {
+				case "ro":
+					mountRW = false
+				case "rw": // mountRW is already true
+				default:
+					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
+				}
+			}
+			c := container.runtime.Get(specParts[0])
 			if c == nil {
 				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
 			}
@@ -786,7 +817,7 @@ func (container *Container) Start() (err error) {
 				}
 				container.Volumes[volPath] = id
 				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW
+					container.VolumesRW[volPath] = isRW && mountRW
 				}
 			}
 
@@ -832,7 +863,7 @@ func (container *Container) Start() (err error) {
 		// Create the mountpoint
 		rootVolPath := path.Join(container.RootfsPath(), volPath)
 		if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-			return nil
+			return err
 		}
 
 		// Do not copy or change permissions if we are mounting from the host
@@ -876,7 +907,13 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	var lxcStart string = "lxc-start"
+	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
+		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
+	}
+
 	params := []string{
+		lxcStart,
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
@@ -969,11 +1006,24 @@ func (container *Container) Start() (err error) {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	var lxcStart string = "lxc-start"
-	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
-		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
+	if RootIsShared() {
+		// lxc-start really needs / to be non-shared, or all kinds of stuff break
+		// when lxc-start unmount things and those unmounts propagate to the main
+		// mount namespace.
+		// What we really want is to clone into a new namespace and then
+		// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
+		// without exec in go we have to do this horrible shell hack...
+		shellString :=
+			"mount --make-rslave /; exec " +
+				utils.ShellQuoteArguments(params)
+
+		params = []string{
+			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
 	}
-	container.cmd = exec.Command(lxcStart, params...)
+
+	container.cmd = exec.Command(params[0], params[1:]...)
+
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
@@ -1080,6 +1130,30 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	container.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) {
+	container.HostnamePath = path.Join(container.root, "hostname")
+	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	hostsContent := []byte(`
+127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+`)
+
+	container.HostsPath = path.Join(container.root, "hosts")
+
+	if container.Config.Domainname != "" {
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+	} else {
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
+	}
+
+	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
 func (container *Container) allocateNetwork() error {
@@ -1230,7 +1304,7 @@ func (container *Container) monitor() {
 	container.State.setStopped(exitCode)
 
 	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ShortID(), container.runtime.repositories.ImageName(container.Image))
+		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
 	}
 
 	// Cleanup
@@ -1297,7 +1371,7 @@ func (container *Container) kill(sig int) error {
 	}
 
 	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
-		log.Printf("error killing container %s (%s, %s)", container.ShortID(), output, err)
+		log.Printf("error killing container %s (%s, %s)", utils.TruncateID(container.ID), output, err)
 		return err
 	}
 
@@ -1317,9 +1391,9 @@ func (container *Container) Kill() error {
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
 		if container.cmd == nil {
-			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", container.ShortID())
+			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
-		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", container.ShortID())
+		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))
 		if err := container.cmd.Process.Kill(); err != nil {
 			return err
 		}
@@ -1431,14 +1505,6 @@ func (container *Container) GetImage() (*Image, error) {
 
 func (container *Container) Unmount() error {
 	return container.runtime.Unmount(container)
-}
-
-// ShortID returns a shorthand version of the container's id for convenience.
-// A collision with other container shorthands is very unlikely, but possible.
-// In case of a collision a lookup with Runtime.Get() will fail, and the caller
-// will need to use a langer prefix, or the full-length container Id.
-func (container *Container) ShortID() string {
-	return utils.TruncateID(container.ID)
 }
 
 func (container *Container) logPath(name string) string {

@@ -86,7 +86,7 @@ http://0.0.0.0:5000/`` in the log output.
 
 .. code-block:: bash
 
-    WEB_PORT=$(sudo docker port $WEB_WORKER 5000)
+    WEB_PORT=$(sudo docker port $WEB_WORKER 5000 | awk -F: '{ print $2 }')
 
 Look up the public-facing port which is NAT-ed. Find the private port
 used by the container and store it inside of the ``WEB_PORT`` variable.

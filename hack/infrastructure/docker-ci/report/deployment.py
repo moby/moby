@@ -34,7 +34,7 @@ env['DOCKER_CI_KEY'] = open(env['DOCKER_CI_KEY_PATH']).read()
 
 DROPLET_NAME = env.get('DROPLET_NAME','report')
 TIMEOUT = 120            # Seconds before timeout droplet creation
-IMAGE_ID = 894856        # Docker on Ubuntu 13.04
+IMAGE_ID = 1004145       # Docker on Ubuntu 13.04
 REGION_ID = 4            # New York 2
 SIZE_ID = 66             # memory 512MB
 DO_IMAGE_USER = 'root'   # Image user on Digital Ocean

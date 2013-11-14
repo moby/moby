@@ -245,6 +245,9 @@ Full -run example
     Usage: docker events
 
     Get real time events from the server
+    
+    -since="": Show previously created events and then stream.
+               (either seconds since epoch, or date string as below)
 
 .. _cli_events_example:
 
@@ -277,6 +280,23 @@ Shell 1: (Again .. now showing events)
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
+Show events in the past from a specified time
+.............................................
+
+.. code-block:: bash
+
+    $ sudo docker events -since 1378216169
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03'
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
 .. _cli_export:
 
@@ -460,6 +480,12 @@ Insert file from github
 
 The main process inside the container will be sent SIGKILL.
 
+Known Issues (kill)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
 .. _cli_login:
 
 ``login``
@@ -568,6 +594,12 @@ The main process inside the container will be sent SIGKILL.
     Remove one or more containers
         -link="": Remove the link instead of the actual container
 
+Known Issues (rm)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
 
 Examples:
 ~~~~~~~~~
@@ -589,6 +621,15 @@ This will remove the container referenced under the link ``/redis``.
 
 This will remove the underlying link between ``/webapp`` and the ``/redis`` containers removing all
 network communication.
+
+.. code-block:: bash
+
+    $ docker rm `docker ps -a -q`
+
+
+This command will delete all stopped containers. The command ``docker ps -a -q`` will return all
+existing container IDs and pass them to the ``rm`` command which will delete them. Any running
+containers will not be deleted.
 
 .. _cli_rmi:
 
@@ -620,7 +661,7 @@ network communication.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
-      -m=0: Memory limit (in bytes)
+      -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
@@ -628,7 +669,7 @@ network communication.
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container
+      -volumes-from="": Mount all volumes from the given container(s)
       -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -719,6 +760,17 @@ newly created container with the alias ``redis``.  The new container
 can access the network and environment of the redis container via
 environment variables.  The ``-name`` flag will assign the name ``console``
 to the newly created container.
+
+.. code-block:: bash
+
+   docker run -volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+
+The ``-volumes-from`` flag mounts all the defined volumes from the
+refrence containers. Containers can be specified by a comma seperated
+list or by repetitions of the ``-volumes-from`` argument. The container
+id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+in the same mode (rw or ro) as the reference container.
 
 .. _cli_search:
 

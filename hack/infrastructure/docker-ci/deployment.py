@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-import os, sys, re, json, base64
-from boto.ec2.connection import EC2Connection
+import os, sys, re, json, requests, base64
 from subprocess import call
 from fabric import api
 from fabric.api import cd, run, put, sudo
 from os import environ as env
+from datetime import datetime
 from time import sleep
 
 # Remove SSH private key as it needs more processing
@@ -20,42 +20,41 @@ for key in CONFIG:
 env['DOCKER_CI_KEY'] = re.sub('^.+"DOCKER_CI_KEY".+?"(.+?)".+','\\1',
     env['CONFIG_JSON'],flags=re.DOTALL)
 
-
-AWS_TAG = env.get('AWS_TAG','docker-ci')
-AWS_KEY_NAME = 'dotcloud-dev'       # Same as CONFIG_JSON['DOCKER_CI_PUB']
-AWS_AMI = 'ami-d582d6bc'            # Ubuntu 13.04
-AWS_REGION = 'us-east-1'
-AWS_TYPE = 'm1.small'
-AWS_SEC_GROUPS = 'gateway'
-AWS_IMAGE_USER = 'ubuntu'
+DROPLET_NAME = env.get('DROPLET_NAME','docker-ci')
+TIMEOUT = 120            # Seconds before timeout droplet creation
+IMAGE_ID = 1004145       # Docker on Ubuntu 13.04
+REGION_ID = 4            # New York 2
+SIZE_ID = 62             # memory 2GB
+DO_IMAGE_USER = 'root'   # Image user on Digital Ocean
+API_URL = 'https://api.digitalocean.com/'
 DOCKER_PATH = '/go/src/github.com/dotcloud/docker'
 DOCKER_CI_PATH = '/docker-ci'
 CFG_PATH = '{}/buildbot'.format(DOCKER_CI_PATH)
 
 
-class AWS_EC2:
-    '''Amazon EC2'''
-    def __init__(self, access_key, secret_key):
+class DigitalOcean():
+
+    def __init__(self, key, client):
         '''Set default API parameters'''
-        self.handler = EC2Connection(access_key, secret_key)
-    def create_instance(self, tag, instance_type):
-        reservation = self.handler.run_instances(**instance_type)
-        instance = reservation.instances[0]
-        sleep(10)
-        while instance.state != 'running':
-            sleep(5)
-            instance.update()
-            print "Instance state: %s" % (instance.state)
-        instance.add_tag("Name",tag)
-        print "instance %s done!" % (instance.id)
-        return instance.ip_address
-    def get_instances(self):
-        return self.handler.get_all_instances()
-    def get_tags(self):
-        return dict([(i.instances[0].id, i.instances[0].tags['Name'])
-            for i in self.handler.get_all_instances() if i.instances[0].tags])
-    def del_instance(self, instance_id):
-        self.handler.terminate_instances(instance_ids=[instance_id])
+        self.key = key
+        self.client = client
+        self.api_url = API_URL
+
+    def api(self, cmd_path, api_arg={}):
+        '''Make api call'''
+        api_arg.update({'api_key':self.key, 'client_id':self.client})
+        resp = requests.get(self.api_url + cmd_path, params=api_arg).text
+        resp = json.loads(resp)
+        if resp['status'] != 'OK':
+            raise Exception(resp['error_message'])
+        return resp
+
+    def droplet_data(self, name):
+        '''Get droplet data'''
+        data = self.api('droplets')
+        data = [droplet for droplet in data['droplets']
+            if droplet['name'] == name]
+        return data[0] if data else {}
 
 
 def json_fmt(data):
@@ -63,20 +62,36 @@ def json_fmt(data):
     return json.dumps(data, sort_keys = True, indent = 2)
 
 
-# Create EC2 API handler
-ec2 = AWS_EC2(env['AWS_ACCESS_KEY'], env['AWS_SECRET_KEY'])
+do = DigitalOcean(env['DO_API_KEY'], env['DO_CLIENT_ID'])
 
-# Stop processing if AWS_TAG exists on EC2
-if AWS_TAG in ec2.get_tags().values():
-    print ('Instance: {} already deployed. Not further processing.'
-        .format(AWS_TAG))
+# Get DROPLET_NAME data
+data = do.droplet_data(DROPLET_NAME)
+
+# Stop processing if DROPLET_NAME exists on Digital Ocean
+if data:
+    print ('Droplet: {} already deployed. Not further processing.'
+        .format(DROPLET_NAME))
     exit(1)
 
-ip = ec2.create_instance(AWS_TAG, {'image_id':AWS_AMI, 'instance_type':AWS_TYPE,
-    'security_groups':[AWS_SEC_GROUPS], 'key_name':AWS_KEY_NAME})
+# Create droplet
+do.api('droplets/new', {'name':DROPLET_NAME, 'region_id':REGION_ID,
+    'image_id':IMAGE_ID, 'size_id':SIZE_ID,
+    'ssh_key_ids':[env['DOCKER_KEY_ID']]})
 
-# Wait 30 seconds for the machine to boot
-sleep(30)
+# Wait for droplet to be created.
+start_time = datetime.now()
+while (data.get('status','') != 'active' and (
+ datetime.now()-start_time).seconds < TIMEOUT):
+    data = do.droplet_data(DROPLET_NAME)
+    print data['status']
+    sleep(3)
+
+# Wait for the machine to boot
+sleep(15)
+
+# Get droplet IP
+ip = str(data['ip_address'])
+print 'droplet: {}    ip: {}'.format(DROPLET_NAME, ip)
 
 # Create docker-ci ssh private key so docker-ci docker container can communicate
 # with its EC2 instance
@@ -86,7 +101,7 @@ os.chmod('/root/.ssh/id_rsa',0600)
 open('/root/.ssh/config','w').write('StrictHostKeyChecking no\n')
 
 api.env.host_string = ip
-api.env.user = AWS_IMAGE_USER
+api.env.user = DO_IMAGE_USER
 api.env.key_filename = '/root/.ssh/id_rsa'
 
 # Correct timezone
@@ -100,20 +115,17 @@ sudo("echo '{}' >> /root/.ssh/authorized_keys".format(env['DOCKER_CI_PUB']))
 credentials = {
     'AWS_ACCESS_KEY': env['PKG_ACCESS_KEY'],
     'AWS_SECRET_KEY': env['PKG_SECRET_KEY'],
-    'GPG_PASSPHRASE': env['PKG_GPG_PASSPHRASE'],
-    'INDEX_AUTH': env['INDEX_AUTH']}
+    'GPG_PASSPHRASE': env['PKG_GPG_PASSPHRASE']}
 open(DOCKER_CI_PATH + '/nightlyrelease/release_credentials.json', 'w').write(
     base64.b64encode(json.dumps(credentials)))
 
 # Transfer docker
 sudo('mkdir -p ' + DOCKER_CI_PATH)
-sudo('chown {}.{} {}'.format(AWS_IMAGE_USER, AWS_IMAGE_USER, DOCKER_CI_PATH))
-call('/usr/bin/rsync -aH {} {}@{}:{}'.format(DOCKER_CI_PATH, AWS_IMAGE_USER, ip,
+sudo('chown {}.{} {}'.format(DO_IMAGE_USER, DO_IMAGE_USER, DOCKER_CI_PATH))
+call('/usr/bin/rsync -aH {} {}@{}:{}'.format(DOCKER_CI_PATH, DO_IMAGE_USER, ip,
     os.path.dirname(DOCKER_CI_PATH)), shell=True)
 
 # Install Docker and Buildbot dependencies
-sudo('addgroup docker')
-sudo('usermod -a -G docker ubuntu')
 sudo('mkdir /mnt/docker; ln -s /mnt/docker /var/lib/docker')
 sudo('wget -q -O - https://get.docker.io/gpg | apt-key add -')
 sudo('echo deb https://get.docker.io/ubuntu docker main >'
@@ -123,7 +135,7 @@ sudo('echo -e "deb http://archive.ubuntu.com/ubuntu raring main universe\n'
     ' > /etc/apt/sources.list; apt-get update')
 sudo('DEBIAN_FRONTEND=noninteractive apt-get install -q -y wget python-dev'
     ' python-pip supervisor git mercurial linux-image-extra-$(uname -r)'
-    ' aufs-tools make libfontconfig libevent-dev')
+    ' aufs-tools make libfontconfig libevent-dev libsqlite3-dev libssl-dev')
 sudo('wget -O - https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | '
     'tar -v -C /usr/local -xz; ln -s /usr/local/go/bin/go /usr/bin/go')
 sudo('GOPATH=/go go get -d github.com/dotcloud/docker')
@@ -135,12 +147,12 @@ sudo('curl -s https://phantomjs.googlecode.com/files/'
     'phantomjs-1.9.1-linux-x86_64.tar.bz2 | tar jx -C /usr/bin'
     ' --strip-components=2 phantomjs-1.9.1-linux-x86_64/bin/phantomjs')
 
-# Preventively reboot docker-ci daily
-sudo('ln -s /sbin/reboot /etc/cron.daily')
-
 # Build docker-ci containers
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
+sudo('cd {}; docker build -t docker-ci .'.format(DOCKER_CI_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
+    DOCKER_CI_PATH))
+sudo('cd {}/registry-coverage; docker build -t registry_coverage .'.format(
     DOCKER_CI_PATH))
 
 # Download docker-ci testing container
@@ -154,3 +166,6 @@ sudo('{0}/setup.sh root {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10}'
     env['SMTP_PWD'], env['EMAIL_RCP'], env['REGISTRY_USER'],
     env['REGISTRY_PWD'], env['REGISTRY_BUCKET'], env['REGISTRY_ACCESS_KEY'],
     env['REGISTRY_SECRET_KEY']))
+
+# Preventively reboot docker-ci daily
+sudo('ln -s /sbin/reboot /etc/cron.daily')
