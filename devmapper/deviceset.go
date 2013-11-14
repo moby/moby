@@ -120,6 +120,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer file.Close()
 
 		if err = file.Truncate(size); err != nil {
 			return "", err
