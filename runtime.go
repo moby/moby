@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -763,25 +762,7 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
 
-	files := make([]string, 0)
-	deletions := make([]string, 0)
-	for _, change := range changes {
-		if change.Kind == archive.ChangeModify || change.Kind == archive.ChangeAdd {
-			files = append(files, change.Path)
-		}
-		if change.Kind == archive.ChangeDelete {
-			base := filepath.Base(change.Path)
-			dir := filepath.Dir(change.Path)
-			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
-		}
-	}
-	// FIXME: Why do we create whiteout files inside Tar code ?
-	return archive.TarFilter(cDir, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		Includes:    files,
-		Recursive:   false,
-		CreateFiles: deletions,
-	})
+	return archive.ExportChanges(cDir, changes)
 }
 
 func linkLxcStart(root string) error {
