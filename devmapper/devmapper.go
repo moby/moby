@@ -44,11 +44,11 @@ var (
 	ErrTaskSetName          = errors.New("dm_task_set_name failed")
 	ErrTaskSetMessage       = errors.New("dm_task_set_message failed")
 	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
-	ErrTaskSetRO            = errors.New("dm_task_set_ro failed")
+	ErrTaskSetRo            = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
-	ErrGetInfo              = errors.New("dm_task_get_info failed")
-	ErrGetDriverVersion     = errors.New("dm_task_get_driver_version failed")
+	ErrTaskGetInfo          = errors.New("dm_task_get_info failed")
+	ErrTaskGetDriverVersion = errors.New("dm_task_get_driver_version failed")
 	ErrTaskSetCookie        = errors.New("dm_task_set_cookie failed")
 	ErrNilCookie            = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice = errors.New("loopback mounting failed")
@@ -58,6 +58,7 @@ var (
 	ErrGetLibraryVersion    = errors.New("dm_get_library_version failed")
 	ErrCreateRemoveTask     = errors.New("Can't create task of type DeviceRemove")
 	ErrRunRemoveDevice      = errors.New("running removeDevice failed")
+	ErrInvalidAddNode       = errors.New("Invalide AddNoce type")
 )
 
 type (
@@ -136,6 +137,9 @@ func (t *Task) SetCookie(cookie *uint, flags uint16) error {
 }
 
 func (t *Task) SetAddNode(addNode AddNodeType) error {
+	if addNode != AddNodeOnResume && addNode != AddNodeOnCreate {
+		return ErrInvalidAddNode
+	}
 	if res := DmTaskSetAddNode(t.unmanaged, addNode); res != 1 {
 		return ErrTaskSetAddNode
 	}
@@ -144,7 +148,7 @@ func (t *Task) SetAddNode(addNode AddNodeType) error {
 
 func (t *Task) SetRo() error {
 	if res := DmTaskSetRo(t.unmanaged); res != 1 {
-		return ErrTaskSetRO
+		return ErrTaskSetRo
 	}
 	return nil
 }
@@ -157,18 +161,10 @@ func (t *Task) AddTarget(start, size uint64, ttype, params string) error {
 	return nil
 }
 
-func (t *Task) GetDriverVersion() (string, error) {
-	var version string
-	if res := DmTaskGetDriverVersion(t.unmanaged, &version); res != 1 {
-		return "", ErrGetDriverVersion
-	}
-	return version, nil
-}
-
 func (t *Task) GetInfo() (*Info, error) {
 	info := &Info{}
 	if res := DmTaskGetInfo(t.unmanaged, info); res != 1 {
-		return nil, ErrGetInfo
+		return nil, ErrTaskGetInfo
 	}
 	return info, nil
 }
@@ -188,24 +184,6 @@ func AttachLoopDevice(filename string) (*os.File, error) {
 		return nil, ErrAttachLoopbackDevice
 	}
 	return os.NewFile(uintptr(fd), res), nil
-}
-
-func getBlockSize(fd uintptr) int {
-	var size uint64
-
-	if err := SysGetBlockSize(fd, &size); err != 0 {
-		utils.Debugf("Error ioctl (getBlockSize: %s)", err)
-		return -1
-	}
-	return int(size)
-}
-
-func GetBlockDeviceSize(file *os.File) (uint64, error) {
-	size := DmGetBlockSize(file.Fd())
-	if size == -1 {
-		return 0, ErrGetBlockSize
-	}
-	return uint64(size), nil
 }
 
 func UdevWait(cookie uint) error {
@@ -259,6 +237,14 @@ func RemoveDevice(name string) error {
 	return nil
 }
 
+func GetBlockDeviceSize(file *os.File) (uint64, error) {
+	size, errno := DmGetBlockSize(file.Fd())
+	if size == -1 || errno != 0 {
+		return 0, ErrGetBlockSize
+	}
+	return uint64(size), nil
+}
+
 // This is the programmatic example of "dmsetup create"
 func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error {
 	task, err := createTask(DeviceCreate, poolName)
@@ -282,7 +268,7 @@ func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceCreate")
+		return fmt.Errorf("Error running DeviceCreate (createPool)")
 	}
 
 	UdevWait(cookie)
@@ -462,7 +448,7 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceCreate")
+		return fmt.Errorf("Error running DeviceCreate (activateDevice)")
 	}
 
 	UdevWait(cookie)
@@ -506,7 +492,7 @@ func (devices *DeviceSet) createSnapDevice(poolName string, deviceId int, baseNa
 		if doSuspend {
 			resumeDevice(baseName)
 		}
-		return fmt.Errorf("Error running DeviceCreate")
+		return fmt.Errorf("Error running DeviceCreate (createSnapDevice)")
 	}
 
 	if doSuspend {
