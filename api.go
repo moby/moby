@@ -61,7 +61,10 @@ func parseMultipartForm(r *http.Request) error {
 
 func httpError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
-	if strings.HasPrefix(err.Error(), "No such") {
+	// FIXME: this is brittle and should not be necessary.
+	// If we need to differentiate between different possible error types, we should
+	// create appropriate error types with clearly defined meaning.
+	if strings.Contains(err.Error(), "No such") {
 		statusCode = http.StatusNotFound
 	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
 		statusCode = http.StatusBadRequest
