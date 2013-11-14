@@ -326,6 +326,15 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 		}
 	}
 
+	// Enable IPv4 forwarding
+	if errFwd4 := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); errFwd4 != nil {
+		log.Printf("WARNING: unable to enable IPv4 forwarding: %s\n", errFwd4)
+	}
+	// Enable IPv6 forwarding
+	if errFwd6 := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); errFwd6 != nil {
+		log.Printf("WARNING: unable to enable IPv6 forwarding: %s\n", errFwd6)
+	}
+
 	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
 	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
 	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
