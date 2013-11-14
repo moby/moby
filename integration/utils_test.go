@@ -143,22 +143,22 @@ func readFile(src string, t *testing.T) (content string) {
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Container, error) {
-	config, _, _, err := docker.ParseRun(args, nil)
+func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Container, *docker.HostConfig, error) {
+	config, hc, _, err := docker.ParseRun(args, nil)
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)
 		}
 	}()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if config.Image == "_" {
 		config.Image = GetTestImage(r).ID
 	}
 	c, _, err := r.Create(config, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// NOTE: hostConfig is ignored.
 	// If `args` specify privileged mode, custom lxc conf, external mount binds,
@@ -167,20 +167,20 @@ func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Contai
 	// to the `start` job.
 	// FIXME: this helper function should be deprecated in favor of calling
 	// `create` and `start` jobs directly.
-	return c, nil
+	return c, hc, nil
 }
 
 // Create a test container, start it, wait for it to complete, destroy it,
 // and return its standard output as a string.
 // The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
 // If t is not nil, call t.Fatal() at the first error. Otherwise return errors normally.
-func runContainer(r *docker.Runtime, args []string, t *testing.T) (output string, err error) {
+func runContainer(eng *engine.Engine, r *docker.Runtime, args []string, t *testing.T) (output string, err error) {
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)
 		}
 	}()
-	container, err := mkContainer(r, args, t)
+	container, hc, err := mkContainer(r, args, t)
 	if err != nil {
 		return "", err
 	}
@@ -190,9 +190,15 @@ func runContainer(r *docker.Runtime, args []string, t *testing.T) (output string
 		return "", err
 	}
 	defer stdout.Close()
-	if err := container.Start(); err != nil {
+
+	job := eng.Job("start", container.ID)
+	if err := job.ImportEnv(hc); err != nil {
 		return "", err
 	}
+	if err := job.Run(); err != nil {
+		return "", err
+	}
+
 	container.Wait()
 	data, err := ioutil.ReadAll(stdout)
 	if err != nil {

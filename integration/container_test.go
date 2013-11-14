@@ -41,7 +41,7 @@ func TestIDFormat(t *testing.T) {
 func TestMultipleAttachRestart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _ := mkContainer(
+	container, _, _ := mkContainer(
 		runtime,
 		[]string{"_", "/bin/sh", "-c", "i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
 		t,
@@ -138,7 +138,7 @@ func TestDiff(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 	// Create a container and remove a file
-	container1, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
+	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
 	defer runtime.Destroy(container1)
 
 	// The changelog should be empty and not fail before run. See #1705
@@ -176,7 +176,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Create a new container from the commited image
-	container2, _ := mkContainer(runtime, []string{img.ID, "cat", "/etc/passwd"}, t)
+	container2, _, _ := mkContainer(runtime, []string{img.ID, "cat", "/etc/passwd"}, t)
 	defer runtime.Destroy(container2)
 
 	if err := container2.Run(); err != nil {
@@ -195,7 +195,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Create a new container
-	container3, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
+	container3, _, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
 	defer runtime.Destroy(container3)
 
 	if err := container3.Run(); err != nil {
@@ -221,7 +221,7 @@ func TestDiff(t *testing.T) {
 func TestCommitAutoRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container1, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
+	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
 	if container1.State.Running {
@@ -240,7 +240,7 @@ func TestCommitAutoRun(t *testing.T) {
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-	container2, _ := mkContainer(runtime, []string{img.ID}, t)
+	container2, _, _ := mkContainer(runtime, []string{img.ID}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
@@ -277,7 +277,7 @@ func TestCommitRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container1, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
+	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
 	if container1.State.Running {
@@ -296,7 +296,7 @@ func TestCommitRun(t *testing.T) {
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-	container2, _ := mkContainer(runtime, []string{img.ID, "cat", "/world"}, t)
+	container2, _, _ := mkContainer(runtime, []string{img.ID, "cat", "/world"}, t)
 	defer runtime.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
@@ -332,7 +332,7 @@ func TestCommitRun(t *testing.T) {
 func TestStart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
+	container, _, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
 	defer runtime.Destroy(container)
 
 	cStdin, err := container.StdinPipe()
@@ -362,7 +362,7 @@ func TestStart(t *testing.T) {
 func TestRun(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container)
 
 	if container.State.Running {
@@ -1163,11 +1163,12 @@ func tempDir(t *testing.T) string {
 
 // Test for #1737
 func TestCopyVolumeUidGid(t *testing.T) {
-	r := mkRuntime(t)
-	defer nuke(r)
+	eng := NewTestEngine(t)
+	r := mkRuntimeFromEngine(eng, t)
+	defer r.Nuke()
 
 	// Add directory not owned by root
-	container1, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test.txt && chown daemon.daemon /hello"}, t)
+	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test.txt && chown daemon.daemon /hello"}, t)
 	defer r.Destroy(container1)
 
 	if container1.State.Running {
@@ -1188,7 +1189,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 	// Test that the uid and gid is copied from the image to the volume
 	tmpDir1 := tempDir(t)
 	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(r, []string{"-v", "/hello", img.ID, "stat", "-c", "%U %G", "/hello"}, t)
+	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "stat", "-c", "%U %G", "/hello"}, t)
 	if !strings.Contains(stdout1, "daemon daemon") {
 		t.Fatal("Container failed to transfer uid and gid to volume")
 	}
@@ -1196,11 +1197,12 @@ func TestCopyVolumeUidGid(t *testing.T) {
 
 // Test for #1582
 func TestCopyVolumeContent(t *testing.T) {
-	r := mkRuntime(t)
-	defer nuke(r)
+	eng := NewTestEngine(t)
+	r := mkRuntimeFromEngine(eng, t)
+	defer r.Nuke()
 
 	// Put some content in a directory of a container and commit it
-	container1, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
+	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
 	defer r.Destroy(container1)
 
 	if container1.State.Running {
@@ -1221,31 +1223,33 @@ func TestCopyVolumeContent(t *testing.T) {
 	// Test that the content is copied from the image to the volume
 	tmpDir1 := tempDir(t)
 	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(r, []string{"-v", "/hello", img.ID, "find", "/hello"}, t)
+	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "find", "/hello"}, t)
 	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
 		t.Fatal("Container failed to transfer content to volume")
 	}
 }
 
 func TestBindMounts(t *testing.T) {
-	r := mkRuntime(t)
-	defer nuke(r)
+	eng := NewTestEngine(t)
+	r := mkRuntimeFromEngine(eng, t)
+	defer r.Nuke()
+
 	tmpDir := tempDir(t)
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", t)
 
 	// Test reading from a read-only bind mount
-	stdout, _ := runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
+	stdout, _ := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
 	if !strings.Contains(stdout, "touch-me") {
 		t.Fatal("Container failed to read from bind mount")
 	}
 
 	// test writing to bind mount
-	runContainer(r, []string{"-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
+	runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
 	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	if _, err := runContainer(r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
+	if _, err := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
 }
@@ -1532,33 +1536,37 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 }
 
 func TestPrivilegedCanMknod(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mknod into privileged container")
 	}
 }
 
 func TestPrivilegedCanMount(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mount into privileged container")
 	}
 }
 
 func TestPrivilegedCannotMknod(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could mknod into secure container")
 	}
 }
 
 func TestPrivilegedCannotMount(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	if output, _ := runContainer(runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could mount into secure container")
 	}
 }

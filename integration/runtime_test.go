@@ -316,13 +316,13 @@ func TestGet(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container1, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container1, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container1)
 
-	container2, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container2, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container2)
 
-	container3, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
+	container3, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container3)
 
 	if runtime.Get(container1.ID) != container1 {
@@ -509,11 +509,11 @@ func TestRestore(t *testing.T) {
 	runtime1 := mkRuntimeFromEngine(eng, t)
 	defer runtime1.Nuke()
 	// Create a container with one instance of docker
-	container1, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
+	container1, _, _ := mkContainer(runtime1, []string{"_", "ls", "-al"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
@@ -547,9 +547,14 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
+	root := eng.Root()
+	eng, err := engine.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 	job := eng.Job("initapi")
 	job.Setenv("Root", eng.Root())
-	job.SetenvBool("AutoRestart", false)
+	job.SetenvBool("Autorestart", false)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -599,11 +604,11 @@ func TestReloadContainerLinks(t *testing.T) {
 	runtime1 := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime1)
 	// Create a container with one instance of docker
-	container1, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
+	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
 	defer runtime1.Destroy(container1)
 
 	// Create a second container meant to be killed
-	container2, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
+	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
 	defer runtime1.Destroy(container2)
 
 	// Start the container non blocking
@@ -635,12 +640,17 @@ func TestReloadContainerLinks(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
+	eng, err = engine.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 	job = eng.Job("initapi")
 	job.Setenv("Root", eng.Root())
-	job.SetenvBool("AutoRestart", false)
+	job.SetenvBool("Autorestart", false)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
+
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
