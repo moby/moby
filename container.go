@@ -894,7 +894,13 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	var lxcStart string = "lxc-start"
+	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
+		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
+	}
+
 	params := []string{
+		lxcStart,
 		"-n", container.ID,
 		"-f", container.lxcConfigPath(),
 		"--",
@@ -987,11 +993,24 @@ func (container *Container) Start() (err error) {
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
 
-	var lxcStart string = "lxc-start"
-	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
-		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
+	if RootIsShared() {
+		// lxc-start really needs / to be non-shared, or all kinds of stuff break
+		// when lxc-start unmount things and those unmounts propagate to the main
+		// mount namespace.
+		// What we really want is to clone into a new namespace and then
+		// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
+		// without exec in go we have to do this horrible shell hack...
+		shellString :=
+			"mount --make-rslave /; exec " +
+				utils.ShellQuoteArguments(params)
+
+		params = []string{
+			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
 	}
-	container.cmd = exec.Command(lxcStart, params...)
+
+	container.cmd = exec.Command(params[0], params[1:]...)
+
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
 		return err
