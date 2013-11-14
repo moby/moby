@@ -457,7 +457,7 @@ func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerChanges(name string) ([]Change, error) {
+func (srv *Server) ContainerChanges(name string) ([]archive.Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Changes()
 	}
@@ -546,7 +546,8 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
-	for _, id := range history {
+	for i := len(history) - 1; i >= 0; i-- {
+		id := history[i]
 
 		// ensure no two downloads of the same layer happen at the same time
 		if err := srv.poolAdd("pull", "layer:"+id); err != nil {

@@ -5,7 +5,12 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
+	"github.com/dotcloud/docker/archive"
+	_ "github.com/dotcloud/docker/aufs"
+	_ "github.com/dotcloud/docker/devmapper"
 	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdriver"
+	_ "github.com/dotcloud/docker/graphdriver/dummy"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -13,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -39,6 +45,7 @@ type Runtime struct {
 	srv            *Server
 	config         *DaemonConfig
 	containerGraph *gograph.Database
+	driver         graphdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -116,6 +123,13 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := runtime.ensureName(container); err != nil {
 		return err
 	}
+
+	// Get the root filesystem from the driver
+	rootfs, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
+	}
+	container.rootfs = rootfs
 
 	// init the wait lock
 	container.waitLock = make(chan struct{})
@@ -222,12 +236,8 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return err
 	}
 
-	if mounted, err := container.Mounted(); err != nil {
-		return err
-	} else if mounted {
-		if err := container.Unmount(); err != nil {
-			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
-		}
+	if err := runtime.driver.Remove(container.ID); err != nil {
+		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", runtime.driver, container.ID, err)
 	}
 
 	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
@@ -444,6 +454,21 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
+	initID := fmt.Sprintf("%s-init", container.ID)
+	if err := runtime.driver.Create(initID, img.ID); err != nil {
+		return nil, nil, err
+	}
+	initPath, err := runtime.driver.Get(initID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := setupInitLayer(initPath); err != nil {
+		return nil, nil, err
+	}
+
+	if err := runtime.driver.Create(container.ID, initID); err != nil {
+		return nil, nil, err
+	}
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return nil, nil, err
@@ -584,6 +609,13 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+	// Load storage driver
+	driver, err := graphdriver.New(config.Root)
+	if err != nil {
+		return nil, err
+	}
+	utils.Debugf("Using graph driver %s", driver)
+
 	runtimeRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
@@ -593,11 +625,11 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err := linkLxcStart(config.Root); err != nil {
 		return nil, err
 	}
-	g, err := NewGraph(path.Join(config.Root, "graph"))
+	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"), driver)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +674,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
+		driver:         driver,
 	}
 
 	if err := runtime.restore(); err != nil {
@@ -652,7 +685,79 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 func (runtime *Runtime) Close() error {
 	runtime.networkManager.Close()
+	runtime.driver.Cleanup()
 	return runtime.containerGraph.Close()
+}
+
+func (runtime *Runtime) Mount(container *Container) error {
+	dir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, runtime.driver, err)
+	}
+	if container.rootfs == "" {
+		container.rootfs = dir
+	} else if container.rootfs != dir {
+		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+			runtime.driver, container.ID, container.rootfs, dir)
+	}
+	return nil
+}
+
+func (runtime *Runtime) Unmount(container *Container) error {
+	// FIXME: Unmount is deprecated because drivers are responsible for mounting
+	// and unmounting when necessary. Use driver.Remove() instead.
+	return nil
+}
+
+func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Changes(container.ID)
+	}
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	initDir, err := runtime.driver.Get(container.ID + "-init")
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	return archive.ChangesDirs(cDir, initDir)
+}
+
+func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Diff(container.ID)
+	}
+
+	changes, err := runtime.Changes(container)
+	if err != nil {
+		return nil, err
+	}
+
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+
+	files := make([]string, 0)
+	deletions := make([]string, 0)
+	for _, change := range changes {
+		if change.Kind == archive.ChangeModify || change.Kind == archive.ChangeAdd {
+			files = append(files, change.Path)
+		}
+		if change.Kind == archive.ChangeDelete {
+			base := filepath.Base(change.Path)
+			dir := filepath.Dir(change.Path)
+			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+		}
+	}
+	// FIXME: Why do we create whiteout files inside Tar code ?
+	return archive.TarFilter(cDir, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		Includes:    files,
+		Recursive:   false,
+		CreateFiles: deletions,
+	})
 }
 
 func linkLxcStart(root string) error {

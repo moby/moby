@@ -38,6 +38,9 @@ var (
 )
 
 func nuke(runtime *Runtime) error {
+	if nonuke := os.Getenv("NONUKE"); nonuke != "" {
+		return nil
+	}
 	var wg sync.WaitGroup
 	for _, container := range runtime.List() {
 		wg.Add(1)
