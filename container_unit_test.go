@@ -4,8 +4,6 @@ import (
 	"testing"
 )
 
-
-
 func TestParseLxcConfOpt(t *testing.T) {
 	opts := []string{"lxc.utsname=docker", "lxc.utsname = docker "}
 
@@ -149,11 +147,7 @@ func TestParseNetworkOptsUdp(t *testing.T) {
 	}
 }
 
-
-
-
 // FIXME: test that destroying a container actually removes its root directory
-
 
 /*
 func TestLXCConfig(t *testing.T) {
@@ -241,7 +235,6 @@ func grepFile(t *testing.T, path string, pattern string) {
 	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
 }
 */
-
 
 func TestGetFullName(t *testing.T) {
 	name, err := getFullName("testing")

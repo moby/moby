@@ -1208,8 +1208,6 @@ func PartParser(template, data string) (map[string]string, error) {
 	return out, nil
 }
 
-
-
 var globalTestID string
 
 // TestDirectory creates a new temporary directory and returns its path.
@@ -1246,4 +1244,3 @@ func GetCallerName(depth int) string {
 	callerShortName := parts[len(parts)-1]
 	return callerShortName
 }
-

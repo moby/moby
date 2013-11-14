@@ -1,12 +1,11 @@
 package docker
 
 import (
-	"testing"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 )
-
 
 func TestGetBoolParam(t *testing.T) {
 	if ret, err := getBoolParam("true"); err != nil || !ret {

@@ -2,9 +2,9 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/utils"
-	"testing"
-	"path"
 	"os"
+	"path"
+	"testing"
 )
 
 const (
@@ -34,7 +34,6 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	}
 	return store
 }
-
 
 func TestLookupImage(t *testing.T) {
 	tmp, err := utils.TestDirectory("")

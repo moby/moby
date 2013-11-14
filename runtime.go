@@ -680,7 +680,6 @@ func (runtime *Runtime) Nuke() error {
 	return os.RemoveAll(runtime.config.Root)
 }
 
-
 func linkLxcStart(root string) error {
 	sourcePath, err := exec.LookPath("lxc-start")
 	if err != nil {

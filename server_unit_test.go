@@ -55,7 +55,6 @@ func TestPools(t *testing.T) {
 	}
 }
 
-
 func TestLogEvent(t *testing.T) {
 	srv := &Server{
 		events:    make([]utils.JSONMessage, 0, 64),
