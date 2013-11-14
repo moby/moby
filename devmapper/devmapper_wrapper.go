@@ -116,15 +116,6 @@ char*			attach_loop_device(const char *filename, int *loop_fd_out)
   return (NULL);
 }
 
-static int64_t	get_block_size(int fd)
-{
-  uint64_t	size;
-
-  if (ioctl(fd, BLKGETSIZE64, &size) == -1)
-    return -1;
-  return ((int64_t)size);
-}
-
 extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
 
 static void	log_cb(int level, const char *file, int line,
@@ -158,27 +149,26 @@ type (
 )
 
 var (
-	DmTaskDestory          = dmTaskDestroyFct
-	DmTaskCreate           = dmTaskCreateFct
-	DmTaskRun              = dmTaskRunFct
-	DmTaskSetName          = dmTaskSetNameFct
-	DmTaskSetMessage       = dmTaskSetMessageFct
-	DmTaskSetSector        = dmTaskSetSectorFct
-	DmTaskSetCookie        = dmTaskSetCookieFct
-	DmTaskSetAddNode       = dmTaskSetAddNodeFct
-	DmTaskSetRo            = dmTaskSetRoFct
-	DmTaskAddTarget        = dmTaskAddTargetFct
-	DmTaskGetDriverVersion = dmTaskGetDriverVersionFct
-	DmTaskGetInfo          = dmTaskGetInfoFct
-	DmGetNextTarget        = dmGetNextTargetFct
-	DmAttachLoopDevice     = dmAttachLoopDeviceFct
-	SysGetBlockSize        = sysGetBlockSizeFct
-	DmGetBlockSize         = dmGetBlockSizeFct
-	DmUdevWait             = dmUdevWaitFct
-	DmLogInitVerbose       = dmLogInitVerboseFct
-	LogWithErrnoInit       = logWithErrnoInitFct
-	DmSetDevDir            = dmSetDevDirFct
-	DmGetLibraryVersion    = dmGetLibraryVersionFct
+	DmTaskDestory       = dmTaskDestroyFct
+	DmTaskCreate        = dmTaskCreateFct
+	DmTaskRun           = dmTaskRunFct
+	DmTaskSetName       = dmTaskSetNameFct
+	DmTaskSetMessage    = dmTaskSetMessageFct
+	DmTaskSetSector     = dmTaskSetSectorFct
+	DmTaskSetCookie     = dmTaskSetCookieFct
+	DmTaskSetAddNode    = dmTaskSetAddNodeFct
+	DmTaskSetRo         = dmTaskSetRoFct
+	DmTaskAddTarget     = dmTaskAddTargetFct
+	DmTaskGetInfo       = dmTaskGetInfoFct
+	DmGetNextTarget     = dmGetNextTargetFct
+	DmGetBlockSize      = dmGetBlockSizeFct
+	DmAttachLoopDevice  = dmAttachLoopDeviceFct
+	DmUdevWait          = dmUdevWaitFct
+	DmLogInitVerbose    = dmLogInitVerboseFct
+	DmSetDevDir         = dmSetDevDirFct
+	DmGetLibraryVersion = dmGetLibraryVersionFct
+	LogWithErrnoInit    = logWithErrnoInitFct
+	GetBlockSize        = getBlockSizeFct
 )
 
 func free(p *C.char) {
@@ -249,14 +239,11 @@ func dmTaskAddTargetFct(task *CDmTask,
 		C.uint64_t(start), C.uint64_t(size), Cttype, Cparams))
 }
 
-func dmTaskGetDriverVersionFct(task *CDmTask, version *string) int {
-	buffer := C.CString(string(make([]byte, 128)))
-	defer free(buffer)
-	defer func() {
-		*version = C.GoString(buffer)
-	}()
-	return int(C.dm_task_get_driver_version((*C.struct_dm_task)(task),
-		buffer, 128))
+func dmGetBlockSizeFct(fd uintptr) (int64, syscall.Errno) {
+	var size int64
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
+		uintptr(unsafe.Pointer(&size)))
+	return size, err
 }
 
 func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
@@ -308,16 +295,10 @@ func dmAttachLoopDeviceFct(filename string, fd *int) string {
 	return C.GoString(ret)
 }
 
-// sysGetBlockSizeFct retrieves the block size from IOCTL
-func sysGetBlockSizeFct(fd uintptr, size *uint64) syscall.Errno {
+func getBlockSizeFct(fd uintptr, size *uint64) syscall.Errno {
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
 		uintptr(unsafe.Pointer(&size)))
 	return err
-}
-
-// dmGetBlockSizeFct retrieves the block size from library call
-func dmGetBlockSizeFct(fd uintptr) int64 {
-	return int64(C.get_block_size(C.int(fd)))
 }
 
 func dmUdevWaitFct(cookie uint) int {

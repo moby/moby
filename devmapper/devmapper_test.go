@@ -36,11 +36,11 @@ func TestTaskRun(t *testing.T) {
 
 	task = taskCreate(t, DeviceInfo)
 	// Perform the RUN
-	if err := task.Run(); err == nil {
+	if err := task.Run(); err != ErrTaskRun {
 		t.Fatalf("An error should have occured while running task.")
 	}
 	// Make sure GetInfo also fails
-	if _, err := task.GetInfo(); err == nil {
+	if _, err := task.GetInfo(); err != ErrTaskGetInfo {
 		t.Fatalf("GetInfo should fail if task.Run() failed.")
 	}
 }
@@ -56,6 +56,7 @@ func TestTaskSetName(t *testing.T) {
 	// Test failure
 	DmTaskSetName = dmTaskSetNameFail
 	defer func() { DmTaskSetName = dmTaskSetNameFct }()
+
 	if err := task.SetName("test"); err != ErrTaskSetName {
 		t.Fatalf("An error should have occured while runnign SetName.")
 	}
@@ -72,6 +73,7 @@ func TestTaskSetMessage(t *testing.T) {
 	// Test failure
 	DmTaskSetMessage = dmTaskSetMessageFail
 	defer func() { DmTaskSetMessage = dmTaskSetMessageFct }()
+
 	if err := task.SetMessage("test"); err != ErrTaskSetMessage {
 		t.Fatalf("An error should have occured while runnign SetMessage.")
 	}
@@ -120,21 +122,83 @@ func TestTaskSetCookie(t *testing.T) {
 
 func TestTaskSetAddNode(t *testing.T) {
 	task := taskCreate(t, DeviceInfo)
+
+	// Test success
 	if err := task.SetAddNode(0); err != nil {
 		t.Fatal(err)
+	}
+
+	// Test failure
+	if err := task.SetAddNode(-1); err != ErrInvalidAddNode {
+		t.Fatalf("An error should have occured running SetAddNode with wrong node.")
+	}
+
+	DmTaskSetAddNode = dmTaskSetAddNodeFail
+	defer func() { DmTaskSetAddNode = dmTaskSetAddNodeFct }()
+
+	if err := task.SetAddNode(0); err != ErrTaskSetAddNode {
+		t.Fatalf("An error should have occured running SetAddNode.")
 	}
 }
 
 func TestTaskSetRo(t *testing.T) {
 	task := taskCreate(t, DeviceInfo)
+
+	// Test success
 	if err := task.SetRo(); err != nil {
 		t.Fatal(err)
+	}
+
+	// Test failure
+	DmTaskSetRo = dmTaskSetRoFail
+	defer func() { DmTaskSetRo = dmTaskSetRoFct }()
+
+	if err := task.SetRo(); err != ErrTaskSetRo {
+		t.Fatalf("An error should have occured running SetRo.")
 	}
 }
 
 func TestTaskAddTarget(t *testing.T) {
-	//	task := taskCreate(t, DeviceInfo)
+	task := taskCreate(t, DeviceInfo)
+
+	// Test success
+	if err := task.AddTarget(0, 128, "thinp", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test failure
+	DmTaskAddTarget = dmTaskAddTargetFail
+	defer func() { DmTaskAddTarget = dmTaskAddTargetFct }()
+
+	if err := task.AddTarget(0, 128, "thinp", ""); err != ErrTaskAddTarget {
+		t.Fatalf("An error should have occured running AddTarget.")
+	}
 }
+
+// func TestTaskGetInfo(t *testing.T) {
+// 	task := taskCreate(t, DeviceInfo)
+
+// 	// Test success
+// 	if _, err := task.GetInfo(); err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	// Test failure
+// 	DmTaskGetInfo = dmTaskGetInfoFail
+// 	defer func() { DmTaskGetInfo = dmTaskGetInfoFct }()
+
+// 	if _, err := task.GetInfo(); err != ErrTaskGetInfo {
+// 		t.Fatalf("An error should have occured running GetInfo.")
+// 	}
+// }
+
+// func TestTaskGetNextTarget(t *testing.T) {
+// 	task := taskCreate(t, DeviceInfo)
+
+// 	if next, _, _, _, _ := task.GetNextTarget(0); next == 0 {
+// 		t.Fatalf("The next target should not be 0.")
+// 	}
+// }
 
 /// Utils
 func taskCreate(t *testing.T, taskType TaskType) *Task {
