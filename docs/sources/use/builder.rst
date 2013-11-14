@@ -310,8 +310,9 @@ this optional but default, you could use a CMD:
 
     ``VOLUME ["/data"]``
 
-The ``VOLUME`` instruction will add one or more new volumes to any
-container created from the image.
+The ``VOLUME`` instruction will create a mount point with the specified name and mark it 
+as holding externally mounted volumes from native host or other containers. For more information/examples 
+and mounting instructions via docker client, refer to :ref:`volume_def` documentation. 
 
 3.10 USER
 ---------
