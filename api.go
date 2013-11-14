@@ -536,6 +536,9 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 
 func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
+	if version > 1.0 {
+		w.Header().Set("Content-Type", "application/x-tar")
+	}
 	err := srv.ImageExport(name, w)
 	if err != nil {
 		return err
