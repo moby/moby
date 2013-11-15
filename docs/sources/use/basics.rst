@@ -53,39 +53,36 @@ Running an interactive shell
 
 .. _dockergroup:
 
-Why ``sudo``?
--------------
+sudo and the docker Group
+-------------------------
 
 The ``docker`` daemon always runs as root, and since ``docker``
 version 0.5.2, ``docker`` binds to a Unix socket instead of a TCP
 port. By default that Unix socket is owned by the user *root*, and so,
 by default, you can access it with ``sudo``.
 
-Starting in version 0.5.3, if you create a Unix group called *docker*
-and add users to it, then the ``docker`` daemon will make the
-ownership of the Unix socket read/writable by the *docker* group when
-the daemon starts. The ``docker`` daemon must always run as root, but
-if you run the ``docker`` client as a user in the *docker* group then
-you don't need to add ``sudo`` to all the client commands.
+Starting in version 0.5.3, if you (or your Docker installer) create a
+Unix group called *docker* and add users to it, then the ``docker``
+daemon will make the ownership of the Unix socket read/writable by the
+*docker* group when the daemon starts. The ``docker`` daemon must
+always run as root, but if you run the ``docker`` client as a user in
+the *docker* group then you don't need to add ``sudo`` to all the
+client commands.
 
-Alternative to ``sudo``?
--------------
-
-You can add your current ``<username>`` to docker's group and get rid of
-``sudo`` before each ``docker`` command. You just need to type:
-``$ sudo usermod -a -G docker <username>``
+**Example:**
 
 .. code-block:: bash
 
-  # Add the docker group
+  # Add the docker group if it doesn't already exist.
   sudo groupadd docker
 
-  # Add the ubuntu user to the docker group
+  # Add the user "ubuntu" to the docker group.
+  # Change the user name to match your preferred user.
   # You may have to logout and log back in again for
-  # this to take effect
+  # this to take effect.
   sudo gpasswd -a ubuntu docker
 
-  # Restart the docker daemon
+  # Restart the docker daemon.
   sudo service docker restart
 
 .. _bind_docker:
