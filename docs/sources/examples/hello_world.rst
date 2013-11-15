@@ -127,10 +127,11 @@ Check the logs make sure it is working correctly.
 
     sudo docker attach $CONTAINER_ID
 
-Attach to the container to see the results in realtime.
+Attach to the container to see the results in real-time.
 
 - **"docker attach**" This will allow us to attach to a background
   process to see what is going on.
+- **"-sig-proxy=true" Proxify all received signal to the process (even in non-tty mode)
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
 Exit from the container attachment by pressing Control-C.
