@@ -262,6 +262,7 @@ func (runtime *Runtime) restore() error {
 		return err
 	}
 	containers := make(map[string]*Container)
+	currentDriver := runtime.driver.String()
 
 	for i, v := range dir {
 		id := v.Name()
@@ -273,8 +274,14 @@ func (runtime *Runtime) restore() error {
 			utils.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		utils.Debugf("Loaded container %v", container.ID)
-		containers[container.ID] = container
+
+		// Ignore the container if it does not support the current driver being used by the graph
+		if container.Driver == "" && currentDriver == "aufs" || container.Driver == currentDriver {
+			utils.Debugf("Loaded container %v", container.ID)
+			containers[container.ID] = container
+		} else {
+			utils.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+		}
 	}
 
 	register := func(container *Container) {
@@ -445,6 +452,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		// FIXME: do we need to store this in the container?
 		SysInitPath: sysInitPath,
 		Name:        name,
+		Driver:      runtime.driver.String(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.

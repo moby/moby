@@ -47,6 +47,7 @@ type Container struct {
 	HostnamePath   string
 	HostsPath      string
 	Name           string
+	Driver         string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
