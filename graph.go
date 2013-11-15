@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -212,6 +213,13 @@ func setupInitLayer(initLayer string) error {
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
+		parts := strings.Split(pth, "/")
+		prev := "/"
+		for _, p := range parts[1:] {
+			prev = path.Join(prev, p)
+			syscall.Unlink(path.Join(initLayer, prev))
+		}
+
 		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
 				switch typ {
