@@ -322,6 +322,18 @@ The ``VOLUME`` instruction will create a mount point with the specified name and
 as holding externally mounted volumes from native host or other containers. For more information/examples 
 and mounting instructions via docker client, refer to :ref:`volume_def` documentation. 
 
+This instruction will only mark the specified directory within a container as holding persistent data, so that 
+at the runtime, you can specify the directories (from host, or other runtime containers) to mount from. 
+
+More specifically, this will cause the runtime to handle them differently:
+* Changes to a data volume are not recorded as regular filesystem changes in the top layer, and will not be included
+  at the next commit.
+* Changes to a data volume are made directly, without the overhead of a copy-on-write mechanism. This is good for 
+  very large files.
+* Also allows the **data volumes to be shared and reused between containers**. This is the feature that makes 
+  data volumes so powerful. You can use it for anything from hot database upgrades to custom backup or replication.
+
+
 3.10 USER
 ---------
 
