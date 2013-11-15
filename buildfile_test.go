@@ -296,6 +296,28 @@ func TestBuildMaintainer(t *testing.T) {
 	}
 }
 
+func TestBuildInteractive(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        interactive true
+    `, nil, nil}, t, nil, true)
+
+	if !img.Config.OpenStdin {
+		t.Fail()
+	}
+}
+
+func TestBuildTty(t *testing.T) {
+	img := buildImage(testContextTemplate{`
+        from {IMAGE}
+        tty true
+    `, nil, nil}, t, nil, true)
+
+	if !img.Config.Tty {
+		t.Fail()
+	}
+}
+
 func TestBuildUser(t *testing.T) {
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
