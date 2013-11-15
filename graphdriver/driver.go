@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
-	"os"
 	"path"
 )
+
+var DefaultDriver string
 
 type InitFunc func(root string) (Driver, error)
 
@@ -64,9 +65,9 @@ func GetDriver(name, home string) (Driver, error) {
 func New(root string) (Driver, error) {
 	var driver Driver
 	var lastError error
-	// Use environment variable DOCKER_DRIVER to force a choice of driver
-	if name := os.Getenv("DOCKER_DRIVER"); name != "" {
-		return GetDriver(name, root)
+
+	if DefaultDriver != "" {
+		return GetDriver(DefaultDriver, root)
 	}
 	// Check for priority drivers first
 	for _, name := range priority {

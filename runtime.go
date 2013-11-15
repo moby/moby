@@ -637,6 +637,10 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+
+	// Set the default driver
+	graphdriver.DefaultDriver = config.GraphDriver
+
 	// Load storage driver
 	driver, err := graphdriver.New(config.Root)
 	if err != nil {
