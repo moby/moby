@@ -375,6 +375,7 @@ func (srv *Server) DockerInfo() *APIInfo {
 	return &APIInfo{
 		Containers:         len(srv.runtime.List()),
 		Images:             imgcount,
+		Driver:             srv.runtime.driver.String(),
 		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
 		SwapLimit:          srv.runtime.capabilities.SwapLimit,
 		IPv4Forwarding:     !srv.runtime.capabilities.IPv4ForwardingDisabled,

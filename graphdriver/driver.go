@@ -11,6 +11,8 @@ import (
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
+	String() string
+
 	Create(id, parent string) error
 	Remove(id string) error
 

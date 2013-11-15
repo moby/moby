@@ -52,6 +52,7 @@ type APIInfo struct {
 	Debug              bool
 	Containers         int
 	Images             int
+	Driver             string `json:",omitempty"`
 	NFd                int    `json:",omitempty"`
 	NGoroutines        int    `json:",omitempty"`
 	MemoryLimit        bool   `json:",omitempty"`
