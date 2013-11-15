@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdb"
 	"github.com/dotcloud/docker/graphdriver"
 	_ "github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
@@ -43,7 +43,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
-	containerGraph *gograph.Database
+	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 }
 
@@ -581,7 +581,7 @@ func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
 	}
 	children := make(map[string]*Container)
 
-	err = runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+	err = runtime.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
 		c := runtime.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
@@ -659,20 +659,20 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	gographPath := path.Join(config.Root, "linkgraph.db")
+	graphdbPath := path.Join(config.Root, "linkgraph.db")
 	initDatabase := false
-	if _, err := os.Stat(gographPath); err != nil {
+	if _, err := os.Stat(graphdbPath); err != nil {
 		if os.IsNotExist(err) {
 			initDatabase = true
 		} else {
 			return nil, err
 		}
 	}
-	conn, err := sql.Open("sqlite3", gographPath)
+	conn, err := sql.Open("sqlite3", graphdbPath)
 	if err != nil {
 		return nil, err
 	}
-	graph, err := gograph.NewDatabase(conn, initDatabase)
+	graph, err := graphdb.NewDatabase(conn, initDatabase)
 	if err != nil {
 		return nil, err
 	}

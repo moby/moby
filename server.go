@@ -8,7 +8,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdb"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -502,7 +502,7 @@ func createAPIContainer(container *Container, size bool, runtime *Runtime) APICo
 		ID: container.ID,
 	}
 	names := []string{}
-	runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
+	runtime.containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
 		if e.ID() == container.ID {
 			names = append(names, p)
 		}
