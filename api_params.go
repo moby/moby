@@ -52,15 +52,17 @@ type APIInfo struct {
 	Debug              bool
 	Containers         int
 	Images             int
-	NFd                int    `json:",omitempty"`
-	NGoroutines        int    `json:",omitempty"`
-	MemoryLimit        bool   `json:",omitempty"`
-	SwapLimit          bool   `json:",omitempty"`
-	IPv4Forwarding     bool   `json:",omitempty"`
-	LXCVersion         string `json:",omitempty"`
-	NEventsListener    int    `json:",omitempty"`
-	KernelVersion      string `json:",omitempty"`
-	IndexServerAddress string `json:",omitempty"`
+	Driver             string      `json:",omitempty"`
+	DriverStatus       [][2]string `json:",omitempty"`
+	NFd                int         `json:",omitempty"`
+	NGoroutines        int         `json:",omitempty"`
+	MemoryLimit        bool        `json:",omitempty"`
+	SwapLimit          bool        `json:",omitempty"`
+	IPv4Forwarding     bool        `json:",omitempty"`
+	LXCVersion         string      `json:",omitempty"`
+	NEventsListener    int         `json:",omitempty"`
+	KernelVersion      string      `json:",omitempty"`
+	IndexServerAddress string      `json:",omitempty"`
 }
 
 type APITop struct {

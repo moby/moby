@@ -11,11 +11,15 @@ import (
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
+	String() string
+
 	Create(id, parent string) error
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
 	Size(id string) (bytes int64, err error)
+
+	Status() [][2]string
 
 	Cleanup() error
 }

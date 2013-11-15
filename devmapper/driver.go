@@ -37,6 +37,21 @@ func (d *Driver) String() string {
 	return "devicemapper"
 }
 
+func (d *Driver) Status() [][2]string {
+	s := d.DeviceSet.Status()
+
+	status := [][2]string{
+		{"Pool Name", s.PoolName},
+		{"Data file", s.DataLoopback},
+		{"Metadata file", s.MetadataLoopback},
+		{"Data Space Used", fmt.Sprintf("%.1f Mb", float64(s.Data.Used)/(1024*1024))},
+		{"Data Space Total", fmt.Sprintf("%.1f Mb", float64(s.Data.Total)/(1024*1024))},
+		{"Metadata Space Used", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Used)/(1024*1024))},
+		{"Metadata Space Total", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Total)/(1024*1024))},
+	}
+	return status
+}
+
 func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }

@@ -103,6 +103,10 @@ func (a *AufsDriver) String() string {
 	return "aufs"
 }
 
+func (d *AufsDriver) Status() [][2]string {
+	return nil
+}
+
 // Three folders are created for each id
 // mnt, layers, and diff
 func (a *AufsDriver) Create(id, parent string) error {
