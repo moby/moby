@@ -29,7 +29,7 @@ with your own user name.
 
 .. code-block:: bash
 
-    sudo docker build -t <your username>/redis
+    sudo docker build -t <your username>/redis .
 
 Run the service
 ---------------
