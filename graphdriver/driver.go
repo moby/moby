@@ -50,7 +50,7 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-func getDriver(name, home string) (Driver, error) {
+func GetDriver(name, home string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(path.Join(home, name))
 	}
@@ -62,11 +62,11 @@ func New(root string) (Driver, error) {
 	var lastError error
 	// Use environment variable DOCKER_DRIVER to force a choice of driver
 	if name := os.Getenv("DOCKER_DRIVER"); name != "" {
-		return getDriver(name, root)
+		return GetDriver(name, root)
 	}
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, lastError = getDriver(name, root)
+		driver, lastError = GetDriver(name, root)
 		if lastError != nil {
 			utils.Debugf("Error loading driver %s: %s", name, lastError)
 			continue

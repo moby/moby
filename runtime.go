@@ -629,7 +629,14 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"), driver)
+
+	// We don't want to use a complex driver like aufs or devmapper
+	// for volumes, just a plain filesystem
+	volumesDriver, err := graphdriver.GetDriver("dummy", config.Root)
+	if err != nil {
+		return nil, err
+	}
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
