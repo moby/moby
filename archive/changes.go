@@ -280,11 +280,7 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	return newRoot.Changes(oldRoot), nil
 }
 
-func ExportChanges(root, rw string) (Archive, error) {
-	changes, err := ChangesDirs(root, rw)
-	if err != nil {
-		return nil, err
-	}
+func ExportChanges(dir string, changes []Change) (Archive, error) {
 	files := make([]string, 0)
 	deletions := make([]string, 0)
 	for _, change := range changes {
@@ -297,5 +293,11 @@ func ExportChanges(root, rw string) (Archive, error) {
 			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
 		}
 	}
-	return TarFilter(root, &TarOptions{Compression: Uncompressed, Recursive: false, Includes: files, CreateFiles: deletions})
+	// FIXME: Why do we create whiteout files inside Tar code ?
+	return TarFilter(dir, &TarOptions{
+		Compression: Uncompressed,
+		Includes:    files,
+		Recursive:   false,
+		CreateFiles: deletions,
+	})
 }

@@ -49,7 +49,7 @@ func ApplyLayer(dest string, layer Archive) error {
 			rmTargetPath := filepath.Join(filepath.Dir(fullPath), rmTargetName)
 			// Remove the file targeted by the whiteout
 			log.Printf("Removing whiteout target %s", rmTargetPath)
-			_ = os.Remove(rmTargetPath)
+			_ = os.RemoveAll(rmTargetPath)
 			// Remove the whiteout itself
 			log.Printf("Removing whiteout %s", fullPath)
 			_ = os.RemoveAll(fullPath)
