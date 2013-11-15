@@ -19,6 +19,8 @@ type Driver interface {
 	Get(id string) (dir string, err error)
 	Size(id string) (bytes int64, err error)
 
+	Status() [][2]string
+
 	Cleanup() error
 }
 

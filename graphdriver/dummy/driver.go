@@ -27,6 +27,10 @@ func (d *Driver) String() string {
 	return "dummy"
 }
 
+func (d *Driver) Status() [][2]string {
+	return nil
+}
+
 func (d *Driver) Cleanup() error {
 	return nil
 }
