@@ -6,12 +6,16 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 )
 
 // This file contains utility functions for docker's unit test suite.
@@ -53,6 +57,105 @@ func createTestContainer(eng *engine.Engine, config *docker.Config, f utils.Fata
 	return createNamedTestContainer(eng, config, f, "")
 }
 
+func startContainer(eng *engine.Engine, id string, t utils.Fataler) {
+	job := eng.Job("start", id)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+
+func containerRun(eng *engine.Engine, id string, t utils.Fataler) {
+	startContainer(eng, id, t)
+	containerWait(eng, id, t)
+}
+
+func containerFileExists(eng *engine.Engine, id, dir string, t utils.Fataler) bool {
+	c := getContainer(eng, id, t)
+	if err := c.EnsureMounted(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path.Join(c.RootfsPath(), dir)); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		t.Fatal(err)
+	}
+	return true
+}
+
+func containerAttach(eng *engine.Engine, id string, t utils.Fataler) (io.WriteCloser, io.ReadCloser) {
+	c := getContainer(eng, id, t)
+	i, err := c.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return i, o
+}
+
+
+func containerWait(eng *engine.Engine, id string, t utils.Fataler) int {
+	return getContainer(eng, id, t).Wait()
+}
+
+
+func containerWaitTimeout(eng *engine.Engine, id string, t utils.Fataler) error {
+	return getContainer(eng, id, t).WaitTimeout(500 * time.Millisecond)
+}
+
+func containerKill(eng *engine.Engine, id string, t utils.Fataler) {
+	if err := getContainer(eng, id, t).Kill(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func containerRunning(eng *engine.Engine, id string, t utils.Fataler) bool {
+	return getContainer(eng, id, t).State.Running
+}
+
+func containerAssertExists(eng *engine.Engine, id string, t utils.Fataler) {
+	getContainer(eng, id, t)
+}
+
+func containerAssertNotExists(eng *engine.Engine, id string, t utils.Fataler) {
+	runtime := mkRuntimeFromEngine(eng, t)
+	if c := runtime.Get(id); c != nil {
+		t.Fatal(fmt.Errorf("Container %s should not exist", id))
+	}
+}
+
+// assertHttpNotError expect the given response to not have an error.
+// Otherwise the it causes the test to fail.
+func assertHttpNotError(r *httptest.ResponseRecorder, t utils.Fataler) {
+	// Non-error http status are [200, 400)
+	if r.Code < http.StatusOK || r.Code >= http.StatusBadRequest {
+		t.Fatal(fmt.Errorf("Unexpected http error: %v", r.Code))
+	}
+}
+
+
+// assertHttpError expect the given response to have an error.
+// Otherwise the it causes the test to fail.
+func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
+	// Non-error http status are [200, 400)
+	if !(r.Code < http.StatusOK || r.Code >= http.StatusBadRequest) {
+		t.Fatal(fmt.Errorf("Unexpected http success code: %v", r.Code))
+	}
+}
+
+func getContainer(eng *engine.Engine, id string, t utils.Fataler) *docker.Container {
+	runtime := mkRuntimeFromEngine(eng, t)
+	c := runtime.Get(id)
+	if c == nil  {
+		t.Fatal(fmt.Errorf("No such container: %s", id))
+	}
+	return c
+}
+
 func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *docker.Server {
 	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
 	if iSrv == nil {
@@ -91,6 +194,8 @@ func NewTestEngine(t utils.Fataler) *engine.Engine {
 	job := eng.Job("initapi")
 	job.Setenv("Root", root)
 	job.SetenvBool("AutoRestart", false)
+	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
+	job.SetenvBool("EnableCors", true)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
