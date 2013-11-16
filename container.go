@@ -93,6 +93,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	RWTopLayer      bool // Whether there should be a read-writable top layer.
 }
 
 type HostConfig struct {
@@ -175,6 +176,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
 	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
 	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
+	flRWTopLayer := cmd.Bool("ro", false, "Read-only, i.e. run container entirely without a read-write layer")
 	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	cmd.String("name", "", "Assign a name to the container")
@@ -330,6 +332,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		User:            *flUser,
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
+		RWTopLayer:      !*flRWTopLayer,
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
@@ -1484,7 +1487,11 @@ func (container *Container) Mount() error {
 	if err != nil {
 		return err
 	}
-	return image.Mount(container.RootfsPath(), container.rwPath())
+	rw := container.rwPath()
+	if !container.Config.RWTopLayer {
+		rw = ""
+	}
+	return image.Mount(container.RootfsPath(), rw)
 }
 
 func (container *Container) Changes() ([]Change, error) {
@@ -1513,6 +1520,17 @@ func (container *Container) Unmount() error {
 		}
 		return err
 	}
+
+	if !container.Config.RWTopLayer {
+		// Without a read-writable top layer, /dev is mounted as tmpfs,
+		// so unmount that first.
+		// Use syscall.Unmount() directly because Unmount() will run
+		// auplink(8), which segfaults when run on tmpfs.
+		if err := syscall.Unmount(path.Join(container.RootfsPath(), "dev"), 0); err != nil {
+			return err
+		}
+	}
+
 	return Unmount(container.RootfsPath())
 }
 

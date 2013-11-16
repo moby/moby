@@ -139,12 +139,16 @@ func jsonPath(root string) string {
 
 func MountAUFS(ro []string, rw string, target string) error {
 	// FIXME: Now mount the layers
-	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {
 		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
-	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
+	var branches string
+	if rw != "" {
+		branches = fmt.Sprintf("br:%v=rw:%v", rw, roBranches)
+	} else {
+		branches = fmt.Sprintf("br:%v", roBranches)
+	}
 
 	branches += ",xino=/dev/shm/aufs.xino"
 
@@ -185,11 +189,28 @@ func (image *Image) Mount(root, rw string) error {
 	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-		return err
+	if rw != "" {
+		if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
 	}
 	if err := MountAUFS(layers, rw, root); err != nil {
 		return err
+	}
+
+	if rw == "" {
+		// Since /dev is not writable, but lxc-start _needs_ to write on it, we
+		// mount a tmpfs on /dev.
+		if err := mount("none", root+"/dev", "tmpfs", 0, ""); err != nil {
+			return err
+		}
+		// TODO: This is a code duplication with getDockerInitLayer() in graph.go
+		if err := os.Mkdir(root+"/dev/pts", 0755); err != nil {
+			return err
+		}
+		if err := os.Mkdir(root+"/dev/shm", 0755); err != nil {
+			return err
+		}
 	}
 	return nil
 }

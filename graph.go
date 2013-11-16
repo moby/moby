@@ -201,6 +201,7 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 		"/dev/shm":         "dir",
 		"/proc":            "dir",
 		"/sys":             "dir",
+		"/lxc_putold":      "dir",
 		"/.dockerinit":     "file",
 		"/.dockerenv":      "file",
 		"/etc/resolv.conf": "file",
