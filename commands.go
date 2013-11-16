@@ -1924,7 +1924,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := Subcmd("cp", "CONTAINER:RESOURCE HOSTPATH", "Copy files/folders from the RESOURCE to the HOSTPATH")
+	cmd := Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1938,7 +1938,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	info := strings.Split(cmd.Arg(0), ":")
 
 	if len(info) != 2 {
-		return fmt.Errorf("Error: Resource not specified")
+		return fmt.Errorf("Error: Path not specified")
 	}
 
 	copyData.Resource = info[1]

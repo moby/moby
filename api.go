@@ -978,7 +978,7 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if copyData.Resource == "" {
-		return fmt.Errorf("Resource cannot be empty")
+		return fmt.Errorf("Path cannot be empty")
 	}
 	if copyData.Resource[0] == '/' {
 		copyData.Resource = copyData.Resource[1:]
