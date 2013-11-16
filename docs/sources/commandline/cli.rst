@@ -157,7 +157,7 @@ by using the ``git://`` schema.
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       -run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 Simple commit of an existing container
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -173,7 +173,7 @@ Simple commit of an existing container
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
-	S
+	
 
 Full -run example
 .................
