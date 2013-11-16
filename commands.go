@@ -135,7 +135,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 // mkBuildContext returns an archive of an empty context with the contents
 // of `dockerfile` at the path ./Dockerfile
-func mkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
+func MkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	files = append(files, [2]string{"Dockerfile", dockerfile})
@@ -185,7 +185,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		context, err = mkBuildContext(string(dockerfile), nil)
+		context, err = MkBuildContext(string(dockerfile), nil)
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {

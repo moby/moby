@@ -15,6 +15,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -516,7 +517,12 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
+// FIXME: this is deprecated by the getFullName *function*
 func (runtime *Runtime) getFullName(name string) (string, error) {
+	return getFullName(name)
+}
+
+func getFullName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
 	}
@@ -655,6 +661,25 @@ func (runtime *Runtime) Close() error {
 	return runtime.containerGraph.Close()
 }
 
+// Nuke kills all containers then removes all content
+// from the content root, including images, volumes and
+// container filesystems.
+// Again: this will remove your entire docker runtime!
+func (runtime *Runtime) Nuke() error {
+	var wg sync.WaitGroup
+	for _, container := range runtime.List() {
+		wg.Add(1)
+		go func(c *Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
+	}
+	wg.Wait()
+	runtime.Close()
+
+	return os.RemoveAll(runtime.config.Root)
+}
+
 func linkLxcStart(root string) error {
 	sourcePath, err := exec.LookPath("lxc-start")
 	if err != nil {
@@ -670,6 +695,14 @@ func linkLxcStart(root string) error {
 		}
 	}
 	return os.Symlink(sourcePath, targetPath)
+}
+
+// FIXME: this is a convenience function for integration tests
+// which need direct access to runtime.graph.
+// Once the tests switch to using engine and jobs, this method
+// can go away.
+func (runtime *Runtime) Graph() *Graph {
+	return runtime.graph
 }
 
 // History is a convenience type for storing a list of containers,

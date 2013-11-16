@@ -930,7 +930,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			return err
 		}
-		c, err := mkBuildContext(string(dockerFile), nil)
+		c, err := MkBuildContext(string(dockerFile), nil)
 		if err != nil {
 			return err
 		}
@@ -1106,6 +1106,20 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	}
 
 	return r, nil
+}
+
+// ServeRequest processes a single http request to the docker remote api.
+// FIXME: refactor this to be part of Server and not require re-creating a new
+// router each time. This requires first moving ListenAndServe into Server.
+func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *http.Request) error {
+	router, err := createRouter(srv, false)
+	if err != nil {
+		return err
+	}
+	// Insert APIVERSION into the request as a convenience
+	req.URL.Path = fmt.Sprintf("/v%g%s", apiversion, req.URL.Path)
+	router.ServeHTTP(w, req)
+	return nil
 }
 
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
