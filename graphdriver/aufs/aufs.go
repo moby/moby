@@ -95,16 +95,23 @@ func supportsAufs() error {
 	return fmt.Errorf("AUFS was not found in /proc/filesystems")
 }
 
-func (a *AufsDriver) rootPath() string {
+func (a AufsDriver) rootPath() string {
 	return a.root
 }
 
-func (a *AufsDriver) String() string {
+func (AufsDriver) String() string {
 	return "aufs"
 }
 
-func (d *AufsDriver) Status() [][2]string {
+func (AufsDriver) Status() [][2]string {
 	return nil
+}
+
+func (a AufsDriver) Exists(id string) bool {
+	if _, err := os.Lstat(path.Join(a.rootPath(), "diff", id)); err != nil {
+		return false
+	}
+	return true
 }
 
 // Three folders are created for each id

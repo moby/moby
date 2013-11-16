@@ -8,7 +8,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdb"
 	"github.com/dotcloud/docker/graphdriver"
-	_ "github.com/dotcloud/docker/graphdriver/aufs"
+	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/dummy"
 	"github.com/dotcloud/docker/utils"
@@ -627,6 +627,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
+	}
+
+	if ad, ok := driver.(*aufs.AufsDriver); ok {
+		if err := ad.Migrate(path.Join(config.Root, "graph")); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := linkLxcStart(config.Root); err != nil {
