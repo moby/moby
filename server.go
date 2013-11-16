@@ -933,6 +933,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
+	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
 	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw); err != nil {
