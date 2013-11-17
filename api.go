@@ -683,17 +683,14 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	t, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil || t < 0 {
-		t = 10
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	if err := srv.ContainerStop(name, t); err != nil {
+	job := srv.Eng.Job("stop", vars["name"])
+	if t := r.Form.Get("t"); t != "" {
+		job.Args = append(job.Args, t)
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
