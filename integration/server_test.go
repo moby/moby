@@ -128,8 +128,7 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerStop(id, 1)
-	if err != nil {
+	if err := eng.Job("stop", id, "1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -187,7 +186,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerStop(id, 15); err != nil {
+	if err := eng.Job("stop", id, "15").Run(); err != nil {
 		t.Fatal(err)
 	}
 
