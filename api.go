@@ -150,19 +150,11 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	name := vars["name"]
-
-	signal := 0
-	if r != nil {
-		if s := r.Form.Get("signal"); s != "" {
-			s, err := strconv.Atoi(s)
-			if err != nil {
-				return err
-			}
-			signal = s
-		}
+	job := srv.Eng.Job("kill", vars["name"])
+	if sig := r.Form.Get("signal"); sig != "" {
+		job.Args = append(job.Args, sig)
 	}
-	if err := srv.ContainerKill(name, signal); err != nil {
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
