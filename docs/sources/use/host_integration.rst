@@ -37,7 +37,7 @@ named ``/etc/init/redis.conf`` and place the following into it:
 
    description "Redis container"
    author "Me"
-   start on filesystem and started lxc-net and started docker
+   start on filesystem and started docker
    stop on runlevel [!2345]
    respawn
    script
@@ -49,23 +49,12 @@ named ``/etc/init/redis.conf`` and place the following into it:
      /usr/bin/docker start -a 0a7e070b698b
    end script
 
-Next, we have to edit the docker upstart script (``/etc/init/docker.conf``)
-so that we run docker with ``-r=false``.  In this example, we also ensure
-that docker will start running before *redis* is started.
+Next, we have to configure docker so that it's run with the option ``-r=false``.
+Run the following command:
 
 .. code-block:: bash
 
-   description "Docker daemon"
-
-   start on filesystem and started lxc-net
-   start on (starting redis)
-   stop on runlevel [!2345]
-
-   respawn
-
-   script
-   	/usr/bin/docker -d -r=false
-   end script
+   $ sudo sh -c 'echo DOCKER_OPTS="-r=false" > /etc/default/docker'
 
 
 Sample systemd Script
