@@ -2,149 +2,147 @@ package docker
 
 import "strings"
 
-type APIHistory struct {
-	ID        string   `json:"Id"`
-	Tags      []string `json:",omitempty"`
-	Created   int64
-	CreatedBy string `json:",omitempty"`
-	Size      int64
-}
-
-type APIImages struct {
-	ID          string   `json:"Id"`
-	RepoTags    []string `json:",omitempty"`
-	Created     int64
-	Size        int64
-	VirtualSize int64
-	ParentId    string `json:",omitempty"`
-}
-
-type APIImagesOld struct {
-	Repository  string `json:",omitempty"`
-	Tag         string `json:",omitempty"`
-	ID          string `json:"Id"`
-	Created     int64
-	Size        int64
-	VirtualSize int64
-}
-
-func (self *APIImages) ToLegacy() []APIImagesOld {
-
-	outs := []APIImagesOld{}
-	for _, repotag := range self.RepoTags {
-
-		components := strings.SplitN(repotag, ":", 2)
-
-		outs = append(outs, APIImagesOld{
-			ID:          self.ID,
-			Repository:  components[0],
-			Tag:         components[1],
-			Created:     self.Created,
-			Size:        self.Size,
-			VirtualSize: self.VirtualSize,
-		})
+type (
+	APIHistory struct {
+		ID        string   `json:"Id"`
+		Tags      []string `json:",omitempty"`
+		Created   int64
+		CreatedBy string `json:",omitempty"`
+		Size      int64
 	}
 
+	APIImages struct {
+		ID          string   `json:"Id"`
+		RepoTags    []string `json:",omitempty"`
+		Created     int64
+		Size        int64
+		VirtualSize int64
+		ParentId    string `json:",omitempty"`
+	}
+
+	APIImagesOld struct {
+		Repository  string `json:",omitempty"`
+		Tag         string `json:",omitempty"`
+		ID          string `json:"Id"`
+		Created     int64
+		Size        int64
+		VirtualSize int64
+	}
+
+	APIInfo struct {
+		Debug              bool
+		Containers         int
+		Images             int
+		NFd                int    `json:",omitempty"`
+		NGoroutines        int    `json:",omitempty"`
+		MemoryLimit        bool   `json:",omitempty"`
+		SwapLimit          bool   `json:",omitempty"`
+		IPv4Forwarding     bool   `json:",omitempty"`
+		LXCVersion         string `json:",omitempty"`
+		NEventsListener    int    `json:",omitempty"`
+		KernelVersion      string `json:",omitempty"`
+		IndexServerAddress string `json:",omitempty"`
+	}
+
+	APITop struct {
+		Titles    []string
+		Processes [][]string
+	}
+
+	APIRmi struct {
+		Deleted  string `json:",omitempty"`
+		Untagged string `json:",omitempty"`
+	}
+
+	APIContainers struct {
+		ID         string `json:"Id"`
+		Image      string
+		Command    string
+		Created    int64
+		Status     string
+		Ports      []APIPort
+		SizeRw     int64
+		SizeRootFs int64
+		Names      []string
+	}
+
+	APIContainersOld struct {
+		ID         string `json:"Id"`
+		Image      string
+		Command    string
+		Created    int64
+		Status     string
+		Ports      string
+		SizeRw     int64
+		SizeRootFs int64
+	}
+
+	APIID struct {
+		ID string `json:"Id"`
+	}
+
+	APIRun struct {
+		ID       string   `json:"Id"`
+		Warnings []string `json:",omitempty"`
+	}
+
+	APIPort struct {
+		PrivatePort int64
+		PublicPort  int64
+		Type        string
+		IP          string
+	}
+
+	APIVersion struct {
+		Version   string
+		GitCommit string `json:",omitempty"`
+		GoVersion string `json:",omitempty"`
+	}
+
+	APIWait struct {
+		StatusCode int
+	}
+
+	APIAuth struct {
+		Status string
+	}
+
+	APIImageConfig struct {
+		ID string `json:"Id"`
+		*Config
+	}
+
+	APICopy struct {
+		Resource string
+		HostPath string
+	}
+)
+
+func (api APIImages) ToLegacy() []APIImagesOld {
+	outs := []APIImagesOld{}
+	for _, repotag := range api.RepoTags {
+		components := strings.SplitN(repotag, ":", 2)
+		outs = append(outs, APIImagesOld{
+			ID:          api.ID,
+			Repository:  components[0],
+			Tag:         components[1],
+			Created:     api.Created,
+			Size:        api.Size,
+			VirtualSize: api.VirtualSize,
+		})
+	}
 	return outs
 }
 
-type APIInfo struct {
-	Debug              bool
-	Containers         int
-	Images             int
-	NFd                int    `json:",omitempty"`
-	NGoroutines        int    `json:",omitempty"`
-	MemoryLimit        bool   `json:",omitempty"`
-	SwapLimit          bool   `json:",omitempty"`
-	IPv4Forwarding     bool   `json:",omitempty"`
-	LXCVersion         string `json:",omitempty"`
-	NEventsListener    int    `json:",omitempty"`
-	KernelVersion      string `json:",omitempty"`
-	IndexServerAddress string `json:",omitempty"`
-}
-
-type APITop struct {
-	Titles    []string
-	Processes [][]string
-}
-
-type APIRmi struct {
-	Deleted  string `json:",omitempty"`
-	Untagged string `json:",omitempty"`
-}
-
-type APIContainers struct {
-	ID         string `json:"Id"`
-	Image      string
-	Command    string
-	Created    int64
-	Status     string
-	Ports      []APIPort
-	SizeRw     int64
-	SizeRootFs int64
-	Names      []string
-}
-
-func (self *APIContainers) ToLegacy() APIContainersOld {
-	return APIContainersOld{
-		ID:         self.ID,
-		Image:      self.Image,
-		Command:    self.Command,
-		Created:    self.Created,
-		Status:     self.Status,
-		Ports:      displayablePorts(self.Ports),
-		SizeRw:     self.SizeRw,
-		SizeRootFs: self.SizeRootFs,
+func (api APIContainers) ToLegacy() *APIContainersOld {
+	return &APIContainersOld{
+		ID:         api.ID,
+		Image:      api.Image,
+		Command:    api.Command,
+		Created:    api.Created,
+		Status:     api.Status,
+		Ports:      displayablePorts(api.Ports),
+		SizeRw:     api.SizeRw,
+		SizeRootFs: api.SizeRootFs,
 	}
-}
-
-type APIContainersOld struct {
-	ID         string `json:"Id"`
-	Image      string
-	Command    string
-	Created    int64
-	Status     string
-	Ports      string
-	SizeRw     int64
-	SizeRootFs int64
-}
-
-type APIID struct {
-	ID string `json:"Id"`
-}
-
-type APIRun struct {
-	ID       string   `json:"Id"`
-	Warnings []string `json:",omitempty"`
-}
-
-type APIPort struct {
-	PrivatePort int64
-	PublicPort  int64
-	Type        string
-	IP          string
-}
-
-type APIVersion struct {
-	Version   string
-	GitCommit string `json:",omitempty"`
-	GoVersion string `json:",omitempty"`
-}
-
-type APIWait struct {
-	StatusCode int
-}
-
-type APIAuth struct {
-	Status string
-}
-
-type APIImageConfig struct {
-	ID string `json:"Id"`
-	*Config
-}
-
-type APICopy struct {
-	Resource string
-	HostPath string
 }

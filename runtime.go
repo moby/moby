@@ -1,7 +1,7 @@
 package docker
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3"
+	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 	"container/list"
 	"database/sql"
 	"fmt"
