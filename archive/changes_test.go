@@ -251,7 +251,8 @@ func TestChangesDirsMutated(t *testing.T) {
 }
 
 func TestApplyLayer(t *testing.T) {
-	return // Disable this for now as it is broken
+	t.Skip("Skipping TestApplyLayer due to known failures") // Disable this for now as it is broken
+	return
 
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
