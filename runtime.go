@@ -402,7 +402,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		if strings.HasSuffix(err.Error(), "name are not unique") {
-			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+			conflictingContainer, _ := runtime.GetByName(name)
+			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", name, utils.TruncateID(conflictingContainer.ID), name)
 		}
 		return nil, nil, err
 	}
