@@ -493,6 +493,21 @@ might not get preserved.
 
     Display system-wide information.
 
+.. code-block:: bash
+
+	$ sudo docker info
+	Containers: 292
+	Images: 194
+	Debug mode (server): false
+	Debug mode (client): false
+	Fds: 22
+	Goroutines: 67
+	LXC Version: 0.9.0
+	EventsListeners: 115
+	Kernel Version: 3.8.0-33-generic
+	WARNING: No swap limit support
+
+
 .. _cli_insert:
 
 ``insert``
