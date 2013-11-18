@@ -367,6 +367,72 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
+func (devices *DeviceSet) ResizePool(size int64) error {
+	dirname := devices.loopbackDir()
+	datafilename := path.Join(dirname, "data")
+	metadatafilename := path.Join(dirname, "metadata")
+
+	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
+	if datafile == nil {
+		return err
+	}
+	defer datafile.Close()
+
+	fi, err := datafile.Stat()
+	if fi == nil {
+		return err
+	}
+
+	if fi.Size() > size {
+		return fmt.Errorf("Can't shrink file")
+	}
+
+	dataloopback := FindLoopDeviceFor(datafile)
+	if dataloopback == nil {
+		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
+	}
+	defer dataloopback.Close()
+
+	metadatafile, err := os.OpenFile(metadatafilename, os.O_RDWR, 0)
+	if metadatafile == nil {
+		return err
+	}
+	defer metadatafile.Close()
+
+	metadataloopback := FindLoopDeviceFor(metadatafile)
+	if metadataloopback == nil {
+		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
+	}
+	defer metadataloopback.Close()
+
+	// Grow loopback file
+	if err := datafile.Truncate(size); err != nil {
+		return fmt.Errorf("Unable to grow loopback file: %s", err)
+	}
+
+	// Reload size for loopback device
+	if err := LoopbackSetCapacity(dataloopback); err != nil {
+		return fmt.Errorf("Unable to update loopback capacity: %s", err)
+	}
+
+	// Suspend the pool
+	if err := suspendDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to suspend pool: %s", err)
+	}
+
+	// Reload with the new block sizes
+	if err := reloadPool(devices.getPoolName(), dataloopback, metadataloopback); err != nil {
+		return fmt.Errorf("Unable to reload pool: %s", err)
+	}
+
+	// Resume the pool
+	if err := resumeDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to resume pool: %s", err)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
 
