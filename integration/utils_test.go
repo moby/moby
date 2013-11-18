@@ -3,10 +3,10 @@ package docker
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -64,7 +64,6 @@ func startContainer(eng *engine.Engine, id string, t utils.Fataler) {
 	}
 }
 
-
 func containerRun(eng *engine.Engine, id string, t utils.Fataler) {
 	startContainer(eng, id, t)
 	containerWait(eng, id, t)
@@ -97,11 +96,9 @@ func containerAttach(eng *engine.Engine, id string, t utils.Fataler) (io.WriteCl
 	return i, o
 }
 
-
 func containerWait(eng *engine.Engine, id string, t utils.Fataler) int {
 	return getContainer(eng, id, t).Wait()
 }
-
 
 func containerWaitTimeout(eng *engine.Engine, id string, t utils.Fataler) error {
 	return getContainer(eng, id, t).WaitTimeout(500 * time.Millisecond)
@@ -137,7 +134,6 @@ func assertHttpNotError(r *httptest.ResponseRecorder, t utils.Fataler) {
 	}
 }
 
-
 // assertHttpError expect the given response to have an error.
 // Otherwise the it causes the test to fail.
 func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
@@ -150,7 +146,7 @@ func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
 func getContainer(eng *engine.Engine, id string, t utils.Fataler) *docker.Container {
 	runtime := mkRuntimeFromEngine(eng, t)
 	c := runtime.Get(id)
-	if c == nil  {
+	if c == nil {
 		t.Fatal(fmt.Errorf("No such container: %s", id))
 	}
 	return c
