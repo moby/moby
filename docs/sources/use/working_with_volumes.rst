@@ -45,7 +45,7 @@ Create a new container using existing volumes from an existing container:
 ---------------------------------------------------------------------------
 
 
-The command below creates a new container which is runnning as daemon ``-d`` and with one volume ``/var/lib/couchdb``::
+The command below creates a new container which is running as daemon ``-d`` and with one volume ``/var/lib/couchdb``::
 
   COUCH1=$(sudo docker run -d -v /var/lib/couchdb shykes/couchdb:2013-05-03)
 
