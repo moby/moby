@@ -22,7 +22,7 @@ type Driver struct {
 }
 
 func Init(home string) (graphdriver.Driver, error) {
-	deviceSet, err := NewDeviceSet(home)
+	deviceSet, err := NewDeviceSet(home, true)
 	if err != nil {
 		return nil, err
 	}
