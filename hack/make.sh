@@ -37,6 +37,7 @@ DEFAULT_BUNDLES=(
 	test
 	dynbinary
 	dyntest
+	tgz
 	ubuntu
 )
 

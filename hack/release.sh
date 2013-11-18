@@ -47,6 +47,7 @@ cd /go/src/github.com/dotcloud/docker
 
 RELEASE_BUNDLES=(
 	binary
+	tgz
 	ubuntu
 )
 
@@ -188,6 +189,22 @@ EOF
 	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
+# Upload a tgz to S3
+release_tgz() {
+	[ -e bundles/$VERSION/tgz/docker-$VERSION.tgz ] || {
+		echo >&2 './hack/make.sh must be run before release_binary'
+		exit 1
+	}
+
+	S3DIR=s3://$BUCKET/builds/Linux/x86_64
+	s3cmd --acl-public put bundles/$VERSION/tgz/docker-$VERSION.tgz $S3DIR/docker-$VERSION.tgz
+
+	if [ -z "$NOLATEST" ]; then
+		echo "Copying docker-$VERSION.tgz to docker-latest.tgz"
+		s3cmd --acl-public cp $S3DIR/docker-$VERSION.tgz $S3DIR/docker-latest.tgz
+	fi
+}
+
 # Upload a static binary to S3
 release_binary() {
 	[ -e bundles/$VERSION/binary/docker-$VERSION ] || {
@@ -230,6 +247,7 @@ release_test() {
 main() {
 	setup_s3
 	release_binary
+	release_tgz
 	release_ubuntu
 	release_index
 	release_test
