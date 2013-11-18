@@ -206,6 +206,8 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tempdir)
+
 	utils.Debugf("Serializing %s", name)
 
 	rootRepo := srv.runtime.repositories.Repositories[name]
@@ -217,7 +219,7 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 			if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
 				return err
 			}
-			defer os.RemoveAll(tempdir)
+			defer os.RemoveAll(tmpImageDir)
 
 			var version = "1.0"
 			var versionBuf = []byte(version)
@@ -275,7 +277,6 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempdir)
 
 	if _, err := io.Copy(out, fs); err != nil {
 		return err
