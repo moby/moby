@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/auth"
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/dotcloud/docker/auth"
 	"os"
 	"strings"
 	"testing"
@@ -26,8 +26,6 @@ func TestLogin(t *testing.T) {
 		t.Fatalf("Expected status \"Login Succeeded\", found \"%s\" instead", status)
 	}
 }
-
-
 
 func TestCreateAccount(t *testing.T) {
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")

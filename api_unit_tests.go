@@ -17,4 +17,3 @@ func TestJsonContentType(t *testing.T) {
 		t.Fail()
 	}
 }
-
