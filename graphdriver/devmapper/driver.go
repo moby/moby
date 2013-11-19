@@ -61,6 +61,10 @@ func (d *Driver) Create(id string, parent string) error {
 }
 
 func (d *Driver) Remove(id string) error {
+	mp := path.Join(d.home, "mnt", id)
+	if err := d.unmount(id, mp); err != nil {
+		return err
+	}
 	return d.DeviceSet.RemoveDevice(id)
 }
 
@@ -89,4 +93,15 @@ func (d *Driver) mount(id, mountPoint string) error {
 	}
 	// Mount the device
 	return d.DeviceSet.MountDevice(id, mountPoint, false)
+}
+
+func (d *Driver) unmount(id, mountPoint string) error {
+	// If mountpoint is not mounted, do nothing
+	if mounted, err := Mounted(mountPoint); err != nil {
+		return fmt.Errorf("Error checking mountpoint: %s", err)
+	} else if !mounted {
+		return nil
+	}
+	// Unmount the device
+	return d.DeviceSet.UnmountDevice(id, mountPoint, true)
 }
