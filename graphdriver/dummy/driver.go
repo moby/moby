@@ -76,7 +76,3 @@ func (d *Driver) Get(id string) (string, error) {
 	}
 	return dir, nil
 }
-
-func (d *Driver) Size(id string) (int64, error) {
-	return -1, fmt.Errorf("Not implemented")
-}

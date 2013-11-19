@@ -17,7 +17,6 @@ type Driver interface {
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
-	Size(id string) (bytes int64, err error)
 
 	Status() [][2]string
 
@@ -28,6 +27,7 @@ type Differ interface {
 	Diff(id string) (archive.Archive, error)
 	Changes(id string) ([]archive.Change, error)
 	ApplyDiff(id string, diff archive.Archive) error
+	DiffSize(id string) (bytes int64, err error)
 }
 
 var (
