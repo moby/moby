@@ -19,6 +19,7 @@ type Driver interface {
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
+	Exists(id string) bool
 
 	Status() [][2]string
 

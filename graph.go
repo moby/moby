@@ -52,7 +52,9 @@ func (graph *Graph) restore() error {
 	}
 	for _, v := range dir {
 		id := v.Name()
-		graph.idIndex.Add(id)
+		if graph.driver.Exists(id) {
+			graph.idIndex.Add(id)
+		}
 	}
 	return nil
 }
@@ -137,6 +139,14 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if graph.Exists(img.ID) {
 		return fmt.Errorf("Image %s already exists", img.ID)
 	}
+
+	// Ensure that the image root does not exist on the filesystem
+	// when it is not registered in the graph.
+	// This is common when you switch from one graph driver to another
+	if err := os.RemoveAll(graph.imageRoot(img.ID)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
 	if err != nil {

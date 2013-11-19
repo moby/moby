@@ -121,3 +121,7 @@ func (d *Driver) unmount(id, mountPoint string) error {
 	// Unmount the device
 	return d.DeviceSet.UnmountDevice(id, mountPoint, true)
 }
+
+func (d *Driver) Exists(id string) bool {
+	return d.Devices[id] != nil
+}
