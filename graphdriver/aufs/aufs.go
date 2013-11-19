@@ -107,6 +107,8 @@ func (AufsDriver) Status() [][2]string {
 	return nil
 }
 
+// Exists returns true if the given id is registered with
+// this driver
 func (a AufsDriver) Exists(id string) bool {
 	if _, err := os.Lstat(path.Join(a.rootPath(), "diff", id)); err != nil {
 		return false

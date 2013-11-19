@@ -630,7 +630,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	}
 
 	if ad, ok := driver.(*aufs.AufsDriver); ok {
-		if err := ad.Migrate(path.Join(config.Root, "graph")); err != nil {
+		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
 			return nil, err
 		}
 	}

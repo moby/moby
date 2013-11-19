@@ -6,17 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"time"
 )
 
-type imageMetadata struct {
-	ID            string    `json:"id"`
-	ParentID      string    `json:"parent,omitempty"`
-	Created       time.Time `json:"created"`
-	DockerVersion string    `json:"docker_version,omitempty"`
-	Architecture  string    `json:"architecture,omitempty"`
+type metadata struct {
+	ID       string `json:"id"`
+	ParentID string `json:"parent,omitempty"`
+	Image    string `json:"Image,omitempty"`
 
-	parent *imageMetadata
+	parent *metadata
 }
 
 func pathExists(pth string) bool {
@@ -27,48 +24,106 @@ func pathExists(pth string) bool {
 }
 
 // Migrate existing images and containers from docker < 0.7.x
-func (a *AufsDriver) Migrate(pth string) error {
+//
+// The format pre 0.7 is for docker to store the metadata and filesystem
+// content in the same directory.  For the migration to work we need to move Image layer
+// data from /var/lib/docker/graph/<id>/layers to the diff of the registered id.
+//
+// Next we need to migrate the container's rw layer to diff of the driver.  After the
+// contents are migrated we need to register the image and container ids with the
+// driver.
+//
+// For the migration we try to move the folder containing the layer files, if that
+// fails because the data is currently mounted we will fallback to creating a
+// symlink.
+func (a *AufsDriver) Migrate(pth string, setupInit func(p string) error) error {
+	if pathExists(path.Join(pth, "graph")) {
+		if err := a.migrateImages(path.Join(pth, "graph")); err != nil {
+			return err
+		}
+		return a.migrateContainers(path.Join(pth, "containers"), setupInit)
+	}
+	return nil
+}
+
+func (a *AufsDriver) migrateContainers(pth string, setupInit func(p string) error) error {
+	fis, err := ioutil.ReadDir(pth)
+	if err != nil {
+		return err
+	}
+
+	for _, fi := range fis {
+		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "rw")) && !a.Exists(id) {
+			if err := tryRelocate(path.Join(pth, id, "rw"), path.Join(a.rootPath(), "diff", id)); err != nil {
+				return err
+			}
+
+			metadata, err := loadMetadata(path.Join(pth, id, "config.json"))
+			if err != nil {
+				return err
+			}
+
+			initID := fmt.Sprintf("%s-init", id)
+			if err := a.Create(initID, metadata.Image); err != nil {
+				return err
+			}
+
+			initPath, err := a.Get(initID)
+			if err != nil {
+				return err
+			}
+			// setup init layer
+			if err := setupInit(initPath); err != nil {
+				return err
+			}
+
+			if err := a.Create(id, initID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (a *AufsDriver) migrateImages(pth string) error {
 	fis, err := ioutil.ReadDir(pth)
 	if err != nil {
 		return err
 	}
 	var (
-		metadata = make(map[string]*imageMetadata)
-		current  *imageMetadata
-		exists   bool
+		m       = make(map[string]*metadata)
+		current *metadata
+		exists  bool
 	)
 
-	// Load metadata
 	for _, fi := range fis {
 		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "layer")) && !a.Exists(id) {
-			if current, exists = metadata[id]; !exists {
-				current, err = loadMetadata(pth, id)
+			if current, exists = m[id]; !exists {
+				current, err = loadMetadata(path.Join(pth, id, "json"))
 				if err != nil {
 					return err
 				}
-				metadata[id] = current
+				m[id] = current
 			}
 		}
 	}
 
-	// Recreate tree
-	for _, v := range metadata {
-		v.parent = metadata[v.ParentID]
+	for _, v := range m {
+		v.parent = m[v.ParentID]
 	}
 
-	// Perform image migration
-	for _, v := range metadata {
-		if err := migrateImage(v, a, pth); err != nil {
+	for _, v := range m {
+		if err := a.migrateImage(v, pth); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func migrateImage(m *imageMetadata, a *AufsDriver, pth string) error {
+func (a *AufsDriver) migrateImage(m *metadata, pth string) error {
 	if !pathExists(path.Join(a.rootPath(), "diff", m.ID)) {
 		if m.parent != nil {
-			migrateImage(m.parent, a, pth)
+			a.migrateImage(m.parent, pth)
 		}
 		if err := tryRelocate(path.Join(pth, m.ID, "layer"), path.Join(a.rootPath(), "diff", m.ID)); err != nil {
 			return err
@@ -92,15 +147,15 @@ func tryRelocate(oldPath, newPath string) error {
 	return nil
 }
 
-func loadMetadata(pth, id string) (*imageMetadata, error) {
-	f, err := os.Open(path.Join(pth, id, "json"))
+func loadMetadata(pth string) (*metadata, error) {
+	f, err := os.Open(pth)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
 	var (
-		out = &imageMetadata{}
+		out = &metadata{}
 		dec = json.NewDecoder(f)
 	)
 
