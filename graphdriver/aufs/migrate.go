@@ -36,7 +36,7 @@ func pathExists(pth string) bool {
 // For the migration we try to move the folder containing the layer files, if that
 // fails because the data is currently mounted we will fallback to creating a
 // symlink.
-func (a *AufsDriver) Migrate(pth string, setupInit func(p string) error) error {
+func (a *Driver) Migrate(pth string, setupInit func(p string) error) error {
 	if pathExists(path.Join(pth, "graph")) {
 		if err := a.migrateImages(path.Join(pth, "graph")); err != nil {
 			return err
@@ -46,7 +46,7 @@ func (a *AufsDriver) Migrate(pth string, setupInit func(p string) error) error {
 	return nil
 }
 
-func (a *AufsDriver) migrateContainers(pth string, setupInit func(p string) error) error {
+func (a *Driver) migrateContainers(pth string, setupInit func(p string) error) error {
 	fis, err := ioutil.ReadDir(pth)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (a *AufsDriver) migrateContainers(pth string, setupInit func(p string) erro
 	return nil
 }
 
-func (a *AufsDriver) migrateImages(pth string) error {
+func (a *Driver) migrateImages(pth string) error {
 	fis, err := ioutil.ReadDir(pth)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func (a *AufsDriver) migrateImages(pth string) error {
 	return nil
 }
 
-func (a *AufsDriver) migrateImage(m *metadata, pth string, migrated map[string]bool) error {
+func (a *Driver) migrateImage(m *metadata, pth string, migrated map[string]bool) error {
 	if !migrated[m.ID] {
 		if m.parent != nil {
 			a.migrateImage(m.parent, pth, migrated)

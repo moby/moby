@@ -37,7 +37,7 @@ func init() {
 	graphdriver.Register("aufs", Init)
 }
 
-type AufsDriver struct {
+type Driver struct {
 	root string
 }
 
@@ -59,7 +59,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	// If not populate the dir structure
 	if err := os.MkdirAll(root, 0755); err != nil {
 		if os.IsExist(err) {
-			return &AufsDriver{root}, nil
+			return &Driver{root}, nil
 		}
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func Init(root string) (graphdriver.Driver, error) {
 			return nil, err
 		}
 	}
-	return &AufsDriver{root}, nil
+	return &Driver{root}, nil
 }
 
 // Return a nil error if the kernel supports aufs
@@ -95,21 +95,21 @@ func supportsAufs() error {
 	return fmt.Errorf("AUFS was not found in /proc/filesystems")
 }
 
-func (a AufsDriver) rootPath() string {
+func (a Driver) rootPath() string {
 	return a.root
 }
 
-func (AufsDriver) String() string {
+func (Driver) String() string {
 	return "aufs"
 }
 
-func (AufsDriver) Status() [][2]string {
+func (Driver) Status() [][2]string {
 	return nil
 }
 
 // Exists returns true if the given id is registered with
 // this driver
-func (a AufsDriver) Exists(id string) bool {
+func (a Driver) Exists(id string) bool {
 	if _, err := os.Lstat(path.Join(a.rootPath(), "layers", id)); err != nil {
 		return false
 	}
@@ -118,7 +118,7 @@ func (a AufsDriver) Exists(id string) bool {
 
 // Three folders are created for each id
 // mnt, layers, and diff
-func (a *AufsDriver) Create(id, parent string) error {
+func (a *Driver) Create(id, parent string) error {
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (a *AufsDriver) Create(id, parent string) error {
 	return nil
 }
 
-func (a *AufsDriver) createDirsFor(id string) error {
+func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
 		"diff",
@@ -162,7 +162,7 @@ func (a *AufsDriver) createDirsFor(id string) error {
 }
 
 // Unmount and remove the dir information
-func (a *AufsDriver) Remove(id string) error {
+func (a *Driver) Remove(id string) error {
 	// Make sure the dir is umounted first
 	if err := a.unmount(id); err != nil {
 		return err
@@ -194,7 +194,7 @@ func (a *AufsDriver) Remove(id string) error {
 
 // Return the rootfs path for the id
 // This will mount the dir at it's given path
-func (a *AufsDriver) Get(id string) (string, error) {
+func (a *Driver) Get(id string) (string, error) {
 	ids, err := getParentIds(a.rootPath(), id)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -216,23 +216,23 @@ func (a *AufsDriver) Get(id string) (string, error) {
 }
 
 // Returns an archive of the contents for the id
-func (a *AufsDriver) Diff(id string) (archive.Archive, error) {
+func (a *Driver) Diff(id string) (archive.Archive, error) {
 	return archive.TarFilter(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Recursive:   true,
 		Compression: archive.Uncompressed,
 	})
 }
 
-func (a *AufsDriver) ApplyDiff(id string, diff archive.Archive) error {
+func (a *Driver) ApplyDiff(id string, diff archive.Archive) error {
 	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
 // Returns the size of the contents for the id
-func (a *AufsDriver) DiffSize(id string) (int64, error) {
+func (a *Driver) DiffSize(id string) (int64, error) {
 	return utils.TreeSize(path.Join(a.rootPath(), "diff", id))
 }
 
-func (a *AufsDriver) Changes(id string) ([]archive.Change, error) {
+func (a *Driver) Changes(id string) ([]archive.Change, error) {
 	layers, err := a.getParentLayerPaths(id)
 	if err != nil {
 		return nil, err
@@ -240,7 +240,7 @@ func (a *AufsDriver) Changes(id string) ([]archive.Change, error) {
 	return archive.Changes(layers, path.Join(a.rootPath(), "diff", id))
 }
 
-func (a *AufsDriver) getParentLayerPaths(id string) ([]string, error) {
+func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	parentIds, err := getParentIds(a.rootPath(), id)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (a *AufsDriver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *AufsDriver) mount(id string) error {
+func (a *Driver) mount(id string) error {
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(id); err != nil || mounted {
 		return err
@@ -279,7 +279,7 @@ func (a *AufsDriver) mount(id string) error {
 	return nil
 }
 
-func (a *AufsDriver) unmount(id string) error {
+func (a *Driver) unmount(id string) error {
 	if mounted, err := a.mounted(id); err != nil || !mounted {
 		return err
 	}
@@ -287,13 +287,13 @@ func (a *AufsDriver) unmount(id string) error {
 	return Unmount(target)
 }
 
-func (a *AufsDriver) mounted(id string) (bool, error) {
+func (a *Driver) mounted(id string) (bool, error) {
 	target := path.Join(a.rootPath(), "mnt", id)
 	return Mounted(target)
 }
 
 // During cleanup aufs needs to unmount all mountpoints
-func (a *AufsDriver) Cleanup() error {
+func (a *Driver) Cleanup() error {
 	ids, err := loadIds(path.Join(a.rootPath(), "layers"))
 	if err != nil {
 		return err
@@ -306,7 +306,7 @@ func (a *AufsDriver) Cleanup() error {
 	return nil
 }
 
-func (a *AufsDriver) aufsMount(ro []string, rw, target string) error {
+func (a *Driver) aufsMount(ro []string, rw, target string) error {
 	rwBranch := fmt.Sprintf("%v=rw", rw)
 	roBranches := ""
 	for _, layer := range ro {

@@ -650,7 +650,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	if ad, ok := driver.(*aufs.AufsDriver); ok {
+	if ad, ok := driver.(*aufs.Driver); ok {
 		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
 			return nil, err
 		}
