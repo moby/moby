@@ -2,9 +2,9 @@ package dummy
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"os"
+	"os/exec"
 	"path"
 )
 
@@ -35,6 +35,14 @@ func (d *Driver) Cleanup() error {
 	return nil
 }
 
+func copyDir(src, dst string) error {
+	cmd := exec.Command("cp", "-aT", "--reflink=auto", src, dst)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (d *Driver) Create(id string, parent string) error {
 	dir := d.dir(id)
 	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
@@ -50,7 +58,7 @@ func (d *Driver) Create(id string, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	if err := archive.CopyWithTar(parentDir, dir); err != nil {
+	if err := copyDir(parentDir, dir); err != nil {
 		return err
 	}
 	return nil
