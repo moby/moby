@@ -235,7 +235,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('toctree', 'docker', u'Docker Documentation',
+    ('commandline/cli', 'docker', u'Docker Documentation',
      [u'Team Docker'], 1)
 ]
 
