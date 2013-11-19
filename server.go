@@ -63,7 +63,10 @@ func jobInitApi(job *engine.Job) string {
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
-	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
+	// https://github.com/dotcloud/docker/issues/2768
+	if srv.runtime.networkManager.bridgeNetwork != nil {
+		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
+	}
 	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
 		return err.Error()
 	}
