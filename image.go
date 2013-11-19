@@ -54,11 +54,11 @@ func LoadImage(root string) (*Image, error) {
 			return nil, err
 		}
 	} else {
-		if size, err := strconv.Atoi(string(buf)); err != nil {
+		size, err := strconv.Atoi(string(buf))
+		if err != nil {
 			return nil, err
-		} else {
-			img.Size = int64(size)
 		}
+		img.Size = int64(size)
 	}
 
 	// Check that the filesystem layer exists
@@ -99,14 +99,14 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 	// If raw json is provided, then use it
 	if jsonData != nil {
 		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
-	} else { // Otherwise, unmarshal the image
-		jsonData, err := json.Marshal(img)
-		if err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
+	}
+	// Otherwise, unmarshal the image
+	jsonData, err := json.Marshal(img)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+		return err
 	}
 
 	return StoreSize(img, root)
@@ -115,7 +115,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 func StoreSize(img *Image, root string) error {
 	layer := layerPath(root)
 
-	var totalSize int64 = 0
+	var totalSize int64
 	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
 		totalSize += fileInfo.Size()
 		return nil
@@ -163,21 +163,21 @@ func MountAUFS(ro []string, rw string, target string) error {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (image *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
-	layerPath, err := image.layer()
+func (img *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
+	layerPath, err := img.layer()
 	if err != nil {
 		return nil, err
 	}
 	return archive.Tar(layerPath, compression)
 }
 
-func (image *Image) Mount(root, rw string) error {
+func (img *Image) Mount(root, rw string) error {
 	if mounted, err := Mounted(root); err != nil {
 		return err
 	} else if mounted {
 		return fmt.Errorf("%s is already mounted", root)
 	}
-	layers, err := image.layers()
+	layers, err := img.layers()
 	if err != nil {
 		return err
 	}
@@ -194,8 +194,8 @@ func (image *Image) Mount(root, rw string) error {
 	return nil
 }
 
-func (image *Image) Changes(rw string) ([]Change, error) {
-	layers, err := image.layers()
+func (img *Image) Changes(rw string) ([]Change, error) {
+	layers, err := img.layers()
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +241,10 @@ func (img *Image) History() ([]*Image, error) {
 // FIXME: @shykes refactor this function with the new error handling
 //        (I'll do it if I have time tonight, I focus on the rest)
 func (img *Image) layers() ([]string, error) {
-	var list []string
-	var e error
+	var (
+		list []string
+		e    error
+	)
 	if err := img.WalkHistory(
 		func(img *Image) (err error) {
 			if layer, err := img.layer(); err != nil {
@@ -262,12 +264,11 @@ func (img *Image) layers() ([]string, error) {
 	}
 
 	// Inject the dockerinit layer (empty place-holder for mount-binding dockerinit)
-	if dockerinitLayer, err := img.getDockerInitLayer(); err != nil {
+	dockerinitLayer, err := img.getDockerInitLayer()
+	if err != nil {
 		return nil, err
-	} else {
-		list = append([]string{dockerinitLayer}, list...)
 	}
-	return list, nil
+	return append([]string{dockerinitLayer}, list...), nil
 }
 
 func (img *Image) WalkHistory(handler func(*Image) error) (err error) {

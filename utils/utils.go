@@ -1123,7 +1123,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 	for len(processed) < len(graph.nodes) {
 		// Use a temporary buffer for processed nodes, otherwise
 		// nodes that depend on each other could end up in the same round.
-		tmp_processed := []*DependencyNode{}
+		tmpProcessed := []*DependencyNode{}
 		for _, node := range graph.nodes {
 			// If the node has more dependencies than what we have cleared,
 			// it won't be valid for this round.
@@ -1137,7 +1137,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			// It's not been processed yet and has 0 deps. Add it!
 			// (this is a shortcut for what we're doing below)
 			if node.Degree() == 0 {
-				tmp_processed = append(tmp_processed, node)
+				tmpProcessed = append(tmpProcessed, node)
 				continue
 			}
 			// If at least one dep hasn't been processed yet, we can't
@@ -1151,17 +1151,17 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			}
 			// All deps have already been processed. Add it!
 			if ok {
-				tmp_processed = append(tmp_processed, node)
+				tmpProcessed = append(tmpProcessed, node)
 			}
 		}
-		Debugf("Round %d: found %d available nodes", len(result), len(tmp_processed))
+		Debugf("Round %d: found %d available nodes", len(result), len(tmpProcessed))
 		// If no progress has been made this round,
 		// that means we have circular dependencies.
-		if len(tmp_processed) == 0 {
+		if len(tmpProcessed) == 0 {
 			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
 		}
 		round := []string{}
-		for _, nd := range tmp_processed {
+		for _, nd := range tmpProcessed {
 			round = append(round, nd.id)
 			processed[nd] = true
 		}

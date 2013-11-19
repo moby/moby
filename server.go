@@ -422,9 +422,9 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
+func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", ps_args).CombinedOutput()
+		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", psArgs).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("lxc-ps: %s (%s)", err, output)
 		}
@@ -891,12 +891,13 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
 					continue
 				}
-				if checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
+				checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf)
+				if err != nil {
 					// FIXME: Continue on error?
 					return err
-				} else {
-					elem.Checksum = checksum
 				}
+				elem.Checksum = checksum
+
 				if err := pushTags(); err != nil {
 					return err
 				}
@@ -939,11 +940,12 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw); err != nil {
+	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw)
+	if err != nil {
 		return "", err
-	} else {
-		imgData.Checksum = checksum
 	}
+	imgData.Checksum = checksum
+
 	out.Write(sf.FormatStatus("", ""))
 
 	// Send the checksum
