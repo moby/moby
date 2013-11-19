@@ -54,7 +54,7 @@ Run the following command:
 
 .. code-block:: bash
 
-   $ sudo sh -c "echo DOCKER_OPTS=\"-r=false\" > /etc/default/docker"
+   $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' > /etc/default/docker"
 
 
 Sample systemd Script
