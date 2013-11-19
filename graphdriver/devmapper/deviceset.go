@@ -57,6 +57,16 @@ type Status struct {
 	MetadataLoopback string
 	Data             DiskUsage
 	Metadata         DiskUsage
+	SectorSize       uint64
+}
+
+type DevStatus struct {
+	DeviceId            int
+	Size                uint64
+	TransactionId       uint64
+	SizeInSectors       uint64
+	MappedSectors       uint64
+	HighestMappedSector uint64
 }
 
 func getDevName(name string) string {
@@ -357,13 +367,90 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
-func (devices *DeviceSet) initDevmapper() error {
+func (devices *DeviceSet) ResizePool(size int64) error {
+	dirname := devices.loopbackDir()
+	datafilename := path.Join(dirname, "data")
+	metadatafilename := path.Join(dirname, "metadata")
+
+	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
+	if datafile == nil {
+		return err
+	}
+	defer datafile.Close()
+
+	fi, err := datafile.Stat()
+	if fi == nil {
+		return err
+	}
+
+	if fi.Size() > size {
+		return fmt.Errorf("Can't shrink file")
+	}
+
+	dataloopback := FindLoopDeviceFor(datafile)
+	if dataloopback == nil {
+		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
+	}
+	defer dataloopback.Close()
+
+	metadatafile, err := os.OpenFile(metadatafilename, os.O_RDWR, 0)
+	if metadatafile == nil {
+		return err
+	}
+	defer metadatafile.Close()
+
+	metadataloopback := FindLoopDeviceFor(metadatafile)
+	if metadataloopback == nil {
+		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
+	}
+	defer metadataloopback.Close()
+
+	// Grow loopback file
+	if err := datafile.Truncate(size); err != nil {
+		return fmt.Errorf("Unable to grow loopback file: %s", err)
+	}
+
+	// Reload size for loopback device
+	if err := LoopbackSetCapacity(dataloopback); err != nil {
+		return fmt.Errorf("Unable to update loopback capacity: %s", err)
+	}
+
+	// Suspend the pool
+	if err := suspendDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to suspend pool: %s", err)
+	}
+
+	// Reload with the new block sizes
+	if err := reloadPool(devices.getPoolName(), dataloopback, metadataloopback); err != nil {
+		return fmt.Errorf("Unable to reload pool: %s", err)
+	}
+
+	// Resume the pool
+	if err := resumeDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to resume pool: %s", err)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
 
 	// Make sure the sparse images exist in <root>/devicemapper/data and
 	// <root>/devicemapper/metadata
 
-	createdLoopback := !devices.hasImage("data") || !devices.hasImage("metadata")
+	hasData := devices.hasImage("data")
+	hasMetadata := devices.hasImage("metadata")
+
+	if !doInit && !hasData {
+		return fmt.Errorf("Looback data file not found %s")
+	}
+
+	if !doInit && !hasMetadata {
+		return fmt.Errorf("Looback metadata file not found %s")
+	}
+
+	createdLoopback := !hasData || !hasMetadata
 	data, err := devices.ensureImage("data", DefaultDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (data): %s\n", err)
@@ -438,9 +525,11 @@ func (devices *DeviceSet) initDevmapper() error {
 	}
 
 	// Setup the base image
-	if err := devices.setupBaseImage(); err != nil {
-		utils.Debugf("Error device setupBaseImage: %s\n", err)
-		return err
+	if doInit {
+		if err := devices.setupBaseImage(); err != nil {
+			utils.Debugf("Error device setupBaseImage: %s\n", err)
+			return err
+		}
 	}
 
 	return nil
@@ -757,6 +846,69 @@ func (devices *DeviceSet) setInitialized(hash string) error {
 	return nil
 }
 
+func (devices *DeviceSet) List() []string {
+	devices.Lock()
+	defer devices.Unlock()
+
+	ids := make([]string, len(devices.Devices))
+	i := 0
+	for k := range devices.Devices {
+		ids[i] = k
+		i++
+	}
+	return ids
+}
+
+func (devices *DeviceSet) deviceStatus(devName string) (sizeInSectors, mappedSectors, highestMappedSector uint64, err error) {
+	var params string
+	_, sizeInSectors, _, params, err = getStatus(devName)
+	if err != nil {
+		return
+	}
+	if _, err = fmt.Sscanf(params, "%d %d", &mappedSectors, &highestMappedSector); err == nil {
+		return
+	}
+	return
+}
+
+func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
+	devices.Lock()
+	defer devices.Unlock()
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return nil, fmt.Errorf("No device %s", hash)
+	}
+
+	status := &DevStatus{
+		DeviceId:      info.DeviceId,
+		Size:          info.Size,
+		TransactionId: info.TransactionId,
+	}
+
+	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
+	}
+
+	if sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName()); err != nil {
+		return nil, err
+	} else {
+		status.SizeInSectors = sizeInSectors
+		status.MappedSectors = mappedSectors
+		status.HighestMappedSector = highestMappedSector
+	}
+
+	return status, nil
+}
+
+func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataUsed, dataTotal, metadataUsed, metadataTotal uint64, err error) {
+	var params string
+	if _, totalSizeInSectors, _, params, err = getStatus(devices.getPoolName()); err == nil {
+		_, err = fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionId, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal)
+	}
+	return
+}
+
 func (devices *DeviceSet) Status() *Status {
 	devices.Lock()
 	defer devices.Unlock()
@@ -767,26 +919,25 @@ func (devices *DeviceSet) Status() *Status {
 	status.DataLoopback = path.Join(devices.loopbackDir(), "data")
 	status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
 
-	_, totalSizeInSectors, _, params, err := getStatus(devices.getPoolName())
+	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
-		var transactionId, dataUsed, dataTotal, metadataUsed, metadataTotal uint64
-		if _, err := fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionId, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal); err == nil {
-			// Convert from blocks to bytes
-			blockSizeInSectors := totalSizeInSectors / dataTotal
+		// Convert from blocks to bytes
+		blockSizeInSectors := totalSizeInSectors / dataTotal
 
-			status.Data.Used = dataUsed * blockSizeInSectors * 512
-			status.Data.Total = dataTotal * blockSizeInSectors * 512
+		status.Data.Used = dataUsed * blockSizeInSectors * 512
+		status.Data.Total = dataTotal * blockSizeInSectors * 512
 
-			// metadata blocks are always 4k
-			status.Metadata.Used = metadataUsed * 4096
-			status.Metadata.Total = metadataTotal * 4096
-		}
+		// metadata blocks are always 4k
+		status.Metadata.Used = metadataUsed * 4096
+		status.Metadata.Total = metadataTotal * 4096
+
+		status.SectorSize = blockSizeInSectors * 512
 	}
 
 	return status
 }
 
-func NewDeviceSet(root string) (*DeviceSet, error) {
+func NewDeviceSet(root string, doInit bool) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
 	devices := &DeviceSet{
@@ -795,7 +946,7 @@ func NewDeviceSet(root string) (*DeviceSet, error) {
 		activeMounts: make(map[string]int),
 	}
 
-	if err := devices.initDevmapper(); err != nil {
+	if err := devices.initDevmapper(doInit); err != nil {
 		return nil, err
 	}
 

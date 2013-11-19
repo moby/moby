@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"runtime"
+	"syscall"
 )
 
 type DevmapperLogger interface {
@@ -40,25 +41,27 @@ const (
 )
 
 var (
-	ErrTaskRun              = errors.New("dm_task_run failed")
-	ErrTaskSetName          = errors.New("dm_task_set_name failed")
-	ErrTaskSetMessage       = errors.New("dm_task_set_message failed")
-	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
-	ErrTaskSetRo            = errors.New("dm_task_set_ro failed")
-	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
-	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
-	ErrTaskGetInfo          = errors.New("dm_task_get_info failed")
-	ErrTaskGetDriverVersion = errors.New("dm_task_get_driver_version failed")
-	ErrTaskSetCookie        = errors.New("dm_task_set_cookie failed")
-	ErrNilCookie            = errors.New("cookie ptr can't be nil")
-	ErrAttachLoopbackDevice = errors.New("loopback mounting failed")
-	ErrGetBlockSize         = errors.New("Can't get block size")
-	ErrUdevWait             = errors.New("wait on udev cookie failed")
-	ErrSetDevDir            = errors.New("dm_set_dev_dir failed")
-	ErrGetLibraryVersion    = errors.New("dm_get_library_version failed")
-	ErrCreateRemoveTask     = errors.New("Can't create task of type DeviceRemove")
-	ErrRunRemoveDevice      = errors.New("running removeDevice failed")
-	ErrInvalidAddNode       = errors.New("Invalide AddNoce type")
+	ErrTaskRun                = errors.New("dm_task_run failed")
+	ErrTaskSetName            = errors.New("dm_task_set_name failed")
+	ErrTaskSetMessage         = errors.New("dm_task_set_message failed")
+	ErrTaskSetAddNode         = errors.New("dm_task_set_add_node failed")
+	ErrTaskSetRo              = errors.New("dm_task_set_ro failed")
+	ErrTaskAddTarget          = errors.New("dm_task_add_target failed")
+	ErrTaskSetSector          = errors.New("dm_task_set_sector failed")
+	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
+	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
+	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
+	ErrNilCookie              = errors.New("cookie ptr can't be nil")
+	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
+	ErrGetBlockSize           = errors.New("Can't get block size")
+	ErrUdevWait               = errors.New("wait on udev cookie failed")
+	ErrSetDevDir              = errors.New("dm_set_dev_dir failed")
+	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
+	ErrCreateRemoveTask       = errors.New("Can't create task of type DeviceRemove")
+	ErrRunRemoveDevice        = errors.New("running removeDevice failed")
+	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
+	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
+	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 )
 
 type (
@@ -186,6 +189,55 @@ func AttachLoopDevice(filename string) (*os.File, error) {
 	return os.NewFile(uintptr(fd), res), nil
 }
 
+func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
+	dev, inode, err := dmGetLoopbackBackingFile(file.Fd())
+	if err != 0 {
+		return 0, 0, ErrGetLoopbackBackingFile
+	}
+	return dev, inode, nil
+}
+
+func LoopbackSetCapacity(file *os.File) error {
+	err := dmLoopbackSetCapacity(file.Fd())
+	if err != 0 {
+		return ErrLoopbackSetCapacity
+	}
+	return nil
+}
+
+func FindLoopDeviceFor(file *os.File) *os.File {
+	stat, err := file.Stat()
+	if err != nil {
+		return nil
+	}
+	targetInode := stat.Sys().(*syscall.Stat_t).Ino
+	targetDevice := stat.Sys().(*syscall.Stat_t).Dev
+
+	for i := 0; true; i++ {
+		path := fmt.Sprintf("/dev/loop%d", i)
+
+		file, err := os.OpenFile(path, os.O_RDWR, 0)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+
+			// Ignore all errors until the first not-exist
+			// we want to continue looking for the file
+			continue
+		}
+
+		dev, inode, err := getLoopbackBackingFile(file)
+		if err == nil && dev == targetDevice && inode == targetInode {
+			return file
+		}
+
+		file.Close()
+	}
+
+	return nil
+}
+
 func UdevWait(cookie uint) error {
 	if res := DmUdevWait(cookie); res != 1 {
 		utils.Debugf("Failed to wait on udev cookie %d", cookie)
@@ -272,6 +324,29 @@ func createPool(poolName string, dataFile *os.File, metadataFile *os.File) error
 	}
 
 	UdevWait(cookie)
+
+	return nil
+}
+
+func reloadPool(poolName string, dataFile *os.File, metadataFile *os.File) error {
+	task, err := createTask(DeviceReload, poolName)
+	if task == nil {
+		return err
+	}
+
+	size, err := GetBlockDeviceSize(dataFile)
+	if err != nil {
+		return fmt.Errorf("Can't get data size")
+	}
+
+	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768"
+	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
+		return fmt.Errorf("Can't add target")
+	}
+
+	if err := task.Run(); err != nil {
+		return fmt.Errorf("Error running DeviceCreate")
+	}
 
 	return nil
 }
