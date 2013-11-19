@@ -456,7 +456,7 @@ func TestDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err := d.Size("1")
+	diffSize, err := d.DiffSize("1")
 	if err != nil {
 		t.Fatal(err)
 	}
