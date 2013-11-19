@@ -3,6 +3,7 @@ package devmapper
 import (
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
+	"io/ioutil"
 	"os"
 	"path"
 )
@@ -57,7 +58,26 @@ func (d *Driver) Cleanup() error {
 }
 
 func (d *Driver) Create(id string, parent string) error {
-	return d.DeviceSet.AddDevice(id, parent)
+	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
+		return err
+	}
+
+	mp := path.Join(d.home, "mnt", id)
+	if err := d.mount(id, mp); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(path.Join(mp, "rootfs"), 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// Create an "id" file with the container/image id in it to help reconscruct this in case
+	// of later problems
+	if err := ioutil.WriteFile(path.Join(mp, "id"), []byte(id), 0600); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *Driver) Remove(id string) error {
@@ -73,7 +93,7 @@ func (d *Driver) Get(id string) (string, error) {
 	if err := d.mount(id, mp); err != nil {
 		return "", err
 	}
-	return mp, nil
+	return path.Join(mp, "rootfs"), nil
 }
 
 func (d *Driver) mount(id, mountPoint string) error {
