@@ -12,9 +12,9 @@ SSH Daemon Service
 
 **Video:**
 
-I've create a little screencast to show how to create a SSHd service
+I've created a little screencast to show how to create an SSHd service
 and connect to it. It is something like 11 minutes and not entirely
-smooth, but gives you a good idea.
+smooth, but it gives you a good idea.
 
 .. note::
    This screencast was created before Docker version 0.5.2, so the
