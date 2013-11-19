@@ -1205,8 +1205,8 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 		if err != nil {
 			return err
 		}
-		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
-		srv.LogEvent("delete", utils.TruncateID(id), "")
+		*imgs = append(*imgs, APIRmi{Deleted: id})
+		srv.LogEvent("delete", id, "")
 		return nil
 	}
 	return nil
