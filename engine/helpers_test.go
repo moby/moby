@@ -11,10 +11,6 @@ import (
 
 var globalTestID string
 
-func init() {
-	Register("dummy", func(job *Job) string { return "" })
-}
-
 func newTestEngine(t *testing.T) *Engine {
 	// Use the caller function name as a prefix.
 	// This helps trace temp directories back to their test.
