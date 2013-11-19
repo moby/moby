@@ -214,13 +214,17 @@ func (job *Job) GetenvList(key string) []string {
 	return l
 }
 
-func (job *Job) SetenvList(key string, value []string) error {
+func (job *Job) SetenvJson(key string, value interface{}) error {
 	sval, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	job.Setenv(key, string(sval))
 	return nil
+}
+
+func (job *Job) SetenvList(key string, value []string) error {
+	return job.SetenvJson(key, value)
 }
 
 func (job *Job) Setenv(key, value string) {

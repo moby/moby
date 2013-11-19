@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 	"time"
 )
@@ -120,41 +119,6 @@ func TestRegister(t *testing.T) {
 			t.Fatalf("Wrong image comment. Should be '%s', not '%s'", image.Comment, resultImg.Comment)
 		}
 	}
-}
-
-func TestMount(t *testing.T) {
-	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
-	archive, err := fakeTar()
-	if err != nil {
-		t.Fatal(err)
-	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp, err := ioutil.TempDir("", "docker-test-graph-mount-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	rootfs := path.Join(tmp, "rootfs")
-	if err := os.MkdirAll(rootfs, 0700); err != nil {
-		t.Fatal(err)
-	}
-	rw := path.Join(tmp, "rw")
-	if err := os.MkdirAll(rw, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := graph.driver.Get(image.ID); err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: test for mount contents
-	defer func() {
-		if err := graph.driver.Cleanup(); err != nil {
-			t.Error(err)
-		}
-	}()
 }
 
 // Test that an image can be deleted by its shorthand prefix

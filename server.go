@@ -62,6 +62,8 @@ func jobInitApi(job *engine.Job) string {
 		os.Exit(0)
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
+	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
+	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
 	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
 		return err.Error()
 	}
@@ -422,9 +424,9 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 }
 
-func (srv *Server) ContainerTop(name, ps_args string) (*APITop, error) {
+func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", ps_args).CombinedOutput()
+		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", psArgs).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("lxc-ps: %s (%s)", err, output)
 		}
@@ -532,6 +534,7 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	return img.ID, err
 }
 
+// FIXME: this should be called ImageTag
 func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
 	if err := srv.runtime.repositories.Set(repo, tag, name, force); err != nil {
 		return err
@@ -891,12 +894,13 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", elem.ID))
 					continue
 				}
-				if checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf); err != nil {
+				checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf)
+				if err != nil {
 					// FIXME: Continue on error?
 					return err
-				} else {
-					elem.Checksum = checksum
 				}
+				elem.Checksum = checksum
+
 				if err := pushTags(); err != nil {
 					return err
 				}
@@ -936,13 +940,15 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
+	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	if checksum, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw); err != nil {
+	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw)
+	if err != nil {
 		return "", err
-	} else {
-		imgData.Checksum = checksum
 	}
+	imgData.Checksum = checksum
+
 	out.Write(sf.FormatStatus("", ""))
 
 	// Send the checksum
@@ -1065,7 +1071,12 @@ func (srv *Server) ContainerCreate(job *engine.Job) string {
 		return err.Error()
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
-	job.Printf("%s\n", container.ID)
+	// FIXME: this is necessary because runtime.Create might return a nil container
+	// with a non-nil error. This should not happen! Once it's fixed we
+	// can remove this workaround.
+	if container != nil {
+		job.Printf("%s\n", container.ID)
+	}
 	for _, warning := range buildWarnings {
 		job.Errorf("%s\n", warning)
 	}
@@ -1603,7 +1614,7 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 	return srv.reqFactory
 }
 
-func (srv *Server) LogEvent(action, id, from string) {
+func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	srv.events = append(srv.events, jm)
@@ -1613,6 +1624,7 @@ func (srv *Server) LogEvent(action, id, from string) {
 		default:
 		}
 	}
+	return &jm
 }
 
 type Server struct {
