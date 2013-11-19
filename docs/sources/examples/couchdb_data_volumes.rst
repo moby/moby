@@ -20,7 +20,7 @@ Note that we're marking ``/var/lib/couchdb`` as a data volume.
 
 .. code-block:: bash
 
-    COUCH1=$(sudo docker run -d -v /var/lib/couchdb shykes/couchdb:2013-05-03)
+    COUCH1=$(sudo docker run -d -p 5984 -v /var/lib/couchdb shykes/couchdb:2013-05-03)
 
 Add data to the first database
 ------------------------------
@@ -31,7 +31,7 @@ replace ``localhost`` with the public IP of your Docker host.
 .. code-block:: bash
 
     HOST=localhost
-    URL="http://$HOST:$(sudo docker port $COUCH1 5984)/_utils/"
+    URL="http://$HOST:$(sudo docker port $COUCH1 5984 | grep -Po '\d+$')/_utils/"
     echo "Navigate to $URL in your browser, and use the couch interface to add data"
 
 Create second database
@@ -41,7 +41,7 @@ This time, we're requesting shared access to ``$COUCH1``'s volumes.
 
 .. code-block:: bash
 
-    COUCH2=$(sudo docker run -d -volumes-from $COUCH1 shykes/couchdb:2013-05-03)
+    COUCH2=$(sudo docker run -d -p 5984 -volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 
 Browse data on the second database
 ----------------------------------
@@ -49,7 +49,7 @@ Browse data on the second database
 .. code-block:: bash
 
     HOST=localhost
-    URL="http://$HOST:$(sudo docker port $COUCH2 5984)/_utils/"
+    URL="http://$HOST:$(sudo docker port $COUCH2 5984 | grep -Po '\d+$')/_utils/"
     echo "Navigate to $URL in your browser. You should see the same data as in the first database"'!'
 
 Congratulations, you are now running two Couchdb containers, completely

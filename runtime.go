@@ -1,7 +1,7 @@
 package docker
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3"
+	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 	"container/list"
 	"database/sql"
 	"fmt"
@@ -20,6 +20,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -417,7 +418,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		if strings.HasSuffix(err.Error(), "name are not unique") {
-			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+			conflictingContainer, _ := runtime.GetByName(name)
+			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", name, utils.TruncateID(conflictingContainer.ID), name)
 		}
 		return nil, nil, err
 	}
@@ -548,7 +550,12 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
+// FIXME: this is deprecated by the getFullName *function*
 func (runtime *Runtime) getFullName(name string) (string, error) {
+	return getFullName(name)
+}
+
+func getFullName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
 	}
@@ -762,6 +769,25 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	return archive.ExportChanges(cDir, changes)
 }
 
+// Nuke kills all containers then removes all content
+// from the content root, including images, volumes and
+// container filesystems.
+// Again: this will remove your entire docker runtime!
+func (runtime *Runtime) Nuke() error {
+	var wg sync.WaitGroup
+	for _, container := range runtime.List() {
+		wg.Add(1)
+		go func(c *Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
+	}
+	wg.Wait()
+	runtime.Close()
+
+	return os.RemoveAll(runtime.config.Root)
+}
+
 func linkLxcStart(root string) error {
 	sourcePath, err := exec.LookPath("lxc-start")
 	if err != nil {
@@ -777,6 +803,14 @@ func linkLxcStart(root string) error {
 		}
 	}
 	return os.Symlink(sourcePath, targetPath)
+}
+
+// FIXME: this is a convenience function for integration tests
+// which need direct access to runtime.graph.
+// Once the tests switch to using engine and jobs, this method
+// can go away.
+func (runtime *Runtime) Graph() *Graph {
+	return runtime.graph
 }
 
 // History is a convenience type for storing a list of containers,

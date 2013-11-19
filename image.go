@@ -52,11 +52,11 @@ func LoadImage(root string) (*Image, error) {
 			return nil, err
 		}
 	} else {
-		if size, err := strconv.Atoi(string(buf)); err != nil {
+		size, err := strconv.Atoi(string(buf))
+		if err != nil {
 			return nil, err
-		} else {
-			img.Size = int64(size)
 		}
+		img.Size = int64(size)
 	}
 
 	return img, nil
@@ -88,14 +88,14 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, ro
 	// If raw json is provided, then use it
 	if jsonData != nil {
 		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
-	} else { // Otherwise, unmarshal the image
-		jsonData, err := json.Marshal(img)
-		if err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
+	}
+	// Otherwise, unmarshal the image
+	jsonData, err := json.Marshal(img)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+		return err
 	}
 	// Compute and save the size of the rootfs
 	size, err := utils.TreeSize(rootfs)
@@ -123,11 +123,11 @@ func jsonPath(root string) string {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (image *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
-	if image.graph == nil {
-		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", image.ID)
+func (img *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
+	if img.graph == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
-	layerPath, err := image.graph.driver.Get(image.ID)
+	layerPath, err := img.graph.driver.Get(img.ID)
 	if err != nil {
 		return nil, err
 	}

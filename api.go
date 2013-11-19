@@ -149,13 +149,12 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 
 	signal := 0
 	if r != nil {
-		s := r.Form.Get("signal")
-		if s != "" {
-			if s, err := strconv.Atoi(s); err != nil {
+		if s := r.Form.Get("signal"); s != "" {
+			s, err := strconv.Atoi(s)
+			if err != nil {
 				return err
-			} else {
-				signal = s
 			}
+			signal = s
 		}
 	}
 	if err := srv.ContainerKill(name, signal); err != nil {
@@ -201,9 +200,8 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 		}
 
 		return writeJSON(w, http.StatusOK, outs2)
-	} else {
-		return writeJSON(w, http.StatusOK, outs)
 	}
+	return writeJSON(w, http.StatusOK, outs)
 }
 
 func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -316,13 +314,10 @@ func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	name := vars["name"]
-	ps_args := r.Form.Get("ps_args")
-	procsStr, err := srv.ContainerTop(name, ps_args)
+	procsStr, err := srv.ContainerTop(vars["name"], r.Form.Get("ps_args"))
 	if err != nil {
 		return err
 	}
-
 	return writeJSON(w, http.StatusOK, procsStr)
 }
 
@@ -350,13 +345,12 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	if version < 1.5 {
 		outs2 := []APIContainersOld{}
 		for _, ctnr := range outs {
-			outs2 = append(outs2, ctnr.ToLegacy())
+			outs2 = append(outs2, *ctnr.ToLegacy())
 		}
 
 		return writeJSON(w, http.StatusOK, outs2)
-	} else {
-		return writeJSON(w, http.StatusOK, outs)
 	}
+	return writeJSON(w, http.StatusOK, outs)
 }
 
 func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -640,12 +634,10 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	if imgs != nil {
 		if len(imgs) != 0 {
 			return writeJSON(w, http.StatusOK, imgs)
-		} else {
-			return fmt.Errorf("Conflict, %s wasn't deleted", name)
 		}
-	} else {
-		w.WriteHeader(http.StatusNoContent)
+		return fmt.Errorf("Conflict, %s wasn't deleted", name)
 	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -930,7 +922,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			return err
 		}
-		c, err := mkBuildContext(string(dockerFile), nil)
+		c, err := MkBuildContext(string(dockerFile), nil)
 		if err != nil {
 			return err
 		}
@@ -1106,6 +1098,20 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	}
 
 	return r, nil
+}
+
+// ServeRequest processes a single http request to the docker remote api.
+// FIXME: refactor this to be part of Server and not require re-creating a new
+// router each time. This requires first moving ListenAndServe into Server.
+func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *http.Request) error {
+	router, err := createRouter(srv, false)
+	if err != nil {
+		return err
+	}
+	// Insert APIVERSION into the request as a convenience
+	req.URL.Path = fmt.Sprintf("/v%g%s", apiversion, req.URL.Path)
+	router.ServeHTTP(w, req)
+	return nil
 }
 
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {

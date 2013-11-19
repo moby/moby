@@ -135,7 +135,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 
 // mkBuildContext returns an archive of an empty context with the contents
 // of `dockerfile` at the path ./Dockerfile
-func mkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
+func MkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	files = append(files, [2]string{"Dockerfile", dockerfile})
@@ -185,7 +185,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		context, err = mkBuildContext(string(dockerfile), nil)
+		context, err = MkBuildContext(string(dockerfile), nil)
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {
@@ -553,6 +553,9 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	utils.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
+			if s == syscall.SIGCHLD {
+				continue
+			}
 			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
@@ -2076,10 +2079,9 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 
 	if matchesContentType(resp.Header.Get("Content-Type"), "application/json") {
 		return utils.DisplayJSONMessagesStream(resp.Body, out)
-	} else {
-		if _, err := io.Copy(out, resp.Body); err != nil {
-			return err
-		}
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return err
 	}
 	return nil
 }
