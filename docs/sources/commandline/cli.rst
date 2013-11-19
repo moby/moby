@@ -845,6 +845,13 @@ id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (rw or ro) as the reference container.
 
+Known Issues (run -volumes-from)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* :issue:`2702`: "lxc-start: Permission denied - failed to mount"
+  could indicate a permissions problem with AppArmor. Please see the
+  issue for a workaround.
+
 .. _cli_search:
 
 ``search``
