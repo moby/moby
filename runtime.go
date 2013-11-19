@@ -24,6 +24,9 @@ import (
 	"time"
 )
 
+// Set the max depth to the aufs restriction
+const MaxImageDepth = 42
+
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
 
 type Capabilities struct {
@@ -365,6 +368,17 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// We add 2 layers to the depth because the container's rw and
+	// init layer add to the restriction
+	depth, err := img.Depth()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if depth+2 >= MaxImageDepth {
+		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
 	}
 
 	checkDeprecatedExpose := func(config *Config) bool {

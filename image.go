@@ -211,6 +211,25 @@ func (img *Image) getParentsSize(size int64) int64 {
 	return parentImage.getParentsSize(size)
 }
 
+// Depth returns the number of parents for a
+// current image
+func (img *Image) Depth() (int, error) {
+	var (
+		count  = 0
+		parent = img
+		err    error
+	)
+
+	for parent != nil {
+		count++
+		parent, err = parent.GetParent()
+		if err != nil {
+			return -1, err
+		}
+	}
+	return count, nil
+}
+
 // Build an Image object from raw json data
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
