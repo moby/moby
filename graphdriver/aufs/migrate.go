@@ -53,32 +53,35 @@ func (a *AufsDriver) migrateContainers(pth string, setupInit func(p string) erro
 	}
 
 	for _, fi := range fis {
-		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "rw")) && !a.Exists(id) {
+		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "rw")) {
 			if err := tryRelocate(path.Join(pth, id, "rw"), path.Join(a.rootPath(), "diff", id)); err != nil {
 				return err
 			}
 
-			metadata, err := loadMetadata(path.Join(pth, id, "config.json"))
-			if err != nil {
-				return err
-			}
+			if !a.Exists(id) {
 
-			initID := fmt.Sprintf("%s-init", id)
-			if err := a.Create(initID, metadata.Image); err != nil {
-				return err
-			}
+				metadata, err := loadMetadata(path.Join(pth, id, "config.json"))
+				if err != nil {
+					return err
+				}
 
-			initPath, err := a.Get(initID)
-			if err != nil {
-				return err
-			}
-			// setup init layer
-			if err := setupInit(initPath); err != nil {
-				return err
-			}
+				initID := fmt.Sprintf("%s-init", id)
+				if err := a.Create(initID, metadata.Image); err != nil {
+					return err
+				}
 
-			if err := a.Create(id, initID); err != nil {
-				return err
+				initPath, err := a.Get(initID)
+				if err != nil {
+					return err
+				}
+				// setup init layer
+				if err := setupInit(initPath); err != nil {
+					return err
+				}
+
+				if err := a.Create(id, initID); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -97,7 +100,7 @@ func (a *AufsDriver) migrateImages(pth string) error {
 	)
 
 	for _, fi := range fis {
-		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "layer")) && !a.Exists(id) {
+		if id := fi.Name(); fi.IsDir() && pathExists(path.Join(pth, id, "layer")) {
 			if current, exists = m[id]; !exists {
 				current, err = loadMetadata(path.Join(pth, id, "json"))
 				if err != nil {
@@ -112,26 +115,29 @@ func (a *AufsDriver) migrateImages(pth string) error {
 		v.parent = m[v.ParentID]
 	}
 
+	migrated := make(map[string]bool)
 	for _, v := range m {
-		if err := a.migrateImage(v, pth); err != nil {
+		if err := a.migrateImage(v, pth, migrated); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (a *AufsDriver) migrateImage(m *metadata, pth string) error {
-	if !pathExists(path.Join(a.rootPath(), "diff", m.ID)) {
+func (a *AufsDriver) migrateImage(m *metadata, pth string, migrated map[string]bool) error {
+	if !migrated[m.ID] {
 		if m.parent != nil {
-			a.migrateImage(m.parent, pth)
+			a.migrateImage(m.parent, pth, migrated)
 		}
 		if err := tryRelocate(path.Join(pth, m.ID, "layer"), path.Join(a.rootPath(), "diff", m.ID)); err != nil {
 			return err
 		}
-
-		if err := a.Create(m.ID, m.ParentID); err != nil {
-			return err
+		if !a.Exists(m.ID) {
+			if err := a.Create(m.ID, m.ParentID); err != nil {
+				return err
+			}
 		}
+		migrated[m.ID] = true
 	}
 	return nil
 }
@@ -139,6 +145,17 @@ func (a *AufsDriver) migrateImage(m *metadata, pth string) error {
 // tryRelocate will try to rename the old path to the new pack and if
 // the operation fails, it will fallback to a symlink
 func tryRelocate(oldPath, newPath string) error {
+	s, err := os.Lstat(newPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	// If the destination is a symlink then we already tried to relocate once before
+	// and it failed so we delete it and try to remove
+	if s != nil && s.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if err := os.RemoveAll(newPath); err != nil {
+			return err
+		}
+	}
 	if err := os.Rename(oldPath, newPath); err != nil {
 		if sErr := os.Symlink(oldPath, newPath); sErr != nil {
 			return fmt.Errorf("Unable to relocate %s to %s: Rename err %s Symlink err %s", oldPath, newPath, err, sErr)
