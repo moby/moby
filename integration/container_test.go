@@ -1257,6 +1257,13 @@ func TestBindMounts(t *testing.T) {
 	if _, err := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
+
+	// test mount a file
+	runContainer(eng, r, []string{"-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "_", "sh", "-c", "echo -n 'yotta' > /tmp/holla"}, t)
+	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+	if content != "yotta" {
+		t.Fatal("Container failed to write to bind mount file")
+	}
 }
 
 // Test that -volumes-from supports both read-only mounts
