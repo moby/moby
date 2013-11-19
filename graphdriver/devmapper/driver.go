@@ -76,10 +76,6 @@ func (d *Driver) Get(id string) (string, error) {
 	return mp, nil
 }
 
-func (d *Driver) Size(id string) (int64, error) {
-	return -1, fmt.Errorf("Not implemented")
-}
-
 func (d *Driver) mount(id, mountPoint string) error {
 	// Create the target directories if they don't exist
 	if err := os.MkdirAll(mountPoint, 0755); err != nil && !os.IsExist(err) {

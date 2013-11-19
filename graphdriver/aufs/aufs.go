@@ -219,7 +219,7 @@ func (a *AufsDriver) ApplyDiff(id string, diff archive.Archive) error {
 }
 
 // Returns the size of the contents for the id
-func (a *AufsDriver) Size(id string) (int64, error) {
+func (a *AufsDriver) DiffSize(id string) (int64, error) {
 	return utils.TreeSize(path.Join(a.rootPath(), "diff", id))
 }
 

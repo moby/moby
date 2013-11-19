@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
@@ -1552,18 +1553,28 @@ func (container *Container) GetSize() (int64, int64) {
 		driver             = container.runtime.driver
 	)
 
-	sizeRw, err = driver.Size(container.ID)
-	if err != nil {
-		utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
-		// FIXME: GetSize should return an error. Not changing it now in case
-		// there is a side-effect.
-		sizeRw = -1
-	}
-
 	if err := container.EnsureMounted(); err != nil {
 		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
+
+	if differ, ok := container.runtime.driver.(graphdriver.Differ); ok {
+		sizeRw, err = differ.DiffSize(container.ID)
+		if err != nil {
+			utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+			// FIXME: GetSize should return an error. Not changing it now in case
+			// there is a side-effect.
+			sizeRw = -1
+		}
+	} else {
+		changes, _ := container.Changes()
+		if changes != nil {
+			sizeRw = archive.ChangesSize(container.RootfsPath(), changes)
+		} else {
+			sizeRw = -1
+		}
+	}
+
 	_, err = os.Stat(container.RootfsPath())
 	if err == nil {
 		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
