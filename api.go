@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"bufio"
+	"bytes"
 	"code.google.com/p/go.net/websocket"
 	"encoding/base64"
 	"encoding/json"
@@ -565,11 +567,17 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		job.SetenvList("Dns", defaultDns)
 	}
 	// Read container ID from the first line of stdout
-	job.StdoutParseString(&out.ID)
+	job.Stdout.AddString(&out.ID)
 	// Read warnings from stderr
-	job.StderrParseLines(&out.Warnings, 0)
+	warnings := &bytes.Buffer{}
+	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
 		return err
+	}
+	// Parse warnings from stderr
+	scanner := bufio.NewScanner(warnings)
+	for scanner.Scan() {
+		out.Warnings = append(out.Warnings, scanner.Text())
 	}
 	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")

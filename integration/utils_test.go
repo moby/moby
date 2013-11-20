@@ -46,7 +46,7 @@ func createNamedTestContainer(eng *engine.Engine, config *docker.Config, f utils
 	if err := job.ImportEnv(config); err != nil {
 		f.Fatal(err)
 	}
-	job.StdoutParseString(&shortId)
+	job.Stdout.AddString(&shortId)
 	if err := job.Run(); err != nil {
 		f.Fatal(err)
 	}
