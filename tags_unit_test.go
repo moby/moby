@@ -47,6 +47,7 @@ func TestLookupImage(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	store := mkTestTagStore(tmp, t)
+	defer store.graph.driver.Cleanup()
 
 	if img, err := store.LookupImage(testImageName); err != nil {
 		t.Fatal(err)
