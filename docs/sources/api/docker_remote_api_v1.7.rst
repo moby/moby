@@ -1171,6 +1171,53 @@ Monitor Docker's events
         :statuscode 200: no error
         :statuscode 500: server error
 
+Get a tarball containing all images and tags in a repository
+************************************************************
+
+.. http:get:: /images/(name)/get
+
+  Get a tarball containing all images and metadata for the repository specified by ``name``.
+
+  **Example request**
+
+  .. sourcecode:: http
+  
+           GET /images/ubuntu/get
+
+       **Example response**:
+
+       .. sourcecode:: http
+
+          HTTP/1.1 200 OK
+    Content-Type: application/x-tar
+
+    Binary data stream
+        :statuscode 200: no error
+        :statuscode 500: server error
+
+Load a tarball with a set of images and tags into docker
+********************************************************
+
+.. http:post:: /images/load
+
+  Load a set of images and tags into the docker repository.
+
+  **Example request**
+
+  .. sourcecode:: http
+
+           POST /images/load
+
+         Tarball in body
+
+       **Example response**:
+
+       .. sourcecode:: http
+
+          HTTP/1.1 200 OK
+
+        :statuscode 200: no error
+        :statuscode 500: server error
 
 3. Going further
 ================

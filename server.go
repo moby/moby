@@ -197,6 +197,185 @@ func (srv *Server) ContainerExport(name string, out io.Writer) error {
 	return fmt.Errorf("No such container: %s", name)
 }
 
+// ImageExport exports all images with the given tag. All versions
+// containing the same tag are exported. The resulting output is an
+// uncompressed tar ball.
+// name is the set of tags to export.
+// out is the writer where the images are written to.
+func (srv *Server) ImageExport(name string, out io.Writer) error {
+	// get image json
+	tempdir, err := ioutil.TempDir("", "docker-export-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempdir)
+
+	utils.Debugf("Serializing %s", name)
+
+	rootRepo := srv.runtime.repositories.Repositories[name]
+	for _, rootImage := range rootRepo {
+		image, _ := srv.ImageInspect(rootImage)
+		for i := image; i != nil; {
+			// temporary directory
+			tmpImageDir := path.Join(tempdir, i.ID)
+			if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+				return err
+			}
+			defer os.RemoveAll(tmpImageDir)
+
+			var version = "1.0"
+			var versionBuf = []byte(version)
+
+			if err := ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend); err != nil {
+				return err
+			}
+
+			// serialize json
+			b, err := json.Marshal(i)
+			if err != nil {
+				return err
+			}
+			if err := ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend); err != nil {
+				return err
+			}
+
+			// serialize filesystem
+			fs, err := archive.Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), archive.Uncompressed)
+			if err != nil {
+				return err
+			}
+
+			fsTar, err := os.Create(path.Join(tmpImageDir, "layer.tar"))
+			if err != nil {
+				return err
+			}
+			if _, err = io.Copy(fsTar, fs); err != nil {
+				return err
+			}
+			fsTar.Close()
+
+			// find parent
+			if i.Parent != "" {
+				i, err = srv.ImageInspect(i.Parent)
+				if err != nil {
+					return err
+				}
+			} else {
+				i = nil
+			}
+		}
+	}
+
+	// write repositories
+	rootRepoMap := map[string]Repository{}
+	rootRepoMap[name] = rootRepo
+	rootRepoJson, _ := json.Marshal(rootRepoMap)
+
+	if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
+		return err
+	}
+
+	fs, err := archive.Tar(tempdir, archive.Uncompressed)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(out, fs); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Loads a set of images into the repository. This is the complementary of ImageExport.
+// The input stream is an uncompressed tar ball containing images and metadata.
+func (srv *Server) ImageLoad(in io.Reader) error {
+	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpImageDir)
+
+	var (
+		repoTarFile = path.Join(tmpImageDir, "repo.tar")
+		repoDir     = path.Join(tmpImageDir, "repo")
+	)
+
+	tarFile, err := os.Create(repoTarFile)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(tarFile, in); err != nil {
+		return err
+	}
+	tarFile.Close()
+
+	repoFile, err := os.Open(repoTarFile)
+	if err != nil {
+		return err
+	}
+	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
+		return err
+	}
+	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
+		return err
+	}
+	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
+	if err != nil {
+		return err
+	}
+	repositories := map[string]Repository{}
+	if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
+		return err
+	}
+
+	for imageName, tagMap := range repositories {
+		for tag, address := range tagMap {
+			if err := srv.recursiveLoad(address, tmpImageDir); err != nil {
+				return err
+			}
+			if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
+	if _, err := srv.ImageInspect(address); err != nil {
+		utils.Debugf("Loading %s", address)
+
+		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
+		if err != nil {
+			return err
+			utils.Debugf("Error reading json", err)
+		}
+
+		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
+		if err != nil {
+			utils.Debugf("Error reading embedded tar", err)
+			return err
+		}
+		img, err := NewImgJSON(imageJson)
+		if err != nil {
+			utils.Debugf("Error unmarshalling json", err)
+			return err
+		}
+		if img.Parent != "" {
+			if !srv.runtime.graph.Exists(img.Parent) {
+				if err := srv.recursiveLoad(img.Parent, tmpImageDir); err != nil {
+					return err
+				}
+			}
+		}
+		if err := srv.runtime.graph.Register(imageJson, layer, img); err != nil {
+			return err
+		}
+	}
+	utils.Debugf("Completed processing %s", address)
+	return nil
+}
+
 func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
 	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
 	if err != nil {
@@ -473,6 +652,12 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	var displayed int
 	out := []APIContainers{}
 
+	names := map[string][]string{}
+	srv.runtime.containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
+		names[e.ID()] = append(names[e.ID()], p)
+		return nil
+	}, -1)
+
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
 			continue
@@ -493,25 +678,17 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 			break
 		}
 		displayed++
-		c := createAPIContainer(container, size, srv.runtime)
+		c := createAPIContainer(names[container.ID], container, size, srv.runtime)
 		out = append(out, c)
 	}
 	return out
 }
 
-func createAPIContainer(container *Container, size bool, runtime *Runtime) APIContainers {
+func createAPIContainer(names []string, container *Container, size bool, runtime *Runtime) APIContainers {
 	c := APIContainers{
 		ID: container.ID,
 	}
-	names := []string{}
-	runtime.containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
-		if e.ID() == container.ID {
-			names = append(names, p)
-		}
-		return nil
-	}, -1)
 	c.Names = names
-
 	c.Image = runtime.repositories.ImageName(container.Image)
 	c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 	c.Created = container.Created.Unix()
