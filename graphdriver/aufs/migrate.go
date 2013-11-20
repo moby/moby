@@ -38,10 +38,21 @@ func pathExists(pth string) bool {
 // symlink.
 func (a *Driver) Migrate(pth string, setupInit func(p string) error) error {
 	if pathExists(path.Join(pth, "graph")) {
+		if err := a.migrateRepositories(pth); err != nil {
+			return err
+		}
 		if err := a.migrateImages(path.Join(pth, "graph")); err != nil {
 			return err
 		}
 		return a.migrateContainers(path.Join(pth, "containers"), setupInit)
+	}
+	return nil
+}
+
+func (a *Driver) migrateRepositories(pth string) error {
+	name := path.Join(pth, "repositories")
+	if err := os.Rename(name, name+"-aufs"); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 	return nil
 }
