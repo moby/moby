@@ -134,9 +134,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 	container.rootfs = rootfs
 
-	// init the wait lock
-	container.waitLock = make(chan struct{})
-
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
@@ -151,10 +148,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	// done
 	runtime.containers.PushBack(container)
 	runtime.idIndex.Add(container.ID)
-
-	// When we actually restart, Start() do the monitoring.
-	// However, when we simply 'reattach', we have to restart a monitor
-	nomonitor := false
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -173,7 +166,6 @@ func (runtime *Runtime) Register(container *Container) error {
 				if err := container.Start(); err != nil {
 					return err
 				}
-				nomonitor = true
 			} else {
 				utils.Debugf("Marking as stopped")
 				container.State.setStopped(-127)
@@ -181,16 +173,17 @@ func (runtime *Runtime) Register(container *Container) error {
 					return err
 				}
 			}
-		}
-	}
+		} else {
+			utils.Debugf("Reconnecting to container %v", container.ID)
 
-	// If the container is not running or just has been flagged not running
-	// then close the wait lock chan (will be reset upon start)
-	if !container.State.Running {
-		close(container.waitLock)
-	} else if !nomonitor {
-		container.allocateNetwork()
-		go container.monitor()
+			if err := container.allocateNetwork(); err != nil {
+				return err
+			}
+
+			container.waitLock = make(chan struct{})
+
+			go container.monitor()
+		}
 	}
 	return nil
 }
