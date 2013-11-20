@@ -24,7 +24,7 @@ type Job struct {
 	Eng     *Engine
 	Name    string
 	Args    []string
-	env	*Env
+	env     *Env
 	Stdout  *Output
 	Stderr  *Output
 	Stdin   *Input
