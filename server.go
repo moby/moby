@@ -650,6 +650,12 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	var displayed int
 	out := []APIContainers{}
 
+	names := map[string][]string{}
+	srv.runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
+		names[e.ID()] = append(names[e.ID()], p)
+		return nil
+	}, -1)
+
 	for _, container := range srv.runtime.List() {
 		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
 			continue
@@ -670,25 +676,17 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 			break
 		}
 		displayed++
-		c := createAPIContainer(container, size, srv.runtime)
+		c := createAPIContainer(names[container.ID], container, size, srv.runtime)
 		out = append(out, c)
 	}
 	return out
 }
 
-func createAPIContainer(container *Container, size bool, runtime *Runtime) APIContainers {
+func createAPIContainer(names []string, container *Container, size bool, runtime *Runtime) APIContainers {
 	c := APIContainers{
 		ID: container.ID,
 	}
-	names := []string{}
-	runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
-		if e.ID() == container.ID {
-			names = append(names, p)
-		}
-		return nil
-	}, -1)
 	c.Names = names
-
 	c.Image = runtime.repositories.ImageName(container.Image)
 	c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
 	c.Created = container.Created.Unix()
