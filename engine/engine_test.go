@@ -38,8 +38,9 @@ func TestJob(t *testing.T) {
 		t.Fatalf("job1.handler should be empty")
 	}
 
-	h := func(j *Job) string {
-		return j.Name
+	h := func(j *Job) Status {
+		j.Printf("%s\n", j.Name)
+		return 42
 	}
 
 	eng.Register("dummy2", h)
@@ -49,7 +50,7 @@ func TestJob(t *testing.T) {
 		t.Fatalf("job2.handler shouldn't be nil")
 	}
 
-	if job2.handler(job2) != job2.Name {
+	if job2.handler(job2) != 42 {
 		t.Fatalf("handler dummy2 was not found in job2")
 	}
 }

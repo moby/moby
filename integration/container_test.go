@@ -499,7 +499,7 @@ func TestCreateVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	var id string
-	jobCreate.StdoutParseString(&id)
+	jobCreate.Stdout.AddString(&id)
 	if err := jobCreate.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -1502,7 +1502,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	var id string
-	jobCreate.StdoutParseString(&id)
+	jobCreate.Stdout.AddString(&id)
 	if err := jobCreate.Run(); err != nil {
 		t.Fatal(err)
 	}

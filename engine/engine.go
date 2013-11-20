@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type Handler func(*Job) string
+type Handler func(*Job) Status
 
 var globalHandlers map[string]Handler
 
@@ -99,10 +99,12 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Eng:    eng,
 		Name:   name,
 		Args:   args,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdin:  NewInput(),
+		Stdout: NewOutput(),
+		Stderr: NewOutput(),
 	}
+	job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
+	job.Stderr.Add(utils.NopWriteCloser(os.Stderr))
 	handler, exists := eng.handlers[name]
 	if exists {
 		job.handler = handler
