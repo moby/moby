@@ -148,26 +148,26 @@ type (
 )
 
 var (
-	DmTaskDestroy       = dmTaskDestroyFct
-	DmTaskCreate        = dmTaskCreateFct
-	DmTaskRun           = dmTaskRunFct
-	DmTaskSetName       = dmTaskSetNameFct
-	DmTaskSetMessage    = dmTaskSetMessageFct
-	DmTaskSetSector     = dmTaskSetSectorFct
-	DmTaskSetCookie     = dmTaskSetCookieFct
-	DmTaskSetAddNode    = dmTaskSetAddNodeFct
-	DmTaskSetRo         = dmTaskSetRoFct
-	DmTaskAddTarget     = dmTaskAddTargetFct
-	DmTaskGetInfo       = dmTaskGetInfoFct
-	DmGetNextTarget     = dmGetNextTargetFct
-	DmGetBlockSize      = dmGetBlockSizeFct
 	DmAttachLoopDevice  = dmAttachLoopDeviceFct
-	DmUdevWait          = dmUdevWaitFct
+	DmGetBlockSize      = dmGetBlockSizeFct
+	DmGetLibraryVersion = dmGetLibraryVersionFct
+	DmGetNextTarget     = dmGetNextTargetFct
 	DmLogInitVerbose    = dmLogInitVerboseFct
 	DmSetDevDir         = dmSetDevDirFct
-	DmGetLibraryVersion = dmGetLibraryVersionFct
-	LogWithErrnoInit    = logWithErrnoInitFct
+	DmTaskAddTarget     = dmTaskAddTargetFct
+	DmTaskCreate        = dmTaskCreateFct
+	DmTaskDestroy       = dmTaskDestroyFct
+	DmTaskGetInfo       = dmTaskGetInfoFct
+	DmTaskRun           = dmTaskRunFct
+	DmTaskSetAddNode    = dmTaskSetAddNodeFct
+	DmTaskSetCookie     = dmTaskSetCookieFct
+	DmTaskSetMessage    = dmTaskSetMessageFct
+	DmTaskSetName       = dmTaskSetNameFct
+	DmTaskSetRo         = dmTaskSetRoFct
+	DmTaskSetSector     = dmTaskSetSectorFct
+	DmUdevWait          = dmUdevWaitFct
 	GetBlockSize        = getBlockSizeFct
+	LogWithErrnoInit    = logWithErrnoInitFct
 )
 
 func free(p *C.char) {

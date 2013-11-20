@@ -12,6 +12,68 @@ func init() {
 	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	DefaultBaseFsSize = 300 * 1024 * 1024
 
+	// Hijack all calls to libdevmapper with default panics.
+	// Authorized calls are selectively hijacked in each tests.
+	DmTaskCreate = func(t int) *CDmTask {
+		panic("DmTaskCreate: this method should not be called here")
+	}
+	DmTaskRun = func(task *CDmTask) int {
+		panic("DmTaskRun: this method should not be called here")
+	}
+	DmTaskSetName = func(task *CDmTask, name string) int {
+		panic("DmTaskSetName: this method should not be called here")
+	}
+	DmTaskSetMessage = func(task *CDmTask, message string) int {
+		panic("DmTaskSetMessage: this method should not be called here")
+	}
+	DmTaskSetSector = func(task *CDmTask, sector uint64) int {
+		panic("DmTaskSetSector: this method should not be called here")
+	}
+	DmTaskSetCookie = func(task *CDmTask, cookie *uint, flags uint16) int {
+		panic("DmTaskSetCookie: this method should not be called here")
+	}
+	DmTaskSetAddNode = func(task *CDmTask, addNode AddNodeType) int {
+		panic("DmTaskSetAddNode: this method should not be called here")
+	}
+	DmTaskSetRo = func(task *CDmTask) int {
+		panic("DmTaskSetRo: this method should not be called here")
+	}
+	DmTaskAddTarget = func(task *CDmTask, start, size uint64, ttype, params string) int {
+		panic("DmTaskAddTarget: this method should not be called here")
+	}
+	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
+		panic("DmTaskGetInfo: this method should not be called here")
+	}
+	DmGetNextTarget = func(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
+		panic("DmGetNextTarget: this method should not be called here")
+	}
+	DmAttachLoopDevice = func(filename string, fd *int) string {
+		panic("DmAttachLoopDevice: this method should not be called here")
+	}
+	DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
+		panic("DmGetBlockSize: this method should not be called here")
+	}
+	DmUdevWait = func(cookie uint) int {
+		panic("DmUdevWait: this method should not be called here")
+	}
+	DmSetDevDir = func(dir string) int {
+		panic("DmSetDevDir: this method should not be called here")
+	}
+	DmGetLibraryVersion = func(version *string) int {
+		panic("DmGetLibraryVersion: this method should not be called here")
+	}
+	DmLogInitVerbose = func(level int) {
+		panic("DmLogInitVerbose: this method should not be called here")
+	}
+	DmTaskDestroy = func(task *CDmTask) {
+		panic("DmTaskDestroy: this method should not be called here")
+	}
+	GetBlockSize = func(fd uintptr, size *uint64) sysErrno {
+		panic("GetBlockSize: this method should not be called here")
+	}
+	LogWithErrnoInit = func() {
+		panic("LogWithErrnoInit: this method should not be called here")
+	}
 }
 
 func mkTestDirectory(t *testing.T) string {
