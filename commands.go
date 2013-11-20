@@ -575,6 +575,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	}
 
 	var cErr chan error
+	var tty bool
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("Impossible to start and attach multiple containers at once.")
@@ -591,15 +592,11 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 
+		tty = container.Config.Tty
+
 		if !container.Config.Tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
 			defer utils.StopCatch(sigc)
-		}
-
-		if container.Config.Tty && cli.isTerminal {
-			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-				return err
-			}
 		}
 
 		var in io.ReadCloser
@@ -639,7 +636,13 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 		return encounteredError
 	}
+
 	if *openStdin || *attach {
+		if tty && cli.isTerminal {
+			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
+				utils.Errorf("Error monitoring TTY size: %s\n", err)
+			}
+		}
 		return <-cErr
 	}
 	return nil
