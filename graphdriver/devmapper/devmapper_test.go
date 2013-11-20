@@ -1,7 +1,6 @@
 package devmapper
 
 import (
-	"syscall"
 	"testing"
 )
 
@@ -264,7 +263,7 @@ func dmAttachLoopDeviceFail(filename string, fd *int) string {
 	return ""
 }
 
-func sysGetBlockSizeFail(fd uintptr, size *uint64) syscall.Errno {
+func sysGetBlockSizeFail(fd uintptr, size *uint64) sysErrno {
 	return 1
 }
 

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -344,7 +343,7 @@ func setCloseOnExec(name string) {
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					SyscallCloseOnExec(fd)
+					sysCloseOnExec(fd)
 				}
 			}
 		}
@@ -468,7 +467,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if err != nil {
 		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
 	}
-	sysSt := st.Sys().(*syscall.Stat_t)
+	sysSt := toSysStatT(st.Sys())
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	// docker-maj,min[-inode] stands for:
@@ -708,15 +707,16 @@ func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
 }
 
 func (devices *DeviceSet) Shutdown() error {
-	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
-	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 	devices.Lock()
-	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer devices.Unlock()
+
+	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
+	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
+	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
 	for path, count := range devices.activeMounts {
 		for i := count; i > 0; i-- {
-			if err := SyscallUnmount(path, 0); err != nil {
+			if err := sysUnmount(path, 0); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", path, err)
 			}
 		}
@@ -752,15 +752,15 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 
 	info := devices.Devices[hash]
 
-	var flags uintptr = syscall.MS_MGC_VAL
+	var flags uintptr = sysMsMgcVal
 
 	if readOnly {
-		flags = flags | syscall.MS_RDONLY
+		flags = flags | sysMsRdOnly
 	}
 
-	err := SyscallMount(info.DevName(), path, "ext4", flags, "discard")
-	if err != nil && err == syscall.EINVAL {
-		err = SyscallMount(info.DevName(), path, "ext4", flags, "")
+	err := sysMount(info.DevName(), path, "ext4", flags, "discard")
+	if err != nil && err == sysEInval {
+		err = sysMount(info.DevName(), path, "ext4", flags, "")
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -779,7 +779,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 	defer devices.Unlock()
 
 	utils.Debugf("[devmapper] Unmount(%s)", path)
-	if err := SyscallUnmount(path, 0); err != nil {
+	if err := sysUnmount(path, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}

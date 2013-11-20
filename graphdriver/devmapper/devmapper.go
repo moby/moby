@@ -6,7 +6,6 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"runtime"
-	"syscall"
 )
 
 type DevmapperLogger interface {
@@ -210,13 +209,13 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 	if err != nil {
 		return nil
 	}
-	targetInode := stat.Sys().(*syscall.Stat_t).Ino
-	targetDevice := stat.Sys().(*syscall.Stat_t).Dev
+	targetInode := stat.Sys().(*sysStatT).Ino
+	targetDevice := stat.Sys().(*sysStatT).Dev
 
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)
 
-		file, err := OSOpenFile(path, os.O_RDWR, 0)
+		file, err := osOpenFile(path, os.O_RDWR, 0)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil
@@ -394,8 +393,8 @@ func getStatus(name string) (uint64, uint64, string, string, error) {
 		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
 	}
 
-	_, start, length, target_type, params := task.GetNextTarget(0)
-	return start, length, target_type, params, nil
+	_, start, length, targetType, params := task.GetNextTarget(0)
+	return start, length, targetType, params, nil
 }
 
 func setTransactionId(poolName string, oldId uint64, newId uint64) error {

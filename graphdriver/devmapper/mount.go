@@ -3,7 +3,6 @@ package devmapper
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 )
 
 // FIXME: this is copy-pasted from the aufs driver.
@@ -21,7 +20,7 @@ func Mounted(mountpoint string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	mntpointSt := mntpoint.Sys().(*syscall.Stat_t)
-	parentSt := parent.Sys().(*syscall.Stat_t)
+	mntpointSt := toSysStatT(mntpoint.Sys())
+	parentSt := toSysStatT(parent.Sys())
 	return mntpointSt.Dev != parentSt.Dev, nil
 }
