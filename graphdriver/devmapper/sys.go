@@ -8,15 +8,26 @@ import (
 type (
 	sysStatT syscall.Stat_t
 	sysErrno syscall.Errno
+
+	osFile struct{ *os.File }
 )
 
 var (
-	// functions
 	sysMount       = syscall.Mount
 	sysUnmount     = syscall.Unmount
 	sysCloseOnExec = syscall.CloseOnExec
 	sysSyscall     = syscall.Syscall
-	osOpenFile     = os.OpenFile
+
+	osOpenFile   = os.OpenFile
+	osNewFile    = os.NewFile
+	osCreate     = os.Create
+	osStat       = os.Stat
+	osIsNotExist = os.IsNotExist
+	osIsExist    = os.IsExist
+	osMkdirAll   = os.MkdirAll
+	osRemoveAll  = os.RemoveAll
+	osRename     = os.Rename
+	osReadlink   = os.Readlink
 )
 
 const (
@@ -24,6 +35,9 @@ const (
 	sysMsRdOnly = syscall.MS_RDONLY
 	sysEInval   = syscall.EINVAL
 	sysSysIoctl = syscall.SYS_IOCTL
+
+	osORdWr   = os.O_RDWR
+	osOCreate = os.O_CREATE
 )
 
 func toSysStatT(i interface{}) *sysStatT {

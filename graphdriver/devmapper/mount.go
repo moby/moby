@@ -1,7 +1,6 @@
 package devmapper
 
 import (
-	"os"
 	"path/filepath"
 )
 
@@ -9,14 +8,14 @@ import (
 // It should be moved into the core.
 
 func Mounted(mountpoint string) (bool, error) {
-	mntpoint, err := os.Stat(mountpoint)
+	mntpoint, err := osStat(mountpoint)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if osIsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	parent, err := os.Stat(filepath.Join(mountpoint, ".."))
+	parent, err := osStat(filepath.Join(mountpoint, ".."))
 	if err != nil {
 		return false, err
 	}

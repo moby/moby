@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
 	"io/ioutil"
-	"os"
 	"path"
 )
 
@@ -67,7 +66,7 @@ func (d *Driver) Create(id string, parent string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(path.Join(mp, "rootfs"), 0755); err != nil && !os.IsExist(err) {
+	if err := osMkdirAll(path.Join(mp, "rootfs"), 0755); err != nil && !osIsExist(err) {
 		return err
 	}
 
@@ -98,7 +97,7 @@ func (d *Driver) Get(id string) (string, error) {
 
 func (d *Driver) mount(id, mountPoint string) error {
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mountPoint, 0755); err != nil && !os.IsExist(err) {
+	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {
 		return err
 	}
 	// If mountpoint is already mounted, do nothing

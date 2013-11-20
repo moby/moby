@@ -2,7 +2,6 @@ package devmapper
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 )
@@ -34,12 +33,12 @@ func newDriver(t *testing.T) *Driver {
 
 func cleanup(d *Driver) {
 	d.Cleanup()
-	os.RemoveAll(d.home)
+	osRemoveAll(d.home)
 }
 
 func TestInit(t *testing.T) {
 	home := mkTestDirectory(t)
-	defer os.RemoveAll(home)
+	defer osRemoveAll(home)
 	driver, err := Init(home)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +57,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st, err := os.Stat(dir); err != nil {
+	if st, err := osStat(dir); err != nil {
 		t.Fatal(err)
 	} else if !st.IsDir() {
 		t.Fatalf("Get(%V) did not return a directory", id)
@@ -99,7 +98,7 @@ func TestDriverRemove(t *testing.T) {
 func TestCleanup(t *testing.T) {
 	t.Skip("Unimplemented")
 	d := newDriver(t)
-	defer os.RemoveAll(d.home)
+	defer osRemoveAll(d.home)
 
 	mountPoints := make([]string, 2)
 
@@ -284,7 +283,7 @@ func TestDriverGetSize(t *testing.T) {
 
 	size := int64(1024)
 
-	f, err := os.Create(path.Join(mountPoint, "test_file"))
+	f, err := osCreate(path.Join(mountPoint, "test_file"))
 	if err != nil {
 		t.Fatal(err)
 	}
