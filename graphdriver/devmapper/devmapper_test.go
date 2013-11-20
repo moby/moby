@@ -246,10 +246,6 @@ func dmTaskAddTargetFail(task *CDmTask,
 	return -1
 }
 
-func dmTaskGetDriverVersionFail(task *CDmTask, version *string) int {
-	return -1
-}
-
 func dmTaskGetInfoFail(task *CDmTask, info *Info) int {
 	return -1
 }
@@ -265,10 +261,6 @@ func dmAttachLoopDeviceFail(filename string, fd *int) string {
 
 func sysGetBlockSizeFail(fd uintptr, size *uint64) sysErrno {
 	return 1
-}
-
-func dmGetBlockSizeFail(fd uintptr) int64 {
-	return -1
 }
 
 func dmUdevWaitFail(cookie uint) int {

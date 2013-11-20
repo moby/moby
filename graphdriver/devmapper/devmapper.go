@@ -47,7 +47,6 @@ var (
 	ErrTaskAddTarget          = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector          = errors.New("dm_task_set_sector failed")
 	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
-	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
 	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
 	ErrNilCookie              = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
