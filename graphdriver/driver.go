@@ -8,6 +8,8 @@ import (
 	"path"
 )
 
+var DefaultDriver string
+
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
@@ -64,10 +66,16 @@ func GetDriver(name, home string) (Driver, error) {
 func New(root string) (Driver, error) {
 	var driver Driver
 	var lastError error
-	// Use environment variable DOCKER_DRIVER to force a choice of driver
-	if name := os.Getenv("DOCKER_DRIVER"); name != "" {
-		return GetDriver(name, root)
+
+	for _, name := range []string{
+		os.Getenv("DOCKER_DRIVER"),
+		DefaultDriver,
+	} {
+		if name != "" {
+			return GetDriver(name, root)
+		}
 	}
+
 	// Check for priority drivers first
 	for _, name := range priority {
 		driver, lastError = GetDriver(name, root)
