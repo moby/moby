@@ -344,7 +344,7 @@ func setCloseOnExec(name string) {
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					syscall.CloseOnExec(fd)
+					SyscallCloseOnExec(fd)
 				}
 			}
 		}
@@ -716,7 +716,7 @@ func (devices *DeviceSet) Shutdown() error {
 
 	for path, count := range devices.activeMounts {
 		for i := count; i > 0; i-- {
-			if err := syscall.Unmount(path, 0); err != nil {
+			if err := SyscallUnmount(path, 0); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", path, err)
 			}
 		}
@@ -758,9 +758,9 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 		flags = flags | syscall.MS_RDONLY
 	}
 
-	err := syscall.Mount(info.DevName(), path, "ext4", flags, "discard")
+	err := SyscallMount(info.DevName(), path, "ext4", flags, "discard")
 	if err != nil && err == syscall.EINVAL {
-		err = syscall.Mount(info.DevName(), path, "ext4", flags, "")
+		err = SyscallMount(info.DevName(), path, "ext4", flags, "")
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -779,7 +779,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 	defer devices.Unlock()
 
 	utils.Debugf("[devmapper] Unmount(%s)", path)
-	if err := syscall.Unmount(path, 0); err != nil {
+	if err := SyscallUnmount(path, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}

@@ -216,7 +216,7 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)
 
-		file, err := os.OpenFile(path, os.O_RDWR, 0)
+		file, err := OSOpenFile(path, os.O_RDWR, 0)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil

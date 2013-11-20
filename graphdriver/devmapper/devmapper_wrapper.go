@@ -241,19 +241,19 @@ func dmTaskAddTargetFct(task *CDmTask,
 
 func dmGetLoopbackBackingFile(fd uintptr) (uint64, uint64, syscall.Errno) {
 	var lo64 C.struct_loop_info64
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.LOOP_GET_STATUS64,
+	_, _, err := SyscallSyscall(syscall.SYS_IOCTL, fd, C.LOOP_GET_STATUS64,
 		uintptr(unsafe.Pointer(&lo64)))
 	return uint64(lo64.lo_device), uint64(lo64.lo_inode), err
 }
 
 func dmLoopbackSetCapacity(fd uintptr) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.LOOP_SET_CAPACITY, 0)
+	_, _, err := SyscallSyscall(syscall.SYS_IOCTL, fd, C.LOOP_SET_CAPACITY, 0)
 	return err
 }
 
 func dmGetBlockSizeFct(fd uintptr) (int64, syscall.Errno) {
 	var size int64
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
+	_, _, err := SyscallSyscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
 		uintptr(unsafe.Pointer(&size)))
 	return size, err
 }
@@ -308,7 +308,7 @@ func dmAttachLoopDeviceFct(filename string, fd *int) string {
 }
 
 func getBlockSizeFct(fd uintptr, size *uint64) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
+	_, _, err := SyscallSyscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
 		uintptr(unsafe.Pointer(&size)))
 	return err
 }
