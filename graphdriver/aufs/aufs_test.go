@@ -446,7 +446,9 @@ func TestDiffSize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Truncate(size)
+	if err := f.Truncate(size); err != nil {
+		t.Fatal(err)
+	}
 	s, err := f.Stat()
 	if err != nil {
 		t.Fatal(err)
@@ -462,6 +464,108 @@ func TestDiffSize(t *testing.T) {
 	}
 	if diffSize != size {
 		t.Fatalf("Expected size to be %d got %d", size, diffSize)
+	}
+}
+
+func TestChildDiffSize(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	diffPath, err := d.Get("1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a file to the diff path with a fixed size
+	size := int64(1024)
+
+	f, err := os.Create(path.Join(diffPath, "test_file"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(size); err != nil {
+		t.Fatal(err)
+	}
+	s, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	size = s.Size()
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	diffSize, err := d.DiffSize("1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diffSize != size {
+		t.Fatalf("Expected size to be %d got %d", size, diffSize)
+	}
+
+	if err := d.Create("2", "1"); err != nil {
+		t.Fatal(err)
+	}
+
+	diffSize, err = d.DiffSize("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The diff size for the child should be zero
+	if diffSize != 0 {
+		t.Fatalf("Expected size to be %d got %d", 0, diffSize)
+	}
+}
+
+func TestExists(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if d.Exists("none") {
+		t.Fatal("id name should not exist in the driver")
+	}
+
+	if !d.Exists("1") {
+		t.Fatal("id 1 should exist in the driver")
+	}
+}
+
+func TestStatus(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	if err := d.Create("1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	status := d.Status()
+	if status == nil || len(status) == 0 {
+		t.Fatal("Status should not be nil or empty")
+	}
+	rootDir := status[0]
+	dirs := status[1]
+	if rootDir[0] != "Root Dir" {
+		t.Fatalf("Expected Root Dir got %s", rootDir[0])
+	}
+	if rootDir[1] != d.rootPath() {
+		t.Fatalf("Expected %s got %s", d.rootPath(), rootDir[1])
+	}
+	if dirs[0] != "Dirs" {
+		t.Fatalf("Expected Dirs got %s", dirs[0])
+	}
+	if dirs[1] != "1" {
+		t.Fatalf("Expected 1 got %s", dirs[1])
 	}
 }
 
@@ -486,7 +590,9 @@ func TestApplyDiff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Truncate(size)
+	if err := f.Truncate(size); err != nil {
+		t.Fatal(err)
+	}
 	f.Close()
 
 	diff, err := d.Diff("1")
