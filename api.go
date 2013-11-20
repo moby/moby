@@ -647,9 +647,6 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	}
 	name := vars["name"]
 	job := srv.Eng.Job("start", name)
-	if err := job.ImportEnv(HostConfig{}); err != nil {
-		return fmt.Errorf("Couldn't initialize host configuration")
-	}
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
 		if matchesContentType(r.Header.Get("Content-Type"), "application/json") {

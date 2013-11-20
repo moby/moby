@@ -1302,9 +1302,6 @@ func (container *Container) monitor() {
 		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	// Report status back
-	container.State.setStopped(exitCode)
-
 	if container.runtime != nil && container.runtime.srv != nil {
 		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
 	}
@@ -1316,6 +1313,9 @@ func (container *Container) monitor() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
+
+	// Report status back
+	container.State.setStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
