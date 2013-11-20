@@ -84,7 +84,7 @@ type (
 
 func (t *Task) destroy() {
 	if t != nil {
-		DmTaskDestory(t.unmanaged)
+		DmTaskDestroy(t.unmanaged)
 		runtime.SetFinalizer(t, nil)
 	}
 }

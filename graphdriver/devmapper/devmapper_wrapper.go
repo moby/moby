@@ -148,7 +148,7 @@ type (
 )
 
 var (
-	DmTaskDestory       = dmTaskDestroyFct
+	DmTaskDestroy       = dmTaskDestroyFct
 	DmTaskCreate        = dmTaskCreateFct
 	DmTaskRun           = dmTaskRunFct
 	DmTaskSetName       = dmTaskSetNameFct
