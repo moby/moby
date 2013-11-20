@@ -182,14 +182,17 @@ func (a *AufsDriver) Remove(id string) error {
 			return err
 		}
 		realPath := path.Join(a.rootPath(), p, id)
-		if err := os.Rename(realPath, tmp); err != nil {
+		if err := os.Rename(realPath, tmp); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		defer os.RemoveAll(tmp)
 	}
 
 	// Remove the layers file for the id
-	return os.Remove(path.Join(a.rootPath(), "layers", id))
+	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Return the rootfs path for the id
@@ -300,7 +303,7 @@ func (a *AufsDriver) Cleanup() error {
 	}
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
-			return err
+			utils.Errorf("Unmounting %s: %s", utils.TruncateID(id), err)
 		}
 	}
 	return nil

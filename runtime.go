@@ -725,9 +725,23 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 }
 
 func (runtime *Runtime) Close() error {
-	runtime.networkManager.Close()
-	runtime.driver.Cleanup()
-	return runtime.containerGraph.Close()
+	errorsStrings := []string{}
+	if err := runtime.networkManager.Close(); err != nil {
+		utils.Errorf("runtime.networkManager.Close(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if err := runtime.driver.Cleanup(); err != nil {
+		utils.Errorf("runtime.driver.Cleanup(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if err := runtime.containerGraph.Close(); err != nil {
+		utils.Errorf("runtime.containerGraph.Close(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if len(errorsStrings) > 0 {
+		return fmt.Errorf("%s", strings.Join(errorsStrings, ", "))
+	}
+	return nil
 }
 
 func (runtime *Runtime) Mount(container *Container) error {
