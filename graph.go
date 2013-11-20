@@ -187,7 +187,7 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 	if err != nil {
 		return nil, err
 	}
-	a, err := image.TarLayer(compression)
+	a, err := image.TarLayer()
 	if err != nil {
 		return nil, err
 	}
