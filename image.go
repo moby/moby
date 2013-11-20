@@ -62,17 +62,25 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, rootfs string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, layer string) error {
 	// Store the layer
-	layer := rootfs
+	var (
+		size   int64
+		err    error
+		driver = img.graph.driver
+	)
 	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
 	}
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if differ, ok := img.graph.driver.(graphdriver.Differ); ok {
+		if differ, ok := driver.(graphdriver.Differ); ok {
 			if err := differ.ApplyDiff(img.ID, layerData); err != nil {
+				return err
+			}
+
+			if size, err = differ.DiffSize(img.ID); err != nil {
 				return err
 			}
 		} else {
@@ -82,6 +90,24 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, ro
 				return err
 			}
 			utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
+
+			if img.Parent == "" {
+				if size, err = utils.TreeSize(layer); err != nil {
+					return err
+				}
+			} else {
+				parent, err := driver.Get(img.Parent)
+				if err != nil {
+					return err
+				}
+				changes, err := archive.ChangesDirs(layer, parent)
+				if err != nil {
+					return err
+				}
+				if size = archive.ChangesSize(layer, changes); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -90,18 +116,13 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, ro
 		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
 	}
 	// Otherwise, unmarshal the image
-	jsonData, err := json.Marshal(img)
-	if err != nil {
+	if jsonData, err = json.Marshal(img); err != nil {
 		return err
 	}
 	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
 		return err
 	}
-	// Compute and save the size of the rootfs
-	size, err := utils.TreeSize(rootfs)
-	if err != nil {
-		return fmt.Errorf("Error computing size of rootfs %s: %s", img.ID, err)
-	}
+
 	img.Size = size
 	if err := img.SaveSize(root); err != nil {
 		return err

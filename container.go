@@ -1575,8 +1575,7 @@ func (container *Container) GetSize() (int64, int64) {
 		}
 	}
 
-	_, err = os.Stat(container.RootfsPath())
-	if err == nil {
+	if _, err = os.Stat(container.RootfsPath()); err != nil {
 		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
 			if fileInfo != nil {
 				sizeRootfs += fileInfo.Size()
