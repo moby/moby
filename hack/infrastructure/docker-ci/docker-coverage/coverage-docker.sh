@@ -23,7 +23,7 @@ cd $BASE_PATH/go
 GOPATH=$BASE_PATH/go go get github.com/axw/gocov/gocov
 sudo -E GOPATH=$GOPATH ./bin/gocov test -deps -exclude-goroot -v\
  -exclude github.com/gorilla/context,github.com/gorilla/mux,github.com/kr/pty,\
-code.google.com/p/go.net/websocket,github.com/dotcloud/tar\
+code.google.com/p/go.net/websocket\
  github.com/dotcloud/docker | ./bin/gocov report; exit_status=$?
 
 # Cleanup testing directory
