@@ -144,15 +144,32 @@ func jsonPath(root string) string {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (img *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
+func (img *Image) TarLayer() (archive.Archive, error) {
 	if img.graph == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
-	layerPath, err := img.graph.driver.Get(img.ID)
+	driver := img.graph.driver
+	if differ, ok := driver.(graphdriver.Differ); ok {
+		return differ.Diff(img.ID)
+	}
+
+	imgFs, err := driver.Get(img.ID)
 	if err != nil {
 		return nil, err
 	}
-	return archive.Tar(layerPath, compression)
+	if img.Parent == "" {
+		return archive.Tar(imgFs, archive.Uncompressed)
+	} else {
+		parentFs, err := driver.Get(img.Parent)
+		if err != nil {
+			return nil, err
+		}
+		changes, err := archive.ChangesDirs(imgFs, parentFs)
+		if err != nil {
+			return nil, err
+		}
+		return archive.ExportChanges(imgFs, changes)
+	}
 }
 
 func ValidateID(id string) error {
