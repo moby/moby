@@ -103,8 +103,12 @@ func (Driver) String() string {
 	return "aufs"
 }
 
-func (Driver) Status() [][2]string {
-	return nil
+func (a Driver) Status() [][2]string {
+	ids, _ := loadIds(path.Join(a.rootPath(), "layers"))
+	return [][2]string{
+		{"Root Dir", a.rootPath()},
+		{"Dirs", fmt.Sprintf("%d", len(ids))},
+	}
 }
 
 // Exists returns true if the given id is registered with
