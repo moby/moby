@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -30,6 +31,7 @@ type Capabilities struct {
 
 type Runtime struct {
 	repository     string
+	sysInitPath    string
 	containers     *list.List
 	networkManager *NetworkManager
 	graph          *Graph
@@ -374,11 +376,6 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, fmt.Errorf("No command specified")
 	}
 
-	sysInitPath := utils.DockerInitPath()
-	if sysInitPath == "" {
-		return nil, nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
-	}
-
 	// Generate id
 	id := GenerateID()
 
@@ -429,7 +426,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
+		SysInitPath: runtime.sysInitPath,
 		Name:        name,
 	}
 	container.root = runtime.containerRoot(container.ID)
@@ -631,8 +628,31 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
+	sysInitPath := utils.DockerInitPath()
+	if sysInitPath == "" {
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+	}
+
+	dockerInit := path.Join(config.Root, ".dockerinit")
+	if err := ioutil.WriteFile(dockerInit, []byte{}, 0755); err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("Could not create temporary .dockerinit.")
+	}
+
+	// We use the bind mount of the the dockerinit file we find on
+	// startup. This way if the original file is removed or
+	// replaced (upgraded) the running daemon will still run the
+	// old one.
+
+	// Ensure we unmount any previous bind mount, ignore errors
+	syscall.Unmount(dockerInit, syscall.MNT_DETACH)
+
+	if err := syscall.Mount(sysInitPath, dockerInit, "", syscall.MS_RDONLY|syscall.MS_BIND, ""); err != nil {
+		return nil, fmt.Errorf("Could not bind-mount dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
+		sysInitPath:    dockerInit,
 		containers:     list.New(),
 		networkManager: netManager,
 		graph:          g,
@@ -651,6 +671,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 }
 
 func (runtime *Runtime) Close() error {
+	syscall.Unmount(runtime.sysInitPath, syscall.MNT_DETACH)
 	runtime.networkManager.Close()
 	return runtime.containerGraph.Close()
 }
