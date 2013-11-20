@@ -46,10 +46,9 @@ run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
 run	gem install --no-rdoc --no-ri fpm
 run	apt-get install -y -q reprepro dpkg-sig
 
-# Install s3cmd 1.0.1 (earlier versions don't support env variables in the config)
 run	apt-get install -y -q python-pip
-run	pip install s3cmd
-run	pip install python-magic
+run	pip install s3cmd==1.1.0-beta3
+run	pip install python-magic==0.4.6
 run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY\n' > /.s3cfg
 
 # Runtime dependencies
