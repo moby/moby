@@ -11,7 +11,7 @@ var (
 	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
 )
 
-func newDriver(t *testing.T) *AufsDriver {
+func newDriver(t *testing.T) *Driver {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -20,10 +20,10 @@ func newDriver(t *testing.T) *AufsDriver {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return d.(*AufsDriver)
+	return d.(*Driver)
 }
 
-func TestNewAufsDriver(t *testing.T) {
+func TestNewDriver(t *testing.T) {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
 		t.Fatal(err)
 	}
