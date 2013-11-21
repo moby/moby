@@ -1300,9 +1300,7 @@ func (container *Container) monitor() {
 	}
 
 	// Report status back
-	container.State.Lock()
 	container.State.setStopped(exitCode)
-	container.State.Unlock()
 
 	// Release the lock
 	close(container.waitLock)
