@@ -2,6 +2,7 @@ package devmapper
 
 import (
 	"os"
+	"os/exec"
 	"syscall"
 )
 
@@ -28,6 +29,10 @@ var (
 	osRemoveAll  = os.RemoveAll
 	osRename     = os.Rename
 	osReadlink   = os.Readlink
+
+	execRun = func(name string, args ...string) error {
+		return exec.Command(name, args...).Run()
+	}
 )
 
 const (

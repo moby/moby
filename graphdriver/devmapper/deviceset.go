@@ -6,7 +6,6 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -223,9 +222,9 @@ func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
+	err := execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname)
 	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname).Run()
+		err = execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname)
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
