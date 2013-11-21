@@ -19,18 +19,35 @@ fi
 bundle_test() {
 	{
 		date
-		for test_dir in $(find_test_dirs); do (
-			set -x
-			cd $test_dir
+		
+		TESTS_FAILED=()
+		for test_dir in $(find_test_dirs); do
+			echo
 			
-			# Install packages that are dependencies of the tests.
-			#   Note: Does not run the tests.
-			go test -i -ldflags "$LDFLAGS" $BUILDFLAGS
-			
-			# Run the tests with the optional $TESTFLAGS.
-			export TEST_DOCKERINIT_PATH=$DEST/../dynbinary/dockerinit-$VERSION
-			go test -v -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS $TESTFLAGS
-		)  done
+			if ! (
+				set -x
+				cd $test_dir
+				
+				# Install packages that are dependencies of the tests.
+				#   Note: Does not run the tests.
+				go test -i -ldflags "$LDFLAGS" $BUILDFLAGS
+				
+				# Run the tests with the optional $TESTFLAGS.
+				export TEST_DOCKERINIT_PATH=$DEST/../dynbinary/dockerinit-$VERSION
+				go test -v -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS $TESTFLAGS
+			); then
+				TESTS_FAILED+=("$test_dir")
+				sleep 1 # give it a second, so observers watching can take note
+			fi
+		done
+		
+		# if some tests fail, we want the bundlescript to fail, but we want to
+		# try running ALL the tests first, hence TESTS_FAILED
+		if [ "${#TESTS_FAILED[@]}" -gt 0 ]; then
+			echo
+			echo "Test failures in: ${TESTS_FAILED[@]}"
+			false
+		fi
 	} 2>&1 | tee $DEST/test.log
 }
 
