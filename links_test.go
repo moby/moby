@@ -21,7 +21,7 @@ func TestLinkNew(t *testing.T) {
 
 	from := newMockLinkContainer(fromID, "172.0.17.2")
 	from.Config.Env = []string{}
-	from.State = State{Running: true}
+	from.State = State{running: true}
 	ports := make(map[Port]struct{})
 
 	ports[Port("6379/tcp")] = struct{}{}
@@ -66,7 +66,7 @@ func TestLinkEnv(t *testing.T) {
 
 	from := newMockLinkContainer(fromID, "172.0.17.2")
 	from.Config.Env = []string{"PASSWORD=gordon"}
-	from.State = State{Running: true}
+	from.State = State{running: true}
 	ports := make(map[Port]struct{})
 
 	ports[Port("6379/tcp")] = struct{}{}
