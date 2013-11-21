@@ -212,67 +212,38 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 
 	utils.Debugf("Serializing %s", name)
 
-	rootRepo := srv.runtime.repositories.Repositories[name]
-	for _, rootImage := range rootRepo {
-		image, _ := srv.ImageInspect(rootImage)
-		for i := image; i != nil; {
-			// temporary directory
-			tmpImageDir := path.Join(tempdir, i.ID)
-			if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
-				return err
-			}
-			defer os.RemoveAll(tmpImageDir)
-
-			var version = "1.0"
-			var versionBuf = []byte(version)
-
-			if err := ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend); err != nil {
-				return err
-			}
-
-			// serialize json
-			b, err := json.Marshal(i)
-			if err != nil {
-				return err
-			}
-			if err := ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend); err != nil {
-				return err
-			}
-
-			// serialize filesystem
-			fs, err := archive.Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), archive.Uncompressed)
+	rootRepo, err := srv.runtime.repositories.Get(name)
+	if err != nil {
+		return err
+	}
+	if rootRepo != nil {
+		for _, id := range rootRepo {
+			image, err := srv.ImageInspect(id)
 			if err != nil {
 				return err
 			}
 
-			fsTar, err := os.Create(path.Join(tmpImageDir, "layer.tar"))
-			if err != nil {
+			if err := srv.exportImage(image, tempdir); err != nil {
 				return err
-			}
-			if _, err = io.Copy(fsTar, fs); err != nil {
-				return err
-			}
-			fsTar.Close()
-
-			// find parent
-			if i.Parent != "" {
-				i, err = srv.ImageInspect(i.Parent)
-				if err != nil {
-					return err
-				}
-			} else {
-				i = nil
 			}
 		}
-	}
 
-	// write repositories
-	rootRepoMap := map[string]Repository{}
-	rootRepoMap[name] = rootRepo
-	rootRepoJson, _ := json.Marshal(rootRepoMap)
+		// write repositories
+		rootRepoMap := map[string]Repository{}
+		rootRepoMap[name] = rootRepo
+		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
-	if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
-		return err
+		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
+			return err
+		}
+	} else {
+		image, err := srv.ImageInspect(name)
+		if err != nil {
+			return err
+		}
+		if err := srv.exportImage(image, tempdir); err != nil {
+			return err
+		}
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
@@ -282,6 +253,58 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 
 	if _, err := io.Copy(out, fs); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (srv *Server) exportImage(image *Image, tempdir string) error {
+	for i := image; i != nil; {
+		// temporary directory
+		tmpImageDir := path.Join(tempdir, i.ID)
+		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+			return err
+		}
+
+		var version = "1.0"
+		var versionBuf = []byte(version)
+
+		if err := ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend); err != nil {
+			return err
+		}
+
+		// serialize json
+		b, err := json.Marshal(i)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend); err != nil {
+			return err
+		}
+
+		// serialize filesystem
+		fs, err := archive.Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), archive.Uncompressed)
+		if err != nil {
+			return err
+		}
+
+		fsTar, err := os.Create(path.Join(tmpImageDir, "layer.tar"))
+		if err != nil {
+			return err
+		}
+		if _, err = io.Copy(fsTar, fs); err != nil {
+			return err
+		}
+		fsTar.Close()
+
+		// find parent
+		if i.Parent != "" {
+			i, err = srv.ImageInspect(i.Parent)
+			if err != nil {
+				return err
+			}
+		} else {
+			i = nil
+		}
 	}
 	return nil
 }
@@ -319,25 +342,38 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 	if err := archive.Untar(repoFile, repoDir); err != nil {
 		return err
 	}
-	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
+
+	dirs, err := ioutil.ReadDir(repoDir)
 	if err != nil {
 		return err
 	}
-	repositories := map[string]Repository{}
-	if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
-		return err
-	}
 
-	for imageName, tagMap := range repositories {
-		for tag, address := range tagMap {
-			if err := srv.recursiveLoad(address, tmpImageDir); err != nil {
-				return err
-			}
-			if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
+	for _, d := range dirs {
+		if d.IsDir() {
+			if err := srv.recursiveLoad(d.Name(), tmpImageDir); err != nil {
 				return err
 			}
 		}
 	}
+
+	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
+	if err == nil {
+		repositories := map[string]Repository{}
+		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
+			return err
+		}
+
+		for imageName, tagMap := range repositories {
+			for tag, address := range tagMap {
+				if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
+					return err
+				}
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	return nil
 }
 
@@ -373,6 +409,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 		}
 	}
 	utils.Debugf("Completed processing %s", address)
+
 	return nil
 }
 

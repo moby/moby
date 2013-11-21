@@ -1969,8 +1969,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
-		return nil
+		return err
 	}
 
 	if cmd.NArg() != 1 {
@@ -1979,7 +1978,6 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	}
 
 	image := cmd.Arg(0)
-
 	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
 		return err
 	}
@@ -1988,17 +1986,18 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
 
 	if cmd.NArg() != 0 {
 		cmd.Usage()
 		return nil
 	}
 
-	err := cli.stream("POST", "/images/load", cli.in, cli.out, nil)
-	if err != nil {
-		fmt.Println("Send failed", err)
+	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+		return err
 	}
-
 	return nil
 }
 
