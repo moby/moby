@@ -21,7 +21,7 @@ func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, err
 	if parent.ID == child.ID {
 		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
 	}
-	if !child.State.Running {
+	if !child.State.IsRunning() {
 		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, name)
 	}
 
