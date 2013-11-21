@@ -1085,7 +1085,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	all := cmd.Bool("a", false, "show all images")
+	all := cmd.Bool("a", false, "show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 	flTree := cmd.Bool("tree", false, "output graph in tree format")
@@ -1938,7 +1938,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := Subcmd("cp", "CONTAINER:RESOURCE HOSTPATH", "Copy files/folders from the RESOURCE to the HOSTPATH")
+	cmd := Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1952,7 +1952,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	info := strings.Split(cmd.Arg(0), ":")
 
 	if len(info) != 2 {
-		return fmt.Errorf("Error: Resource not specified")
+		return fmt.Errorf("Error: Path not specified")
 	}
 
 	copyData.Resource = info[1]
@@ -1975,8 +1975,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
 	if err := cmd.Parse(args); err != nil {
-		cmd.Usage()
-		return nil
+		return err
 	}
 
 	if cmd.NArg() != 1 {
@@ -1985,7 +1984,6 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	}
 
 	image := cmd.Arg(0)
-
 	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
 		return err
 	}
@@ -1994,17 +1992,18 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
 
 	if cmd.NArg() != 0 {
 		cmd.Usage()
 		return nil
 	}
 
-	err := cli.stream("POST", "/images/load", cli.in, cli.out, nil)
-	if err != nil {
-		fmt.Println("Send failed", err)
+	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+		return err
 	}
-
 	return nil
 }
 

@@ -539,19 +539,11 @@ func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
-	err := srv.ImageExport(name, w)
-	if err != nil {
-		return err
-	}
-	return nil
+	return srv.ImageExport(name, w)
 }
 
 func postImagesLoad(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	err := srv.ImageLoad(r.Body)
-	if err != nil {
-		return err
-	}
-	return nil
+	return srv.ImageLoad(r.Body)
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -987,7 +979,7 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	}
 
 	if copyData.Resource == "" {
-		return fmt.Errorf("Resource cannot be empty")
+		return fmt.Errorf("Path cannot be empty")
 	}
 	if copyData.Resource[0] == '/' {
 		copyData.Resource = copyData.Resource[1:]
