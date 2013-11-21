@@ -1,8 +1,11 @@
 package devmapper
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -11,7 +14,10 @@ func init() {
 	DefaultDataLoopbackSize = 300 * 1024 * 1024
 	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	DefaultBaseFsSize = 300 * 1024 * 1024
+}
 
+// denyAllDevmapper mocks all calls to libdevmapper in the unit tests, and denies them by default
+func denyAllDevmapper() {
 	// Hijack all calls to libdevmapper with default panics.
 	// Authorized calls are selectively hijacked in each tests.
 	DmTaskCreate = func(t int) *CDmTask {
@@ -98,32 +104,220 @@ func cleanup(d *Driver) {
 	osRemoveAll(d.home)
 }
 
+type Set map[string]bool
+
+func (r Set) Assert(t *testing.T, names ...string) {
+	for _, key := range names {
+		if _, exists := r[key]; !exists {
+			t.Fatalf("Key not set: %s", key)
+		}
+		delete(r, key)
+	}
+	if len(r) != 0 {
+		t.Fatalf("Unexpected keys: %v", r)
+	}
+}
+
 func TestInit(t *testing.T) {
 	home := mkTestDirectory(t)
 	defer osRemoveAll(home)
-	driver, err := Init(home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := driver.Cleanup(); err != nil {
+	calls := make(Set)
+	devicesAttached := make(Set)
+	taskMessages := make(Set)
+	taskTypes := make(Set)
+	func() {
+		denyAllDevmapper()
+		DmSetDevDir = func(dir string) int {
+			calls["DmSetDevDir"] = true
+			expectedDir := "/dev"
+			if dir != expectedDir {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmSetDevDir(%v)\nReceived: DmSetDevDir(%v)\n", expectedDir, dir)
+			}
+			return 0
+		}
+		LogWithErrnoInit = func() {
+			calls["DmLogWithErrnoInit"] = true
+		}
+		var task1 CDmTask
+		DmTaskCreate = func(taskType int) *CDmTask {
+			calls["DmTaskCreate"] = true
+			taskTypes[fmt.Sprintf("%d", taskType)] = true
+			return &task1
+		}
+		DmTaskSetName = func(task *CDmTask, name string) int {
+			calls["DmTaskSetName"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskSetName(%v)\nReceived: DmTaskSetName(%v)\n", expectedTask, task)
+			}
+			// FIXME: use Set.AssertRegexp()
+			if !strings.HasPrefix(name, "docker-") && !strings.HasPrefix(name, "/dev/mapper/docker-") ||
+				!strings.HasSuffix(name, "-pool") && !strings.HasSuffix(name, "-base") {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskSetName(%v)\nReceived: DmTaskSetName(%v)\n", "docker-...-pool", name)
+			}
+			return 1
+		}
+		DmTaskRun = func(task *CDmTask) int {
+			calls["DmTaskRun"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskRun(%v)\nReceived: DmTaskRun(%v)\n", expectedTask, task)
+			}
+			return 1
+		}
+		DmTaskGetInfo = func(task *CDmTask, info *Info) int {
+			calls["DmTaskGetInfo"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskGetInfo(%v)\nReceived: DmTaskGetInfo(%v)\n", expectedTask, task)
+			}
+			// This will crash if info is not dereferenceable
+			info.Exists = 0
+			return 1
+		}
+		DmTaskSetSector = func(task *CDmTask, sector uint64) int {
+			calls["DmTaskSetSector"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskSetSector(%v)\nReceived: DmTaskSetSector(%v)\n", expectedTask, task)
+			}
+			if expectedSector := uint64(0); sector != expectedSector {
+				t.Fatalf("Wrong libdevmapper call to DmTaskSetSector\nExpected: %v\nReceived: %v\n", expectedSector, sector)
+			}
+			return 1
+		}
+		DmTaskSetMessage = func(task *CDmTask, message string) int {
+			calls["DmTaskSetMessage"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskSetSector(%v)\nReceived: DmTaskSetSector(%v)\n", expectedTask, task)
+			}
+			taskMessages[message] = true
+			return 1
+		}
+		var (
+			fakeDataLoop       = "/dev/loop42"
+			fakeMetadataLoop   = "/dev/loop43"
+			fakeDataLoopFd     = 42
+			fakeMetadataLoopFd = 43
+		)
+		var attachCount int
+		DmAttachLoopDevice = func(filename string, fd *int) string {
+			calls["DmAttachLoopDevice"] = true
+			if _, exists := devicesAttached[filename]; exists {
+				t.Fatalf("Already attached %s", filename)
+			}
+			devicesAttached[filename] = true
+			// This will crash if fd is not dereferenceable
+			if attachCount == 0 {
+				attachCount++
+				*fd = fakeDataLoopFd
+				return fakeDataLoop
+			} else {
+				*fd = fakeMetadataLoopFd
+				return fakeMetadataLoop
+			}
+		}
+		DmTaskDestroy = func(task *CDmTask) {
+			calls["DmTaskDestroy"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskDestroy(%v)\nReceived: DmTaskDestroy(%v)\n", expectedTask, task)
+			}
+		}
+		fakeBlockSize := int64(4242 * 512)
+		DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
+			calls["DmGetBlockSize"] = true
+			if expectedFd := uintptr(42); fd != expectedFd {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmGetBlockSize(%v)\nReceived: DmGetBlockSize(%v)\n", expectedFd, fd)
+			}
+			return fakeBlockSize, 0
+		}
+		DmTaskAddTarget = func(task *CDmTask, start, size uint64, ttype, params string) int {
+			calls["DmTaskSetTarget"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskDestroy(%v)\nReceived: DmTaskDestroy(%v)\n", expectedTask, task)
+			}
+			if start != 0 {
+				t.Fatalf("Wrong start: %d != %d", start, 0)
+			}
+			if ttype != "thin" && ttype != "thin-pool" {
+				t.Fatalf("Wrong ttype: %s", ttype)
+			}
+			// Quick smoke test
+			if params == "" {
+				t.Fatalf("Params should not be empty")
+			}
+			return 1
+		}
+		fakeCookie := uint(4321)
+		DmTaskSetCookie = func(task *CDmTask, cookie *uint, flags uint16) int {
+			calls["DmTaskSetCookie"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskDestroy(%v)\nReceived: DmTaskDestroy(%v)\n", expectedTask, task)
+			}
+			if flags != 0 {
+				t.Fatalf("Cookie flags should be 0 (not %x)", flags)
+			}
+			*cookie = fakeCookie
+			return 1
+		}
+		DmUdevWait = func(cookie uint) int {
+			calls["DmUdevWait"] = true
+			if cookie != fakeCookie {
+				t.Fatalf("Wrong cookie: %d != %d", cookie, fakeCookie)
+			}
+			return 1
+		}
+		DmTaskSetAddNode = func(task *CDmTask, addNode AddNodeType) int {
+			if addNode != AddNodeOnCreate {
+				t.Fatalf("Wrong AddNoteType: %v (expected %v)", addNode, AddNodeOnCreate)
+			}
+			calls["DmTaskSetAddNode"] = true
+			return 1
+		}
+		execRun = func(name string, args ...string) error {
+			calls["execRun"] = true
+			if name != "mkfs.ext4" {
+				t.Fatalf("Expected %s to be executed, not %s", "mkfs.ext4", name)
+			}
+			return nil
+		}
+		driver, err := Init(home)
+		if err != nil {
 			t.Fatal(err)
 		}
+		defer func() {
+			if err := driver.Cleanup(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 	}()
 
-	id := "foo"
-	if err := driver.Create(id, ""); err != nil {
-		t.Fatal(err)
-	}
-	dir, err := driver.Get(id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if st, err := osStat(dir); err != nil {
-		t.Fatal(err)
-	} else if !st.IsDir() {
-		t.Fatalf("Get(%V) did not return a directory", id)
-	}
+	runtime.GC()
+	calls.Assert(t,
+		"DmSetDevDir",
+		"DmLogWithErrnoInit",
+		"DmTaskSetName",
+		"DmTaskRun",
+		"DmTaskGetInfo",
+		"DmAttachLoopDevice",
+		"DmTaskDestroy",
+		"execRun",
+		"DmTaskCreate",
+		"DmGetBlockSize",
+		"DmTaskSetTarget",
+		"DmTaskSetCookie",
+		"DmUdevWait",
+		"DmTaskSetSector",
+		"DmTaskSetMessage",
+		"DmTaskSetAddNode",
+	)
+	devicesAttached.Assert(t, path.Join(home, "devicemapper", "data"), path.Join(home, "devicemapper", "metadata"))
+	taskTypes.Assert(t, "0", "6", "17")
+	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
 
 func TestDriverName(t *testing.T) {
@@ -371,4 +565,16 @@ func TestDriverGetSize(t *testing.T) {
 	// if diffSize != size {
 	// 	t.Fatalf("Expected size %d got %d", size, diffSize)
 	// }
+}
+
+func assertMap(t *testing.T, m map[string]bool, keys ...string) {
+	for _, key := range keys {
+		if _, exists := m[key]; !exists {
+			t.Fatalf("Key not set: %s", key)
+		}
+		delete(m, key)
+	}
+	if len(m) != 0 {
+		t.Fatalf("Unexpected keys: %v", m)
+	}
 }
