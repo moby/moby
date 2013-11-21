@@ -1,4 +1,4 @@
-:title: Registry API
+:title: Remote API Client Libraries
 :description: Various client libraries available to use with the Docker remote API
 :keywords: API, Docker, index, registry, REST, documentation, clients, Python, Ruby, Javascript, Erlang, Go
 
