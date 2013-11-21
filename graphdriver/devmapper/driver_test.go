@@ -127,6 +127,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestDriverName(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -136,6 +137,7 @@ func TestDriverName(t *testing.T) {
 }
 
 func TestDriverCreate(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -145,6 +147,7 @@ func TestDriverCreate(t *testing.T) {
 }
 
 func TestDriverRemove(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -158,6 +161,7 @@ func TestDriverRemove(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	t.Skip("Unimplemented")
 	d := newDriver(t)
 	defer osRemoveAll(d.home)
@@ -222,6 +226,7 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestNotMounted(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	t.Skip("Not implemented")
 	d := newDriver(t)
 	defer cleanup(d)
@@ -240,6 +245,7 @@ func TestNotMounted(t *testing.T) {
 }
 
 func TestMounted(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -260,6 +266,7 @@ func TestMounted(t *testing.T) {
 }
 
 func TestInitCleanedDriver(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 
 	if err := d.Create("1", ""); err != nil {
@@ -286,6 +293,7 @@ func TestInitCleanedDriver(t *testing.T) {
 }
 
 func TestMountMountedDriver(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -304,6 +312,7 @@ func TestMountMountedDriver(t *testing.T) {
 }
 
 func TestGetReturnsValidDevice(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 	defer cleanup(d)
 
@@ -329,6 +338,7 @@ func TestGetReturnsValidDevice(t *testing.T) {
 }
 
 func TestDriverGetSize(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	t.Skipf("Size is currently not implemented")
 
 	d := newDriver(t)

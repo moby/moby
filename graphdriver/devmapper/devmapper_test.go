@@ -5,6 +5,7 @@ import (
 )
 
 func TestTaskCreate(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	// Test success
 	taskCreate(t, DeviceInfo)
 
@@ -17,6 +18,7 @@ func TestTaskCreate(t *testing.T) {
 }
 
 func TestTaskRun(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -45,6 +47,7 @@ func TestTaskRun(t *testing.T) {
 }
 
 func TestTaskSetName(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -62,6 +65,7 @@ func TestTaskSetName(t *testing.T) {
 }
 
 func TestTaskSetMessage(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -79,6 +83,7 @@ func TestTaskSetMessage(t *testing.T) {
 }
 
 func TestTaskSetSector(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -96,6 +101,7 @@ func TestTaskSetSector(t *testing.T) {
 }
 
 func TestTaskSetCookie(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	var (
 		cookie uint = 0
 		task        = taskCreate(t, DeviceInfo)
@@ -120,6 +126,7 @@ func TestTaskSetCookie(t *testing.T) {
 }
 
 func TestTaskSetAddNode(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -141,6 +148,7 @@ func TestTaskSetAddNode(t *testing.T) {
 }
 
 func TestTaskSetRo(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
@@ -158,6 +166,7 @@ func TestTaskSetRo(t *testing.T) {
 }
 
 func TestTaskAddTarget(t *testing.T) {
+	t.Skip("FIXME: not a unit test")
 	task := taskCreate(t, DeviceInfo)
 
 	// Test success
