@@ -1081,7 +1081,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
-	all := cmd.Bool("a", false, "show all images")
+	all := cmd.Bool("a", false, "show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	flViz := cmd.Bool("viz", false, "output graph in graphviz format")
 	flTree := cmd.Bool("tree", false, "output graph in tree format")
