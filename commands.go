@@ -1542,7 +1542,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
@@ -2301,7 +2301,7 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	if err := json.Unmarshal(body, c); err != nil {
 		return false, -1, err
 	}
-	return c.State.Running, c.State.ExitCode, nil
+	return c.State.IsRunning(), c.State.GetExitCode(), nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {
