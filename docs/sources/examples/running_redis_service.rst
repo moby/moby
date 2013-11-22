@@ -9,74 +9,93 @@ Redis Service
 
 .. include:: example_header.inc
 
-Very simple, no frills, Redis service.
+Very simple, no frills, Redis service attached to a web application using a link.
 
-Open a docker container
------------------------
+Create a docker container for Redis
+-----------------------------------
 
-.. code-block:: bash
-
-    sudo docker run -i -t ubuntu /bin/bash
-
-Building your image
--------------------
-
-Update your Docker container, install the Redis server.  Once
-installed, exit out of the Docker container.
+Firstly, we create a ``Dockerfile`` for our new Redis image.
 
 .. code-block:: bash
 
-    apt-get update
-    apt-get install redis-server
-    exit
+    FROM        ubuntu:12.10
+    RUN         apt-get update
+    RUN         apt-get -y install redis-server
+    EXPOSE      6379
+    ENTRYPOINT  ["/usr/bin/redis-server"]
 
-Snapshot the installation
--------------------------
+Next we build an image from our ``Dockerfile``. Replace ``<your username>`` 
+with your own user name.
 
 .. code-block:: bash
 
-    sudo docker ps -a  # grab the container id (this will be the first one in the list)
-    sudo docker commit <container_id> <your username>/redis
+    sudo docker build -t <your username>/redis .
 
 Run the service
 ---------------
 
+Use the image we've just created and name your container ``redis``.
+
 Running the service with ``-d`` runs the container in detached mode, leaving the
-container running in the background. Use your snapshot.
+container running in the background.
+
+Importantly, we're not exposing any ports on our container. Instead we're going to 
+use a container link to provide access to our Redis database.
 
 .. code-block:: bash
 
-    sudo docker run -d -p 6379 <your username>/redis /usr/bin/redis-server
+    sudo docker run -name redis -d <your username>/redis
 
-Test 1
-++++++
+Create your web application container
+-------------------------------------
 
-Connect to the container with the ``redis-cli`` binary.
+Next we can create a container for our application. We're going to use the ``-link`` 
+flag to create a link to the ``redis`` container we've just created with an alias of 
+``db``. This will create a secure tunnel to the ``redis`` container and expose the 
+Redis instance running inside that container to only this container.
 
 .. code-block:: bash
 
-    sudo docker ps  # grab the new container id
-    sudo docker inspect <container_id>    # grab the ipaddress of the container
-    redis-cli -h <ipaddress> -p 6379
-    redis 10.0.3.32:6379> set docker awesome
+    sudo docker run -link redis:db -i -t ubuntu:12.10 /bin/bash
+
+Once inside our freshly created container we need to install Redis to get the 
+``redis-cli`` binary to test our connection.
+
+.. code-block:: bash
+
+    apt-get update
+    apt-get -y install redis-server
+    service redis-server stop
+
+Now we can test the connection. Firstly, let's look at the available environmental 
+variables in our web application container. We can use these to get the IP and port 
+of our ``redis`` container.
+
+.. code-block:: bash
+
+    env
+    . . .
+    DB_NAME=/violet_wolf/db
+    DB_PORT_6379_TCP_PORT=6379
+    DB_PORT=tcp://172.17.0.33:6379
+    DB_PORT_6379_TCP=tcp://172.17.0.33:6379
+    DB_PORT_6379_TCP_ADDR=172.17.0.33
+    DB_PORT_6379_TCP_PROTO=tcp
+
+We can see that we've got a small list of environment variables prefixed with ``DB``.
+The ``DB`` comes from the link alias specified when we launched the container. Let's use 
+the ``DB_PORT_6379_TCP_ADDR`` variable to connect to our Redis container.
+
+.. code-block:: bash
+
+    redis-cli -h $DB_PORT_6379_TCP_ADDR
+    redis 172.17.0.33:6379>
+    redis 172.17.0.33:6379> set docker awesome
     OK
-    redis 10.0.3.32:6379> get docker
+    redis 172.17.0.33:6379> get docker
     "awesome"
-    redis 10.0.3.32:6379> exit
+    redis 172.17.0.33:6379> exit
 
-Test 2
-++++++
+We could easily use this or other environment variables in our web application to make a 
+connection to our ``redis`` container.
 
-Connect to the host os with the ``redis-cli`` binary.
-
-.. code-block:: bash
-
-    sudo docker ps  # grab the new container id
-    sudo docker port <container_id> 6379  # grab the external port
-    ip addr show   # grab the host ip address
-    redis-cli -h <host ipaddress> -p <external port>
-    redis 192.168.0.1:49153> set docker awesome
-    OK
-    redis 192.168.0.1:49153> get docker
-    "awesome"
-    redis 192.168.0.1:49153> exit

@@ -81,12 +81,12 @@ func NewHTTPUserAgentDecorator(versions ...VersionInfo) HTTPRequestDecorator {
 	return ret
 }
 
-func (self *HTTPUserAgentDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
+func (h *HTTPUserAgentDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
 	if req == nil {
 		return req, nil
 	}
 
-	userAgent := appendVersions(req.UserAgent(), self.versions...)
+	userAgent := appendVersions(req.UserAgent(), h.versions...)
 	if len(userAgent) > 0 {
 		req.Header.Set("User-Agent", userAgent)
 	}
@@ -97,11 +97,11 @@ type HTTPMetaHeadersDecorator struct {
 	Headers map[string][]string
 }
 
-func (self *HTTPMetaHeadersDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
-	if self.Headers == nil {
+func (h *HTTPMetaHeadersDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
+	if h.Headers == nil {
 		return req, nil
 	}
-	for k, v := range self.Headers {
+	for k, v := range h.Headers {
 		req.Header[k] = v
 	}
 	return req, nil
@@ -114,25 +114,25 @@ type HTTPRequestFactory struct {
 }
 
 func NewHTTPRequestFactory(d ...HTTPRequestDecorator) *HTTPRequestFactory {
-	ret := new(HTTPRequestFactory)
-	ret.decorators = d
-	return ret
+	return &HTTPRequestFactory{
+		decorators: d,
+	}
 }
 
 // NewRequest() creates a new *http.Request,
 // applies all decorators in the HTTPRequestFactory on the request,
 // then applies decorators provided by d on the request.
-func (self *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader, d ...HTTPRequestDecorator) (*http.Request, error) {
+func (h *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader, d ...HTTPRequestDecorator) (*http.Request, error) {
 	req, err := http.NewRequest(method, urlStr, body)
 	if err != nil {
 		return nil, err
 	}
 
 	// By default, a nil factory should work.
-	if self == nil {
+	if h == nil {
 		return req, nil
 	}
-	for _, dec := range self.decorators {
+	for _, dec := range h.decorators {
 		req, err = dec.ChangeRequest(req)
 		if err != nil {
 			return nil, err

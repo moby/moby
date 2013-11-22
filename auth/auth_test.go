@@ -1,11 +1,8 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -26,52 +23,6 @@ func TestEncodeAuth(t *testing.T) {
 	}
 	if authStr != "a2VuOnRlc3Q=" {
 		t.Fatal("AuthString encoding isn't correct.")
-	}
-}
-
-func TestLogin(t *testing.T) {
-	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
-	defer os.Setenv("DOCKER_INDEX_URL", "")
-	authConfig := &AuthConfig{Username: "unittester", Password: "surlautrerivejetattendrai", Email: "noise+unittester@dotcloud.com"}
-	status, err := Login(authConfig, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status != "Login Succeeded" {
-		t.Fatalf("Expected status \"Login Succeeded\", found \"%s\" instead", status)
-	}
-}
-
-func TestCreateAccount(t *testing.T) {
-	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
-	defer os.Setenv("DOCKER_INDEX_URL", "")
-	tokenBuffer := make([]byte, 16)
-	_, err := rand.Read(tokenBuffer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	token := hex.EncodeToString(tokenBuffer)[:12]
-	username := "ut" + token
-	authConfig := &AuthConfig{Username: username, Password: "test42", Email: "docker-ut+" + token + "@example.com"}
-	status, err := Login(authConfig, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectedStatus := "Account created. Please use the confirmation link we sent" +
-		" to your e-mail to activate it."
-	if status != expectedStatus {
-		t.Fatalf("Expected status: \"%s\", found \"%s\" instead.", expectedStatus, status)
-	}
-
-	status, err = Login(authConfig, nil)
-	if err == nil {
-		t.Fatalf("Expected error but found nil instead")
-	}
-
-	expectedError := "Login: Account is not Active"
-
-	if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("Expected message \"%s\" but found \"%s\" instead", expectedError, err)
 	}
 }
 

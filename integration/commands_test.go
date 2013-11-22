@@ -3,9 +3,14 @@ package docker
 import (
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"os"
+	"path"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -63,8 +68,8 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 func TestRunHostname(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -108,8 +113,8 @@ func TestRunHostname(t *testing.T) {
 func TestRunWorkdir(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -153,8 +158,8 @@ func TestRunWorkdir(t *testing.T) {
 func TestRunWorkdirExists(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -198,8 +203,8 @@ func TestRunExit(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c1 := make(chan struct{})
 	go func() {
@@ -251,8 +256,8 @@ func TestRunDisconnect(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c1 := make(chan struct{})
 	go func() {
@@ -284,7 +289,7 @@ func TestRunDisconnect(t *testing.T) {
 	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
 		container := globalRuntime.List()[0]
 		container.Wait()
-		if container.State.Running {
+		if container.State.IsRunning() {
 			t.Fatalf("/bin/cat is still running after closing stdin")
 		}
 	})
@@ -296,8 +301,8 @@ func TestRunDisconnectTty(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c1 := make(chan struct{})
 	go func() {
@@ -314,7 +319,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		for {
 			// Client disconnect after run -i should keep stdin out in TTY mode
 			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.Running {
+			if len(l) == 1 && l[0].State.IsRunning() {
 				break
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -324,7 +329,7 @@ func TestRunDisconnectTty(t *testing.T) {
 	// Client disconnect after run -i should keep stdin out in TTY mode
 	container := globalRuntime.List()[0]
 
-	setTimeout(t, "Read/Write assertion timed out", 2000*time.Second, func() {
+	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
 		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
 			t.Fatal(err)
 		}
@@ -340,7 +345,7 @@ func TestRunDisconnectTty(t *testing.T) {
 
 	// Give some time to monitor to do his thing
 	container.WaitTimeout(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
 	}
 }
@@ -353,8 +358,8 @@ func TestRunAttachStdin(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
 	go func() {
@@ -380,8 +385,8 @@ func TestRunAttachStdin(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cmdOutput != container.ShortID()+"\n" {
-			t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ShortID()+"\n", cmdOutput)
+		if cmdOutput != container.ID+"\n" {
+			t.Fatalf("Wrong output: should be '%s', not '%s'\n", container.ID+"\n", cmdOutput)
 		}
 	})
 
@@ -417,8 +422,8 @@ func TestRunDetach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
 	go func() {
@@ -449,7 +454,7 @@ func TestRunDetach(t *testing.T) {
 	})
 
 	time.Sleep(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatal("The detached container should be still running")
 	}
 
@@ -458,13 +463,13 @@ func TestRunDetach(t *testing.T) {
 	})
 }
 
-// TestAttachDetach checks that attach in tty mode can be detached
+// TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func TestAttachDetach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
 	go func() {
@@ -474,7 +479,7 @@ func TestAttachDetach(t *testing.T) {
 		}
 	}()
 
-	var container *Container
+	var container *docker.Container
 
 	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
 		buf := make([]byte, 1024)
@@ -485,8 +490,8 @@ func TestAttachDetach(t *testing.T) {
 
 		container = globalRuntime.List()[0]
 
-		if strings.Trim(string(buf[:n]), " \r\n") != container.ShortID() {
-			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ShortID(), buf[:n])
+		if strings.Trim(string(buf[:n]), " \r\n") != container.ID {
+			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ID, buf[:n])
 		}
 	})
 	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
@@ -495,12 +500,12 @@ func TestAttachDetach(t *testing.T) {
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
-	cli = NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	cli = docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 
 	ch = make(chan struct{})
 	go func() {
 		defer close(ch)
-		if err := cli.CmdAttach(container.ShortID()); err != nil {
+		if err := cli.CmdAttach(container.ID); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -529,7 +534,69 @@ func TestAttachDetach(t *testing.T) {
 	})
 
 	time.Sleep(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
+		t.Fatal("The detached container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container to die timedout", 5*time.Second, func() {
+		container.Kill()
+	})
+}
+
+// TestAttachDetachTruncatedID checks that attach in tty mode can be detached
+func TestAttachDetachTruncatedID(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	go stdout.Read(make([]byte, 1024))
+	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
+		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	stdin, stdinPipe = io.Pipe()
+	stdout, stdoutPipe = io.Pipe()
+	cli = docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		if err := cli.CmdAttach(utils.TruncateID(container.ID)); err != nil {
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
+		}
+	}()
+
+	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+			if err != io.ErrClosedPipe {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
+		stdinPipe.Write([]byte{16, 17})
+		if err := stdinPipe.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
+		<-ch
+	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.IsRunning() {
 		t.Fatal("The detached container should be still running")
 	}
 
@@ -543,8 +610,8 @@ func TestAttachDisconnect(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
 
-	cli := NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	go func() {
 		// Start a process in daemon mode
@@ -562,7 +629,7 @@ func TestAttachDisconnect(t *testing.T) {
 	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
 		for {
 			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.Running {
+			if len(l) == 1 && l[0].State.IsRunning() {
 				break
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -598,7 +665,7 @@ func TestAttachDisconnect(t *testing.T) {
 	// We closed stdin, expect /bin/cat to still be running
 	// Wait a little bit to make sure container.monitor() did his thing
 	err := container.WaitTimeout(500 * time.Millisecond)
-	if err == nil || !container.State.Running {
+	if err == nil || !container.State.IsRunning() {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
 
@@ -612,8 +679,8 @@ func TestAttachDisconnect(t *testing.T) {
 func TestRunAutoRemove(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now, race condition")
 	stdout, stdoutPipe := io.Pipe()
-	cli := NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -647,8 +714,8 @@ func TestRunAutoRemove(t *testing.T) {
 }
 
 func TestCmdLogs(t *testing.T) {
-	cli := NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	if err := cli.CmdRun(unitTestImageID, "sh", "-c", "ls -l"); err != nil {
 		t.Fatal(err)
@@ -665,8 +732,8 @@ func TestCmdLogs(t *testing.T) {
 // Expected behaviour: using / as a bind mount source should throw an error
 func TestRunErrorBindMountRootSource(t *testing.T) {
 
-	cli := NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -684,8 +751,8 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 // Expected behaviour: error out when attempting to bind mount non-existing source paths
 func TestRunErrorBindNonExistingSource(t *testing.T) {
 
-	cli := NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalRuntime)
+	cli := docker.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
 	go func() {
@@ -698,4 +765,179 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
 	})
+}
+
+func TestImagesViz(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	image := buildTestImages(t, globalEngine)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdImages("-viz"); err != nil {
+			t.Fatal(err)
+		}
+		stdoutPipe.Close()
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmdOutput := string(cmdOutputBytes)
+
+		regexpStrings := []string{
+			"digraph docker {",
+			fmt.Sprintf("base -> \"%s\" \\[style=invis]", unitTestImageIDShort),
+			fmt.Sprintf("label=\"%s\\\\n%s:latest\"", unitTestImageIDShort, unitTestImageName),
+			fmt.Sprintf("label=\"%s\\\\n%s:%s\"", utils.TruncateID(image.ID), "test", "latest"),
+			"base \\[style=invisible]",
+		}
+
+		compiledRegexps := []*regexp.Regexp{}
+		for _, regexpString := range regexpStrings {
+			regexp, err := regexp.Compile(regexpString)
+			if err != nil {
+				fmt.Println("Error in regex string: ", err)
+				return
+			}
+			compiledRegexps = append(compiledRegexps, regexp)
+		}
+
+		for _, regexp := range compiledRegexps {
+			if !regexp.MatchString(cmdOutput) {
+				t.Fatalf("images -viz content '%s' did not match regexp '%s'", cmdOutput, regexp)
+			}
+		}
+	})
+}
+
+func TestImagesTree(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	image := buildTestImages(t, globalEngine)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdImages("-tree"); err != nil {
+			t.Fatal(err)
+		}
+		stdoutPipe.Close()
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmdOutput := string(cmdOutputBytes)
+
+		regexpStrings := []string{
+			fmt.Sprintf("└─%s Size: (\\d+.\\d+ MB) \\(virtual \\d+.\\d+ MB\\) Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
+			"(?m)^  └─[0-9a-f]+",
+			"(?m)^    └─[0-9a-f]+",
+			"(?m)^      └─[0-9a-f]+",
+			fmt.Sprintf("        └─%s Size: \\d+ B \\(virtual \\d+.\\d+ MB\\) Tags: test:latest", utils.TruncateID(image.ID)),
+		}
+
+		compiledRegexps := []*regexp.Regexp{}
+		for _, regexpString := range regexpStrings {
+			regexp, err := regexp.Compile(regexpString)
+			if err != nil {
+				fmt.Println("Error in regex string: ", err)
+				return
+			}
+			compiledRegexps = append(compiledRegexps, regexp)
+		}
+
+		for _, regexp := range compiledRegexps {
+			if !regexp.MatchString(cmdOutput) {
+				t.Fatalf("images -tree content '%s' did not match regexp '%s'", cmdOutput, regexp)
+			}
+		}
+	})
+}
+
+func buildTestImages(t *testing.T, eng *engine.Engine) *docker.Image {
+
+	var testBuilder = testContextTemplate{
+		`
+from   {IMAGE}
+run    sh -c 'echo root:testpass > /tmp/passwd'
+run    mkdir -p /var/run/sshd
+run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
+`,
+		nil,
+		nil,
+	}
+	image := buildImage(testBuilder, t, eng, true)
+
+	err := mkServerFromEngine(eng, t).ContainerTag(image.ID, "test", "latest", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return image
+}
+
+// #2098 - Docker cidFiles only contain short version of the containerId
+//sudo docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
+// TestRunCidFile tests that run -cidfile returns the longid
+func TestRunCidFile(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpCidFile := path.Join(tmpDir, "cid")
+
+	cli := docker.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("-cidfile", tmpCidFile, unitTestImageID, "ls"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	defer os.RemoveAll(tmpDir)
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(cmdOutput) < 1 {
+			t.Fatalf("'ls' should return something , not '%s'", cmdOutput)
+		}
+		//read the tmpCidFile
+		buffer, err := ioutil.ReadFile(tmpCidFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := string(buffer)
+
+		if len(id) != len("2bf44ea18873287bd9ace8a4cb536a7cbe134bed67e805fdf2f58a57f69b320c") {
+			t.Fatalf("-cidfile should be a long id, not '%s'", id)
+		}
+		//test that its a valid cid? (though the container is gone..)
+		//remove the file and dir.
+	})
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
+
 }

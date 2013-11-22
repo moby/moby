@@ -31,7 +31,7 @@ help:
 #	@echo "  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
 #	@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
 #	@echo "  text       to make text files"
-#	@echo "  man        to make manual pages"
+	@echo "  man        to make a manual page"
 #	@echo "  texinfo    to make Texinfo files"
 #	@echo "  info       to make Texinfo files and run them through makeinfo"
 #	@echo "  gettext    to make PO message catalogs"

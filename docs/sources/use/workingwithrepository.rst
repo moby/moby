@@ -177,6 +177,15 @@ you can push and pull it like any other repository, but it will
 there will be no user name checking performed. Your registry will
 function completely independently from the Central Index.
 
+.. raw:: html
+
+   <iframe width="640" height="360"
+   src="//www.youtube.com/embed/CAewZCBT4PI?rel=0" frameborder="0"
+   allowfullscreen></iframe>
+
+.. seealso:: `Docker Blog: How to use your own registry 
+   <http://blog.docker.io/2013/07/how-to-use-your-own-registry/>`_
+
 Authentication file
 -------------------
 

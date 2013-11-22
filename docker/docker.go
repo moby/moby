@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/engine"
 	"log"
 	"os"
 	"strings"
@@ -71,7 +71,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		job := eng.Job("serveapi")
+		// Load plugin: httpapi
+		job := eng.Job("initapi")
 		job.Setenv("Pidfile", *pidfile)
 		job.Setenv("Root", *flRoot)
 		job.SetenvBool("AutoRestart", *flAutoRestart)
@@ -79,9 +80,14 @@ func main() {
 		job.Setenv("Dns", *flDns)
 		job.SetenvBool("EnableIptables", *flEnableIptables)
 		job.Setenv("BridgeIface", *bridgeName)
-		job.SetenvList("ProtoAddresses", flHosts)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+		if err := job.Run(); err != nil {
+			log.Fatal(err)
+		}
+		// Serve api
+		job = eng.Job("serveapi", flHosts...)
+		job.SetenvBool("Logging", true)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

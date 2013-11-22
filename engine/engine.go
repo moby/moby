@@ -2,20 +2,25 @@ package engine
 
 import (
 	"fmt"
-	"os"
-	"log"
-	"runtime"
 	"github.com/dotcloud/docker/utils"
+	"log"
+	"os"
+	"runtime"
+	"strings"
 )
-
 
 type Handler func(*Job) string
 
 var globalHandlers map[string]Handler
 
+func init() {
+	globalHandlers = make(map[string]Handler)
+}
+
 func Register(name string, handler Handler) error {
-	if globalHandlers == nil {
-		globalHandlers = make(map[string]Handler)
+	_, exists := globalHandlers[name]
+	if exists {
+		return fmt.Errorf("Can't overwrite global handler for command %s", name)
 	}
 	globalHandlers[name] = handler
 	return nil
@@ -25,8 +30,24 @@ func Register(name string, handler Handler) error {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	root		string
-	handlers	map[string]Handler
+	root     string
+	handlers map[string]Handler
+	hack     Hack // data for temporary hackery (see hack.go)
+	id       string
+}
+
+func (eng *Engine) Root() string {
+	return eng.root
+}
+
+func (eng *Engine) Register(name string, handler Handler) error {
+	eng.Logf("Register(%s) (handlers=%v)", name, eng.handlers)
+	_, exists := eng.handlers[name]
+	if exists {
+		return fmt.Errorf("Can't overwrite handler for command %s", name)
+	}
+	eng.handlers[name] = handler
+	return nil
 }
 
 // New initializes a new engine managing the directory specified at `root`.
@@ -56,22 +77,31 @@ func New(root string) (*Engine, error) {
 		return nil, err
 	}
 	eng := &Engine{
-		root:		root,
-		handlers:	globalHandlers,
+		root:     root,
+		handlers: make(map[string]Handler),
+		id:       utils.RandomString(),
+	}
+	// Copy existing global handlers
+	for k, v := range globalHandlers {
+		eng.handlers[k] = v
 	}
 	return eng, nil
+}
+
+func (eng *Engine) String() string {
+	return fmt.Sprintf("%s|%s", eng.Root(), eng.id[:8])
 }
 
 // Job creates a new job which can later be executed.
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		eng:		eng,
-		Name:		name,
-		Args:		args,
-		Stdin:		os.Stdin,
-		Stdout:		os.Stdout,
-		Stderr:		os.Stderr,
+		Eng:    eng,
+		Name:   name,
+		Args:   args,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	handler, exists := eng.handlers[name]
 	if exists {
@@ -80,3 +110,7 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	return job
 }
 
+func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
+	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+	return fmt.Fprintf(os.Stderr, prefixedFormat, args...)
+}

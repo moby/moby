@@ -168,10 +168,28 @@ func CreateBridgeIface(config *DaemonConfig) error {
 	}
 
 	if config.EnableIptables {
-		if err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
+		// Enable NAT
+		if output, err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
 			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables postrouting: %s", output)
 		}
+
+		// Accept incoming packets for existing connections
+		if output, err := iptables.Raw("-I", "FORWARD", "-o", config.BridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("Unable to allow incoming packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables allow incoming: %s", output)
+		}
+
+		// Accept all non-intercontainer outgoing packets
+		if output, err := iptables.Raw("-I", "FORWARD", "-i", config.BridgeIface, "!", "-o", config.BridgeIface, "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables allow outgoing: %s", output)
+		}
+
 	}
 	return nil
 }
@@ -678,18 +696,30 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 
 	// Configure iptables for link support
 	if config.EnableIptables {
-		args := []string{"FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j", "DROP"}
+		args := []string{"FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j"}
+		acceptArgs := append(args, "ACCEPT")
+		dropArgs := append(args, "DROP")
 
 		if !config.InterContainerCommunication {
-			if !iptables.Exists(args...) {
+			iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+			if !iptables.Exists(dropArgs...) {
 				utils.Debugf("Disable inter-container communication")
-				if err := iptables.Raw(append([]string{"-A"}, args...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
 					return nil, fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+				} else if len(output) != 0 {
+					return nil, fmt.Errorf("Error disabling intercontainer communication: %s", output)
 				}
 			}
 		} else {
-			utils.Debugf("Enable inter-container communication")
-			iptables.Raw(append([]string{"-D"}, args...)...)
+			iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+			if !iptables.Exists(acceptArgs...) {
+				utils.Debugf("Enable inter-container communication")
+				if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+					return nil, fmt.Errorf("Unable to allow intercontainer communication: %s", err)
+				} else if len(output) != 0 {
+					return nil, fmt.Errorf("Error enabling intercontainer communication: %s", output)
+				}
+			}
 		}
 	}
 

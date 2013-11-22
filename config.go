@@ -1,15 +1,14 @@
 package docker
 
 import (
-	"net"
 	"github.com/dotcloud/docker/engine"
+	"net"
 )
 
 // FIXME: separate runtime configuration from http api configuration
 type DaemonConfig struct {
 	Pidfile                     string
 	Root                        string
-	ProtoAddresses              []string
 	AutoRestart                 bool
 	EnableCors                  bool
 	Dns                         []string
@@ -36,7 +35,6 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	} else {
 		config.BridgeIface = DefaultNetworkBridge
 	}
-	config.ProtoAddresses = job.GetenvList("ProtoAddresses")
 	config.DefaultIp = net.ParseIP(job.Getenv("DefaultIp"))
 	config.InterContainerCommunication = job.GetenvBool("InterContainerCommunication")
 	return &config
