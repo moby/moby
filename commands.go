@@ -1943,30 +1943,33 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
-	flRm := cmd.Lookup("rm")
-	autoRemove, _ := strconv.ParseBool(flRm.Value.String())
+	// Retrieve relevant client-side config
+	var (
+		flName        = cmd.Lookup("name")
+		flRm          = cmd.Lookup("rm")
+		flSigProxy    = cmd.Lookup("sig-proxy")
+		autoRemove, _ = strconv.ParseBool(flRm.Value.String())
+		sigProxy, _   = strconv.ParseBool(flSigProxy.Value.String())
+	)
 
-	flSigProxy := cmd.Lookup("sig-proxy")
-	sigProxy, _ := strconv.ParseBool(flSigProxy.Value.String())
-	flName := cmd.Lookup("name")
+	// Disable sigProxy in case on TTY
 	if config.Tty {
 		sigProxy = false
 	}
 
-	var containerIDFile *os.File
+	var containerIDFile io.WriteCloser
 	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err := ioutil.ReadFile(hostConfig.ContainerIDFile); err == nil {
+		if _, err := os.Stat(hostConfig.ContainerIDFile); err == nil {
 			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
 		}
-		containerIDFile, err = os.Create(hostConfig.ContainerIDFile)
-		if err != nil {
+		if containerIDFile, err = os.Create(hostConfig.ContainerIDFile); err != nil {
 			return fmt.Errorf("failed to create the container ID file: %s", err)
 		}
 		defer containerIDFile.Close()
 	}
+
 	containerValues := url.Values{}
-	name := flName.Value.String()
-	if name != "" {
+	if name := flName.Value.String(); name != "" {
 		containerValues.Set("name", name)
 	}
 
@@ -1987,8 +1990,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		v.Set("tag", tag)
 
 		// Resolve the Repository name from fqn to endpoint + name
-		var endpoint string
-		endpoint, _, err = registry.ResolveRepositoryName(repos)
+		endpoint, _, err := registry.ResolveRepositoryName(repos)
 		if err != nil {
 			return err
 		}
@@ -2006,14 +2008,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		registryAuthHeader := []string{
 			base64.URLEncoding.EncodeToString(buf),
 		}
-		err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{
-			"X-Registry-Auth": registryAuthHeader,
-		})
-		if err != nil {
+		if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
 			return err
 		}
-		body, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config)
-		if err != nil {
+		if body, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config); err != nil {
 			return err
 		}
 	}
@@ -2021,17 +2019,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	runResult := &APIRun{}
-	err = json.Unmarshal(body, runResult)
-	if err != nil {
+	var runResult APIRun
+	if err := json.Unmarshal(body, &runResult); err != nil {
 		return err
 	}
 
 	for _, warning := range runResult.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
+
 	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err = containerIDFile.WriteString(runResult.ID); err != nil {
+		if _, err = containerIDFile.Write([]byte(runResult.ID)); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}
 	}
@@ -2042,27 +2040,29 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	var (
-		wait  chan struct{}
-		errCh chan error
+		waitDisplayId chan struct{}
+		errCh         chan error
 	)
 
 	if !config.AttachStdout && !config.AttachStderr {
 		// Make this asynchrone in order to let the client write to stdin before having to read the ID
-		wait = make(chan struct{})
+		waitDisplayId = make(chan struct{})
 		go func() {
-			defer close(wait)
+			defer close(waitDisplayId)
 			fmt.Fprintf(cli.out, "%s\n", runResult.ID)
 		}()
 	}
 
+	// We need to make the chan because the select needs to have a closing
+	// chan, it can't be uninitialized
 	hijacked := make(chan bool)
-
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
-
-		v := url.Values{}
+		var (
+			out, stderr io.Writer
+			in          io.ReadCloser
+			v           = url.Values{}
+		)
 		v.Set("stream", "1")
-		var out, stderr io.Writer
-		var in io.ReadCloser
 
 		if config.AttachStdin {
 			v.Set("stdin", "1")
@@ -2116,34 +2116,37 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 
+	// Detached mode: wait for the id to be displayed and return.
 	if !config.AttachStdout && !config.AttachStderr {
 		// Detached mode
-		<-wait
-	} else {
-		var status int
-
-		if autoRemove {
-			if _, _, err := cli.call("POST", "/containers/"+runResult.ID+"/wait", nil); err != nil {
-				return err
-			}
-			_, status, err = getExitCode(cli, runResult.ID)
-			if err != nil {
-				return err
-			}
-			if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
-				return err
-			}
-		} else {
-			_, status, err = getExitCode(cli, runResult.ID)
-			if err != nil {
-				return err
-			}
-		}
-		if status != 0 {
-			return &utils.StatusError{Status: status}
-		}
+		<-waitDisplayId
+		return nil
 	}
 
+	var status int
+
+	// Attached mode
+	if autoRemove {
+		// Autoremove: wait for the container to finish, retrieve
+		// the exit code and remove the container
+		if _, _, err := cli.call("POST", "/containers/"+runResult.ID+"/wait", nil); err != nil {
+			return err
+		}
+		if _, status, err = getExitCode(cli, runResult.ID); err != nil {
+			return err
+		}
+		if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
+			return err
+		}
+	} else {
+		// No Autoremove: Simply retrieve the exit code
+		if _, status, err = getExitCode(cli, runResult.ID); err != nil {
+			return err
+		}
+	}
+	if status != 0 {
+		return &utils.StatusError{Status: status}
+	}
 	return nil
 }
 
