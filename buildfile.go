@@ -241,7 +241,7 @@ func (b *buildFile) CmdVolume(args string) error {
 		volume = []string{args}
 	}
 	if b.config.Volumes == nil {
-		b.config.Volumes = NewPathOpts()
+		b.config.Volumes = PathOpts{}
 	}
 	for _, v := range volume {
 		b.config.Volumes[v] = struct{}{}
