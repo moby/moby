@@ -1762,10 +1762,11 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		_ = cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 		_ = cmd.String("name", "", "Assign a name to the container")
 	)
+
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
+	cmd.Var(&flPublish, "p", fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", PortSpecTemplateFormat))
 	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flEnv, "e", "Set environment variables")
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
