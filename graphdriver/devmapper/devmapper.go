@@ -187,7 +187,7 @@ func AttachLoopDevice(filename string) (*osFile, error) {
 }
 
 func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
-	dev, inode, err := dmGetLoopbackBackingFile(file.Fd())
+	dev, inode, err := DmGetLoopbackBackingFile(file.Fd())
 	if err != 0 {
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
@@ -195,8 +195,7 @@ func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
 }
 
 func LoopbackSetCapacity(file *osFile) error {
-	err := dmLoopbackSetCapacity(file.Fd())
-	if err != 0 {
+	if err := DmLoopbackSetCapacity(file.Fd()); err != 0 {
 		return ErrLoopbackSetCapacity
 	}
 	return nil

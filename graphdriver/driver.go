@@ -8,8 +8,6 @@ import (
 	"path"
 )
 
-var DefaultDriver string
-
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
@@ -34,6 +32,7 @@ type Differ interface {
 }
 
 var (
+	DefaultDriver string
 	// All registred drivers
 	drivers map[string]InitFunc
 	// Slice of drivers that should be used in an order
@@ -64,14 +63,8 @@ func GetDriver(name, home string) (Driver, error) {
 	return nil, fmt.Errorf("No such driver: %s", name)
 }
 
-func New(root string) (Driver, error) {
-	var driver Driver
-	var lastError error
-
-	for _, name := range []string{
-		os.Getenv("DOCKER_DRIVER"),
-		DefaultDriver,
-	} {
+func New(root string) (driver Driver, err error) {
+	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
 			return GetDriver(name, root)
 		}
@@ -79,9 +72,8 @@ func New(root string) (Driver, error) {
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, lastError = GetDriver(name, root)
-		if lastError != nil {
-			utils.Debugf("Error loading driver %s: %s", name, lastError)
+		if driver, err = GetDriver(name, root); err != nil {
+			utils.Debugf("Error loading driver %s: %s", name, err)
 			continue
 		}
 		return driver, nil
@@ -89,11 +81,10 @@ func New(root string) (Driver, error) {
 
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
-		driver, lastError = initFunc(root)
-		if lastError != nil {
+		if driver, err = initFunc(root); err != nil {
 			continue
 		}
 		return driver, nil
 	}
-	return nil, lastError
+	return nil, err
 }
