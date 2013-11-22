@@ -38,7 +38,7 @@ func main() {
 	flEnableIptables := flag.Bool("iptables", true, "Disable docker's addition of iptables rules")
 	flDefaultIp := flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
 	flInterContainerComm := flag.Bool("icc", true, "Enable inter-container communication")
-	flGraphDriver := flag.String("graph-driver", "", "Force docker runtime to use a specific graph driver")
+	flGraphDriver := flag.String("s", "", "Force the docker runtime to use a specific storage driver")
 
 	flag.Parse()
 
