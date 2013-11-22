@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -205,6 +206,27 @@ func TestOutputAdd(t *testing.T) {
 	}
 	if output := b.String(); output != input {
 		t.Fatal("Received wrong data from Add.\nExpected: '%s'\nGot:     '%s'", input, output)
+	}
+}
+
+func TestOutputWriteError(t *testing.T) {
+	o := NewOutput()
+	buf := &bytes.Buffer{}
+	o.Add(buf)
+	r, w := io.Pipe()
+	input := "Hello there"
+	expectedErr := fmt.Errorf("This is an error")
+	r.CloseWithError(expectedErr)
+	o.Add(w)
+	n, err := o.Write([]byte(input))
+	if err != expectedErr {
+		t.Fatalf("Output.Write() should return the first error encountered, if any")
+	}
+	if buf.String() != input {
+		t.Fatalf("Output.Write() should attempt write on all destinations, even after encountering an error")
+	}
+	if n != len(input) {
+		t.Fatalf("Output.Write() should return the size of the input if it successfully writes to at least one destination")
 	}
 }
 
