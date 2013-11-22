@@ -46,6 +46,9 @@ func parseForm(r *http.Request) error {
 	if r == nil {
 		return nil
 	}
+	if r.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+		r.Header.Set("Content-Type", "application/json")
+	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
 	}
