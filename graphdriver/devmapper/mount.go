@@ -7,7 +7,7 @@ import (
 // FIXME: this is copy-pasted from the aufs driver.
 // It should be moved into the core.
 
-func Mounted(mountpoint string) (bool, error) {
+var Mounted = func(mountpoint string) (bool, error) {
 	mntpoint, err := osStat(mountpoint)
 	if err != nil {
 		if osIsNotExist(err) {

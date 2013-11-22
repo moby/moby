@@ -21,7 +21,7 @@ type Driver struct {
 	home string
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+var Init = func(home string) (graphdriver.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }
 
-func (d *Driver) Create(id string, parent string) error {
+func (d *Driver) Create(id, parent string) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}

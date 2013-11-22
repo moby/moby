@@ -2,10 +2,12 @@ package devmapper
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/graphdriver"
 	"io/ioutil"
 	"path"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -82,6 +84,39 @@ func denyAllDevmapper() {
 	}
 }
 
+func denyAllSyscall() {
+	sysMount = func(source, target, fstype string, flags uintptr, data string) (err error) {
+		panic("sysMount: this method should not be called here")
+	}
+	sysUnmount = func(target string, flags int) (err error) {
+		panic("sysUnmount: this method should not be called here")
+	}
+	sysCloseOnExec = func(fd int) {
+		panic("sysCloseOnExec: this method should not be called here")
+	}
+	sysSyscall = func(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+		panic("sysSyscall: this method should not be called here")
+	}
+	// Not a syscall, but forbidding it here anyway
+	Mounted = func(mnt string) (bool, error) {
+		panic("devmapper.Mounted: this method should not be called here")
+	}
+	// osOpenFile = os.OpenFile
+	// osNewFile = os.NewFile
+	// osCreate = os.Create
+	// osStat = os.Stat
+	// osIsNotExist = os.IsNotExist
+	// osIsExist = os.IsExist
+	// osMkdirAll = os.MkdirAll
+	// osRemoveAll = os.RemoveAll
+	// osRename = os.Rename
+	// osReadlink = os.Readlink
+
+	// execRun = func(name string, args ...string) error {
+	// 	return exec.Command(name, args...).Run()
+	// }
+}
+
 func mkTestDirectory(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "docker-test-devmapper-")
 	if err != nil {
@@ -119,12 +154,15 @@ func (r Set) Assert(t *testing.T, names ...string) {
 }
 
 func TestInit(t *testing.T) {
-	home := mkTestDirectory(t)
+	var (
+		calls           = make(Set)
+		devicesAttached = make(Set)
+		taskMessages    = make(Set)
+		taskTypes       = make(Set)
+		home            = mkTestDirectory(t)
+	)
 	defer osRemoveAll(home)
-	calls := make(Set)
-	devicesAttached := make(Set)
-	taskMessages := make(Set)
-	taskTypes := make(Set)
+
 	func() {
 		denyAllDevmapper()
 		DmSetDevDir = func(dir string) int {
@@ -295,8 +333,12 @@ func TestInit(t *testing.T) {
 			}
 		}()
 	}()
+	// Put all tests in a funciton to make sure the garbage collection will
+	// occur.
 
+	// Call GC to cleanup runtime.Finalizers
 	runtime.GC()
+
 	calls.Assert(t,
 		"DmSetDevDir",
 		"DmLogWithErrnoInit",
@@ -320,38 +362,288 @@ func TestInit(t *testing.T) {
 	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
 
-func TestDriverName(t *testing.T) {
-	t.Skip("FIXME: not a unit test")
-	d := newDriver(t)
-	defer cleanup(d)
+func fakeInit() func(home string) (graphdriver.Driver, error) {
+	oldInit := Init
+	Init = func(home string) (graphdriver.Driver, error) {
+		return &Driver{
+			home: home,
+		}, nil
+	}
+	return oldInit
+}
 
+func restoreInit(init func(home string) (graphdriver.Driver, error)) {
+	Init = init
+}
+
+func mockAllDevmapper(calls Set) {
+	DmSetDevDir = func(dir string) int {
+		calls["DmSetDevDir"] = true
+		return 0
+	}
+	LogWithErrnoInit = func() {
+		calls["DmLogWithErrnoInit"] = true
+	}
+	DmTaskCreate = func(taskType int) *CDmTask {
+		calls["DmTaskCreate"] = true
+		return &CDmTask{}
+	}
+	DmTaskSetName = func(task *CDmTask, name string) int {
+		calls["DmTaskSetName"] = true
+		return 1
+	}
+	DmTaskRun = func(task *CDmTask) int {
+		calls["DmTaskRun"] = true
+		return 1
+	}
+	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
+		calls["DmTaskGetInfo"] = true
+		return 1
+	}
+	DmTaskSetSector = func(task *CDmTask, sector uint64) int {
+		calls["DmTaskSetSector"] = true
+		return 1
+	}
+	DmTaskSetMessage = func(task *CDmTask, message string) int {
+		calls["DmTaskSetMessage"] = true
+		return 1
+	}
+	DmAttachLoopDevice = func(filename string, fd *int) string {
+		calls["DmAttachLoopDevice"] = true
+		return "/dev/loop42"
+	}
+	DmTaskDestroy = func(task *CDmTask) {
+		calls["DmTaskDestroy"] = true
+	}
+	DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
+		calls["DmGetBlockSize"] = true
+		return int64(4242 * 512), 0
+	}
+	DmTaskAddTarget = func(task *CDmTask, start, size uint64, ttype, params string) int {
+		calls["DmTaskSetTarget"] = true
+		return 1
+	}
+	DmTaskSetCookie = func(task *CDmTask, cookie *uint, flags uint16) int {
+		calls["DmTaskSetCookie"] = true
+		return 1
+	}
+	DmUdevWait = func(cookie uint) int {
+		calls["DmUdevWait"] = true
+		return 1
+	}
+	DmTaskSetAddNode = func(task *CDmTask, addNode AddNodeType) int {
+		calls["DmTaskSetAddNode"] = true
+		return 1
+	}
+	execRun = func(name string, args ...string) error {
+		calls["execRun"] = true
+		return nil
+	}
+}
+
+func TestDriverName(t *testing.T) {
+	denyAllDevmapper()
+	defer denyAllDevmapper()
+
+	oldInit := fakeInit()
+	defer restoreInit(oldInit)
+
+	d := newDriver(t)
 	if d.String() != "devicemapper" {
 		t.Fatalf("Expected driver name to be devicemapper got %s", d.String())
 	}
 }
 
 func TestDriverCreate(t *testing.T) {
-	t.Skip("FIXME: not a unit test")
-	d := newDriver(t)
-	defer cleanup(d)
+	denyAllDevmapper()
+	denyAllSyscall()
+	defer denyAllSyscall()
+	defer denyAllDevmapper()
 
-	if err := d.Create("1", ""); err != nil {
-		t.Fatal(err)
+	calls := make(Set)
+	mockAllDevmapper(calls)
+
+	sysMount = func(source, target, fstype string, flags uintptr, data string) (err error) {
+		calls["sysMount"] = true
+		// FIXME: compare the exact source and target strings (inodes + devname)
+		if expectedSource := "/dev/mapper/docker-"; !strings.HasPrefix(source, expectedSource) {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedSource, source)
+		}
+		if expectedTarget := "/tmp/docker-test-devmapper-"; !strings.HasPrefix(target, expectedTarget) {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedTarget, target)
+		}
+		if expectedFstype := "ext4"; fstype != expectedFstype {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedFstype, fstype)
+		}
+		if expectedFlags := uintptr(3236757504); flags != expectedFlags {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedFlags, flags)
+		}
+		return nil
 	}
+
+	Mounted = func(mnt string) (bool, error) {
+		calls["Mounted"] = true
+		if !strings.HasPrefix(mnt, "/tmp/docker-test-devmapper-") || !strings.HasSuffix(mnt, "/mnt/1") {
+			t.Fatalf("Wrong mounted call\nExpected: Mounted(%v)\nReceived: Mounted(%v)\n", "/tmp/docker-test-devmapper-.../mnt/1", mnt)
+		}
+		return false, nil
+	}
+
+	func() {
+		d := newDriver(t)
+
+		calls.Assert(t,
+			"DmSetDevDir",
+			"DmLogWithErrnoInit",
+			"DmTaskSetName",
+			"DmTaskRun",
+			"DmTaskGetInfo",
+			"DmAttachLoopDevice",
+			"execRun",
+			"DmTaskCreate",
+			"DmGetBlockSize",
+			"DmTaskSetTarget",
+			"DmTaskSetCookie",
+			"DmUdevWait",
+			"DmTaskSetSector",
+			"DmTaskSetMessage",
+			"DmTaskSetAddNode",
+		)
+
+		if err := d.Create("1", ""); err != nil {
+			t.Fatal(err)
+		}
+		calls.Assert(t,
+			"DmTaskCreate",
+			"DmTaskGetInfo",
+			"sysMount",
+			"Mounted",
+			"DmTaskRun",
+			"DmTaskSetTarget",
+			"DmTaskSetSector",
+			"DmTaskSetCookie",
+			"DmUdevWait",
+			"DmTaskSetName",
+			"DmTaskSetMessage",
+			"DmTaskSetAddNode",
+		)
+
+	}()
+
+	runtime.GC()
+
+	calls.Assert(t,
+		"DmTaskDestroy",
+	)
 }
 
 func TestDriverRemove(t *testing.T) {
-	t.Skip("FIXME: not a unit test")
-	d := newDriver(t)
-	defer cleanup(d)
+	denyAllDevmapper()
+	denyAllSyscall()
+	defer denyAllSyscall()
+	defer denyAllDevmapper()
 
-	if err := d.Create("1", ""); err != nil {
-		t.Fatal(err)
+	calls := make(Set)
+	mockAllDevmapper(calls)
+
+	sysMount = func(source, target, fstype string, flags uintptr, data string) (err error) {
+		calls["sysMount"] = true
+		// FIXME: compare the exact source and target strings (inodes + devname)
+		if expectedSource := "/dev/mapper/docker-"; !strings.HasPrefix(source, expectedSource) {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedSource, source)
+		}
+		if expectedTarget := "/tmp/docker-test-devmapper-"; !strings.HasPrefix(target, expectedTarget) {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedTarget, target)
+		}
+		if expectedFstype := "ext4"; fstype != expectedFstype {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedFstype, fstype)
+		}
+		if expectedFlags := uintptr(3236757504); flags != expectedFlags {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedFlags, flags)
+		}
+		return nil
+	}
+	sysUnmount = func(target string, flags int) (err error) {
+		calls["sysUnmount"] = true
+		// FIXME: compare the exact source and target strings (inodes + devname)
+		if expectedTarget := "/tmp/docker-test-devmapper-"; !strings.HasPrefix(target, expectedTarget) {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedTarget, target)
+		}
+		if expectedFlags := 0; flags != expectedFlags {
+			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedFlags, flags)
+		}
+		return nil
+	}
+	Mounted = func(mnt string) (bool, error) {
+		calls["Mounted"] = true
+		return false, nil
 	}
 
-	if err := d.Remove("1"); err != nil {
-		t.Fatal(err)
-	}
+	func() {
+		d := newDriver(t)
+
+		calls.Assert(t,
+			"DmSetDevDir",
+			"DmLogWithErrnoInit",
+			"DmTaskSetName",
+			"DmTaskRun",
+			"DmTaskGetInfo",
+			"DmAttachLoopDevice",
+			"execRun",
+			"DmTaskCreate",
+			"DmGetBlockSize",
+			"DmTaskSetTarget",
+			"DmTaskSetCookie",
+			"DmUdevWait",
+			"DmTaskSetSector",
+			"DmTaskSetMessage",
+			"DmTaskSetAddNode",
+		)
+
+		if err := d.Create("1", ""); err != nil {
+			t.Fatal(err)
+		}
+
+		calls.Assert(t,
+			"DmTaskCreate",
+			"DmTaskGetInfo",
+			"sysMount",
+			"Mounted",
+			"DmTaskRun",
+			"DmTaskSetTarget",
+			"DmTaskSetSector",
+			"DmTaskSetCookie",
+			"DmUdevWait",
+			"DmTaskSetName",
+			"DmTaskSetMessage",
+			"DmTaskSetAddNode",
+		)
+
+		Mounted = func(mnt string) (bool, error) {
+			calls["Mounted"] = true
+			return true, nil
+		}
+
+		if err := d.Remove("1"); err != nil {
+			t.Fatal(err)
+		}
+
+		calls.Assert(t,
+			"DmTaskRun",
+			"DmTaskSetSector",
+			"DmTaskSetName",
+			"DmTaskSetMessage",
+			"DmTaskCreate",
+			"DmTaskGetInfo",
+			"Mounted",
+			"sysUnmount",
+		)
+	}()
+	runtime.GC()
+
+	calls.Assert(t,
+		"DmTaskDestroy",
+	)
 }
 
 func TestCleanup(t *testing.T) {
