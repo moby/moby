@@ -779,14 +779,19 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
-func (jm *JSONMessage) Display(out io.Writer) error {
+func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		if jm.Error.Code == 401 {
 			return fmt.Errorf("Authentication is required.")
 		}
 		return jm.Error
 	}
-	fmt.Fprintf(out, "%c[2K\r", 27)
+	endl := ""
+	if isTerminal {
+		// <ESC>[2K = erase entire current line
+		fmt.Fprintf(out, "%c[2K\r", 27)
+		endl = "\r"
+	}
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
@@ -797,14 +802,14 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 		fmt.Fprintf(out, "(from %s) ", jm.From)
 	}
 	if jm.Progress != "" {
-		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
+		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress, endl)
 	} else {
-		fmt.Fprintf(out, "%s\r\n", jm.Status)
+		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
 	}
 	return nil
 }
 
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
 	dec := json.NewDecoder(in)
 	ids := make(map[string]int)
 	diff := 0
@@ -825,11 +830,17 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 			} else {
 				diff = len(ids) - line
 			}
-			fmt.Fprintf(out, "%c[%dA", 27, diff)
+			if isTerminal {
+				// <ESC>[{diff}A = move cursor up diff rows
+				fmt.Fprintf(out, "%c[%dA", 27, diff)
+			}
 		}
-		err := jm.Display(out)
+		err := jm.Display(out, isTerminal)
 		if jm.ID != "" {
-			fmt.Fprintf(out, "%c[%dB", 27, diff)
+			if isTerminal {
+				// <ESC>[{diff}B = move cursor down diff rows
+				fmt.Fprintf(out, "%c[%dB", 27, diff)
+			}
 		}
 		if err != nil {
 			return err
