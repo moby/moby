@@ -89,7 +89,7 @@ func (o *Output) Write(p []byte) (n int, err error) {
 			firstErr = err
 		}
 	}
-	return len(p), err
+	return len(p), firstErr
 }
 
 // Close unregisters all destinations and waits for all background
