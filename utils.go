@@ -235,14 +235,23 @@ func parseLxcOpt(opt string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
+// FIXME: network related stuff (including parsing) should be grouped in network file
+const (
+	PortSpecTemplate       = "ip:hostPort:containerPort"
+	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
+)
+
 // We will receive port specs in the format of ip:public:private/proto and these need to be
 // parsed in the internal types
 func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
-	exposedPorts := make(map[Port]struct{}, len(ports))
-	bindings := make(map[Port][]PortBinding)
+	var (
+		exposedPorts = make(map[Port]struct{}, len(ports))
+		bindings     = make(map[Port][]PortBinding)
+	)
 
 	for _, rawPort := range ports {
 		proto := "tcp"
+
 		if i := strings.LastIndex(rawPort, "/"); i != -1 {
 			proto = rawPort[i+1:]
 			rawPort = rawPort[:i]
@@ -253,13 +262,16 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := utils.PartParser("ip:hostPort:containerPort", rawPort)
+		parts, err := utils.PartParser(PortSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}
-		containerPort := parts["containerPort"]
-		rawIp := parts["ip"]
-		hostPort := parts["hostPort"]
+
+		var (
+			containerPort = parts["containerPort"]
+			rawIp         = parts["ip"]
+			hostPort      = parts["hostPort"]
+		)
 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
