@@ -1656,6 +1656,18 @@ func (opts AttachOpts) Get(val string) bool {
 	return false
 }
 
+type LinkOpts []string
+
+func (link LinkOpts) String() string {
+	return fmt.Sprintf("%v", []string(link))
+}
+func (link LinkOpts) Set(val string) error {
+	if _, err := parseLink(val); err != nil {
+		return err
+	}
+	return nil
+}
+
 // PathOpts stores a unique set of absolute paths
 type PathOpts map[string]struct{}
 
@@ -1734,6 +1746,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = NewAttachOpts()
 		flVolumes = NewPathOpts()
+		flLinks   = LinkOpts{}
 
 		flPublish     utils.ListOpts
 		flExpose      utils.ListOpts
@@ -1741,7 +1754,6 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flDns         utils.ListOpts
 		flVolumesFrom utils.ListOpts
 		flLxcOpts     utils.ListOpts
-		flLinks       utils.ListOpts
 
 		flAutoRemove      = cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
