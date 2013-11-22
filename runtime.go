@@ -1,7 +1,7 @@
 package docker
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3"
+	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 	"container/list"
 	"database/sql"
 	"fmt"
@@ -15,6 +15,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -99,8 +100,8 @@ func (runtime *Runtime) load(id string) (*Container, error) {
 	if container.ID != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
-	if container.State.Running {
-		container.State.Ghost = true
+	if container.State.IsRunning() {
+		container.State.SetGhost(true)
 	}
 	return container, nil
 }
@@ -117,9 +118,6 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 
-	// init the wait lock
-	container.waitLock = make(chan struct{})
-
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
@@ -135,14 +133,10 @@ func (runtime *Runtime) Register(container *Container) error {
 	runtime.containers.PushBack(container)
 	runtime.idIndex.Add(container.ID)
 
-	// When we actually restart, Start() do the monitoring.
-	// However, when we simply 'reattach', we have to restart a monitor
-	nomonitor := false
-
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
-	if container.State.Running {
+	if container.State.IsRunning() {
 		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
 		if err != nil {
 			return err
@@ -151,28 +145,29 @@ func (runtime *Runtime) Register(container *Container) error {
 			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
-				container.State.Ghost = false
-				container.State.setStopped(0)
+				container.State.SetGhost(false)
+				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
 					return err
 				}
-				nomonitor = true
 			} else {
 				utils.Debugf("Marking as stopped")
-				container.State.setStopped(-127)
+				container.State.SetStopped(-127)
 				if err := container.ToDisk(); err != nil {
 					return err
 				}
 			}
-		}
-	}
+		} else {
+			utils.Debugf("Reconnecting to container %v", container.ID)
 
-	// If the container is not running or just has been flagged not running
-	// then close the wait lock chan (will be reset upon start)
-	if !container.State.Running {
-		close(container.waitLock)
-	} else if !nomonitor {
-		go container.monitor()
+			if err := container.allocateNetwork(); err != nil {
+				return err
+			}
+
+			container.waitLock = make(chan struct{})
+
+			go container.monitor()
+		}
 	}
 	return nil
 }
@@ -181,7 +176,7 @@ func (runtime *Runtime) ensureName(container *Container) error {
 	if container.Name == "" {
 		name, err := generateRandomName(runtime)
 		if err != nil {
-			name = container.ShortID()
+			name = utils.TruncateID(container.ID)
 		}
 		container.Name = name
 
@@ -286,13 +281,12 @@ func (runtime *Runtime) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		name, err := generateRandomName(runtime)
+		container.Name, err = generateRandomName(runtime)
 		if err != nil {
-			container.Name = container.ShortID()
+			container.Name = utils.TruncateID(container.ID)
 		}
-		container.Name = name
 
-		if _, err := runtime.containerGraph.Set(name, container.ID); err != nil {
+		if _, err := runtime.containerGraph.Set(container.Name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
 		register(container)
@@ -401,7 +395,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		if strings.HasSuffix(err.Error(), "name are not unique") {
-			return nil, nil, fmt.Errorf("Conflict, %s already exists.", name)
+			conflictingContainer, _ := runtime.GetByName(name)
+			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", name, utils.TruncateID(conflictingContainer.ID), name)
 		}
 		return nil, nil, err
 	}
@@ -482,32 +477,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	// Step 3: if hostname, build hostname and hosts files
-	container.HostnamePath = path.Join(container.root, "hostname")
-	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
-
-	hostsContent := []byte(`
-127.0.0.1	localhost
-::1		localhost ip6-localhost ip6-loopback
-fe00::0		ip6-localnet
-ff00::0		ip6-mcastprefix
-ff02::1		ip6-allnodes
-ff02::2		ip6-allrouters
-`)
-
-	container.HostsPath = path.Join(container.root, "hosts")
-
-	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s.%s %s\n", container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else {
-		hostsContent = append([]byte(fmt.Sprintf("::1\t\t%s\n", container.Config.Hostname)), hostsContent...)
-		hostsContent = append([]byte(fmt.Sprintf("127.0.0.1\t%s\n", container.Config.Hostname)), hostsContent...)
-	}
-
-	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
-
-	// Step 4: register the container
+	// Step 3: register the container
 	if err := runtime.Register(container); err != nil {
 		return nil, nil, err
 	}
@@ -541,7 +511,12 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
+// FIXME: this is deprecated by the getFullName *function*
 func (runtime *Runtime) getFullName(name string) (string, error) {
+	return getFullName(name)
+}
+
+func getFullName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
 	}
@@ -680,6 +655,25 @@ func (runtime *Runtime) Close() error {
 	return runtime.containerGraph.Close()
 }
 
+// Nuke kills all containers then removes all content
+// from the content root, including images, volumes and
+// container filesystems.
+// Again: this will remove your entire docker runtime!
+func (runtime *Runtime) Nuke() error {
+	var wg sync.WaitGroup
+	for _, container := range runtime.List() {
+		wg.Add(1)
+		go func(c *Container) {
+			c.Kill()
+			wg.Done()
+		}(container)
+	}
+	wg.Wait()
+	runtime.Close()
+
+	return os.RemoveAll(runtime.config.Root)
+}
+
 func linkLxcStart(root string) error {
 	sourcePath, err := exec.LookPath("lxc-start")
 	if err != nil {
@@ -695,6 +689,14 @@ func linkLxcStart(root string) error {
 		}
 	}
 	return os.Symlink(sourcePath, targetPath)
+}
+
+// FIXME: this is a convenience function for integration tests
+// which need direct access to runtime.graph.
+// Once the tests switch to using engine and jobs, this method
+// can go away.
+func (runtime *Runtime) Graph() *Graph {
+	return runtime.graph
 }
 
 // History is a convenience type for storing a list of containers,

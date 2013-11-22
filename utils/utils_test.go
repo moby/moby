@@ -265,6 +265,39 @@ func TestHumanSize(t *testing.T) {
 	}
 }
 
+func TestRAMInBytes(t *testing.T) {
+	assertRAMInBytes(t, "32", false, 32)
+	assertRAMInBytes(t, "32b", false, 32)
+	assertRAMInBytes(t, "32B", false, 32)
+	assertRAMInBytes(t, "32k", false, 32*1024)
+	assertRAMInBytes(t, "32K", false, 32*1024)
+	assertRAMInBytes(t, "32kb", false, 32*1024)
+	assertRAMInBytes(t, "32Kb", false, 32*1024)
+	assertRAMInBytes(t, "32Mb", false, 32*1024*1024)
+	assertRAMInBytes(t, "32Gb", false, 32*1024*1024*1024)
+
+	assertRAMInBytes(t, "", true, -1)
+	assertRAMInBytes(t, "hello", true, -1)
+	assertRAMInBytes(t, "-32", true, -1)
+	assertRAMInBytes(t, " 32 ", true, -1)
+	assertRAMInBytes(t, "32 mb", true, -1)
+	assertRAMInBytes(t, "32m b", true, -1)
+	assertRAMInBytes(t, "32bm", true, -1)
+}
+
+func assertRAMInBytes(t *testing.T, size string, expectError bool, expectedBytes int64) {
+	actualBytes, err := RAMInBytes(size)
+	if (err != nil) && !expectError {
+		t.Errorf("Unexpected error parsing '%s': %s", size, err)
+	}
+	if (err == nil) && expectError {
+		t.Errorf("Expected to get an error parsing '%s', but got none (bytes=%d)", size, actualBytes)
+	}
+	if actualBytes != expectedBytes {
+		t.Errorf("Expected '%s' to parse as %d bytes, got %d", size, expectedBytes, actualBytes)
+	}
+}
+
 func TestParseHost(t *testing.T) {
 	if addr, err := ParseHost("127.0.0.1", 4243, "0.0.0.0"); err != nil || addr != "tcp://0.0.0.0:4243" {
 		t.Errorf("0.0.0.0 -> expected tcp://0.0.0.0:4243, got %s", addr)
@@ -448,25 +481,25 @@ func TestParsePortMapping(t *testing.T) {
 func TestGetNameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
-nameserver 4.3.2.1
-search example.com`: {"1.2.3.4/32", "4.3.2.1/32"},
+nameserver 40.3.200.10
+search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
 		`search example.com`: {},
 		`nameserver 1.2.3.4
 search example.com
-nameserver 4.3.2.1`: []string{"1.2.3.4/32", "4.3.2.1/32"},
-    ``: []string{},
-    `  nameserver 1.2.3.4   `: []string{"1.2.3.4/32"},
-    `search example.com
+nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
+		``: {},
+		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
+		`search example.com
 nameserver 1.2.3.4
-#nameserver 4.3.2.1`: []string{"1.2.3.4/32"},
-    `search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: []string{"1.2.3.4/32"},
-    } {
-        test := GetNameserversAsCIDR([]byte(resolv))
-        if !StrSlicesEqual(test, result) {
-            t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
-        }
-    }
+#nameserver 4.3.2.1`: {"1.2.3.4/32"},
+		`search example.com
+nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
+	} {
+		test := GetNameserversAsCIDR([]byte(resolv))
+		if !StrSlicesEqual(test, result) {
+			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		}
+	}
 }
 
 func StrSlicesEqual(a, b []string) bool {
