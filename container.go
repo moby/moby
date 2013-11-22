@@ -1346,20 +1346,46 @@ func validateID(id string) error {
 // GetSize, return real size, virtual size
 func (container *Container) GetSize() (int64, int64) {
 	var sizeRw, sizeRootfs int64
+	data := make(map[uint64]bool)
 
 	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
-		if fileInfo != nil {
-			sizeRw += fileInfo.Size()
+		if fileInfo == nil {
+			return nil
 		}
+		size := fileInfo.Size()
+		if size == 0 {
+			return nil
+		}
+
+		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
+		if _, entryExists := data[inode]; entryExists {
+			return nil
+		}
+		data[inode] = false
+
+		sizeRw += size
 		return nil
 	})
 
+	data = make(map[uint64]bool)
 	_, err := os.Stat(container.RootfsPath())
 	if err == nil {
 		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
-			if fileInfo != nil {
-				sizeRootfs += fileInfo.Size()
+			if fileInfo == nil {
+				return nil
 			}
+			size := fileInfo.Size()
+			if size == 0 {
+				return nil
+			}
+
+			inode := fileInfo.Sys().(*syscall.Stat_t).Ino
+			if _, entryExists := data[inode]; entryExists {
+				return nil
+			}
+			data[inode] = false
+
+			sizeRootfs += size
 			return nil
 		})
 	}
