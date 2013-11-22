@@ -13,6 +13,7 @@ export VERSION=vXXX
 git checkout release
 git pull
 git checkout -b bump_$VERSION
+git merge master
 ```
 
 ### 2. Update CHANGELOG.md
@@ -79,7 +80,7 @@ git push origin bump_$VERSION
 ### 8. Apply tag
 
 ```bash
-git tag -a v$VERSION # Don't forget the v!
+git tag -a $VERSION
 git push --tags
 ```
 
