@@ -696,17 +696,14 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	}, -1)
 
 	for _, container := range srv.runtime.List() {
-		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
+		if !container.State.IsRunning() && !all && n == -1 && since == "" && before == "" {
 			continue
 		}
-		if before != "" {
+		if before != "" && !foundBefore {
 			if container.ID == before || utils.TruncateID(container.ID) == before {
 				foundBefore = true
-				continue
 			}
-			if !foundBefore {
-				continue
-			}
+			continue
 		}
 		if displayed == n {
 			break
@@ -761,7 +758,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	if err != nil {
 		return err
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling", "dependend layers"))
+	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling", "dependent layers"))
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
@@ -779,13 +776,13 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
 			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependend layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
 				// FIXME: Keep going in case of error?
 				return err
 			}
 			img, err := NewImgJSON(imgJSON)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependend layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
 				return fmt.Errorf("Failed to parse json: %s", err)
 			}
 
@@ -793,12 +790,12 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "fs layer"))
 			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependend layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
 				return err
 			}
 			defer layer.Close()
 			if err := srv.runtime.graph.Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf.FormatProgress(utils.TruncateID(id), "Downloading", "%8v/%v (%v)"), sf, false), img); err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "downloading dependend layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "downloading dependent layers"))
 				return err
 			}
 		}
@@ -1348,13 +1345,28 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 	}
 
 	if container != nil {
-		if container.State.Running {
+		if container.State.IsRunning() {
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")
 		}
 		volumes := make(map[string]struct{})
+
+		binds := make(map[string]struct{})
+
+		for _, bind := range container.hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+			binds[source] = struct{}{}
+		}
+
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
-			volumeId = strings.TrimRight(volumeId, "/layer")
+
+			// Skip the volumes mounted from external
+			if _, exists := binds[volumeId]; exists {
+				continue
+			}
+
+			volumeId = strings.TrimSuffix(volumeId, "/layer")
 			volumeId = filepath.Base(volumeId)
 			volumes[volumeId] = struct{}{}
 		}
@@ -1427,8 +1439,8 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 		if err != nil {
 			return err
 		}
-		*imgs = append(*imgs, APIRmi{Deleted: utils.TruncateID(id)})
-		srv.LogEvent("delete", utils.TruncateID(id), "")
+		*imgs = append(*imgs, APIRmi{Deleted: id})
+		srv.LogEvent("delete", id, "")
 		return nil
 	}
 	return nil
@@ -1510,7 +1522,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 
 	// Prevent deletion if image is used by a running container
 	for _, container := range srv.runtime.List() {
-		if container.State.Running {
+		if container.State.IsRunning() {
 			parent, err := srv.runtime.repositories.LookupImage(container.Image)
 			if err != nil {
 				return nil, err
@@ -1732,7 +1744,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 
 	//stream
 	if stream {
-		if container.State.Ghost {
+		if container.State.IsGhost() {
 			return fmt.Errorf("Impossible to attach to a ghost container")
 		}
 

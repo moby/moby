@@ -224,13 +224,13 @@ func TestCommitAutoRun(t *testing.T) {
 	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 
@@ -280,13 +280,13 @@ func TestCommitRun(t *testing.T) {
 	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
 	defer runtime.Destroy(container1)
 
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 
@@ -352,7 +352,7 @@ func TestStart(t *testing.T) {
 	// Give some time to the process to start
 	container.WaitTimeout(500 * time.Millisecond)
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
 	if err := container.Start(); err == nil {
@@ -370,13 +370,13 @@ func TestRun(t *testing.T) {
 	container, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
 	defer runtime.Destroy(container)
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 }
@@ -400,7 +400,7 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(output) != "foobar" {
-		t.Error(string(output))
+		t.Fatalf("%s != %s", string(output), "foobar")
 	}
 }
 
@@ -421,8 +421,8 @@ func TestContainerNetwork(t *testing.T) {
 	if err := container.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container.State.ExitCode != 0 {
-		t.Errorf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", container.State.ExitCode)
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
 	}
 }
 
@@ -446,7 +446,7 @@ func TestKillDifferentUser(t *testing.T) {
 	// there is a side effect I'm not seeing.
 	// defer container.stdin.Close()
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container.Start(); err != nil {
@@ -454,7 +454,7 @@ func TestKillDifferentUser(t *testing.T) {
 	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.State.Running {
+		for !container.State.IsRunning() {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
@@ -471,11 +471,11 @@ func TestKillDifferentUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	container.Wait()
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	// Try stopping twice
@@ -533,7 +533,7 @@ func TestKill(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container.Start(); err != nil {
@@ -543,17 +543,17 @@ func TestKill(t *testing.T) {
 	// Give some time to lxc to spawn the process
 	container.WaitTimeout(500 * time.Millisecond)
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
 	}
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	container.Wait()
-	if container.State.Running {
+	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	// Try stopping twice
@@ -577,8 +577,8 @@ func TestExitCode(t *testing.T) {
 	if err := trueContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if trueContainer.State.ExitCode != 0 {
-		t.Errorf("Unexpected exit code %d (expected 0)", trueContainer.State.ExitCode)
+	if code := trueContainer.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected exit code %d (expected 0)", code)
 	}
 
 	falseContainer, _, err := runtime.Create(&docker.Config{
@@ -592,8 +592,8 @@ func TestExitCode(t *testing.T) {
 	if err := falseContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if falseContainer.State.ExitCode != 1 {
-		t.Errorf("Unexpected exit code %d (expected 1)", falseContainer.State.ExitCode)
+	if code := falseContainer.State.GetExitCode(); code != 1 {
+		t.Fatalf("Unexpected exit code %d (expected 1)", code)
 	}
 }
 
@@ -741,7 +741,7 @@ func TestUser(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 	output, err = container.Output()
-	if err != nil || container.State.ExitCode != 0 {
+	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
@@ -757,12 +757,12 @@ func TestUser(t *testing.T) {
 	},
 		"",
 	)
-	if err != nil || container.State.ExitCode != 0 {
+	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
 	}
 	defer runtime.Destroy(container)
 	output, err = container.Output()
-	if err != nil || container.State.ExitCode != 0 {
+	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=0(root) gid=0(root)") {
@@ -785,8 +785,8 @@ func TestUser(t *testing.T) {
 	output, err = container.Output()
 	if err != nil {
 		t.Fatal(err)
-	} else if container.State.ExitCode != 0 {
-		t.Fatalf("Container exit code is invalid: %d\nOutput:\n%s\n", container.State.ExitCode, output)
+	} else if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Container exit code is invalid: %d\nOutput:\n%s\n", code, output)
 	}
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
 		t.Error(string(output))
@@ -806,7 +806,7 @@ func TestUser(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 	output, err = container.Output()
-	if err != nil || container.State.ExitCode != 0 {
+	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(output), "uid=1(daemon) gid=1(daemon)") {
@@ -827,7 +827,7 @@ func TestUser(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 	output, err = container.Output()
-	if container.State.ExitCode == 0 {
+	if container.State.GetExitCode() == 0 {
 		t.Fatal("Starting container with wrong uid should fail but it passed.")
 	}
 }
@@ -871,10 +871,10 @@ func TestMultipleContainers(t *testing.T) {
 	container2.WaitTimeout(250 * time.Millisecond)
 
 	// If we are here, both containers should be running
-	if !container1.State.Running {
+	if !container1.State.IsRunning() {
 		t.Fatal("Container not running")
 	}
-	if !container2.State.Running {
+	if !container2.State.IsRunning() {
 		t.Fatal("Container not running")
 	}
 
@@ -1176,13 +1176,13 @@ func TestCopyVolumeUidGid(t *testing.T) {
 	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test.txt && chown daemon.daemon /hello"}, t)
 	defer r.Destroy(container1)
 
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 
@@ -1210,13 +1210,13 @@ func TestCopyVolumeContent(t *testing.T) {
 	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
 	defer r.Destroy(container1)
 
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 	if err := container1.Run(); err != nil {
 		t.Fatal(err)
 	}
-	if container1.State.Running {
+	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
 
@@ -1666,17 +1666,17 @@ func TestRestartGhost(t *testing.T) {
 		},
 		"",
 	)
-
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
 	}
 
-	container.State.Ghost = true
-	_, err = container.Output()
+	container.State.SetGhost(true)
 
+	_, err = container.Output()
 	if err != nil {
 		t.Fatal(err)
 	}

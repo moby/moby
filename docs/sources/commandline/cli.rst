@@ -88,13 +88,22 @@ Examples:
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
-      -t="": Repository name (and optionally a tag) to be applied to the resulting image in case of success.
+      -t="": Repository name (and optionally a tag) to be applied 
+             to the resulting image in case of success.
       -q=false: Suppress verbose build output.
       -no-cache: Do not use the cache when building the image.
       -rm: Remove intermediate containers after a successful build
-    When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
+
+The files at PATH or URL are called the "context" of the build. The
+build process may refer to any of the files in the context, for
+example when using an :ref:`ADD <dockerfile_add>` instruction.  When a
+single ``Dockerfile`` is given as URL, then no context is set.  When a
+git repository is set as URL, then the repository is used as the
+context
 
 .. _cli_build_examples:
+
+.. seealso:: :ref:`dockerbuilder`.
 
 Examples:
 ~~~~~~~~~
@@ -102,17 +111,42 @@ Examples:
 .. code-block:: bash
 
     sudo docker build .
+    Uploading context 10240 bytes
+    Step 1 : FROM busybox
+    Pulling repository busybox
+     ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
+    Step 2 : RUN ls -lh /
+     ---> Running in 9c9e81692ae9
+    total 24
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
+    drwxr-xr-x    5 root     root        4.0K Oct 19 00:19 dev
+    drwxr-xr-x    2 root     root        4.0K Oct 19 00:19 etc
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 lib
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 lib64 -> lib
+    dr-xr-xr-x  116 root     root           0 Nov 15 23:34 proc
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 sbin -> bin
+    dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
+     ---> b35f4035db3f
+    Step 3 : CMD echo Hello World
+     ---> Running in 02071fceb21b
+     ---> f52f38b7823e
+    Successfully built f52f38b7823e
 
-This will read the ``Dockerfile`` from the current directory. It will
-also send any other files and directories found in the current
-directory to the ``docker`` daemon.
+This example specifies that the PATH is ``.``, and so all the files in
+the local directory get tar'd and sent to the Docker daemon.  The PATH
+specifies where to find the files for the "context" of the build on
+the Docker daemon. Remember that the daemon could be running on a
+remote machine and that no parsing of the Dockerfile happens at the
+client side (where you're running ``docker build``). That means that
+*all* the files at PATH get sent, not just the ones listed to
+:ref:`ADD <dockerfile_add>` in the ``Dockerfile``.
 
-The contents of this directory would be used by ``ADD`` commands found
-within the ``Dockerfile``.  This will send a lot of data to the
-``docker`` daemon if the current directory contains a lot of data.  If
-the absolute path is provided instead of ``.`` then only the files and
-directories required by the ADD commands from the ``Dockerfile`` will be
-added to the context and transferred to the ``docker`` daemon.
+The transfer of context from the local machine to the Docker daemon is
+what the ``docker`` client means when you see the "Uploading context"
+message.
+
 
 .. code-block:: bash
 
@@ -129,16 +163,15 @@ tag will be ``2.0``
 
 This will read a ``Dockerfile`` from *stdin* without context. Due to
 the lack of a context, no contents of any local directory will be sent
-to the ``docker`` daemon.  ``ADD`` doesn't work when running in this
-mode because the absence of the context provides no source files to
-copy to the container.
+to the ``docker`` daemon.  Since there is no context, a Dockerfile
+``ADD`` only works if it refers to a remote URL.
 
 .. code-block:: bash
 
     sudo docker build github.com/creack/docker-firefox
 
-This will clone the Github repository and use it as context. The
-``Dockerfile`` at the root of the repository is used as
+This will clone the Github repository and use the cloned repository as
+context. The ``Dockerfile`` at the root of the repository is used as
 ``Dockerfile``.  Note that you can specify an arbitrary git repository
 by using the ``git://`` schema.
 
@@ -157,7 +190,7 @@ by using the ``git://`` schema.
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       -run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 Simple commit of an existing container
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -173,7 +206,7 @@ Simple commit of an existing container
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
-	S
+	
 
 Full -run example
 .................

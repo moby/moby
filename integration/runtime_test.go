@@ -419,7 +419,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.State.Running {
+		for !container.State.IsRunning() {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
@@ -533,7 +533,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.Running {
+	if !container2.State.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
@@ -543,7 +543,7 @@ func TestRestore(t *testing.T) {
 	if err := container2.WaitTimeout(2 * time.Second); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.Running = true
+	container2.State.SetRunning(42)
 	container2.ToDisk()
 
 	if len(runtime1.List()) != 2 {
@@ -553,7 +553,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.Running {
+	if !container2.State.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
@@ -577,7 +577,7 @@ func TestRestore(t *testing.T) {
 	}
 	runningCount := 0
 	for _, c := range runtime2.List() {
-		if c.State.Running {
+		if c.State.IsRunning() {
 			t.Errorf("Running container found: %v (%v)", c.ID, c.Path)
 			runningCount++
 		}
@@ -592,7 +592,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.Running = false
+	container2.State.SetStopped(0)
 }
 
 func TestReloadContainerLinks(t *testing.T) {
@@ -638,11 +638,11 @@ func TestReloadContainerLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.Running {
+	if !container2.State.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
-	if !container1.State.Running {
+	if !container1.State.IsRunning() {
 		t.Fatalf("Container %s should appear as running but isn't", container1.ID)
 	}
 
@@ -669,7 +669,7 @@ func TestReloadContainerLinks(t *testing.T) {
 	}
 	runningCount := 0
 	for _, c := range runtime2.List() {
-		if c.State.Running {
+		if c.State.IsRunning() {
 			runningCount++
 		}
 	}

@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -119,7 +120,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInsert(args ...string) error {
-	cmd := Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
+	cmd := cli.Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -161,7 +162,7 @@ func MkBuildContext(dockerfile string, files [][2]string) (archive.Archive, erro
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
-	cmd := Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
+	cmd := cli.Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String("t", "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
@@ -259,7 +260,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 // 'docker login': login / register a user to registry service.
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+auth.IndexServerAddress()+"\" is the default.")
+	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+auth.IndexServerAddress()+"\" is the default.")
 
 	var username, password, email string
 
@@ -367,7 +368,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 // 'docker wait': block until a container stops
 func (cli *DockerCli) CmdWait(args ...string) error {
-	cmd := Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
+	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -390,7 +391,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := Subcmd("version", "", "Show the docker version information.")
+	cmd := cli.Subcmd("version", "", "Show the docker version information.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -441,7 +442,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 // 'docker info': display system-wide information.
 func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := Subcmd("info", "", "Display system-wide information")
+	cmd := cli.Subcmd("info", "", "Display system-wide information")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -497,7 +498,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 }
 
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM, and then SIGKILL after grace period)")
+	cmd := cli.Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM, and then SIGKILL after grace period)")
 	nSeconds := cmd.Int("t", 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -524,7 +525,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
-	cmd := Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
+	cmd := cli.Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
 	nSeconds := cmd.Int("t", 10, "Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -567,7 +568,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 }
 
 func (cli *DockerCli) CmdStart(args ...string) error {
-	cmd := Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
+	cmd := cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 	attach := cmd.Bool("a", false, "Attach container's stdout/stderr and forward all signals to the process")
 	openStdin := cmd.Bool("i", false, "Attach container's stdin")
 	if err := cmd.Parse(args); err != nil {
@@ -653,7 +654,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container/image")
+	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container/image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -704,7 +705,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 }
 
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := Subcmd("top", "CONTAINER [ps OPTIONS]", "Lookup the running processes of a container")
+	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Lookup the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -736,7 +737,7 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+	cmd := cli.Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -778,7 +779,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+	cmd := cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -814,7 +815,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
+	cmd := cli.Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 
@@ -871,7 +872,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRm(args ...string) error {
-	cmd := Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
+	cmd := cli.Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool("v", false, "Remove the volumes associated to the container")
 	link := cmd.Bool("link", false, "Remove the specified link and not the underlying container")
 
@@ -905,7 +906,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
-	cmd := Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container (send SIGKILL)")
+	cmd := cli.Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container (send SIGKILL)")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -927,7 +928,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
+	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create a new filesystem image from the contents of a tarball(.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz).")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -961,7 +962,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := Subcmd("push", "NAME", "Push an image or a repository to the registry")
+	cmd := cli.Subcmd("push", "NAME", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1023,7 +1024,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPull(args ...string) error {
-	cmd := Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
+	cmd := cli.Subcmd("pull", "NAME", "Pull an image or a repository from the registry")
 	tag := cmd.String("t", "", "Download tagged image in repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1083,7 +1084,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImages(args ...string) error {
-	cmd := Subcmd("images", "[OPTIONS] [NAME]", "List images")
+	cmd := cli.Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool("q", false, "only show numeric IDs")
 	all := cmd.Bool("a", false, "show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
@@ -1282,7 +1283,7 @@ func displayablePorts(ports []APIPort) string {
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
-	cmd := Subcmd("ps", "[OPTIONS]", "List containers")
+	cmd := cli.Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool("q", false, "Only display numeric IDs")
 	size := cmd.Bool("s", false, "Display sizes")
 	all := cmd.Bool("a", false, "Show all containers. Only running containers are shown by default.")
@@ -1371,10 +1372,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
+	cmd := cli.Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String("m", "", "Commit message")
 	flAuthor := cmd.String("author", "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
-	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: {"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
+	flConfig := cmd.String("run", "", "Config automatically applied when the image is run. "+`(ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1423,7 +1424,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 }
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
-	cmd := Subcmd("events", "[OPTIONS]", "Get real time events from the server")
+	cmd := cli.Subcmd("events", "[OPTIONS]", "Get real time events from the server")
 	since := cmd.String("since", "", "Show previously created events and then stream.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1456,7 +1457,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 }
 
 func (cli *DockerCli) CmdExport(args ...string) error {
-	cmd := Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
+	cmd := cli.Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1473,7 +1474,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdDiff(args ...string) error {
-	cmd := Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
+	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1499,7 +1500,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	cmd := Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+	cmd := cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1526,7 +1527,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
-	cmd := Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
+	cmd := cli.Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
 	noStdin := cmd.Bool("nostdin", false, "Do not attach stdin")
 	proxy := cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
 	if err := cmd.Parse(args); err != nil {
@@ -1548,7 +1549,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
@@ -1581,7 +1582,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Subcmd("search", "TERM", "Search the docker index for images")
+	cmd := cli.Subcmd("search", "TERM", "Search the docker index for images")
 	noTrunc := cmd.Bool("notrunc", false, "Don't truncate output")
 	trusted := cmd.Bool("trusted", false, "Only show trusted builds")
 	stars := cmd.Int("stars", 0, "Only displays with at least xxx stars")
@@ -1693,7 +1694,7 @@ func (opts PathOpts) Set(val string) error {
 }
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
+	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool("f", false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1726,8 +1727,223 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	return nil
 }
 
+//FIXME Only used in tests
+func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
+	cmd.SetOutput(ioutil.Discard)
+	cmd.Usage = nil
+	return parseRun(cmd, args, capabilities)
+}
+
+func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+
+	flHostname := cmd.String("h", "", "Container host name")
+	flWorkingDir := cmd.String("w", "", "Working directory inside the container")
+	flUser := cmd.String("u", "", "Username or UID")
+	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
+	flAttach := NewAttachOpts()
+	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
+	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
+	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
+	flMemoryString := cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
+	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
+	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
+	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
+	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
+	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
+	cmd.String("name", "", "Assign a name to the container")
+	flPublishAll := cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
+
+	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		*flMemoryString = ""
+	}
+
+	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
+
+	var flPublish utils.ListOpts
+	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
+
+	var flExpose utils.ListOpts
+	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
+
+	var flEnv utils.ListOpts
+	cmd.Var(&flEnv, "e", "Set environment variables")
+
+	var flDns utils.ListOpts
+	cmd.Var(&flDns, "dns", "Set custom dns servers")
+
+	flVolumes := NewPathOpts()
+	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
+
+	var flVolumesFrom utils.ListOpts
+	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
+
+	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
+
+	var flLxcOpts utils.ListOpts
+	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+
+	var flLinks utils.ListOpts
+	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil, nil, cmd, err
+	}
+	if *flDetach && len(flAttach) > 0 {
+		return nil, nil, cmd, ErrConflictAttachDetach
+	}
+	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
+		return nil, nil, cmd, ErrInvalidWorikingDirectory
+	}
+	if *flDetach && *flAutoRemove {
+		return nil, nil, cmd, ErrConflictDetachAutoRemove
+	}
+
+	// If neither -d or -a are set, attach to everything by default
+	if len(flAttach) == 0 && !*flDetach {
+		if !*flDetach {
+			flAttach.Set("stdout")
+			flAttach.Set("stderr")
+			if *flStdin {
+				flAttach.Set("stdin")
+			}
+		}
+	}
+
+	envs := []string{}
+
+	for _, env := range flEnv {
+		arr := strings.Split(env, "=")
+		if len(arr) > 1 {
+			envs = append(envs, env)
+		} else {
+			v := os.Getenv(env)
+			envs = append(envs, env+"="+v)
+		}
+	}
+
+	var flMemory int64
+
+	if *flMemoryString != "" {
+		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
+
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		flMemory = parsedMemory
+	}
+
+	var binds []string
+
+	// add any bind targets to the list of container volumes
+	for bind := range flVolumes {
+		arr := strings.Split(bind, ":")
+		if len(arr) > 1 {
+			if arr[0] == "/" {
+				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
+			}
+			dstDir := arr[1]
+			flVolumes[dstDir] = struct{}{}
+			binds = append(binds, bind)
+			delete(flVolumes, bind)
+		}
+	}
+
+	parsedArgs := cmd.Args()
+	runCmd := []string{}
+	entrypoint := []string{}
+	image := ""
+	if len(parsedArgs) >= 1 {
+		image = cmd.Arg(0)
+	}
+	if len(parsedArgs) > 1 {
+		runCmd = parsedArgs[1:]
+	}
+	if *flEntrypoint != "" {
+		entrypoint = []string{*flEntrypoint}
+	}
+
+	var lxcConf []KeyValuePair
+	lxcConf, err := parseLxcConfOpts(flLxcOpts)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
+	hostname := *flHostname
+	domainname := ""
+
+	parts := strings.SplitN(hostname, ".", 2)
+	if len(parts) > 1 {
+		hostname = parts[0]
+		domainname = parts[1]
+	}
+
+	ports, portBindings, err := parsePortSpecs(flPublish)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
+	// Merge in exposed ports to the map of published ports
+	for _, e := range flExpose {
+		if strings.Contains(e, ":") {
+			return nil, nil, cmd, fmt.Errorf("Invalid port format for -expose: %s", e)
+		}
+		p := NewPort(splitProtoPort(e))
+		if _, exists := ports[p]; !exists {
+			ports[p] = struct{}{}
+		}
+	}
+
+	config := &Config{
+		Hostname:        hostname,
+		Domainname:      domainname,
+		PortSpecs:       nil, // Deprecated
+		ExposedPorts:    ports,
+		User:            *flUser,
+		Tty:             *flTty,
+		NetworkDisabled: !*flNetwork,
+		OpenStdin:       *flStdin,
+		Memory:          flMemory,
+		CpuShares:       *flCpuShares,
+		AttachStdin:     flAttach.Get("stdin"),
+		AttachStdout:    flAttach.Get("stdout"),
+		AttachStderr:    flAttach.Get("stderr"),
+		Env:             envs,
+		Cmd:             runCmd,
+		Dns:             flDns,
+		Image:           image,
+		Volumes:         flVolumes,
+		VolumesFrom:     strings.Join(flVolumesFrom, ","),
+		Entrypoint:      entrypoint,
+		WorkingDir:      *flWorkingDir,
+	}
+
+	hostConfig := &HostConfig{
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
+		LxcConf:         lxcConf,
+		Privileged:      *flPrivileged,
+		PortBindings:    portBindings,
+		Links:           flLinks,
+		PublishAllPorts: *flPublishAll,
+	}
+
+	if capabilities != nil && flMemory > 0 && !capabilities.SwapLimit {
+		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		config.MemorySwap = -1
+	}
+
+	// When allocating stdin in attached mode, close stdin at client disconnect
+	if config.OpenStdin && config.AttachStdin {
+		config.StdinOnce = true
+	}
+	return config, hostConfig, cmd, nil
+}
+
 func (cli *DockerCli) CmdRun(args ...string) error {
-	config, hostConfig, cmd, err := ParseRun(args, nil)
+	config, hostConfig, cmd, err := parseRun(cli.Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container"), args, nil)
 	if err != nil {
 		return err
 	}
@@ -1938,7 +2154,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1973,7 +2189,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
+	cmd := cli.Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -1991,7 +2207,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "SOURCE", "Load an image from a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -2257,12 +2473,12 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	return nil
 }
 
-func Subcmd(name, signature, description string) *flag.FlagSet {
+func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {
-		// FIXME: use custom stdout or return error
-		fmt.Fprintf(os.Stdout, "\nUsage: docker %s %s\n\n%s\n\n", name, signature, description)
+		fmt.Fprintf(cli.err, "\nUsage: docker %s %s\n\n%s\n\n", name, signature, description)
 		flags.PrintDefaults()
+		os.Exit(2)
 	}
 	return flags
 }
@@ -2307,7 +2523,7 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	if err := json.Unmarshal(body, c); err != nil {
 		return false, -1, err
 	}
-	return c.State.Running, c.State.ExitCode, nil
+	return c.State.IsRunning(), c.State.GetExitCode(), nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *DockerCli {

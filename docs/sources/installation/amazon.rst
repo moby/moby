@@ -22,12 +22,10 @@ Amazon QuickStart
 
 1. **Choose an image:**
 
-   * Open http://cloud-images.ubuntu.com/locator/ec2/
-   * Enter ``amd64 precise`` in the search field (it will search as you
-     type)
-   * Pick an image by clicking on the image name. *An EBS-enabled
-     image will let you use a t1.micro instance.* Clicking on the image 
-     name will take you to your AWS Console.
+   * Launch the `Create Instance Wizard` <https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:> menu on your AWS Console
+   * Select "Community AMIs" option and serch for ``amd64 precise`` (click enter to search)
+   * If you choose a EBS enabled AMI you will be able to launch a `t1.micro` instance (more info on `pricing` <http://aws.amazon.com/en/ec2/pricing/> )
+   * When you click select you'll be taken to the instance setup, and you're one click away from having your Ubuntu VM up and running.
 
 2. **Tell CloudInit to install Docker:**
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
@@ -18,14 +17,15 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 type Container struct {
+	sync.Mutex
 	root   string // Path to the "home" of the container, including metadata.
 	rootfs string // Path to the root filesystem of the container.
 
@@ -157,218 +157,6 @@ func (p Port) Int() int {
 
 func NewPort(proto, port string) Port {
 	return Port(fmt.Sprintf("%s/%s", port, proto))
-}
-
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
-	cmd := Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container")
-	if os.Getenv("TEST") != "" {
-		cmd.SetOutput(ioutil.Discard)
-		cmd.Usage = nil
-	}
-
-	flHostname := cmd.String("h", "", "Container host name")
-	flWorkingDir := cmd.String("w", "", "Working directory inside the container")
-	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
-	flAttach := NewAttachOpts()
-	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
-	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
-	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	flMemoryString := cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
-	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
-	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
-	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
-	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
-	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
-	cmd.String("name", "", "Assign a name to the container")
-	flPublishAll := cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
-
-	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
-		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		*flMemoryString = ""
-	}
-
-	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
-
-	var flPublish utils.ListOpts
-	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
-
-	var flExpose utils.ListOpts
-	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
-
-	var flEnv utils.ListOpts
-	cmd.Var(&flEnv, "e", "Set environment variables")
-
-	var flDns utils.ListOpts
-	cmd.Var(&flDns, "dns", "Set custom dns servers")
-
-	flVolumes := NewPathOpts()
-	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
-
-	var flVolumesFrom utils.ListOpts
-	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
-
-	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	var flLxcOpts utils.ListOpts
-	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-
-	var flLinks utils.ListOpts
-	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
-
-	if err := cmd.Parse(args); err != nil {
-		return nil, nil, cmd, err
-	}
-	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, ErrConflictAttachDetach
-	}
-	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvalidWorikingDirectory
-	}
-	if *flDetach && *flAutoRemove {
-		return nil, nil, cmd, ErrConflictDetachAutoRemove
-	}
-
-	// If neither -d or -a are set, attach to everything by default
-	if len(flAttach) == 0 && !*flDetach {
-		if !*flDetach {
-			flAttach.Set("stdout")
-			flAttach.Set("stderr")
-			if *flStdin {
-				flAttach.Set("stdin")
-			}
-		}
-	}
-
-	envs := []string{}
-
-	for _, env := range flEnv {
-		arr := strings.Split(env, "=")
-		if len(arr) > 1 {
-			envs = append(envs, env)
-		} else {
-			v := os.Getenv(env)
-			envs = append(envs, env+"="+v)
-		}
-	}
-
-	var flMemory int64
-
-	if *flMemoryString != "" {
-		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
-
-		if err != nil {
-			return nil, nil, cmd, err
-		}
-
-		flMemory = parsedMemory
-	}
-
-	var binds []string
-
-	// add any bind targets to the list of container volumes
-	for bind := range flVolumes {
-		arr := strings.Split(bind, ":")
-		if len(arr) > 1 {
-			if arr[0] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
-			}
-			dstDir := arr[1]
-			flVolumes[dstDir] = struct{}{}
-			binds = append(binds, bind)
-			delete(flVolumes, bind)
-		}
-	}
-
-	parsedArgs := cmd.Args()
-	runCmd := []string{}
-	entrypoint := []string{}
-	image := ""
-	if len(parsedArgs) >= 1 {
-		image = cmd.Arg(0)
-	}
-	if len(parsedArgs) > 1 {
-		runCmd = parsedArgs[1:]
-	}
-	if *flEntrypoint != "" {
-		entrypoint = []string{*flEntrypoint}
-	}
-
-	var lxcConf []KeyValuePair
-	lxcConf, err := parseLxcConfOpts(flLxcOpts)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-
-	hostname := *flHostname
-	domainname := ""
-
-	parts := strings.SplitN(hostname, ".", 2)
-	if len(parts) > 1 {
-		hostname = parts[0]
-		domainname = parts[1]
-	}
-
-	ports, portBindings, err := parsePortSpecs(flPublish)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-
-	// Merge in exposed ports to the map of published ports
-	for _, e := range flExpose {
-		if strings.Contains(e, ":") {
-			return nil, nil, cmd, fmt.Errorf("Invalid port format for -expose: %s", e)
-		}
-		p := NewPort(splitProtoPort(e))
-		if _, exists := ports[p]; !exists {
-			ports[p] = struct{}{}
-		}
-	}
-
-	config := &Config{
-		Hostname:        hostname,
-		Domainname:      domainname,
-		PortSpecs:       nil, // Deprecated
-		ExposedPorts:    ports,
-		User:            *flUser,
-		Tty:             *flTty,
-		NetworkDisabled: !*flNetwork,
-		OpenStdin:       *flStdin,
-		Memory:          flMemory,
-		CpuShares:       *flCpuShares,
-		AttachStdin:     flAttach.Get("stdin"),
-		AttachStdout:    flAttach.Get("stdout"),
-		AttachStderr:    flAttach.Get("stderr"),
-		Env:             envs,
-		Cmd:             runCmd,
-		Dns:             flDns,
-		Image:           image,
-		Volumes:         flVolumes,
-		VolumesFrom:     strings.Join(flVolumesFrom, ","),
-		Entrypoint:      entrypoint,
-		WorkingDir:      *flWorkingDir,
-	}
-
-	hostConfig := &HostConfig{
-		Binds:           binds,
-		ContainerIDFile: *flContainerIDFile,
-		LxcConf:         lxcConf,
-		Privileged:      *flPrivileged,
-		PortBindings:    portBindings,
-		Links:           flLinks,
-		PublishAllPorts: *flPublishAll,
-	}
-
-	if capabilities != nil && flMemory > 0 && !capabilities.SwapLimit {
-		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		config.MemorySwap = -1
-	}
-
-	// When allocating stdin in attached mode, close stdin at client disconnect
-	if config.OpenStdin && config.AttachStdin {
-		config.StdinOnce = true
-	}
-	return config, hostConfig, cmd, nil
 }
 
 type PortMapping map[string]string // Deprecated
@@ -710,9 +498,10 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start() (err error) {
-	container.State.Lock()
-	defer container.State.Unlock()
-	if container.State.Running {
+	container.Lock()
+	defer container.Unlock()
+
+	if container.State.IsRunning() {
 		return fmt.Errorf("The container %s is already running.", container.ID)
 	}
 	defer func() {
@@ -1046,7 +835,7 @@ func (container *Container) Start() (err error) {
 	}
 	// FIXME: save state on disk *first*, then converge
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
-	container.State.setRunning(container.cmd.Process.Pid)
+	container.State.SetRunning(container.cmd.Process.Pid)
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
@@ -1054,14 +843,14 @@ func (container *Container) Start() (err error) {
 	container.ToDisk()
 	go container.monitor()
 
-	defer utils.Debugf("Container running: %v", container.State.Running)
+	defer utils.Debugf("Container running: %v", container.State.IsRunning())
 	// We wait for the container to be fully running.
 	// Timeout after 5 seconds. In case of broken pipe, just retry.
 	// Note: The container can run and finish correctly before
 	//       the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		// If the container dies while waiting for it, just return
-		if !container.State.Running {
+		if !container.State.IsRunning() {
 			return nil
 		}
 		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
@@ -1078,11 +867,11 @@ func (container *Container) Start() (err error) {
 		if strings.Contains(string(output), "RUNNING") {
 			return nil
 		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
+		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.IsRunning(), bytes.TrimSpace(output))
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		return ErrContainerStartTimeout
 	}
 	return ErrContainerStart
@@ -1163,11 +952,12 @@ func (container *Container) allocateNetwork() error {
 		return nil
 	}
 
-	var iface *NetworkInterface
-	var err error
-	if container.State.Ghost {
-		manager := container.runtime.networkManager
-		if manager.disabled {
+	var (
+		iface *NetworkInterface
+		err   error
+	)
+	if container.State.IsGhost() {
+		if manager := container.runtime.networkManager; manager.disabled {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
@@ -1203,10 +993,12 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 
-	portSpecs := make(map[Port]struct{})
-	bindings := make(map[Port][]PortBinding)
+	var (
+		portSpecs = make(map[Port]struct{})
+		bindings  = make(map[Port][]PortBinding)
+	)
 
-	if !container.State.Ghost {
+	if !container.State.IsGhost() {
 		if container.Config.ExposedPorts != nil {
 			portSpecs = container.Config.ExposedPorts
 		}
@@ -1315,7 +1107,7 @@ func (container *Container) monitor() {
 	}
 
 	// Report status back
-	container.State.setStopped(exitCode)
+	container.State.SetStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
@@ -1365,10 +1157,10 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) kill(sig int) error {
-	container.State.Lock()
-	defer container.State.Unlock()
+	container.Lock()
+	defer container.Unlock()
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1381,7 +1173,7 @@ func (container *Container) kill(sig int) error {
 }
 
 func (container *Container) Kill() error {
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1406,7 +1198,7 @@ func (container *Container) Kill() error {
 }
 
 func (container *Container) Stop(seconds int) error {
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1440,7 +1232,7 @@ func (container *Container) Restart(seconds int) error {
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
 	<-container.waitLock
-	return container.State.ExitCode
+	return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {
@@ -1576,12 +1368,9 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 
 	if _, err = os.Stat(container.RootfsPath()); err != nil {
-		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
-			if fileInfo != nil {
-				sizeRootfs += fileInfo.Size()
-			}
-			return nil
-		})
+		if sizeRootfs, err = utils.TreeSize(container.RootfsPath()); err != nil {
+			sizeRootfs = -1
+		}
 	}
 	return sizeRw, sizeRootfs
 }

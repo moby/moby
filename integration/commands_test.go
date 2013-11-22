@@ -289,7 +289,7 @@ func TestRunDisconnect(t *testing.T) {
 	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
 		container := globalRuntime.List()[0]
 		container.Wait()
-		if container.State.Running {
+		if container.State.IsRunning() {
 			t.Fatalf("/bin/cat is still running after closing stdin")
 		}
 	})
@@ -319,7 +319,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		for {
 			// Client disconnect after run -i should keep stdin out in TTY mode
 			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.Running {
+			if len(l) == 1 && l[0].State.IsRunning() {
 				break
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -345,7 +345,7 @@ func TestRunDisconnectTty(t *testing.T) {
 
 	// Give some time to monitor to do his thing
 	container.WaitTimeout(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
 	}
 }
@@ -454,7 +454,7 @@ func TestRunDetach(t *testing.T) {
 	})
 
 	time.Sleep(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatal("The detached container should be still running")
 	}
 
@@ -534,7 +534,7 @@ func TestAttachDetach(t *testing.T) {
 	})
 
 	time.Sleep(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatal("The detached container should be still running")
 	}
 
@@ -596,7 +596,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	})
 
 	time.Sleep(500 * time.Millisecond)
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		t.Fatal("The detached container should be still running")
 	}
 
@@ -629,7 +629,7 @@ func TestAttachDisconnect(t *testing.T) {
 	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
 		for {
 			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.Running {
+			if len(l) == 1 && l[0].State.IsRunning() {
 				break
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -665,7 +665,7 @@ func TestAttachDisconnect(t *testing.T) {
 	// We closed stdin, expect /bin/cat to still be running
 	// Wait a little bit to make sure container.monitor() did his thing
 	err := container.WaitTimeout(500 * time.Millisecond)
-	if err == nil || !container.State.Running {
+	if err == nil || !container.State.IsRunning() {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
 
