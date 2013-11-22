@@ -80,7 +80,8 @@ func jobInitApi(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 	if err := job.Eng.Register("kill", srv.ContainerKill); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := job.Eng.Register("serveapi", srv.ListenAndServe); err != nil {
 		job.Error(err)
@@ -173,9 +174,10 @@ func (srv *Server) versionInfos() []utils.VersionInfo {
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (srv *Server) ContainerKill(job *engine.Job) string {
+func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	if n := len(job.Args); n < 1 || n > 2 {
-		return fmt.Sprintf("Usage: %s CONTAINER [SIGNAL]", job.Name)
+		job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
+		return engine.StatusErr
 	}
 	name := job.Args[0]
 	var sig uint64
@@ -184,27 +186,31 @@ func (srv *Server) ContainerKill(job *engine.Job) string {
 		// The largest legal signal is 31, so let's parse on 5 bits
 		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
 		if err != nil {
-			return fmt.Sprintf("Invalid signal: %s", job.Args[1])
+			job.Errorf("Invalid signal: %s", job.Args[1])
+			return engine.StatusErr
 		}
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		// If no signal is passed, perform regular Kill (SIGKILL + wait())
 		if sig == 0 {
 			if err := container.Kill(); err != nil {
-				return fmt.Sprintf("Cannot kill container %s: %s", name, err)
+				job.Errorf("Cannot kill container %s: %s", name, err)
+				return engine.StatusErr
 			}
 			srv.LogEvent("kill", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(int(sig)); err != nil {
-				return fmt.Sprintf("Cannot kill container %s: %s", name, err)
+				job.Errorf("Cannot kill container %s: %s", name, err)
+				return engine.StatusErr
 			}
 			// FIXME: Add event for signals
 		}
 	} else {
-		return fmt.Sprintf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerExport(name string, out io.Writer) error {
