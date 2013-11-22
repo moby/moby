@@ -2053,9 +2053,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 	}
 
-	// We need to make the chan because the select needs to have a closing
-	// chan, it can't be uninitialized
-	hijacked := make(chan bool)
+	// We need to instanciate the chan because the select needs it. It can
+	// be closed but can't be uninitialized.
+	hijacked := make(chan io.Closer)
+
+	// Block the return until the chan gets closed
+	defer func() {
+		utils.Debugf("End of CmdRun(), Waiting for hijack to finish.")
+		if _, ok := <-hijacked; ok {
+			utils.Errorf("Hijack did not finish (chan still open)")
+		}
+	}()
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		var (
 			out, stderr io.Writer
@@ -2090,7 +2099,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Acknowledge the hijack before starting
 	select {
-	case <-hijacked:
+	case closer := <-hijacked:
+		// Make sure that hijack gets closed when returning. (result
+		// in closing hijack chan and freeing server's goroutines.
+		if closer != nil {
+			defer closer.Close()
+		}
 	case err := <-errCh:
 		if err != nil {
 			utils.Debugf("Error hijack: %s", err)
@@ -2339,7 +2353,12 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan bool) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer) error {
+	defer func() {
+		if started != nil {
+			close(started)
+		}
+	}()
 	// fixme: refactor client to support redirect
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
@@ -2369,7 +2388,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	defer rwc.Close()
 
 	if started != nil {
-		started <- true
+		started <- rwc
 	}
 
 	var receiveStdout chan error
