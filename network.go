@@ -661,6 +661,9 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 }
 
 func (manager *NetworkManager) Close() error {
+	if manager.disabled {
+		return nil
+	}
 	err1 := manager.tcpPortAllocator.Close()
 	err2 := manager.udpPortAllocator.Close()
 	err3 := manager.ipAllocator.Close()
