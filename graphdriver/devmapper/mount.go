@@ -1,27 +1,25 @@
 package devmapper
 
 import (
-	"os"
 	"path/filepath"
-	"syscall"
 )
 
 // FIXME: this is copy-pasted from the aufs driver.
 // It should be moved into the core.
 
-func Mounted(mountpoint string) (bool, error) {
-	mntpoint, err := os.Stat(mountpoint)
+var Mounted = func(mountpoint string) (bool, error) {
+	mntpoint, err := osStat(mountpoint)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if osIsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	parent, err := os.Stat(filepath.Join(mountpoint, ".."))
+	parent, err := osStat(filepath.Join(mountpoint, ".."))
 	if err != nil {
 		return false, err
 	}
-	mntpointSt := mntpoint.Sys().(*syscall.Stat_t)
-	parentSt := parent.Sys().(*syscall.Stat_t)
+	mntpointSt := toSysStatT(mntpoint.Sys())
+	parentSt := toSysStatT(parent.Sys())
 	return mntpointSt.Dev != parentSt.Dev, nil
 }

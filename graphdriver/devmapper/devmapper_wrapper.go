@@ -140,7 +140,6 @@ static void	log_with_errno_init()
 import "C"
 
 import (
-	"syscall"
 	"unsafe"
 )
 
@@ -149,26 +148,26 @@ type (
 )
 
 var (
-	DmTaskDestory       = dmTaskDestroyFct
-	DmTaskCreate        = dmTaskCreateFct
-	DmTaskRun           = dmTaskRunFct
-	DmTaskSetName       = dmTaskSetNameFct
-	DmTaskSetMessage    = dmTaskSetMessageFct
-	DmTaskSetSector     = dmTaskSetSectorFct
-	DmTaskSetCookie     = dmTaskSetCookieFct
-	DmTaskSetAddNode    = dmTaskSetAddNodeFct
-	DmTaskSetRo         = dmTaskSetRoFct
-	DmTaskAddTarget     = dmTaskAddTargetFct
-	DmTaskGetInfo       = dmTaskGetInfoFct
-	DmGetNextTarget     = dmGetNextTargetFct
-	DmGetBlockSize      = dmGetBlockSizeFct
 	DmAttachLoopDevice  = dmAttachLoopDeviceFct
-	DmUdevWait          = dmUdevWaitFct
+	DmGetBlockSize      = dmGetBlockSizeFct
+	DmGetLibraryVersion = dmGetLibraryVersionFct
+	DmGetNextTarget     = dmGetNextTargetFct
 	DmLogInitVerbose    = dmLogInitVerboseFct
 	DmSetDevDir         = dmSetDevDirFct
-	DmGetLibraryVersion = dmGetLibraryVersionFct
-	LogWithErrnoInit    = logWithErrnoInitFct
+	DmTaskAddTarget     = dmTaskAddTargetFct
+	DmTaskCreate        = dmTaskCreateFct
+	DmTaskDestroy       = dmTaskDestroyFct
+	DmTaskGetInfo       = dmTaskGetInfoFct
+	DmTaskRun           = dmTaskRunFct
+	DmTaskSetAddNode    = dmTaskSetAddNodeFct
+	DmTaskSetCookie     = dmTaskSetCookieFct
+	DmTaskSetMessage    = dmTaskSetMessageFct
+	DmTaskSetName       = dmTaskSetNameFct
+	DmTaskSetRo         = dmTaskSetRoFct
+	DmTaskSetSector     = dmTaskSetSectorFct
+	DmUdevWait          = dmUdevWaitFct
 	GetBlockSize        = getBlockSizeFct
+	LogWithErrnoInit    = logWithErrnoInitFct
 )
 
 func free(p *C.char) {
@@ -239,23 +238,22 @@ func dmTaskAddTargetFct(task *CDmTask,
 		C.uint64_t(start), C.uint64_t(size), Cttype, Cparams))
 }
 
-func dmGetLoopbackBackingFile(fd uintptr) (uint64, uint64, syscall.Errno) {
+func dmGetLoopbackBackingFile(fd uintptr) (uint64, uint64, sysErrno) {
 	var lo64 C.struct_loop_info64
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.LOOP_GET_STATUS64,
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_GET_STATUS64,
 		uintptr(unsafe.Pointer(&lo64)))
-	return uint64(lo64.lo_device), uint64(lo64.lo_inode), err
+	return uint64(lo64.lo_device), uint64(lo64.lo_inode), sysErrno(err)
 }
 
-func dmLoopbackSetCapacity(fd uintptr) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.LOOP_SET_CAPACITY, 0)
-	return err
+func dmLoopbackSetCapacity(fd uintptr) sysErrno {
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_SET_CAPACITY, 0)
+	return sysErrno(err)
 }
 
-func dmGetBlockSizeFct(fd uintptr) (int64, syscall.Errno) {
+func dmGetBlockSizeFct(fd uintptr) (int64, sysErrno) {
 	var size int64
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
-		uintptr(unsafe.Pointer(&size)))
-	return size, err
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
+	return size, sysErrno(err)
 }
 
 func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
@@ -275,9 +273,7 @@ func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
 	return int(C.dm_task_get_info((*C.struct_dm_task)(task), &Cinfo))
 }
 
-func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64,
-	target, params *string) uintptr {
-
+func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
 	var (
 		Cstart, Clength      C.uint64_t
 		CtargetType, Cparams *C.char
@@ -288,6 +284,7 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64,
 		*target = C.GoString(CtargetType)
 		*params = C.GoString(Cparams)
 	}()
+
 	nextp := C.dm_get_next_target((*C.struct_dm_task)(task),
 		unsafe.Pointer(next), &Cstart, &Clength, &CtargetType, &Cparams)
 	return uintptr(nextp)
@@ -307,10 +304,9 @@ func dmAttachLoopDeviceFct(filename string, fd *int) string {
 	return C.GoString(ret)
 }
 
-func getBlockSizeFct(fd uintptr, size *uint64) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, C.BLKGETSIZE64,
-		uintptr(unsafe.Pointer(&size)))
-	return err
+func getBlockSizeFct(fd uintptr, size *uint64) sysErrno {
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
+	return sysErrno(err)
 }
 
 func dmUdevWaitFct(cookie uint) int {

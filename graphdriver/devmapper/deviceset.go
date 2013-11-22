@@ -6,13 +6,10 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -105,7 +102,7 @@ func (devices *DeviceSet) hasImage(name string) bool {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	_, err := os.Stat(filename)
+	_, err := osStat(filename)
 	return err == nil
 }
 
@@ -117,16 +114,16 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	if err := os.MkdirAll(dirname, 0700); err != nil && !os.IsExist(err) {
+	if err := osMkdirAll(dirname, 0700); err != nil && !osIsExist(err) {
 		return "", err
 	}
 
-	if _, err := os.Stat(filename); err != nil {
-		if !os.IsNotExist(err) {
+	if _, err := osStat(filename); err != nil {
+		if !osIsNotExist(err) {
 			return "", err
 		}
 		utils.Debugf("Creating loopback file %s for device-manage use", filename)
-		file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+		file, err := osOpenFile(filename, osORdWr|osOCreate, 0600)
 		if err != nil {
 			return "", err
 		}
@@ -174,7 +171,7 @@ func (devices *DeviceSet) saveMetadata() error {
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
-	if err := os.Rename(tmpFile.Name(), devices.jsonFile()); err != nil {
+	if err := osRename(tmpFile.Name(), devices.jsonFile()); err != nil {
 		return fmt.Errorf("Error committing metadata file", err)
 	}
 
@@ -225,9 +222,9 @@ func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
+	err := execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname)
 	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname).Run()
+		err = execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname)
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -252,7 +249,7 @@ func (devices *DeviceSet) loadMetaData() error {
 	devices.NewTransactionId = devices.TransactionId
 
 	jsonData, err := ioutil.ReadFile(devices.jsonFile())
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !osIsNotExist(err) {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -337,14 +334,13 @@ func (devices *DeviceSet) setupBaseImage() error {
 }
 
 func setCloseOnExec(name string) {
-	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
-	if fileInfos != nil {
+	if fileInfos, _ := ioutil.ReadDir("/proc/self/fd"); fileInfos != nil {
 		for _, i := range fileInfos {
-			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
+			link, _ := osReadlink(filepath.Join("/proc/self/fd", i.Name()))
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					syscall.CloseOnExec(fd)
+					sysCloseOnExec(fd)
 				}
 			}
 		}
@@ -372,7 +368,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	datafilename := path.Join(dirname, "data")
 	metadatafilename := path.Join(dirname, "metadata")
 
-	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
+	datafile, err := osOpenFile(datafilename, osORdWr, 0)
 	if datafile == nil {
 		return err
 	}
@@ -387,19 +383,19 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 		return fmt.Errorf("Can't shrink file")
 	}
 
-	dataloopback := FindLoopDeviceFor(datafile)
+	dataloopback := FindLoopDeviceFor(&osFile{File: datafile})
 	if dataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
 	}
 	defer dataloopback.Close()
 
-	metadatafile, err := os.OpenFile(metadatafilename, os.O_RDWR, 0)
+	metadatafile, err := osOpenFile(metadatafilename, osORdWr, 0)
 	if metadatafile == nil {
 		return err
 	}
 	defer metadatafile.Close()
 
-	metadataloopback := FindLoopDeviceFor(metadatafile)
+	metadataloopback := FindLoopDeviceFor(&osFile{File: metadatafile})
 	if metadataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
 	}
@@ -464,11 +460,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// Set the device prefix from the device id and inode of the docker root dir
 
-	st, err := os.Stat(devices.root)
+	st, err := osStat(devices.root)
 	if err != nil {
 		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
 	}
-	sysSt := st.Sys().(*syscall.Stat_t)
+	sysSt := toSysStatT(st.Sys())
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	// docker-maj,min[-inode] stands for:
@@ -708,15 +704,16 @@ func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
 }
 
 func (devices *DeviceSet) Shutdown() error {
-	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
-	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 	devices.Lock()
-	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer devices.Unlock()
+
+	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
+	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
+	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
 	for path, count := range devices.activeMounts {
 		for i := count; i > 0; i-- {
-			if err := syscall.Unmount(path, 0); err != nil {
+			if err := sysUnmount(path, 0); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", path, err)
 			}
 		}
@@ -752,15 +749,15 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 
 	info := devices.Devices[hash]
 
-	var flags uintptr = syscall.MS_MGC_VAL
+	var flags uintptr = sysMsMgcVal
 
 	if readOnly {
-		flags = flags | syscall.MS_RDONLY
+		flags = flags | sysMsRdOnly
 	}
 
-	err := syscall.Mount(info.DevName(), path, "ext4", flags, "discard")
-	if err != nil && err == syscall.EINVAL {
-		err = syscall.Mount(info.DevName(), path, "ext4", flags, "")
+	err := sysMount(info.DevName(), path, "ext4", flags, "discard")
+	if err != nil && err == sysEInval {
+		err = sysMount(info.DevName(), path, "ext4", flags, "")
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -779,7 +776,7 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 	defer devices.Unlock()
 
 	utils.Debugf("[devmapper] Unmount(%s)", path)
-	if err := syscall.Unmount(path, 0); err != nil {
+	if err := sysUnmount(path, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
