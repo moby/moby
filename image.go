@@ -89,12 +89,12 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		start := time.Now()
+		start := time.Now().UTC()
 		utils.Debugf("Start untar layer")
 		if err := archive.Untar(layerData, layer); err != nil {
 			return err
 		}
-		utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
+		utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 	}
 
 	// If raw json is provided, then use it

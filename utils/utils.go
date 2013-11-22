@@ -411,7 +411,7 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 					w.buf.Write([]byte(line))
 					break
 				}
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now().UTC()})
 				if err != nil {
 					// On error, evict the writer
 					delete(w.writers, sw)

@@ -847,7 +847,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 				fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
 			}
 
-			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))))
 
 			if *noTrunc {
 				fmt.Fprintf(w, "%s\t", out.CreatedBy)
@@ -1202,7 +1202,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))))
 					if out.VirtualSize > 0 {
 						fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
 					} else {
@@ -1344,7 +1344,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			if !*noTrunc {
 				out.Command = utils.Trunc(out.Command, 20)
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), strings.Join(out.Names, ","))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), strings.Join(out.Names, ","))
 			if *size {
 				if out.SizeRootFs > 0 {
 					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))

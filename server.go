@@ -1838,7 +1838,7 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 }
 
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
-	now := time.Now().Unix()
+	now := time.Now().UTC().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	srv.events = append(srv.events, jm)
 	for _, c := range srv.listeners {

@@ -421,7 +421,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
-		Created:         time.Now(),
+		Created:         time.Now().UTC(),
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
