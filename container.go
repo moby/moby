@@ -19,11 +19,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 type Container struct {
+	sync.Mutex
+
 	root string
 
 	ID string
@@ -487,9 +490,10 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 }
 
 func (container *Container) Start() (err error) {
-	container.State.Lock()
-	defer container.State.Unlock()
-	if container.State.Running {
+	container.Lock()
+	defer container.Unlock()
+
+	if container.State.IsRunning() {
 		return fmt.Errorf("The container %s is already running.", container.ID)
 	}
 	defer func() {
@@ -818,7 +822,7 @@ func (container *Container) Start() (err error) {
 	}
 	// FIXME: save state on disk *first*, then converge
 	// this way disk state is used as a journal, eg. we can restore after crash etc.
-	container.State.setRunning(container.cmd.Process.Pid)
+	container.State.SetRunning(container.cmd.Process.Pid)
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
@@ -826,14 +830,14 @@ func (container *Container) Start() (err error) {
 	container.ToDisk()
 	go container.monitor()
 
-	defer utils.Debugf("Container running: %v", container.State.Running)
+	defer utils.Debugf("Container running: %v", container.State.IsRunning())
 	// We wait for the container to be fully running.
 	// Timeout after 5 seconds. In case of broken pipe, just retry.
 	// Note: The container can run and finish correctly before
 	//       the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		// If the container dies while waiting for it, just return
-		if !container.State.Running {
+		if !container.State.IsRunning() {
 			return nil
 		}
 		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
@@ -850,11 +854,11 @@ func (container *Container) Start() (err error) {
 		if strings.Contains(string(output), "RUNNING") {
 			return nil
 		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
+		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.IsRunning(), bytes.TrimSpace(output))
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	if container.State.Running {
+	if container.State.IsRunning() {
 		return ErrContainerStartTimeout
 	}
 	return ErrContainerStart
@@ -935,11 +939,12 @@ func (container *Container) allocateNetwork() error {
 		return nil
 	}
 
-	var iface *NetworkInterface
-	var err error
-	if container.State.Ghost {
-		manager := container.runtime.networkManager
-		if manager.disabled {
+	var (
+		iface *NetworkInterface
+		err   error
+	)
+	if container.State.IsGhost() {
+		if manager := container.runtime.networkManager; manager.disabled {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
@@ -975,10 +980,12 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 
-	portSpecs := make(map[Port]struct{})
-	bindings := make(map[Port][]PortBinding)
+	var (
+		portSpecs = make(map[Port]struct{})
+		bindings  = make(map[Port][]PortBinding)
+	)
 
-	if !container.State.Ghost {
+	if !container.State.IsGhost() {
 		if container.Config.ExposedPorts != nil {
 			portSpecs = container.Config.ExposedPorts
 		}
@@ -1087,7 +1094,7 @@ func (container *Container) monitor() {
 	}
 
 	// Report status back
-	container.State.setStopped(exitCode)
+	container.State.SetStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
@@ -1137,10 +1144,10 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) kill(sig int) error {
-	container.State.Lock()
-	defer container.State.Unlock()
+	container.Lock()
+	defer container.Unlock()
 
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1153,7 +1160,7 @@ func (container *Container) kill(sig int) error {
 }
 
 func (container *Container) Kill() error {
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1178,7 +1185,7 @@ func (container *Container) Kill() error {
 }
 
 func (container *Container) Stop(seconds int) error {
-	if !container.State.Running {
+	if !container.State.IsRunning() {
 		return nil
 	}
 
@@ -1212,7 +1219,7 @@ func (container *Container) Restart(seconds int) error {
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
 	<-container.waitLock
-	return container.State.ExitCode
+	return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {

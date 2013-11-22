@@ -694,7 +694,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	}, -1)
 
 	for _, container := range srv.runtime.List() {
-		if !container.State.Running && !all && n == -1 && since == "" && before == "" {
+		if !container.State.IsRunning() && !all && n == -1 && since == "" && before == "" {
 			continue
 		}
 		if before != "" && !foundBefore {
@@ -1339,7 +1339,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 	}
 
 	if container != nil {
-		if container.State.Running {
+		if container.State.IsRunning() {
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")
 		}
 		volumes := make(map[string]struct{})
@@ -1516,7 +1516,7 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 
 	// Prevent deletion if image is used by a running container
 	for _, container := range srv.runtime.List() {
-		if container.State.Running {
+		if container.State.IsRunning() {
 			parent, err := srv.runtime.repositories.LookupImage(container.Image)
 			if err != nil {
 				return nil, err
@@ -1738,7 +1738,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 
 	//stream
 	if stream {
-		if container.State.Ghost {
+		if container.State.IsGhost() {
 			return fmt.Errorf("Impossible to attach to a ghost container")
 		}
 

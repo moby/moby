@@ -111,7 +111,7 @@ func containerKill(eng *engine.Engine, id string, t utils.Fataler) {
 }
 
 func containerRunning(eng *engine.Engine, id string, t utils.Fataler) bool {
-	return getContainer(eng, id, t).State.Running
+	return getContainer(eng, id, t).State.IsRunning()
 }
 
 func containerAssertExists(eng *engine.Engine, id string, t utils.Fataler) {
