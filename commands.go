@@ -2123,19 +2123,22 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Detached mode
 		<-wait
 	} else {
-		running, status, err := getExitCode(cli, runResult.ID)
-		if err != nil {
-			return err
-		}
+		var status int
+
 		if autoRemove {
-			if running {
-				return fmt.Errorf("Impossible to auto-remove a detached container")
-			}
-			// Wait for the process to
 			if _, _, err := cli.call("POST", "/containers/"+runResult.ID+"/wait", nil); err != nil {
 				return err
 			}
+			_, status, err = getExitCode(cli, runResult.ID)
+			if err != nil {
+				return err
+			}
 			if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
+				return err
+			}
+		} else {
+			_, status, err = getExitCode(cli, runResult.ID)
+			if err != nil {
 				return err
 			}
 		}
