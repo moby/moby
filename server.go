@@ -1346,9 +1346,24 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 			return fmt.Errorf("Impossible to remove a running container, please stop it first")
 		}
 		volumes := make(map[string]struct{})
+
+		binds := make(map[string]struct{})
+
+		for _, bind := range container.hostConfig.Binds {
+			splitBind := strings.Split(bind, ":")
+			source := splitBind[0]
+			binds[source] = struct{}{}
+		}
+
 		// Store all the deleted containers volumes
 		for _, volumeId := range container.Volumes {
-			volumeId = strings.TrimRight(volumeId, "/layer")
+
+			// Skip the volumes mounted from external
+			if _, exists := binds[volumeId]; exists {
+				continue
+			}
+
+			volumeId = strings.TrimSuffix(volumeId, "/layer")
 			volumeId = filepath.Base(volumeId)
 			volumes[volumeId] = struct{}{}
 		}
