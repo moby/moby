@@ -1237,12 +1237,14 @@ func IsClosedError(err error) bool {
 
 func PartParser(template, data string) (map[string]string, error) {
 	// ip:public:private
-	templateParts := strings.Split(template, ":")
-	parts := strings.Split(data, ":")
+	var (
+		templateParts = strings.Split(template, ":")
+		parts         = strings.Split(data, ":")
+		out           = make(map[string]string, len(templateParts))
+	)
 	if len(parts) != len(templateParts) {
 		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
 	}
-	out := make(map[string]string, len(templateParts))
 
 	for i, t := range templateParts {
 		value := ""

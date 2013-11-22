@@ -209,11 +209,14 @@ func parseLxcOpt(opt string) (string, string, error) {
 // We will receive port specs in the format of ip:public:private/proto and these need to be
 // parsed in the internal types
 func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
-	exposedPorts := make(map[Port]struct{}, len(ports))
-	bindings := make(map[Port][]PortBinding)
+	var (
+		exposedPorts = make(map[Port]struct{}, len(ports))
+		bindings     = make(map[Port][]PortBinding)
+	)
 
 	for _, rawPort := range ports {
 		proto := "tcp"
+
 		if i := strings.LastIndex(rawPort, "/"); i != -1 {
 			proto = rawPort[i+1:]
 			rawPort = rawPort[:i]
@@ -228,9 +231,12 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		if err != nil {
 			return nil, nil, err
 		}
-		containerPort := parts["containerPort"]
-		rawIp := parts["ip"]
-		hostPort := parts["hostPort"]
+
+		var (
+			containerPort = parts["containerPort"]
+			rawIp         = parts["ip"]
+			hostPort      = parts["hostPort"]
+		)
 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)

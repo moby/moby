@@ -1730,60 +1730,59 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 }
 
 func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+	var (
+		// FIXME: use utils.ListOpts for attach and volumes?
+		flAttach  = NewAttachOpts()
+		flVolumes = NewPathOpts()
 
-	flHostname := cmd.String("h", "", "Container host name")
-	flWorkingDir := cmd.String("w", "", "Working directory inside the container")
-	flUser := cmd.String("u", "", "Username or UID")
-	flDetach := cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
-	flAttach := NewAttachOpts()
+		flPublish     utils.ListOpts
+		flExpose      utils.ListOpts
+		flEnv         utils.ListOpts
+		flDns         utils.ListOpts
+		flVolumesFrom utils.ListOpts
+		flLxcOpts     utils.ListOpts
+		flLinks       utils.ListOpts
+
+		flAutoRemove      = cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
+		flDetach          = cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
+		flNetwork         = cmd.Bool("n", true, "Enable networking for this container")
+		flPrivileged      = cmd.Bool("privileged", false, "Give extended privileges to this container")
+		flPublishAll      = cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
+		flStdin           = cmd.Bool("i", false, "Keep stdin open even if not attached")
+		flTty             = cmd.Bool("t", false, "Allocate a pseudo-tty")
+		flContainerIDFile = cmd.String("cidfile", "", "Write the container ID to the file")
+		flEntrypoint      = cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
+		flHostname        = cmd.String("h", "", "Container host name")
+		flMemoryString    = cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
+		flUser            = cmd.String("u", "", "Username or UID")
+		flWorkingDir      = cmd.String("w", "", "Working directory inside the container")
+		flCpuShares       = cmd.Int64("c", 0, "CPU shares (relative weight)")
+
+		// For documentation purpose
+		_ = cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
+		_ = cmd.String("name", "", "Assign a name to the container")
+	)
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
-	flStdin := cmd.Bool("i", false, "Keep stdin open even if not attached")
-	flTty := cmd.Bool("t", false, "Allocate a pseudo-tty")
-	flMemoryString := cmd.String("m", "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
-	flContainerIDFile := cmd.String("cidfile", "", "Write the container ID to the file")
-	flNetwork := cmd.Bool("n", true, "Enable networking for this container")
-	flPrivileged := cmd.Bool("privileged", false, "Give extended privileges to this container")
-	flAutoRemove := cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
-	cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
-	cmd.String("name", "", "Assign a name to the container")
-	flPublishAll := cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
-
-	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
-		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		*flMemoryString = ""
-	}
-
-	flCpuShares := cmd.Int64("c", 0, "CPU shares (relative weight)")
-
-	var flPublish utils.ListOpts
-	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
-
-	var flExpose utils.ListOpts
-	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
-
-	var flEnv utils.ListOpts
-	cmd.Var(&flEnv, "e", "Set environment variables")
-
-	var flDns utils.ListOpts
-	cmd.Var(&flDns, "dns", "Set custom dns servers")
-
-	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 
-	var flVolumesFrom utils.ListOpts
+	cmd.Var(&flPublish, "p", "Publish a container's port to the host (use 'docker port' to see the actual mapping)")
+	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
+	cmd.Var(&flEnv, "e", "Set environment variables")
+	cmd.Var(&flDns, "dns", "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
-
-	flEntrypoint := cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	var flLxcOpts utils.ListOpts
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-
-	var flLinks utils.ListOpts
 	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
 	}
+
+	// Check if the kernel supports memory limit cgroup.
+	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
+		*flMemoryString = ""
+	}
+
+	// Validate input params
 	if *flDetach && len(flAttach) > 0 {
 		return nil, nil, cmd, ErrConflictAttachDetach
 	}
@@ -1805,8 +1804,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		}
 	}
 
-	envs := []string{}
-
+	var envs []string
 	for _, env := range flEnv {
 		arr := strings.Split(env, "=")
 		if len(arr) > 1 {
@@ -1818,19 +1816,15 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 	}
 
 	var flMemory int64
-
 	if *flMemoryString != "" {
 		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
-
 		if err != nil {
 			return nil, nil, cmd, err
 		}
-
 		flMemory = parsedMemory
 	}
 
 	var binds []string
-
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes {
 		arr := strings.Split(bind, ":")
@@ -1845,10 +1839,12 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		}
 	}
 
-	parsedArgs := cmd.Args()
-	runCmd := []string{}
-	entrypoint := []string{}
-	image := ""
+	var (
+		parsedArgs = cmd.Args()
+		runCmd     []string
+		entrypoint []string
+		image      string
+	)
 	if len(parsedArgs) >= 1 {
 		image = cmd.Arg(0)
 	}
@@ -1859,16 +1855,16 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	var lxcConf []KeyValuePair
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
 
-	hostname := *flHostname
-	domainname := ""
-
-	parts := strings.SplitN(hostname, ".", 2)
+	var (
+		domainname string
+		hostname   = *flHostname
+		parts      = strings.SplitN(hostname, ".", 2)
+	)
 	if len(parts) > 1 {
 		hostname = parts[0]
 		domainname = parts[1]
