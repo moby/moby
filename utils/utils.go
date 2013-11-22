@@ -15,8 +15,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +27,12 @@ var (
 	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
 	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
 )
+
+// A common interface to access the Fatal method of
+// both testing.B and testing.T.
+type Fataler interface {
+	Fatal(args ...interface{})
+}
 
 // ListOpts type
 type ListOpts []string
@@ -175,6 +181,40 @@ func HumanSize(size int64) string {
 		i++
 	}
 	return fmt.Sprintf("%.4g %s", sizef, units[i])
+}
+
+// Parses a human-readable string representing an amount of RAM
+// in bytes, kibibytes, mebibytes or gibibytes, and returns the
+// number of bytes, or -1 if the string is unparseable.
+// Units are case-insensitive, and the 'b' suffix is optional.
+func RAMInBytes(size string) (bytes int64, err error) {
+	re, error := regexp.Compile("^(\\d+)([kKmMgG])?[bB]?$")
+	if error != nil {
+		return -1, error
+	}
+
+	matches := re.FindStringSubmatch(size)
+
+	if len(matches) != 3 {
+		return -1, fmt.Errorf("Invalid size: '%s'", size)
+	}
+
+	memLimit, error := strconv.ParseInt(matches[1], 10, 0)
+	if error != nil {
+		return -1, error
+	}
+
+	unit := strings.ToLower(matches[2])
+
+	if unit == "k" {
+		memLimit *= 1024
+	} else if unit == "m" {
+		memLimit *= 1024 * 1024
+	} else if unit == "g" {
+		memLimit *= 1024 * 1024 * 1024
+	}
+
+	return memLimit, nil
 }
 
 func Trunc(s string, maxlen int) string {
@@ -904,13 +944,13 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 	return output
 }
 
-// GetNameserversAsCIDR returns nameservers (if any) listed in 
+// GetNameserversAsCIDR returns nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]\.){3}([0-9]))\s*$`)
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
 	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
 		var ns = re.FindSubmatch(line)
 		if len(ns) > 0 {
@@ -1083,7 +1123,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 	for len(processed) < len(graph.nodes) {
 		// Use a temporary buffer for processed nodes, otherwise
 		// nodes that depend on each other could end up in the same round.
-		tmp_processed := []*DependencyNode{}
+		tmpProcessed := []*DependencyNode{}
 		for _, node := range graph.nodes {
 			// If the node has more dependencies than what we have cleared,
 			// it won't be valid for this round.
@@ -1097,7 +1137,7 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			// It's not been processed yet and has 0 deps. Add it!
 			// (this is a shortcut for what we're doing below)
 			if node.Degree() == 0 {
-				tmp_processed = append(tmp_processed, node)
+				tmpProcessed = append(tmpProcessed, node)
 				continue
 			}
 			// If at least one dep hasn't been processed yet, we can't
@@ -1111,17 +1151,17 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 			}
 			// All deps have already been processed. Add it!
 			if ok {
-				tmp_processed = append(tmp_processed, node)
+				tmpProcessed = append(tmpProcessed, node)
 			}
 		}
-		Debugf("Round %d: found %d available nodes", len(result), len(tmp_processed))
+		Debugf("Round %d: found %d available nodes", len(result), len(tmpProcessed))
 		// If no progress has been made this round,
 		// that means we have circular dependencies.
-		if len(tmp_processed) == 0 {
+		if len(tmpProcessed) == 0 {
 			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
 		}
 		round := []string{}
-		for _, nd := range tmp_processed {
+		for _, nd := range tmpProcessed {
 			round = append(round, nd.id)
 			processed[nd] = true
 		}
@@ -1137,6 +1177,41 @@ type StatusError struct {
 
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("Status: %d", e.Status)
+}
+
+func quote(word string, buf *bytes.Buffer) {
+	// Bail out early for "simple" strings
+	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
+		buf.WriteString(word)
+		return
+	}
+
+	buf.WriteString("'")
+
+	for i := 0; i < len(word); i++ {
+		b := word[i]
+		if b == '\'' {
+			// Replace literal ' with a close ', a \', and a open '
+			buf.WriteString("'\\''")
+		} else {
+			buf.WriteByte(b)
+		}
+	}
+
+	buf.WriteString("'")
+}
+
+// Take a list of strings and escape them so they will be handled right
+// when passed as arguments to an program via a shell
+func ShellQuoteArguments(args []string) string {
+	var buf bytes.Buffer
+	for i, arg := range args {
+		if i != 0 {
+			buf.WriteByte(' ')
+		}
+		quote(arg, &buf)
+	}
+	return buf.String()
 }
 
 func IsClosedError(err error) bool {
@@ -1166,4 +1241,41 @@ func PartParser(template, data string) (map[string]string, error) {
 		out[t] = value
 	}
 	return out, nil
+}
+
+var globalTestID string
+
+// TestDirectory creates a new temporary directory and returns its path.
+// The contents of directory at path `templateDir` is copied into the
+// new directory.
+func TestDirectory(templateDir string) (dir string, err error) {
+	if globalTestID == "" {
+		globalTestID = RandomString()[:4]
+	}
+	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, GetCallerName(2))
+	if prefix == "" {
+		prefix = "docker-test-"
+	}
+	dir, err = ioutil.TempDir("", prefix)
+	if err = os.Remove(dir); err != nil {
+		return
+	}
+	if templateDir != "" {
+		if err = CopyDirectory(templateDir, dir); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// GetCallerName introspects the call stack and returns the name of the
+// function `depth` levels down in the stack.
+func GetCallerName(depth int) string {
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(depth + 1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts)-1]
+	return callerShortName
 }

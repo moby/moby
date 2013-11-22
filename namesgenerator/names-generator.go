@@ -12,7 +12,7 @@ type NameChecker interface {
 
 var (
 	colors  = [...]string{"white", "silver", "gray", "black", "blue", "green", "cyan", "yellow", "gold", "orange", "brown", "red", "violet", "pink", "magenta", "purple", "maroon", "crimson", "plum", "fuchsia", "lavender", "slate", "navy", "azure", "aqua", "olive", "teal", "lime", "beige", "tan", "sienna"}
-  animals = [...]string{"ant", "bear", "bird", "cat", "chicken", "cow", "deer", "dog", "donkey", "duck", "fish", "fox", "frog", "horse", "kangaroo", "koala", "lemur", "lion", "lizard", "monkey", "octopus", "pig", "shark", "sheep", "sloth", "spider", "squirrel", "tiger", "toad", "weasel", "whale", "wolf"}
+	animals = [...]string{"ant", "bear", "bird", "cat", "chicken", "cow", "deer", "dog", "donkey", "duck", "fish", "fox", "frog", "horse", "kangaroo", "koala", "lemur", "lion", "lizard", "monkey", "octopus", "pig", "shark", "sheep", "sloth", "spider", "squirrel", "tiger", "toad", "weasel", "whale", "wolf"}
 )
 
 func GenerateRandomName(checker NameChecker) (string, error) {

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.6.7 (2013-11-21)
+
+#### Runtime
+
+* Improved stability, fixes some race conditons
+* Skip the volumes mounted when deleting the volumes of container.
+* Fix layer size computation: handle hard links correctly
+* Use the work Path for docker cp CONTAINER:PATH
+* Fix tmp dir never cleanup
+* Speedup docker ps
+* More informative error message on name collisions
+* Fix nameserver regex
+* Always return long id's
+* Fix container restart race condition
+* Keep published ports on docker stop;docker start
+* Fix container networking on Fedora
+* Correctly express "any address" to iptables
+* Fix network setup when reconnecting to ghost container
+* Prevent deletion if image is used by a running container
+* Lock around read operations in graph
+
+#### RemoteAPI
+
+* Return full ID on docker rmi
+
+#### Client
+
++ Add -tree option to images
++ Offline image transfer
+* Exit with status 2 on usage error and display usage on stderr
+* Do not forward SIGCHLD to container
+* Use string timestamp for docker events -since
+
+#### Other
+
+* Update to go 1.2rc5
++ Add /etc/default/docker support to upstart
+
 ## 0.6.6 (2013-11-06)
 
 #### Runtime

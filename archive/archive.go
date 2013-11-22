@@ -109,16 +109,17 @@ func Untar(archive io.Reader, path string) error {
 	buf := make([]byte, 10)
 	totalN := 0
 	for totalN < 10 {
-		if n, err := archive.Read(buf[totalN:]); err != nil {
+		n, err := archive.Read(buf[totalN:])
+		if err != nil {
 			if err == io.EOF {
 				return fmt.Errorf("Tarball too short")
 			}
 			return err
-		} else {
-			totalN += n
-			utils.Debugf("[tar autodetect] n: %d", n)
 		}
+		totalN += n
+		utils.Debugf("[tar autodetect] n: %d", n)
 	}
+
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())

@@ -2,7 +2,9 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -14,7 +16,7 @@ import (
 // mkTestContext generates a build context from the contents of the provided dockerfile.
 // This context is suitable for use as an argument to BuildFile.Build()
 func mkTestContext(dockerfile string, files [][2]string, t *testing.T) archive.Archive {
-	context, err := mkBuildContext(dockerfile, files)
+	context, err := docker.MkBuildContext(dockerfile, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,17 +230,15 @@ func TestBuild(t *testing.T) {
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache bool) *Image {
-	if srv == nil {
-		runtime := mkRuntime(t)
+func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) *docker.Image {
+	if eng == nil {
+		eng = NewTestEngine(t)
+		runtime := mkRuntimeFromEngine(eng, t)
+		// FIXME: we might not need runtime, why not simply nuke
+		// the engine?
 		defer nuke(runtime)
-
-		srv = &Server{
-			runtime:     runtime,
-			pullingPool: make(map[string]struct{}),
-			pushingPool: make(map[string]struct{}),
-		}
 	}
+	srv := mkServerFromEngine(eng, t)
 
 	httpServer, err := mkTestingFileServer(context.remoteFiles)
 	if err != nil {
@@ -252,10 +252,17 @@ func buildImage(context testContextTemplate, t *testing.T, srv *Server, useCache
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
+	if iIP == nil {
+		t.Fatal("Legacy bridgeIP field not set in engine")
+	}
+	ip, ok := iIP.(net.IP)
+	if !ok {
+		panic("Legacy bridgeIP field in engine does not cast to net.IP")
+	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, useCache, false)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, useCache, false)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		t.Fatal(err)
@@ -368,20 +375,14 @@ func TestBuildEntrypoint(t *testing.T) {
 // testing #1405 - config.Cmd does not get cleaned up if
 // utilizing cache
 func TestBuildEntrypointRunCleanup(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
 
 	img := buildImage(testContextTemplate{`
         from {IMAGE}
         run echo "hello"
         `,
-		nil, nil}, t, srv, true)
+		nil, nil}, t, eng, true)
 
 	img = buildImage(testContextTemplate{`
         from {IMAGE}
@@ -389,7 +390,7 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
         add foo /foo
         entrypoint ["/bin/echo"]
         `,
-		[][2]string{{"foo", "HEYO"}}, nil}, t, srv, true)
+		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
 
 	if len(img.Config.Cmd) != 0 {
 		t.Fail()
@@ -397,14 +398,8 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 }
 
 func TestBuildImageWithCache(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
 
 	template := testContextTemplate{`
         from {IMAGE}
@@ -412,11 +407,11 @@ func TestBuildImageWithCache(t *testing.T) {
         `,
 		nil, nil}
 
-	img := buildImage(template, t, srv, true)
+	img := buildImage(template, t, eng, true)
 	imageId := img.ID
 
 	img = nil
-	img = buildImage(template, t, srv, true)
+	img = buildImage(template, t, eng, true)
 
 	if imageId != img.ID {
 		t.Logf("Image ids should match: %s != %s", imageId, img.ID)
@@ -425,14 +420,8 @@ func TestBuildImageWithCache(t *testing.T) {
 }
 
 func TestBuildImageWithoutCache(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
 
 	template := testContextTemplate{`
         from {IMAGE}
@@ -440,11 +429,11 @@ func TestBuildImageWithoutCache(t *testing.T) {
         `,
 		nil, nil}
 
-	img := buildImage(template, t, srv, true)
+	img := buildImage(template, t, eng, true)
 	imageId := img.ID
 
 	img = nil
-	img = buildImage(template, t, srv, false)
+	img = buildImage(template, t, eng, false)
 
 	if imageId == img.ID {
 		t.Logf("Image ids should not match: %s == %s", imageId, img.ID)
@@ -453,14 +442,9 @@ func TestBuildImageWithoutCache(t *testing.T) {
 }
 
 func TestForbiddenContextPath(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+	srv := mkServerFromEngine(eng, t)
 
 	context := testContextTemplate{`
         from {IMAGE}
@@ -481,10 +465,17 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
+	if iIP == nil {
+		t.Fatal("Legacy bridgeIP field not set in engine")
+	}
+	ip, ok := iIP.(net.IP)
+	if !ok {
+		panic("Legacy bridgeIP field in engine does not cast to net.IP")
+	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, true, false)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -499,14 +490,8 @@ func TestForbiddenContextPath(t *testing.T) {
 }
 
 func TestBuildADDFileNotFound(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
 
 	context := testContextTemplate{`
         from {IMAGE}
@@ -526,10 +511,17 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	port := httpServer.URL[idx+1:]
 
-	ip := srv.runtime.networkManager.bridgeNetwork.IP
+	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
+	if iIP == nil {
+		t.Fatal("Legacy bridgeIP field not set in engine")
+	}
+	ip, ok := iIP.(net.IP)
+	if !ok {
+		panic("Legacy bridgeIP field in engine does not cast to net.IP")
+	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := NewBuildFile(srv, ioutil.Discard, false, true, false)
+	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, false, true, false)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -544,29 +536,20 @@ func TestBuildADDFileNotFound(t *testing.T) {
 }
 
 func TestBuildInheritance(t *testing.T) {
-	runtime, err := newTestRuntime("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer nuke(runtime)
-
-	srv := &Server{
-		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
-	}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
 
 	img := buildImage(testContextTemplate{`
             from {IMAGE}
             expose 4243
             `,
-		nil, nil}, t, srv, true)
+		nil, nil}, t, eng, true)
 
 	img2 := buildImage(testContextTemplate{fmt.Sprintf(`
             from %s
             entrypoint ["/bin/echo"]
             `, img.ID),
-		nil, nil}, t, srv, true)
+		nil, nil}, t, eng, true)
 
 	// from child
 	if img2.Config.Entrypoint[0] != "/bin/echo" {

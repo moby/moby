@@ -21,7 +21,7 @@ func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, err
 	if parent.ID == child.ID {
 		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
 	}
-	if !child.State.Running {
+	if !child.State.IsRunning() {
 		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, name)
 	}
 
@@ -120,7 +120,7 @@ func (l *Link) Disable() {
 
 func (l *Link) toggle(action string, ignoreErrors bool) error {
 	for _, p := range l.Ports {
-		if err := iptables.Raw(action, "FORWARD",
+		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
 			"-p", p.Proto(),
 			"-s", l.ParentIP,
@@ -128,9 +128,11 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 			"-d", l.ChildIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error toggle iptables forward: %s", output)
 		}
 
-		if err := iptables.Raw(action, "FORWARD",
+		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
 			"-p", p.Proto(),
 			"-s", l.ChildIP,
@@ -138,6 +140,8 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 			"-d", l.ParentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return err
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error toggle iptables forward: %s", output)
 		}
 	}
 	return nil

@@ -15,27 +15,39 @@ commit them along the way, giving you a final image.
 
 .. contents:: Table of Contents
 
+.. _dockerfile_usage:
+
 1. Usage
 ========
 
-To build an image from a source repository, create a description file
-called ``Dockerfile`` at the root of your repository. This file will
-describe the steps to assemble the image.
+To :ref:`build <cli_build>` an image from a source repository, create
+a description file called ``Dockerfile`` at the root of your
+repository. This file will describe the steps to assemble the image.
 
 Then call ``docker build`` with the path of your source repository as
-argument:
+argument (for example, ``.``):
 
     ``sudo docker build .``
+
+The path to the source repository defines where to find the *context*
+of the build. The build is run by the Docker daemon, not by the CLI,
+so the whole context must be transferred to the daemon. The Docker CLI
+reports "Uploading context" when the context is sent to the daemon.
 
 You can specify a repository and tag at which to save the new image if the
 build succeeds:
 
     ``sudo docker build -t shykes/myapp .``
 
-Docker will run your steps one-by-one, committing the result if necessary,
-before finally outputting the ID of your new image.
+The Docker daemon will run your steps one-by-one, committing the
+result if necessary, before finally outputting the ID of your new
+image. The Docker daemon will automatically clean up the context you
+sent.
 
-When you're done with your build, you're ready to look into :ref:`image_push`.
+When you're done with your build, you're ready to look into
+:ref:`image_push`.
+
+.. _dockerfile_format:
 
 2. Format
 =========
@@ -63,11 +75,15 @@ allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
+.. _dockerfile_instructions:
+
 3. Instructions
 ===============
 
 Here is the set of instructions you can use in a ``Dockerfile`` for
 building images.
+
+.. _dockerfile_from:
 
 3.1 FROM
 --------
@@ -94,6 +110,8 @@ output by the commit before each new ``FROM`` command.
 If no ``tag`` is given to the ``FROM`` instruction, ``latest`` is
 assumed. If the used tag does not exist, an error will be returned.
 
+.. _dockerfile_maintainer:
+
 3.2 MAINTAINER
 --------------
 
@@ -101,6 +119,8 @@ assumed. If the used tag does not exist, an error will be returned.
 
 The ``MAINTAINER`` instruction allows you to set the *Author* field of
 the generated images.
+
+.. _dockerfile_run:
 
 3.3 RUN
 -------
@@ -115,6 +135,16 @@ Layering ``RUN`` instructions and generating commits conforms to the
 core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
+
+Known Issues (RUN)
+..................
+
+* :issue:`783` is about file permissions problems that can occur when
+  using the AUFS file system. You might notice it during an attempt to
+  ``rm`` a file, for example. The issue describes a workaround.
+* :issue:`2424` Locale will not be set automatically.
+
+.. _dockerfile_cmd:
 
 3.4 CMD
 -------
@@ -159,7 +189,7 @@ array:
 
 If you would like your container to run the same executable every
 time, then you should consider using ``ENTRYPOINT`` in combination
-with ``CMD``. See :ref:`entrypoint_def`.
+with ``CMD``. See :ref:`dockerfile_entrypoint`.
 
 If the user specifies arguments to ``docker run`` then they will
 override the default specified in CMD.
@@ -168,6 +198,8 @@ override the default specified in CMD.
     Don't confuse ``RUN`` with ``CMD``. ``RUN`` actually runs a
     command and commits the result; ``CMD`` does not execute anything at
     build time, but specifies the intended command for the image.
+
+.. _dockerfile_expose:
 
 3.5 EXPOSE
 ----------
@@ -178,6 +210,8 @@ The ``EXPOSE`` instruction exposes ports for use within links. This is
 functionally equivalent to running ``docker commit -run '{"PortSpecs":
 ["<port>", "<port2>"]}'`` outside the builder. Refer to
 :ref:`port_redirection` for detailed information.
+
+.. _dockerfile_env:
 
 3.6 ENV
 -------
@@ -192,6 +226,8 @@ with ``<key>=<value>``
 .. note::
     The environment variables will persist when a container is run
     from the resulting image.
+
+.. _dockerfile_add:
 
 3.7 ADD
 -------
@@ -211,8 +247,16 @@ destination container.
 All new files and directories are created with mode 0755, uid and gid
 0.
 
+.. note::
+   if you build using STDIN (``docker build - < somefile``), there is no build 
+   context, so the Dockerfile can only contain an URL based ADD statement.
+
 The copy obeys the following rules:
 
+* The ``<src>`` path must be inside the *context* of the build; you cannot 
+  ``ADD ../something /something``, because the first step of a 
+  ``docker build`` is to send the context directory (and subdirectories) to 
+  the docker daemon.
 * If ``<src>`` is a URL and ``<dest>`` does not end with a trailing slash,
   then a file is downloaded from the URL and copied to ``<dest>``.
 * If ``<src>`` is a URL and ``<dest>`` does end with a trailing slash,
@@ -245,7 +289,7 @@ The copy obeys the following rules:
 * If ``<dest>`` doesn't exist, it is created along with all missing
   directories in its path.
 
-.. _entrypoint_def:
+.. _dockerfile_entrypoint:
 
 3.8 ENTRYPOINT
 --------------
@@ -294,14 +338,18 @@ this optional but default, you could use a CMD:
     CMD ["-l", "-"]
     ENTRYPOINT ["/usr/bin/wc"]
 
+.. _dockerfile_volume:
 
 3.9 VOLUME
 ----------
 
     ``VOLUME ["/data"]``
 
-The ``VOLUME`` instruction will add one or more new volumes to any
-container created from the image.
+The ``VOLUME`` instruction will create a mount point with the specified name and mark it 
+as holding externally mounted volumes from native host or other containers. For more information/examples 
+and mounting instructions via docker client, refer to :ref:`volume_def` documentation. 
+
+.. _dockerfile_user:
 
 3.10 USER
 ---------
@@ -311,6 +359,8 @@ container created from the image.
 The ``USER`` instruction sets the username or UID to use when running
 the image.
 
+.. _dockerfile_workdir:
+
 3.11 WORKDIR
 ------------
 
@@ -319,6 +369,7 @@ the image.
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
 
+.. _dockerfile_examples:
 
 4. Dockerfile Examples
 ======================

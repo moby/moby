@@ -25,7 +25,7 @@ func (s *imageSorter) Less(i, j int) bool {
 // Sort []ApiImages by most recent creation date and tag name.
 func sortImagesByCreationAndTag(images []APIImages) {
 	creationAndTag := func(i1, i2 *APIImages) bool {
-		return i1.Created > i2.Created || (i1.Created == i2.Created && i2.Tag > i1.Tag)
+		return i1.Created > i2.Created
 	}
 
 	sorter := &imageSorter{

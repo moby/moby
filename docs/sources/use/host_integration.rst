@@ -29,14 +29,32 @@ Here are a few sample scripts for systemd and upstart to integrate with docker.
 Sample Upstart Script
 ---------------------
 
+In this example we've already created a container to run Redis with an id of
+0a7e070b698b.  To create an upstart script for our container, we create a file
+named ``/etc/init/redis.conf`` and place the following into it:
+
 .. code-block:: bash
 
    description "Redis container"
    author "Me"
-   start on filesystem and started lxc-net and started docker
+   start on filesystem and started docker
    stop on runlevel [!2345]
    respawn
-   exec docker start -a 0a7e070b698b
+   script
+     # Wait for docker to finish starting up first.
+     FILE=/var/run/docker.sock
+     while [ ! -e $FILE ] ; do
+       inotifywait -t 2 -e create $(dirname $FILE)
+     done
+     /usr/bin/docker start -a 0a7e070b698b
+   end script
+
+Next, we have to configure docker so that it's run with the option ``-r=false``.
+Run the following command:
+
+.. code-block:: bash
+
+   $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' > /etc/default/docker"
 
 
 Sample systemd Script

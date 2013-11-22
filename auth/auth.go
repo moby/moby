@@ -196,10 +196,9 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 		if loginAgainstOfficialIndex {
 			return "", fmt.Errorf("Login: Your account hasn't been activated. " +
 				"Please check your e-mail for a confirmation link.")
-		} else {
-			return "", fmt.Errorf("Login: Your account hasn't been activated. " +
-				"Please see the documentation of the registry " + serverAddress + " for instructions how to activate it.")
 		}
+		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
+			"Please see the documentation of the registry " + serverAddress + " for instructions how to activate it.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
 			req, err := factory.NewRequest("GET", serverAddress+"users/", nil)

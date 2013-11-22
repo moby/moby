@@ -88,13 +88,22 @@ Examples:
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
-      -t="": Repository name (and optionally a tag) to be applied to the resulting image in case of success.
+      -t="": Repository name (and optionally a tag) to be applied 
+             to the resulting image in case of success.
       -q=false: Suppress verbose build output.
       -no-cache: Do not use the cache when building the image.
       -rm: Remove intermediate containers after a successful build
-    When a single Dockerfile is given as URL, then no context is set. When a git repository is set as URL, the repository is used as context
+
+The files at PATH or URL are called the "context" of the build. The
+build process may refer to any of the files in the context, for
+example when using an :ref:`ADD <dockerfile_add>` instruction.  When a
+single ``Dockerfile`` is given as URL, then no context is set.  When a
+git repository is set as URL, then the repository is used as the
+context
 
 .. _cli_build_examples:
+
+.. seealso:: :ref:`dockerbuilder`.
 
 Examples:
 ~~~~~~~~~
@@ -102,17 +111,42 @@ Examples:
 .. code-block:: bash
 
     sudo docker build .
+    Uploading context 10240 bytes
+    Step 1 : FROM busybox
+    Pulling repository busybox
+     ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
+    Step 2 : RUN ls -lh /
+     ---> Running in 9c9e81692ae9
+    total 24
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
+    drwxr-xr-x    5 root     root        4.0K Oct 19 00:19 dev
+    drwxr-xr-x    2 root     root        4.0K Oct 19 00:19 etc
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 lib
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 lib64 -> lib
+    dr-xr-xr-x  116 root     root           0 Nov 15 23:34 proc
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 sbin -> bin
+    dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
+     ---> b35f4035db3f
+    Step 3 : CMD echo Hello World
+     ---> Running in 02071fceb21b
+     ---> f52f38b7823e
+    Successfully built f52f38b7823e
 
-This will read the ``Dockerfile`` from the current directory. It will
-also send any other files and directories found in the current
-directory to the ``docker`` daemon.
+This example specifies that the PATH is ``.``, and so all the files in
+the local directory get tar'd and sent to the Docker daemon.  The PATH
+specifies where to find the files for the "context" of the build on
+the Docker daemon. Remember that the daemon could be running on a
+remote machine and that no parsing of the Dockerfile happens at the
+client side (where you're running ``docker build``). That means that
+*all* the files at PATH get sent, not just the ones listed to
+:ref:`ADD <dockerfile_add>` in the ``Dockerfile``.
 
-The contents of this directory would be used by ``ADD`` commands found
-within the ``Dockerfile``.  This will send a lot of data to the
-``docker`` daemon if the current directory contains a lot of data.  If
-the absolute path is provided instead of ``.`` then only the files and
-directories required by the ADD commands from the ``Dockerfile`` will be
-added to the context and transferred to the ``docker`` daemon.
+The transfer of context from the local machine to the Docker daemon is
+what the ``docker`` client means when you see the "Uploading context"
+message.
+
 
 .. code-block:: bash
 
@@ -129,16 +163,15 @@ tag will be ``2.0``
 
 This will read a ``Dockerfile`` from *stdin* without context. Due to
 the lack of a context, no contents of any local directory will be sent
-to the ``docker`` daemon.  ``ADD`` doesn't work when running in this
-mode because the absence of the context provides no source files to
-copy to the container.
+to the ``docker`` daemon.  Since there is no context, a Dockerfile
+``ADD`` only works if it refers to a remote URL.
 
 .. code-block:: bash
 
     sudo docker build github.com/creack/docker-firefox
 
-This will clone the Github repository and use it as context. The
-``Dockerfile`` at the root of the repository is used as
+This will clone the Github repository and use the cloned repository as
+context. The ``Dockerfile`` at the root of the repository is used as
 ``Dockerfile``.  Note that you can specify an arbitrary git repository
 by using the ``git://`` schema.
 
@@ -157,7 +190,7 @@ by using the ``git://`` schema.
       -m="": Commit message
       -author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       -run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: '{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 Simple commit of an existing container
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -173,7 +206,7 @@ Simple commit of an existing container
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      204.2 MB (virtual 335.7 MB)
-	S
+	
 
 Full -run example
 .................
@@ -219,10 +252,15 @@ Full -run example
 
 ::
 
-    Usage: docker cp CONTAINER:RESOURCE HOSTPATH
+    Usage: docker cp CONTAINER:PATH HOSTPATH
 
     Copy files/folders from the containers filesystem to the host
     path.  Paths are relative to the root of the filesystem.
+    
+.. code-block:: bash
+
+    $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
+    $ sudo docker cp blue_frog:/etc/hosts .
 
 .. _cli_diff:
 
@@ -231,9 +269,33 @@ Full -run example
 
 ::
 
-    Usage: docker diff CONTAINER [OPTIONS]
+    Usage: docker diff CONTAINER
+ 
+    List the changed files and directories in a container's filesystem
 
-    Inspect changes on a container's filesystem
+There are 3 events that are listed in the 'diff':
+
+1. ```A``` - Add
+2. ```D``` - Delete
+3. ```C``` - Change
+
+for example:
+
+.. code-block:: bash
+
+	$ sudo docker diff 7bb0e258aefe
+
+	C /dev
+	A /dev/kmsg
+	C /etc
+	A /etc/mtab
+	A /go
+	A /go/src
+	A /go/src/github.com
+	A /go/src/github.com/dotcloud
+	A /go/src/github.com/dotcloud/docker
+	A /go/src/github.com/dotcloud/docker/.git
+	....
 
 .. _cli_events:
 
@@ -245,6 +307,9 @@ Full -run example
     Usage: docker events
 
     Get real time events from the server
+    
+    -since="": Show previously created events and then stream.
+               (either seconds since epoch, or date string as below)
 
 .. _cli_events_example:
 
@@ -277,6 +342,23 @@ Shell 1: (Again .. now showing events)
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
+Show events in the past from a specified time
+.............................................
+
+.. code-block:: bash
+
+    $ sudo docker events -since 1378216169
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03'
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+
+    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
 .. _cli_export:
 
@@ -303,6 +385,40 @@ Shell 1: (Again .. now showing events)
       -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
 
+To see how the docker:latest image was built:
+
+.. code-block:: bash
+
+	$ docker history docker
+	ID                  CREATED             CREATED BY
+	docker:latest       19 hours ago        /bin/sh -c #(nop) ADD . in /go/src/github.com/dotcloud/docker
+	cf5f2467662d        2 weeks ago         /bin/sh -c #(nop) ENTRYPOINT ["hack/dind"]
+	3538fbe372bf        2 weeks ago         /bin/sh -c #(nop) WORKDIR /go/src/github.com/dotcloud/docker
+	7450f65072e5        2 weeks ago         /bin/sh -c #(nop) VOLUME /var/lib/docker
+	b79d62b97328        2 weeks ago         /bin/sh -c apt-get install -y -q lxc
+	36714852a550        2 weeks ago         /bin/sh -c apt-get install -y -q iptables
+	8c4c706df1d6        2 weeks ago         /bin/sh -c /bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEYn' > /.s3cfg
+	b89989433c48        2 weeks ago         /bin/sh -c pip install python-magic
+	a23e640d85b5        2 weeks ago         /bin/sh -c pip install s3cmd
+	41f54fec7e79        2 weeks ago         /bin/sh -c apt-get install -y -q python-pip
+	d9bc04add907        2 weeks ago         /bin/sh -c apt-get install -y -q reprepro dpkg-sig
+	e74f4760fa70        2 weeks ago         /bin/sh -c gem install --no-rdoc --no-ri fpm
+	1e43224726eb        2 weeks ago         /bin/sh -c apt-get install -y -q ruby1.9.3 rubygems libffi-dev
+	460953ae9d7f        2 weeks ago         /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/github.com/dotcloud/docker/vendor
+	8b63eb1d666b        2 weeks ago         /bin/sh -c #(nop) ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/goroot/bin
+	3087f3bcedf2        2 weeks ago         /bin/sh -c #(nop) ENV GOROOT=/goroot
+	635840d198e5        2 weeks ago         /bin/sh -c cd /goroot/src && ./make.bash
+	439f4a0592ba        2 weeks ago         /bin/sh -c curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
+	13967ed36e93        2 weeks ago         /bin/sh -c #(nop) ENV CGO_ENABLED=0
+	bf7424458437        2 weeks ago         /bin/sh -c apt-get install -y -q build-essential
+	a89ec997c3bf        2 weeks ago         /bin/sh -c apt-get install -y -q mercurial
+	b9f165c6e749        2 weeks ago         /bin/sh -c apt-get install -y -q git
+	17a64374afa7        2 weeks ago         /bin/sh -c apt-get install -y -q curl
+	d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
+	13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
+	ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
+	ubuntu:12.04        6 months ago 
+
 .. _cli_images:
 
 ``images``
@@ -314,19 +430,85 @@ Shell 1: (Again .. now showing events)
 
     List images
 
-      -a=false: show all images
+      -a=false: show all images (by default filter out the intermediate images used to build)
+      -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
-      -viz=false: output in graphviz format
+      -tree=false: output graph in tree format
+      -viz=false: output graph in graphviz format
+      
+Listing the most recently created images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+	$ sudo docker images | head
+	REPOSITORY                    TAG                 IMAGE ID            CREATED             SIZE
+	<none>                        <none>              77af4d6b9913        19 hours ago        30.53 MB (virtual 1.089 GB)
+	committest                    latest              b6fa739cedf5        19 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              78a85c484f71        19 hours ago        30.53 MB (virtual 1.089 GB)
+	docker                        latest              30557a29d5ab        20 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              0124422dd9f9        20 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              18ad6fad3402        22 hours ago        23.68 MB (virtual 1.082 GB)
+	<none>                        <none>              f9f1e26352f0        23 hours ago        30.46 MB (virtual 1.089 GB)
+	tryout                        latest              2629d1fa0b81        23 hours ago        16.4 kB (virtual 131.5 MB)
+	<none>                        <none>              5ed6274db6ce        24 hours ago        30.44 MB (virtual 1.089 GB)
+
+Listing the full length image IDs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+	$ sudo docker images -notrunc | head
+	REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             SIZE
+	<none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        30.53 MB (virtual 1.089 GB)
+	committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        30.53 MB (virtual 1.089 GB)
+	docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        30.53 MB (virtual 1.089 GB)
+	<none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        23.68 MB (virtual 1.082 GB)
+	<none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        30.46 MB (virtual 1.089 GB)
+	tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        16.4 kB (virtual 131.5 MB)
+	<none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        30.44 MB (virtual 1.089 GB)
 
 Displaying images visually
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: bash
 
-    sudo docker images -viz | dot -Tpng -o docker.png
+    $ sudo docker images -viz | dot -Tpng -o docker.png
 
 .. image:: docker_images.gif
    :alt: Example inheritance graph of Docker images.
+
+
+Displaying image hierarchy
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+    $ sudo docker images -tree
+
+    |─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
+    └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
+      └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
+        |─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
+        | └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
+        |   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
+        |     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
+        |       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
+        |         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
+        └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
+          └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
+            └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
+              └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
+                └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
+                  └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
+                    └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
+                      └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
+                        └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
+                          └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
+                            └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
+                              └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
 .. _cli_import:
 
@@ -383,6 +565,21 @@ might not get preserved.
 
     Display system-wide information.
 
+.. code-block:: bash
+
+	$ sudo docker info
+	Containers: 292
+	Images: 194
+	Debug mode (server): false
+	Debug mode (client): false
+	Fds: 22
+	Goroutines: 67
+	LXC Version: 0.9.0
+	EventsListeners: 115
+	Kernel Version: 3.8.0-33-generic
+	WARNING: No swap limit support
+
+
 .. _cli_insert:
 
 ``insert``
@@ -427,6 +624,24 @@ Insert file from github
     Kill a running container (Send SIGKILL)
 
 The main process inside the container will be sent SIGKILL.
+
+Known Issues (kill)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
+.. _cli_load:
+
+``load``
+--------
+
+::
+
+    Usage: docker load < repository.tar
+
+    Loads a tarred repository from the standard input stream.
+    Restores both images and tags.
 
 .. _cli_login:
 
@@ -536,6 +751,12 @@ The main process inside the container will be sent SIGKILL.
     Remove one or more containers
         -link="": Remove the link instead of the actual container
 
+Known Issues (rm)
+~~~~~~~~~~~~~~~~~~~
+
+* :issue:`197` indicates that ``docker kill`` may leave directories
+  behind and make it difficult to remove the container.
+
 
 Examples:
 ~~~~~~~~~
@@ -557,6 +778,15 @@ This will remove the container referenced under the link ``/redis``.
 
 This will remove the underlying link between ``/webapp`` and the ``/redis`` containers removing all
 network communication.
+
+.. code-block:: bash
+
+    $ docker rm `docker ps -a -q`
+
+
+This command will delete all stopped containers. The command ``docker ps -a -q`` will return all
+existing container IDs and pass them to the ``rm`` command which will delete them. Any running
+containers will not be deleted.
 
 .. _cli_rmi:
 
@@ -588,7 +818,7 @@ network communication.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
-      -m=0: Memory limit (in bytes)
+      -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       -n=true: Enable networking for this container
       -p=[]: Map a network port to the container
       -rm=false: Automatically remove the container when it exits (incompatible with -d)
@@ -596,7 +826,7 @@ network communication.
       -u="": Username or UID
       -dns=[]: Set custom dns servers for the container
       -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      -volumes-from="": Mount all volumes from the given container
+      -volumes-from="": Mount all volumes from the given container(s)
       -entrypoint="": Overwrite the default entrypoint set by the image
       -w="": Working directory inside the container
       -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -687,6 +917,35 @@ newly created container with the alias ``redis``.  The new container
 can access the network and environment of the redis container via
 environment variables.  The ``-name`` flag will assign the name ``console``
 to the newly created container.
+
+.. code-block:: bash
+
+   docker run -volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+
+The ``-volumes-from`` flag mounts all the defined volumes from the
+refrence containers. Containers can be specified by a comma seperated
+list or by repetitions of the ``-volumes-from`` argument. The container
+id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+in the same mode (rw or ro) as the reference container.
+
+Known Issues (run -volumes-from)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* :issue:`2702`: "lxc-start: Permission denied - failed to mount"
+  could indicate a permissions problem with AppArmor. Please see the
+  issue for a workaround.
+
+.. _cli_save:
+
+``save``
+
+::
+
+    Usage: docker save image > repository.tar
+
+    Streams a tarred repository to the standard output stream.
+    Contains all parent layers, and all tags + versions.
 
 .. _cli_search:
 

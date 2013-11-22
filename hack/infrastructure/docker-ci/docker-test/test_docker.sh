@@ -8,31 +8,26 @@ BRANCH=${3-master}
 # Compute test paths
 DOCKER_PATH=/go/src/github.com/dotcloud/docker
 
+# Timestamp
+echo
+date; echo
+
 # Fetch latest master
+cd /
 rm -rf /go
-mkdir -p $DOCKER_PATH
+git clone -q -b master http://github.com/dotcloud/docker $DOCKER_PATH
 cd $DOCKER_PATH
-git init .
-git fetch -q http://github.com/dotcloud/docker master
-git reset --hard FETCH_HEAD
 
 # Merge commit
-#echo FIXME. Temporarily skip TestPrivilegedCanMount until DinD works reliable on AWS
-git pull -q https://github.com/mzdaniel/docker.git dind-aws || exit 1
-
-# Merge commit in top of master
 git fetch -q "$REPO" "$BRANCH"
-git merge --no-edit $COMMIT || exit 1
+git merge --no-edit $COMMIT || exit 255
 
 # Test commit
-go test -v; exit_status=$?
+./hack/make.sh test; exit_status=$?
 
 # Display load if test fails
-if [ $exit_status -eq 1 ] ; then
+if [ $exit_status -ne 0 ] ; then
     uptime; echo; free
 fi
-
-# Cleanup testing directory
-rm -rf $BASE_PATH
 
 exit $exit_status

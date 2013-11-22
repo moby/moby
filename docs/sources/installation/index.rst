@@ -19,11 +19,12 @@ Contents:
 
    ubuntulinux
    binaries
+   security
+   upgrading
+   kernel
    vagrant
    windows
    amazon
    rackspace
    archlinux
    gentoolinux
-   upgrading
-   kernel
