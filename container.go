@@ -1,23 +1,22 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
-	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -44,6 +43,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	SharedPath     string
 	Name           string
 
 	cmd       *exec.Cmd
@@ -51,7 +51,8 @@ type Container struct {
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
-	ptyMaster io.Closer
+	ptyMaster *os.File
+	ptyLock   chan struct{}
 
 	runtime *Runtime
 
@@ -63,6 +64,10 @@ type Container struct {
 	hostConfig *HostConfig
 
 	activeLinks map[string]*Link
+
+	dockerInitRpcSocket net.Conn // needed to prevent rpc FD leak bug
+	dockerInitRpc       *rpc.Client
+	rpcLock             chan struct{}
 }
 
 // Note: the Config structure should hold only portable information about the container.
@@ -294,59 +299,6 @@ func (container *Container) generateLXCConfig() error {
 	return LxcTemplateCompiled.Execute(fo, container)
 }
 
-func (container *Container) startPty() error {
-	ptyMaster, ptySlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyMaster = ptyMaster
-	container.cmd.Stdout = ptySlave
-	container.cmd.Stderr = ptySlave
-
-	// Copy the PTYs to our broadcasters
-	go func() {
-		defer container.stdout.CloseWriters()
-		utils.Debugf("startPty: begin of stdout pipe")
-		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("startPty: end of stdout pipe")
-	}()
-
-	// stdin
-	if container.Config.OpenStdin {
-		container.cmd.Stdin = ptySlave
-		container.cmd.SysProcAttr.Setctty = true
-		go func() {
-			defer container.stdin.Close()
-			utils.Debugf("startPty: begin of stdin pipe")
-			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("startPty: end of stdin pipe")
-		}()
-	}
-	if err := container.cmd.Start(); err != nil {
-		return err
-	}
-	ptySlave.Close()
-	return nil
-}
-
-func (container *Container) start() error {
-	container.cmd.Stdout = container.stdout
-	container.cmd.Stderr = container.stderr
-	if container.Config.OpenStdin {
-		stdin, err := container.cmd.StdinPipe()
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer stdin.Close()
-			utils.Debugf("start: begin of stdin pipe")
-			io.Copy(stdin, container.stdin)
-			utils.Debugf("start: end of stdin pipe")
-		}()
-	}
-	return container.cmd.Start()
-}
-
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
 	var cStdout, cStderr io.ReadCloser
 
@@ -504,7 +456,7 @@ func (container *Container) Start() (err error) {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
-		if err := container.allocateNetwork(); err != nil {
+		if err := container.allocateNetwork(false); err != nil {
 			return err
 		}
 		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
@@ -696,7 +648,11 @@ func (container *Container) Start() (err error) {
 
 	// Networking
 	if !container.Config.NetworkDisabled {
-		params = append(params, "-g", container.network.Gateway.String())
+		network := container.NetworkSettings
+		params = append(params,
+			"-g", network.Gateway,
+			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
+		)
 	}
 
 	// User
@@ -708,12 +664,20 @@ func (container *Container) Start() (err error) {
 	env := []string{
 		"HOME=/",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"container=lxc",
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
+		params = append(params, "-tty")
+	}
+
+	if container.Config.OpenStdin {
+		params = append(params, "-stdin")
+	}
+
+	if container.hostConfig.Privileged {
+		params = append(params, "-privileged")
 	}
 
 	// Init any links between the parent and children
@@ -808,56 +772,168 @@ func (container *Container) Start() (err error) {
 
 	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	if container.Config.Tty {
-		err = container.startPty()
-	} else {
-		err = container.start()
+	// Hook up stdout and stderr to the cmd so that any early error output
+	// that might occur (before hooking up the console FDs) gets logged
+	container.cmd.Stdout = container.stdout
+	container.cmd.Stderr = container.stderr
+
+	// Start it
+	if err := container.cmd.Start(); err != nil {
+		return err
 	}
+
+	// FIXME: save state on disk *first*, then converge
+	// this way disk state is used as a journal, eg. we can restore after crash etc.
+	container.State.setRunning()
+
+	container.ToDisk()
+
+	// Init the locks
+	container.waitLock = make(chan struct{})
+	container.rpcLock = make(chan struct{})
+	container.ptyLock = make(chan struct{})
+
+	go container.monitor(false)
+
+	return nil
+}
+
+func (container *Container) dockerInitRpcCall(method string, args, reply interface{}) error {
+
+	select {
+	case <-container.rpcLock:
+	case <-time.After(time.Second):
+		close(container.rpcLock)
+		return fmt.Errorf("timeout waiting for rpc connection")
+	}
+
+	if container.dockerInitRpc == nil {
+		return fmt.Errorf("no rpc connection to container")
+	}
+
+	return container.dockerInitRpc.Call("DockerInitRpc."+method, args, reply)
+}
+
+// Connect to the dockerinit RPC socket and hook up the console FDs
+func (container *Container) connectToDockerInit(reconnect bool) error {
+
+	// FIXME: The go net package has a really strange bug where rpc.Dial or
+	// net.Dial will return EINVAL if the UNIX socket path name is really
+	// long, which causes the docker tests to fail.  As a workaround we
+	// have to open it via a symlink.
+	symlink := "/tmp/docker-rpc." + container.ID
+	os.Symlink(path.Join(container.SharedPath, sysinit.RpcSocketName), symlink)
+	defer os.Remove(symlink)
+
+	// Connect to the dockerinit RPC socket with a 1 second timeout
+	var err error
+	for startTime := time.Now(); time.Since(startTime) < time.Second; time.Sleep(10 * time.Millisecond) {
+		container.dockerInitRpcSocket, err = net.Dial("unix", symlink)
+		if err == nil {
+			container.dockerInitRpc = rpc.NewClient(container.dockerInitRpcSocket)
+			break
+		}
+
+		if reconnect {
+			return fmt.Errorf("Container is no longer running")
+		}
+	}
+
 	if err != nil {
 		return err
 	}
-	// FIXME: save state on disk *first*, then converge
-	// this way disk state is used as a journal, eg. we can restore after crash etc.
-	container.State.setRunning(container.cmd.Process.Pid)
 
-	// Init the lock
-	container.waitLock = make(chan struct{})
+	close(container.rpcLock)
 
-	container.ToDisk()
-	go container.monitor()
-
-	defer utils.Debugf("Container running: %v", container.State.Running)
-	// We wait for the container to be fully running.
-	// Timeout after 5 seconds. In case of broken pipe, just retry.
-	// Note: The container can run and finish correctly before
-	//       the end of this loop
-	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the container dies while waiting for it, just return
-		if !container.State.Running {
-			return nil
-		}
-		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
+	if !reconnect {
+		// Tell dockerinit to start the app now
+		var dummy1, dummy2 int
+		err = container.dockerInitRpcCall("Resume", &dummy1, &dummy2)
 		if err != nil {
-			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
-
-			output, err = exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
-			if err != nil {
-				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
-				return err
-			}
-
+			return err
 		}
-		if strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.Running, bytes.TrimSpace(output))
-		time.Sleep(50 * time.Millisecond)
 	}
 
-	if container.State.Running {
-		return ErrContainerStartTimeout
+	// FIXME: This is the same long socket name workaround as above
+	symlink = "/tmp/docker-con." + container.ID
+	os.Symlink(path.Join(container.SharedPath, sysinit.ConsoleSocketName), symlink)
+	defer os.Remove(symlink)
+
+	// Connect to the console FD passing socket
+	addr := &net.UnixAddr{Net: "unix", Name: symlink}
+	conn, err := net.DialUnix("unix", nil, addr)
+	if err != nil {
+		return err
 	}
-	return ErrContainerStart
+	defer conn.Close()
+
+	// Get the console FDs
+	buf := make([]byte, 1)
+	oob := make([]byte, 32)
+	timeout := time.AfterFunc(time.Second, func() {
+		utils.Errorf("%s: console socket timeout", container.ID)
+		conn.Close()
+	})
+	_, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
+	timeout.Stop()
+	if err != nil {
+		return err
+	}
+	messages, err := syscall.ParseSocketControlMessage(oob[:oobn])
+	if err != nil {
+		return err
+	}
+	fds, err := syscall.ParseUnixRights(&messages[0])
+	if err != nil {
+		return err
+	}
+
+	// Set the CLOEXEC flag on the FDs so they won't be leaked into future
+	// lxc-start incantations
+	for i := range fds {
+		_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fds[i]), syscall.F_SETFD, syscall.FD_CLOEXEC)
+		if errno != 0 {
+			return errno
+		}
+	}
+
+	// Hook up the console FDs to the container struct for logging and
+	// attaching
+	if container.Config.Tty {
+		container.ptyMaster = os.NewFile(uintptr(fds[0]), "ptyMaster")
+		close(container.ptyLock)
+
+		if container.Config.OpenStdin {
+			go func() {
+				io.Copy(container.ptyMaster, container.stdin)
+				container.ptyMaster.Close()
+			}()
+		}
+		go func() {
+			io.Copy(container.stdout, container.ptyMaster)
+			container.ptyMaster.Close()
+		}()
+	} else {
+		stdout := os.NewFile(uintptr(fds[0]), "stdout")
+		stderr := os.NewFile(uintptr(fds[1]), "stderr")
+		go func() {
+			io.Copy(container.stdout, stdout)
+			stdout.Close()
+		}()
+		go func() {
+			io.Copy(container.stderr, stderr)
+			stderr.Close()
+		}()
+		if container.Config.OpenStdin && len(fds) == 3 {
+			stdin := os.NewFile(uintptr(fds[2]), "stdin")
+			go func() {
+				io.Copy(stdin, container.stdin)
+				stdin.Close()
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -930,14 +1006,14 @@ ff02::2		ip6-allrouters
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
-func (container *Container) allocateNetwork() error {
+func (container *Container) allocateNetwork(reconnect bool) error {
 	if container.Config.NetworkDisabled {
 		return nil
 	}
 
 	var iface *NetworkInterface
 	var err error
-	if container.State.Ghost {
+	if reconnect {
 		manager := container.runtime.networkManager
 		if manager.disabled {
 			iface = &NetworkInterface{disabled: true}
@@ -978,7 +1054,7 @@ func (container *Container) allocateNetwork() error {
 	portSpecs := make(map[Port]struct{})
 	bindings := make(map[Port][]PortBinding)
 
-	if !container.State.Ghost {
+	if !reconnect {
 		if container.Config.ExposedPorts != nil {
 			portSpecs = container.Config.ExposedPorts
 		}
@@ -1035,43 +1111,47 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-// FIXME: replace this with a control socket within dockerinit
-func (container *Container) waitLxc() error {
-	for {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
-func (container *Container) monitor() {
-	// Wait for the program to exit
-
-	// If the command does not exist, try to wait via lxc
-	// (This probably happens only for ghost containers, i.e. containers that were running when Docker started)
-	if container.cmd == nil {
-		utils.Debugf("monitor: waiting for container %s using waitLxc", container.ID)
-		if err := container.waitLxc(); err != nil {
-			utils.Errorf("monitor: while waiting for container %s, waitLxc had a problem: %s", container.ID, err)
-		}
-	} else {
-		utils.Debugf("monitor: waiting for container %s using cmd.Wait", container.ID)
-		if err := container.cmd.Wait(); err != nil {
-			// Since non-zero exit status and signal terminations will cause err to be non-nil,
-			// we have to actually discard it. Still, log it anyway, just in case.
-			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
-		}
-	}
-	utils.Debugf("monitor: container %s finished", container.ID)
+// Wait for the program to exit
+func (container *Container) monitor(reconnect bool) {
 
 	exitCode := -1
-	if container.cmd != nil {
-		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+
+	// Connect to the dockerinit socket and wait for the exit code
+	err := container.connectToDockerInit(reconnect)
+	if err != nil {
+		utils.Debugf("monitor: couldn't connect to dockerinit in container %s: %s", container.ID, err)
+	} else {
+
+		utils.Debugf("monitor: waiting for container %s", container.ID)
+
+		var dummy1 int
+		err := container.dockerInitRpcCall("Wait", &dummy1, &exitCode)
+		if err != nil {
+			// Since non-zero exit status and signal terminations
+			// will cause err to be non-nil, we have to actually
+			// discard it. Still, log it anyway, just in case.
+			utils.Debugf("monitor: rpc wait exit status %s for container %s", err, container.ID)
+		} else {
+			// Wait returned, now tell dockerinit it can die
+			var dummy2 int
+			container.dockerInitRpcCall("Resume", &dummy1, &dummy2)
+		}
+
+		utils.Debugf("monitor: container %s finished", container.ID)
+	}
+
+	// Wait for dockerinit and lxc-start to die
+	running := true
+	for startTime := time.Now(); time.Since(startTime) < time.Second; {
+		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
+		if err != nil || !strings.Contains(string(output), "RUNNING") {
+			running = false
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if running {
+		utils.Errorf("monitor: timeout waiting for lxc-start to die")
 	}
 
 	if container.runtime != nil && container.runtime.srv != nil {
@@ -1131,6 +1211,20 @@ func (container *Container) cleanup() {
 		}
 	}
 
+	if container.dockerInitRpc != nil {
+		if err := container.dockerInitRpc.Close(); err != nil {
+			// FIXME: Prevent an FD leak by closing the socket
+			// directly.  Due to a bug, rpc client Close() returns
+			// an error if the connection has closed on the other
+			// end, and doesn't close the actual socket FD.
+			if err := container.dockerInitRpcSocket.Close(); err != nil {
+				utils.Errorf("%s: Error closing RPC socket: %s", container.ID, err)
+			}
+		}
+		container.dockerInitRpc = nil
+		container.dockerInitRpcSocket = nil
+	}
+
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -1144,8 +1238,10 @@ func (container *Container) kill(sig int) error {
 		return nil
 	}
 
-	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
-		log.Printf("error killing container %s (%s, %s)", utils.TruncateID(container.ID), output, err)
+	var dummy int
+	err := container.dockerInitRpcCall("Signal", sig, &dummy)
+	if err != nil {
+		log.Printf("error killing container %s (%s)", utils.TruncateID(container.ID), err)
 		return err
 	}
 
@@ -1185,10 +1281,6 @@ func (container *Container) Stop(seconds int) error {
 	// 1. Send a SIGTERM
 	if err := container.kill(15); err != nil {
 		utils.Debugf("Error sending kill SIGTERM: %s", err)
-		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.kill(9); err != nil {
-			return err
-		}
 	}
 
 	// 2. Wait for the process to exit on its own
@@ -1216,11 +1308,12 @@ func (container *Container) Wait() int {
 }
 
 func (container *Container) Resize(h, w int) error {
-	pty, ok := container.ptyMaster.(*os.File)
-	if !ok {
-		return fmt.Errorf("ptyMaster does not have Fd() method")
+	select {
+	case <-container.ptyLock:
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout waiting for pty lock")
 	}
-	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return term.SetWinsize(container.ptyMaster.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {

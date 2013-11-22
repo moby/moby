@@ -5,24 +5,15 @@ import (
 )
 
 const LxcTemplate = `
-# hostname
-{{if .Config.Hostname}}
-lxc.utsname = {{.Config.Hostname}}
-{{else}}
-lxc.utsname = {{.Id}}
-{{end}}
-
 {{if .Config.NetworkDisabled}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 {{else}}
 # network configuration
 lxc.network.type = veth
-lxc.network.flags = up
 lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
-lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
 {{end}}
 
 # root filesystem
@@ -93,8 +84,9 @@ lxc.mount.entry = devpts {{$ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,no
 #lxc.mount.entry = varlock {{$ROOTFS}}/var/lock tmpfs size=1024k,nosuid,nodev,noexec 0 0
 lxc.mount.entry = shm {{$ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
-# Inject dockerinit
+# Inject dockerinit and shared socket dir
 lxc.mount.entry = {{.SysInitPath}} {{$ROOTFS}}/.dockerinit none bind,ro 0 0
+lxc.mount.entry = {{.SharedPath}} {{$ROOTFS}}/.docker-shared none bind,rw 0 0
 
 # Inject env
 lxc.mount.entry = {{.EnvConfigPath}} {{$ROOTFS}}/.dockerenv none bind,ro 0 0
@@ -109,18 +101,11 @@ lxc.mount.entry = {{$realPath}} {{$ROOTFS}}/{{$virtualPath}} none bind,{{ if ind
 {{end}}
 
 {{if (getHostConfig .).Privileged}}
-# retain all capabilities; no lxc.cap.drop line
 {{if (getCapabilities .).AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
 {{end}}
-{{else}}
-# drop linux capabilities (apply mainly to the user root in the container)
-#  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
-#         security principle 'deny all unless explicitly permitted', see
-#         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
-lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setpcap sys_admin sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 {{end}}
 
 # limits

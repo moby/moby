@@ -179,8 +179,7 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 }
 
 // getDockerInitLayer returns the path of a layer containing a mountpoint suitable
-// for bind-mounting dockerinit into the container. The mountpoint is simply an
-// empty file at /.dockerinit
+// for bind-mounting special files and directories into the container.
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
@@ -199,10 +198,12 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
+		"/dev/console":     "file",
 		"/proc":            "dir",
 		"/sys":             "dir",
 		"/.dockerinit":     "file",
 		"/.dockerenv":      "file",
+		"/.docker-shared":  "dir",
 		"/etc/resolv.conf": "file",
 		"/etc/hosts":       "file",
 		"/etc/hostname":    "file",
