@@ -41,11 +41,12 @@ its dependencies. There are two main ways to install this tool:
 
 ###Native Installation
 
-* Install sphinx: `pip install sphinx`
-    * Mac OS X: `[sudo] pip-2.7 install sphinx`
-* Install sphinx httpdomain contrib package: `pip install sphinxcontrib-httpdomain`
-    * Mac OS X: `[sudo] pip-2.7 install sphinxcontrib-httpdomain`
-* If pip is not available you can probably install it using your favorite package manager as **python-pip**
+Install dependencies from `requirements.txt` file in your `docker/docs`
+directory:
+
+* Linux: `pip install -r docs/requirements.txt`
+
+* Mac OS X: `[sudo] pip-2.7 -r docs/requirements.txt`
 
 ###Alternative Installation: Docker Container
 
