@@ -17,6 +17,7 @@ Contents:
    workingwithrepository
    baseimages
    port_redirection
+   cfengine_process_management
    puppet
    host_integration
    working_with_volumes
