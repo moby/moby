@@ -38,6 +38,7 @@ func main() {
 	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
 	flDefaultIp := flag.String("ip", "0.0.0.0", "Default ip address to use when binding a containers ports")
 	flInterContainerComm := flag.Bool("icc", true, "Enable inter-container communication")
+	flProxyUrl := flag.String("proxy", "", "Set http proxy url")
 
 	flag.Parse()
 
@@ -82,6 +83,7 @@ func main() {
 		job.Setenv("BridgeIface", *bridgeName)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+		job.Setenv("ProxyUrl", *flProxyUrl)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
