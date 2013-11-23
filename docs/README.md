@@ -136,7 +136,7 @@ Manpages
 --------
 
 * To make the manpages, run ``make man``. Please note there is a bug
-  in spinx 1.1.3 which makes this fail.  Upgrade to the latest version
+  in Sphinx 1.1.3 which makes this fail.  Upgrade to the latest version
   of Sphinx.
 * Then preview the manpage by running ``man _build/man/docker.1``,
   where ``_build/man/docker.1`` is the path to the generated manfile
