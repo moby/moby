@@ -32,6 +32,7 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	privileged   bool
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -382,6 +383,11 @@ func (b *buildFile) run() (string, error) {
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
 
+	// override the privileged flag
+	if b.privileged {
+	   	c.hostConfig.Privileged = b.privileged
+	}
+
 	var errCh chan error
 
 	if b.verbose {
@@ -531,7 +537,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) BuildFile {
+func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool, privileged bool) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -542,5 +548,6 @@ func NewBuildFile(srv *Server, out io.Writer, verbose, utilizeCache, rm bool) Bu
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		privileged:    privileged,
 	}
 }

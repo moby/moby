@@ -895,6 +895,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	repoName := r.FormValue("t")
 	rawSuppressOutput := r.FormValue("q")
 	rawNoCache := r.FormValue("nocache")
+	rawPrivileged := r.FormValue("privileged")
 	rawRm := r.FormValue("rm")
 	repoName, tag := utils.ParseRepositoryTag(repoName)
 
@@ -950,8 +951,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
+	privileged, err := getBoolParam(rawPrivileged)
+	if err != nil {
+		return err
+	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm, privileged)
 	id, err := b.Build(context)
 	if err != nil {
 		return fmt.Errorf("Error build: %s", err)

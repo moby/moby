@@ -166,6 +166,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	suppressOutput := cmd.Bool("q", false, "Suppress verbose build output")
 	noCache := cmd.Bool("no-cache", false, "Do not use cache when building the image")
 	rm := cmd.Bool("rm", false, "Remove intermediate containers after a successful build")
+	privileged := cmd.Bool("privileged", false, "Build in privileged mode")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -218,6 +220,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if *rm {
 		v.Set("rm", "1")
+	}
+	if *privileged {
+		v.Set("privileged", "1")
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
 	if err != nil {
