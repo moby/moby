@@ -39,7 +39,7 @@ var (
 	priority = []string{
 		"aufs",
 		"devicemapper",
-		"dummy",
+		"vfs",
 	}
 )
 
