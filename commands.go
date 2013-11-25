@@ -1451,7 +1451,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 }
 
 func (cli *DockerCli) CmdExport(args ...string) error {
-	cmd := cli.Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive")
+	cmd := cli.Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive to STDOUT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

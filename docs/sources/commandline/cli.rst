@@ -369,7 +369,13 @@ Show events in the past from a specified time
 
     Usage: docker export CONTAINER
 
-    Export the contents of a filesystem as a tar archive
+    Export the contents of a filesystem as a tar archive to STDOUT
+    
+for example:
+
+.. code-block:: bash
+
+    $ sudo docker export red_panda > latest.tar
 
 .. _cli_history:
 
