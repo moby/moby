@@ -10,7 +10,7 @@ import (
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
-	_ "github.com/dotcloud/docker/graphdriver/dummy"
+	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -663,7 +663,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 	// We don't want to use a complex driver like aufs or devmapper
 	// for volumes, just a plain filesystem
-	volumesDriver, err := graphdriver.GetDriver("dummy", config.Root)
+	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root)
 	if err != nil {
 		return nil, err
 	}

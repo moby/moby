@@ -1,4 +1,4 @@
-package dummy
+package vfs
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	graphdriver.Register("dummy", Init)
+	graphdriver.Register("vfs", Init)
 }
 
 func Init(home string) (graphdriver.Driver, error) {
@@ -24,7 +24,7 @@ type Driver struct {
 }
 
 func (d *Driver) String() string {
-	return "dummy"
+	return "vfs"
 }
 
 func (d *Driver) Status() [][2]string {
