@@ -98,13 +98,14 @@ we stop it.
 
 .. code-block:: bash
 
-    CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    CONTAINER_ID=$(sudo docker run -t -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container
 made from the ``ubuntu`` image.
 
 - **"sudo docker run -d "** run a command in a new container. We pass "-d"
-  so it runs as a daemon.
+  so it runs as a daemon. "-t" allows us to simulate TTY so we can detach
+  from the container without shutting it down by typing Control-P Control-Q.
 - **"ubuntu"** is the image we want to run the command inside of.
 - **"/bin/sh -c"** is the command we want to run in the container
 - **"while true; do echo hello world; sleep 1; done"** is the mini
@@ -135,7 +136,7 @@ Attach to the container to see the results in real-time.
   (even in non-tty mode)
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
-Exit from the container attachment by pressing Control-C.
+Exit from the container attachment by pressing Control-P then Control-Q.
 
 .. code-block:: bash
 
