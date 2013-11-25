@@ -650,10 +650,13 @@ func (devices *DeviceSet) waitRemove(hash string) error {
 			// The error might actually be something else, but we can't differentiate.
 			return nil
 		}
-		utils.Debugf("Waiting for removal of %s: exists=%d", devname, devinfo.Exists)
+		if i%100 == 0 {
+			utils.Debugf("Waiting for removal of %s: exists=%d", devname, devinfo.Exists)
+		}
 		if devinfo.Exists == 0 {
 			break
 		}
+
 		time.Sleep(1 * time.Millisecond)
 	}
 	if i == 1000 {
@@ -676,7 +679,9 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		if err != nil {
 			return err
 		}
-		utils.Debugf("Waiting for unmount of %s: opencount=%d", devname, devinfo.OpenCount)
+		if i%100 == 0 {
+			utils.Debugf("Waiting for unmount of %s: opencount=%d", devname, devinfo.OpenCount)
+		}
 		if devinfo.OpenCount == 0 {
 			break
 		}
