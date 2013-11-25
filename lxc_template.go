@@ -171,9 +171,9 @@ func getCapabilities(container *Container) *Capabilities {
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap":   getMemorySwap,
-		"getHostConfig":   getHostConfig,
-		"getCapabilities": getCapabilities,
+		"getMemorySwap":     getMemorySwap,
+		"getHostConfig":     getHostConfig,
+		"getCapabilities":   getCapabilities,
 		"escapeFstabSpaces": escapeFstabSpaces,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
