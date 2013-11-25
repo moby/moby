@@ -959,6 +959,8 @@ func (srv *Server) poolAdd(kind, key string) error {
 }
 
 func (srv *Server) poolRemove(kind, key string) error {
+	srv.Lock()
+	defer srv.Unlock()
 	switch kind {
 	case "pull":
 		delete(srv.pullingPool, key)
@@ -1829,6 +1831,8 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 }
 
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
+	srv.Lock()
+	defer srv.Unlock()
 	if srv.reqFactory == nil {
 		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
 		md := &utils.HTTPMetaHeadersDecorator{
@@ -1843,7 +1847,7 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
-	srv.events = append(srv.events, jm)
+	srv.AddEvent(jm)
 	for _, c := range srv.listeners {
 		select { // non blocking channel
 		case c <- jm:
@@ -1853,8 +1857,20 @@ func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	return &jm
 }
 
+func (srv *Server) AddEvent(jm utils.JSONMessage) {
+	srv.Lock()
+	defer srv.Unlock()
+	srv.events = append(srv.events, jm)
+}
+
+func (srv *Server) GetEvents() []utils.JSONMessage {
+	srv.RLock()
+	defer srv.RUnlock()
+	return srv.events
+}
+
 type Server struct {
-	sync.Mutex
+	sync.RWMutex
 	runtime     *Runtime
 	pullingPool map[string]struct{}
 	pushingPool map[string]struct{}

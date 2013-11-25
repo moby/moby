@@ -70,8 +70,9 @@ func TestLogEvent(t *testing.T) {
 
 	srv.LogEvent("fakeaction2", "fakeid", "fakeimage")
 
-	if len(srv.events) != 2 {
-		t.Fatalf("Expected 2 events, found %d", len(srv.events))
+	numEvents := len(srv.GetEvents())
+	if numEvents != 2 {
+		t.Fatalf("Expected 2 events, found %d", numEvents)
 	}
 	go func() {
 		time.Sleep(200 * time.Millisecond)
@@ -83,7 +84,7 @@ func TestLogEvent(t *testing.T) {
 	setTimeout(t, "Listening for events timed out", 2*time.Second, func() {
 		for i := 2; i < 4; i++ {
 			event := <-listener
-			if event != srv.events[i] {
+			if event != srv.GetEvents()[i] {
 				t.Fatalf("Event received it different than expected")
 			}
 		}
