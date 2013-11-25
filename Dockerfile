@@ -57,7 +57,7 @@ run	apt-get install -y -q lxc
 run	apt-get install -y -q aufs-tools
 
 # Get lvm2 source for compiling statically
-run	git clone git://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout v2_02_103
+run	git clone https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout v2_02_103
 # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 # note: we can't use "git clone -b" above because it requires at least git 1.7.10 to be able to use that on a tag instead of a branch and we only have 1.7.9.5
 
