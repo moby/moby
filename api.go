@@ -710,14 +710,18 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	status, err := srv.ContainerWait(name)
+	job := srv.Eng.Job("wait", vars["name"])
+	var statusStr string
+	job.Stdout.AddString(&statusStr)
+	if err := job.Run(); err != nil {
+		return err
+	}
+	// Parse a 16-bit encoded integer to map typical unix exit status.
+	status, err := strconv.ParseInt(statusStr, 10, 16)
 	if err != nil {
 		return err
 	}
-
-	return writeJSON(w, http.StatusOK, &APIWait{StatusCode: status})
+	return writeJSON(w, http.StatusOK, &APIWait{StatusCode: int(status)})
 }
 
 func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

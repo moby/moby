@@ -82,6 +82,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("wait", srv.ContainerWait); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -1718,11 +1722,19 @@ func (srv *Server) ContainerStop(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerWait(name string) (int, error) {
-	if container := srv.runtime.Get(name); container != nil {
-		return container.Wait(), nil
+func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s", job.Name)
+		return engine.StatusErr
 	}
-	return 0, fmt.Errorf("No such container: %s", name)
+	name := job.Args[0]
+	if container := srv.runtime.Get(name); container != nil {
+		status := container.Wait()
+		job.Printf("%d\n", status)
+		return engine.StatusOK
+	}
+	job.Errorf("%s: no such container: %s", job.Name, name)
+	return engine.StatusErr
 }
 
 func (srv *Server) ContainerResize(name string, h, w int) error {
