@@ -14,6 +14,7 @@ var (
 	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious"}
 	// Docker 0.7.x generates names from notable scientists and hackers.
 	//
+	// Ada Lovelace invented the first algorithm. http://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
 	// Alan Turing was a founding father of computer science. http://en.wikipedia.org/wiki/Alan_Turing.
 	// Albert Einstein invented the general theory of relativity. http://en.wikipedia.org/wiki/Albert_Einstein
 	// Ambroise Pare invented modern surgery. http://en.wikipedia.org/wiki/Ambroise_Par%C3%A9
@@ -43,7 +44,7 @@ var (
 	// Stephen Hawking pioneered the field of cosmology by combining general relativity and quantum mechanics. http://en.wikipedia.org/wiki/Stephen_Hawking
 	// Steve Wozniak invented the Apple I and Apple II. http://en.wikipedia.org/wiki/Steve_Wozniak
 	// Werner Heisenberg was a founding father of quantum mechanics. http://en.wikipedia.org/wiki/Werner_Heisenberg
-	right = [...]string{"franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclide", "newton", "fermat", "archimede", "poincare", "heisenberg", "feynmann", "hawkings", "fermi", "paré", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean"}
+	right = [...]string{"lovelace", "franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclide", "newton", "fermat", "archimede", "poincare", "heisenberg", "feynmann", "hawkings", "fermi", "paré", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean"}
 )
 
 func GenerateRandomName(checker NameChecker) (string, error) {
