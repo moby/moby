@@ -159,7 +159,7 @@ func (runtime *Runtime) Register(container *Container) error {
 			return err
 		}
 		if !strings.Contains(string(output), "RUNNING") {
-			utils.Debugf("Container %s was supposed to be running be is not.", container.ID)
+			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
 				container.State.SetGhost(false)
