@@ -11,7 +11,7 @@ type NameChecker interface {
 }
 
 var (
-	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious"}
+	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil"}
 	// Docker 0.7.x generates names from notable scientists and hackers.
 	//
 	// Ada Lovelace invented the first algorithm. http://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
@@ -24,6 +24,7 @@ var (
 	// Charles Darwin established the principles of natural evolution. http://en.wikipedia.org/wiki/Charles_Darwin.
 	// Dennis Ritchie and Ken Thompson created UNIX and the C programming language. http://en.wikipedia.org/wiki/Dennis_Ritchie http://en.wikipedia.org/wiki/Ken_Thompson
 	// Douglas Engelbart gave the mother of all demos: http://en.wikipedia.org/wiki/Douglas_Engelbart
+	// Emmett Brown invented time travel. http://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 	// Enrico Fermi invented the first nuclear reactor. http://en.wikipedia.org/wiki/Enrico_Fermi.
 	// Euclid invented geometry. http://en.wikipedia.org/wiki/Euclid
 	// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  http://en.wikipedia.org/wiki/Galileo_Galilei
@@ -44,7 +45,11 @@ var (
 	// Stephen Hawking pioneered the field of cosmology by combining general relativity and quantum mechanics. http://en.wikipedia.org/wiki/Stephen_Hawking
 	// Steve Wozniak invented the Apple I and Apple II. http://en.wikipedia.org/wiki/Steve_Wozniak
 	// Werner Heisenberg was a founding father of quantum mechanics. http://en.wikipedia.org/wiki/Werner_Heisenberg
-	right = [...]string{"lovelace", "franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclide", "newton", "fermat", "archimede", "poincare", "heisenberg", "feynmann", "hawkings", "fermi", "paré", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean"}
+	// William Shockley, Walter Houser Brattain and John Bardeen co-invented the transistor (thanks Brian Goff).
+	//	http://en.wikipedia.org/wiki/John_Bardeen
+	//	http://en.wikipedia.org/wiki/Walter_Houser_Brattain
+	//	http://en.wikipedia.org/wiki/William_Shockley
+	right = [...]string{"lovelace", "franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclide", "newton", "fermat", "archimede", "poincare", "heisenberg", "feynmann", "hawkings", "fermi", "pare", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean", "brown", "bardeen", "brattain", "shockley"}
 )
 
 func GenerateRandomName(checker NameChecker) (string, error) {
