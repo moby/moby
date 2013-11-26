@@ -18,6 +18,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   fedora
    binaries
    security
    upgrading
