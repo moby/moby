@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/graphdriver"
 	"io/ioutil"
 	"os"
 	"path"
@@ -9,8 +10,10 @@ import (
 )
 
 func TestMount(t *testing.T) {
-	graph := tempGraph(t)
+	graph, driver := tempGraph(t)
 	defer os.RemoveAll(graph.Root)
+	defer driver.Cleanup()
+
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -32,26 +35,25 @@ func TestMount(t *testing.T) {
 	if err := os.MkdirAll(rw, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := image.Mount(rootfs, rw); err != nil {
+
+	if _, err := driver.Get(image.ID); err != nil {
 		t.Fatal(err)
 	}
-	// FIXME: test for mount contents
-	defer func() {
-		if err := docker.Unmount(rootfs); err != nil {
-			t.Error(err)
-		}
-	}()
 }
 
 //FIXME: duplicate
-func tempGraph(t *testing.T) *docker.Graph {
+func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
 	tmp, err := ioutil.TempDir("", "docker-graph-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := docker.NewGraph(tmp)
+	driver, err := graphdriver.New(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return graph
+	graph, err := docker.NewGraph(tmp, driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return graph, driver
 }

@@ -241,7 +241,7 @@ func (b *buildFile) CmdVolume(args string) error {
 		volume = []string{args}
 	}
 	if b.config.Volumes == nil {
-		b.config.Volumes = NewPathOpts()
+		b.config.Volumes = PathOpts{}
 	}
 	for _, v := range volume {
 		b.config.Volumes[v] = struct{}{}
@@ -476,7 +476,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := archive.Untar(context, name); err != nil {
+	if err := archive.Untar(context, name, nil); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(name)

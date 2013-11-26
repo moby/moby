@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -15,7 +16,7 @@ import (
 
 func TestInit(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	// Root should exist
 	if _, err := os.Stat(graph.Root); err != nil {
 		t.Fatal(err)
@@ -31,7 +32,7 @@ func TestInit(t *testing.T) {
 // Test that Register can be interrupted cleanly without side effects
 func TestInterruptedRegister(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
 	image := &Image{
 		ID:      GenerateID(),
@@ -58,7 +59,7 @@ func TestInterruptedRegister(t *testing.T) {
 //       create multiple, check the amount of images and paths, etc..)
 func TestGraphCreate(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +90,7 @@ func TestGraphCreate(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +124,7 @@ func TestRegister(t *testing.T) {
 // Test that an image can be deleted by its shorthand prefix
 func TestDeletePrefix(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	img := createTestImage(graph, t)
 	if err := graph.Delete(utils.TruncateID(img.ID)); err != nil {
 		t.Fatal(err)
@@ -145,7 +146,7 @@ func createTestImage(graph *Graph, t *testing.T) *Image {
 
 func TestDelete(t *testing.T) {
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +210,7 @@ func TestByParent(t *testing.T) {
 	archive3, _ := fakeTar()
 
 	graph := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer nukeGraph(graph)
 	parentImage := &Image{
 		ID:      GenerateID(),
 		Comment: "parent",
@@ -259,11 +260,20 @@ func tempGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := NewGraph(tmp)
+	backend, err := graphdriver.New(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := NewGraph(tmp, backend)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return graph
+}
+
+func nukeGraph(graph *Graph) {
+	graph.driver.Cleanup()
+	os.RemoveAll(graph.Root)
 }
 
 func testArchive(t *testing.T) archive.Archive {

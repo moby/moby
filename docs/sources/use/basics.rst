@@ -76,11 +76,11 @@ client commands.
   # Add the docker group if it doesn't already exist.
   sudo groupadd docker
 
-  # Add the user "ubuntu" to the docker group.
+  # Add the connected user "${USERNAME}" to the docker group.
   # Change the user name to match your preferred user.
   # You may have to logout and log back in again for
   # this to take effect.
-  sudo gpasswd -a ubuntu docker
+  sudo gpasswd -a ${USERNAME} docker
 
   # Restart the docker daemon.
   sudo service docker restart

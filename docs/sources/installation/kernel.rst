@@ -11,9 +11,9 @@ In short, Docker has the following kernel requirements:
 
 - Linux version 3.8 or above.
 
-- `AUFS support <http://aufs.sourceforge.net/>`_.
-
 - Cgroups and namespaces must be enabled.
+
+*Note: as of 0.7 docker no longer requires aufs. AUFS support is still available as an optional driver.*
 
 The officially supported kernel is the one recommended by the
 :ref:`ubuntu_linux` installation path. It is the one that most developers
@@ -56,17 +56,6 @@ Docker checks the kernel version when it starts, and emits a warning if it
 detects something older than 3.8.
 
 See issue `#407 <https://github.com/dotcloud/docker/issues/407>`_ for details.
-
-
-AUFS support
-------------
-
-Docker currently relies on AUFS, an unioning filesystem.
-While AUFS is included in the kernels built by the Debian and Ubuntu
-distributions, is not part of the standard kernel. This means that if
-you decide to roll your own kernel, you will have to patch your
-kernel tree to add AUFS. The process is documented on
-`AUFS webpage <http://aufs.sourceforge.net/>`_.
 
 
 Cgroups and namespaces
