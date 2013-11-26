@@ -1638,15 +1638,7 @@ type ports []int
 // AttachOpts stores arguments to 'docker run -a', eg. which streams to attach to
 type AttachOpts map[string]bool
 
-func NewAttachOpts() AttachOpts {
-	return make(AttachOpts)
-}
-
-func (opts AttachOpts) String() string {
-	// Cast to underlying map type to avoid infinite recursion
-	return fmt.Sprintf("%v", map[string]bool(opts))
-}
-
+func (opts AttachOpts) String() string { return fmt.Sprintf("%v", map[string]bool(opts)) }
 func (opts AttachOpts) Set(val string) error {
 	if val != "stdin" && val != "stdout" && val != "stderr" {
 		return fmt.Errorf("Unsupported stream name: %s", val)
@@ -1655,24 +1647,21 @@ func (opts AttachOpts) Set(val string) error {
 	return nil
 }
 
-func (opts AttachOpts) Get(val string) bool {
-	if res, exists := opts[val]; exists {
-		return res
+// LinkOpts stores arguments to `docker run -link`
+type LinkOpts []string
+
+func (link LinkOpts) String() string { return fmt.Sprintf("%v", []string(link)) }
+func (link LinkOpts) Set(val string) error {
+	if _, err := parseLink(val); err != nil {
+		return err
 	}
-	return false
+	return nil
 }
 
 // PathOpts stores a unique set of absolute paths
 type PathOpts map[string]struct{}
 
-func NewPathOpts() PathOpts {
-	return make(PathOpts)
-}
-
-func (opts PathOpts) String() string {
-	return fmt.Sprintf("%v", map[string]struct{}(opts))
-}
-
+func (opts PathOpts) String() string { return fmt.Sprintf("%v", map[string]struct{}(opts)) }
 func (opts PathOpts) Set(val string) error {
 	var containerPath string
 
@@ -1738,8 +1727,9 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = NewAttachOpts()
-		flVolumes = NewPathOpts()
+		flAttach  = AttachOpts{}
+		flVolumes = PathOpts{}
+		flLinks   = LinkOpts{}
 
 		flPublish     utils.ListOpts
 		flExpose      utils.ListOpts
@@ -1747,7 +1737,6 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flDns         utils.ListOpts
 		flVolumesFrom utils.ListOpts
 		flLxcOpts     utils.ListOpts
-		flLinks       utils.ListOpts
 
 		flAutoRemove      = cmd.Bool("rm", false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
@@ -1771,6 +1760,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
+	cmd.Var(flLinks, "link", "Add link to another container (name:alias)")
 
 	cmd.Var(&flPublish, "p", fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", PortSpecTemplateFormat))
 	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
@@ -1778,7 +1768,6 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, "lxc-conf", "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -1904,9 +1893,9 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
-		AttachStdin:     flAttach.Get("stdin"),
-		AttachStdout:    flAttach.Get("stdout"),
-		AttachStderr:    flAttach.Get("stderr"),
+		AttachStdin:     flAttach["stdin"],
+		AttachStdout:    flAttach["stdout"],
+		AttachStderr:    flAttach["stderr"],
 		Env:             envs,
 		Cmd:             runCmd,
 		Dns:             flDns,
@@ -2059,9 +2048,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 	}
 
-	// We need to make the chan because the select needs to have a closing
-	// chan, it can't be uninitialized
-	hijacked := make(chan bool)
+	// We need to instanciate the chan because the select needs it. It can
+	// be closed but can't be uninitialized.
+	hijacked := make(chan io.Closer)
+
+	// Block the return until the chan gets closed
+	defer func() {
+		utils.Debugf("End of CmdRun(), Waiting for hijack to finish.")
+		if _, ok := <-hijacked; ok {
+			utils.Errorf("Hijack did not finish (chan still open)")
+		}
+	}()
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		var (
 			out, stderr io.Writer
@@ -2096,7 +2094,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Acknowledge the hijack before starting
 	select {
-	case <-hijacked:
+	case closer := <-hijacked:
+		// Make sure that hijack gets closed when returning. (result
+		// in closing hijack chan and freeing server's goroutines.
+		if closer != nil {
+			defer closer.Close()
+		}
 	case err := <-errCh:
 		if err != nil {
 			utils.Debugf("Error hijack: %s", err)
@@ -2345,7 +2348,12 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	return nil
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan bool) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer) error {
+	defer func() {
+		if started != nil {
+			close(started)
+		}
+	}()
 	// fixme: refactor client to support redirect
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
@@ -2375,7 +2383,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	defer rwc.Close()
 
 	if started != nil {
-		started <- true
+		started <- rwc
 	}
 
 	var receiveStdout chan error
