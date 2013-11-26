@@ -463,6 +463,10 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", out.Containers)
 	fmt.Fprintf(cli.out, "Images: %d\n", out.Images)
+	fmt.Fprintf(cli.out, "Driver: %s\n", out.Driver)
+	for _, pair := range out.DriverStatus {
+		fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
+	}
 	if out.Debug || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", out.Debug)
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
@@ -1128,16 +1132,18 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		var outs []APIImages
-		err = json.Unmarshal(body, &outs)
-		if err != nil {
+		if err := json.Unmarshal(body, &outs); err != nil {
 			return err
 		}
 
-		var startImageArg = cmd.Arg(0)
-		var startImage APIImages
+		var (
+			startImageArg = cmd.Arg(0)
+			startImage    APIImages
 
-		var roots []APIImages
-		var byParent = make(map[string][]APIImages)
+			roots    []APIImages
+			byParent = make(map[string][]APIImages)
+		)
+
 		for _, image := range outs {
 			if image.ParentId == "" {
 				roots = append(roots, image)
@@ -2181,7 +2187,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	if statusCode == 200 {
 		r := bytes.NewReader(data)
-		if err := archive.Untar(r, copyData.HostPath); err != nil {
+		if err := archive.Untar(r, copyData.HostPath, nil); err != nil {
 			return err
 		}
 	}

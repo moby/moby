@@ -476,7 +476,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := archive.Untar(context, name); err != nil {
+	if err := archive.Untar(context, name, nil); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(name)

@@ -8,7 +8,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/graphdb"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -285,7 +285,7 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		}
 
 		// serialize filesystem
-		fs, err := archive.Tar(path.Join(srv.runtime.graph.Root, i.ID, "layer"), archive.Uncompressed)
+		fs, err := i.TarLayer()
 		if err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
 		return err
 	}
-	if err := archive.Untar(repoFile, repoDir); err != nil {
+	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
 		return err
 	}
 
@@ -596,6 +596,8 @@ func (srv *Server) DockerInfo() *APIInfo {
 	return &APIInfo{
 		Containers:         len(srv.runtime.List()),
 		Images:             imgcount,
+		Driver:             srv.runtime.driver.String(),
+		DriverStatus:       srv.runtime.driver.Status(),
 		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
 		SwapLimit:          srv.runtime.capabilities.SwapLimit,
 		IPv4Forwarding:     !srv.runtime.capabilities.IPv4ForwardingDisabled,
@@ -678,7 +680,7 @@ func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerChanges(name string) ([]Change, error) {
+func (srv *Server) ContainerChanges(name string) ([]archive.Change, error) {
 	if container := srv.runtime.Get(name); container != nil {
 		return container.Changes()
 	}
@@ -691,7 +693,7 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 	out := []APIContainers{}
 
 	names := map[string][]string{}
-	srv.runtime.containerGraph.Walk("/", func(p string, e *gograph.Entity) error {
+	srv.runtime.containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
 	}, -1)
@@ -763,12 +765,13 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
-	for _, id := range history {
+	for i := len(history) - 1; i >= 0; i-- {
+		id := history[i]
 
 		// ensure no two downloads of the same layer happen at the same time
-		if err := srv.poolAdd("pull", "layer:"+id); err != nil {
+		if c, err := srv.poolAdd("pull", "layer:"+id); err != nil {
 			utils.Errorf("Image (id: %s) pull is already running, skipping: %v", id, err)
-			return nil
+			<-c
 		}
 		defer srv.poolRemove("pull", "layer:"+id)
 
@@ -863,7 +866,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			if err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
+			if _, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
 				utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				if parallel {
 					errors <- nil
@@ -934,28 +937,27 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (srv *Server) poolAdd(kind, key string) error {
+func (srv *Server) poolAdd(kind, key string) (chan struct{}, error) {
 	srv.Lock()
 	defer srv.Unlock()
 
-	if _, exists := srv.pullingPool[key]; exists {
-		return fmt.Errorf("pull %s is already in progress", key)
+	if c, exists := srv.pullingPool[key]; exists {
+		return c, fmt.Errorf("pull %s is already in progress", key)
 	}
-	if _, exists := srv.pushingPool[key]; exists {
-		return fmt.Errorf("push %s is already in progress", key)
+	if c, exists := srv.pushingPool[key]; exists {
+		return c, fmt.Errorf("push %s is already in progress", key)
 	}
 
+	c := make(chan struct{})
 	switch kind {
 	case "pull":
-		srv.pullingPool[key] = struct{}{}
-		break
+		srv.pullingPool[key] = c
 	case "push":
-		srv.pushingPool[key] = struct{}{}
-		break
+		srv.pushingPool[key] = c
 	default:
-		return fmt.Errorf("Unknown pool type")
+		return nil, fmt.Errorf("Unknown pool type")
 	}
-	return nil
+	return c, nil
 }
 
 func (srv *Server) poolRemove(kind, key string) error {
@@ -963,11 +965,15 @@ func (srv *Server) poolRemove(kind, key string) error {
 	defer srv.Unlock()
 	switch kind {
 	case "pull":
-		delete(srv.pullingPool, key)
-		break
+		if c, exists := srv.pullingPool[key]; exists {
+			close(c)
+			delete(srv.pullingPool, key)
+		}
 	case "push":
-		delete(srv.pushingPool, key)
-		break
+		if c, exists := srv.pushingPool[key]; exists {
+			close(c)
+			delete(srv.pushingPool, key)
+		}
 	default:
 		return fmt.Errorf("Unknown pool type")
 	}
@@ -979,7 +985,7 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 	if err != nil {
 		return err
 	}
-	if err := srv.poolAdd("pull", localName+":"+tag); err != nil {
+	if _, err := srv.poolAdd("pull", localName+":"+tag); err != nil {
 		return err
 	}
 	defer srv.poolRemove("pull", localName+":"+tag)
@@ -1174,7 +1180,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
 func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string) error {
-	if err := srv.poolAdd("push", localName); err != nil {
+	if _, err := srv.poolAdd("push", localName); err != nil {
 		return err
 	}
 	defer srv.poolRemove("push", localName)
@@ -1820,8 +1826,8 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 	srv := &Server{
 		Eng:         eng,
 		runtime:     runtime,
-		pullingPool: make(map[string]struct{}),
-		pushingPool: make(map[string]struct{}),
+		pullingPool: make(map[string]chan struct{}),
+		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
 		reqFactory:  nil,
@@ -1872,8 +1878,8 @@ func (srv *Server) GetEvents() []utils.JSONMessage {
 type Server struct {
 	sync.RWMutex
 	runtime     *Runtime
-	pullingPool map[string]struct{}
-	pushingPool map[string]struct{}
+	pullingPool map[string]chan struct{}
+	pushingPool map[string]chan struct{}
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
 	reqFactory  *utils.HTTPRequestFactory
