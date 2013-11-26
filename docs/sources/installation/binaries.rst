@@ -12,17 +12,9 @@ Binaries
 **This instruction set is meant for hackers who want to try out Docker
 on a variety of environments.**
 
-Right now, the officially supported distributions are:
-
-- :ref:`ubuntu_precise`
-- :ref:`ubuntu_raring`
-
-
-But we know people have had success running it under
-
-- Debian
-- Suse
-- :ref:`arch_linux`
+Before following these directions, you should really check if a packaged version
+of Docker is already available for your distribution.  We have packages for many
+distributions, and more keep showing up all the time!
 
 Check Your Kernel
 -----------------
@@ -34,7 +26,7 @@ Get the docker binary:
 
 .. code-block:: bash
 
-    wget --output-document=docker https://get.docker.io/builds/Linux/x86_64/docker-latest
+    wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
     chmod +x docker
 
 

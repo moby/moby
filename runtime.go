@@ -5,7 +5,12 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
-	"github.com/dotcloud/docker/gograph"
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdb"
+	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/graphdriver/aufs"
+	_ "github.com/dotcloud/docker/graphdriver/devmapper"
+	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -19,6 +24,9 @@ import (
 	"time"
 )
 
+// Set the max depth to the aufs restriction
+const MaxImageDepth = 42
+
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
 
 type Capabilities struct {
@@ -30,6 +38,7 @@ type Capabilities struct {
 
 type Runtime struct {
 	repository     string
+	sysInitPath    string
 	containers     *list.List
 	networkManager *NetworkManager
 	graph          *Graph
@@ -39,7 +48,8 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
-	containerGraph *gograph.Database
+	containerGraph *graphdb.Database
+	driver         graphdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -117,6 +127,13 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := runtime.ensureName(container); err != nil {
 		return err
 	}
+
+	// Get the root filesystem from the driver
+	rootfs, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
+	}
+	container.rootfs = rootfs
 
 	container.runtime = runtime
 
@@ -216,12 +233,8 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return err
 	}
 
-	if mounted, err := container.Mounted(); err != nil {
-		return err
-	} else if mounted {
-		if err := container.Unmount(); err != nil {
-			return fmt.Errorf("Unable to unmount container %v: %v", container.ID, err)
-		}
+	if err := runtime.driver.Remove(container.ID); err != nil {
+		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", runtime.driver, container.ID, err)
 	}
 
 	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
@@ -247,6 +260,7 @@ func (runtime *Runtime) restore() error {
 		return err
 	}
 	containers := make(map[string]*Container)
+	currentDriver := runtime.driver.String()
 
 	for i, v := range dir {
 		id := v.Name()
@@ -258,8 +272,14 @@ func (runtime *Runtime) restore() error {
 			utils.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
-		utils.Debugf("Loaded container %v", container.ID)
-		containers[container.ID] = container
+
+		// Ignore the container if it does not support the current driver being used by the graph
+		if container.Driver == "" && currentDriver == "aufs" || container.Driver == currentDriver {
+			utils.Debugf("Loaded container %v", container.ID)
+			containers[container.ID] = container
+		} else {
+			utils.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+		}
 	}
 
 	register := func(container *Container) {
@@ -344,6 +364,17 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
+	// We add 2 layers to the depth because the container's rw and
+	// init layer add to the restriction
+	depth, err := img.Depth()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if depth+2 >= MaxImageDepth {
+		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+	}
+
 	checkDeprecatedExpose := func(config *Config) bool {
 		if config != nil {
 			if config.PortSpecs != nil {
@@ -372,11 +403,6 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		config.Cmd = []string{}
 	} else if config.Cmd == nil || len(config.Cmd) == 0 {
 		return nil, nil, fmt.Errorf("No command specified")
-	}
-
-	sysInitPath := utils.DockerInitPath()
-	if sysInitPath == "" {
-		return nil, nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
 	}
 
 	// Generate id
@@ -421,7 +447,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
-		Created:         time.Now(),
+		Created:         time.Now().UTC(),
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
@@ -429,8 +455,9 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
+		SysInitPath: runtime.sysInitPath,
 		Name:        name,
+		Driver:      runtime.driver.String(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -439,6 +466,21 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
+	initID := fmt.Sprintf("%s-init", container.ID)
+	if err := runtime.driver.Create(initID, img.ID); err != nil {
+		return nil, nil, err
+	}
+	initPath, err := runtime.driver.Get(initID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := setupInitLayer(initPath); err != nil {
+		return nil, nil, err
+	}
+
+	if err := runtime.driver.Create(container.ID, initID); err != nil {
+		return nil, nil, err
+	}
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return nil, nil, err
@@ -549,7 +591,7 @@ func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
 	}
 	children := make(map[string]*Container)
 
-	err = runtime.containerGraph.Walk(name, func(p string, e *gograph.Entity) error {
+	err = runtime.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
 		c := runtime.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
@@ -584,24 +626,48 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 }
 
 func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+
+	// Set the default driver
+	graphdriver.DefaultDriver = config.GraphDriver
+
+	// Load storage driver
+	driver, err := graphdriver.New(config.Root)
+	if err != nil {
+		return nil, err
+	}
+	utils.Debugf("Using graph driver %s", driver)
+
 	runtimeRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
+	if ad, ok := driver.(*aufs.Driver); ok {
+		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := linkLxcStart(config.Root); err != nil {
 		return nil, err
 	}
-	g, err := NewGraph(path.Join(config.Root, "graph"))
+	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"))
+
+	// We don't want to use a complex driver like aufs or devmapper
+	// for volumes, just a plain filesystem
+	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root)
 	if err != nil {
 		return nil, err
 	}
-	repositories, err := NewTagStore(path.Join(config.Root, "repositories"), g)
+	volumes, err := NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
+	if err != nil {
+		return nil, err
+	}
+	repositories, err := NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -613,22 +679,42 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	gographPath := path.Join(config.Root, "linkgraph.db")
+	graphdbPath := path.Join(config.Root, "linkgraph.db")
 	initDatabase := false
-	if _, err := os.Stat(gographPath); err != nil {
+	if _, err := os.Stat(graphdbPath); err != nil {
 		if os.IsNotExist(err) {
 			initDatabase = true
 		} else {
 			return nil, err
 		}
 	}
-	conn, err := sql.Open("sqlite3", gographPath)
+	conn, err := sql.Open("sqlite3", graphdbPath)
 	if err != nil {
 		return nil, err
 	}
-	graph, err := gograph.NewDatabase(conn, initDatabase)
+	graph, err := graphdb.NewDatabase(conn, initDatabase)
 	if err != nil {
 		return nil, err
+	}
+
+	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", VERSION))
+	sysInitPath := utils.DockerInitPath(localCopy)
+	if sysInitPath == "" {
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+	}
+
+	if !utils.IAMSTATIC {
+		if err := os.Mkdir(path.Join(config.Root, fmt.Sprintf("init")), 0700); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
+		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
+			return nil, err
+		}
+		sysInitPath = localCopy
+		if err := os.Chmod(sysInitPath, 0700); err != nil {
+			return nil, err
+		}
 	}
 
 	runtime := &Runtime{
@@ -642,6 +728,8 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
+		driver:         driver,
+		sysInitPath:    sysInitPath,
 	}
 
 	if err := runtime.restore(); err != nil {
@@ -651,8 +739,76 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 }
 
 func (runtime *Runtime) Close() error {
-	runtime.networkManager.Close()
-	return runtime.containerGraph.Close()
+	errorsStrings := []string{}
+	if err := runtime.networkManager.Close(); err != nil {
+		utils.Errorf("runtime.networkManager.Close(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if err := runtime.driver.Cleanup(); err != nil {
+		utils.Errorf("runtime.driver.Cleanup(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if err := runtime.containerGraph.Close(); err != nil {
+		utils.Errorf("runtime.containerGraph.Close(): %s", err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
+	if len(errorsStrings) > 0 {
+		return fmt.Errorf("%s", strings.Join(errorsStrings, ", "))
+	}
+	return nil
+}
+
+func (runtime *Runtime) Mount(container *Container) error {
+	dir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, runtime.driver, err)
+	}
+	if container.rootfs == "" {
+		container.rootfs = dir
+	} else if container.rootfs != dir {
+		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+			runtime.driver, container.ID, container.rootfs, dir)
+	}
+	return nil
+}
+
+func (runtime *Runtime) Unmount(container *Container) error {
+	// FIXME: Unmount is deprecated because drivers are responsible for mounting
+	// and unmounting when necessary. Use driver.Remove() instead.
+	return nil
+}
+
+func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) {
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Changes(container.ID)
+	}
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	initDir, err := runtime.driver.Get(container.ID + "-init")
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+	return archive.ChangesDirs(cDir, initDir)
+}
+
+func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
+	if differ, ok := runtime.driver.(graphdriver.Differ); ok {
+		return differ.Diff(container.ID)
+	}
+
+	changes, err := runtime.Changes(container)
+	if err != nil {
+		return nil, err
+	}
+
+	cDir, err := runtime.driver.Get(container.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
+	}
+
+	return archive.ExportChanges(cDir, changes)
 }
 
 // Nuke kills all containers then removes all content

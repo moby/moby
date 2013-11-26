@@ -4,8 +4,8 @@
 
 .. _gentoo_linux:
 
-Gentoo Linux
-============
+Gentoo
+======
 
 .. include:: install_header.inc
 
@@ -22,17 +22,19 @@ provided at https://github.com/tianon/docker-overlay which can be added using
 properly installing and using the overlay can be found in `the overlay README
 <https://github.com/tianon/docker-overlay/blob/master/README.md#using-this-overlay>`_.
 
+Note that sometimes there is a disparity between the latest version and what's
+in the overlay, and between the latest version in the overlay and what's in the
+portage tree.  Please be patient, and the latest version should propagate
+shortly.
+
 Installation
 ^^^^^^^^^^^^
 
 The package should properly pull in all the necessary dependencies and prompt
-for all necessary kernel options.  For the most straightforward installation
-experience, use ``sys-kernel/aufs-sources`` as your kernel sources.  If you
-prefer not to use ``sys-kernel/aufs-sources``, the portage tree also contains
-``sys-fs/aufs3``, which includes the patches necessary for adding AUFS support
-to other kernel source packages such as ``sys-kernel/gentoo-sources`` (and a
-``kernel-patch`` USE flag to perform the patching to ``/usr/src/linux``
-automatically).
+for all necessary kernel options.  The ebuilds for 0.7+ include use flags to
+pull in the proper dependencies of the major storage drivers, with the
+"device-mapper" use flag being enabled by default, since that is the simplest
+installation path.
 
 .. code-block:: bash
 
@@ -47,9 +49,9 @@ the #docker IRC channel on the freenode network.
 Starting Docker
 ^^^^^^^^^^^^^^^
 
-Ensure that you are running a kernel that includes the necessary AUFS
-patches/support and includes all the necessary modules and/or configuration for
-LXC.
+Ensure that you are running a kernel that includes all the necessary modules
+and/or configuration for LXC (and optionally for device-mapper and/or AUFS,
+depending on the storage driver you've decided to use).
 
 OpenRC
 ------

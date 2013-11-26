@@ -24,3 +24,5 @@ to more substantial services like those which you might find in production.
    postgresql_service
    mongodb
    running_riak_service
+   using_supervisord
+   cfengine_process_management

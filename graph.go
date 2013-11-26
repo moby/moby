@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -17,11 +19,12 @@ import (
 type Graph struct {
 	Root    string
 	idIndex *utils.TruncIndex
+	driver  graphdriver.Driver
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
-func NewGraph(root string) (*Graph, error) {
+func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -30,9 +33,11 @@ func NewGraph(root string) (*Graph, error) {
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
+
 	graph := &Graph{
 		Root:    abspath,
 		idIndex: utils.NewTruncIndex(),
+		driver:  driver,
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -47,7 +52,9 @@ func (graph *Graph) restore() error {
 	}
 	for _, v := range dir {
 		id := v.Name()
-		graph.idIndex.Add(id)
+		if graph.driver.Exists(id) {
+			graph.idIndex.Add(id)
+		}
 	}
 	return nil
 }
@@ -78,16 +85,22 @@ func (graph *Graph) Get(name string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Check that the filesystem layer exists
+	rootfs, err := graph.driver.Get(img.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
+	}
 	if img.ID != id {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
 	}
 	img.graph = graph
 	if img.Size == 0 {
-		root, err := img.root()
+		size, err := utils.TreeSize(rootfs)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error computing size of rootfs %s: %s", img.ID, err)
 		}
-		if err := StoreSize(img, root); err != nil {
+		img.Size = size
+		if err := img.SaveSize(graph.imageRoot(id)); err != nil {
 			return nil, err
 		}
 	}
@@ -99,7 +112,7 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 	img := &Image{
 		ID:            GenerateID(),
 		Comment:       comment,
-		Created:       time.Now(),
+		Created:       time.Now().UTC(),
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
@@ -118,7 +131,15 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) error {
+func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) (err error) {
+	defer func() {
+		// If any error occurs, remove the new dir from the driver.
+		// Don't check for errors since the dir might not have been created.
+		// FIXME: this leaves a possible race condition.
+		if err != nil {
+			graph.driver.Remove(img.ID)
+		}
+	}()
 	if err := ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -126,19 +147,43 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if graph.Exists(img.ID) {
 		return fmt.Errorf("Image %s already exists", img.ID)
 	}
+
+	// Ensure that the image root does not exist on the filesystem
+	// when it is not registered in the graph.
+	// This is common when you switch from one graph driver to another
+	if err := os.RemoveAll(graph.imageRoot(img.ID)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// If the driver has this ID but the graph doesn't, remove it from the driver to start fresh.
+	// (the graph is the source of truth).
+	// Ignore errors, since we don't know if the driver correctly returns ErrNotExist.
+	// (FIXME: make that mandatory for drivers).
+	graph.driver.Remove(img.ID)
+
 	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return fmt.Errorf("Mktemp failed: %s", err)
 	}
-	if err := StoreImage(img, jsonData, layerData, tmp); err != nil {
+
+	// Create root filesystem in the driver
+	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
+		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+	}
+	// Mount the root filesystem so we can apply the diff/layer
+	rootfs, err := graph.driver.Get(img.ID)
+	if err != nil {
+		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
+	}
+	img.graph = graph
+	if err := StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err
 	}
 	// Commit
 	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
 		return err
 	}
-	img.graph = graph
 	graph.idIndex.Add(img.ID)
 	return nil
 }
@@ -152,50 +197,33 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 	if err != nil {
 		return nil, err
 	}
-	tmp, err := graph.tmp()
+	tmp, err := graph.Mktemp("")
 	if err != nil {
 		return nil, err
 	}
-	a, err := image.TarLayer(compression)
+	a, err := image.TarLayer()
 	if err != nil {
 		return nil, err
 	}
-	return archive.NewTempArchive(utils.ProgressReader(ioutil.NopCloser(a), 0, output, sf.FormatProgress("", "Buffering to disk", "%v/%v (%v)"), sf, true), tmp.Root)
+	return archive.NewTempArchive(utils.ProgressReader(ioutil.NopCloser(a), 0, output, sf.FormatProgress("", "Buffering to disk", "%v/%v (%v)"), sf, true), tmp)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	if id == "" {
-		id = GenerateID()
+	dir := path.Join(graph.Root, "_tmp", GenerateID())
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
 	}
-	tmp, err := graph.tmp()
-	if err != nil {
-		return "", fmt.Errorf("Couldn't create temp: %s", err)
-	}
-	if tmp.Exists(id) {
-		return "", fmt.Errorf("Image %s already exists", id)
-	}
-	return tmp.imageRoot(id), nil
+	return dir, nil
 }
 
-// getDockerInitLayer returns the path of a layer containing a mountpoint suitable
+// setupInitLayer populates a directory with mountpoints suitable
 // for bind-mounting dockerinit into the container. The mountpoint is simply an
 // empty file at /.dockerinit
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func (graph *Graph) getDockerInitLayer() (string, error) {
-	tmp, err := graph.tmp()
-	if err != nil {
-		return "", err
-	}
-	initLayer := tmp.imageRoot("_dockerinit")
-	if err := os.Mkdir(initLayer, 0755); err != nil && !os.IsExist(err) {
-		// If directory already existed, keep going.
-		// For all other errors, abort.
-		return "", err
-	}
-
+func setupInitLayer(initLayer string) error {
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
@@ -209,36 +237,38 @@ func (graph *Graph) getDockerInitLayer() (string, error) {
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
+		parts := strings.Split(pth, "/")
+		prev := "/"
+		for _, p := range parts[1:] {
+			prev = path.Join(prev, p)
+			syscall.Unlink(path.Join(initLayer, prev))
+		}
+
 		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
 				switch typ {
 				case "dir":
 					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
-						return "", err
+						return err
 					}
 				case "file":
 					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
-						return "", err
+						return err
 					}
 					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
 					if err != nil {
-						return "", err
+						return err
 					}
 					f.Close()
 				}
 			} else {
-				return "", err
+				return err
 			}
 		}
 	}
 
 	// Layer is ready to use, if it wasn't before.
-	return initLayer, nil
-}
-
-func (graph *Graph) tmp() (*Graph, error) {
-	// Changed to _tmp from :tmp:, because it messed with ":" separators in aufs branch syntax...
-	return NewGraph(path.Join(graph.Root, "_tmp"))
+	return nil
 }
 
 // Check if given error is "not empty".
@@ -270,6 +300,9 @@ func (graph *Graph) Delete(name string) error {
 	if err != nil {
 		return err
 	}
+	// Remove rootfs data from the driver
+	graph.driver.Remove(id)
+	// Remove the trashed image directory
 	return os.RemoveAll(tmp)
 }
 
@@ -343,4 +376,8 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
+}
+
+func (graph *Graph) Driver() graphdriver.Driver {
+	return graph.driver
 }

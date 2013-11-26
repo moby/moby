@@ -25,19 +25,20 @@ func main() {
 	}
 	// FIXME: Switch d and D ? (to be more sshd like)
 	flVersion := flag.Bool("v", false, "Print version information and quit")
-	flDaemon := flag.Bool("d", false, "Daemon mode")
-	flDebug := flag.Bool("D", false, "Debug mode")
+	flDaemon := flag.Bool("d", false, "Enable daemon mode")
+	flDebug := flag.Bool("D", false, "Enable debug mode")
 	flAutoRestart := flag.Bool("r", true, "Restart previously running containers")
-	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge. Use 'none' to disable container networking")
-	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flRoot := flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime.")
-	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
-	flDns := flag.String("dns", "", "Set custom dns servers")
+	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
+	pidfile := flag.String("p", "/var/run/docker.pid", "Path to use for daemon PID file")
+	flRoot := flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime")
+	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS headers in the remote API")
+	flDns := flag.String("dns", "", "Force docker to use specific DNS servers")
 	flHosts := utils.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
-	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
-	flEnableIptables := flag.Bool("iptables", true, "Disable iptables within docker")
-	flDefaultIp := flag.String("ip", "0.0.0.0", "Default ip address to use when binding a containers ports")
+	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
+	flEnableIptables := flag.Bool("iptables", true, "Disable docker's addition of iptables rules")
+	flDefaultIp := flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
 	flInterContainerComm := flag.Bool("icc", true, "Enable inter-container communication")
+	flGraphDriver := flag.String("s", "", "Force the docker runtime to use a specific storage driver")
 
 	flag.Parse()
 
@@ -82,6 +83,7 @@ func main() {
 		job.Setenv("BridgeIface", *bridgeName)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+		job.Setenv("GraphDriver", *flGraphDriver)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

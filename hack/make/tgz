@@ -1,0 +1,23 @@
+#!/bin/sh
+
+DEST="$1"
+BINARY="$DEST/../binary/docker-$VERSION"
+TGZ="$DEST/docker-$VERSION.tgz"
+
+set -e
+
+if [ ! -x "$BINARY" ]; then
+	echo >&2 'error: binary must be run before tgz'
+	false
+fi
+
+mkdir -p "$DEST/build"
+
+mkdir -p "$DEST/build/usr/local/bin"
+cp -L "$BINARY" "$DEST/build/usr/local/bin/docker"
+
+tar --numeric-owner --owner 0 -C "$DEST/build" -czf "$TGZ" usr
+
+rm -rf "$DEST/build"
+
+echo "Created tgz: $TGZ"

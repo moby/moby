@@ -74,6 +74,9 @@ func layerArchive(tarfile string) (io.Reader, error) {
 }
 
 func init() {
+	// Always use the same driver (vfs) for all integration tests.
+	// To test other drivers, we need a dedicated driver validation suite.
+	os.Setenv("DOCKER_DRIVER", "vfs")
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing

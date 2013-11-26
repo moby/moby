@@ -1,4 +1,4 @@
-package gograph
+package graphdb
 
 import (
 	_ "code.google.com/p/gosqlite/sqlite3"

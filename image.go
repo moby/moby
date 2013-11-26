@@ -6,17 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -62,39 +59,56 @@ func LoadImage(root string) (*Image, error) {
 		img.Size = int64(size)
 	}
 
-	// Check that the filesystem layer exists
-	if stat, err := os.Stat(layerPath(root)); err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Couldn't load image %s: no filesystem layer", img.ID)
-		}
-		return nil, err
-	} else if !stat.IsDir() {
-		return nil, fmt.Errorf("Couldn't load image %s: %s is not a directory", img.ID, layerPath(root))
-	}
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root string) error {
-	// Check that root doesn't already exist
-	if _, err := os.Stat(root); err == nil {
-		return fmt.Errorf("Image %s already exists", img.ID)
-	} else if !os.IsNotExist(err) {
-		return err
-	}
+func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, layer string) error {
 	// Store the layer
-	layer := layerPath(root)
+	var (
+		size   int64
+		err    error
+		driver = img.graph.driver
+	)
 	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
 	}
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		start := time.Now()
-		utils.Debugf("Start untar layer")
-		if err := archive.Untar(layerData, layer); err != nil {
-			return err
+		if differ, ok := driver.(graphdriver.Differ); ok {
+			if err := differ.ApplyDiff(img.ID, layerData); err != nil {
+				return err
+			}
+
+			if size, err = differ.DiffSize(img.ID); err != nil {
+				return err
+			}
+		} else {
+			start := time.Now().UTC()
+			utils.Debugf("Start untar layer")
+			if err := archive.ApplyLayer(layer, layerData); err != nil {
+				return err
+			}
+			utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
+
+			if img.Parent == "" {
+				if size, err = utils.TreeSize(layer); err != nil {
+					return err
+				}
+			} else {
+				parent, err := driver.Get(img.Parent)
+				if err != nil {
+					return err
+				}
+				changes, err := archive.ChangesDirs(layer, parent)
+				if err != nil {
+					return err
+				}
+				if size = archive.ChangesSize(layer, changes); err != nil {
+					return err
+				}
+			}
 		}
-		utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
 	}
 
 	// If raw json is provided, then use it
@@ -102,117 +116,60 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root str
 		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
 	}
 	// Otherwise, unmarshal the image
-	jsonData, err := json.Marshal(img)
-	if err != nil {
+	if jsonData, err = json.Marshal(img); err != nil {
 		return err
 	}
 	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
 		return err
 	}
 
-	return StoreSize(img, root)
-}
-
-func StoreSize(img *Image, root string) error {
-	layer := layerPath(root)
-	data := make(map[uint64]bool)
-
-	var totalSize int64
-	filepath.Walk(layer, func(path string, fileInfo os.FileInfo, err error) error {
-		size := fileInfo.Size()
-		if size == 0 {
-			return nil
-		}
-
-		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		if _, entryExists := data[inode]; entryExists {
-			return nil
-		}
-		data[inode] = false
-
-		totalSize += size
-		return nil
-	})
-	img.Size = totalSize
-
-	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(totalSize))), 0600); err != nil {
-		return nil
+	img.Size = size
+	if err := img.SaveSize(root); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func layerPath(root string) string {
-	return path.Join(root, "layer")
+// SaveSize stores the current `size` value of `img` in the directory `root`.
+func (img *Image) SaveSize(root string) error {
+	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(img.Size))), 0600); err != nil {
+		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
+	}
+	return nil
 }
 
 func jsonPath(root string) string {
 	return path.Join(root, "json")
 }
 
-func MountAUFS(ro []string, rw string, target string) error {
-	// FIXME: Now mount the layers
-	rwBranch := fmt.Sprintf("%v=rw", rw)
-	roBranches := ""
-	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
-	}
-	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
-
-	branches += ",xino=/dev/shm/aufs.xino"
-
-	//if error, try to load aufs kernel module
-	if err := mount("none", target, "aufs", 0, branches); err != nil {
-		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
-		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
-		}
-		log.Printf("...module loaded.")
-		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs")
-		}
-	}
-	return nil
-}
-
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (img *Image) TarLayer(compression archive.Compression) (archive.Archive, error) {
-	layerPath, err := img.layer()
+func (img *Image) TarLayer() (archive.Archive, error) {
+	if img.graph == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
+	}
+	driver := img.graph.driver
+	if differ, ok := driver.(graphdriver.Differ); ok {
+		return differ.Diff(img.ID)
+	}
+
+	imgFs, err := driver.Get(img.ID)
 	if err != nil {
 		return nil, err
 	}
-	return archive.Tar(layerPath, compression)
-}
-
-func (img *Image) Mount(root, rw string) error {
-	if mounted, err := Mounted(root); err != nil {
-		return err
-	} else if mounted {
-		return fmt.Errorf("%s is already mounted", root)
+	if img.Parent == "" {
+		return archive.Tar(imgFs, archive.Uncompressed)
+	} else {
+		parentFs, err := driver.Get(img.Parent)
+		if err != nil {
+			return nil, err
+		}
+		changes, err := archive.ChangesDirs(imgFs, parentFs)
+		if err != nil {
+			return nil, err
+		}
+		return archive.ExportChanges(imgFs, changes)
 	}
-	layers, err := img.layers()
-	if err != nil {
-		return err
-	}
-	// Create the target directories if they don't exist
-	if err := os.Mkdir(root, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := os.Mkdir(rw, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := MountAUFS(layers, rw, root); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (img *Image) Changes(rw string) ([]Change, error) {
-	layers, err := img.layers()
-	if err != nil {
-		return nil, err
-	}
-	return Changes(layers, rw)
 }
 
 func ValidateID(id string) error {
@@ -250,40 +207,6 @@ func (img *Image) History() ([]*Image, error) {
 	return parents, nil
 }
 
-// layers returns all the filesystem layers needed to mount an image
-// FIXME: @shykes refactor this function with the new error handling
-//        (I'll do it if I have time tonight, I focus on the rest)
-func (img *Image) layers() ([]string, error) {
-	var (
-		list []string
-		e    error
-	)
-	if err := img.WalkHistory(
-		func(img *Image) (err error) {
-			if layer, err := img.layer(); err != nil {
-				e = err
-			} else if layer != "" {
-				list = append(list, layer)
-			}
-			return err
-		},
-	); err != nil {
-		return nil, err
-	} else if e != nil { // Did an error occur inside the handler?
-		return nil, e
-	}
-	if len(list) == 0 {
-		return nil, fmt.Errorf("No layer found for image %s\n", img.ID)
-	}
-
-	// Inject the dockerinit layer (empty place-holder for mount-binding dockerinit)
-	dockerinitLayer, err := img.getDockerInitLayer()
-	if err != nil {
-		return nil, err
-	}
-	return append([]string{dockerinitLayer}, list...), nil
-}
-
 func (img *Image) WalkHistory(handler func(*Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
@@ -310,27 +233,11 @@ func (img *Image) GetParent() (*Image, error) {
 	return img.graph.Get(img.Parent)
 }
 
-func (img *Image) getDockerInitLayer() (string, error) {
-	if img.graph == nil {
-		return "", fmt.Errorf("Can't lookup dockerinit layer of unregistered image")
-	}
-	return img.graph.getDockerInitLayer()
-}
-
 func (img *Image) root() (string, error) {
 	if img.graph == nil {
 		return "", fmt.Errorf("Can't lookup root of unregistered image")
 	}
 	return img.graph.imageRoot(img.ID), nil
-}
-
-// Return the path of an image's layer
-func (img *Image) layer() (string, error) {
-	root, err := img.root()
-	if err != nil {
-		return "", err
-	}
-	return layerPath(root), nil
 }
 
 func (img *Image) getParentsSize(size int64) int64 {
@@ -340,6 +247,25 @@ func (img *Image) getParentsSize(size int64) int64 {
 	}
 	size += parentImage.Size
 	return parentImage.getParentsSize(size)
+}
+
+// Depth returns the number of parents for a
+// current image
+func (img *Image) Depth() (int, error) {
+	var (
+		count  = 0
+		parent = img
+		err    error
+	)
+
+	for parent != nil {
+		count++
+		parent, err = parent.GetParent()
+		if err != nil {
+			return -1, err
+		}
+	}
+	return count, nil
 }
 
 // Build an Image object from raw json data

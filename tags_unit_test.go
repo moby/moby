@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"path"
@@ -8,12 +9,16 @@ import (
 )
 
 const (
-	testImageName string = "myapp"
-	testImageID   string = "foo"
+	testImageName = "myapp"
+	testImageID   = "foo"
 )
 
 func mkTestTagStore(root string, t *testing.T) *TagStore {
-	graph, err := NewGraph(root)
+	driver, err := graphdriver.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := NewGraph(root, driver)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,6 +47,7 @@ func TestLookupImage(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	store := mkTestTagStore(tmp, t)
+	defer store.graph.driver.Cleanup()
 
 	if img, err := store.LookupImage(testImageName); err != nil {
 		t.Fatal(err)

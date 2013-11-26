@@ -18,6 +18,38 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     ...
 
+.. _cli_daemon:
+
+``daemon``
+----------
+
+::
+
+    Usage of docker:
+      -D=false: Enable debug mode
+      -H=[unix:///var/run/docker.sock]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise
+      -api-enable-cors=false: Enable CORS headers in the remote API
+      -b="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
+      -d=false: Enable daemon mode
+      -dns="": Force docker to use specific DNS servers
+      -g="/var/lib/docker": Path to use as the root of the docker runtime
+      -icc=true: Enable inter-container communication
+      -ip="0.0.0.0": Default IP address to use when binding container ports
+      -iptables=true: Disable docker's addition of iptables rules
+      -p="/var/run/docker.pid": Path to use for daemon PID file
+      -r=true: Restart previously running containers
+      -s="": Force the docker runtime to use a specific storage driver
+      -v=false: Print version information and quit
+
+The docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+daemon and client.  To run the daemon you provide the ``-d`` flag.
+
+To force docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``
+
+To set the dns server for all docker containers, use ``docker -d -dns 8.8.8.8``
+
+To run the daemon with debug output, use ``docker -d -D``
+
 .. _cli_attach:
 
 ``attach``
@@ -369,7 +401,13 @@ Show events in the past from a specified time
 
     Usage: docker export CONTAINER
 
-    Export the contents of a filesystem as a tar archive
+    Export the contents of a filesystem as a tar archive to STDOUT
+    
+for example:
+
+.. code-block:: bash
+
+    $ sudo docker export red_panda > latest.tar
 
 .. _cli_history:
 
@@ -591,6 +629,12 @@ might not get preserved.
 
     Insert a file from URL in the IMAGE at PATH
 
+Use the specified IMAGE as the parent for a new image which adds a
+:ref:`layer <layer_def>` containing the new file. ``insert`` does not modify 
+the original image, and the new image has the contents of the parent image, 
+plus the new file.
+
+
 Examples
 ~~~~~~~~
 
@@ -600,6 +644,7 @@ Insert file from github
 .. code-block:: bash
 
     $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
+    06fd35556d7b
 
 .. _cli_inspect:
 

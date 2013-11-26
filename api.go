@@ -254,7 +254,7 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	wf.Flush()
 	if since != 0 {
 		// If since, send previous events that happened after the timestamp
-		for _, event := range srv.events {
+		for _, event := range srv.GetEvents() {
 			if event.Time >= since {
 				err := sendEvent(wf, &event)
 				if err != nil && err.Error() == "JSON error" {

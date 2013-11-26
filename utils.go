@@ -1,13 +1,42 @@
 package docker
 
+/*
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#include <errno.h>
+
+// See linux.git/fs/btrfs/ioctl.h
+#define BTRFS_IOCTL_MAGIC 0x94
+#define BTRFS_IOC_CLONE _IOW(BTRFS_IOCTL_MAGIC, 9, int)
+
+int
+btrfs_reflink(int fd_out, int fd_in)
+{
+  int res;
+  res = ioctl(fd_out, BTRFS_IOC_CLONE, fd_in);
+  if (res < 0)
+    return errno;
+  return 0;
+}
+
+*/
+import "C"
 import (
 	"fmt"
+	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/namesgenerator"
 	"github.com/dotcloud/docker/utils"
+	"io"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 )
+
+type Change struct {
+	archive.Change
+}
 
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs
@@ -206,14 +235,23 @@ func parseLxcOpt(opt string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
+// FIXME: network related stuff (including parsing) should be grouped in network file
+const (
+	PortSpecTemplate       = "ip:hostPort:containerPort"
+	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
+)
+
 // We will receive port specs in the format of ip:public:private/proto and these need to be
 // parsed in the internal types
 func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
-	exposedPorts := make(map[Port]struct{}, len(ports))
-	bindings := make(map[Port][]PortBinding)
+	var (
+		exposedPorts = make(map[Port]struct{}, len(ports))
+		bindings     = make(map[Port][]PortBinding)
+	)
 
 	for _, rawPort := range ports {
 		proto := "tcp"
+
 		if i := strings.LastIndex(rawPort, "/"); i != -1 {
 			proto = rawPort[i+1:]
 			rawPort = rawPort[:i]
@@ -224,13 +262,16 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := utils.PartParser("ip:hostPort:containerPort", rawPort)
+		parts, err := utils.PartParser(PortSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}
-		containerPort := parts["containerPort"]
-		rawIp := parts["ip"]
-		hostPort := parts["hostPort"]
+
+		var (
+			containerPort = parts["containerPort"]
+			rawIp         = parts["ip"]
+			hostPort      = parts["hostPort"]
+		)
 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
@@ -305,6 +346,14 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	return nil
 }
 
+func BtrfsReflink(fd_out, fd_in uintptr) error {
+	res := C.btrfs_reflink(C.int(fd_out), C.int(fd_in))
+	if res != 0 {
+		return syscall.Errno(res)
+	}
+	return nil
+}
+
 // Links come in the format of
 // name:alias
 func parseLink(rawLink string) (map[string]string, error) {
@@ -336,4 +385,15 @@ func (c *checker) Exists(name string) bool {
 // Generate a random and unique name
 func generateRandomName(runtime *Runtime) (string, error) {
 	return namesgenerator.GenerateRandomName(&checker{runtime})
+}
+
+func CopyFile(dstFile, srcFile *os.File) error {
+	err := BtrfsReflink(dstFile.Fd(), srcFile.Fd())
+	if err == nil {
+		return nil
+	}
+
+	// Fall back to normal copy
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }

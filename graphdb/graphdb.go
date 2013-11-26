@@ -1,4 +1,4 @@
-package gograph
+package graphdb
 
 import (
 	"database/sql"

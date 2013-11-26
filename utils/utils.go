@@ -270,13 +270,14 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 }
 
 // Figure out the path of our dockerinit (which may be SelfPath())
-func DockerInitPath() string {
+func DockerInitPath(localCopy string) string {
 	selfPath := SelfPath()
 	if isValidDockerInitPath(selfPath, selfPath) {
 		// if we're valid, don't bother checking anything else
 		return selfPath
 	}
 	var possibleInits = []string{
+		localCopy,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
 		"/usr/libexec/docker/dockerinit",
@@ -411,7 +412,7 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 					w.buf.Write([]byte(line))
 					break
 				}
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now()})
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now().UTC()})
 				if err != nil {
 					// On error, evict the writer
 					delete(w.writers, sw)
@@ -779,14 +780,19 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
-func (jm *JSONMessage) Display(out io.Writer) error {
+func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		if jm.Error.Code == 401 {
 			return fmt.Errorf("Authentication is required.")
 		}
 		return jm.Error
 	}
-	fmt.Fprintf(out, "%c[2K\r", 27)
+	endl := ""
+	if isTerminal {
+		// <ESC>[2K = erase entire current line
+		fmt.Fprintf(out, "%c[2K\r", 27)
+		endl = "\r"
+	}
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
 	}
@@ -797,14 +803,14 @@ func (jm *JSONMessage) Display(out io.Writer) error {
 		fmt.Fprintf(out, "(from %s) ", jm.From)
 	}
 	if jm.Progress != "" {
-		fmt.Fprintf(out, "%s %s\r", jm.Status, jm.Progress)
+		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress, endl)
 	} else {
-		fmt.Fprintf(out, "%s\r\n", jm.Status)
+		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
 	}
 	return nil
 }
 
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
 	dec := json.NewDecoder(in)
 	ids := make(map[string]int)
 	diff := 0
@@ -825,11 +831,17 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer) error {
 			} else {
 				diff = len(ids) - line
 			}
-			fmt.Fprintf(out, "%c[%dA", 27, diff)
+			if isTerminal {
+				// <ESC>[{diff}A = move cursor up diff rows
+				fmt.Fprintf(out, "%c[%dA", 27, diff)
+			}
 		}
-		err := jm.Display(out)
+		err := jm.Display(out, isTerminal)
 		if jm.ID != "" {
-			fmt.Fprintf(out, "%c[%dB", 27, diff)
+			if isTerminal {
+				// <ESC>[{diff}B = move cursor down diff rows
+				fmt.Fprintf(out, "%c[%dB", 27, diff)
+			}
 		}
 		if err != nil {
 			return err
@@ -1226,12 +1238,14 @@ func IsClosedError(err error) bool {
 
 func PartParser(template, data string) (map[string]string, error) {
 	// ip:public:private
-	templateParts := strings.Split(template, ":")
-	parts := strings.Split(data, ":")
+	var (
+		templateParts = strings.Split(template, ":")
+		parts         = strings.Split(data, ":")
+		out           = make(map[string]string, len(templateParts))
+	)
 	if len(parts) != len(templateParts) {
 		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
 	}
-	out := make(map[string]string, len(templateParts))
 
 	for i, t := range templateParts {
 		value := ""
@@ -1278,4 +1292,24 @@ func GetCallerName(depth int) string {
 	parts := strings.Split(callerLongName, ".")
 	callerShortName := parts[len(parts)-1]
 	return callerShortName
+}
+
+func CopyFile(src, dst string) (int64, error) {
+	if src == dst {
+		return 0, nil
+	}
+	sf, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer sf.Close()
+	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+		return 0, err
+	}
+	df, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer df.Close()
+	return io.Copy(df, sf)
 }

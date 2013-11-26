@@ -172,7 +172,7 @@ func TestDiff(t *testing.T) {
 	// Commit the container
 	img, err := runtime.Commit(container1, "", "", "unit test commited image - diff", "", nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Create a new container from the commited image

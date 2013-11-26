@@ -4,8 +4,8 @@
 
 .. _ubuntu_linux:
 
-Ubuntu Linux
-============
+Ubuntu
+======
 
 .. warning::
 
@@ -14,15 +14,10 @@ Ubuntu Linux
 
 .. include:: install_header.inc
 
-Right now, the officially supported distribution are:
+Docker is supported on the following versions of Ubuntu:
 
 - :ref:`ubuntu_precise`
 - :ref:`ubuntu_raring`
-
-Docker has the following dependencies
-
-* Linux kernel 3.8 (read more about :ref:`kernel`)
-* AUFS file system support (we are working on BTRFS support as an alternative)
 
 Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated
 Firewall) <https://help.ubuntu.com/community/UFW>`_
@@ -70,32 +65,35 @@ Installation
 
 Docker is available as a Debian package, which makes installation easy.
 
+First add the Docker repository key to your local keychain. You can use the
+``apt-key`` command to check the fingerprint matches: ``36A1 D786 9245 C895 0F96
+6E92 D857 6A8B A88D 21E9``
 
 .. code-block:: bash
 
-   # Add the Docker repository key to your local keychain
-   # using apt-key finger you can check the fingerprint matches 36A1 D786 9245 C895 0F96 6E92 D857 6A8B A88D 21E9
    sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
 
-   # Add the Docker repository to your apt sources list.
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
-   > /etc/apt/sources.list.d/docker.list"
+Add the Docker repository to your apt sources list, update and install the
+``lxc-docker`` package. 
 
-   # Update your sources
-   sudo apt-get update
-
-   # Install, you will see another warning that the package cannot be authenticated. Confirm install.
-   sudo apt-get install lxc-docker
-
-Verify it worked
+*You may receive a warning that the package isn't trusted. Answer yes to
+continue installation.*
 
 .. code-block:: bash
 
-   # download the base 'ubuntu' container and run bash inside it while setting up an interactive shell
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   > /etc/apt/sources.list.d/docker.list"
+   sudo apt-get update
+   sudo apt-get install lxc-docker
+
+Now verify that the installation has worked by downloading the ``ubuntu`` image
+and launching a container.
+
+.. code-block:: bash
+
    sudo docker run -i -t ubuntu /bin/bash
 
-   # type 'exit' to exit
-
+Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
@@ -107,10 +105,13 @@ Ubuntu Raring 13.04 (64 bit)
 Dependencies
 ------------
 
-**AUFS filesystem support**
+**Optional AUFS filesystem support**
 
 Ubuntu Raring already comes with the 3.8 kernel, so we don't need to install it. However, not all systems
-have AUFS filesystem support enabled, so we need to install it.
+have AUFS filesystem support enabled. AUFS support is optional as of version 0.7, but it's still available as
+a driver and we recommend using it if you can.
+
+To make sure AUFS is installed, run the following commands:
 
 .. code-block:: bash
 
@@ -123,36 +124,37 @@ Installation
 
 Docker is available as a Debian package, which makes installation easy.
 
-*Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
-to follow them again.*
+.. warning::
+
+    Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
+    to follow them again.
+
+First add the Docker repository key to your local keychain. You can use the
+``apt-key`` command to check the fingerprint matches: ``36A1 D786 9245 C895 0F96
+6E92 D857 6A8B A88D 21E9``
 
 .. code-block:: bash
 
-   # Add the Docker repository key to your local keychain
-   # using apt-key finger you can check the fingerprint matches 36A1 D786 9245 C895 0F96 6E92 D857 6A8B A88D 21E9
    sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
 
-   # Add the Docker repository to your apt sources list.
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
-   > /etc/apt/sources.list.d/docker.list"
-
-   # update
-   sudo apt-get update
-
-   # install
-   sudo apt-get install lxc-docker
-
-
-Verify it worked
+Add the Docker repository to your apt sources list, update and install the
+``lxc-docker`` package.
 
 .. code-block:: bash
 
-   # download the base 'ubuntu' container
-   # and run bash inside it while setting up an interactive shell
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   > /etc/apt/sources.list.d/docker.list"
+   sudo apt-get update
+   sudo apt-get install lxc-docker
+
+Now verify that the installation has worked by downloading the ``ubuntu`` image
+and launching a container.
+
+.. code-block:: bash
+
    sudo docker run -i -t ubuntu /bin/bash
 
-   # type exit to exit
-
+Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
@@ -162,8 +164,8 @@ Verify it worked
 Docker and UFW
 ^^^^^^^^^^^^^^
 
-Docker uses a bridge to manage container networking. By default, UFW
-drops all `forwarding`, thus a first step is to enable UFW forwarding:
+Docker uses a bridge to manage container networking. By default, UFW drops all
+`forwarding` traffic. As a result will you need to enable UFW forwarding:
 
 .. code-block:: bash
 
@@ -181,9 +183,9 @@ Then reload UFW:
    sudo ufw reload
 
 
-UFW's default set of rules denied all `incoming`, so if you want to be
-able to reach your containers from another host, you should allow
-incoming connections on the docker port (default 4243):
+UFW's default set of rules denies all `incoming` traffic. If you want to be
+able to reach your containers from another host then you should allow
+incoming connections on the Docker port (default 4243):
 
 .. code-block:: bash
 

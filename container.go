@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
@@ -16,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,8 +26,8 @@ import (
 
 type Container struct {
 	sync.Mutex
-
-	root string
+	root   string // Path to the "home" of the container, including metadata.
+	rootfs string // Path to the root filesystem of the container.
 
 	ID string
 
@@ -48,6 +48,7 @@ type Container struct {
 	HostnamePath   string
 	HostsPath      string
 	Name           string
+	Driver         string
 
 	cmd       *exec.Cmd
 	stdout    *utils.WriteBroadcaster
@@ -196,8 +197,13 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
+	if err := container.EnsureMounted(); err != nil {
+		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
+	}
+
 	// Return error if path exists
-	if _, err := os.Stat(path.Join(container.rwPath(), pth)); err == nil {
+	destPath := path.Join(container.RootfsPath(), pth)
+	if _, err := os.Stat(destPath); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
 	} else if !os.IsNotExist(err) {
@@ -208,14 +214,16 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	}
 
 	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.rwPath(), path.Dir(pth)), 0755); err != nil {
+	if err := os.MkdirAll(path.Join(container.RootfsPath(), path.Dir(pth)), 0755); err != nil {
 		return err
 	}
 
-	dest, err := os.Create(path.Join(container.rwPath(), pth))
+	dest, err := os.Create(destPath)
 	if err != nil {
 		return err
 	}
+	defer dest.Close()
+
 	if _, err := io.Copy(dest, file); err != nil {
 		return err
 	}
@@ -607,6 +615,7 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
+	volumesDriver := container.runtime.volumes.driver
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
 		volPath = path.Clean(volPath)
@@ -626,13 +635,17 @@ func (container *Container) Start() (err error) {
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
-			c, err := container.runtime.volumes.Create(nil, container, "", "", nil)
+
+			// Do not pass a container as the parameter for the volume creation.
+			// The graph driver using the container's information ( Image ) to
+			// create the parent.
+			c, err := container.runtime.volumes.Create(nil, nil, "", "", nil)
 			if err != nil {
 				return err
 			}
-			srcPath, err = c.layer()
+			srcPath, err = volumesDriver.Get(c.ID)
 			if err != nil {
-				return err
+				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
 			}
 			srcRW = true // RW by default
 		}
@@ -1231,15 +1244,14 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
-	return archive.Tar(container.rwPath(), archive.Uncompressed)
-}
-
-func (container *Container) RwChecksum() (string, error) {
-	rwData, err := archive.Tar(container.rwPath(), archive.Xz)
-	if err != nil {
-		return "", err
+	if err := container.EnsureMounted(); err != nil {
+		return nil, err
 	}
-	return utils.HashData(rwData)
+	if container.runtime == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
+	}
+
+	return container.runtime.Diff(container)
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -1265,28 +1277,17 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 }
 
 func (container *Container) EnsureMounted() error {
-	if mounted, err := container.Mounted(); err != nil {
-		return err
-	} else if mounted {
-		return nil
-	}
+	// FIXME: EnsureMounted is deprecated because drivers are now responsible
+	// for re-entrant mounting in their Get() method.
 	return container.Mount()
 }
 
 func (container *Container) Mount() error {
-	image, err := container.GetImage()
-	if err != nil {
-		return err
-	}
-	return image.Mount(container.RootfsPath(), container.rwPath())
+	return container.runtime.Mount(container)
 }
 
-func (container *Container) Changes() ([]Change, error) {
-	image, err := container.GetImage()
-	if err != nil {
-		return nil, err
-	}
-	return image.Changes(container.rwPath())
+func (container *Container) Changes() ([]archive.Change, error) {
+	return container.runtime.Changes(container)
 }
 
 func (container *Container) GetImage() (*Image, error) {
@@ -1296,18 +1297,8 @@ func (container *Container) GetImage() (*Image, error) {
 	return container.runtime.graph.Get(container.Image)
 }
 
-func (container *Container) Mounted() (bool, error) {
-	return Mounted(container.RootfsPath())
-}
-
 func (container *Container) Unmount() error {
-	if _, err := os.Stat(container.RootfsPath()); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	return Unmount(container.RootfsPath())
+	return container.runtime.Unmount(container)
 }
 
 func (container *Container) logPath(name string) string {
@@ -1336,11 +1327,7 @@ func (container *Container) lxcConfigPath() string {
 
 // This method must be exported to be used from the lxc template
 func (container *Container) RootfsPath() string {
-	return path.Join(container.root, "rootfs")
-}
-
-func (container *Container) rwPath() string {
-	return path.Join(container.root, "rw")
+	return container.rootfs
 }
 
 func validateID(id string) error {
@@ -1352,49 +1339,38 @@ func validateID(id string) error {
 
 // GetSize, return real size, virtual size
 func (container *Container) GetSize() (int64, int64) {
-	var sizeRw, sizeRootfs int64
-	data := make(map[uint64]bool)
+	var (
+		sizeRw, sizeRootfs int64
+		err                error
+		driver             = container.runtime.driver
+	)
 
-	filepath.Walk(container.rwPath(), func(path string, fileInfo os.FileInfo, err error) error {
-		if fileInfo == nil {
-			return nil
+	if err := container.EnsureMounted(); err != nil {
+		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
+		return sizeRw, sizeRootfs
+	}
+
+	if differ, ok := container.runtime.driver.(graphdriver.Differ); ok {
+		sizeRw, err = differ.DiffSize(container.ID)
+		if err != nil {
+			utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+			// FIXME: GetSize should return an error. Not changing it now in case
+			// there is a side-effect.
+			sizeRw = -1
 		}
-		size := fileInfo.Size()
-		if size == 0 {
-			return nil
+	} else {
+		changes, _ := container.Changes()
+		if changes != nil {
+			sizeRw = archive.ChangesSize(container.RootfsPath(), changes)
+		} else {
+			sizeRw = -1
 		}
+	}
 
-		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		if _, entryExists := data[inode]; entryExists {
-			return nil
+	if _, err = os.Stat(container.RootfsPath()); err != nil {
+		if sizeRootfs, err = utils.TreeSize(container.RootfsPath()); err != nil {
+			sizeRootfs = -1
 		}
-		data[inode] = false
-
-		sizeRw += size
-		return nil
-	})
-
-	data = make(map[uint64]bool)
-	_, err := os.Stat(container.RootfsPath())
-	if err == nil {
-		filepath.Walk(container.RootfsPath(), func(path string, fileInfo os.FileInfo, err error) error {
-			if fileInfo == nil {
-				return nil
-			}
-			size := fileInfo.Size()
-			if size == 0 {
-				return nil
-			}
-
-			inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-			if _, entryExists := data[inode]; entryExists {
-				return nil
-			}
-			data[inode] = false
-
-			sizeRootfs += size
-			return nil
-		})
 	}
 	return sizeRw, sizeRootfs
 }
@@ -1417,7 +1393,11 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return archive.TarFilter(basePath, archive.Uncompressed, filter)
+	return archive.TarFilter(basePath, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		Includes:    filter,
+		Recursive:   true,
+	})
 }
 
 // Returns true if the container exposes a certain port

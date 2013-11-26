@@ -37,13 +37,24 @@ DEFAULT_BUNDLES=(
 	test
 	dynbinary
 	dyntest
+	tgz
 	ubuntu
 )
 
 VERSION=$(cat ./VERSION)
-GITCOMMIT=$(git rev-parse --short HEAD)
-if [ -n "$(git status --porcelain)" ]; then
-	GITCOMMIT="$GITCOMMIT-dirty"
+if [ -d .git ] && command -v git &> /dev/null; then
+	GITCOMMIT=$(git rev-parse --short HEAD)
+	if [ -n "$(git status --porcelain)" ]; then
+		GITCOMMIT="$GITCOMMIT-dirty"
+	fi
+elif [ "$DOCKER_GITCOMMIT" ]; then
+	GITCOMMIT="$DOCKER_GITCOMMIT"
+else
+	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
+	echo >&2 '  Please either build with the .git directory accessible, or specify the'
+	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
+	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
+	exit 1
 fi
 
 # Use these flags when compiling the tests and final binary
