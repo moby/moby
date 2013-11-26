@@ -33,12 +33,15 @@ func main() {
 	flRoot := flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime")
 	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS headers in the remote API")
 	flDns := flag.String("dns", "", "Force docker to use specific DNS servers")
-	flHosts := utils.ListOpts{fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)}
-	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
+
 	flEnableIptables := flag.Bool("iptables", true, "Disable docker's addition of iptables rules")
 	flDefaultIp := flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
 	flInterContainerComm := flag.Bool("icc", true, "Enable inter-container communication")
 	flGraphDriver := flag.String("s", "", "Force the docker runtime to use a specific storage driver")
+
+	flHosts := docker.ListOpts{}
+	flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
+	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
 
 	flag.Parse()
 
@@ -46,13 +49,14 @@ func main() {
 		showVersion()
 		return
 	}
-	if len(flHosts) > 1 {
-		flHosts = flHosts[1:] //trick to display a nice default value in the usage
-	}
-	for i, flHost := range flHosts {
+	// if flHosts.Len() > 1 {
+	// 	flHosts = flHosts[1:] //trick to display a nice default value in the usage
+	// }
+	for _, flHost := range flHosts.GetAll() {
 		host, err := utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
 		if err == nil {
-			flHosts[i] = host
+			flHosts.Set(host)
+			flHosts.Delete(flHost)
 		} else {
 			log.Fatal(err)
 		}
@@ -88,16 +92,16 @@ func main() {
 			log.Fatal(err)
 		}
 		// Serve api
-		job = eng.Job("serveapi", flHosts...)
+		job = eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		if len(flHosts) > 1 {
+		if flHosts.Len() > 1 {
 			log.Fatal("Please specify only one -H")
 		}
-		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
+		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
 		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
 				os.Exit(sterr.Status)
