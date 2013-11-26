@@ -112,7 +112,7 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 	img := &Image{
 		ID:            GenerateID(),
 		Comment:       comment,
-		Created:       time.Now(),
+		Created:       time.Now().UTC(),
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,

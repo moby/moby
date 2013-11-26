@@ -84,12 +84,12 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 				return err
 			}
 		} else {
-			start := time.Now()
+			start := time.Now().UTC()
 			utils.Debugf("Start untar layer")
 			if err := archive.ApplyLayer(layer, layerData); err != nil {
 				return err
 			}
-			utils.Debugf("Untar time: %vs", time.Now().Sub(start).Seconds())
+			utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 			if img.Parent == "" {
 				if size, err = utils.TreeSize(layer); err != nil {
