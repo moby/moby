@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 (2013-11-25)
+
+#### Notable features since 0.6.0
+
+* Storage drivers: choose from aufs, device mapper, vfs or btrfs.
+* Standard Linux support: docker now runs on unmodified linux kernels and all major distributions.
+* Links: compose complex software stacks by connecting containers to each other.
+* Container naming: organize your containers by giving them memorable names.
+* Advanced port redirects: specify port redirects per interface, or keep sensitive ports private.
+* Offline transfer: push and pull images to the filesystem without losing information.
+* Quality: numerous bugfixes and small usability improvements. Significant increase in test coverage.
+
 ## 0.6.7 (2013-11-21)
 
 #### Runtime
