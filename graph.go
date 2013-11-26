@@ -363,3 +363,7 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
 }
+
+func (graph *Graph) Driver() graphdriver.Driver {
+	return graph.driver
+}
