@@ -71,9 +71,8 @@ func TestInterruptedRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	go graph.Register(nil, badArchive, image)
-	time.Sleep(200 * time.Millisecond)
 	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
+	graph.Register(nil, badArchive, image)
 	if _, err := graph.Get(image.ID); err == nil {
 		t.Fatal("Image should not exist after Register is interrupted")
 	}
