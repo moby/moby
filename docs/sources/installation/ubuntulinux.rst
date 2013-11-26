@@ -14,15 +14,10 @@ Ubuntu Linux
 
 .. include:: install_header.inc
 
-Right now, the officially supported distribution are:
+Docker is supported on the following versions of Ubuntu:
 
 - :ref:`ubuntu_precise`
 - :ref:`ubuntu_raring`
-
-Docker has the following dependencies
-
-* Linux kernel 3.8 (read more about :ref:`kernel`)
-* AUFS file system support (we are working on BTRFS support as an alternative)
 
 Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated
 Firewall) <https://help.ubuntu.com/community/UFW>`_
@@ -107,10 +102,13 @@ Ubuntu Raring 13.04 (64 bit)
 Dependencies
 ------------
 
-**AUFS filesystem support**
+**Optional AUFS filesystem support**
 
 Ubuntu Raring already comes with the 3.8 kernel, so we don't need to install it. However, not all systems
-have AUFS filesystem support enabled, so we need to install it.
+have AUFS filesystem support enabled. AUFS support is optional as of version 0.7, but it's still available as
+a driver and we recommend using it if you can.
+
+To make sure aufs is installed, run the following commands:
 
 .. code-block:: bash
 
