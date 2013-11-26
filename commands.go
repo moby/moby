@@ -1650,11 +1650,12 @@ func (opts AttachOpts) Set(val string) error {
 // LinkOpts stores arguments to `docker run -link`
 type LinkOpts []string
 
-func (link LinkOpts) String() string { return fmt.Sprintf("%v", []string(link)) }
-func (link LinkOpts) Set(val string) error {
+func (link *LinkOpts) String() string { return fmt.Sprintf("%v", []string(*link)) }
+func (link *LinkOpts) Set(val string) error {
 	if _, err := parseLink(val); err != nil {
 		return err
 	}
+	*link = append(*link, val)
 	return nil
 }
 
@@ -1760,7 +1761,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 
 	cmd.Var(flAttach, "a", "Attach to stdin, stdout or stderr.")
 	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
-	cmd.Var(flLinks, "link", "Add link to another container (name:alias)")
+	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 
 	cmd.Var(&flPublish, "p", fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", PortSpecTemplateFormat))
 	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
