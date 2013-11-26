@@ -1,11 +1,15 @@
 :title: Installation on Arch Linux
-:description: Docker installation on Arch Linux. 
+:description: Docker installation on Arch Linux.
 :keywords: arch linux, virtualization, docker, documentation, installation
 
 .. _arch_linux:
 
 Arch Linux
 ==========
+
+.. include:: install_header.inc
+
+.. include:: install_unofficial.inc
 
 Installing on Arch Linux is not officially supported but can be handled via 
 either of the following AUR packages:
@@ -31,10 +35,6 @@ either AUR package.
 
 Installation
 ------------
-
-.. include:: install_header.inc
-
-.. include:: install_unofficial.inc
 
 The instructions here assume **yaourt** is installed.  See 
 `Arch User Repository <https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages>`_
