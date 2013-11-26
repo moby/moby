@@ -100,3 +100,21 @@ func grepFile(t *testing.T, path string, pattern string) {
 	}
 	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
 }
+
+func TestEscapeFstabSpaces(t *testing.T) {
+	var testInputs = map[string]string{
+		" ":                      "\\040",
+		"":                       "",
+		"/double  space":         "/double\\040\\040space",
+		"/some long test string": "/some\\040long\\040test\\040string",
+		"/var/lib/docker":        "/var/lib/docker",
+		" leading":               "\\040leading",
+		"trailing ":              "trailing\\040",
+	}
+	for in, exp := range testInputs {
+		if out := escapeFstabSpaces(in); exp != out {
+			t.Logf("Expected %s got %s", exp, out)
+			t.Fail()
+		}
+	}
+}
