@@ -2,7 +2,6 @@
 :description: Installing Docker on Ubuntu proviced by Rackspace
 :keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 
-===============
 Rackspace Cloud
 ===============
 
@@ -14,14 +13,14 @@ straightforward, and you should mostly be able to follow the
 
 **However, there is one caveat:**
 
-If you are using any linux not already shipping with the 3.8 kernel
+If you are using any Linux not already shipping with the 3.8 kernel
 you will need to install it. And this is a little more difficult on
 Rackspace.
 
 Rackspace boots their servers using grub's ``menu.lst`` and does not
-like non 'virtual' packages (e.g. xen compatible) kernels there,
-although they do work. This makes ``update-grub`` to not have the
-expected result, and you need to set the kernel manually.
+like non 'virtual' packages (e.g. Xen compatible) kernels there,
+although they do work. This results in ``update-grub`` not having the
+expected result, and you will need to set the kernel manually.
 
 **Do not attempt this on a production machine!**
 
@@ -34,7 +33,7 @@ expected result, and you need to set the kernel manually.
     apt-get install linux-generic-lts-raring
 
 
-Great, now you have kernel installed in ``/boot/``, next is to make it
+Great, now you have the kernel installed in ``/boot/``, next you need to make it
 boot next time.
 
 .. code-block:: bash
@@ -48,9 +47,9 @@ boot next time.
 Now you need to manually edit ``/boot/grub/menu.lst``, you will find a
 section at the bottom with the existing options.  Copy the top one and
 substitute the new kernel into that. Make sure the new kernel is on
-top, and double check kernel and initrd point to the right files.
+top, and double check the kernel and initrd lines point to the right files.
 
-Make special care to double check the kernel and initrd entries.
+Take special care to double check the kernel and initrd entries.
 
 .. code-block:: bash
 
@@ -79,7 +78,7 @@ It will probably look something like this:
      initrd		/boot/initrd.img-3.2.0-38-virtual
 
 
-Reboot server (either via command line or console)
+Reboot the server (either via command line or console)
 
 .. code-block:: bash
 
