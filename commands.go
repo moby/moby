@@ -2195,7 +2195,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := cli.Subcmd("save", "IMAGE DESTINATION", "Save an image to a tar archive")
+	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout)")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
