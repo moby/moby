@@ -647,10 +647,19 @@ type Registry struct {
 	reqFactory *utils.HTTPRequestFactory
 }
 
-func NewRegistry(root string, authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory) (r *Registry, err error) {
+func NewRegistry(root, proxy string, authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory) (r *Registry, err error) {
+	proxyFunc := http.ProxyFromEnvironment
+
+	if proxy != "" {
+		u, err := url.Parse(proxy)
+		if err == nil {
+			proxyFunc = http.ProxyURL(u)
+		}
+	}
+
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
-		Proxy:             http.ProxyFromEnvironment,
+		Proxy:             proxyFunc,
 	}
 
 	r = &Registry{

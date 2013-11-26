@@ -16,6 +16,7 @@ type DaemonConfig struct {
 	BridgeIface                 string
 	DefaultIp                   net.IP
 	InterContainerCommunication bool
+	ProxyUrl                    string
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -37,5 +38,6 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	}
 	config.DefaultIp = net.ParseIP(job.Getenv("DefaultIp"))
 	config.InterContainerCommunication = job.GetenvBool("InterContainerCommunication")
+	config.ProxyUrl = job.Getenv("ProxyUrl")
 	return &config
 }
