@@ -38,6 +38,7 @@ type Capabilities struct {
 
 type Runtime struct {
 	repository     string
+	sysInitPath    string
 	containers     *list.List
 	networkManager *NetworkManager
 	graph          *Graph
@@ -404,11 +405,6 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, fmt.Errorf("No command specified")
 	}
 
-	sysInitPath := utils.DockerInitPath()
-	if sysInitPath == "" {
-		return nil, nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
-	}
-
 	// Generate id
 	id := GenerateID()
 
@@ -459,7 +455,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		// FIXME: do we need to store this in the container?
-		SysInitPath: sysInitPath,
+		SysInitPath: runtime.sysInitPath,
 		Name:        name,
 		Driver:      runtime.driver.String(),
 	}
@@ -701,6 +697,26 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
+	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", VERSION))
+	sysInitPath := utils.DockerInitPath(localCopy)
+	if sysInitPath == "" {
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+	}
+
+	if !utils.IAMSTATIC {
+		if err := os.Mkdir(path.Join(config.Root, fmt.Sprintf("init")), 0700); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
+		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
+			return nil, err
+		}
+		sysInitPath = localCopy
+		if err := os.Chmod(sysInitPath, 0700); err != nil {
+			return nil, err
+		}
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -713,6 +729,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		config:         config,
 		containerGraph: graph,
 		driver:         driver,
+		sysInitPath:    sysInitPath,
 	}
 
 	if err := runtime.restore(); err != nil {
