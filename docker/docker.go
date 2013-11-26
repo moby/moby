@@ -38,10 +38,8 @@ func main() {
 		flDefaultIp          = flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
 		flInterContainerComm = flag.Bool("icc", true, "Enable inter-container communication")
 		flGraphDriver        = flag.String("s", "", "Force the docker runtime to use a specific storage driver")
-
-		flHosts = docker.ListOpts{}
+		flHosts              = docker.NewListOpts(docker.ValidateHost)
 	)
-	flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
 	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
 
 	flag.Parse()
@@ -50,17 +48,9 @@ func main() {
 		showVersion()
 		return
 	}
-	// if flHosts.Len() > 1 {
-	// 	flHosts = flHosts[1:] //trick to display a nice default value in the usage
-	// }
-	for _, flHost := range flHosts.GetAll() {
-		host, err := utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
-		if err == nil {
-			flHosts.Set(host)
-			flHosts.Delete(flHost)
-		} else {
-			log.Fatal(err)
-		}
+	if flHosts.Len() == 0 {
+		// If we do not have a host, default to unix socket
+		flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
 	}
 
 	if *flDebug {
