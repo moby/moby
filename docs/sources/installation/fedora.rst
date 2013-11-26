@@ -7,6 +7,10 @@
 Fedora
 ======
 
+.. include:: install_header.inc
+
+.. include:: install_unofficial.inc
+
 .. warning::
 
    This is a placeholder for the Fedora installation instructions. Currently there is not an available
