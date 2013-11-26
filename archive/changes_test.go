@@ -71,17 +71,27 @@ func createSampleDir(t *testing.T, root string) {
 		{Symlink, "symlink1", "target1", 0666},
 		{Symlink, "symlink2", "target2", 0666},
 	}
+
+	now := time.Now()
 	for _, info := range files {
+		p := path.Join(root, info.path)
 		if info.filetype == Dir {
-			if err := os.MkdirAll(path.Join(root, info.path), info.permissions); err != nil {
+			if err := os.MkdirAll(p, info.permissions); err != nil {
 				t.Fatal(err)
 			}
 		} else if info.filetype == Regular {
-			if err := ioutil.WriteFile(path.Join(root, info.path), []byte(info.contents), info.permissions); err != nil {
+			if err := ioutil.WriteFile(p, []byte(info.contents), info.permissions); err != nil {
 				t.Fatal(err)
 			}
 		} else if info.filetype == Symlink {
-			if err := os.Symlink(info.contents, path.Join(root, info.path)); err != nil {
+			if err := os.Symlink(info.contents, p); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		if info.filetype != Symlink {
+			// Set a consistent ctime, atime for all files and dirs
+			if err := os.Chtimes(p, now, now); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -200,6 +210,9 @@ func TestChangesDirsMutated(t *testing.T) {
 	if err := copyDir(src, dst); err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(src)
+	defer os.RemoveAll(dst)
+
 	mutateSampleDir(t, dst)
 
 	changes, err := ChangesDirs(dst, src)
@@ -225,8 +238,7 @@ func TestChangesDirsMutated(t *testing.T) {
 		{"/symlinknew", ChangeAdd},
 	}
 
-	i := 0
-	for ; i < max(len(changes), len(expectedChanges)); i++ {
+	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
 		if i >= len(expectedChanges) {
 			t.Fatalf("unexpected change %s\n", changes[i].String())
 		}
@@ -240,14 +252,9 @@ func TestChangesDirsMutated(t *testing.T) {
 		} else if changes[i].Path < expectedChanges[i].Path {
 			t.Fatalf("unexpected change %s\n", changes[i].String())
 		} else {
-			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
+			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
 		}
 	}
-	for ; i < len(expectedChanges); i++ {
-	}
-
-	os.RemoveAll(src)
-	os.RemoveAll(dst)
 }
 
 func TestApplyLayer(t *testing.T) {
