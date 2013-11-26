@@ -2009,8 +2009,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if body, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config); err != nil {
 			return err
 		}
-	}
-	if err != nil {
+	} else if err != nil {
 		return err
 	}
 
