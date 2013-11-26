@@ -4,8 +4,8 @@
 
 .. _ubuntu_linux:
 
-Ubuntu Linux
-============
+Ubuntu
+======
 
 .. warning::
 

@@ -4,8 +4,8 @@
 
 .. _gentoo_linux:
 
-Gentoo Linux
-============
+Gentoo
+======
 
 .. include:: install_header.inc
 
