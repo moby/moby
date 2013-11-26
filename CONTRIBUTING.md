@@ -64,7 +64,7 @@ your branch before submitting a pull request.
 
 Update the documentation when creating or modifying features. Test
 your documentation changes for clarity, concision, and correctness, as
-well as a clean docmuent build. See ``docs/README.md`` for more
+well as a clean documentation build. See ``docs/README.md`` for more
 information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
