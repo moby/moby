@@ -131,7 +131,15 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) error {
+func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) (err error) {
+	defer func() {
+		// If any error occurs, remove the new dir from the driver.
+		// Don't check for errors since the dir might not have been created.
+		// FIXME: this leaves a possible race condition.
+		if err != nil {
+			graph.driver.Remove(img.ID)
+		}
+	}()
 	if err := ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -146,6 +154,12 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err := os.RemoveAll(graph.imageRoot(img.ID)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
+	// If the driver has this ID but the graph doesn't, remove it from the driver to start fresh.
+	// (the graph is the source of truth).
+	// Ignore errors, since we don't know if the driver correctly returns ErrNotExist.
+	// (FIXME: make that mandatory for drivers).
+	graph.driver.Remove(img.ID)
 
 	tmp, err := graph.Mktemp("")
 	defer os.RemoveAll(tmp)
@@ -362,4 +376,8 @@ func (graph *Graph) Heads() (map[string]*Image, error) {
 
 func (graph *Graph) imageRoot(id string) string {
 	return path.Join(graph.Root, id)
+}
+
+func (graph *Graph) Driver() graphdriver.Driver {
+	return graph.driver
 }
