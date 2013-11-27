@@ -31,6 +31,7 @@ import (
 	"strings"
 	"syscall"
 	"text/tabwriter"
+	"text/template"
 	"time"
 )
 
@@ -632,6 +633,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container/image")
+	tmplStr := cmd.String("format", "", "Format the output using the given go template.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -640,10 +642,21 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		return nil
 	}
 
+	var tmpl *template.Template
+	if *tmplStr != "" {
+		var err error
+		if tmpl, err = template.New("").Parse(*tmplStr); err != nil {
+			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
+			return &utils.StatusError{StatusCode: 64,
+				Status: "Template parsing error: " + err.Error()}
+		}
+	}
+
 	indented := new(bytes.Buffer)
+	indented.WriteByte('[')
 	status := 0
 
-	for _, name := range args {
+	for _, name := range cmd.Args() {
 		obj, _, err := cli.call("GET", "/containers/"+name+"/json", nil)
 		if err != nil {
 			obj, _, err = cli.call("GET", "/images/"+name+"/json", nil)
@@ -658,23 +671,40 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 			}
 		}
 
-		if err = json.Indent(indented, obj, "", "    "); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			status = 1
-			continue
+		if tmpl == nil {
+			if err = json.Indent(indented, obj, "", "    "); err != nil {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				status = 1
+				continue
+			}
+		} else {
+			// Has template, will render
+			var value interface{}
+			if err := json.Unmarshal(obj, &value); err != nil {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				status = 1
+				continue
+			}
+			if err := tmpl.Execute(cli.out, value); err != nil {
+				return err
+			}
+			cli.out.Write([]byte{'\n'})
 		}
 		indented.WriteString(",")
 	}
 
-	if indented.Len() > 0 {
+	if indented.Len() > 1 {
 		// Remove trailing ','
 		indented.Truncate(indented.Len() - 1)
 	}
-	fmt.Fprintf(cli.out, "[")
-	if _, err := io.Copy(cli.out, indented); err != nil {
-		return err
+	indented.WriteByte(']')
+
+	if tmpl == nil {
+		if _, err := io.Copy(cli.out, indented); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintf(cli.out, "]")
+
 	if status != 0 {
 		return &utils.StatusError{StatusCode: status}
 	}
