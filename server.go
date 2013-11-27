@@ -988,11 +988,15 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 
 	out = utils.NewWriteFlusher(out)
 
-	if c, err := srv.poolAdd("pull", localName+":"+tag); err != nil {
-		// Another pull of the same repository is already taking place; just wait for it to finish
-		out.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
-		<-c
-		return nil
+	c, err := srv.poolAdd("pull", localName+":"+tag)
+	if err != nil {
+		if c != nil {
+			// Another pull of the same repository is already taking place; just wait for it to finish
+			out.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
+			<-c
+			return nil
+		}
+		return err
 	}
 	defer srv.poolRemove("pull", localName+":"+tag)
 
