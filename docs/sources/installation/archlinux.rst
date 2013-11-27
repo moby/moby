@@ -26,8 +26,8 @@ Dependencies
 Docker depends on several packages which are specified as dependencies in
 either AUR package.
 
-* aufs3
 * bridge-utils
+* device-mapper
 * go
 * iproute2
 * lxc
