@@ -167,30 +167,6 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
 
-	if config.EnableIptables {
-		// Enable NAT
-		if output, err := iptables.Raw("-t", "nat", "-A", "POSTROUTING", "-s", ifaceAddr,
-			"!", "-d", ifaceAddr, "-j", "MASQUERADE"); err != nil {
-			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables postrouting: %s", output)
-		}
-
-		// Accept incoming packets for existing connections
-		if output, err := iptables.Raw("-I", "FORWARD", "-o", config.BridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"); err != nil {
-			return fmt.Errorf("Unable to allow incoming packets: %s", err)
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow incoming: %s", output)
-		}
-
-		// Accept all non-intercontainer outgoing packets
-		if output, err := iptables.Raw("-I", "FORWARD", "-i", config.BridgeIface, "!", "-o", config.BridgeIface, "-j", "ACCEPT"); err != nil {
-			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow outgoing: %s", output)
-		}
-
-	}
 	return nil
 }
 
@@ -699,6 +675,40 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 
 	// Configure iptables for link support
 	if config.EnableIptables {
+
+		// Enable NAT
+		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
+
+		if !iptables.Exists(natArgs...) {
+			if output, err := iptables.Raw(append([]string{"-A"}, natArgs...)...); err != nil {
+				return nil, fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+			} else if len(output) != 0 {
+				return nil, fmt.Errorf("Error iptables postrouting: %s", output)
+			}
+		}
+
+		// Accept incoming packets for existing connections
+		existingArgs := []string{"FORWARD", "-o", config.BridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+
+		if !iptables.Exists(existingArgs...) {
+			if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
+				return nil, fmt.Errorf("Unable to allow incoming packets: %s", err)
+			} else if len(output) != 0 {
+				return nil, fmt.Errorf("Error iptables allow incoming: %s", output)
+			}
+		}
+
+		// Accept all non-intercontainer outgoing packets
+		outgoingArgs := []string{"FORWARD", "-i", config.BridgeIface, "!", "-o", config.BridgeIface, "-j", "ACCEPT"}
+
+		if !iptables.Exists(outgoingArgs...) {
+			if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+				return nil, fmt.Errorf("Unable to allow outgoing packets: %s", err)
+			} else if len(output) != 0 {
+				return nil, fmt.Errorf("Error iptables allow outgoing: %s", output)
+			}
+		}
+
 		args := []string{"FORWARD", "-i", config.BridgeIface, "-o", config.BridgeIface, "-j"}
 		acceptArgs := append(args, "ACCEPT")
 		dropArgs := append(args, "DROP")
