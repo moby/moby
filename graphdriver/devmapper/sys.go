@@ -19,7 +19,11 @@ var (
 	sysCloseOnExec = syscall.CloseOnExec
 	sysSyscall     = syscall.Syscall
 
-	osOpenFile   = os.OpenFile
+	osOpenFile = func(name string, flag int, perm os.FileMode) (*osFile, error) {
+		f, err := os.OpenFile(name, flag, perm)
+		return &osFile{File: f}, err
+	}
+	osOpen       = func(name string) (*osFile, error) { f, err := os.Open(name); return &osFile{File: f}, err }
 	osNewFile    = os.NewFile
 	osCreate     = os.Create
 	osStat       = os.Stat
@@ -40,7 +44,9 @@ const (
 	sysMsRdOnly = syscall.MS_RDONLY
 	sysEInval   = syscall.EINVAL
 	sysSysIoctl = syscall.SYS_IOCTL
+	sysEBusy    = syscall.EBUSY
 
+	osORdOnly = os.O_RDONLY
 	osORdWr   = os.O_RDWR
 	osOCreate = os.O_CREATE
 )
