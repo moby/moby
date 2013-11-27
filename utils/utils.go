@@ -279,9 +279,16 @@ func DockerInitPath(localCopy string) string {
 	var possibleInits = []string{
 		localCopy,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
-		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+
+		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec
 		"/usr/libexec/docker/dockerinit",
 		"/usr/local/libexec/docker/dockerinit",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/lib/docker/dockerinit",
+		"/usr/local/lib/docker/dockerinit",
 	}
 	for _, dockerInit := range possibleInits {
 		path, err := exec.LookPath(dockerInit)
