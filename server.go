@@ -1098,11 +1098,16 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, len(localRepo)))
 		// This section can not be parallelized (each round depends on the previous one)
-		for _, round := range imgList {
+		for i, round := range imgList {
 			// FIXME: This section can be parallelized
 			for _, elem := range round {
 				var pushTags func() error
 				pushTags = func() error {
+					if i < (len(imgList) - 1) {
+						// Only tag the top layer in the repository
+						return nil
+					}
+
 					out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
 					if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 						return err
