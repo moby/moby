@@ -25,7 +25,7 @@ import (
 )
 
 // Set the max depth to the aufs restriction
-const MaxImageDepth = 42
+const AUFSMaxImageDepth = 42
 
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
 
@@ -371,8 +371,10 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	if depth+2 >= MaxImageDepth {
-		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+	if runtime.driver.String() == "aufs" {
+		if depth+2 >= AUFSMaxImageDepth {
+			return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", AUFSMaxImageDepth)
+		}
 	}
 
 	checkDeprecatedExpose := func(config *Config) bool {
