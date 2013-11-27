@@ -30,7 +30,6 @@ either AUR package.
 * bridge-utils
 * go
 * iproute2
-* linux-aufs_friendly
 * lxc
 
 Installation
@@ -41,9 +40,6 @@ The instructions here assume **yaourt** is installed.  See
 for information on building and installing packages from the AUR if you have not
 done so before.
 
-Keep in mind that if **linux-aufs_friendly** is not already installed that a
-new kernel will be compiled and this can take quite a while.
-
 ::
 
     yaourt -S lxc-docker-git
@@ -51,9 +47,6 @@ new kernel will be compiled and this can take quite a while.
 
 Starting Docker
 ---------------
-
-Prior to starting docker modify your bootloader to use the 
-**linux-aufs_friendly** kernel and reboot your system.
 
 There is a systemd service unit created for docker.  To start the docker service:
 
