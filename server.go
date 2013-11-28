@@ -1417,19 +1417,15 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
-func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
+func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi, byParents map[string][]*Image) error {
 	// If the image is referenced by a repo, do not delete
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
 	}
 	// If the image is not referenced but has children, go recursive
 	referenced := false
-	byParents, err := srv.runtime.graph.ByParent()
-	if err != nil {
-		return err
-	}
 	for _, img := range byParents[id] {
-		if err := srv.deleteImageAndChildren(img.ID, imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.ID, imgs, byParents); err != nil {
 			if err != ErrImageReferenced {
 				return err
 			}
@@ -1441,7 +1437,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	}
 
 	// If the image is not referenced and has no children, remove it
-	byParents, err = srv.runtime.graph.ByParent()
+	byParents, err := srv.runtime.graph.ByParent()
 	if err != nil {
 		return err
 	}
@@ -1466,8 +1462,12 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 		if err != nil {
 			return err
 		}
+		byParents, err := srv.runtime.graph.ByParent()
+		if err != nil {
+			return err
+		}
 		// Remove all children images
-		if err := srv.deleteImageAndChildren(img.Parent, imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.Parent, imgs, byParents); err != nil {
 			return err
 		}
 		return srv.deleteImageParents(parent, imgs)
@@ -1509,7 +1509,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 		}
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
-		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.ID, &imgs, nil); err != nil {
 			if err != ErrImageReferenced {
 				return imgs, err
 			}
