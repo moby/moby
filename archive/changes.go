@@ -181,7 +181,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
 				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				oldStat.Mtim != newStat.Mtim {
+				getLastModification(oldStat) != getLastModification(newStat) {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,

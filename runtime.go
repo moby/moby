@@ -422,7 +422,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		if strings.HasSuffix(err.Error(), "name are not unique") {
 			conflictingContainer, _ := runtime.GetByName(name)
-			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", name, utils.TruncateID(conflictingContainer.ID), name)
+			nameAsKnownByUser := strings.TrimPrefix(name, "/")
+			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser, utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
 		}
 		return nil, nil, err
 	}
