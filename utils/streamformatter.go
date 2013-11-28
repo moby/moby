@@ -60,7 +60,11 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgr
 		}
 		return b
 	}
-	return []byte(action + " " + progress.String() + "\r")
+	endl := "\r"
+	if progress.String() == "" {
+		endl += "\n"
+	}
+	return []byte(action + " " + progress.String() + endl)
 }
 
 func (sf *StreamFormatter) Used() bool {
