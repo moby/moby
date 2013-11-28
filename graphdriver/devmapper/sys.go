@@ -46,9 +46,10 @@ const (
 	sysSysIoctl = syscall.SYS_IOCTL
 	sysEBusy    = syscall.EBUSY
 
-	osORdOnly = os.O_RDONLY
-	osORdWr   = os.O_RDWR
-	osOCreate = os.O_CREATE
+	osORdOnly    = os.O_RDONLY
+	osORdWr      = os.O_RDWR
+	osOCreate    = os.O_CREATE
+	osModeDevice = os.ModeDevice
 )
 
 func toSysStatT(i interface{}) *sysStatT {

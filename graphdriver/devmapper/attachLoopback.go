@@ -39,8 +39,9 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 			return nil, ErrAttachLoopbackDevice
 		}
 
-		// FIXME: Check here if target is a block device (in C: S_ISBLK(mode))
-		if fi.IsDir() {
+		if fi.Mode()&osModeDevice != osModeDevice {
+			utils.Errorf("Loopback device %s is not a block device.", target)
+			continue
 		}
 
 		// Open the targeted loopback (use OpenFile because Open sets O_CLOEXEC)
