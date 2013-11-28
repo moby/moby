@@ -1666,8 +1666,11 @@ func (opts PathOpts) String() string { return fmt.Sprintf("%v", map[string]struc
 func (opts PathOpts) Set(val string) error {
 	var containerPath string
 
-	splited := strings.SplitN(val, ":", 2)
-	if len(splited) == 1 {
+	if strings.Count(val, ":") > 2 {
+		return fmt.Errorf("bad format for volumes: %s", val)
+	}
+
+	if splited := strings.SplitN(val, ":", 2); len(splited) == 1 {
 		containerPath = splited[0]
 		val = filepath.Clean(splited[0])
 	} else {
@@ -1680,6 +1683,7 @@ func (opts PathOpts) Set(val string) error {
 		return fmt.Errorf("%s is not an absolute path", containerPath)
 	}
 	opts[val] = struct{}{}
+
 	return nil
 }
 
