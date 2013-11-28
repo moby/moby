@@ -100,6 +100,10 @@ func ValidateLink(val string) (string, error) {
 func ValidatePath(val string) (string, error) {
 	var containerPath string
 
+	if strings.Count(val, ":") > 2 {
+		return val, fmt.Errorf("bad format for volumes: %s", val)
+	}
+
 	splited := strings.SplitN(val, ":", 2)
 	if len(splited) == 1 {
 		containerPath = splited[0]
