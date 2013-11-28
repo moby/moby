@@ -2,6 +2,7 @@ package utils
 
 import (
 	"io"
+	"time"
 )
 
 // Reader with progress bar
@@ -48,7 +49,7 @@ func ProgressReader(r io.ReadCloser, size int, output io.Writer, sf *StreamForma
 		output:   NewWriteFlusher(output),
 		ID:       ID,
 		action:   action,
-		progress: JSONProgress{Total: size},
+		progress: JSONProgress{Total: size, Start: time.Now().UTC().Unix()},
 		sf:       sf,
 		newLine:  newline,
 	}

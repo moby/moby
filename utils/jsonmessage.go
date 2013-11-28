@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -17,8 +18,9 @@ func (e *JSONError) Error() string {
 }
 
 type JSONProgress struct {
-	Current int `json:"current,omitempty"`
-	Total   int `json:"total,omitempty"`
+	Current int   `json:"current,omitempty"`
+	Total   int   `json:"total,omitempty"`
+	Start   int64 `json:"start,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
@@ -30,8 +32,13 @@ func (p *JSONProgress) String() string {
 		return fmt.Sprintf("%8v/?", current)
 	}
 	total := HumanSize(int64(p.Total))
-	percentage := float64(p.Current) / float64(p.Total) * 100
-	return fmt.Sprintf("%8v/%v (%.0f%%)", current, total, percentage)
+	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
+
+	fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
+	perEntry := fromStart / time.Duration(p.Current)
+	left := time.Duration(p.Total-p.Current) * perEntry
+	left = (left / time.Second) * time.Second
+	return fmt.Sprintf("[%s>%s] %8v/%v %s", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage), current, total, left.String())
 }
 
 type JSONMessage struct {
