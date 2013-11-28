@@ -590,6 +590,7 @@ func (container *Container) Start() (err error) {
 	env := []string{
 		"HOME=/",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"container_manager=docker",
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
