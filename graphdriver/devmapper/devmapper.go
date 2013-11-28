@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"runtime"
-	"unsafe"
 )
 
 type DevmapperLogger interface {
@@ -564,110 +563,4 @@ func (devices *DeviceSet) createSnapDevice(poolName string, deviceId int, baseNa
 	}
 
 	return nil
-}
-
-type LoopInfo64 struct {
-	loDevice           uint64 /* ioctl r/o */
-	loInode            uint64 /* ioctl r/o */
-	loRdevice          uint64 /* ioctl r/o */
-	loOffset           uint64
-	loSizelimit        uint64 /* bytes, 0 == max available */
-	loNumber           uint32 /* ioctl r/o */
-	loEncrypt_type     uint32
-	loEncrypt_key_size uint32 /* ioctl w/o */
-	loFlags            uint32 /* ioctl r/o */
-	loFileName         [LoNameSize]uint8
-	loCryptName        [LoNameSize]uint8
-	loEncryptKey       [LoKeySize]uint8 /* ioctl w/o */
-	loInit             [2]uint64
-}
-
-// attachLoopDevice attaches the given sparse file to the next
-// available loopback device. It returns an opened *osFile.
-func attachLoopDevice(filename string) (loop *osFile, err error) {
-	startIndex := 0
-
-	// Try to retrieve the next available loopback device via syscall.
-	// If it fails, we discard error and start loopking for a
-	// loopback from index 0.
-	if f, err := osOpenFile("/dev/loop-control", osORdOnly, 0644); err == nil {
-		if index, _, err := sysSyscall(sysSysIoctl, f.Fd(), LoopCtlGetFree, 0); err != 0 {
-			utils.Debugf("Error retrieving the next available loopback: %s", err)
-		} else if index > 0 {
-			startIndex = int(index)
-		}
-		f.Close()
-	}
-
-	// Open the given sparse file (use OpenFile because Open sets O_CLOEXEC)
-	f, err := osOpenFile(filename, osORdWr, 0644)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var (
-		target   string
-		loopFile *osFile
-	)
-	// Start looking for a free /dev/loop
-	for i := startIndex; ; {
-		target = fmt.Sprintf("/dev/loop%d", i)
-
-		fi, err := osStat(target)
-		if err != nil {
-			if osIsNotExist(err) {
-				utils.Errorf("There are no more loopback device available.")
-			}
-		}
-
-		// FIXME: Check here if target is a block device (in C: S_ISBLK(mode))
-		if fi.IsDir() {
-		}
-
-		// Open the targeted loopback (use OpenFile because Open sets O_CLOEXEC)
-		loopFile, err = osOpenFile(target, osORdWr, 0644)
-		if err != nil {
-			return nil, err
-		}
-
-		// Try to attach to the loop file
-		if _, _, err := sysSyscall(sysSysIoctl, loopFile.Fd(), LoopSetFd, f.Fd()); err != 0 {
-			loopFile.Close()
-			// If the error is EBUSY, then try the next loopback
-			if err != sysEBusy {
-				utils.Errorf("Cannot set up loopback device %s: %s", target, err)
-				return nil, err
-			}
-		} else {
-			// In case of success, we finished. Break the loop.
-			break
-		}
-		// In case of EBUSY error, the loop keep going.
-	}
-
-	// This can't happen, but let's be sure
-	if loopFile == nil {
-		return nil, fmt.Errorf("Unreachable code reached! Error attaching %s to a loopback device.", filename)
-	}
-
-	// Set the status of the loopback device
-	var loopInfo LoopInfo64
-
-	// Due to type incompatibility (string vs [64]uint8), we copy data
-	copy(loopInfo.loFileName[:], target[:])
-	loopInfo.loOffset = 0
-	loopInfo.loFlags = LoFlagsAutoClear
-
-	if _, _, err := sysSyscall(sysSysIoctl, loopFile.Fd(), LoopSetStatus64, uintptr(unsafe.Pointer(&loopInfo))); err != 0 {
-		// If the call failed, then free the loopback device
-		utils.Errorf("Cannot set up loopback device info: %s", err)
-		if _, _, err := sysSyscall(sysSysIoctl, loopFile.Fd(), LoopClrFd, 0); err != 0 {
-			utils.Errorf("Error while cleaning up the loopback device")
-		}
-		loopFile.Close()
-		return nil, err
-	}
-
-	return loopFile, nil
 }

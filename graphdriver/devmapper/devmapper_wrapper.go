@@ -33,7 +33,23 @@ import (
 )
 
 type (
-	CDmTask C.struct_dm_task
+	CDmTask     C.struct_dm_task
+	CLoopInfo64 C.struct_loop_info64
+	LoopInfo64  struct {
+		loDevice           uint64 /* ioctl r/o */
+		loInode            uint64 /* ioctl r/o */
+		loRdevice          uint64 /* ioctl r/o */
+		loOffset           uint64
+		loSizelimit        uint64 /* bytes, 0 == max available */
+		loNumber           uint32 /* ioctl r/o */
+		loEncrypt_type     uint32
+		loEncrypt_key_size uint32 /* ioctl w/o */
+		loFlags            uint32 /* ioctl r/o */
+		loFileName         [LoNameSize]uint8
+		loCryptName        [LoNameSize]uint8
+		loEncryptKey       [LoKeySize]uint8 /* ioctl w/o */
+		loInit             [2]uint64
+	}
 )
 
 // FIXME: Make sure the values are defined in C
@@ -50,7 +66,6 @@ const (
 )
 
 var (
-	DmAttachLoopDevice       = dmAttachLoopDeviceFct
 	DmGetBlockSize           = dmGetBlockSizeFct
 	DmGetLibraryVersion      = dmGetLibraryVersionFct
 	DmGetNextTarget          = dmGetNextTargetFct
@@ -137,23 +152,6 @@ func dmTaskAddTargetFct(task *CDmTask,
 	return int(C.dm_task_add_target((*C.struct_dm_task)(task), C.uint64_t(start), C.uint64_t(size), Cttype, Cparams))
 }
 
-func dmGetLoopbackBackingFileFct(fd uintptr) (uint64, uint64, sysErrno) {
-	var lo64 C.struct_loop_info64
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_GET_STATUS64, uintptr(unsafe.Pointer(&lo64)))
-	return uint64(lo64.lo_device), uint64(lo64.lo_inode), sysErrno(err)
-}
-
-func dmLoopbackSetCapacityFct(fd uintptr) sysErrno {
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_SET_CAPACITY, 0)
-	return sysErrno(err)
-}
-
-func dmGetBlockSizeFct(fd uintptr) (int64, sysErrno) {
-	var size int64
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
-	return size, sysErrno(err)
-}
-
 func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
 	Cinfo := C.struct_dm_info{}
 	defer func() {
@@ -187,19 +185,21 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, targ
 	return uintptr(nextp)
 }
 
-func dmAttachLoopDeviceFct(filename string, fd *int) string {
-	return ""
-	// cFilename := C.CString(filename)
-	// defer free(cFilename)
+func dmGetLoopbackBackingFileFct(fd uintptr) (uint64, uint64, sysErrno) {
+	var lo64 C.struct_loop_info64
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_GET_STATUS64, uintptr(unsafe.Pointer(&lo64)))
+	return uint64(lo64.lo_device), uint64(lo64.lo_inode), sysErrno(err)
+}
 
-	// var cFd C.int
-	// defer func() {
-	// 	*fd = int(cFd)
-	// }()
+func dmLoopbackSetCapacityFct(fd uintptr) sysErrno {
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_SET_CAPACITY, 0)
+	return sysErrno(err)
+}
 
-	// ret := C.attach_loop_device(cFilename, &cFd)
-	// defer free(ret)
-	// return C.GoString(ret)
+func dmGetBlockSizeFct(fd uintptr) (int64, sysErrno) {
+	var size int64
+	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
+	return size, sysErrno(err)
 }
 
 func getBlockSizeFct(fd uintptr, size *uint64) sysErrno {
