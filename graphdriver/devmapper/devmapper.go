@@ -178,15 +178,17 @@ func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
 }
 
 func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
-	dev, inode, err := DmGetLoopbackBackingFile(file.Fd())
-	if err != 0 {
+	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
+	if err != nil {
+		utils.Errorf("Error get loopback backing file: %s\n", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
-	return dev, inode, nil
+	return loopInfo.loDevice, loopInfo.loInode, nil
 }
 
 func LoopbackSetCapacity(file *osFile) error {
-	if err := DmLoopbackSetCapacity(file.Fd()); err != 0 {
+	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
+		utils.Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrLoopbackSetCapacity
 	}
 	return nil
@@ -276,8 +278,9 @@ func RemoveDevice(name string) error {
 }
 
 func GetBlockDeviceSize(file *osFile) (uint64, error) {
-	size, errno := DmGetBlockSize(file.Fd())
-	if size == -1 || errno != 0 {
+	size, err := ioctlBlkGetSize64(file.Fd())
+	if err != nil {
+		utils.Errorf("Error getblockdevicesize: %s", err)
 		return 0, ErrGetBlockSize
 	}
 	return uint64(size), nil

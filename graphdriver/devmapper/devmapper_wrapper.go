@@ -33,7 +33,8 @@ import (
 )
 
 type (
-	CDmTask     C.struct_dm_task
+	CDmTask C.struct_dm_task
+
 	CLoopInfo64 C.struct_loop_info64
 	LoopInfo64  struct {
 		loDevice           uint64 /* ioctl r/o */
@@ -54,39 +55,40 @@ type (
 
 // FIXME: Make sure the values are defined in C
 const (
-	LoopSetFd        = C.LOOP_SET_FD
-	LoopCtlGetFree   = C.LOOP_CTL_GET_FREE
-	LoopSetStatus64  = C.LOOP_SET_STATUS64
-	LoopClrFd        = C.LOOP_CLR_FD
+	LoopSetFd       = C.LOOP_SET_FD
+	LoopCtlGetFree  = C.LOOP_CTL_GET_FREE
+	LoopGetStatus64 = C.LOOP_GET_STATUS64
+	LoopSetStatus64 = C.LOOP_SET_STATUS64
+	LoopClrFd       = C.LOOP_CLR_FD
+	LoopSetCapacity = C.LOOP_SET_CAPACITY
+
 	LoFlagsAutoClear = C.LO_FLAGS_AUTOCLEAR
 	LoFlagsReadOnly  = C.LO_FLAGS_READ_ONLY
 	LoFlagsPartScan  = C.LO_FLAGS_PARTSCAN
 	LoKeySize        = C.LO_KEY_SIZE
 	LoNameSize       = C.LO_NAME_SIZE
+
+	BlkGetSize64 = C.BLKGETSIZE64
 )
 
 var (
-	DmGetBlockSize           = dmGetBlockSizeFct
-	DmGetLibraryVersion      = dmGetLibraryVersionFct
-	DmGetNextTarget          = dmGetNextTargetFct
-	DmLogInitVerbose         = dmLogInitVerboseFct
-	DmSetDevDir              = dmSetDevDirFct
-	DmTaskAddTarget          = dmTaskAddTargetFct
-	DmTaskCreate             = dmTaskCreateFct
-	DmTaskDestroy            = dmTaskDestroyFct
-	DmTaskGetInfo            = dmTaskGetInfoFct
-	DmTaskRun                = dmTaskRunFct
-	DmTaskSetAddNode         = dmTaskSetAddNodeFct
-	DmTaskSetCookie          = dmTaskSetCookieFct
-	DmTaskSetMessage         = dmTaskSetMessageFct
-	DmTaskSetName            = dmTaskSetNameFct
-	DmTaskSetRo              = dmTaskSetRoFct
-	DmTaskSetSector          = dmTaskSetSectorFct
-	DmUdevWait               = dmUdevWaitFct
-	GetBlockSize             = getBlockSizeFct
-	LogWithErrnoInit         = logWithErrnoInitFct
-	DmGetLoopbackBackingFile = dmGetLoopbackBackingFileFct
-	DmLoopbackSetCapacity    = dmLoopbackSetCapacityFct
+	DmGetLibraryVersion = dmGetLibraryVersionFct
+	DmGetNextTarget     = dmGetNextTargetFct
+	DmLogInitVerbose    = dmLogInitVerboseFct
+	DmSetDevDir         = dmSetDevDirFct
+	DmTaskAddTarget     = dmTaskAddTargetFct
+	DmTaskCreate        = dmTaskCreateFct
+	DmTaskDestroy       = dmTaskDestroyFct
+	DmTaskGetInfo       = dmTaskGetInfoFct
+	DmTaskRun           = dmTaskRunFct
+	DmTaskSetAddNode    = dmTaskSetAddNodeFct
+	DmTaskSetCookie     = dmTaskSetCookieFct
+	DmTaskSetMessage    = dmTaskSetMessageFct
+	DmTaskSetName       = dmTaskSetNameFct
+	DmTaskSetRo         = dmTaskSetRoFct
+	DmTaskSetSector     = dmTaskSetSectorFct
+	DmUdevWait          = dmUdevWaitFct
+	LogWithErrnoInit    = logWithErrnoInitFct
 )
 
 func free(p *C.char) {
@@ -183,28 +185,6 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, targ
 
 	nextp := C.dm_get_next_target((*C.struct_dm_task)(task), unsafe.Pointer(next), &Cstart, &Clength, &CtargetType, &Cparams)
 	return uintptr(nextp)
-}
-
-func dmGetLoopbackBackingFileFct(fd uintptr) (uint64, uint64, sysErrno) {
-	var lo64 C.struct_loop_info64
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_GET_STATUS64, uintptr(unsafe.Pointer(&lo64)))
-	return uint64(lo64.lo_device), uint64(lo64.lo_inode), sysErrno(err)
-}
-
-func dmLoopbackSetCapacityFct(fd uintptr) sysErrno {
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_SET_CAPACITY, 0)
-	return sysErrno(err)
-}
-
-func dmGetBlockSizeFct(fd uintptr) (int64, sysErrno) {
-	var size int64
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
-	return size, sysErrno(err)
-}
-
-func getBlockSizeFct(fd uintptr, size *uint64) sysErrno {
-	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
-	return sysErrno(err)
 }
 
 func dmUdevWaitFct(cookie uint) int {

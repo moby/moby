@@ -3,62 +3,13 @@ package devmapper
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
-	"unsafe"
 )
 
-func ioctlLoopCtlGetFree(fd uintptr) (int, error) {
-	index, _, err := sysSyscall(sysSysIoctl, fd, LoopCtlGetFree, 0)
-	if err != 0 {
-		return 0, err
-	}
-	return int(index), nil
+func stringToLoopName(src string) [LoNameSize]uint8 {
+	var dst [LoNameSize]uint8
+	copy(dst[:], src[:])
+	return dst
 }
-
-func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
-	if _, _, err := sysSyscall(sysSysIoctl, loopFd, LoopSetFd, sparseFd); err != 0 {
-		return err
-	}
-	return nil
-}
-
-func ioctlLoopSetStatus64(loopFd uintptr, loopInfo *LoopInfo64) error {
-	_, _, err := sysSyscall(sysSysIoctl, loopFd, LoopSetStatus64, uintptr(unsafe.Pointer(loopInfo)))
-	if err != 0 {
-		return err
-	}
-	return nil
-}
-
-func ioctlLoopClrFd(loopFd uintptr) error {
-	_, _, err := sysSyscall(sysSysIoctl, loopFd, LoopClrFd, 0)
-	if err != 0 {
-		return err
-	}
-	return nil
-}
-
-// //func dmGetLoopbackBackingFileFct(fd uintptr) (uint64, uint64, sysErrno) {
-// func ioctlLoopGetStatus64(loopFd uintptr) (*LoopInfo64, error) {
-// 	var lo64 C.struct_loop_info64
-// 	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_GET_STATUS64, uintptr(unsafe.Pointer(&lo64)))
-// 	return uint64(lo64.lo_device), uint64(lo64.lo_inode), sysErrno(err)
-// }
-
-// func dmLoopbackSetCapacityFct(fd uintptr) sysErrno {
-// 	_, _, err := sysSyscall(sysSysIoctl, fd, C.LOOP_SET_CAPACITY, 0)
-// 	return sysErrno(err)
-// }
-
-// func dmGetBlockSizeFct(fd uintptr) (int64, sysErrno) {
-// 	var size int64
-// 	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
-// 	return size, sysErrno(err)
-// }
-
-// func getBlockSizeFct(fd uintptr, size *uint64) sysErrno {
-// 	_, _, err := sysSyscall(sysSysIoctl, fd, C.BLKGETSIZE64, uintptr(unsafe.Pointer(&size)))
-// 	return sysErrno(err)
-// }
 
 func getNextFreeLoopbackIndex() (int, error) {
 	f, err := osOpenFile("/dev/loop-control", osORdOnly, 0644)
@@ -123,12 +74,6 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 	}
 
 	return loopFile, nil
-}
-
-func stringToLoopName(src string) [LoNameSize]uint8 {
-	var dst [LoNameSize]uint8
-	copy(dst[:], src[:])
-	return dst
 }
 
 // attachLoopDevice attaches the given sparse file to the next
