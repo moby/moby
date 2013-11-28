@@ -140,6 +140,10 @@ sudo('wget -O - https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | '
     'tar -v -C /usr/local -xz; ln -s /usr/local/go/bin/go /usr/bin/go')
 sudo('GOPATH=/go go get -d github.com/dotcloud/docker')
 sudo('pip install -r {}/requirements.txt'.format(CFG_PATH))
+sudo('git clone https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 '
+     '&& cd /usr/local/lvm2 && git checkout v2_02_103')
+sudo('cd /usr/local/lvm2 && ./configure --enable-static_link '
+     '&& make device-mapper && make install_device-mapper')
 
 # Install docker and testing dependencies
 sudo('apt-get install -y -q lxc-docker')
