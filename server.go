@@ -1011,15 +1011,8 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		localName = remoteName
 	}
 
-	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
-	if err == registry.ErrLoginRequired {
+	if err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel); err != nil {
 		return err
-	}
-	if err != nil {
-		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
-			return err
-		}
-		return nil
 	}
 
 	return nil
