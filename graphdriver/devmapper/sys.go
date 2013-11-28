@@ -34,9 +34,7 @@ var (
 	osRename     = os.Rename
 	osReadlink   = os.Readlink
 
-	execRun = func(name string, args ...string) error {
-		return exec.Command(name, args...).Run()
-	}
+	execRun = func(name string, args ...string) error { return exec.Command(name, args...).Run() }
 )
 
 const (
