@@ -451,7 +451,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("", "Downloading", "%8v/%v (%v)"), sf, false), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, "", "Downloading"), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -761,7 +761,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	if err != nil {
 		return err
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling", "dependent layers"))
+	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling dependent layers", nil))
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
@@ -776,33 +776,33 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 		defer srv.poolRemove("pull", "layer:"+id)
 
 		if !srv.runtime.graph.Exists(id) {
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
 			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				// FIXME: Keep going in case of error?
 				return err
 			}
 			img, err := NewImgJSON(imgJSON)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				return fmt.Errorf("Failed to parse json: %s", err)
 			}
 
 			// Get the layer
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "fs layer"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling fs layer", nil))
 			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf.FormatProgress(utils.TruncateID(id), "Downloading", "%8v/%v (%v)"), sf, false), img); err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "downloading dependent layers"))
+			if err := srv.runtime.graph.Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"), img); err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
 				return err
 			}
 		}
-		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download", "complete"))
+		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))
 
 	}
 	return nil
@@ -875,29 +875,29 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 			defer srv.poolRemove("pull", "img:"+img.ID)
 
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s", img.Tag, localName)))
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, localName), nil))
 			success := false
 			var lastErr error
 			for _, ep := range repoData.Endpoints {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s, endpoint: %s", img.Tag, localName, ep)))
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
 				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 					// Its not ideal that only the last error  is returned, it would be better to concatenate the errors.
 					// As the error is also given to the output stream the user will see the error.
 					lastErr = err
-					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Error pulling", fmt.Sprintf("image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err)))
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
 					continue
 				}
 				success = true
 				break
 			}
 			if !success {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Error pulling", fmt.Sprintf("image (%s) from %s, %s", img.Tag, localName, lastErr)))
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
 				if parallel {
 					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
 					return
 				}
 			}
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download", "complete"))
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 
 			if parallel {
 				errors <- nil
@@ -1171,7 +1171,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw)
+	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, "", "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
 	}
@@ -1251,7 +1251,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		if err != nil {
 			return err
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("", "Importing", "%8v/%v (%v)"), sf, true)
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf, true, "", "Importing")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
