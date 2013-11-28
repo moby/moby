@@ -83,8 +83,10 @@ func ApplyLayer(dest string, layer Archive) error {
 	}
 
 	for k, v := range modifiedDirs {
-		aTime := time.Unix(v.Atim.Unix())
-		mTime := time.Unix(v.Mtim.Unix())
+		lastAccess := getLastAccess(v)
+		lastModification := getLastModification(v)
+		aTime := time.Unix(lastAccess.Unix())
+		mTime := time.Unix(lastModification.Unix())
 
 		if err := os.Chtimes(k, aTime, mTime); err != nil {
 			return err
