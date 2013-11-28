@@ -1578,6 +1578,15 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
 		return err
 	}
+
+	_, status, err := getExitCode(cli, cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+	if status != 0 {
+		return &utils.StatusError{Status: status}
+	}
+
 	return nil
 }
 
