@@ -4,8 +4,8 @@
 
 #### Notable features since 0.6.0
 
-* Storage drivers: choose from aufs, device mapper, vfs or btrfs.
-* Standard Linux support: docker now runs on unmodified linux kernels and all major distributions.
+* Storage drivers: choose from aufs, device-mapper, or vfs.
+* Standard Linux support: docker now runs on unmodified Linux kernels and all major distributions.
 * Links: compose complex software stacks by connecting containers to each other.
 * Container naming: organize your containers by giving them memorable names.
 * Advanced port redirects: specify port redirects per interface, or keep sensitive ports private.

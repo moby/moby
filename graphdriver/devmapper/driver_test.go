@@ -55,12 +55,6 @@ func denyAllDevmapper() {
 	DmGetNextTarget = func(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
 		panic("DmGetNextTarget: this method should not be called here")
 	}
-	DmAttachLoopDevice = func(filename string, fd *int) string {
-		panic("DmAttachLoopDevice: this method should not be called here")
-	}
-	DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
-		panic("DmGetBlockSize: this method should not be called here")
-	}
 	DmUdevWait = func(cookie uint) int {
 		panic("DmUdevWait: this method should not be called here")
 	}
@@ -75,9 +69,6 @@ func denyAllDevmapper() {
 	}
 	DmTaskDestroy = func(task *CDmTask) {
 		panic("DmTaskDestroy: this method should not be called here")
-	}
-	GetBlockSize = func(fd uintptr, size *uint64) sysErrno {
-		panic("GetBlockSize: this method should not be called here")
 	}
 	LogWithErrnoInit = func() {
 		panic("LogWithErrnoInit: this method should not be called here")
@@ -155,11 +146,10 @@ func (r Set) Assert(t *testing.T, names ...string) {
 
 func TestInit(t *testing.T) {
 	var (
-		calls           = make(Set)
-		devicesAttached = make(Set)
-		taskMessages    = make(Set)
-		taskTypes       = make(Set)
-		home            = mkTestDirectory(t)
+		calls        = make(Set)
+		taskMessages = make(Set)
+		taskTypes    = make(Set)
+		home         = mkTestDirectory(t)
 	)
 	defer osRemoveAll(home)
 
@@ -233,43 +223,12 @@ func TestInit(t *testing.T) {
 			taskMessages[message] = true
 			return 1
 		}
-		var (
-			fakeDataLoop       = "/dev/loop42"
-			fakeMetadataLoop   = "/dev/loop43"
-			fakeDataLoopFd     = 42
-			fakeMetadataLoopFd = 43
-		)
-		var attachCount int
-		DmAttachLoopDevice = func(filename string, fd *int) string {
-			calls["DmAttachLoopDevice"] = true
-			if _, exists := devicesAttached[filename]; exists {
-				t.Fatalf("Already attached %s", filename)
-			}
-			devicesAttached[filename] = true
-			// This will crash if fd is not dereferenceable
-			if attachCount == 0 {
-				attachCount++
-				*fd = fakeDataLoopFd
-				return fakeDataLoop
-			} else {
-				*fd = fakeMetadataLoopFd
-				return fakeMetadataLoop
-			}
-		}
 		DmTaskDestroy = func(task *CDmTask) {
 			calls["DmTaskDestroy"] = true
 			expectedTask := &task1
 			if task != expectedTask {
 				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskDestroy(%v)\nReceived: DmTaskDestroy(%v)\n", expectedTask, task)
 			}
-		}
-		fakeBlockSize := int64(4242 * 512)
-		DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
-			calls["DmGetBlockSize"] = true
-			if expectedFd := uintptr(42); fd != expectedFd {
-				t.Fatalf("Wrong libdevmapper call\nExpected: DmGetBlockSize(%v)\nReceived: DmGetBlockSize(%v)\n", expectedFd, fd)
-			}
-			return fakeBlockSize, 0
 		}
 		DmTaskAddTarget = func(task *CDmTask, start, size uint64, ttype, params string) int {
 			calls["DmTaskSetTarget"] = true
@@ -345,11 +304,9 @@ func TestInit(t *testing.T) {
 		"DmTaskSetName",
 		"DmTaskRun",
 		"DmTaskGetInfo",
-		"DmAttachLoopDevice",
 		"DmTaskDestroy",
 		"execRun",
 		"DmTaskCreate",
-		"DmGetBlockSize",
 		"DmTaskSetTarget",
 		"DmTaskSetCookie",
 		"DmUdevWait",
@@ -357,7 +314,6 @@ func TestInit(t *testing.T) {
 		"DmTaskSetMessage",
 		"DmTaskSetAddNode",
 	)
-	devicesAttached.Assert(t, path.Join(home, "devicemapper", "data"), path.Join(home, "devicemapper", "metadata"))
 	taskTypes.Assert(t, "0", "6", "17")
 	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
@@ -408,16 +364,8 @@ func mockAllDevmapper(calls Set) {
 		calls["DmTaskSetMessage"] = true
 		return 1
 	}
-	DmAttachLoopDevice = func(filename string, fd *int) string {
-		calls["DmAttachLoopDevice"] = true
-		return "/dev/loop42"
-	}
 	DmTaskDestroy = func(task *CDmTask) {
 		calls["DmTaskDestroy"] = true
-	}
-	DmGetBlockSize = func(fd uintptr) (int64, sysErrno) {
-		calls["DmGetBlockSize"] = true
-		return int64(4242 * 512), 0
 	}
 	DmTaskAddTarget = func(task *CDmTask, start, size uint64, ttype, params string) int {
 		calls["DmTaskSetTarget"] = true
@@ -489,6 +437,32 @@ func TestDriverCreate(t *testing.T) {
 		return false, nil
 	}
 
+	sysSyscall = func(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+		calls["sysSyscall"] = true
+		if trap != sysSysIoctl {
+			t.Fatalf("Unexpected syscall. Expecting SYS_IOCTL, received: %d", trap)
+		}
+		switch a2 {
+		case LoopSetFd:
+			calls["ioctl.loopsetfd"] = true
+		case LoopCtlGetFree:
+			calls["ioctl.loopctlgetfree"] = true
+		case LoopGetStatus64:
+			calls["ioctl.loopgetstatus"] = true
+		case LoopSetStatus64:
+			calls["ioctl.loopsetstatus"] = true
+		case LoopClrFd:
+			calls["ioctl.loopclrfd"] = true
+		case LoopSetCapacity:
+			calls["ioctl.loopsetcapacity"] = true
+		case BlkGetSize64:
+			calls["ioctl.blkgetsize"] = true
+		default:
+			t.Fatalf("Unexpected IOCTL. Received %d", a2)
+		}
+		return 0, 0, 0
+	}
+
 	func() {
 		d := newDriver(t)
 
@@ -498,16 +472,18 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
-			"DmAttachLoopDevice",
 			"execRun",
 			"DmTaskCreate",
-			"DmGetBlockSize",
 			"DmTaskSetTarget",
 			"DmTaskSetCookie",
 			"DmUdevWait",
 			"DmTaskSetSector",
 			"DmTaskSetMessage",
 			"DmTaskSetAddNode",
+			"sysSyscall",
+			"ioctl.blkgetsize",
+			"ioctl.loopsetfd",
+			"ioctl.loopsetstatus",
 		)
 
 		if err := d.Create("1", ""); err != nil {
@@ -579,6 +555,32 @@ func TestDriverRemove(t *testing.T) {
 		return false, nil
 	}
 
+	sysSyscall = func(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+		calls["sysSyscall"] = true
+		if trap != sysSysIoctl {
+			t.Fatalf("Unexpected syscall. Expecting SYS_IOCTL, received: %d", trap)
+		}
+		switch a2 {
+		case LoopSetFd:
+			calls["ioctl.loopsetfd"] = true
+		case LoopCtlGetFree:
+			calls["ioctl.loopctlgetfree"] = true
+		case LoopGetStatus64:
+			calls["ioctl.loopgetstatus"] = true
+		case LoopSetStatus64:
+			calls["ioctl.loopsetstatus"] = true
+		case LoopClrFd:
+			calls["ioctl.loopclrfd"] = true
+		case LoopSetCapacity:
+			calls["ioctl.loopsetcapacity"] = true
+		case BlkGetSize64:
+			calls["ioctl.blkgetsize"] = true
+		default:
+			t.Fatalf("Unexpected IOCTL. Received %d", a2)
+		}
+		return 0, 0, 0
+	}
+
 	func() {
 		d := newDriver(t)
 
@@ -588,16 +590,18 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
-			"DmAttachLoopDevice",
 			"execRun",
 			"DmTaskCreate",
-			"DmGetBlockSize",
 			"DmTaskSetTarget",
 			"DmTaskSetCookie",
 			"DmUdevWait",
 			"DmTaskSetSector",
 			"DmTaskSetMessage",
 			"DmTaskSetAddNode",
+			"sysSyscall",
+			"ioctl.blkgetsize",
+			"ioctl.loopsetfd",
+			"ioctl.loopsetstatus",
 		)
 
 		if err := d.Create("1", ""); err != nil {

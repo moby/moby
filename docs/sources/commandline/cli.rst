@@ -797,7 +797,7 @@ Known Issues (kill)
         -link="": Remove the link instead of the actual container
 
 Known Issues (rm)
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * :issue:`197` indicates that ``docker kill`` may leave directories
   behind and make it difficult to remove the container.
@@ -881,8 +881,15 @@ containers will not be deleted.
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P=false: Publish all exposed ports to the host interfaces
 
-Examples
---------
+Known Issues (run -volumes-from)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* :issue:`2702`: "lxc-start: Permission denied - failed to mount"
+  could indicate a permissions problem with AppArmor. Please see the
+  issue for a workaround.
+
+Examples:
+~~~~~~~~~
 
 .. code-block:: bash
 
@@ -974,16 +981,10 @@ id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (rw or ro) as the reference container.
 
-Known Issues (run -volumes-from)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-* :issue:`2702`: "lxc-start: Permission denied - failed to mount"
-  could indicate a permissions problem with AppArmor. Please see the
-  issue for a workaround.
-
 .. _cli_save:
 
 ``save``
+---------
 
 ::
 

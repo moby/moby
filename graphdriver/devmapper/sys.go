@@ -19,7 +19,11 @@ var (
 	sysCloseOnExec = syscall.CloseOnExec
 	sysSyscall     = syscall.Syscall
 
-	osOpenFile   = os.OpenFile
+	osOpenFile = func(name string, flag int, perm os.FileMode) (*osFile, error) {
+		f, err := os.OpenFile(name, flag, perm)
+		return &osFile{File: f}, err
+	}
+	osOpen       = func(name string) (*osFile, error) { f, err := os.Open(name); return &osFile{File: f}, err }
 	osNewFile    = os.NewFile
 	osCreate     = os.Create
 	osStat       = os.Stat
@@ -30,9 +34,7 @@ var (
 	osRename     = os.Rename
 	osReadlink   = os.Readlink
 
-	execRun = func(name string, args ...string) error {
-		return exec.Command(name, args...).Run()
-	}
+	execRun = func(name string, args ...string) error { return exec.Command(name, args...).Run() }
 )
 
 const (
@@ -40,9 +42,12 @@ const (
 	sysMsRdOnly = syscall.MS_RDONLY
 	sysEInval   = syscall.EINVAL
 	sysSysIoctl = syscall.SYS_IOCTL
+	sysEBusy    = syscall.EBUSY
 
-	osORdWr   = os.O_RDWR
-	osOCreate = os.O_CREATE
+	osORdOnly    = os.O_RDONLY
+	osORdWr      = os.O_RDWR
+	osOCreate    = os.O_CREATE
+	osModeDevice = os.ModeDevice
 )
 
 func toSysStatT(i interface{}) *sysStatT {

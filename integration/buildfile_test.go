@@ -483,7 +483,7 @@ func TestForbiddenContextPath(t *testing.T) {
 		t.Fail()
 	}
 
-	if err.Error() != "Forbidden path: /" {
+	if err.Error() != "Forbidden path outside the build context: ../../ (/)" {
 		t.Logf("Error message is not expected: %s", err.Error())
 		t.Fail()
 	}

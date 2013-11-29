@@ -15,6 +15,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/exec"
 	"regexp"
@@ -1037,9 +1038,21 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 	}
 }
 
+func AttachProfiler(router *mux.Router) {
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	router.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
+	router.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+}
+
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
-
+	if os.Getenv("DEBUG") != "" {
+		AttachProfiler(r)
+	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
 			"/events":                         getEvents,

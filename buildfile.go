@@ -288,7 +288,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		destPath = destPath + "/"
 	}
 	if !strings.HasPrefix(origPath, b.context) {
-		return fmt.Errorf("Forbidden path: %s", origPath)
+		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {

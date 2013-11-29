@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrInvalidState = errors.New("Invlid terminal state")
+	ErrInvalidState = errors.New("Invalid terminal state")
 )
 
 type State struct {
