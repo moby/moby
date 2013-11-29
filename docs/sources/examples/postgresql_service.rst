@@ -45,19 +45,21 @@ Install ``python-software-properties``.
     apt-get -y install python-software-properties
     apt-get -y install software-properties-common
 
-Add Pitti's PostgreSQL repository. It contains the most recent stable release
-of PostgreSQL i.e. ``9.2``.
+Add PostgreSQL's repository. It contains the most recent stable release
+of PostgreSQL i.e. ``9.3``.
 
 .. code-block:: bash
 
-    add-apt-repository ppa:pitti/postgresql
+    apt-get -y install wget
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+    echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" > /etc/apt/sources.list.d/pgdg.list
     apt-get update
 
-Finally, install PostgreSQL 9.2
+Finally, install PostgreSQL 9.3
 
 .. code-block:: bash
 
-    apt-get -y install postgresql-9.2 postgresql-client-9.2 postgresql-contrib-9.2
+    apt-get -y install postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
 
 Now, create a PostgreSQL superuser role that can create databases and
 other roles.  Following Vagrant's convention the role will be named
@@ -76,14 +78,14 @@ role.
 
 Adjust PostgreSQL configuration so that remote connections to the
 database are possible. Make sure that inside
-``/etc/postgresql/9.2/main/pg_hba.conf`` you have following line (you will need
+``/etc/postgresql/9.3/main/pg_hba.conf`` you have following line (you will need
 to install an editor, e.g. ``apt-get install vim``):
 
 .. code-block:: bash
 
     host    all             all             0.0.0.0/0               md5
 
-Additionaly, inside ``/etc/postgresql/9.2/main/postgresql.conf``
+Additionaly, inside ``/etc/postgresql/9.3/main/postgresql.conf``
 uncomment ``listen_addresses`` so it is as follows:
 
 .. code-block:: bash
@@ -115,9 +117,9 @@ Finally, run PostgreSQL server via ``docker``.
 
     CONTAINER=$(sudo docker run -d -p 5432 \
       -t <your username>/postgresql \
-      /bin/su postgres -c '/usr/lib/postgresql/9.2/bin/postgres \
-        -D /var/lib/postgresql/9.2/main \
-        -c config_file=/etc/postgresql/9.2/main/postgresql.conf')
+      /bin/su postgres -c '/usr/lib/postgresql/9.3/bin/postgres \
+        -D /var/lib/postgresql/9.3/main \
+        -c config_file=/etc/postgresql/9.3/main/postgresql.conf')
 
 Connect the PostgreSQL server using ``psql`` (You will need postgres installed
 on the machine.  For ubuntu, use something like
@@ -132,7 +134,7 @@ As before, create roles or databases if needed.
 
 .. code-block:: bash
 
-    psql (9.2.4)
+    psql (9.3.1)
     Type "help" for help.
 
     docker=# CREATE DATABASE foo OWNER=docker;
@@ -160,9 +162,9 @@ container starts.
 .. code-block:: bash
 
     sudo docker commit -run='{"Cmd": \
-      ["/bin/su", "postgres", "-c", "/usr/lib/postgresql/9.2/bin/postgres -D \
-      /var/lib/postgresql/9.2/main -c \
-      config_file=/etc/postgresql/9.2/main/postgresql.conf"], "PortSpecs": ["5432"]}' \
+      ["/bin/su", "postgres", "-c", "/usr/lib/postgresql/9.3/bin/postgres -D \
+      /var/lib/postgresql/9.3/main -c \
+      config_file=/etc/postgresql/9.3/main/postgresql.conf"], "PortSpecs": ["5432"]}' \
       <container_id> <your username>/postgresql
 
 From now on, just type ``docker run <your username>/postgresql`` and

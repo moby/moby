@@ -56,21 +56,24 @@ type (
 )
 
 // FIXME: Make sure the values are defined in C
+// IOCTL consts
 const (
+	BlkGetSize64 = C.BLKGETSIZE64
+
 	LoopSetFd       = C.LOOP_SET_FD
 	LoopCtlGetFree  = C.LOOP_CTL_GET_FREE
 	LoopGetStatus64 = C.LOOP_GET_STATUS64
 	LoopSetStatus64 = C.LOOP_SET_STATUS64
 	LoopClrFd       = C.LOOP_CLR_FD
 	LoopSetCapacity = C.LOOP_SET_CAPACITY
+)
 
+const (
 	LoFlagsAutoClear = C.LO_FLAGS_AUTOCLEAR
 	LoFlagsReadOnly  = C.LO_FLAGS_READ_ONLY
 	LoFlagsPartScan  = C.LO_FLAGS_PARTSCAN
 	LoKeySize        = C.LO_KEY_SIZE
 	LoNameSize       = C.LO_NAME_SIZE
-
-	BlkGetSize64 = C.BLKGETSIZE64
 )
 
 var (
