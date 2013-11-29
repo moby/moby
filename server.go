@@ -38,7 +38,7 @@ func init() {
 
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
-// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
+// The signals SIGINT and SIGTERM are intercepted for cleanup.
 func jobInitApi(job *engine.Job) string {
 	job.Logf("Creating server")
 	srv, err := NewServer(job.Eng, ConfigFromJob(job))
@@ -53,7 +53,7 @@ func jobInitApi(job *engine.Job) string {
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	signal.Notify(c, os.Interrupt, os.Signal(syscall.SIGTERM))
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
