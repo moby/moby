@@ -2392,10 +2392,23 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	var receiveStdout chan error
 
+	var oldState *term.State
+
+	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
+		oldState, err = term.SetRawTerminal(cli.terminalFd)
+		if err != nil {
+			return err
+		}
+		defer term.RestoreTerminal(cli.terminalFd, oldState)
+	}
+
 	if stdout != nil {
 		receiveStdout = utils.Go(func() (err error) {
 			defer func() {
 				if in != nil {
+					if setRawTerminal && cli.isTerminal {
+						term.RestoreTerminal(cli.terminalFd, oldState)
+					}
 					in.Close()
 				}
 			}()
@@ -2409,14 +2422,6 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			utils.Debugf("[hijack] End of stdout")
 			return err
 		})
-	}
-
-	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err := term.SetRawTerminal(cli.terminalFd)
-		if err != nil {
-			return err
-		}
-		defer term.RestoreTerminal(cli.terminalFd, oldState)
 	}
 
 	sendStdin := utils.Go(func() error {
