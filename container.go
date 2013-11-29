@@ -96,6 +96,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	Description     string
 }
 
 type HostConfig struct {
