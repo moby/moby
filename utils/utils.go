@@ -543,7 +543,7 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
-					return 0, io.EOF
+					return 0, nil
 				}
 			}
 			// ---- End of docker
