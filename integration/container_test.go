@@ -462,7 +462,7 @@ func TestKillDifferentUser(t *testing.T) {
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
 		out, _ := container.StdoutPipe()
 		in, _ := container.StdinPipe()
-		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
 			t.Fatal(err)
 		}
 	})

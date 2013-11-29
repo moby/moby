@@ -213,7 +213,7 @@ func TestRunExit(t *testing.T) {
 	}()
 
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -268,7 +268,7 @@ func TestRunDisconnect(t *testing.T) {
 	}()
 
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -330,7 +330,7 @@ func TestRunDisconnectTty(t *testing.T) {
 	container := globalRuntime.List()[0]
 
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -432,7 +432,7 @@ func TestRunDetach(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -513,7 +513,7 @@ func TestAttachDetach(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -575,7 +575,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -648,7 +648,7 @@ func TestAttachDisconnect(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})

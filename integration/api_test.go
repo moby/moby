@@ -454,7 +454,7 @@ func TestGetContainersTop(t *testing.T) {
 	// Make sure sh spawn up cat
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
 		in, out := containerAttach(eng, containerID, t)
-		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -877,7 +877,7 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -956,7 +956,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
