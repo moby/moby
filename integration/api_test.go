@@ -743,6 +743,43 @@ func TestPostContainersStart(t *testing.T) {
 	containerKill(eng, containerID, t)
 }
 
+// Expected behaviour: using / as a bind mount source should throw an error
+func TestRunErrorBindMountRootSource(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+	srv := mkServerFromEngine(eng, t)
+
+	containerID := createTestContainer(
+		eng,
+		&docker.Config{
+			Image:     unitTestImageID,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+		t,
+	)
+
+	hostConfigJSON, err := json.Marshal(&docker.HostConfig{
+		Binds: []string{"/:/tmp"},
+	})
+
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	r := httptest.NewRecorder()
+	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusInternalServerError {
+		containerKill(eng, containerID, t)
+		t.Fatal("should have failed to run when using / as a source for the bind mount")
+	}
+}
+
 func TestPostContainersStop(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
