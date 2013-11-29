@@ -32,6 +32,47 @@ func closeWrap(args ...io.Closer) error {
 	return nil
 }
 
+func setRaw(t *testing.T, c *docker.Container) *term.State {
+	pty, err := c.GetPtyMaster()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := term.MakeRaw(pty.Fd())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return state
+}
+
+func unsetRaw(t *testing.T, c *docker.Container, state *term.State) {
+	pty, err := c.GetPtyMaster()
+	if err != nil {
+		t.Fatal(err)
+	}
+	term.RestoreTerminal(pty.Fd(), state)
+}
+
+func waitContainerStart(t *testing.T, timeout time.Duration) *docker.Container {
+	var container *docker.Container
+
+	setTimeout(t, "Waiting for the container to be started timed out", timeout, func() {
+		for {
+			l := globalRuntime.List()
+			if len(l) == 1 && l[0].State.IsRunning() {
+				container = l[0]
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	if container == nil {
+		t.Fatal("An error occured while waiting for the container to start")
+	}
+
+	return container
+}
+
 func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
 	c := make(chan bool)
 
@@ -480,18 +521,7 @@ func TestAttachDetach(t *testing.T) {
 		}
 	}()
 
-	var container *docker.Container
-
-	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
-		for {
-			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.IsRunning() {
-				container = l[0]
-				break
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
+	container := waitContainerStart(t, 10*time.Second)
 
 	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
 		buf := make([]byte, 1024)
@@ -508,16 +538,8 @@ func TestAttachDetach(t *testing.T) {
 		<-ch
 	})
 
-	pty, err := container.GetPtyMaster()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	state, err := term.MakeRaw(pty.Fd())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer term.RestoreTerminal(pty.Fd(), state)
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
