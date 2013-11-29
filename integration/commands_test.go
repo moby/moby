@@ -774,25 +774,6 @@ func TestCmdLogs(t *testing.T) {
 	}
 }
 
-// Expected behaviour: using / as a bind mount source should throw an error
-func TestRunErrorBindMountRootSource(t *testing.T) {
-
-	cli := docker.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("-v", "/:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
-			t.Fatal("should have failed to run when using / as a source for the bind mount")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
-
 // Expected behaviour: error out when attempting to bind mount non-existing source paths
 func TestRunErrorBindNonExistingSource(t *testing.T) {
 
@@ -802,6 +783,7 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
+		// This check is made at runtime, can't be "unit tested"
 		if err := cli.CmdRun("-v", "/i/dont/exist:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
 			t.Fatal("should have failed to run when using /i/dont/exist as a source for the bind mount")
 		}
