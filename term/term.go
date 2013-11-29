@@ -1,10 +1,15 @@
 package term
 
 import (
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 	"unsafe"
+)
+
+var (
+	ErrInvalidState = errors.New("Invalid terminal state")
 )
 
 type State struct {
@@ -47,8 +52,14 @@ func IsTerminal(fd uintptr) bool {
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
 func RestoreTerminal(fd uintptr, state *State) error {
+	if state == nil {
+		return ErrInvalidState
+	}
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)))
-	return err
+	if err != 0 {
+		return err
+	}
+	return nil
 }
 
 func SaveState(fd uintptr) (*State, error) {

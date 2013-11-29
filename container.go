@@ -24,6 +24,11 @@ import (
 	"time"
 )
 
+var (
+	ErrNotATTY = errors.New("The PTY is not a file")
+	ErrNoTTY   = errors.New("No PTY found")
+)
+
 type Container struct {
 	sync.Mutex
 	root   string // Path to the "home" of the container, including metadata.
@@ -1404,4 +1409,14 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 func (container *Container) Exposes(p Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
+}
+
+func (container *Container) GetPtyMaster() (*os.File, error) {
+	if container.ptyMaster == nil {
+		return nil, ErrNoTTY
+	}
+	if pty, ok := container.ptyMaster.(*os.File); ok {
+		return pty, nil
+	}
+	return nil, ErrNotATTY
 }
