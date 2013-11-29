@@ -2394,6 +2394,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	if stdout != nil {
 		receiveStdout = utils.Go(func() (err error) {
+			defer func() {
+				if in != nil {
+					in.Close()
+				}
+			}()
+
 			// When TTY is ON, use regular copy
 			if setRawTerminal {
 				_, err = io.Copy(stdout, br)

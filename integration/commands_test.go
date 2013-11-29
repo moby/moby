@@ -542,17 +542,17 @@ func TestAttachDetach(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16, 17})
-		if err := stdinPipe.Close(); err != nil {
-			t.Fatal(err)
-		}
+		stdinPipe.Write([]byte{16})
+		time.Sleep(100 * time.Millisecond)
+		stdinPipe.Write([]byte{17})
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
 		<-ch
 	})
+
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
