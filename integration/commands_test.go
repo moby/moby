@@ -601,7 +601,10 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := waitContainerStart(t, 10*time.Second)
+
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
@@ -626,17 +629,16 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16, 17})
-		if err := stdinPipe.Close(); err != nil {
-			t.Fatal(err)
-		}
+		stdinPipe.Write([]byte{16})
+		time.Sleep(100 * time.Millisecond)
+		stdinPipe.Write([]byte{17})
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
 		<-ch
 	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
