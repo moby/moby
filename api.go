@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"bufio"
+	"bytes"
 	"code.google.com/p/go.net/websocket"
 	"encoding/base64"
 	"encoding/json"
@@ -565,11 +567,17 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		job.SetenvList("Dns", defaultDns)
 	}
 	// Read container ID from the first line of stdout
-	job.StdoutParseString(&out.ID)
+	job.Stdout.AddString(&out.ID)
 	// Read warnings from stderr
-	job.StderrParseLines(&out.Warnings, 0)
+	warnings := &bytes.Buffer{}
+	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
 		return err
+	}
+	// Parse warnings from stderr
+	scanner := bufio.NewScanner(warnings)
+	for scanner.Scan() {
+		out.Warnings = append(out.Warnings, scanner.Text())
 	}
 	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -679,17 +687,14 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	t, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil || t < 0 {
-		t = 10
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	if err := srv.ContainerStop(name, t); err != nil {
+	job := srv.Eng.Job("stop", vars["name"])
+	if t := r.Form.Get("t"); t != "" {
+		job.Args = append(job.Args, t)
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
