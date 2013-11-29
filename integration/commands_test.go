@@ -481,14 +481,23 @@ func TestAttachDetach(t *testing.T) {
 
 	var container *docker.Container
 
+	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
+		for {
+			l := globalRuntime.List()
+			if len(l) == 1 && l[0].State.IsRunning() {
+				container = l[0]
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
 	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
 		buf := make([]byte, 1024)
 		n, err := stdout.Read(buf)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		container = globalRuntime.List()[0]
 
 		if strings.Trim(string(buf[:n]), " \r\n") != container.ID {
 			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ID, buf[:n])
