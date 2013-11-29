@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -506,6 +507,17 @@ func TestAttachDetach(t *testing.T) {
 	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
 		<-ch
 	})
+
+	pty, err := container.GetPtyMaster()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := term.MakeRaw(pty.Fd())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer term.RestoreTerminal(pty.Fd(), state)
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
