@@ -63,7 +63,7 @@ func decodeAuth(authStr string) (string, string, error) {
 	if n > decLen {
 		return "", "", fmt.Errorf("Something went wrong decoding auth config")
 	}
-	arr := strings.Split(string(decoded), ":")
+	arr := strings.SplitN(string(decoded), ":", 2)
 	if len(arr) != 2 {
 		return "", "", fmt.Errorf("Invalid auth configuration file")
 	}
