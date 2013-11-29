@@ -12,26 +12,27 @@ Arch Linux
 .. include:: install_unofficial.inc
 
 Installing on Arch Linux is not officially supported but can be handled via 
-either of the following AUR packages:
+one of the following AUR packages:
 
 * `lxc-docker <https://aur.archlinux.org/packages/lxc-docker/>`_
 * `lxc-docker-git <https://aur.archlinux.org/packages/lxc-docker-git/>`_
+* `lxc-docker-nightly <https://aur.archlinux.org/packages/lxc-docker-nightly/>`_
 
 The lxc-docker package will install the latest tagged version of docker. 
 The lxc-docker-git package will build from the current master branch.
+The lxc-docker-nightly package will install the latest build.
 
 Dependencies
 ------------
 
 Docker depends on several packages which are specified as dependencies in
-either AUR package.
+the AUR packages. The core dependencies are:
 
-* aufs3
 * bridge-utils
-* go
+* device-mapper
 * iproute2
-* linux-aufs_friendly
 * lxc
+
 
 Installation
 ------------
@@ -41,19 +42,13 @@ The instructions here assume **yaourt** is installed.  See
 for information on building and installing packages from the AUR if you have not
 done so before.
 
-Keep in mind that if **linux-aufs_friendly** is not already installed that a
-new kernel will be compiled and this can take quite a while.
-
 ::
 
-    yaourt -S lxc-docker-git
+    yaourt -S lxc-docker
 
 
 Starting Docker
 ---------------
-
-Prior to starting docker modify your bootloader to use the 
-**linux-aufs_friendly** kernel and reboot your system.
 
 There is a systemd service unit created for docker.  To start the docker service:
 
