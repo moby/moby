@@ -47,7 +47,7 @@ func pingRegistryEndpoint(endpoint string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close() 
+	defer resp.Body.Close()
 
 	if resp.Header.Get("X-Docker-Registry-Version") == "" {
 		return errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
