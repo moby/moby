@@ -39,15 +39,18 @@ func init() {
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT and SIGTERM are intercepted for cleanup.
-func jobInitApi(job *engine.Job) string {
+func jobInitApi(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
+	// FIXME: ImportEnv deprecates ConfigFromJob
 	srv, err := NewServer(job.Eng, ConfigFromJob(job))
 	if err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if srv.runtime.config.Pidfile != "" {
 		job.Logf("Creating pidfile")
 		if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+			// FIXME: do we need fatal here instead of returning a job error?
 			log.Fatal(err)
 		}
 	}
@@ -68,18 +71,21 @@ func jobInitApi(job *engine.Job) string {
 		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
 	}
 	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := job.Eng.Register("serveapi", srv.ListenAndServe); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return "0"
+	return engine.StatusOK
 }
 
-func (srv *Server) ListenAndServe(job *engine.Job) string {
+func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 	protoAddrs := job.Args
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
@@ -94,7 +100,8 @@ func (srv *Server) ListenAndServe(job *engine.Job) string {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
 		default:
-			return "Invalid protocol format."
+			job.Errorf("Invalid protocol format.")
+			return engine.StatusErr
 		}
 		go func() {
 			// FIXME: merge Server.ListenAndServe with ListenAndServe
@@ -104,10 +111,11 @@ func (srv *Server) ListenAndServe(job *engine.Job) string {
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 	}
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -1260,19 +1268,22 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(job *engine.Job) string {
+func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	var name string
 	if len(job.Args) == 1 {
 		name = job.Args[0]
 	} else if len(job.Args) > 1 {
-		return fmt.Sprintf("Usage: %s ", job.Name)
+		job.Printf("Usage: %s", job.Name)
+		return engine.StatusErr
 	}
 	var config Config
 	if err := job.ExportEnv(&config); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if config.Memory != 0 && config.Memory < 524288 {
-		return "Minimum memory limit allowed is 512k"
+		job.Errorf("Minimum memory limit allowed is 512k")
+		return engine.StatusErr
 	}
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		config.Memory = 0
@@ -1287,9 +1298,11 @@ func (srv *Server) ContainerCreate(job *engine.Job) string {
 			if tag == "" {
 				tag = DEFAULTTAG
 			}
-			return fmt.Sprintf("No such image: %s (tag: %s)", config.Image, tag)
+			job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return engine.StatusErr
 		}
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	// FIXME: this is necessary because runtime.Create might return a nil container
@@ -1301,7 +1314,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) string {
 	for _, warning := range buildWarnings {
 		job.Errorf("%s\n", warning)
 	}
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerRestart(name string, t int) error {
@@ -1619,22 +1632,25 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 	return nil
 }
 
-func (srv *Server) ContainerStart(job *engine.Job) string {
+func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
-		return fmt.Sprintf("Usage: %s container_id", job.Name)
+		job.Errorf("Usage: %s container_id", job.Name)
+		return engine.StatusErr
 	}
 	name := job.Args[0]
 	runtime := srv.runtime
 	container := runtime.Get(name)
 
 	if container == nil {
-		return fmt.Sprintf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		var hostConfig HostConfig
 		if err := job.ExportEnv(&hostConfig); err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
@@ -1647,29 +1663,33 @@ func (srv *Server) ContainerStart(job *engine.Job) string {
 
 			// refuse to bind mount "/" to the container
 			if source == "/" {
-				return fmt.Sprintf("Invalid bind mount '%s' : source can't be '/'", bind)
+				job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
+				return engine.StatusErr
 			}
 
 			// ensure the source exists on the host
 			_, err := os.Stat(source)
 			if err != nil && os.IsNotExist(err) {
-				return fmt.Sprintf("Invalid bind mount '%s' : source doesn't exist", bind)
+				job.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
+				return engine.StatusErr
 			}
 		}
 		// Register any links from the host config before starting the container
 		// FIXME: we could just pass the container here, no need to lookup by name again.
 		if err := srv.RegisterLinks(name, &hostConfig); err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 		container.hostConfig = &hostConfig
 		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
-		return fmt.Sprintf("Cannot start container %s: %s", name, err)
+		job.Errorf("Cannot start container %s: %s", name, err)
+		return engine.StatusErr
 	}
 	srv.LogEvent("start", container.ID, runtime.repositories.ImageName(container.Image))
 
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerStop(name string, t int) error {

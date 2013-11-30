@@ -304,6 +304,10 @@ func TestGetContainersJSON(t *testing.T) {
 		Cmd:   []string{"echo", "test"},
 	}, t)
 
+	if containerID == "" {
+		t.Fatalf("Received empty container ID")
+	}
+
 	req, err := http.NewRequest("GET", "/containers/json?all=1", nil)
 	if err != nil {
 		t.Fatal(err)

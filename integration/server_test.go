@@ -224,7 +224,7 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	job.Setenv("CpuShares", "1000")
 	job.SetenvList("Cmd", []string{"/bin/cat"})
 	var id string
-	job.StdoutParseString(&id)
+	job.Stdout.AddString(&id)
 	if err := job.Run(); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
