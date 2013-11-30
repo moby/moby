@@ -162,12 +162,15 @@ func NewPort(proto, port string) Port {
 type PortMapping map[string]string // Deprecated
 
 type NetworkSettings struct {
-	IPAddress   string
-	IPPrefixLen int
-	Gateway     string
-	Bridge      string
-	PortMapping map[string]PortMapping // Deprecated
-	Ports       map[Port][]PortBinding
+	IPAddress    string
+	IPAddress6   string
+	IPPrefixLen  int
+	IPPrefixLen6 int
+	Gateway      string
+	Gateway6     string
+	Bridge       string
+	PortMapping  map[string]PortMapping // Deprecated
+	Ports        map[Port][]PortBinding
 }
 
 func (settings *NetworkSettings) PortMappingAPI() []APIPort {
@@ -514,12 +517,12 @@ func (container *Container) Start() (err error) {
 	}
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
-		container.buildHostnameAndHostsFiles("127.0.1.1")
+		container.buildHostnameAndHostsFiles("127.0.1.1", "::2")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
-		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress, container.NetworkSettings.IPAddress6)
 	}
 
 	// Make sure the config is compatible with the current kernel
@@ -923,7 +926,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) {
+func (container *Container) buildHostnameAndHostsFiles(IP string, IP6 string) {
 	container.HostnamePath = path.Join(container.root, "hostname")
 	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 
@@ -940,8 +943,10 @@ ff02::2		ip6-allrouters
 
 	if container.Config.Domainname != "" {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP6, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
 	} else {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
+		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP6, container.Config.Hostname)), hostsContent...)
 	}
 
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
@@ -961,13 +966,17 @@ func (container *Container) allocateNetwork() error {
 			iface = &NetworkInterface{disabled: true}
 		} else {
 			iface = &NetworkInterface{
-				IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
-				Gateway: manager.bridgeNetwork.IP,
-				manager: manager,
+				IPNet:    net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
+				IPNet6:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress6), Mask: manager.bridgeNetwork6.Mask},
+				Gateway:  manager.bridgeNetwork.IP,
+				Gateway6: manager.bridgeNetwork6.IP,
+				manager:  manager,
 			}
-			if iface != nil && iface.IPNet.IP != nil {
-				ipNum := ipToInt(iface.IPNet.IP)
-				manager.ipAllocator.inUse[ipNum] = struct{}{}
+			if iface != nil && iface.IPNet6.IP != nil && iface.IPNet.IP != nil {
+				ip6 := iface.IPNet6.IP
+				manager.ipAllocator6.inUse[ip6.String()] = struct{}{}
+				ip := iface.IPNet.IP
+				manager.ipAllocator.inUse[ip.String()] = struct{}{}
 			} else {
 				iface, err = container.runtime.networkManager.Allocate()
 				if err != nil {
@@ -1040,8 +1049,11 @@ func (container *Container) allocateNetwork() error {
 
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
 	container.NetworkSettings.IPAddress = iface.IPNet.IP.String()
+	container.NetworkSettings.IPAddress6 = iface.IPNet6.IP.String()
 	container.NetworkSettings.IPPrefixLen, _ = iface.IPNet.Mask.Size()
+	container.NetworkSettings.IPPrefixLen6, _ = iface.IPNet6.Mask.Size()
 	container.NetworkSettings.Gateway = iface.Gateway.String()
+	container.NetworkSettings.Gateway6 = iface.Gateway6.String()
 
 	return nil
 }
