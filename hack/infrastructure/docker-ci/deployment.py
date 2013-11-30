@@ -152,7 +152,7 @@ sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}; docker build -t docker-ci .'.format(DOCKER_CI_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
     DOCKER_CI_PATH))
-sudo('cd {}/registry-coverage; docker build -t registry_coverage .'.format(
+sudo('cd {}/registry-coverage; docker build -t registry-coverage .'.format(
     DOCKER_CI_PATH))
 
 # Download docker-ci testing container

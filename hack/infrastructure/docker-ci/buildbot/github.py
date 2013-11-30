@@ -15,9 +15,9 @@
 
 #!/usr/bin/env python
 """
-github_buildbot.py is based on git_buildbot.py
+github-buildbot.py is based on git-buildbot.py
 
-github_buildbot.py will determine the repository information from the JSON 
+github-buildbot.py will determine the repository information from the JSON 
 HTTP POST it receives from github.com and build the appropriate repository.
 If your github repository is private, you must add a ssh key to the github
 repository for the user who initiated the build on the buildslave.

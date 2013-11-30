@@ -11,8 +11,8 @@
 #       [commit]  (default: 'HEAD')
 #       [repo]    (default: 'http://github.com/dotcloud/docker')
 #       [branch]  (default: 'master')
-# TO_BUILD:       docker build -t test_docker .
-# TO_RUN:         docker run -privileged test_docker hack/dind test_docker.sh [commit] [repo] [branch]
+# TO_BUILD:       docker build -t test-docker .
+# TO_RUN:         docker run -privileged test-docker hack/dind test-docker.sh [commit] [repo] [branch]
 
 from docker
 maintainer Daniel Mizyrycki <daniel@docker.com>
@@ -20,6 +20,6 @@ maintainer Daniel Mizyrycki <daniel@docker.com>
 # Setup go in PATH. Extracted from /Dockerfile
 env PATH /usr/local/go/bin:$PATH
 
-# Add test_docker.sh
-add test_docker.sh /usr/bin/test_docker.sh
-run chmod +x /usr/bin/test_docker.sh
+# Add test-docker.sh
+add test-docker.sh /usr/bin/test-docker.sh
+run chmod +x /usr/bin/test-docker.sh
