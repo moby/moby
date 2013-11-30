@@ -66,7 +66,8 @@ To run the daemon with debug output, use ``docker -d -D``
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
-the Docker client when it quits.
+the Docker client when it quits.  When you detach from the container's 
+process the exit code will be retuned to the client.
 
 To stop a container, use ``docker stop``
 
