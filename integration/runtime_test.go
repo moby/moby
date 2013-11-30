@@ -390,7 +390,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
 		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
 		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.StdoutParseString(&id)
+		jobCreate.Stdout.AddString(&id)
 		if err := jobCreate.Run(); err != nil {
 			t.Fatal(err)
 		}

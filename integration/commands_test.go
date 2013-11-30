@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -29,6 +30,47 @@ func closeWrap(args ...io.Closer) error {
 		return ret
 	}
 	return nil
+}
+
+func setRaw(t *testing.T, c *docker.Container) *term.State {
+	pty, err := c.GetPtyMaster()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := term.MakeRaw(pty.Fd())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return state
+}
+
+func unsetRaw(t *testing.T, c *docker.Container, state *term.State) {
+	pty, err := c.GetPtyMaster()
+	if err != nil {
+		t.Fatal(err)
+	}
+	term.RestoreTerminal(pty.Fd(), state)
+}
+
+func waitContainerStart(t *testing.T, timeout time.Duration) *docker.Container {
+	var container *docker.Container
+
+	setTimeout(t, "Waiting for the container to be started timed out", timeout, func() {
+		for {
+			l := globalRuntime.List()
+			if len(l) == 1 && l[0].State.IsRunning() {
+				container = l[0]
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
+	if container == nil {
+		t.Fatal("An error occured while waiting for the container to start")
+	}
+
+	return container
 }
 
 func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
@@ -213,7 +255,7 @@ func TestRunExit(t *testing.T) {
 	}()
 
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -268,7 +310,7 @@ func TestRunDisconnect(t *testing.T) {
 	}()
 
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -295,7 +337,8 @@ func TestRunDisconnect(t *testing.T) {
 	})
 }
 
-// Expected behaviour: the process dies when the client disconnects
+// Expected behaviour: the process stay alive when the client disconnects
+// but the client detaches.
 func TestRunDisconnectTty(t *testing.T) {
 
 	stdin, stdinPipe := io.Pipe()
@@ -306,31 +349,22 @@ func TestRunDisconnectTty(t *testing.T) {
 
 	c1 := make(chan struct{})
 	go func() {
+		defer close(c1)
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
 			utils.Debugf("Error CmdRun: %s", err)
 		}
-
-		close(c1)
 	}()
 
-	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
-		for {
-			// Client disconnect after run -i should keep stdin out in TTY mode
-			l := globalRuntime.List()
-			if len(l) == 1 && l[0].State.IsRunning() {
-				break
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
+	container := waitContainerStart(t, 10*time.Second)
+
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
 
 	// Client disconnect after run -i should keep stdin out in TTY mode
-	container := globalRuntime.List()[0]
-
 	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -340,8 +374,12 @@ func TestRunDisconnectTty(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// wait for CmdRun to return
+	setTimeout(t, "Waiting for CmdRun timed out", 5*time.Second, func() {
+		<-c1
+	})
+
 	// In tty mode, we expect the process to stay alive even after client's stdin closes.
-	// Do not wait for run to finish
 
 	// Give some time to monitor to do his thing
 	container.WaitTimeout(500 * time.Millisecond)
@@ -431,27 +469,28 @@ func TestRunDetach(t *testing.T) {
 		cli.CmdRun("-i", "-t", unitTestImageID, "cat")
 	}()
 
+	container := waitContainerStart(t, 10*time.Second)
+
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
+
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
-
-	container := globalRuntime.List()[0]
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16, 17})
-		if err := stdinPipe.Close(); err != nil {
-			t.Fatal(err)
-		}
+		stdinPipe.Write([]byte{16})
+		time.Sleep(100 * time.Millisecond)
+		stdinPipe.Write([]byte{17})
 	})
-
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdRun timed out", 15*time.Second, func() {
 		<-ch
 	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
@@ -479,7 +518,7 @@ func TestAttachDetach(t *testing.T) {
 		}
 	}()
 
-	var container *docker.Container
+	container := waitContainerStart(t, 10*time.Second)
 
 	setTimeout(t, "Reading container's id timed out", 10*time.Second, func() {
 		buf := make([]byte, 1024)
@@ -488,8 +527,6 @@ func TestAttachDetach(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		container = globalRuntime.List()[0]
-
 		if strings.Trim(string(buf[:n]), " \r\n") != container.ID {
 			t.Fatalf("Wrong ID received. Expect %s, received %s", container.ID, buf[:n])
 		}
@@ -497,6 +534,9 @@ func TestAttachDetach(t *testing.T) {
 	setTimeout(t, "Starting container timed out", 10*time.Second, func() {
 		<-ch
 	})
+
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
@@ -513,7 +553,7 @@ func TestAttachDetach(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -521,17 +561,17 @@ func TestAttachDetach(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16, 17})
-		if err := stdinPipe.Close(); err != nil {
-			t.Fatal(err)
-		}
+		stdinPipe.Write([]byte{16})
+		time.Sleep(100 * time.Millisecond)
+		stdinPipe.Write([]byte{17})
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
 		<-ch
 	})
+
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
@@ -551,6 +591,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalEngine, t)
 
+	// Discard the CmdRun output
 	go stdout.Read(make([]byte, 1024))
 	setTimeout(t, "Starting container timed out", 2*time.Second, func() {
 		if err := cli.CmdRun("-i", "-t", "-d", unitTestImageID, "cat"); err != nil {
@@ -558,7 +599,10 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := waitContainerStart(t, 10*time.Second)
+
+	state := setRaw(t, container)
+	defer unsetRaw(t, container, state)
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
@@ -575,7 +619,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -583,17 +627,16 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16, 17})
-		if err := stdinPipe.Close(); err != nil {
-			t.Fatal(err)
-		}
+		stdinPipe.Write([]byte{16})
+		time.Sleep(100 * time.Millisecond)
+		stdinPipe.Write([]byte{17})
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
 		<-ch
 	})
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
@@ -648,7 +691,7 @@ func TestAttachDisconnect(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -714,6 +757,7 @@ func TestRunAutoRemove(t *testing.T) {
 }
 
 func TestCmdLogs(t *testing.T) {
+	t.Skip("Test not impemented")
 	cli := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalEngine, t)
 
@@ -729,25 +773,6 @@ func TestCmdLogs(t *testing.T) {
 	}
 }
 
-// Expected behaviour: using / as a bind mount source should throw an error
-func TestRunErrorBindMountRootSource(t *testing.T) {
-
-	cli := docker.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("-v", "/:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
-			t.Fatal("should have failed to run when using / as a source for the bind mount")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
-
 // Expected behaviour: error out when attempting to bind mount non-existing source paths
 func TestRunErrorBindNonExistingSource(t *testing.T) {
 
@@ -757,6 +782,7 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
+		// This check is made at runtime, can't be "unit tested"
 		if err := cli.CmdRun("-v", "/i/dont/exist:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
 			t.Fatal("should have failed to run when using /i/dont/exist as a source for the bind mount")
 		}
