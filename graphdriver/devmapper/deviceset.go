@@ -2,6 +2,7 @@ package devmapper
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -439,11 +440,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	hasMetadata := devices.hasImage("metadata")
 
 	if !doInit && !hasData {
-		return fmt.Error("Looback data file not found")
+		return errors.New("Looback data file not found")
 	}
 
 	if !doInit && !hasMetadata {
-		return fmt.Error("Looback metadata file not found")
+		return errors.New("Looback metadata file not found")
 	}
 
 	createdLoopback := !hasData || !hasMetadata
