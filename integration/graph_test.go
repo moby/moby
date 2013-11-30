@@ -287,19 +287,19 @@ func assertNImages(graph *docker.Graph, t *testing.T, n int) {
 }
 
 func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
-        tmp, err := ioutil.TempDir("", "docker-graph-")
-        if err != nil {
-                t.Fatal(err)
-        }
-        driver, err := graphdriver.New(tmp)
-        if err != nil {
-                t.Fatal(err)
-        }
-        graph, err := docker.NewGraph(tmp, driver)
-        if err != nil {
-                t.Fatal(err)
-        }
-        return graph, driver
+	tmp, err := ioutil.TempDir("", "docker-graph-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver, err := graphdriver.New(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := docker.NewGraph(tmp, driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return graph, driver
 }
 
 func nukeGraph(graph *docker.Graph) {
