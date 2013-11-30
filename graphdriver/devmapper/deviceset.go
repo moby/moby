@@ -172,7 +172,7 @@ func (devices *DeviceSet) saveMetadata() error {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
 	if err := osRename(tmpFile.Name(), devices.jsonFile()); err != nil {
-		return fmt.Errorf("Error committing metadata file", err)
+		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
@@ -439,11 +439,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	hasMetadata := devices.hasImage("metadata")
 
 	if !doInit && !hasData {
-		return fmt.Errorf("Looback data file not found %s")
+		return fmt.Error("Looback data file not found")
 	}
 
 	if !doInit && !hasMetadata {
-		return fmt.Errorf("Looback metadata file not found %s")
+		return fmt.Error("Looback metadata file not found")
 	}
 
 	createdLoopback := !hasData || !hasMetadata

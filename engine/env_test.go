@@ -37,16 +37,16 @@ func TestSetenvBool(t *testing.T) {
 	job := mkJob(t, "dummy")
 	job.SetenvBool("foo", true)
 	if val := job.GetenvBool("foo"); !val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 
 	job.SetenvBool("bar", false)
 	if val := job.GetenvBool("bar"); val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 
 	if val := job.GetenvBool("nonexistent"); val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 }
 

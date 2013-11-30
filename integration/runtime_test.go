@@ -127,7 +127,7 @@ func setupBaseImage() {
 	job.SetenvBool("Autorestart", false)
 	job.Setenv("BridgeIface", unitTestNetworkBridge)
 	if err := job.Run(); err != nil {
-		log.Fatalf("Unable to create a runtime for tests:", err)
+		log.Fatalf("Unable to create a runtime for tests: %s", err)
 	}
 	srv := mkServerFromEngine(eng, log.New(os.Stderr, "", 0))
 
@@ -173,7 +173,7 @@ func spawnGlobalDaemon() {
 func GetTestImage(runtime *docker.Runtime) *docker.Image {
 	imgs, err := runtime.Graph().Map()
 	if err != nil {
-		log.Fatalf("Unable to get the test image:", err)
+		log.Fatalf("Unable to get the test image: %s", err)
 	}
 	for _, image := range imgs {
 		if image.ID == unitTestImageID {
