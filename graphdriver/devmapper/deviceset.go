@@ -440,11 +440,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	hasMetadata := devices.hasImage("metadata")
 
 	if !doInit && !hasData {
-		return errors.New("Looback data file not found")
+		return errors.New("Loopback data file not found")
 	}
 
 	if !doInit && !hasMetadata {
-		return errors.New("Looback metadata file not found")
+		return errors.New("Loopback metadata file not found")
 	}
 
 	createdLoopback := !hasData || !hasMetadata
