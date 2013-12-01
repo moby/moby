@@ -95,6 +95,10 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 		}
 
 		allow := []string{
+			// allow mknod for any device
+			"c *:* m",
+			"b *:* m",
+
 			// /dev/null, zero, full
 			"c 1:3 rwm",
 			"c 1:5 rwm",

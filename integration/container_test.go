@@ -1619,16 +1619,16 @@ func TestPrivilegedCanMount(t *testing.T) {
 	}
 }
 
-func TestPrivilegedCannotMknod(t *testing.T) {
+func TestUnprivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could mknod into secure container")
+	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Couldn't mknod into secure container")
 	}
 }
 
-func TestPrivilegedCannotMount(t *testing.T) {
+func TestUnprivilegedCannotMount(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
