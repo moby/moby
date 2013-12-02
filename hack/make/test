@@ -27,7 +27,7 @@ bundle_test() {
 				go test -i -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS
 				
 				# Run the tests with the optional $TESTFLAGS.
-				go test -v -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
+				go test -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
 			); then
 				TESTS_FAILED+=("$test_dir")
 				sleep 1 # give it a second, so observers watching can take note

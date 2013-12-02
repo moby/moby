@@ -34,7 +34,7 @@ bundle_test() {
 				
 				# Run the tests with the optional $TESTFLAGS.
 				export TEST_DOCKERINIT_PATH=$DEST/../dynbinary/dockerinit-$VERSION
-				go test -v -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS $TESTFLAGS
+				go test -ldflags "$LDFLAGS -X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" $BUILDFLAGS $TESTFLAGS
 			); then
 				TESTS_FAILED+=("$test_dir")
 				sleep 1 # give it a second, so observers watching can take note
