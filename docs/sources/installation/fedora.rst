@@ -1,10 +1,10 @@
 :title: Installation on Fedora and EPEL
 :description: Docker installation instructions and nuances for Fedora.
-:keywords: gentoo linux, virtualization, docker, documentation, installation
+:keywords: fedora, virtualization, docker, documentation, installation
 
 .. _fedora:
 
-Gentoo
+Fedora
 ======
 
 .. include:: install_header.inc
