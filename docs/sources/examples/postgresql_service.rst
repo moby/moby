@@ -127,7 +127,7 @@ on the machine.  For ubuntu, use something like
 
 .. code-block:: bash
 
-    CONTAINER_IP=$(sudo docker inspect $CONTAINER | grep IPAddress | awk '{ print $2 }' | tr -d ',"')
+    CONTAINER_IP=$(sudo docker inspect -format='{{.NetworkSettings.IPAddress}}' $CONTAINER)
     psql -h $CONTAINER_IP -p 5432 -d docker -U docker -W
 
 As before, create roles or databases if needed.
