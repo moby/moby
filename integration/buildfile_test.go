@@ -266,7 +266,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, useCache, false, utils.NewStreamFormatter(false))
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false))
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		return nil, err
@@ -516,7 +516,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, false, true, false, utils.NewStreamFormatter(false))
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false))
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -562,7 +562,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, false, true, false, utils.NewStreamFormatter(false))
+	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false))
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
