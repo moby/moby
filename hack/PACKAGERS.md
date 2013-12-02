@@ -36,7 +36,7 @@ To build docker, you will need the following system dependencies
 
 * An amd64 machine
 * A recent version of git and mercurial
-* Go version 1.2rc1 or later (see notes below regarding using Go 1.1.2 and dynbinary)
+* Go version 1.2 or later (see notes below regarding using Go 1.1.2 and dynbinary)
 * SQLite version 3.7.9 or later
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
 under the path *src/github.com/dotcloud/docker*.
@@ -91,8 +91,8 @@ You would do the users of your distro a disservice and "void the docker warranty
 A good comparison is Busybox: all distros package it as a statically linked binary, because it just
 makes sense. Docker is the same way.
 
-If you *must* have a non-static Docker binary, or require Go 1.1.2 (since Go 1.2 is not yet officially
-released at the time of this writing), please use:
+If you *must* have a non-static Docker binary, or require Go 1.1.2 (since Go 1.2 is still freshly released
+at the time of this writing), please use:
 
 ```bash
 ./hack/make.sh dynbinary
