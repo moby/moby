@@ -770,16 +770,12 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontends, exists := out.NetworkSettings.Ports[Port(port+"/"+proto)]; exists {
-		if frontends == nil {
-			fmt.Fprintf(cli.out, "%s\n", port)
-		} else {
-			for _, frontend := range frontends {
-				fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
-			}
+	if frontends, exists := out.NetworkSettings.Ports[Port(port+"/"+proto)]; exists && frontends != nil {
+		for _, frontend := range frontends {
+			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
 		}
 	} else {
-		return fmt.Errorf("Error: No private port '%s' allocated on %s", cmd.Arg(1), cmd.Arg(0))
+		return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
 	}
 	return nil
 }
