@@ -100,7 +100,10 @@ func main() {
 		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
-				os.Exit(sterr.Status)
+				if sterr.Status != "" {
+					log.Println(sterr.Status)
+				}
+				os.Exit(sterr.StatusCode)
 			}
 			log.Fatal(err)
 		}

@@ -220,42 +220,16 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *rm {
 		v.Set("rm", "1")
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("/v%g/build?%s", APIVERSION, v.Encode()), body)
-	if err != nil {
-		return err
-	}
+
+	headers := http.Header(make(map[string][]string))
 	if context != nil {
-		req.Header.Set("Content-Type", "application/tar")
+		headers.Set("Content-Type", "application/tar")
 	}
-	dial, err := net.Dial(cli.proto, cli.addr)
-	if err != nil {
-		return err
+	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
+	if jerr, ok := err.(*utils.JSONError); ok {
+		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
-	clientconn := httputil.NewClientConn(dial, nil)
-	resp, err := clientconn.Do(req)
-	defer clientconn.Close()
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	// Check for errors
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		if len(body) == 0 {
-			return fmt.Errorf("Error: %s", http.StatusText(resp.StatusCode))
-		}
-		return fmt.Errorf("Error: %s", body)
-	}
-
-	// Output the result
-	if _, err := io.Copy(cli.out, resp.Body); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // 'docker login': login / register a user to registry service.
@@ -699,7 +673,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "]")
 	if status != 0 {
-		return &utils.StatusError{Status: status}
+		return &utils.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -1584,7 +1558,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	if status != 0 {
-		return &utils.StatusError{Status: status}
+		return &utils.StatusError{StatusCode: status}
 	}
 
 	return nil
@@ -2167,7 +2141,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return &utils.StatusError{Status: status}
+		return &utils.StatusError{StatusCode: status}
 	}
 	return nil
 }

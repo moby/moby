@@ -960,9 +960,17 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
+	if version > 1.6 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version > 1.6)
+	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm, sf)
 	id, err := b.Build(context)
 	if err != nil {
+		if sf.Used() {
+			w.Write(sf.FormatError(err))
+			return nil
+		}
 		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {

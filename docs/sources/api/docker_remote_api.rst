@@ -138,6 +138,11 @@ What's new
    This URI no longer exists.  The ``images -viz`` output is now generated in
    the client, using the ``/images/json`` data.
 
+.. http:post:: /build
+
+   **New!** This endpoint now returns build status as json stream. In case
+   of a build error, it returns the exit status of the failed command.
+
 v1.6
 ****
 

@@ -905,9 +905,12 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		nil,
 		nil,
 	}
-	image := buildImage(testBuilder, t, eng, true)
+	image, err := buildImage(testBuilder, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := mkServerFromEngine(eng, t).ContainerTag(image.ID, "test", "latest", false)
+	err = mkServerFromEngine(eng, t).ContainerTag(image.ID, "test", "latest", false)
 	if err != nil {
 		t.Fatal(err)
 	}
