@@ -1,11 +1,11 @@
-:title: Remote API v1.7
+:title: Remote API v1.8
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
 :orphan:
 
 ======================
-Docker Remote API v1.7
+Docker Remote API v1.8
 ======================
 
 .. contents:: Table of Contents
@@ -992,7 +992,10 @@ Build an image from Dockerfile via stdin
       HTTP/1.1 200 OK
       Content-Type: application/json
 
-      {{ STREAM }}
+      {"status":"Step 1..."}
+      {"status":"..."}
+      {"error":"Error...", "errorDetail":{"code": 123, "message": "Error..."}}
+
 
    The stream must be a tar archive compressed with one of the
    following algorithms: identity (no compression), gzip, bzip2,
