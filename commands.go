@@ -2294,7 +2294,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	}
 
 	if matchesContentType(resp.Header.Get("Content-Type"), "application/json") {
-		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.isTerminal)
+		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
 	}
 	if _, err := io.Copy(out, resp.Body); err != nil {
 		return err

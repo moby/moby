@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/term"
 	"io"
 	"strings"
 	"time"
@@ -18,27 +19,50 @@ func (e *JSONError) Error() string {
 }
 
 type JSONProgress struct {
-	Current int   `json:"current,omitempty"`
-	Total   int   `json:"total,omitempty"`
-	Start   int64 `json:"start,omitempty"`
+	terminalFd uintptr
+	Current    int   `json:"current,omitempty"`
+	Total      int   `json:"total,omitempty"`
+	Start      int64 `json:"start,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
+	var (
+		width       = 200
+		pbBox       string
+		numbersBox  string
+		timeLeftBox string
+	)
+
+	ws, err := term.GetWinsize(p.terminalFd)
+	if err == nil {
+		width = int(ws.Width)
+	}
+
 	if p.Current == 0 && p.Total == 0 {
 		return ""
 	}
 	current := HumanSize(int64(p.Current))
 	if p.Total == 0 {
-		return fmt.Sprintf("%8v/?", current)
+		return fmt.Sprintf("%8v", current)
 	}
 	total := HumanSize(int64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
+	if width > 110 {
+		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage))
+	}
+	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-	fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
-	perEntry := fromStart / time.Duration(p.Current)
-	left := time.Duration(p.Total-p.Current) * perEntry
-	left = (left / time.Second) * time.Second
-	return fmt.Sprintf("[%s>%s] %8v/%v %s", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage), current, total, left.String())
+	if p.Start > 0 {
+		fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
+		perEntry := fromStart / time.Duration(p.Current)
+		left := time.Duration(p.Total-p.Current) * perEntry
+		left = (left / time.Second) * time.Second
+
+		if width > 50 {
+			timeLeftBox = " " + left.String()
+		}
+	}
+	return pbBox + numbersBox + timeLeftBox
 }
 
 type JSONMessage struct {
@@ -84,7 +108,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	return nil
 }
 
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool) error {
 	var (
 		dec  = json.NewDecoder(in)
 		ids  = make(map[string]int)
@@ -97,6 +121,10 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) err
 				break
 			}
 			return err
+		}
+
+		if jm.Progress != nil {
+			jm.Progress.terminalFd = terminalFd
 		}
 		if (jm.Progress != nil || jm.ProgressMessage != "") && jm.ID != "" {
 			line, ok := ids[jm.ID]
