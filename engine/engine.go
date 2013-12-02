@@ -70,7 +70,9 @@ func New(root string) (*Engine, error) {
 		log.Printf("WARNING: %s\n", err)
 	} else {
 		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			}
 		}
 	}
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
