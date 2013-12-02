@@ -1,4 +1,4 @@
-# ZFS Stroage Driver
+# ZFS Storage Driver
 
 This is a placeholder to declare the presence and status of ZFS storage driver
 for containers.
