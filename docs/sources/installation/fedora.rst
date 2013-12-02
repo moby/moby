@@ -1,19 +1,37 @@
-:title: Requirements and Installation on Fedora
-:description: Please note this project is currently under heavy development. It should not be used in production.
-:keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+:title: Installation on Fedora and EPEL
+:description: Docker installation instructions and nuances for Fedora.
+:keywords: gentoo linux, virtualization, docker, documentation, installation
 
 .. _fedora:
 
-Fedora
+Gentoo
 ======
 
 .. include:: install_header.inc
 
-.. include:: install_unofficial.inc
+Docker is available as an official Fedora package for Fedora 19, 20 and EPEL6.
 
-.. warning::
+Installation
+^^^^^^^^^^^^
 
-   This is a placeholder for the Fedora installation instructions. Currently there is not an available
-   Docker package in the Fedora distribution. These packages are being built and should be available soon.
-   These instructions will be updated when the package is available.
+To install docker on Fedora, simply do:
 
+.. code-block:: bash
+
+   sudo yum install docker-io
+
+
+Starting Docker
+^^^^^^^^^^^^^^^
+
+To start docker, do:
+
+.. code-block:: bash
+
+   sudo systemctl start docker
+
+To start docker on system startup, do:
+
+.. code-block:: bash
+
+   sudo systemctl enable docker
