@@ -1,4 +1,4 @@
-:title: Installation on Fedora and EPEL
+:title: Installation on Fedora
 :description: Docker installation instructions and nuances for Fedora.
 :keywords: fedora, virtualization, docker, documentation, installation
 
@@ -9,7 +9,7 @@ Fedora
 
 .. include:: install_header.inc
 
-Docker is available as an official Fedora package for Fedora 19, 20 and EPEL6.
+Docker is available as an official Fedora package.
 
 Installation
 ^^^^^^^^^^^^
