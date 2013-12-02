@@ -195,6 +195,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := os.Stat(cmd.Arg(0)); err != nil {
 			return err
 		}
+		filename := path.Join(cmd.Arg(0), "Dockerfile")
+		if _, err = os.Stat(filename); os.IsNotExist(err) {
+			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
+		}
 		context, err = archive.Tar(cmd.Arg(0), archive.Uncompressed)
 	}
 	var body io.Reader
