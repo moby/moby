@@ -960,11 +960,20 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	if version > 1.6 {
+	if version >= 1.8 {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	sf := utils.NewStreamFormatter(version > 1.6)
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm, sf)
+	sf := utils.NewStreamFormatter(version >= 1.8)
+	b := NewBuildFile(srv,
+		&StdoutFormater{
+			Writer:          utils.NewWriteFlusher(w),
+			StreamFormatter: sf,
+		},
+		&StderrFormater{
+			Writer:          utils.NewWriteFlusher(w),
+			StreamFormatter: sf,
+		},
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf)
 	id, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {
