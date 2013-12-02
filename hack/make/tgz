@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DEST="$1"
 BINARY="$DEST/../binary/docker-$VERSION"
