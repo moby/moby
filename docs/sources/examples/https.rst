@@ -20,9 +20,8 @@ example, however the following command will generate an example one.
 
 .. code-block:: bash
 
-    openssl dsaparam -out dsaparam.pem 2048
-    openssl gendsa -out privkey.pem dsaparam.pem
-    openssl req -new -x509 -key privkey.pem -out cacert.pem -days 1095
+    openssl genrsa -out key.pem 2048
+    openssl req -new -key key.pem -x509 -out cert.pem -days 36525
 
 
 Docker can then run using these certificates. Most commonly you will want to
@@ -30,4 +29,5 @@ run docker on a different port that the default unix socket when in https mode.
 
 .. code-block:: bash
 
-    sudo docker -d -sslkey=privkey.pem -sslcert=cacert.pem -H=tcp://0.0.0.0 -H unix:///var/run/docker.sock
+    sudo docker -d -sslkey=key.pem -sslcert=cert.pem -H=tcp://0.0.0.0 -H unix:///var/run/docker.sock
+
