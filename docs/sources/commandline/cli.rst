@@ -558,7 +558,8 @@ Displaying image hierarchy
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create a new filesystem image from the contents of a tarball
+    Create an empty filesystem image and import the contents of the tarball 
+    (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
 file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) containing a
