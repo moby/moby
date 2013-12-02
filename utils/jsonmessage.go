@@ -59,7 +59,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		}
 		return jm.Error
 	}
-	endl := ""
+	var endl string
 	if isTerminal {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
@@ -85,14 +85,17 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 }
 
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
-	dec := json.NewDecoder(in)
-	ids := make(map[string]int)
-	diff := 0
+	var (
+		dec  = json.NewDecoder(in)
+		ids  = make(map[string]int)
+		diff = 0
+	)
 	for {
-		jm := JSONMessage{}
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
+		var jm JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
 			return err
 		}
 		if (jm.Progress != nil || jm.ProgressMessage != "") && jm.ID != "" {
