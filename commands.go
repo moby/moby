@@ -228,6 +228,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")
 	}
+	// Temporary hack to fix displayJSON behavior
+	cli.isTerminal = false
 	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
 	if jerr, ok := err.(*utils.JSONError); ok {
 		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}

@@ -63,7 +63,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if isTerminal {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
-		endl = "\r"
+		endl = "\r\n"
 	}
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
@@ -79,7 +79,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	} else if jm.ProgressMessage != "" { //deprecated
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else {
-		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
+		fmt.Fprintf(out, "%s%s", jm.Status, endl)
 	}
 	return nil
 }
