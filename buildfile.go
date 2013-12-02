@@ -369,6 +369,11 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdDescription(description string) error {
+	b.config.Description = description
+	return b.commit("", b.config.Cmd, fmt.Sprintf("DESCRIPTION %s", description))
+}
+
 func (b *buildFile) run() (string, error) {
 	if b.image == "" {
 		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
