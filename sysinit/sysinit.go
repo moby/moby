@@ -25,57 +25,61 @@ type DockerInitArgs struct {
 }
 
 // Setup networking
-func setupNetworking(args *DockerInitArgs) {
+func setupNetworking(args *DockerInitArgs) error {
 	if args.gateway == "" {
-		return
+		return nil
 	}
 
 	ip := net.ParseIP(args.gateway)
 	if ip == nil {
-		log.Fatalf("Unable to set up networking, %s is not a valid IP", args.gateway)
-		return
+		return fmt.Errorf("Unable to set up networking, %s is not a valid IP", args.gateway)
 	}
 
 	if err := netlink.AddDefaultGw(ip); err != nil {
-		log.Fatalf("Unable to set up networking: %v", err)
+		return fmt.Errorf("Unable to set up networking: %v", err)
 	}
+
+	return nil
 }
 
 // Setup working directory
-func setupWorkingDirectory(args *DockerInitArgs) {
+func setupWorkingDirectory(args *DockerInitArgs) error {
 	if args.workDir == "" {
-		return
+		return nil
 	}
 	if err := syscall.Chdir(args.workDir); err != nil {
-		log.Fatalf("Unable to change dir to %v: %v", args.workDir, err)
+		return fmt.Errorf("Unable to change dir to %v: %v", args.workDir, err)
 	}
+	return nil
 }
 
 // Takes care of dropping privileges to the desired user
-func changeUser(args *DockerInitArgs) {
+func changeUser(args *DockerInitArgs) error {
 	if args.user == "" {
-		return
+		return nil
 	}
 	userent, err := utils.UserLookup(args.user)
 	if err != nil {
-		log.Fatalf("Unable to find user %v: %v", args.user, err)
+		return fmt.Errorf("Unable to find user %v: %v", args.user, err)
 	}
 
 	uid, err := strconv.Atoi(userent.Uid)
 	if err != nil {
-		log.Fatalf("Invalid uid: %v", userent.Uid)
+		return fmt.Errorf("Invalid uid: %v", userent.Uid)
 	}
 	gid, err := strconv.Atoi(userent.Gid)
 	if err != nil {
-		log.Fatalf("Invalid gid: %v", userent.Gid)
+		return fmt.Errorf("Invalid gid: %v", userent.Gid)
 	}
 
 	if err := syscall.Setgid(gid); err != nil {
-		log.Fatalf("setgid failed: %v", err)
+		return fmt.Errorf("setgid failed: %v", err)
 	}
 	if err := syscall.Setuid(uid); err != nil {
-		log.Fatalf("setuid failed: %v", err)
+		return fmt.Errorf("setuid failed: %v", err)
 	}
+
+	return nil
 }
 
 // Clear environment pollution introduced by lxc-start
@@ -90,7 +94,21 @@ func setupEnv(args *DockerInitArgs) {
 	}
 }
 
-func executeProgram(args *DockerInitArgs) {
+func executeProgram(args *DockerInitArgs) error {
+	setupEnv(args)
+
+	if err := setupNetworking(args); err != nil {
+		return err
+	}
+
+	if err := setupWorkingDirectory(args); err != nil {
+		return err
+	}
+
+	if err := changeUser(args); err != nil {
+		return err
+	}
+
 	path, err := exec.LookPath(args.args[0])
 	if err != nil {
 		log.Printf("Unable to locate %v", args.args[0])
@@ -100,6 +118,9 @@ func executeProgram(args *DockerInitArgs) {
 	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
 		panic(err)
 	}
+
+	// Will never reach here
+	return nil
 }
 
 // Sys Init code
@@ -135,9 +156,7 @@ func SysInit() {
 		args:    flag.Args(),
 	}
 
-	setupEnv(args)
-	setupNetworking(args)
-	setupWorkingDirectory(args)
-	changeUser(args)
-	executeProgram(args)
+	if err := executeProgram(args); err != nil {
+		log.Fatal(err)
+	}
 }
