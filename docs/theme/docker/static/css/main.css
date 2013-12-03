@@ -410,3 +410,23 @@ dt:hover > a.headerlink {
 .admonition.seealso {
   border-color: #23cb1f;
 }
+
+.versionchanged,
+.versionadded,
+.versionmodified,
+.deprecated {
+  font-size: larger;
+  font-weight: bold;
+}
+
+.versionchanged {
+  color: lightseagreen;
+}
+
+.versionadded {
+  color: mediumblue;
+}
+
+.deprecated {
+  color: orangered;
+}
