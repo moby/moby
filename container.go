@@ -583,42 +583,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	// Apply volumes from another container if requested
-	if container.Config.VolumesFrom != "" {
-		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
-		for _, containerSpec := range containerSpecs {
-			mountRW := true
-			specParts := strings.SplitN(containerSpec, ":", 2)
-			switch len(specParts) {
-			case 0:
-				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
-			case 2:
-				switch specParts[1] {
-				case "ro":
-					mountRW = false
-				case "rw": // mountRW is already true
-				default:
-					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
-				}
-			}
-			c := container.runtime.Get(specParts[0])
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-			}
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					continue
-				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-					return err
-				}
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW && mountRW
-				}
-			}
-
-		}
-	}
+	container.joinVolumes()
 
 	volumesDriver := container.runtime.volumes.driver
 	// Create the requested volumes if they don't exist
@@ -913,6 +878,45 @@ func (container *Container) Start() (err error) {
 		return ErrContainerStartTimeout
 	}
 	return ErrContainerStart
+}
+
+func (container *Container) joinVolumes() error {
+	if container.Config.VolumesFrom != "" {
+		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
+		for _, containerSpec := range containerSpecs {
+			mountRW := true
+			specParts := strings.SplitN(containerSpec, ":", 2)
+			switch len(specParts) {
+			case 0:
+				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
+			case 2:
+				switch specParts[1] {
+				case "ro":
+					mountRW = false
+				case "rw": // mountRW is already true
+				default:
+					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
+				}
+			}
+			c := container.runtime.Get(specParts[0])
+			if c == nil {
+				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+			}
+			for volPath, id := range c.Volumes {
+				if _, exists := container.Volumes[volPath]; exists {
+					continue
+				}
+				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+					return err
+				}
+				container.Volumes[volPath] = id
+				if isRW, exists := c.VolumesRW[volPath]; exists {
+					container.VolumesRW[volPath] = isRW && mountRW
+				}
+			}
+
+		}
+	}
 }
 
 func (container *Container) Run() error {
