@@ -1506,7 +1506,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	cmd := cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
-	stream := cmd.Bool("stream", false, "Stream output")
+	follow := cmd.Bool("f", false, "Follow log output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1530,7 +1530,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("logs", "1")
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
-	if *stream && container.State.Running {
+	if *follow && container.State.Running {
 		v.Set("stream", "1")
 	}
 
