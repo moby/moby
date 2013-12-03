@@ -237,6 +237,11 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", runtime.driver, container.ID, err)
 	}
 
+	initID := fmt.Sprintf("%s-init", container.ID)
+	if err := runtime.driver.Remove(initID); err != nil {
+		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", runtime.driver, initID, err)
+	}
+
 	if _, err := runtime.containerGraph.Purge(container.ID); err != nil {
 		utils.Debugf("Unable to remove container from link graph: %s", err)
 	}

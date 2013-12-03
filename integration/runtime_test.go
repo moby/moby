@@ -843,3 +843,43 @@ func TestGetAllChildren(t *testing.T) {
 		}
 	}
 }
+
+func TestDestroyWithInitLayer(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, _, err := runtime.Create(&docker.Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"ls", "-al"},
+	}, "")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Destroy
+	if err := runtime.Destroy(container); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure runtime.Exists() behaves correctly
+	if runtime.Exists("test_destroy") {
+		t.Fatalf("Exists() returned true")
+	}
+
+	// Make sure runtime.List() doesn't list the destroyed container
+	if len(runtime.List()) != 0 {
+		t.Fatalf("Expected 0 container, %v found", len(runtime.List()))
+	}
+
+	driver := runtime.Graph().Driver()
+
+	// Make sure that the container does not exist in the driver
+	if _, err := driver.Get(container.ID); err == nil {
+		t.Fatal("Conttainer should not exist in the driver")
+	}
+
+	// Make sure that the init layer is removed from the driver
+	if _, err := driver.Get(fmt.Sprintf("%s-init", container.ID)); err == nil {
+		t.Fatal("Container's init layer should not exist in the driver")
+	}
+}
