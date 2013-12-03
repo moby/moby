@@ -507,6 +507,8 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 // Long lines can be split with a backslash
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
+var commentRegex = regexp.MustCompile(`^#[^\n]*\n`)
+
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("", "docker-build")
@@ -527,12 +529,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return "", err
 	}
 	dockerfile := string(fileBytes)
+        dockerfile = commentRegex.ReplaceAllString(dockerfile, "")
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		// Skip comments and empty line
-		if len(line) == 0 || line[0] == '#' {
+		if len(line) == 0 {
 			continue
 		}
 		tmp := strings.SplitN(line, " ", 2)
