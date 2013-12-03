@@ -20,6 +20,13 @@ To install docker on Fedora, simply do:
 
    sudo yum install docker-io
 
+For the EPEL branch, lxc needs to be installed from the epel-testing repo.
+
+.. code-bloack:: bash
+
+   sudo yum install --enablerepo=epel-testing lxc
+
+This is taken care of automatically for the other fedora versions.
 
 Starting Docker
 ^^^^^^^^^^^^^^^
