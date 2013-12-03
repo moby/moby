@@ -1506,6 +1506,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	cmd := cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+	stream := cmd.Bool("stream", false, "Stream output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1525,7 +1526,15 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return err
 	}
 
-	if err := cli.hijack("POST", "/containers/"+name+"/attach?logs=1&stdout=1&stderr=1", container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
+	v := url.Values{}
+	v.Set("logs", "1")
+	v.Set("stdout", "1")
+	v.Set("stderr", "1")
+	if *stream {
+		v.Set("stream", "1")
+	}
+
+	if err := cli.hijack("POST", "/containers/"+name+"/attach?"+v.Encode(), container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil
