@@ -1235,6 +1235,11 @@ Load a tarball with a set of images and tags into docker
 
           HTTP/1.1 200 OK
 
+          {"status":"Loading","progressDetail":{"current":1,"total":100},"progress":"1 B/100 B"}
+          {"status":"Loading","progressDetail":{"current":5,"total":100},"progress":"5 B/100 B"}
+          {"status":"Loading","progressDetail":{"current":10,"total":100},"progress":"10 B/100 B"}
+          {"status":"Loaded: ubuntu:12.04"}
+
         :query fromSrc: source to load, - means stdin
         :statuscode 200: no error
         :statuscode 500: server error

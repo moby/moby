@@ -387,6 +387,7 @@ func (srv *Server) ImageLoad(src string, in io.Reader, out io.Writer, sf *utils.
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
+				out.Write(sf.FormatStatus("", "Loaded: "+imageName+":"+tag))
 				if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
 					return err
 				}
