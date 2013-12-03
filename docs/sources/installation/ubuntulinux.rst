@@ -86,6 +86,14 @@ continue installation.*
    sudo apt-get update
    sudo apt-get install lxc-docker
 
+.. note::
+
+    There is also a simple ``curl`` script available to help with this process.
+
+    .. code-block:: bash
+
+        curl -s http://get.docker.io/ubuntu/ | sudo sh
+
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.
 
