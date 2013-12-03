@@ -2171,17 +2171,26 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "URL|-", "Load an image from a tar archive")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 
-	if cmd.NArg() != 0 {
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 
-	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+	v := url.Values{}
+	v.Set("fromSrc", cmd.Arg(0))
+
+	var in io.Reader
+
+	if cmd.Arg(0) == "-" {
+		in = cli.in
+	}
+
+	if err := cli.stream("POST", "/images/load?"+v.Encode(), in, cli.out, nil); err != nil {
 		return err
 	}
 	return nil

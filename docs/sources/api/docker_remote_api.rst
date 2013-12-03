@@ -63,6 +63,10 @@ What's new
   to get the current value and the total of the progress without having to
   parse the string.
 
+.. http:post:: /images/load
+
+  **New!** It's now possible to load an image from a remote url.
+
 v1.7
 ****
 
