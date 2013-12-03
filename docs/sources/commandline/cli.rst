@@ -733,9 +733,10 @@ Known Issues (kill)
 
 ::
 
-    Usage: docker load < repository.tar
+    Usage: docker load URL|-
 
-    Loads a tarred repository from the standard input stream.
+    Loads a tarred repository from the standard input stream
+    or from a remote url.
     Restores both images and tags.
 
 .. _cli_login:

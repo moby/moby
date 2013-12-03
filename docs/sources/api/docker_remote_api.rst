@@ -55,6 +55,9 @@ What's new
 
     **New!** This endpoint now returns the host config for the container.
 
+.. http:post:: /images/load
+
+  **New!** It's now possible to load an image from a remote url.
 
 v1.7
 ****
