@@ -27,8 +27,8 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	config.Root = job.Getenv("Root")
 	config.AutoRestart = job.GetenvBool("AutoRestart")
 	config.EnableCors = job.GetenvBool("EnableCors")
-	if dns := job.Getenv("Dns"); dns != "" {
-		config.Dns = []string{dns}
+	if dns := job.GetenvList("Dns"); dns != nil {
+		config.Dns = dns
 	}
 	config.EnableIptables = job.GetenvBool("EnableIptables")
 	if br := job.Getenv("BridgeIface"); br != "" {
