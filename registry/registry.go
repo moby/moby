@@ -48,7 +48,12 @@ func traceLog(req *http.Request, resp *http.Response, reqBody string) ([]byte, e
 		utils.Errorf("Error while reading response body: %v", err)
 		return nil, err
 	}
-	utils.Errorf("Response body:\n%s", string(respBody))
+	if len(respBody) > 1024 {
+		utils.Errorf("Response body (truncated):\n%s ...", string(respBody[:1023]))
+	} else {
+		utils.Errorf("Response body:\n%s", string(respBody))
+	}
+
 	return respBody, nil
 }
 
