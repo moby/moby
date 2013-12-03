@@ -425,7 +425,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
-	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
+	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress())
 	if err != nil {
 		return nil, err
 	}
@@ -816,10 +816,10 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag, indexEp string, sf *utils.StreamFormatter, parallel bool) error {
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
-	repoData, err := r.GetRepositoryData(indexEp, remoteName)
+	repoData, err := r.GetRepositoryData(remoteName)
 	if err != nil {
 		return err
 	}
@@ -989,11 +989,6 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
-	if err != nil {
-		return err
-	}
-
 	out = utils.NewWriteFlusher(out)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
@@ -1014,12 +1009,17 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		return err
 	}
 
+	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	if err != nil {
+		return err
+	}
+
 	if endpoint == auth.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
 	}
 
-	if err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel); err != nil {
+	if err = srv.pullRepository(r, out, localName, remoteName, tag, sf, parallel); err != nil {
 		return err
 	}
 
@@ -1081,7 +1081,7 @@ func flatten(slc [][]*registry.ImgData) []*registry.ImgData {
 	return result
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, indexEp string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	imgList, err := srv.getImageList(localRepo)
 	if err != nil {
@@ -1091,7 +1091,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
 	var repoData *registry.RepositoryData
-	repoData, err = r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, false, nil)
+	repoData, err = r.PushImageJSONIndex(remoteName, flattenedImgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -1137,7 +1137,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 
@@ -1203,7 +1203,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
 		return err2
 	}
@@ -1213,7 +1213,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 		out.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[localName]; exists {
-			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, endpoint, sf); err != nil {
+			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, sf); err != nil {
 				return err
 			}
 			return nil
@@ -1852,7 +1852,6 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
-		reqFactory:  nil,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -1861,15 +1860,12 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	srv.Lock()
 	defer srv.Unlock()
-	if srv.reqFactory == nil {
-		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
-		md := &utils.HTTPMetaHeadersDecorator{
-			Headers: metaHeaders,
-		}
-		factory := utils.NewHTTPRequestFactory(ud, md)
-		srv.reqFactory = factory
+	ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
+	md := &utils.HTTPMetaHeadersDecorator{
+		Headers: metaHeaders,
 	}
-	return srv.reqFactory
+	factory := utils.NewHTTPRequestFactory(ud, md)
+	return factory
 }
 
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
@@ -1904,6 +1900,5 @@ type Server struct {
 	pushingPool map[string]chan struct{}
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
-	reqFactory  *utils.HTTPRequestFactory
 	Eng         *engine.Engine
 }
