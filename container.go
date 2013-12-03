@@ -541,160 +541,18 @@ func (container *Container) Start() (err error) {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
 
-	// Create the requested bind mounts
-	binds := make(map[string]BindMap)
-	// Define illegal container destinations
-	illegalDsts := []string{"/", "."}
-
-	for _, bind := range container.hostConfig.Binds {
-		// FIXME: factorize bind parsing in parseBind
-		var src, dst, mode string
-		arr := strings.Split(bind, ":")
-		if len(arr) == 2 {
-			src = arr[0]
-			dst = arr[1]
-			mode = "rw"
-		} else if len(arr) == 3 {
-			src = arr[0]
-			dst = arr[1]
-			mode = arr[2]
-		} else {
-			return fmt.Errorf("Invalid bind specification: %s", bind)
-		}
-
-		// Bail if trying to mount to an illegal destination
-		for _, illegal := range illegalDsts {
-			if dst == illegal {
-				return fmt.Errorf("Illegal bind destination: %s", dst)
-			}
-		}
-
-		bindMap := BindMap{
-			SrcPath: src,
-			DstPath: dst,
-			Mode:    mode,
-		}
-		binds[path.Clean(dst)] = bindMap
-	}
-
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
 	}
 
 	// Apply volumes from another container if requested
-	container.joinVolumes()
+	if err := container.applyExternalVolumes(); err != nil {
+		return err
+	}
 
-	volumesDriver := container.runtime.volumes.driver
-	// Create the requested volumes if they don't exist
-	for volPath := range container.Config.Volumes {
-		volPath = path.Clean(volPath)
-		volIsDir := true
-		// Skip existing volumes
-		if _, exists := container.Volumes[volPath]; exists {
-			continue
-		}
-		var srcPath string
-		var isBindMount bool
-		srcRW := false
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			isBindMount = true
-			srcPath = bindMap.SrcPath
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				srcRW = true
-			}
-			if file, err := os.Open(bindMap.SrcPath); err != nil {
-				return err
-			} else {
-				defer file.Close()
-				if stat, err := file.Stat(); err != nil {
-					return err
-				} else {
-					volIsDir = stat.IsDir()
-				}
-			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-
-			// Do not pass a container as the parameter for the volume creation.
-			// The graph driver using the container's information ( Image ) to
-			// create the parent.
-			c, err := container.runtime.volumes.Create(nil, nil, "", "", nil)
-			if err != nil {
-				return err
-			}
-			srcPath, err = volumesDriver.Get(c.ID)
-			if err != nil {
-				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
-			}
-			srcRW = true // RW by default
-		}
-		container.Volumes[volPath] = srcPath
-		container.VolumesRW[volPath] = srcRW
-		// Create the mountpoint
-		rootVolPath := path.Join(container.RootfsPath(), volPath)
-		if volIsDir {
-			if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-				return err
-			}
-		}
-
-		volPath = path.Join(container.RootfsPath(), volPath)
-		if _, err := os.Stat(volPath); err != nil {
-			if os.IsNotExist(err) {
-				if volIsDir {
-					if err := os.MkdirAll(volPath, 0755); err != nil {
-						return err
-					}
-				} else {
-					if err := os.MkdirAll(path.Dir(volPath), 0755); err != nil {
-						return err
-					}
-					if f, err := os.OpenFile(volPath, os.O_CREATE, 0755); err != nil {
-						return err
-					} else {
-						f.Close()
-					}
-				}
-			}
-		}
-
-		// Do not copy or change permissions if we are mounting from the host
-		if srcRW && !isBindMount {
-			volList, err := ioutil.ReadDir(rootVolPath)
-			if err != nil {
-				return err
-			}
-			if len(volList) > 0 {
-				srcList, err := ioutil.ReadDir(srcPath)
-				if err != nil {
-					return err
-				}
-				if len(srcList) == 0 {
-					// If the source volume is empty copy files from the root into the volume
-					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
-						return err
-					}
-
-					var stat syscall.Stat_t
-					if err := syscall.Stat(rootVolPath, &stat); err != nil {
-						return err
-					}
-					var srcStat syscall.Stat_t
-					if err := syscall.Stat(srcPath, &srcStat); err != nil {
-						return err
-					}
-					// Change the source volume's ownership if it differs from the root
-					// files that where just copied
-					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-							return err
-						}
-					}
-				}
-			}
-		}
+	if err := container.createVolumes(); err != nil {
+		return err
 	}
 
 	if err := container.generateLXCConfig(); err != nil {
@@ -880,7 +738,165 @@ func (container *Container) Start() (err error) {
 	return ErrContainerStart
 }
 
-func (container *Container) joinVolumes() error {
+func (container *Container) getBindMap() (map[string]BindMap, error) {
+	// Create the requested bind mounts
+	binds := make(map[string]BindMap)
+	// Define illegal container destinations
+	illegalDsts := []string{"/", "."}
+
+	for _, bind := range container.hostConfig.Binds {
+		// FIXME: factorize bind parsing in parseBind
+		var src, dst, mode string
+		arr := strings.Split(bind, ":")
+		if len(arr) == 2 {
+			src = arr[0]
+			dst = arr[1]
+			mode = "rw"
+		} else if len(arr) == 3 {
+			src = arr[0]
+			dst = arr[1]
+			mode = arr[2]
+		} else {
+			return nil, fmt.Errorf("Invalid bind specification: %s", bind)
+		}
+
+		// Bail if trying to mount to an illegal destination
+		for _, illegal := range illegalDsts {
+			if dst == illegal {
+				return nil, fmt.Errorf("Illegal bind destination: %s", dst)
+			}
+		}
+
+		bindMap := BindMap{
+			SrcPath: src,
+			DstPath: dst,
+			Mode:    mode,
+		}
+		binds[path.Clean(dst)] = bindMap
+	}
+  return binds, nil
+}
+
+func (container *Container) createVolumes() error {
+  binds, err := container.getBindMap()
+  if err != nil {
+    return err
+  }
+	volumesDriver := container.runtime.volumes.driver
+	// Create the requested volumes if they don't exist
+	for volPath := range container.Config.Volumes {
+		volPath = path.Clean(volPath)
+		volIsDir := true
+		// Skip existing volumes
+		if _, exists := container.Volumes[volPath]; exists {
+			continue
+		}
+		var srcPath string
+		var isBindMount bool
+		srcRW := false
+		// If an external bind is defined for this volume, use that as a source
+		if bindMap, exists := binds[volPath]; exists {
+			isBindMount = true
+			srcPath = bindMap.SrcPath
+			if strings.ToLower(bindMap.Mode) == "rw" {
+				srcRW = true
+			}
+			if file, err := os.Open(bindMap.SrcPath); err != nil {
+				return err
+			} else {
+				defer file.Close()
+				if stat, err := file.Stat(); err != nil {
+					return err
+				} else {
+					volIsDir = stat.IsDir()
+				}
+			}
+			// Otherwise create an directory in $ROOT/volumes/ and use that
+		} else {
+
+			// Do not pass a container as the parameter for the volume creation.
+			// The graph driver using the container's information ( Image ) to
+			// create the parent.
+			c, err := container.runtime.volumes.Create(nil, nil, "", "", nil)
+			if err != nil {
+				return err
+			}
+			srcPath, err = volumesDriver.Get(c.ID)
+			if err != nil {
+				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
+			}
+			srcRW = true // RW by default
+		}
+		container.Volumes[volPath] = srcPath
+		container.VolumesRW[volPath] = srcRW
+		// Create the mountpoint
+		rootVolPath := path.Join(container.RootfsPath(), volPath)
+		if volIsDir {
+			if err := os.MkdirAll(rootVolPath, 0755); err != nil {
+				return err
+			}
+		}
+
+		volPath = path.Join(container.RootfsPath(), volPath)
+		if _, err := os.Stat(volPath); err != nil {
+			if os.IsNotExist(err) {
+				if volIsDir {
+					if err := os.MkdirAll(volPath, 0755); err != nil {
+						return err
+					}
+				} else {
+					if err := os.MkdirAll(path.Dir(volPath), 0755); err != nil {
+						return err
+					}
+					if f, err := os.OpenFile(volPath, os.O_CREATE, 0755); err != nil {
+						return err
+					} else {
+						f.Close()
+					}
+				}
+			}
+		}
+
+		// Do not copy or change permissions if we are mounting from the host
+		if srcRW && !isBindMount {
+			volList, err := ioutil.ReadDir(rootVolPath)
+			if err != nil {
+				return err
+			}
+			if len(volList) > 0 {
+				srcList, err := ioutil.ReadDir(srcPath)
+				if err != nil {
+					return err
+				}
+				if len(srcList) == 0 {
+					// If the source volume is empty copy files from the root into the volume
+					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
+						return err
+					}
+
+					var stat syscall.Stat_t
+					if err := syscall.Stat(rootVolPath, &stat); err != nil {
+						return err
+					}
+					var srcStat syscall.Stat_t
+					if err := syscall.Stat(srcPath, &srcStat); err != nil {
+						return err
+					}
+					// Change the source volume's ownership if it differs from the root
+					// files that where just copied
+					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (container *Container) applyExternalVolumes() error {
 	if container.Config.VolumesFrom != "" {
 		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
 		for _, containerSpec := range containerSpecs {
@@ -917,6 +933,7 @@ func (container *Container) joinVolumes() error {
 
 		}
 	}
+	return nil
 }
 
 func (container *Container) Run() error {
