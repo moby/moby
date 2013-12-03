@@ -529,7 +529,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return "", err
 	}
 	dockerfile := string(fileBytes)
-        dockerfile = commentRegex.ReplaceAllString(dockerfile, "")
+	dockerfile = commentRegex.ReplaceAllString(dockerfile, "")
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
 	stepN := 0
 	for _, line := range strings.Split(dockerfile, "\n") {
