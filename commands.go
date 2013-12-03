@@ -1530,7 +1530,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("logs", "1")
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
-	if *stream {
+	if *stream && container.State.Running {
 		v.Set("stream", "1")
 	}
 
