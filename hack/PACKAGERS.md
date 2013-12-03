@@ -38,6 +38,7 @@ To build docker, you will need the following system dependencies
 * A recent version of git and mercurial
 * Go version 1.2 or later (see notes below regarding using Go 1.1.2 and dynbinary)
 * SQLite version 3.7.9 or later
+* libdevmapper from lvm2 version 1.02.77 or later (http://www.sourceware.org/lvm2/)
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
 under the path *src/github.com/dotcloud/docker*.
 
