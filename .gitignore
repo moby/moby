@@ -5,6 +5,7 @@
 bin
 docker/docker
 .*.swp
+*~
 a.out
 *.orig
 build_src
