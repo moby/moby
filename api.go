@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/go.net/websocket"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1174,6 +1175,19 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 	if e != nil {
 		return e
 	}
+
+	if srv.runtime.config.SslCert != "" && srv.runtime.config.SslKey != "" {
+		tlsConfig := &tls.Config{}
+		tlsConfig.NextProtos = []string{"http/1.1"}
+		tlsConfig.Certificates = make([]tls.Certificate, 1)
+		cert, err := tls.LoadX509KeyPair(srv.runtime.config.SslCert, srv.runtime.config.SslKey)
+		if err != nil {
+			return fmt.Errorf("Couldn't load X509 key pair: %s", err)
+		}
+		tlsConfig.Certificates[0] = cert
+		l = tls.NewListener(l, tlsConfig)
+	}
+
 	if proto == "unix" {
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err

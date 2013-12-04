@@ -1129,3 +1129,8 @@ Show the version of the docker client, daemon, and latest released version.
     Usage: docker wait [OPTIONS] NAME
 
     Block until a container stops, then print its exit code.
+
+Server Flags
+~~~~~~~~~~~~
+
+.. include:: server/https.rst
