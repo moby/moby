@@ -25,6 +25,7 @@ Contents:
    windows
    amazon
    rackspace
+   google
    kernel
    binaries
    security
