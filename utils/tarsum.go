@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/dotcloud/tar"
+	"archive/tar"
 	"hash"
 	"io"
 	"sort"
