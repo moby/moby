@@ -8,8 +8,8 @@ Installation
 ============
 
 There are a number of ways to install Docker, depending on where you
-want to run the daemon. The :ref:`ubuntu_linux` installation is the
-officially-tested version. The community adds more techniques for
+want to run the daemon. The :ref:`ubuntu_linux` and :ref:`fedora` installations
+are the officially-tested versions. The community adds more techniques for
 installing Docker all the time.
 
 Contents:

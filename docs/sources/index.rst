@@ -27,7 +27,7 @@ frequently.
 For an overview of Docker, please see the `Introduction
 <http://www.docker.io>`_. When you're ready to start working with
 Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
-and a more in-depth guide to :ref:`ubuntu_linux` and other
+and a more in-depth guide to :ref:`ubuntu_linux`, :ref:`fedora` and other
 :ref:`installation_list` paths including prebuilt binaries,
 Vagrant-created VMs, Rackspace and Amazon instances.
 
