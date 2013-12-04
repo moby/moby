@@ -680,28 +680,12 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+		fmt.Fprintf(b.outStream, "Step %d : %s\n", stepN, line)
+		if err := b.BuildStep(line); err != nil {
+			return "", err
 		}
-		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-		arguments := strings.Trim(tmp[1], " ")
-
-		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-		if !exists {
-			fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-			continue
-		}
-
 		stepN += 1
-		fmt.Fprintf(b.outStream, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
-		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-		if ret != nil {
-			return "", ret.(error)
-		}
-
-		fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -711,6 +695,31 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return b.image, nil
 	}
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
+}
+
+// BuildStep parses a single build step from `instruction` and executes it in the current context.
+func (b *buildFile) BuildStep(expression string) error {
+	tmp := strings.SplitN(expression, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid Dockerfile format")
+	}
+	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
+	arguments := strings.Trim(tmp[1], " ")
+
+	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
+	if !exists {
+		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+		return nil
+	}
+
+
+	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
+	if ret != nil {
+		return ret.(error)
+	}
+
+	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
+	return nil
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, authConfigFile *auth.ConfigFile) BuildFile {
