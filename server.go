@@ -273,6 +273,9 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
 		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+			if os.IsExist(err) {
+				return nil
+			}
 			return err
 		}
 
