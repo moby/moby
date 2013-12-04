@@ -932,7 +932,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	} else if utils.IsURL(remoteURL) {
-		f, err := utils.Download(remoteURL, ioutil.Discard)
+		f, err := utils.Download(remoteURL)
 		if err != nil {
 			return err
 		}

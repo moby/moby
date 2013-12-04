@@ -45,7 +45,7 @@ func Go(f func() error) chan error {
 }
 
 // Request a given URL and return an io.Reader
-func Download(url string, stderr io.Writer) (*http.Response, error) {
+func Download(url string) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 	if resp, err = http.Get(url); err != nil {

@@ -258,7 +258,7 @@ func (b *buildFile) CmdVolume(args string) error {
 }
 
 func (b *buildFile) addRemote(container *Container, orig, dest string) error {
-	file, err := utils.Download(orig, ioutil.Discard)
+	file, err := utils.Download(orig)
 	if err != nil {
 		return err
 	}
