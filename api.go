@@ -6,6 +6,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"encoding/base64"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
@@ -1063,7 +1064,23 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 	}
 }
 
+// Replicated from expvar.go as not public.
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
 func AttachProfiler(router *mux.Router) {
+	router.HandleFunc("/debug/vars", expvarHandler)
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
