@@ -4,42 +4,53 @@ DEST=$1
 
 set -e
 
+TEXTRESET=$'\033[0m' # reset the foreground colour
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+
 # Run Docker's test suite, including sub-packages, and store their output as a bundle
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
-# 
+#
 # 	TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
 #
 bundle_test() {
 	{
 		date
-		
+
 		TESTS_FAILED=()
 		for test_dir in $(find_test_dirs); do
 			echo
-			
+
 			if ! (
 				set -x
 				cd $test_dir
-				
+
 				# Install packages that are dependencies of the tests.
 				#   Note: Does not run the tests.
 				go test -i -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS
-				
+
 				# Run the tests with the optional $TESTFLAGS.
 				go test -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
 			); then
 				TESTS_FAILED+=("$test_dir")
+				echo
+				echo "${RED}Test Failed: $test_dir${TEXTRESET}"
+				echo
 				sleep 1 # give it a second, so observers watching can take note
 			fi
 		done
-		
+
 		# if some tests fail, we want the bundlescript to fail, but we want to
 		# try running ALL the tests first, hence TESTS_FAILED
 		if [ "${#TESTS_FAILED[@]}" -gt 0 ]; then
 			echo
-			echo "Test failures in: ${TESTS_FAILED[@]}"
+			echo "${RED}Test failures in: ${TESTS_FAILED[@]}${TEXTRESET}"
 			false
+		else
+			echo
+			echo "${GREEN}Test success${TEXTRESET}"
+			true
 		fi
 	} 2>&1 | tee $DEST/test.log
 }
