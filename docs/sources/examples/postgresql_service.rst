@@ -96,7 +96,7 @@ uncomment ``listen_addresses`` so it is as follows:
 
     This PostgreSQL setup is for development only purposes. Refer
     to PostgreSQL documentation how to fine-tune these settings so that it
-    is enough secure.
+    is secure enough.
 
 Exit.
 
@@ -121,9 +121,9 @@ Finally, run PostgreSQL server via ``docker``.
         -D /var/lib/postgresql/9.3/main \
         -c config_file=/etc/postgresql/9.3/main/postgresql.conf')
 
-Connect the PostgreSQL server using ``psql`` (You will need postgres installed
+Connect the PostgreSQL server using ``psql`` (You will need the postgresql client installed
 on the machine.  For ubuntu, use something like
-``sudo apt-get install postgresql``).
+``sudo apt-get install postgresql-client``).
 
 .. code-block:: bash
 
