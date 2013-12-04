@@ -38,11 +38,11 @@ func (p *JSONProgress) String() string {
 		width = int(ws.Width)
 	}
 
-	if p.Current == 0 && p.Total == 0 {
+	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
 	current := HumanSize(int64(p.Current))
-	if p.Total == 0 {
+	if p.Total <= 0 {
 		return fmt.Sprintf("%8v", current)
 	}
 	total := HumanSize(int64(p.Total))
@@ -126,7 +126,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		if jm.Progress != nil {
 			jm.Progress.terminalFd = terminalFd
 		}
-		if (jm.Progress != nil || jm.ProgressMessage != "") && jm.ID != "" {
+		if jm.Progress != nil || jm.ProgressMessage != "" {
 			line, ok := ids[jm.ID]
 			if !ok {
 				line = len(ids)

@@ -273,6 +273,9 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
 		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+			if os.IsExist(err) {
+				return nil
+			}
 			return err
 		}
 
@@ -443,7 +446,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return err
 	}
 
-	file, err := utils.Download(url, out)
+	file, err := utils.Download(url)
 	if err != nil {
 		return err
 	}
@@ -1248,7 +1251,7 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		out.Write(sf.FormatStatus("", "Downloading from %s", u))
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = utils.Download(u.String(), out)
+		resp, err = utils.Download(u.String())
 		if err != nil {
 			return err
 		}
