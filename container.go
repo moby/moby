@@ -99,6 +99,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	OnBuild         []string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {

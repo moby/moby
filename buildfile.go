@@ -108,7 +108,24 @@ func (b *buildFile) CmdFrom(name string) error {
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
+	// Process ONBUILD triggers if they exist
+	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
+		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
+	}
+	for _, step := range b.config.OnBuild {
+		if err := b.BuildStep(step); err != nil {
+			return err
+		}
+	}
+	b.config.OnBuild = []string{}
 	return nil
+}
+
+// The ONBUILD command declares a build instruction to be executed in any future build
+// using the current image as a base.
+func (b *buildFile) CmdOnbuild(trigger string) error {
+	b.config.OnBuild = append(b.config.OnBuild, trigger)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
 func (b *buildFile) CmdMaintainer(name string) error {
@@ -711,7 +728,6 @@ func (b *buildFile) BuildStep(expression string) error {
 		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
 		return nil
 	}
-
 
 	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 	if ret != nil {
