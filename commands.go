@@ -2171,7 +2171,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "URL|-", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "URL|-", "Loads a tarred repository from the standard input stream or a remote url.\nRestores both images and tags.\n\n   Use \"docker://[OTHER_DOCKER_HOST]/[IMAGE]\" to load\n   an image directly from another docker daemon")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
