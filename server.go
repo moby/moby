@@ -877,8 +877,14 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			if _, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
-				utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+			if c, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
+				if c != nil {
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
+					<-c
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
+				} else {
+					utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+				}
 				if parallel {
 					errors <- nil
 				}
