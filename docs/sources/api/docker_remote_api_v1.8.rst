@@ -222,7 +222,23 @@ Inspect a container
 			},
 			"SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
 			"ResolvConfPath": "/etc/resolv.conf",
-			"Volumes": {}
+			"Volumes": {},
+                        "HostConfig": {
+                            "Binds": null,
+                            "ContainerIDFile": "",
+                            "LxcConf": [],
+                            "Privileged": false,
+                            "PortBindings": {
+                               "80/tcp": [
+                                   {
+                                       "HostIp": "0.0.0.0",
+                                       "HostPort": "49153"
+                                   }
+                               ]
+                            },
+                            "Links": null,
+                            "PublishAllPorts": false
+                        }
 	   }
 
 	:statuscode 200: no error

@@ -875,7 +875,10 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Conflict between containers and images")
 	}
 
-	return writeJSON(w, http.StatusOK, container)
+	container.readHostConfig()
+	c := APIContainer{container, container.hostConfig}
+
+	return writeJSON(w, http.StatusOK, c)
 }
 
 func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
