@@ -132,7 +132,9 @@ Create a container
 		],
 		"Dns":null,
 		"Image":"base",
-		"Volumes":{},
+		"Volumes":{
+			"/tmp": {}
+		},
 		"VolumesFrom":"",
 		"WorkingDir":""
 
@@ -361,8 +363,12 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":{"lxc.utsname":"docker"},
+                "PortBindings":null
+                "PublishAllPorts":false
            }
+           
+        Binds need to reference Volumes that were defined during container creation.
 
         **Example response**:
 
