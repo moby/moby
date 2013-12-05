@@ -587,6 +587,7 @@ func (container *Container) Start() (err error) {
 		"HOME=/",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"container=lxc",
+		"docker.id=" + utils.TruncateID(container.ID),
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
