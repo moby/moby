@@ -24,7 +24,10 @@ Install the ``docker-io`` package which will install Docker on our host.
 
    sudo yum -y install docker-io
 
-   # to keep docker-io up to date
+To update the ``docker-io`` package
+
+.. code-block:: bash
+
    sudo yum -y update docker-io
 
 Now that it's installed, let's start the Docker daemon.
