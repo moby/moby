@@ -37,6 +37,7 @@ We expect that there will be only one instance of the index, run and managed by 
 - It delegates authentication and authorization to the Index Auth service using tokens
 - It supports different storage backends (S3, cloud files, local FS)
 - It doesn’t have a local database
+- `Source Code <https://github.com/dotcloud/docker-registry>`_
 
 We expect that there will be multiple registries out there. To help to grasp the context, here are some examples of registries:
 
