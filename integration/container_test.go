@@ -330,6 +330,36 @@ func TestCommitRun(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, _ := mkContainer(runtime, []string{"-i", "_", "/bin/cat"}, t)
+	defer runtime.Destroy(container)
+
+	cStdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.IsRunning() {
+		t.Errorf("Container should be running")
+	}
+	if err := container.Start(); err == nil {
+		t.Fatalf("A running container should be able to be started")
+	}
+
+	// Try to avoid the timeout in destroy. Best effort, don't check error
+	cStdin.Close()
+	container.WaitTimeout(2 * time.Second)
+}
+
+func TestCpuShares(t *testing.T) {
 	_, err1 := os.Stat("/sys/fs/cgroup/cpuacct,cpu")
 	_, err2 := os.Stat("/sys/fs/cgroup/cpu,cpuacct")
 	if err1 == nil || err2 == nil {
