@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -1184,8 +1185,6 @@ func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *h
 }
 
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
@@ -1216,5 +1215,9 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 		}
 	}
 	httpSrv := http.Server{Addr: addr, Handler: r}
+
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
+	// Tell the init daemon we are accepting requests
+	go systemd.SdNotify("READY=1")
 	return httpSrv.Serve(l)
 }
