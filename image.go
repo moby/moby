@@ -51,6 +51,9 @@ func LoadImage(root string) (*Image, error) {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
+		// If the layersize file does not exist then set the size to a negative number
+		// because a layer size of 0 (zero) is valid
+		img.Size = -1
 	} else {
 		size, err := strconv.Atoi(string(buf))
 		if err != nil {
@@ -104,23 +107,9 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 				if err != nil {
 					return err
 				}
-				if size = archive.ChangesSize(layer, changes); err != nil {
-					return err
-				}
+				size = archive.ChangesSize(layer, changes)
 			}
 		}
-	}
-
-	// If raw json is provided, then use it
-	if jsonData != nil {
-		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
-	}
-	// Otherwise, unmarshal the image
-	if jsonData, err = json.Marshal(img); err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-		return err
 	}
 
 	img.Size = size
@@ -128,6 +117,19 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 		return err
 	}
 
+	// If raw json is provided, then use it
+	if jsonData != nil {
+		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+			return err
+		}
+	} else {
+		if jsonData, err = json.Marshal(img); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

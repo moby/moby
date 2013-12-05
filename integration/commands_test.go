@@ -871,7 +871,7 @@ func TestImagesTree(t *testing.T) {
 			"(?m)   └─[0-9a-f]+.*",
 			"(?m)    └─[0-9a-f]+.*",
 			"(?m)      └─[0-9a-f]+.*",
-			fmt.Sprintf("(?m)^        └─%s Size: \\d+.\\d+ MB \\(virtual \\d+.\\d+ MB\\) Tags: test:latest", utils.TruncateID(image.ID)),
+			fmt.Sprintf("(?m)^        └─%s Size: \\d+ B \\(virtual \\d+.\\d+ MB\\) Tags: test:latest", utils.TruncateID(image.ID)),
 		}
 
 		compiledRegexps := []*regexp.Regexp{}

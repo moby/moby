@@ -1200,7 +1200,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
 		}
 
 		for _, out := range outs {
@@ -1213,12 +1213,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t", repo, tag, out.ID, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))))
-					if out.VirtualSize > 0 {
-						fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.Size), utils.HumanSize(out.VirtualSize))
-					} else {
-						fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
-					}
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, out.ID, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))), utils.HumanSize(out.VirtualSize))
 				} else {
 					fmt.Fprintln(w, out.ID)
 				}

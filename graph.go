@@ -94,11 +94,25 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
 	}
 	img.graph = graph
-	if img.Size == 0 {
-		size, err := utils.TreeSize(rootfs)
-		if err != nil {
-			return nil, fmt.Errorf("Error computing size of rootfs %s: %s", img.ID, err)
+
+	if img.Size < 0 {
+		var size int64
+		if img.Parent == "" {
+			if size, err = utils.TreeSize(rootfs); err != nil {
+				return nil, err
+			}
+		} else {
+			parentFs, err := graph.driver.Get(img.Parent)
+			if err != nil {
+				return nil, err
+			}
+			changes, err := archive.ChangesDirs(rootfs, parentFs)
+			if err != nil {
+				return nil, err
+			}
+			size = archive.ChangesSize(rootfs, changes)
 		}
+
 		img.Size = size
 		if err := img.SaveSize(graph.imageRoot(id)); err != nil {
 			return nil, err
