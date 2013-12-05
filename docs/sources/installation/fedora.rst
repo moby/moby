@@ -16,13 +16,7 @@ architecture.
 Installation
 ------------
 
-Firstly, let's make sure our Fedora host is up-to-date.
-
-.. code-block:: bash
-
-    sudo yum -y upgrade
-
-Next, let's install the ``docker-io`` package which will install Docker on our host.
+Install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
