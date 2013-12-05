@@ -590,7 +590,7 @@ type Nat struct {
 }
 
 func (n *Nat) String() string {
-	return fmt.Sprintf("%s:%d:%d/%s", n.Binding.HostIp, n.Binding.HostPort, n.Port.Port(), n.Port.Proto())
+	return fmt.Sprintf("%s:%s:%s/%s", n.Binding.HostIp, n.Binding.HostPort, n.Port.Port(), n.Port.Proto())
 }
 
 // Release: Network cleanup - release all resources

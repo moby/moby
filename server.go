@@ -397,8 +397,8 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 
 		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
-			return err
 			utils.Debugf("Error reading json", err)
+			return err
 		}
 
 		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
