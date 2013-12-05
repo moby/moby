@@ -9,6 +9,8 @@ Fedora
 
 .. include:: install_header.inc
 
+.. include:: install_unofficial.inc
+
 Docker is available in **Fedora 19 and later**. Please note that due to the
 current Docker limitations Docker is able to run only on the **64 bit**
 architecture.
@@ -21,6 +23,9 @@ Install the ``docker-io`` package which will install Docker on our host.
 .. code-block:: bash
 
    sudo yum -y install docker-io
+
+   # to keep docker-io up to date
+   sudo yum -y update docker-io
 
 Now that it's installed, let's start the Docker daemon.
 
