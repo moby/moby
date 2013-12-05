@@ -2181,11 +2181,16 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return nil
 	}
 
-	v := url.Values{}
-	src := cmd.Arg(0)
+	var (
+		remoteDocker bool
+		v            = url.Values{}
+		src          = cmd.Arg(0)
+	)
+
 	if strings.HasPrefix(src, "docker://") {
+		remoteDocker = true
 		src = strings.TrimPrefix(src, "docker://")
-		src = "http://" + src[:strings.Index(src, "/")] + "/images" + src[strings.Index(src, "/"):] + "/get"
+		src = "https://" + src[:strings.Index(src, "/")] + "/images" + src[strings.Index(src, "/"):] + "/get"
 	}
 	v.Set("fromSrc", src)
 
@@ -2196,7 +2201,14 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	}
 
 	if err := cli.stream("POST", "/images/load?"+v.Encode(), in, cli.out, nil); err != nil {
-		return err
+		if remoteDocker {
+			v.Set("fromSrc", strings.Replace(src, "https://", "http://", -1))
+			if err2 := cli.stream("POST", "/images/load?"+v.Encode(), in, cli.out, nil); err2 != nil {
+				return err2
+			}
+		} else {
+			return err
+		}
 	}
 	return nil
 }
