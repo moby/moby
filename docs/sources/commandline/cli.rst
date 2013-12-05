@@ -737,8 +737,8 @@ Known Issues (kill)
     or a remote url.
     Restores both images and tags.
 
-        Use "docker://[OTHER_DOCKER_HOST]/[IMAGE]" to load
-        an image directly from another docker daemon
+    Use "docker://[OTHER_DOCKER_HOST]/[IMAGE]" to load
+    an image directly from another docker daemon
 
 Examples:
 ~~~~~~~~~
@@ -753,11 +753,18 @@ located at ``1.2.3.4``.
 
 .. code-block:: bash
 
-    $ docker load docker://my_docker_host.com/e9aa60c60128A
+    $ docker load docker://my_docker_host.com/e9aa60c60128
 
 
 This will load the image ``e9aa60c60128 (busybox)`` from the docker
 daemon located at ``my_docker_host``.
+
+.. code-block:: bash
+
+    $ docker load - < my_image.tar
+
+
+This will load the image from ``my_image.tar`` using stdin..
 
 .. _cli_login:
 
