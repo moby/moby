@@ -2361,7 +2361,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		defer term.RestoreTerminal(cli.terminalFd, oldState)
 	}
 
-	if stdout != nil {
+	if stdout != nil || stderr != nil {
 		receiveStdout = utils.Go(func() (err error) {
 			defer func() {
 				if in != nil {
@@ -2401,7 +2401,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		return nil
 	})
 
-	if stdout != nil {
+	if stdout != nil || stderr != nil {
 		if err := <-receiveStdout; err != nil {
 			utils.Errorf("Error receiveStdout: %s", err)
 			return err
