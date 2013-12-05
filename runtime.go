@@ -425,12 +425,26 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
-		if strings.HasSuffix(err.Error(), "name are not unique") {
-			conflictingContainer, _ := runtime.GetByName(name)
-			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return nil, nil, fmt.Errorf("Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser, utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
+		if !strings.HasSuffix(err.Error(), "name are not unique") {
+			return nil, nil, err
 		}
-		return nil, nil, err
+
+		conflictingContainer, err := runtime.GetByName(name)
+		if err != nil {
+			if strings.Contains(err.Error(), "Could not find entity") {
+				return nil, nil, err
+			}
+
+			// Remove name and continue starting the container
+			if err := runtime.containerGraph.Delete(name); err != nil {
+				return nil, nil, err
+			}
+		} else {
+			nameAsKnownByUser := strings.TrimPrefix(name, "/")
+			return nil, nil, fmt.Errorf(
+				"Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser,
+				utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
+		}
 	}
 
 	// Generate default hostname
