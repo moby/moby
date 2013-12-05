@@ -26,6 +26,7 @@ import (
 var (
 	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
 	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
+	INITPATH  string // custom location to search for a valid dockerinit binary (available for packagers as a last resort escape hatch)
 )
 
 // A common interface to access the Fatal method of
@@ -231,6 +232,7 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
+		INITPATH,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 
 		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
