@@ -97,6 +97,7 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 		}
+		defer graph.driver.Put(img.ID)
 
 		var size int64
 		if img.Parent == "" {
@@ -193,6 +194,7 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 	}
+	defer graph.driver.Put(img.ID)
 	img.graph = graph
 	if err := StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err

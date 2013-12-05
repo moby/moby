@@ -97,6 +97,9 @@ func (d *Driver) Get(id string) (string, error) {
 	return path.Join(mp, "rootfs"), nil
 }
 
+func (d *Driver) Put(id string) {
+}
+
 func (d *Driver) mount(id, mountPoint string) error {
 	// Create the target directories if they don't exist
 	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {

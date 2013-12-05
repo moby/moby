@@ -84,6 +84,11 @@ func (d *Driver) Get(id string) (string, error) {
 	return dir, nil
 }
 
+func (d *Driver) Put(id string) {
+	// The vfs driver has no runtime resources (e.g. mounts)
+	// to clean up, so we don't need anything here
+}
+
 func (d *Driver) Exists(id string) bool {
 	_, err := os.Stat(d.dir(id))
 	return err == nil

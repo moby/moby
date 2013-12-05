@@ -104,6 +104,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 				if err != nil {
 					return err
 				}
+				defer driver.Put(img.Parent)
 				changes, err := archive.ChangesDirs(layer, parent)
 				if err != nil {
 					return err
@@ -147,7 +148,7 @@ func jsonPath(root string) string {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (img *Image) TarLayer() (archive.Archive, error) {
+func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
@@ -160,19 +161,35 @@ func (img *Image) TarLayer() (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if err == nil {
+			driver.Put(img.ID)
+		}
+	}()
+
 	if img.Parent == "" {
-		return archive.Tar(imgFs, archive.Uncompressed)
-	} else {
-		parentFs, err := driver.Get(img.Parent)
+		archive, err := archive.Tar(imgFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
 		}
-		changes, err := archive.ChangesDirs(imgFs, parentFs)
-		if err != nil {
-			return nil, err
-		}
-		return archive.ExportChanges(imgFs, changes)
+		return EofReader(archive, func() { driver.Put(img.ID) }), nil
 	}
+
+	parentFs, err := driver.Get(img.Parent)
+	if err != nil {
+		return nil, err
+	}
+	defer driver.Put(img.Parent)
+	changes, err := archive.ChangesDirs(imgFs, parentFs)
+	if err != nil {
+		return nil, err
+	}
+	archive, err := archive.ExportChanges(imgFs, changes)
+	if err != nil {
+		return nil, err
+	}
+	return EofReader(archive, func() { driver.Put(img.ID) }), nil
 }
 
 func ValidateID(id string) error {
