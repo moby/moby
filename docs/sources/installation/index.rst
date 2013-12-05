@@ -18,6 +18,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   rhel
    fedora
    archlinux
    gentoolinux
