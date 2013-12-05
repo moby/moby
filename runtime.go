@@ -734,18 +734,18 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
 	}
 
-	if !utils.IAMSTATIC {
-		if err := os.Mkdir(path.Join(config.Root, fmt.Sprintf("init")), 0700); err != nil && !os.IsExist(err) {
+	if sysInitPath != localCopy {
+		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
+		if err := os.Mkdir(path.Dir(localCopy), 0700); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
-
 		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
 			return nil, err
 		}
-		sysInitPath = localCopy
-		if err := os.Chmod(sysInitPath, 0700); err != nil {
+		if err := os.Chmod(localCopy, 0700); err != nil {
 			return nil, err
 		}
+		sysInitPath = localCopy
 	}
 
 	runtime := &Runtime{
