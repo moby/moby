@@ -7,26 +7,18 @@
 PostgreSQL Service
 ==================
 
+.. include:: example_header.inc
+
 .. note::
 
     A shorter version of `this blog post`_.
 
-.. note::
-
-    As of version 0.5.2, Docker requires root privileges to run.
-    You have to either manually adjust your system configuration (permissions on
-    /var/run/docker.sock or sudo config), or prefix `docker` with `sudo`. Check
-    `this thread`_ for details.
-
 .. _this blog post: http://zaiste.net/2013/08/docker_postgresql_how_to/
-.. _this thread: https://groups.google.com/forum/?fromgroups#!topic/docker-club/P3xDLqmLp0E
 
 Installing PostgreSQL on Docker
 -------------------------------
 
-For clarity I won't be showing command output.
-
-Run an interactive shell in Docker container.
+Run an interactive shell in a Docker container.
 
 .. code-block:: bash
 
@@ -38,19 +30,17 @@ Update its dependencies.
 
     apt-get update
 
-Install ``python-software-properties``.
+Install ``python-software-properties``, ``software-properties-common``, ``wget`` and ``vim``.
 
 .. code-block:: bash
 
-    apt-get -y install python-software-properties
-    apt-get -y install software-properties-common
+    apt-get -y install python-software-properties software-properties-common wget vim
 
 Add PostgreSQL's repository. It contains the most recent stable release
-of PostgreSQL i.e. ``9.3``.
+of PostgreSQL, ``9.3``.
 
 .. code-block:: bash
 
-    apt-get -y install wget
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
     echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" > /etc/apt/sources.list.d/pgdg.list
     apt-get update
@@ -78,15 +68,14 @@ role.
 
 Adjust PostgreSQL configuration so that remote connections to the
 database are possible. Make sure that inside
-``/etc/postgresql/9.3/main/pg_hba.conf`` you have following line (you will need
-to install an editor, e.g. ``apt-get install vim``):
+``/etc/postgresql/9.3/main/pg_hba.conf`` you have following line:
 
 .. code-block:: bash
 
     host    all             all             0.0.0.0/0               md5
 
 Additionaly, inside ``/etc/postgresql/9.3/main/postgresql.conf``
-uncomment ``listen_addresses`` so it is as follows:
+uncomment ``listen_addresses`` like so:
 
 .. code-block:: bash
 
@@ -104,14 +93,14 @@ Exit.
 
     exit
 
-Create an image and assign it a name. ``<container_id>`` is in the
-Bash prompt; you can also locate it using ``docker ps -a``.
+Create an image from our container and assign it a name. The ``<container_id>``
+is in the Bash prompt; you can also locate it using ``docker ps -a``.
 
 .. code-block:: bash
 
     sudo docker commit <container_id> <your username>/postgresql
 
-Finally, run PostgreSQL server via ``docker``.
+Finally, run the PostgreSQL server via ``docker``.
 
 .. code-block:: bash
 
@@ -121,9 +110,9 @@ Finally, run PostgreSQL server via ``docker``.
         -D /var/lib/postgresql/9.3/main \
         -c config_file=/etc/postgresql/9.3/main/postgresql.conf')
 
-Connect the PostgreSQL server using ``psql`` (You will need the postgresql client installed
-on the machine.  For ubuntu, use something like
-``sudo apt-get install postgresql-client``).
+Connect the PostgreSQL server using ``psql`` (You will need the
+postgresql client installed on the machine.  For ubuntu, use something
+like ``sudo apt-get install postgresql-client``).
 
 .. code-block:: bash
 
@@ -140,7 +129,7 @@ As before, create roles or databases if needed.
     docker=# CREATE DATABASE foo OWNER=docker;
     CREATE DATABASE
 
-Additionally, publish your newly created image on Docker Index.
+Additionally, publish your newly created image on the Docker Index.
 
 .. code-block:: bash
 
