@@ -696,7 +696,7 @@ Create an image
 	   Content-Type: application/json
 
 	   {"status":"Pulling..."}
-	   {"status":"Pulling", "progress":"1/? (n/a)"}
+	   {"status":"Pulling", "progress":"1 B/ 100 B", "progressDetail":{"current":1, "total":100}}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -736,7 +736,7 @@ Insert a file in an image
 	   Content-Type: application/json
 
 	   {"status":"Inserting..."}
-	   {"status":"Inserting", "progress":"1/? (n/a)"}
+	   {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
 	   {"error":"Invalid..."}
 	   ...
 
@@ -857,7 +857,7 @@ Push an image on the registry
     Content-Type: application/json
 
     {"status":"Pushing..."}
-    {"status":"Pushing", "progress":"1/? (n/a)"}
+    {"status":"Pushing", "progress":"1/? (n/a)", "progressDetail":{"current":1}}}
     {"error":"Invalid..."}
     ...
 

@@ -55,6 +55,13 @@ What's new
 
     **New!** This endpoint now returns the host config for the container.
 
+.. http:post:: /images/create
+.. http:post:: /images/(name)/insert
+.. http:post:: /images/(name)/push
+
+  **New!** progressDetail object was added in the JSON. It's now possible
+  to get the current value and the total of the progress without having to
+  parse the string.
 
 v1.7
 ****
