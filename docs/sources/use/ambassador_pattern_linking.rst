@@ -161,11 +161,12 @@ variable using the ``-e`` command line option.
 local ``1234`` port to the remote IP and port - in this case ``192.168.1.52:6379``.
 
 
-.. code-block:: Dockerfile
+::
 
 	#
 	#
-	# first you need to build the docker-ut image using ./contrib/mkimage-unittest.sh
+	# first you need to build the docker-ut image 
+	# using ./contrib/mkimage-unittest.sh
 	# then 
 	#   docker build -t SvenDowideit/ambassador .
 	#   docker tag SvenDowideit/ambassador ambassador

@@ -938,8 +938,10 @@ containers will not be deleted.
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P=false: Publish all exposed ports to the host interfaces
       
-``docker run`` ``creates`` a writeable container layer over the specified image, and then 
-``start``s it using the specified command (ie. is equivalent to the API ``/containers/create`` then ``/containers/(id)/start``). 
+``'docker run'`` first ``'creates'`` a writeable container layer over
+the specified image, and then ``'starts'`` it using the specified
+command. That is, ``'docker run'`` is equivalent to the API
+``/containers/create`` then ``/containers/(id)/start``.
 
 Known Issues (run -volumes-from)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
