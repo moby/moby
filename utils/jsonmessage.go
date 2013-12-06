@@ -89,6 +89,8 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
 		endl = "\r"
+	} else if jm.Progress != nil { //disable progressbar in non-terminal
+		return nil
 	}
 	if jm.Time != 0 {
 		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
