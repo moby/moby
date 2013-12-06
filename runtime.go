@@ -520,7 +520,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 	defer container.Unmount()

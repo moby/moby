@@ -200,7 +200,7 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
 	}
 	defer container.Unmount()
@@ -505,7 +505,7 @@ func (container *Container) Start() (err error) {
 			container.cleanup()
 		}
 	}()
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return err
 	}
 	if container.runtime.networkManager.disabled {
@@ -1271,7 +1271,7 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 	if container.runtime == nil {
@@ -1283,7 +1283,7 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 }
 
 func (container *Container) Export() (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 
@@ -1307,12 +1307,6 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 	case <-done:
 		return nil
 	}
-}
-
-func (container *Container) EnsureMounted() error {
-	// FIXME: EnsureMounted is deprecated because drivers are now responsible
-	// for re-entrant mounting in their Get() method.
-	return container.Mount()
 }
 
 func (container *Container) Mount() error {
@@ -1412,7 +1406,7 @@ func (container *Container) GetSize() (int64, int64) {
 		driver             = container.runtime.driver
 	)
 
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
@@ -1444,7 +1438,7 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func (container *Container) Copy(resource string) (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 	var filter []string
