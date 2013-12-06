@@ -1,11 +1,11 @@
-:title: Ambassador pattern linking
+:title: Link via an Ambassador Container
 :description: Using the Ambassador pattern to abstract (network) services
 :keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
 
 .. _ambassador_pattern_linking:
 
-Ambassador pattern linking
-==========================
+Link via an Ambassador Container
+================================
 
 Rather than hardcoding network links between a service consumer and provider, Docker
 encourages service portability.

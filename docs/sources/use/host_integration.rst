@@ -1,11 +1,11 @@
-:title: Host Integration
+:title: Automatically Start Containers
 :description: How to generate scripts for upstart, systemd, etc.
 :keywords: systemd, upstart, supervisor, docker, documentation, host integration
 
 
 
-Host Integration
-================
+Automatically Start Containers
+==============================
 
 You can use your Docker containers with process managers like ``upstart``,
 ``systemd`` and ``supervisor``.

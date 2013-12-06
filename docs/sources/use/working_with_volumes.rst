@@ -1,11 +1,11 @@
-:title: Working with Volumes
+:title: Share Directories via Volumes
 :description: How to create and share volumes
 :keywords: Examples, Usage, volume, docker, documentation, examples
 
 .. _volume_def:
 
-Data Volume
-===========
+Share Directories via Volumes
+=============================
 
 .. versionadded:: v0.3.0
    Data volumes have been available since version 1 of the
