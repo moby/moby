@@ -12,15 +12,11 @@ Arch Linux
 .. include:: install_unofficial.inc
 
 Installing on Arch Linux is not officially supported but can be handled via 
-one of the following AUR packages:
+the following AUR package:
 
-* `lxc-docker <https://aur.archlinux.org/packages/lxc-docker/>`_
-* `lxc-docker-git <https://aur.archlinux.org/packages/lxc-docker-git/>`_
-* `lxc-docker-nightly <https://aur.archlinux.org/packages/lxc-docker-nightly/>`_
+* `docker-git <https://aur.archlinux.org/packages/docker-git/>`_
 
-The lxc-docker package will install the latest tagged version of docker. 
-The lxc-docker-git package will build from the current master branch.
-The lxc-docker-nightly package will install the latest build.
+This package will build from the current master branch.
 
 Dependencies
 ------------
@@ -44,7 +40,7 @@ done so before.
 
 ::
 
-    yaourt -S lxc-docker
+    yaourt -S docker-git
 
 
 Starting Docker
