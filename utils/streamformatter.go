@@ -14,6 +14,18 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 	return &StreamFormatter{json, false}
 }
 
+func (sf *StreamFormatter) FormatStream(str string) []byte {
+	sf.used = true
+	if sf.json {
+		b, err := json.Marshal(&JSONMessage{Stream: str})
+		if err != nil {
+			return sf.FormatError(err)
+		}
+		return b
+	}
+	return []byte(str + "\r")
+}
+
 func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
 	sf.used = true
 	str := fmt.Sprintf(format, a...)
