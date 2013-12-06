@@ -8,6 +8,14 @@ package devmapper
 #include <linux/loop.h> // FIXME: present only for defines, maybe we can remove it?
 #include <linux/fs.h>   // FIXME: present only for BLKGETSIZE64, maybe we can remove it?
 
+#ifndef LOOP_CTL_GET_FREE
+  #define LOOP_CTL_GET_FREE 0x4C82
+#endif
+
+#ifndef LO_FLAGS_PARTSCAN
+  #define LO_FLAGS_PARTSCAN 8
+#endif
+
 // FIXME: Can't we find a way to do the logging in pure Go?
 extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_or_class, char *str);
 
@@ -55,7 +63,6 @@ type (
 	}
 )
 
-// FIXME: Make sure the values are defined in C
 // IOCTL consts
 const (
 	BlkGetSize64 = C.BLKGETSIZE64
