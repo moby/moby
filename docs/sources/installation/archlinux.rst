@@ -12,21 +12,22 @@ Arch Linux
 .. include:: install_unofficial.inc
 
 Installing on Arch Linux is not officially supported but can be handled via 
-one of the following AUR packages:
+the package in community:
 
-* `lxc-docker <https://aur.archlinux.org/packages/lxc-docker/>`_
-* `lxc-docker-git <https://aur.archlinux.org/packages/lxc-docker-git/>`_
-* `lxc-docker-nightly <https://aur.archlinux.org/packages/lxc-docker-nightly/>`_
+* `docker <https://www.archlinux.org/packages/community/x86_64/docker/>`_
 
-The lxc-docker package will install the latest tagged version of docker. 
-The lxc-docker-git package will build from the current master branch.
-The lxc-docker-nightly package will install the latest build.
+or the following AUR package:
+
+* `docker-git <https://aur.archlinux.org/packages/docker-git/>`_
+
+The docker package will install the latest tagged version of docker. 
+The docker-git package will build from the current master branch.
 
 Dependencies
 ------------
 
 Docker depends on several packages which are specified as dependencies in
-the AUR packages. The core dependencies are:
+the packages. The core dependencies are:
 
 * bridge-utils
 * device-mapper
@@ -37,14 +38,22 @@ the AUR packages. The core dependencies are:
 Installation
 ------------
 
+For the normal package a simple
+::
+
+    pacman -S docker
+    
+is all that is needed.
+
+For the AUR package execute:
+::
+
+    yaourt -S lxc-docker-git
+    
 The instructions here assume **yaourt** is installed.  See 
 `Arch User Repository <https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages>`_
 for information on building and installing packages from the AUR if you have not
 done so before.
-
-::
-
-    yaourt -S lxc-docker
 
 
 Starting Docker
