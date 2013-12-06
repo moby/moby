@@ -1,9 +1,9 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
-BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64.box"
-VF_BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64_vmware_fusion.box"
+BOX_NAME = ENV['BOX_NAME'] || "ubuntu-raring"
+BOX_URI = ENV['BOX_URI'] || "http://cloud-images.ubuntu.com/vagrant/raring/current/raring-server-cloudimg-amd64-vagrant-disk1.box"
+VF_BOX_URI = ENV['BOX_URI'] || "http://nitron-vagrant.s3-website-us-east-1.amazonaws.com/vagrant_ubuntu_12.04.3_amd64_vmware.box"
 AWS_BOX_URI = ENV['BOX_URI'] || "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI = ENV['AWS_AMI'] || "ami-69f5a900"
@@ -12,9 +12,30 @@ AWS_INSTANCE_TYPE = ENV['AWS_INSTANCE_TYPE'] || 't1.micro'
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
 
 SSH_PRIVKEY_PATH = ENV["SSH_PRIVKEY_PATH"]
+DOCKER_CPU_AMOUNT = ENV["DOCKER_CPU_AMOUNT"]
 
-# A script to upgrade from the 12.04 kernel to the raring backport kernel (3.8)
-# and install docker.
+# Determine the Host OS to figure out where the Guest Additions are locally.
+require 'rbconfig'
+include RbConfig
+
+case CONFIG['host_os']
+  when /mswin|windows/i
+    HOST_OS = "Windows"
+  when /linux|arch/i
+    HOST_OS = "Linux"
+  when /darwin/i
+    HOST_OS = "MacOS"
+end
+case HOST_OS
+  when "Windows"
+    GUEST_ADDITIONS_PATH = "C:\\Program files\\Oracle\\VirtualBox\\VBoxGuestAdditions.iso"
+  when "Linux"
+    GUEST_ADDITIONS_PATH = "/usr/share/virtualbox/VBoxGuestAdditions.iso"
+  when "MacOS"
+    GUEST_ADDITIONS_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
+end
+
+# A script to install docker.
 $script = <<SCRIPT
 # The username to add to the docker group will be passed as the first argument
 # to the script.  If nothing is passed, default to "vagrant".
@@ -26,7 +47,7 @@ fi
 # Adding an apt gpg key is idempotent.
 wget -q -O - https://get.docker.io/gpg | apt-key add -
 
-# Creating the docker.list file is idempotent, but it may overrite desired
+# Creating the docker.list file is idempotent, but it may overwrite desired
 # settings if it already exists.  This could be solved with md5sum but it
 # doesn't seem worth it.
 echo 'deb http://get.docker.io/ubuntu docker main' > \
@@ -40,28 +61,6 @@ apt-get install -q -y lxc-docker
 
 usermod -a -G docker "$user"
 
-tmp=`mktemp -q` && {
-    # Only install the backport kernel, don't bother upgrade if the backport is
-    # already installed.  We want parse the output of apt so we need to save it
-    # with 'tee'.  NOTE: The installation of the kernel will trigger dkms to
-    # install vboxguest if needed.
-    apt-get install -q -y --no-upgrade linux-image-generic-lts-raring | \
-        tee "$tmp"
-
-    # Parse the number of installed packages from the output
-    NUM_INST=`awk '$2 == "upgraded," && $4 == "newly" { print $3 }' "$tmp"`
-    rm "$tmp"
-}
-
-# If the number of installed packages is greater than 0, we want to reboot (the
-# backport kernel was installed but is not running).
-if [ "$NUM_INST" -gt 0 ];
-then
-    echo "Rebooting down to activate new kernel."
-    echo "/vagrant will not be mounted.  Use 'vagrant halt' followed by"
-    echo "'vagrant up' to ensure /vagrant is mounted."
-    shutdown -r now
-fi
 SCRIPT
 
 # We need to install the virtualbox guest additions *before* we do the normal
@@ -70,21 +69,16 @@ SCRIPT
 # trigger dkms to build the virtualbox guest module install.
 $vbox_script = <<VBOX_SCRIPT + $script
 # Install the VirtualBox guest additions if they aren't already installed.
-if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
-    # Update remote package metadata.  'apt-get update' is idempotent.
-    apt-get update -q
-
-    # Kernel Headers and dkms are required to build the vbox guest kernel
-    # modules.
-    apt-get install -q -y linux-headers-generic-lts-raring dkms
-
+  mount /dev/dvd /mnt || {
     echo 'Downloading VBox Guest Additions...'
     wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.2/VBoxGuestAdditions_4.3.2.iso
 
     mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.2.iso /mnt
-    /mnt/VBoxLinuxAdditions.run --nox11
-    umount /mnt
-fi
+  }
+  
+  /mnt/VBoxLinuxAdditions.run install --force 
+  umount /mnt
+  rm -f /home/vagrant/*.iso
 VBOX_SCRIPT
 
 Vagrant::Config.run do |config|
@@ -151,6 +145,13 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     override.vm.provision :shell, :inline => $vbox_script
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    if !DOCKER_CPU_AMOUNT.nil?
+      vb.customize ["modifyvm", :id, "--cpus", DOCKER_CPU_AMOUNT]
+    end
+    # Mount the local guest additions if they are available, so we have the proper version.
+    if !GUEST_ADDITIONS_PATH.nil?
+      vb.customize ["storageattach", :id, "--storagectl", "SATAController", "--port", "1", "--type", "dvddrive", "--medium", GUEST_ADDITIONS_PATH]
+    end
   end
 end
 
@@ -159,6 +160,7 @@ end
 Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
   config.vm.provision :shell, :inline => $vbox_script
 end
+
 
 if !FORWARD_DOCKER_PORTS.nil?
   Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
@@ -169,7 +171,7 @@ if !FORWARD_DOCKER_PORTS.nil?
 
   Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     (49000..49900).each do |port|
-      config.vm.network :forwarded_port, :host => port, :guest => port
+      config.vm.network :forwarded_port, :host => port, :guest => port, auto_correct: true
     end
   end
 end
