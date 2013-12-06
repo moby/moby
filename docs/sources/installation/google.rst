@@ -12,7 +12,7 @@
 `Compute Engine <https://developers.google.com/compute>`_ QuickStart for `Debian <https://www.debian.org>`_
 -----------------------------------------------------------------------------------------------------------
 
-1. Go to `Google Cloud Console <https://cloud.google.com/console>`_ and create a new Cloud Project with billing enabled.
+1. Go to `Google Cloud Console <https://cloud.google.com/console>`_ and create a new Cloud Project with `Compute Engine enabled <https://developers.google.com/compute/docs/signup>`_.
 
 2. Download and configure the `Google Cloud SDK <https://developers.google.com/cloud/sdk/>`_ to use your project with the following commands:
 
