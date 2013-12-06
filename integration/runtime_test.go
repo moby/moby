@@ -127,7 +127,7 @@ func setupBaseImage() {
 	job.SetenvBool("Autorestart", false)
 	job.Setenv("BridgeIface", unitTestNetworkBridge)
 	if err := job.Run(); err != nil {
-		log.Fatalf("Unable to create a runtime for tests:", err)
+		log.Fatalf("Unable to create a runtime for tests: %s", err)
 	}
 	srv := mkServerFromEngine(eng, log.New(os.Stderr, "", 0))
 
@@ -173,7 +173,7 @@ func spawnGlobalDaemon() {
 func GetTestImage(runtime *docker.Runtime) *docker.Image {
 	imgs, err := runtime.Graph().Map()
 	if err != nil {
-		log.Fatalf("Unable to get the test image:", err)
+		log.Fatalf("Unable to get the test image: %s", err)
 	}
 	for _, image := range imgs {
 		if image.ID == unitTestImageID {
@@ -390,7 +390,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
 		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
 		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.StdoutParseString(&id)
+		jobCreate.Stdout.AddString(&id)
 		if err := jobCreate.Run(); err != nil {
 			t.Fatal(err)
 		}
@@ -841,5 +841,45 @@ func TestGetAllChildren(t *testing.T) {
 		if value.ID != childContainer.ID {
 			t.Fatalf("Expected id %s got %s", childContainer.ID, value.ID)
 		}
+	}
+}
+
+func TestDestroyWithInitLayer(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, _, err := runtime.Create(&docker.Config{
+		Image: GetTestImage(runtime).ID,
+		Cmd:   []string{"ls", "-al"},
+	}, "")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Destroy
+	if err := runtime.Destroy(container); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure runtime.Exists() behaves correctly
+	if runtime.Exists("test_destroy") {
+		t.Fatalf("Exists() returned true")
+	}
+
+	// Make sure runtime.List() doesn't list the destroyed container
+	if len(runtime.List()) != 0 {
+		t.Fatalf("Expected 0 container, %v found", len(runtime.List()))
+	}
+
+	driver := runtime.Graph().Driver()
+
+	// Make sure that the container does not exist in the driver
+	if _, err := driver.Get(container.ID); err == nil {
+		t.Fatal("Conttainer should not exist in the driver")
+	}
+
+	// Make sure that the init layer is removed from the driver
+	if _, err := driver.Get(fmt.Sprintf("%s-init", container.ID)); err == nil {
+		t.Fatal("Container's init layer should not exist in the driver")
 	}
 }

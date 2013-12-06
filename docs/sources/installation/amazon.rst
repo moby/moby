@@ -22,20 +22,37 @@ Amazon QuickStart
 
 1. **Choose an image:**
 
-   * Launch the `Create Instance Wizard` <https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:> menu on your AWS Console
-   * Select "Community AMIs" option and serch for ``amd64 precise`` (click enter to search)
-   * If you choose a EBS enabled AMI you will be able to launch a `t1.micro` instance (more info on `pricing` <http://aws.amazon.com/en/ec2/pricing/> )
-   * When you click select you'll be taken to the instance setup, and you're one click away from having your Ubuntu VM up and running.
+   * Launch the `Create Instance Wizard
+     <https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:>`_ menu
+     on your AWS Console.
+
+   * When picking the source AMI for your instance type, select "Community
+     AMIs".
+
+   * Search for ``amd64 precise``. Pick one of the amd64 Ubuntu images.
+
+   * If you choose a EBS enabled AMI, you'll also be able to launch a
+     ``t1.micro`` instance (more info on `pricing
+     <http://aws.amazon.com/en/ec2/pricing/>`_).  ``t1.micro`` instances are
+     eligible for Amazon's Free Usage Tier.
+
+   * When you click select you'll be taken to the instance setup, and you're one
+     click away from having your Ubuntu VM up and running.
 
 2. **Tell CloudInit to install Docker:**
 
-   * Enter ``#include https://get.docker.io`` into the instance *User
-     Data*. `CloudInit <https://help.ubuntu.com/community/CloudInit>`_
-     is part of the Ubuntu image you chose and it bootstraps from this
-     *User Data*.
+   * When you're on the "Configure Instance Details" step, expand the "Advanced
+     Details" section.
 
-3. After a few more standard choices where defaults are probably ok, your
-   AWS Ubuntu instance with Docker should be running!
+   * Under "User data", select "As text".
+
+   * Enter ``#include https://get.docker.io`` into the instance *User Data*.
+     `CloudInit <https://help.ubuntu.com/community/CloudInit>`_ is part of the
+     Ubuntu image you chose; it will bootstrap Docker by running the shell
+     script located at this URL.
+
+3. After a few more standard choices where defaults are probably ok, your AWS
+   Ubuntu instance with Docker should be running!
 
 **If this is your first AWS instance, you may need to set up your
 Security Group to allow SSH.** By default all incoming ports to your
@@ -152,7 +169,7 @@ Docker that way too. Vagrant 1.1 or higher is required.
    includes rights to SSH (port 22) to your container.
 
    If you have an advanced AWS setup, you might want to have a look at
-   https://github.com/mitchellh/vagrant-aws
+   `vagrant-aws <https://github.com/mitchellh/vagrant-aws>`_.
 
 7. Connect to your machine
 

@@ -34,18 +34,6 @@ type Fataler interface {
 	Fatal(args ...interface{})
 }
 
-// ListOpts type
-type ListOpts []string
-
-func (opts *ListOpts) String() string {
-	return fmt.Sprint(*opts)
-}
-
-func (opts *ListOpts) Set(value string) error {
-	*opts = append(*opts, value)
-	return nil
-}
-
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
 // and returns a channel which will later return the function's return value.
 func Go(f func() error) chan error {
@@ -57,7 +45,7 @@ func Go(f func() error) chan error {
 }
 
 // Request a given URL and return an io.Reader
-func Download(url string, stderr io.Writer) (*http.Response, error) {
+func Download(url string) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 	if resp, err = http.Get(url); err != nil {
@@ -92,56 +80,6 @@ func Debugf(format string, a ...interface{}) {
 
 func Errorf(format string, a ...interface{}) {
 	logf("error", format, a...)
-}
-
-// Reader with progress bar
-type progressReader struct {
-	reader       io.ReadCloser // Stream to read from
-	output       io.Writer     // Where to send progress bar to
-	readTotal    int           // Expected stream length (bytes)
-	readProgress int           // How much has been read so far (bytes)
-	lastUpdate   int           // How many bytes read at least update
-	template     string        // Template to print. Default "%v/%v (%v)"
-	sf           *StreamFormatter
-	newLine      bool
-}
-
-func (r *progressReader) Read(p []byte) (n int, err error) {
-	read, err := io.ReadCloser(r.reader).Read(p)
-	r.readProgress += read
-	updateEvery := 1024 * 512 //512kB
-	if r.readTotal > 0 {
-		// Update progress for every 1% read if 1% < 512kB
-		if increment := int(0.01 * float64(r.readTotal)); increment < updateEvery {
-			updateEvery = increment
-		}
-	}
-	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
-		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
-		} else {
-			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
-		}
-		r.lastUpdate = r.readProgress
-	}
-	// Send newline when complete
-	if r.newLine && err != nil {
-		r.output.Write(r.sf.FormatStatus("", ""))
-	}
-	return read, err
-}
-func (r *progressReader) Close() error {
-	return io.ReadCloser(r.reader).Close()
-}
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, tpl []byte, sf *StreamFormatter, newline bool) *progressReader {
-	return &progressReader{
-		reader:    r,
-		output:    NewWriteFlusher(output),
-		readTotal: size,
-		template:  string(tpl),
-		sf:        sf,
-		newLine:   newline,
-	}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -279,9 +217,16 @@ func DockerInitPath(localCopy string) string {
 	var possibleInits = []string{
 		localCopy,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
-		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+
+		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec
 		"/usr/libexec/docker/dockerinit",
 		"/usr/local/libexec/docker/dockerinit",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/lib/docker/dockerinit",
+		"/usr/local/lib/docker/dockerinit",
 	}
 	for _, dockerInit := range possibleInits {
 		path, err := exec.LookPath(dockerInit)
@@ -543,7 +488,7 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
-					return 0, io.EOF
+					return 0, nil
 				}
 			}
 			// ---- End of docker
@@ -754,153 +699,11 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-type JSONMessage struct {
-	Status       string     `json:"status,omitempty"`
-	Progress     string     `json:"progress,omitempty"`
-	ErrorMessage string     `json:"error,omitempty"` //deprecated
-	ID           string     `json:"id,omitempty"`
-	From         string     `json:"from,omitempty"`
-	Time         int64      `json:"time,omitempty"`
-	Error        *JSONError `json:"errorDetail,omitempty"`
-}
-
-func (e *JSONError) Error() string {
-	return e.Message
-}
-
 func NewHTTPRequestError(msg string, res *http.Response) error {
 	return &JSONError{
 		Message: msg,
 		Code:    res.StatusCode,
 	}
-}
-
-func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
-	if jm.Error != nil {
-		if jm.Error.Code == 401 {
-			return fmt.Errorf("Authentication is required.")
-		}
-		return jm.Error
-	}
-	endl := ""
-	if isTerminal {
-		// <ESC>[2K = erase entire current line
-		fmt.Fprintf(out, "%c[2K\r", 27)
-		endl = "\r"
-	}
-	if jm.Time != 0 {
-		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
-	}
-	if jm.ID != "" {
-		fmt.Fprintf(out, "%s: ", jm.ID)
-	}
-	if jm.From != "" {
-		fmt.Fprintf(out, "(from %s) ", jm.From)
-	}
-	if jm.Progress != "" {
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress, endl)
-	} else {
-		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
-	}
-	return nil
-}
-
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
-	dec := json.NewDecoder(in)
-	ids := make(map[string]int)
-	diff := 0
-	for {
-		jm := JSONMessage{}
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
-		if jm.Progress != "" && jm.ID != "" {
-			line, ok := ids[jm.ID]
-			if !ok {
-				line = len(ids)
-				ids[jm.ID] = line
-				fmt.Fprintf(out, "\n")
-				diff = 0
-			} else {
-				diff = len(ids) - line
-			}
-			if isTerminal {
-				// <ESC>[{diff}A = move cursor up diff rows
-				fmt.Fprintf(out, "%c[%dA", 27, diff)
-			}
-		}
-		err := jm.Display(out, isTerminal)
-		if jm.ID != "" {
-			if isTerminal {
-				// <ESC>[{diff}B = move cursor down diff rows
-				fmt.Fprintf(out, "%c[%dB", 27, diff)
-			}
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type StreamFormatter struct {
-	json bool
-	used bool
-}
-
-func NewStreamFormatter(json bool) *StreamFormatter {
-	return &StreamFormatter{json, false}
-}
-
-func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
-	sf.used = true
-	str := fmt.Sprintf(format, a...)
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
-		if err != nil {
-			return sf.FormatError(err)
-		}
-		return b
-	}
-	return []byte(str + "\r\n")
-}
-
-func (sf *StreamFormatter) FormatError(err error) []byte {
-	sf.used = true
-	if sf.json {
-		jsonError, ok := err.(*JSONError)
-		if !ok {
-			jsonError = &JSONError{Message: err.Error()}
-		}
-		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
-			return b
-		}
-		return []byte("{\"error\":\"format error\"}")
-	}
-	return []byte("Error: " + err.Error() + "\r\n")
-}
-
-func (sf *StreamFormatter) FormatProgress(id, action, progress string) []byte {
-	sf.used = true
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID: id})
-		if err != nil {
-			return nil
-		}
-		return b
-	}
-	return []byte(action + " " + progress + "\r")
-}
-
-func (sf *StreamFormatter) Used() bool {
-	return sf.used
 }
 
 func IsURL(str string) bool {
@@ -1184,11 +987,12 @@ func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
 
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
-	Status int
+	Status     string
+	StatusCode int
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("Status: %d", e.Status)
+	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }
 
 func quote(word string, buf *bytes.Buffer) {

@@ -5,7 +5,6 @@ So you're in charge of a Docker release? Cool. Here's what to do.
 If your experience deviates from this document, please document the changes
 to keep it up-to-date.
 
-
 ### 1. Pull from master and create a release branch
 
 ```bash
@@ -13,6 +12,7 @@ export VERSION=vXXX
 git checkout release
 git pull
 git checkout -b bump_$VERSION
+git merge origin/master
 ```
 
 ### 2. Update CHANGELOG.md
@@ -54,10 +54,14 @@ EXAMPLES:
 
 ### 3. Change the contents of the VERSION file
 
+```bash
+echo ${VERSION#v} > VERSION
+```
+
 ### 4. Run all tests
 
 ```bash
-docker run -privileged -lxc-conf=lxc.aa_profile=unconfined docker hack/make.sh test
+docker run -privileged docker hack/make.sh test
 ```
 
 ### 5. Test the docs
@@ -79,8 +83,8 @@ git push origin bump_$VERSION
 ### 8. Apply tag
 
 ```bash
-git tag -a v$VERSION # Don't forget the v!
-git push --tags
+git tag -a $VERSION -m $VERSION bump_$VERSION
+git push origin $VERSION
 ```
 
 Merging the pull request to the release branch will automatically
@@ -90,6 +94,9 @@ will appear on http://docs.docker.io/. For more information about
 documentation releases, see ``docs/README.md``
 
 ### 9. Go to github to merge the bump_$VERSION into release
+
+Don't forget to push that pretty blue button to delete the leftover
+branch afterwards!
 
 ### 10. Publish binaries
 
@@ -107,17 +114,19 @@ docker run  \
        -e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
        -e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
        -e GPG_PASSPHRASE=supersecretsesame \
-       -privileged -lxc-conf=lxc.aa_profile=unconfined \
-       -t -i \
+       -i -t -privileged \
        docker \
        hack/release.sh
 ```
 
-It will build and upload the binaries on the specified bucket (you should
-use test.docker.io for general testing, and once everything is fine,
-switch to get.docker.io).
+It will run the test suite one more time, build the binaries and packages,
+and upload to the specified bucket (you should use test.docker.io for
+general testing, and once everything is fine, switch to get.docker.io).
 
-
-### 11. Rejoice!
+### 11. Rejoice and Evangelize!
 
 Congratulations! You're done.
+
+Go forth and announce the glad tidings of the new release in `#docker`,
+`#docker-dev`, on the [mailing list](https://groups.google.com/forum/#!forum/docker-dev),
+and on Twitter!

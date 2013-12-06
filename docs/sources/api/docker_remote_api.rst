@@ -34,6 +34,28 @@ Calling /images/<name>/insert is the same as calling
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
 
+
+v1.8
+****
+
+Full Documentation
+------------------
+
+:doc:`docker_remote_api_v1.8`
+
+What's new
+----------
+
+.. http:post:: /build
+
+   **New!** This endpoint now returns build status as json stream. In case
+   of a build error, it returns the exit status of the failed command.
+
+.. http:get:: /containers/(id)/json
+
+    **New!** This endpoint now returns the host config for the container.
+
+
 v1.7
 ****
 

@@ -66,20 +66,18 @@ func (store *TagStore) Reload() error {
 }
 
 func (store *TagStore) LookupImage(name string) (*Image, error) {
-	img, err := store.graph.Get(name)
+	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
+	// (so we can pass all errors here)
+	repos, tag := utils.ParseRepositoryTag(name)
+	if tag == "" {
+		tag = DEFAULTTAG
+	}
+	img, err := store.GetImage(repos, tag)
 	if err != nil {
-		// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
-		// (so we can pass all errors here)
-		repos, tag := utils.ParseRepositoryTag(name)
-		if tag == "" {
-			tag = DEFAULTTAG
-		}
-		if i, err := store.GetImage(repos, tag); err != nil {
+		return nil, err
+	} else if img == nil {
+		if img, err = store.graph.Get(name); err != nil {
 			return nil, err
-		} else if i == nil {
-			return nil, fmt.Errorf("Image does not exist: %s", name)
-		} else {
-			img = i
 		}
 	}
 	return img, nil

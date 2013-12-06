@@ -1,7 +1,10 @@
+// +build linux
+
 package devmapper
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -172,7 +175,7 @@ func (devices *DeviceSet) saveMetadata() error {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
 	if err := osRename(tmpFile.Name(), devices.jsonFile()); err != nil {
-		return fmt.Errorf("Error committing metadata file", err)
+		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
@@ -383,7 +386,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 		return fmt.Errorf("Can't shrink file")
 	}
 
-	dataloopback := FindLoopDeviceFor(&osFile{File: datafile})
+	dataloopback := FindLoopDeviceFor(datafile)
 	if dataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
 	}
@@ -395,7 +398,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 	defer metadatafile.Close()
 
-	metadataloopback := FindLoopDeviceFor(&osFile{File: metadatafile})
+	metadataloopback := FindLoopDeviceFor(metadatafile)
 	if metadataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
 	}
@@ -439,11 +442,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	hasMetadata := devices.hasImage("metadata")
 
 	if !doInit && !hasData {
-		return fmt.Errorf("Looback data file not found %s")
+		return errors.New("Loopback data file not found")
 	}
 
 	if !doInit && !hasMetadata {
-		return fmt.Errorf("Looback metadata file not found %s")
+		return errors.New("Loopback metadata file not found")
 	}
 
 	createdLoopback := !hasData || !hasMetadata
@@ -491,14 +494,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if info.Exists == 0 {
 		utils.Debugf("Pool doesn't exist. Creating it.")
 
-		dataFile, err := AttachLoopDevice(data)
+		dataFile, err := attachLoopDevice(data)
 		if err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 		defer dataFile.Close()
 
-		metadataFile, err := AttachLoopDevice(metadata)
+		metadataFile, err := attachLoopDevice(metadata)
 		if err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
@@ -637,7 +640,7 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 // or b) the 1 second timeout expires.
 func (devices *DeviceSet) waitRemove(hash string) error {
 	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, hash)
-	defer utils.Debugf("[deviceset %s] waitRemove END", devices.devicePrefix, hash)
+	defer utils.Debugf("[deviceset %s] waitRemove(%) END", devices.devicePrefix, hash)
 	devname, err := devices.byHash(hash)
 	if err != nil {
 		return err
