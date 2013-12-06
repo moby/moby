@@ -912,6 +912,17 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	rawRm := r.FormValue("rm")
 	repoName, tag := utils.ParseRepositoryTag(repoName)
 
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	authConfig := &auth.AuthConfig{}
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	}
+
 	var context io.Reader
 
 	if remoteURL == "" {
@@ -978,7 +989,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			Writer:          utils.NewWriteFlusher(w),
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf)
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig)
 	id, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {
