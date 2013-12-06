@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.7.1 (2013-12-05)
+
+#### Documentation
+
++ Add @SvenDowideit as documentation maintainer
++ Add links example
++ Add documentation regarding ambassador pattern
++ Add Google Cloud Platform docs
++ Add dockerfile best practices
+* Update doc for RHEL
+* Update doc for registry
+* Update Postgres examples
+* Update doc for Ubuntu install
+* Improve remote api doc
+
+#### Runtime
+
++ Add hostconfig to docker inspect
++ Implement `docker log -f` to stream logs
++ Add env variable to disable kernel version warning
++ Add -format to `docker inspect`
++ Support bind-mount for files
+- Fix bridge creation on RHEL
+- Fix image size calculation
+- Make sure iptables are called even if the bridge already exists
+- Fix issue with stderr only attach
+- Remove init layer when destroying a container
+- Fix same port binding on different interfaces
+- `docker build` now returns the correct exit code
+- Fix `docker port` to display correct port
+- `docker build` now check that the dockerfile exists client side
+- `docker attach` now returns the correct exit code
+- Remove the name entry when the container does not exist
+
+#### Registry
+
+* Improve progress bars, add ETA for downloads
+* Simultaneous pulls now waits for the first to finish instead of failing
+- Tag only the top-layer image when pushing to registry
+- Fix issue with offline image transfer
+- Fix issue preventing using ':' in password for registry
+
+#### Other
+
++ Add pprof handler for debug
++ Create a Makefile
+* Use stdlib tar that now includes fix
+* Improve make.sh test script
+* Handle SIGQUIT on the daemon
+* Disable verbose during tests
+* Upgrade to go1.2 for official build
+* Improve unit tests
+* The test suite now runs all tests even if one fails
+* Refactor C in Go (Devmapper)
+- Fix OSX compilation
+
 ## 0.7.0 (2013-11-25)
 
 #### Notable features since 0.6.0
