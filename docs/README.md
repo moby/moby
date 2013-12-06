@@ -51,15 +51,15 @@ directory:
 ###Alternative Installation: Docker Container
 
 If you're running ``docker`` on your development machine then you may
-find it easier and cleaner to use the Dockerfile. This installs Sphinx
+find it easier and cleaner to use the docs Dockerfile. This installs Sphinx
 in a container, adds the local ``docs/`` directory and builds the HTML
 docs inside the container, even starting a simple HTTP server on port
-8000 so that you can connect and see your changes. Just run ``docker
-build .`` and run the resulting image. This is the equivalent to
-``make clean server`` since each container starts clean.
+8000 so that you can connect and see your changes.
 
-In the ``docs/`` directory, run:
-    ```docker build -t docker:docs . && docker run -p 8000:8000 docker:docs```
+In the ``docker`` source directory, run:
+    ```make doc```
+
+This is the equivalent to ``make clean server`` since each container starts clean.
 
 Usage
 -----
@@ -128,7 +128,8 @@ Guides on using sphinx
 
 * Code examples
 
-  * Start without $, so it's easy to copy and paste.
+  * Start typed commands with ``$ `` (dollar space) so that they 
+    are easily differentiated from program output.
   * Use "sudo" with docker to ensure that your command is runnable
     even if they haven't [used the *docker*
     group](http://docs.docker.io/en/latest/use/basics/#why-sudo).
