@@ -1100,7 +1100,16 @@ using the container, but inside the current working directory.
 
 .. code-block:: bash
 
-   $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
+    $ sudo docker run -v /dont/exist:/foo -w /foo -i -t ubuntu bash
+
+When the host directory of a bind-mounted volume doesn't exist, Docker
+will automatically create this directory on the host for you. In the
+example above, Docker will create the ``/dont/exist`` folder before
+starting your container.
+
+.. code-block:: bash
+
+    $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
 This binds port ``8080`` of the container to port ``80`` on ``127.0.0.1`` of the
 host machine. :ref:`port_redirection` explains in detail how to manipulate ports

@@ -89,11 +89,15 @@ Mount a Host Directory as a Container Volume:
 ::
 
   -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
-  If "host-dir" is missing, then docker creates a new volume.
 
-This is not available from a Dockerfile as it makes the built image less portable
-or shareable. [host-dir] volumes are 100% host dependent and will break on any 
-other machine.
+If ``host-dir`` is missing from the command, then docker creates a new volume.
+If ``host-dir`` is present but points to a non-existent directory on the host,
+Docker will automatically create this directory and use it as the source of the
+bind-mount.
+
+Note that this is not available from a Dockerfile due the portability and
+sharing purpose of it. The ``host-dir`` volumes are entirely host-dependent and
+might not work on any other machine.
 
 For example::
 
