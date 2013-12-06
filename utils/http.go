@@ -107,6 +107,23 @@ func (h *HTTPMetaHeadersDecorator) ChangeRequest(req *http.Request) (newReq *htt
 	return req, nil
 }
 
+type HTTPAuthDecorator struct {
+	login string
+	password string
+}
+
+func NewHTTPAuthDecorator(login, password string) HTTPRequestDecorator {
+	ret := new(HTTPAuthDecorator)
+	ret.login = login
+	ret.password = password
+	return ret
+}
+
+func (self *HTTPAuthDecorator) ChangeRequest(req *http.Request) (*http.Request, error) {
+	req.SetBasicAuth(self.login, self.password)
+	return req, nil
+}
+
 // HTTPRequestFactory creates an HTTP request
 // and applies a list of decorators on the request.
 type HTTPRequestFactory struct {
@@ -117,6 +134,10 @@ func NewHTTPRequestFactory(d ...HTTPRequestDecorator) *HTTPRequestFactory {
 	return &HTTPRequestFactory{
 		decorators: d,
 	}
+}
+
+func (self *HTTPRequestFactory) AddDecorator(d... HTTPRequestDecorator) {
+	self.decorators = append(self.decorators, d...)
 }
 
 // NewRequest() creates a new *http.Request,
@@ -144,5 +165,6 @@ func (h *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader, d
 			return nil, err
 		}
 	}
+	Debugf("%v -- HEADERS: %v", req.URL, req.Header)
 	return req, err
 }

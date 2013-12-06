@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DEST=$1
 
@@ -96,6 +96,7 @@ EOF
 		    --depends lxc \
 		    --depends aufs-tools \
 		    --depends iptables \
+		    --depends cgroup-bin \
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --conflicts lxc-docker-virtual-package \

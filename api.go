@@ -1,12 +1,16 @@
 package docker
 
 import (
+	"bufio"
+	"bytes"
 	"code.google.com/p/go.net/websocket"
 	"encoding/base64"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -15,6 +19,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/exec"
 	"regexp"
@@ -23,7 +28,7 @@ import (
 )
 
 const (
-	APIVERSION        = 1.7
+	APIVERSION        = 1.8
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
@@ -564,11 +569,17 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 		job.SetenvList("Dns", defaultDns)
 	}
 	// Read container ID from the first line of stdout
-	job.StdoutParseString(&out.ID)
+	job.Stdout.AddString(&out.ID)
 	// Read warnings from stderr
-	job.StderrParseLines(&out.Warnings, 0)
+	warnings := &bytes.Buffer{}
+	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
 		return err
+	}
+	// Parse warnings from stderr
+	scanner := bufio.NewScanner(warnings)
+	for scanner.Scan() {
+		out.Warnings = append(out.Warnings, scanner.Text())
 	}
 	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
@@ -865,7 +876,10 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Conflict between containers and images")
 	}
 
-	return writeJSON(w, http.StatusOK, container)
+	container.readHostConfig()
+	c := APIContainer{container, container.hostConfig}
+
+	return writeJSON(w, http.StatusOK, c)
 }
 
 func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -922,7 +936,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 		context = c
 	} else if utils.IsURL(remoteURL) {
-		f, err := utils.Download(remoteURL, ioutil.Discard)
+		f, err := utils.Download(remoteURL)
 		if err != nil {
 			return err
 		}
@@ -951,9 +965,26 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	b := NewBuildFile(srv, utils.NewWriteFlusher(w), !suppressOutput, !noCache, rm)
+	if version >= 1.8 {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	sf := utils.NewStreamFormatter(version >= 1.8)
+	b := NewBuildFile(srv,
+		&StdoutFormater{
+			Writer:          utils.NewWriteFlusher(w),
+			StreamFormatter: sf,
+		},
+		&StderrFormater{
+			Writer:          utils.NewWriteFlusher(w),
+			StreamFormatter: sf,
+		},
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf)
 	id, err := b.Build(context)
 	if err != nil {
+		if sf.Used() {
+			w.Write(sf.FormatError(err))
+			return nil
+		}
 		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {
@@ -1037,9 +1068,37 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 	}
 }
 
+// Replicated from expvar.go as not public.
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
+func AttachProfiler(router *mux.Router) {
+	router.HandleFunc("/debug/vars", expvarHandler)
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	router.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
+	router.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+}
+
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
-
+	if os.Getenv("DEBUG") != "" {
+		AttachProfiler(r)
+	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
 			"/events":                         getEvents,
@@ -1126,8 +1185,6 @@ func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *h
 }
 
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
@@ -1158,5 +1215,9 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 		}
 	}
 	httpSrv := http.Server{Addr: addr, Handler: r}
+
+	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
+	// Tell the init daemon we are accepting requests
+	go systemd.SdNotify("READY=1")
 	return httpSrv.Serve(l)
 }

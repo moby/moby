@@ -38,22 +38,25 @@ func init() {
 
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
-// The signals SIGINT, SIGKILL and SIGTERM are intercepted for cleanup.
-func jobInitApi(job *engine.Job) string {
+// The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
+func jobInitApi(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
+	// FIXME: ImportEnv deprecates ConfigFromJob
 	srv, err := NewServer(job.Eng, ConfigFromJob(job))
 	if err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if srv.runtime.config.Pidfile != "" {
 		job.Logf("Creating pidfile")
 		if err := utils.CreatePidFile(srv.runtime.config.Pidfile); err != nil {
+			// FIXME: do we need fatal here instead of returning a job error?
 			log.Fatal(err)
 		}
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
@@ -68,18 +71,21 @@ func jobInitApi(job *engine.Job) string {
 		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
 	}
 	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := job.Eng.Register("serveapi", srv.ListenAndServe); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return "0"
+	return engine.StatusOK
 }
 
-func (srv *Server) ListenAndServe(job *engine.Job) string {
+func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 	protoAddrs := job.Args
 	chErrors := make(chan error, len(protoAddrs))
 	for _, protoAddr := range protoAddrs {
@@ -94,7 +100,8 @@ func (srv *Server) ListenAndServe(job *engine.Job) string {
 				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 			}
 		default:
-			return "Invalid protocol format."
+			job.Errorf("Invalid protocol format.")
+			return engine.StatusErr
 		}
 		go func() {
 			// FIXME: merge Server.ListenAndServe with ListenAndServe
@@ -104,10 +111,11 @@ func (srv *Server) ListenAndServe(job *engine.Job) string {
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 	}
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) DockerVersion() APIVersion {
@@ -265,6 +273,9 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
 		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+			if os.IsExist(err) {
+				return nil
+			}
 			return err
 		}
 
@@ -386,8 +397,8 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 
 		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
-			return err
 			utils.Debugf("Error reading json", err)
+			return err
 		}
 
 		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
@@ -417,7 +428,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
-	r, err := registry.NewRegistry(srv.runtime.config.Root, nil, srv.HTTPRequestFactory(nil))
+	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress())
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +446,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return err
 	}
 
-	file, err := utils.Download(url, out)
+	file, err := utils.Download(url)
 	if err != nil {
 		return err
 	}
@@ -451,7 +462,7 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 		return err
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf.FormatProgress("", "Downloading", "%8v/%v (%v)"), sf, false), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, "", "Downloading"), path); err != nil {
 		return err
 	}
 	// FIXME: Handle custom repo, tag comment, author
@@ -761,7 +772,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	if err != nil {
 		return err
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling", "dependent layers"))
+	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pulling dependent layers", nil))
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
@@ -776,42 +787,42 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 		defer srv.poolRemove("pull", "layer:"+id)
 
 		if !srv.runtime.graph.Exists(id) {
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "metadata"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
 			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				// FIXME: Keep going in case of error?
 				return err
 			}
 			img, err := NewImgJSON(imgJSON)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				return fmt.Errorf("Failed to parse json: %s", err)
 			}
 
 			// Get the layer
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling", "fs layer"))
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling fs layer", nil))
 			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "pulling dependent layers"))
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				return err
 			}
 			defer layer.Close()
-			if err := srv.runtime.graph.Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf.FormatProgress(utils.TruncateID(id), "Downloading", "%8v/%v (%v)"), sf, false), img); err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error", "downloading dependent layers"))
+			if err := srv.runtime.graph.Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"), img); err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
 				return err
 			}
 		}
-		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download", "complete"))
+		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))
 
 	}
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag, indexEp string, sf *utils.StreamFormatter, parallel bool) error {
+func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
-	repoData, err := r.GetRepositoryData(indexEp, remoteName)
+	repoData, err := r.GetRepositoryData(remoteName)
 	if err != nil {
 		return err
 	}
@@ -866,8 +877,14 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			if _, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
-				utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+			if c, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
+				if c != nil {
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
+					<-c
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
+				} else {
+					utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+				}
 				if parallel {
 					errors <- nil
 				}
@@ -875,29 +892,29 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 			defer srv.poolRemove("pull", "img:"+img.ID)
 
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s", img.Tag, localName)))
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, localName), nil))
 			success := false
 			var lastErr error
 			for _, ep := range repoData.Endpoints {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling", fmt.Sprintf("image (%s) from %s, endpoint: %s", img.Tag, localName, ep)))
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
 				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 					// Its not ideal that only the last error  is returned, it would be better to concatenate the errors.
 					// As the error is also given to the output stream the user will see the error.
 					lastErr = err
-					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Error pulling", fmt.Sprintf("image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err)))
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
 					continue
 				}
 				success = true
 				break
 			}
 			if !success {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Error pulling", fmt.Sprintf("image (%s) from %s, %s", img.Tag, localName, lastErr)))
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
 				if parallel {
 					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
 					return
 				}
 			}
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download", "complete"))
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 
 			if parallel {
 				errors <- nil
@@ -981,11 +998,16 @@ func (srv *Server) poolRemove(kind, key string) error {
 }
 
 func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
-	r, err := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	out = utils.NewWriteFlusher(out)
+
+	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
-		return err
-	}
-	if _, err := srv.poolAdd("pull", localName+":"+tag); err != nil {
+		if c != nil {
+			// Another pull of the same repository is already taking place; just wait for it to finish
+			out.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
+			<-c
+			return nil
+		}
 		return err
 	}
 	defer srv.poolRemove("pull", localName+":"+tag)
@@ -996,21 +1018,18 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 		return err
 	}
 
+	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	if err != nil {
+		return err
+	}
+
 	if endpoint == auth.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
 	}
 
-	out = utils.NewWriteFlusher(out)
-	err = srv.pullRepository(r, out, localName, remoteName, tag, endpoint, sf, parallel)
-	if err == registry.ErrLoginRequired {
+	if err = srv.pullRepository(r, out, localName, remoteName, tag, sf, parallel); err != nil {
 		return err
-	}
-	if err != nil {
-		if err := srv.pullImage(r, out, remoteName, endpoint, nil, sf); err != nil {
-			return err
-		}
-		return nil
 	}
 
 	return nil
@@ -1071,7 +1090,7 @@ func flatten(slc [][]*registry.ImgData) []*registry.ImgData {
 	return result
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, indexEp string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	imgList, err := srv.getImageList(localRepo)
 	if err != nil {
@@ -1081,7 +1100,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
 	var repoData *registry.RepositoryData
-	repoData, err = r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, false, nil)
+	repoData, err = r.PushImageJSONIndex(remoteName, flattenedImgList, false, nil)
 	if err != nil {
 		return err
 	}
@@ -1089,11 +1108,16 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, len(localRepo)))
 		// This section can not be parallelized (each round depends on the previous one)
-		for _, round := range imgList {
+		for i, round := range imgList {
 			// FIXME: This section can be parallelized
 			for _, elem := range round {
 				var pushTags func() error
 				pushTags = func() error {
+					if i < (len(imgList) - 1) {
+						// Only tag the top layer in the repository
+						return nil
+					}
+
 					out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
 					if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
 						return err
@@ -1127,7 +1151,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(indexEp, remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
 		return err
 	}
 
@@ -1162,7 +1186,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf.FormatProgress("", "Pushing", "%8v/%v (%v)"), sf, false), ep, token, jsonRaw)
+	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, "", "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
 	}
@@ -1193,7 +1217,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(srv.runtime.config.Root, authConfig, srv.HTTPRequestFactory(metaHeaders))
+	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
 		return err2
 	}
@@ -1203,7 +1227,7 @@ func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFo
 		out.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[localName]; exists {
-			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, endpoint, sf); err != nil {
+			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, sf); err != nil {
 				return err
 			}
 			return nil
@@ -1238,11 +1262,11 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 		out.Write(sf.FormatStatus("", "Downloading from %s", u))
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
-		resp, err = utils.Download(u.String(), out)
+		resp, err = utils.Download(u.String())
 		if err != nil {
 			return err
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf.FormatProgress("", "Importing", "%8v/%v (%v)"), sf, true)
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf, true, "", "Importing")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -1258,19 +1282,22 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 	return nil
 }
 
-func (srv *Server) ContainerCreate(job *engine.Job) string {
+func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	var name string
 	if len(job.Args) == 1 {
 		name = job.Args[0]
 	} else if len(job.Args) > 1 {
-		return fmt.Sprintf("Usage: %s ", job.Name)
+		job.Printf("Usage: %s", job.Name)
+		return engine.StatusErr
 	}
 	var config Config
 	if err := job.ExportEnv(&config); err != nil {
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if config.Memory != 0 && config.Memory < 524288 {
-		return "Minimum memory limit allowed is 512k"
+		job.Errorf("Minimum memory limit allowed is 512k")
+		return engine.StatusErr
 	}
 	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
 		config.Memory = 0
@@ -1285,9 +1312,11 @@ func (srv *Server) ContainerCreate(job *engine.Job) string {
 			if tag == "" {
 				tag = DEFAULTTAG
 			}
-			return fmt.Sprintf("No such image: %s (tag: %s)", config.Image, tag)
+			job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return engine.StatusErr
 		}
-		return err.Error()
+		job.Error(err)
+		return engine.StatusErr
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	// FIXME: this is necessary because runtime.Create might return a nil container
@@ -1299,7 +1328,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) string {
 	for _, warning := range buildWarnings {
 		job.Errorf("%s\n", warning)
 	}
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerRestart(name string, t int) error {
@@ -1408,19 +1437,15 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
-func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
+func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi, byParents map[string][]*Image) error {
 	// If the image is referenced by a repo, do not delete
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
 	}
 	// If the image is not referenced but has children, go recursive
 	referenced := false
-	byParents, err := srv.runtime.graph.ByParent()
-	if err != nil {
-		return err
-	}
 	for _, img := range byParents[id] {
-		if err := srv.deleteImageAndChildren(img.ID, imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.ID, imgs, byParents); err != nil {
 			if err != ErrImageReferenced {
 				return err
 			}
@@ -1432,7 +1457,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi) error {
 	}
 
 	// If the image is not referenced and has no children, remove it
-	byParents, err = srv.runtime.graph.ByParent()
+	byParents, err := srv.runtime.graph.ByParent()
 	if err != nil {
 		return err
 	}
@@ -1457,8 +1482,12 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 		if err != nil {
 			return err
 		}
+		byParents, err := srv.runtime.graph.ByParent()
+		if err != nil {
+			return err
+		}
 		// Remove all children images
-		if err := srv.deleteImageAndChildren(img.Parent, imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.Parent, imgs, byParents); err != nil {
 			return err
 		}
 		return srv.deleteImageParents(parent, imgs)
@@ -1500,7 +1529,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 		}
 	}
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
-		if err := srv.deleteImageAndChildren(img.ID, &imgs); err != nil {
+		if err := srv.deleteImageAndChildren(img.ID, &imgs, nil); err != nil {
 			if err != ErrImageReferenced {
 				return imgs, err
 			}
@@ -1617,22 +1646,25 @@ func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
 	return nil
 }
 
-func (srv *Server) ContainerStart(job *engine.Job) string {
+func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
-		return fmt.Sprintf("Usage: %s container_id", job.Name)
+		job.Errorf("Usage: %s container_id", job.Name)
+		return engine.StatusErr
 	}
 	name := job.Args[0]
 	runtime := srv.runtime
 	container := runtime.Get(name)
 
 	if container == nil {
-		return fmt.Sprintf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		var hostConfig HostConfig
 		if err := job.ExportEnv(&hostConfig); err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
@@ -1645,29 +1677,33 @@ func (srv *Server) ContainerStart(job *engine.Job) string {
 
 			// refuse to bind mount "/" to the container
 			if source == "/" {
-				return fmt.Sprintf("Invalid bind mount '%s' : source can't be '/'", bind)
+				job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
+				return engine.StatusErr
 			}
 
 			// ensure the source exists on the host
 			_, err := os.Stat(source)
 			if err != nil && os.IsNotExist(err) {
-				return fmt.Sprintf("Invalid bind mount '%s' : source doesn't exist", bind)
+				job.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
+				return engine.StatusErr
 			}
 		}
 		// Register any links from the host config before starting the container
 		// FIXME: we could just pass the container here, no need to lookup by name again.
 		if err := srv.RegisterLinks(name, &hostConfig); err != nil {
-			return err.Error()
+			job.Error(err)
+			return engine.StatusErr
 		}
 		container.hostConfig = &hostConfig
 		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
-		return fmt.Sprintf("Cannot start container %s: %s", name, err)
+		job.Errorf("Cannot start container %s: %s", name, err)
+		return engine.StatusErr
 	}
 	srv.LogEvent("start", container.ID, runtime.repositories.ImageName(container.Image))
 
-	return "0"
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerStop(name string, t int) error {
@@ -1830,7 +1866,6 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
-		reqFactory:  nil,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -1839,15 +1874,12 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	srv.Lock()
 	defer srv.Unlock()
-	if srv.reqFactory == nil {
-		ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
-		md := &utils.HTTPMetaHeadersDecorator{
-			Headers: metaHeaders,
-		}
-		factory := utils.NewHTTPRequestFactory(ud, md)
-		srv.reqFactory = factory
+	ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
+	md := &utils.HTTPMetaHeadersDecorator{
+		Headers: metaHeaders,
 	}
-	return srv.reqFactory
+	factory := utils.NewHTTPRequestFactory(ud, md)
+	return factory
 }
 
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
@@ -1882,6 +1914,5 @@ type Server struct {
 	pushingPool map[string]chan struct{}
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
-	reqFactory  *utils.HTTPRequestFactory
 	Eng         *engine.Engine
 }

@@ -330,6 +330,36 @@ func TestCommitRun(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, _ := mkContainer(runtime, []string{"-i", "_", "/bin/cat"}, t)
+	defer runtime.Destroy(container)
+
+	cStdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := container.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.IsRunning() {
+		t.Errorf("Container should be running")
+	}
+	if err := container.Start(); err == nil {
+		t.Fatalf("A running container should be able to be started")
+	}
+
+	// Try to avoid the timeout in destroy. Best effort, don't check error
+	cStdin.Close()
+	container.WaitTimeout(2 * time.Second)
+}
+
+func TestCpuShares(t *testing.T) {
 	_, err1 := os.Stat("/sys/fs/cgroup/cpuacct,cpu")
 	_, err2 := os.Stat("/sys/fs/cgroup/cpu,cpuacct")
 	if err1 == nil || err2 == nil {
@@ -462,7 +492,7 @@ func TestKillDifferentUser(t *testing.T) {
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
 		out, _ := container.StdoutPipe()
 		in, _ := container.StdinPipe()
-		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -499,7 +529,7 @@ func TestCreateVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	var id string
-	jobCreate.StdoutParseString(&id)
+	jobCreate.Stdout.AddString(&id)
 	if err := jobCreate.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -1257,6 +1287,13 @@ func TestBindMounts(t *testing.T) {
 	if _, err := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
 		t.Fatal("Container bind mounted illegal directory")
 	}
+
+	// test mount a file
+	runContainer(eng, r, []string{"-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "_", "sh", "-c", "echo -n 'yotta' > /tmp/holla"}, t)
+	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+	if content != "yotta" {
+		t.Fatal("Container failed to write to bind mount file")
+	}
 }
 
 // Test that -volumes-from supports both read-only mounts
@@ -1502,7 +1539,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	var id string
-	jobCreate.StdoutParseString(&id)
+	jobCreate.Stdout.AddString(&id)
 	if err := jobCreate.Run(); err != nil {
 		t.Fatal(err)
 	}

@@ -54,9 +54,9 @@ inter-container communication is set to false.
 
 .. code-block:: bash
 
-    # Example: there is an image called redis-2.6 that exposes the port 6379 and starts redis-server.
+    # Example: there is an image called crosbymichael/redis that exposes the port 6379 and starts redis-server.
     # Let's name the container as "redis" based on that image and run it as daemon.
-    $ sudo docker run -d -name redis redis-2.6
+    $ sudo docker run -d -name redis crosbymichael/redis
 
 We can issue all the commands that you would expect using the name "redis"; start, stop,
 attach, using the name for our container. The name also allows us to link other containers
@@ -102,3 +102,12 @@ about the child container.
 
 Accessing the network information along with the environment of the child container allows
 us to easily connect to the Redis service on the specific IP and port in the environment.
+
+Running ``docker ps`` shows the 2 containers, and the webapp/db alias name for the redis container.
+
+.. code-block:: bash
+
+    $ docker ps
+    CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
+    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db     

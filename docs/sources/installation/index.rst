@@ -18,6 +18,7 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   rhel
    fedora
    archlinux
    gentoolinux
@@ -25,6 +26,7 @@ Contents:
    windows
    amazon
    rackspace
+   google
    kernel
    binaries
    security

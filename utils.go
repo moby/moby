@@ -1,37 +1,13 @@
 package docker
 
-/*
-#include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <errno.h>
-
-// See linux.git/fs/btrfs/ioctl.h
-#define BTRFS_IOCTL_MAGIC 0x94
-#define BTRFS_IOC_CLONE _IOW(BTRFS_IOCTL_MAGIC, 9, int)
-
-int
-btrfs_reflink(int fd_out, int fd_in)
-{
-  int res;
-  res = ioctl(fd_out, BTRFS_IOC_CLONE, fd_in);
-  if (res < 0)
-    return errno;
-  return 0;
-}
-
-*/
-import "C"
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/namesgenerator"
 	"github.com/dotcloud/docker/utils"
-	"io"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 type Change struct {
@@ -215,9 +191,9 @@ func MergeConfig(userConf, imageConf *Config) error {
 	return nil
 }
 
-func parseLxcConfOpts(opts utils.ListOpts) ([]KeyValuePair, error) {
-	out := make([]KeyValuePair, len(opts))
-	for i, o := range opts {
+func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+	out := make([]KeyValuePair, opts.Len())
+	for i, o := range opts.GetAll() {
 		k, v, err := parseLxcOpt(o)
 		if err != nil {
 			return nil, err
@@ -346,13 +322,6 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	return nil
 }
 
-func BtrfsReflink(fd_out, fd_in uintptr) error {
-	res := C.btrfs_reflink(C.int(fd_out), C.int(fd_in))
-	if res != 0 {
-		return syscall.Errno(res)
-	}
-	return nil
-}
 
 // Links come in the format of
 // name:alias
@@ -385,15 +354,4 @@ func (c *checker) Exists(name string) bool {
 // Generate a random and unique name
 func generateRandomName(runtime *Runtime) (string, error) {
 	return namesgenerator.GenerateRandomName(&checker{runtime})
-}
-
-func CopyFile(dstFile, srcFile *os.File) error {
-	err := BtrfsReflink(dstFile.Fd(), srcFile.Fd())
-	if err == nil {
-		return nil
-	}
-
-	// Fall back to normal copy
-	_, err = io.Copy(dstFile, srcFile)
-	return err
 }

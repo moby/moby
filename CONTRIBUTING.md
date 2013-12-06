@@ -4,6 +4,13 @@ Want to hack on Docker? Awesome! Here are instructions to get you
 started. They are probably not perfect, please let us know if anything
 feels wrong or incomplete.
 
+## Reporting Issues
+
+When reporting [issues](https://github.com/dotcloud/docker/issues) 
+on Github please include your host OS ( Ubuntu 12.04, Fedora 19, etc... )
+and the output of `docker version` along with the output of `docker info` if possible.  
+This information will help us review and fix your issue faster.
+
 ## Build Environment
 
 For instructions on setting up your development environment, please
@@ -64,7 +71,7 @@ your branch before submitting a pull request.
 
 Update the documentation when creating or modifying features. Test
 your documentation changes for clarity, concision, and correctness, as
-well as a clean docmuent build. See ``docs/README.md`` for more
+well as a clean documentation build. See ``docs/README.md`` for more
 information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
@@ -115,6 +122,7 @@ For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
 * Step 1: learn the component inside out
 * Step 2: make yourself useful by contributing code, bugfixes, support etc.
 * Step 3: volunteer on the irc channel (#docker@freenode)
+* Step 4: propose yourself at a scheduled #docker-meeting
 
 Don't forget: being a maintainer is a time investment. Make sure you will have time to make yourself available.
 You don't have to be a maintainer to make a difference on the project!
