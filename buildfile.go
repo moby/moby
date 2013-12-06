@@ -375,7 +375,7 @@ type StdoutFormater struct {
 }
 
 func (sf *StdoutFormater) Write(buf []byte) (int, error) {
-	formattedBuf := sf.StreamFormatter.FormatStatus("", "%s", string(buf))
+	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {
 		return n, io.ErrShortWrite
@@ -389,7 +389,7 @@ type StderrFormater struct {
 }
 
 func (sf *StderrFormater) Write(buf []byte) (int, error) {
-	formattedBuf := sf.StreamFormatter.FormatStatus("", "%s", "\033[91m"+string(buf)+"\033[0m")
+	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {
 		return n, io.ErrShortWrite

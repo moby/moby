@@ -1008,8 +1008,8 @@ Build an image from Dockerfile via stdin
       HTTP/1.1 200 OK
       Content-Type: application/json
 
-      {"status":"Step 1..."}
-      {"status":"..."}
+      {"stream":"Step 1..."}
+      {"stream":"..."}
       {"error":"Error...", "errorDetail":{"code": 123, "message": "Error..."}}
 
 
