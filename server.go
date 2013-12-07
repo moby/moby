@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/systemd"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -114,29 +115,20 @@ func jobInitApi(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+// ListenAndServe loops through all of the protocols sent in to docker and spawns
+// off a go routine to setup a serving http.Server for each.
 func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 	protoAddrs := job.Args
 	chErrors := make(chan error, len(protoAddrs))
+
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		switch protoAddrParts[0] {
-		case "unix":
-			if err := syscall.Unlink(protoAddrParts[1]); err != nil && !os.IsNotExist(err) {
-				log.Fatal(err)
-			}
-		case "tcp":
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		default:
-			job.Errorf("Invalid protocol format.")
-			return engine.StatusErr
-		}
-		go func() {
-			// FIXME: merge Server.ListenAndServe with ListenAndServe
+		go func () {
+			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"))
 		}()
 	}
+
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
@@ -144,6 +136,10 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 			return engine.StatusErr
 		}
 	}
+
+	// Tell the init daemon we are accepting requests
+	go systemd.SdNotify("READY=1")
+
 	return engine.StatusOK
 }
 

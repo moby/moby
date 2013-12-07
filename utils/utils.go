@@ -767,6 +767,8 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	case strings.HasPrefix(addr, "fd://"):
+		return addr, nil
 	case addr == "":
 		proto = "unix"
 		addr = defaultUnix

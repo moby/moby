@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -1081,16 +1082,66 @@ func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *h
 	return nil
 }
 
+// ServeFD creates an http.Server and sets it up to serve given a socket activated
+// argument.
+func ServeFd(addr string, handle http.Handler) error {
+	ls, e := systemd.ListenFD(addr)
+	if e != nil {
+		return e
+	}
+
+	chErrors := make(chan error, len(ls))
+
+	// Since ListenFD will return one or more sockets we have
+	// to create a go func to spawn off multiple serves
+	for i, _ := range(ls) {
+		listener := ls[i]
+		go func () {
+			httpSrv := http.Server{Handler: handle}
+			chErrors <- httpSrv.Serve(listener)
+		}()
+	}
+
+	for i := 0; i < len(ls); i += 1 {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ListenAndServe sets up the required http.Server and gets it listening for
+// each addr passed in and does protocol specific checking.
 func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 	r, err := createRouter(srv, logging)
 	if err != nil {
 		return err
 	}
-	l, e := net.Listen(proto, addr)
-	if e != nil {
-		return e
+
+	if proto == "fd" {
+		return ServeFd(addr, r)
 	}
+
 	if proto == "unix" {
+		if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	l, err := net.Listen(proto, addr)
+	if err != nil {
+		return err
+	}
+
+	// Basic error and sanity checking
+	switch proto {
+	case "tcp":
+		if !strings.HasPrefix(addr, "127.0.0.1") {
+			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+		}
+	case "unix":
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err
 		}
@@ -1110,11 +1161,10 @@ func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
 				return err
 			}
 		}
+	default:
+		return fmt.Errorf("Invalid protocol format.")
 	}
-	httpSrv := http.Server{Addr: addr, Handler: r}
 
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
+	httpSrv := http.Server{Addr: addr, Handler: r}
 	return httpSrv.Serve(l)
 }
