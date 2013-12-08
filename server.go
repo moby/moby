@@ -144,27 +144,6 @@ func (v *simpleVersionInfo) Version() string {
 	return v.version
 }
 
-// versionCheckers() returns version informations of:
-// docker, go, git-commit (of the docker) and the host's kernel.
-//
-// Such information will be used on call to NewRegistry().
-func (srv *Server) versionInfos() []utils.VersionInfo {
-	v := srv.DockerVersion()
-	ret := append(make([]utils.VersionInfo, 0, 4), &simpleVersionInfo{"docker", v.Version})
-
-	if len(v.GoVersion) > 0 {
-		ret = append(ret, &simpleVersionInfo{"go", v.GoVersion})
-	}
-	if len(v.GitCommit) > 0 {
-		ret = append(ret, &simpleVersionInfo{"git-commit", v.GitCommit})
-	}
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
-		ret = append(ret, &simpleVersionInfo{"kernel", kernelVersion.String()})
-	}
-
-	return ret
-}
-
 // ContainerKill send signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
@@ -1874,7 +1853,13 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
 	srv.Lock()
 	defer srv.Unlock()
-	ud := utils.NewHTTPUserAgentDecorator(srv.versionInfos()...)
+	v := dockerVersion()
+	httpVersion := make([]utils.VersionInfo, 0, 4)
+	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", v.Get("Version")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"go", v.Get("GoVersion")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", v.Get("GitCommit")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", v.Get("KernelVersion")})
+	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
 	md := &utils.HTTPMetaHeadersDecorator{
 		Headers: metaHeaders,
 	}
