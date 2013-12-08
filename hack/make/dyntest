@@ -61,9 +61,10 @@ bundle_test() {
 # holding Go test files, and prints their paths on standard output, one per
 # line.
 find_test_dirs() {
-       find . -name '*_test.go' | grep -v '^./vendor' |
-               { while read f; do dirname $f; done; } |
-               sort -u
+	find -not \( \
+		\( -wholename './vendor' -o -wholename './integration' \) \
+		-prune \
+	\) -name '*_test.go' -print0 | xargs -0n1 dirname | sort -u
 }
 
 bundle_test
