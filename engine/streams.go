@@ -164,3 +164,30 @@ func Tail(src io.Reader, n int, dst *[]string) {
 		*dst = append(*dst, v.(string))
 	})
 }
+
+// AddEnv starts a new goroutine which will decode all subsequent data
+// as a stream of json-encoded objects, and point `dst` to the last
+// decoded object.
+// The result `env` can be queried using the type-neutral Env interface. 
+// It is not safe to query `env` until the Output is closed.
+func (o *Output) AddEnv() (dst *Env, err error) {
+	src, err := o.AddPipe()
+	if err != nil {
+		return nil, err
+	}
+	dst = &Env{}
+	o.tasks.Add(1)
+	go func() {
+		defer o.tasks.Done()
+		decoder := NewDecoder(src)
+		for {
+			env, err := decoder.Decode()
+			if err != nil {
+				return
+			}
+			*dst= *env
+		}
+	}()
+	return dst, nil
+}
+

@@ -72,6 +72,26 @@ func (w *sentinelWriteCloser) Close() error {
 	return nil
 }
 
+func TestOutputAddEnv(t *testing.T) {
+	input := "{\"foo\": \"bar\", \"answer_to_life_the_universe_and_everything\": 42}"
+	o := NewOutput()
+	result, err := o.AddEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Write([]byte(input))
+	o.Close()
+	if v := result.Get("foo"); v != "bar" {
+		t.Errorf("Expected %v, got %v", "bar", v)
+	}
+	if v := result.GetInt("answer_to_life_the_universe_and_everything"); v != 42 {
+		t.Errorf("Expected %v, got %v", 42, v)
+	}
+	if v := result.Get("this-value-doesnt-exist"); v != "" {
+		t.Errorf("Expected %v, got %v", "", v)
+	}
+}
+
 func TestOutputAddClose(t *testing.T) {
 	o := NewOutput()
 	var s sentinelWriteCloser
