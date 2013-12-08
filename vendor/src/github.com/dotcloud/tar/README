@@ -1,3 +1,0 @@
-This is a fork of the upstream Go [archive/tar](http://golang.org/pkg/archive/tar/) package to add PAX header support.
-
-You can monitor the upstream pull request [here](https://codereview.appspot.com/12561043/).
