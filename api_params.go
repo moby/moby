@@ -95,12 +95,6 @@ type (
 		IP          string
 	}
 
-	APIVersion struct {
-		Version   string
-		GitCommit string `json:",omitempty"`
-		GoVersion string `json:",omitempty"`
-	}
-
 	APIWait struct {
 		StatusCode int
 	}

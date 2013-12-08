@@ -118,14 +118,6 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) DockerVersion() APIVersion {
-	return APIVersion{
-		Version:   VERSION,
-		GitCommit: GITCOMMIT,
-		GoVersion: runtime.Version(),
-	}
-}
-
 // simpleVersionInfo is a simple implementation of
 // the interface VersionInfo, which is used
 // to provide version information for some product,
