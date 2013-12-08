@@ -12,7 +12,7 @@ GREEN=$'\033[32m'
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-# 	TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
 #
 bundle_test() {
 	{
@@ -22,17 +22,7 @@ bundle_test() {
 		for test_dir in $(find_test_dirs); do
 			echo
 
-			if ! (
-				set -x
-				cd $test_dir
-
-				# Install packages that are dependencies of the tests.
-				#   Note: Does not run the tests.
-				go test -i -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS
-
-				# Run the tests with the optional $TESTFLAGS.
-				go test -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS $TESTFLAGS
-			); then
+			if ! LDFLAGS="$LDFLAGS $LDFLAGS_STATIC" go_test_dir "$test_dir"; then
 				TESTS_FAILED+=("$test_dir")
 				echo
 				echo "${RED}Tests failed: $test_dir${TEXTRESET}"
