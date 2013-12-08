@@ -22,8 +22,8 @@
 # Note: Apparmor used to mess with privileged mode, but this is no longer
 # the case. Therefore, you don't have to disable it anymore.
 #
+# docker-version	0.6.1
 
-docker-version	0.6.1
 FROM	ubuntu:12.04
 MAINTAINER	Solomon Hykes <solomon@dotcloud.com>
 
