@@ -1,11 +1,8 @@
 package engine
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -27,7 +24,7 @@ type Job struct {
 	Eng     *Engine
 	Name    string
 	Args    []string
-	env     []string
+	env	*Env
 	Stdout  *Output
 	Stderr  *Output
 	Stdin   *Input
@@ -105,80 +102,40 @@ func (job *Job) String() string {
 }
 
 func (job *Job) Getenv(key string) (value string) {
-	for _, kv := range job.env {
-		if strings.Index(kv, "=") == -1 {
-			continue
-		}
-		parts := strings.SplitN(kv, "=", 2)
-		if parts[0] != key {
-			continue
-		}
-		if len(parts) < 2 {
-			value = ""
-		} else {
-			value = parts[1]
-		}
-	}
-	return
+	return job.env.Get(key)
 }
 
 func (job *Job) GetenvBool(key string) (value bool) {
-	s := strings.ToLower(strings.Trim(job.Getenv(key), " \t"))
-	if s == "" || s == "0" || s == "no" || s == "false" || s == "none" {
-		return false
-	}
-	return true
+	return job.env.GetBool(key)
 }
 
 func (job *Job) SetenvBool(key string, value bool) {
-	if value {
-		job.Setenv(key, "1")
-	} else {
-		job.Setenv(key, "0")
-	}
+	job.env.SetBool(key, value)
 }
 
 func (job *Job) GetenvInt(key string) int64 {
-	s := strings.Trim(job.Getenv(key), " \t")
-	val, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return -1
-	}
-	return val
+	return job.env.GetInt(key)
 }
 
 func (job *Job) SetenvInt(key string, value int64) {
-	job.Setenv(key, fmt.Sprintf("%d", value))
+	job.env.SetInt(key, value)
 }
 
 // Returns nil if key not found
 func (job *Job) GetenvList(key string) []string {
-	sval := job.Getenv(key)
-	if sval == "" {
-		return nil
-	}
-	l := make([]string, 0, 1)
-	if err := json.Unmarshal([]byte(sval), &l); err != nil {
-		l = append(l, sval)
-	}
-	return l
+	return job.env.GetList(key)
 }
 
 func (job *Job) SetenvJson(key string, value interface{}) error {
-	sval, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	job.Setenv(key, string(sval))
-	return nil
+	return job.env.SetJson(key, value)
 }
 
 func (job *Job) SetenvList(key string, value []string) error {
-	return job.SetenvJson(key, value)
+	return job.env.SetJson(key, value)
 }
 
 func (job *Job) Setenv(key, value string) {
-	job.env = append(job.env, key+"="+value)
+	job.env.Set(key, value)
 }
 
 // DecodeEnv decodes `src` as a json dictionary, and adds
@@ -187,90 +144,23 @@ func (job *Job) Setenv(key, value string) {
 // If `src` cannot be decoded as a json dictionary, an error
 // is returned.
 func (job *Job) DecodeEnv(src io.Reader) error {
-	m := make(map[string]interface{})
-	if err := json.NewDecoder(src).Decode(&m); err != nil {
-		return err
-	}
-	for k, v := range m {
-		// FIXME: we fix-convert float values to int, because
-		// encoding/json decodes integers to float64, but cannot encode them back.
-		// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
-		if fval, ok := v.(float64); ok {
-			job.SetenvInt(k, int64(fval))
-		} else if sval, ok := v.(string); ok {
-			job.Setenv(k, sval)
-		} else if val, err := json.Marshal(v); err == nil {
-			job.Setenv(k, string(val))
-		} else {
-			job.Setenv(k, fmt.Sprintf("%v", v))
-		}
-	}
-	return nil
+	return job.env.Decode(src)
 }
 
 func (job *Job) EncodeEnv(dst io.Writer) error {
-	m := make(map[string]interface{})
-	for k, v := range job.Environ() {
-		var val interface{}
-		if err := json.Unmarshal([]byte(v), &val); err == nil {
-			// FIXME: we fix-convert float values to int, because
-			// encoding/json decodes integers to float64, but cannot encode them back.
-			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
-			if fval, isFloat := val.(float64); isFloat {
-				val = int(fval)
-			}
-			m[k] = val
-		} else {
-			m[k] = v
-		}
-	}
-	if err := json.NewEncoder(dst).Encode(&m); err != nil {
-		return err
-	}
-	return nil
+	return job.env.Encode(dst)
 }
 
 func (job *Job) ExportEnv(dst interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("ExportEnv %s", err)
-		}
-	}()
-	var buf bytes.Buffer
-	// step 1: encode/marshal the env to an intermediary json representation
-	if err := job.EncodeEnv(&buf); err != nil {
-		return err
-	}
-	// step 2: decode/unmarshal the intermediary json into the destination object
-	if err := json.NewDecoder(&buf).Decode(dst); err != nil {
-		return err
-	}
-	return nil
+	return job.env.Export(dst)
 }
 
 func (job *Job) ImportEnv(src interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("ImportEnv: %s", err)
-		}
-	}()
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(src); err != nil {
-		return err
-	}
-	if err := job.DecodeEnv(&buf); err != nil {
-		return err
-	}
-	return nil
+	return job.env.Import(src)
 }
 
 func (job *Job) Environ() map[string]string {
-	m := make(map[string]string)
-	for _, kv := range job.env {
-		parts := strings.SplitN(kv, "=", 2)
-		m[parts[0]] = parts[1]
-	}
-	return m
+	return job.env.Map()
 }
 
 func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {

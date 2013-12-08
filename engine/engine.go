@@ -111,6 +111,7 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stdin:  NewInput(),
 		Stdout: NewOutput(),
 		Stderr: NewOutput(),
+		env:    &Env{},
 	}
 	job.Stdout.Add(utils.NopWriteCloser(eng.Stdout))
 	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
