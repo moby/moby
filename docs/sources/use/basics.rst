@@ -67,7 +67,7 @@ daemon will make the ownership of the Unix socket read/writable by the
 *docker* group when the daemon starts. The ``docker`` daemon must
 always run as root, but if you run the ``docker`` client as a user in
 the *docker* group then you don't need to add ``sudo`` to all the
-client commands.
+client commands.  Warning: the *docker* group is root-equivalent.
 
 **Example:**
 
