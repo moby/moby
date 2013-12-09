@@ -14,7 +14,7 @@ doc:
 	docker build -t docker-docs docs && docker run -p 8000:8000 docker-docs
 
 test: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh test
+	$(DOCKER_RUN_DOCKER) hack/make.sh test test-integration
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash

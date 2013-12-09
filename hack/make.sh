@@ -35,8 +35,10 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 DEFAULT_BUNDLES=(
 	binary
 	test
+	test-integration
 	dynbinary
 	dyntest
+	dyntest-integration
 	tgz
 	ubuntu
 )
