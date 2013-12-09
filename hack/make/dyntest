@@ -10,7 +10,8 @@ if [ ! -x "$INIT" ]; then
 	false
 fi
 
-export TEST_DOCKERINIT_PATH="$INIT"
-
-LDFLAGS_STATIC="-X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\"" \
+(
+	export TEST_DOCKERINIT_PATH="$INIT"
+	export LDFLAGS_STATIC="-X github.com/dotcloud/docker/utils.INITSHA1 \"$DOCKER_INITSHA1\""
 	source "$(dirname "$BASH_SOURCE")/test"
+)
