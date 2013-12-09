@@ -11,8 +11,7 @@ Arch Linux
 
 .. include:: install_unofficial.inc
 
-Installing on Arch Linux is not officially supported but can be handled via 
-the package in community:
+Installing on Arch Linux can be handled via the package in community:
 
 * `docker <https://www.archlinux.org/packages/community/x86_64/docker/>`_
 
@@ -33,6 +32,7 @@ the packages. The core dependencies are:
 * device-mapper
 * iproute2
 * lxc
+* sqlite
 
 
 Installation
@@ -48,7 +48,7 @@ is all that is needed.
 For the AUR package execute:
 ::
 
-    yaourt -S lxc-docker-git
+    yaourt -S docker-git
     
 The instructions here assume **yaourt** is installed.  See 
 `Arch User Repository <https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages>`_
