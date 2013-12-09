@@ -1134,14 +1134,14 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 	)
 
 	for tag, id := range localRepo {
-        var imageListForThisTag []string
+		var imageListForThisTag []string
 
 		tagsByImage[id] = append(tagsByImage[id], tag)
 
 		for img, err := srv.runtime.graph.Get(id); img != nil; img, err = img.GetParent() {
-	        if err != nil {
-                return nil, nil, err
-	        }
+			if err != nil {
+				return nil, nil, err
+			}
 
 			if imagesSeen[img.ID] {
 				// This image is already on the list, we can ignore it and all its parents
@@ -1152,13 +1152,13 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 			imageListForThisTag = append(imageListForThisTag, img.ID)
 		}
 
-        // reverse the image list for this tag (so the "most"-parent image is first)
-        for i, j := 0, len(imageListForThisTag) - 1; i < j; i, j = i + 1, j - 1 {
-            imageListForThisTag[i], imageListForThisTag[j] = imageListForThisTag[j], imageListForThisTag[i]
-        }
+		// reverse the image list for this tag (so the "most"-parent image is first)
+		for i, j := 0, len(imageListForThisTag) - 1; i < j; i, j = i + 1, j - 1 {
+			imageListForThisTag[i], imageListForThisTag[j] = imageListForThisTag[j], imageListForThisTag[i]
+		}
 
-        // append to main image list
-        imageList = append(imageList, imageListForThisTag...)
+		// append to main image list
+		imageList = append(imageList, imageListForThisTag...)
 	}
 
 	utils.Debugf("Image list: %v", imageList)
@@ -1201,16 +1201,16 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			} else {
-			if _, err := srv.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
-				// FIXME: Continue on error?
-						return err
-					}
+				if _, err := srv.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
+					// FIXME: Continue on error?
+					return err
 				}
+			}
 
-            for _, tag := range tagsByImage[imgId] {
-                out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+remoteName+"/tags/"+tag))
+			for _, tag := range tagsByImage[imgId] {
+				out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+remoteName+"/tags/"+tag))
 
-                if err := r.PushRegistryTag(remoteName, imgId, tag, ep, repoData.Tokens); err != nil {
+				if err := r.PushRegistryTag(remoteName, imgId, tag, ep, repoData.Tokens); err != nil {
 					return err
 				}
 			}
