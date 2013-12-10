@@ -1,10 +1,10 @@
-:title: Basic Commands
+:title: Learn Basic Commands
 :description: Common usage and commands
 :keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 
-The Basics
-==========
+Learn Basic Commands
+====================
 
 Starting Docker
 ---------------

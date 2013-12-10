@@ -1,14 +1,14 @@
-:title: Docker networking
+:title: Configure Networking
 :description: Docker networking
 :keywords: network, networking, bridge, docker, documentation
 
 
-Networking
-==========
+Configure Networking
+====================
 
-Docker uses Linux bridge capabilities to provide network connectivity 
-to containers. The ``docker0`` bridge interface is managed by Docker itself
-for this purpose. Thus, when the Docker daemon starts it :
+Docker uses Linux bridge capabilities to provide network connectivity
+to containers. The ``docker0`` bridge interface is managed by Docker
+itself for this purpose. Thus, when the Docker daemon starts it :
 
 - creates the ``docker0`` bridge if not present
 - searches for an IP address range which doesn't overlap with an existing route
@@ -30,11 +30,12 @@ for this purpose. Thus, when the Docker daemon starts it :
 
 
 
-At runtime, a :ref:`specific kind of virtual interface<vethxxxx-device>` is 
-given to each containers which is then bonded to the ``docker0`` bridge. 
-Each containers also receives a dedicated IP address from the same range 
-as ``docker0``. The ``docker0`` IP address is then used as the default 
-gateway for the containers.
+At runtime, a :ref:`specific kind of virtual
+interface<vethxxxx-device>` is given to each containers which is then
+bonded to the ``docker0`` bridge.  Each containers also receives a
+dedicated IP address from the same range as ``docker0``. The
+``docker0`` IP address is then used as the default gateway for the
+containers.
 
 .. code-block:: bash
 
@@ -47,18 +48,19 @@ gateway for the containers.
     docker0		8000.fef213db5a66	no		vethQCDY1N
 
 
-Above, ``docker0`` acts as a bridge for the ``vethQCDY1N`` interface which is dedicated
-to the 52f811c5d3d6 container.
+Above, ``docker0`` acts as a bridge for the ``vethQCDY1N`` interface
+which is dedicated to the 52f811c5d3d6 container.
 
 
 How to use a specific IP address range
 ---------------------------------------
-Docker will try hard to find an IP range which is not used by the host. 
-Even if it works for most cases, it's not bullet-proof and sometimes you need 
-to have more control over the IP addressing scheme.
 
-For this purpose, Docker allows you to manage the ``docker0`` bridge or 
-your own one using the ``-b=<bridgename>`` parameter.
+Docker will try hard to find an IP range which is not used by the
+host.  Even if it works for most cases, it's not bullet-proof and
+sometimes you need to have more control over the IP addressing scheme.
+
+For this purpose, Docker allows you to manage the ``docker0`` bridge
+or your own one using the ``-b=<bridgename>`` parameter.
 
 In this scenario:
 
@@ -115,14 +117,15 @@ In this scenario:
     
 Container intercommunication
 -------------------------------
-Containers can communicate with each other according to the ``icc`` parameter 
-value of the Docker daemon.
+
+Containers can communicate with each other according to the ``icc``
+parameter value of the Docker daemon.
 
 - The default, ``-icc=true`` allows containers to communicate with each other.
 - ``-icc=false`` means containers are isolated from each other.
 
-Under the hood, ``iptables`` is used by Docker to either accept or drop communication 
-between containers.
+Under the hood, ``iptables`` is used by Docker to either accept or
+drop communication between containers.
 
 
 .. _vethxxxx-device:
@@ -131,17 +134,20 @@ What's about the vethXXXX device?
 -----------------------------------
 Well. Things get complicated here.
 
-The ``vethXXXX`` interface is the host side of a point-to-point link between the 
-host and the corresponding container, the other side of the link being
-materialized by the container's ``eth0`` interface. This pair (host ``vethXXX`` and 
-container ``eth0``) are connected like a tube. Everything that comes in one side will
-come out the other side.
+The ``vethXXXX`` interface is the host side of a point-to-point link
+between the host and the corresponding container, the other side of
+the link being materialized by the container's ``eth0``
+interface. This pair (host ``vethXXX`` and container ``eth0``) are
+connected like a tube. Everything that comes in one side will come out
+the other side.
 
-All the plumbing is delegated to Linux network capabilities (check the ip link
-command) and the namespaces infrastructure.
+All the plumbing is delegated to Linux network capabilities (check the
+ip link command) and the namespaces infrastructure.
 
 
 I want more
 ------------
-Jérôme Petazzoni has create ``pipework`` to connect together containers in 
-arbitrarily complex scenarios : https://github.com/jpetazzo/pipework
+
+Jérôme Petazzoni has create ``pipework`` to connect together
+containers in arbitrarily complex scenarios :
+https://github.com/jpetazzo/pipework

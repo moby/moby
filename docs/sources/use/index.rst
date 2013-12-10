@@ -17,9 +17,9 @@ Contents:
    workingwithrepository
    baseimages
    port_redirection
-   puppet
    networking
    host_integration
    working_with_volumes
    working_with_links_names
    ambassador_pattern_linking
+   puppet

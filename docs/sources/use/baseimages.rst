@@ -1,10 +1,10 @@
-:title: Base Image Creation
+:title: Create a Base Image
 :description: How to create base images
 :keywords: Examples, Usage, base image, docker, documentation, examples
 
 .. _base_image_creation:
 
-Base Image Creation
+Create a Base Image
 ===================
 
 So you want to create your own :ref:`base_image_def`? Great!

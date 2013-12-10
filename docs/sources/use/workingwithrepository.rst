@@ -1,11 +1,11 @@
-:title: Working With Repositories
+:title: Share Images via Repositories
 :description: Repositories allow users to share images.
 :keywords: repo, repositories, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
-Working with Repositories
-=========================
+Share Images via Repositories
+=============================
 
 A *repository* is a hosted collection of tagged :ref:`images
 <image_def>` that together create the file system for a container. The
