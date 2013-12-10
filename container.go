@@ -801,15 +801,10 @@ func (container *Container) createVolumes() error {
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
 			}
-			if file, err := os.Open(bindMap.SrcPath); err != nil {
+			if stat, err := os.Lstat(bindMap.SrcPath); err != nil {
 				return err
 			} else {
-				defer file.Close()
-				if stat, err := file.Stat(); err != nil {
-					return err
-				} else {
-					volIsDir = stat.IsDir()
-				}
+				volIsDir = stat.IsDir()
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
