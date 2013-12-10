@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
@@ -391,26 +392,24 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return err
 	}
 
-	var out APIVersion
-	err = json.Unmarshal(body, &out)
+	out := engine.NewOutput()
+	remoteVersion, err := out.AddEnv()
 	if err != nil {
-		utils.Errorf("Error unmarshal: body: %s, err: %s\n", body, err)
+		utils.Errorf("Error reading remote version: %s\n", err)
 		return err
 	}
-	if out.Version != "" {
-		fmt.Fprintf(cli.out, "Server version: %s\n", out.Version)
+	if _, err := out.Write(body); err != nil {
+		utils.Errorf("Error reading remote version: %s\n", err)
+		return err
 	}
-	if out.GitCommit != "" {
-		fmt.Fprintf(cli.out, "Git commit (server): %s\n", out.GitCommit)
-	}
-	if out.GoVersion != "" {
-		fmt.Fprintf(cli.out, "Go version (server): %s\n", out.GoVersion)
-	}
-
+	out.Close()
+	fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
+	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
+	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
 	release := utils.GetReleaseVersion()
 	if release != "" {
 		fmt.Fprintf(cli.out, "Last stable version: %s", release)
-		if (VERSION != "" || out.Version != "") && (strings.Trim(VERSION, "-dev") != release || strings.Trim(out.Version, "-dev") != release) {
+		if (VERSION != "" || remoteVersion.Exists("Version")) && (strings.Trim(VERSION, "-dev") != release || strings.Trim(remoteVersion.Get("Version"), "-dev") != release) {
 			fmt.Fprintf(cli.out, ", please update docker")
 		}
 		fmt.Fprintf(cli.out, "\n")
