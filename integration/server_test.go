@@ -256,7 +256,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := srv.ContainerWait(containerID); err != nil {
+	if err := eng.Job("wait", containerID).Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -281,7 +281,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := srv.ContainerWait(containerID); err != nil {
+	if err := eng.Job("wait", containerID).Run(); err != nil {
 		t.Fatal(err)
 	}
 
