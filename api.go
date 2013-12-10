@@ -174,10 +174,11 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	if err := srv.ContainerExport(name, w); err != nil {
-		utils.Errorf("%s", err)
+	job := srv.Eng.Job("export", vars["name"])
+	if err := job.Stdout.Add(w); err != nil {
+		return err
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
 	return nil

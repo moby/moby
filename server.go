@@ -70,6 +70,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 	if srv.runtime.networkManager.bridgeNetwork != nil {
 		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
 	}
+	if err := job.Eng.Register("export", srv.ContainerExport); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
 		job.Error(err)
 		return engine.StatusErr
@@ -165,22 +169,30 @@ func (srv *Server) ContainerKill(name string, sig int) error {
 	return nil
 }
 
-func (srv *Server) ContainerExport(name string, out io.Writer) error {
+func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s container_id", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Args[0]
 	if container := srv.runtime.Get(name); container != nil {
-
 		data, err := container.Export()
 		if err != nil {
-			return err
+			job.Errorf("%s: %s", name, err)
+			return engine.StatusErr
 		}
 
 		// Stream the entire contents of the container (basically a volatile snapshot)
-		if _, err := io.Copy(out, data); err != nil {
-			return err
+		if _, err := io.Copy(job.Stdout, data); err != nil {
+			job.Errorf("%s: %s", name, err)
+			return engine.StatusErr
 		}
+		// FIXME: factor job-specific LogEvent to engine.Job.Run()
 		srv.LogEvent("export", container.ID, srv.runtime.repositories.ImageName(container.Image))
-		return nil
+		return engine.StatusOK
 	}
-	return fmt.Errorf("No such container: %s", name)
+	job.Errorf("No such container: %s", name)
+	return engine.StatusErr
 }
 
 // ImageExport exports all images with the given tag. All versions

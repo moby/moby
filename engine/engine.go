@@ -113,7 +113,6 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stderr: NewOutput(),
 		env:    &Env{},
 	}
-	job.Stdout.Add(utils.NopWriteCloser(eng.Stdout))
 	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	handler, exists := eng.handlers[name]
 	if exists {
