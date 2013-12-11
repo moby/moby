@@ -11,7 +11,9 @@ Red Hat Enterprise Linux
 
 .. include:: install_unofficial.inc
 
-Docker is available for **RHEL**.
+Docker is available for **RHEL** on EPEL. These instructions should work for
+both RHEL and  CentOS.  They will likely work with 
+other binary compatible EL6 version as well, but they haven't been tested.
 
 Please note that this package is part of a `Extra Packages for Enterprise Linux (EPEL)`_, a community effort to create and maintain additional packages for RHEL distribution.
 
