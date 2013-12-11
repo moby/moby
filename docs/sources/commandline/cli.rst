@@ -225,8 +225,10 @@ by using the ``git://`` schema.
       -run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Simple commit of an existing container
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _cli_commit_examples:
+
+Commit an existing container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
@@ -240,9 +242,32 @@ Simple commit of an existing container
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 	
+Change the command that a container runs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes you have an application container running just a service and you need
+to make a quick change (run bash?) and then change it back.
+
+In this example, we run a container with ``ls`` and then change the image to
+run ``ls /etc``.
+
+.. code-block:: bash
+
+        $ docker run -t -name test ubuntu ls
+        bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
+        $ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
+        933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
+        $ docker run -t test2
+        adduser.conf            gshadow          login.defs           rc0.d
+        alternatives            gshadow-         logrotate.d          rc1.d
+        apt                     host.conf        lsb-base             rc2.d
+        ...
 
 Full -run example
 .................
+
+The ``-run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
+or ``config`` when running ``docker inspect IMAGEID``.
 
 (multiline is ok within a single quote ``'``)
 
@@ -943,6 +968,8 @@ the specified image, and then ``'starts'`` it using the specified
 command. That is, ``'docker run'`` is equivalent to the API
 ``/containers/create`` then ``/containers/(id)/start``.
 
+``docker run`` can be used in combination with ``docker commit`` to :ref:`change the command that a container runs <cli_commit_examples>`.
+
 Known Issues (run -volumes-from)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1085,7 +1112,7 @@ in the same mode (rw or ro) as the reference container.
 
 ::
 
-    Usage: docker start [OPTIONS] NAME
+    Usage: docker start [OPTIONS] CONTAINER
 
     Start a stopped container
 
