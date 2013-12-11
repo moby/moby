@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -690,33 +689,53 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
-		output, err := exec.Command("lxc-ps", "--name", container.ID, "--", psArgs).CombinedOutput()
+		pids, err := utils.GetPidsForContainer(container.ID)
 		if err != nil {
-			return nil, fmt.Errorf("lxc-ps: %s (%s)", err, output)
+			return nil, err
 		}
-		procs := APITop{}
-		for i, line := range strings.Split(string(output), "\n") {
+		if len(psArgs) == 0 {
+			psArgs = "-ef"
+		}
+		output, err := exec.Command("ps", psArgs).Output()
+		if err != nil {
+			return nil, fmt.Errorf("Error running ps: %s", err)
+		}
+
+		lines := strings.Split(string(output), "\n")
+		header := strings.Fields(lines[0])
+		procs := APITop{
+			Titles: header,
+		}
+
+		pidIndex := -1
+		for i, name := range header {
+			if name == "PID" {
+				pidIndex = i
+			}
+		}
+		if pidIndex == -1 {
+			return nil, errors.New("Couldn't find PID field in ps output")
+		}
+
+		for _, line := range lines[1:] {
 			if len(line) == 0 {
 				continue
 			}
-			words := []string{}
-			scanner := bufio.NewScanner(strings.NewReader(line))
-			scanner.Split(bufio.ScanWords)
-			if !scanner.Scan() {
-				return nil, fmt.Errorf("Wrong output using lxc-ps")
+			fields := strings.Fields(line)
+			p, err := strconv.Atoi(fields[pidIndex])
+			if err != nil {
+				return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 			}
-			// no scanner.Text because we skip container id
-			for scanner.Scan() {
-				if i != 0 && len(words) == len(procs.Titles) {
-					words[len(words)-1] = fmt.Sprintf("%s %s", words[len(words)-1], scanner.Text())
-				} else {
-					words = append(words, scanner.Text())
+
+			for _, pid := range pids {
+				if pid == p {
+					// Make sure number of fields equals number of header titles
+					// merging "overhanging" fields
+					processes := fields[:len(procs.Titles)-1]
+					processes = append(processes, strings.Join(fields[len(procs.Titles)-1:], " "))
+
+					procs.Processes = append(procs.Processes, processes)
 				}
-			}
-			if i == 0 {
-				procs.Titles = words
-			} else {
-				procs.Processes = append(procs.Processes, words)
 			}
 		}
 		return &procs, nil
