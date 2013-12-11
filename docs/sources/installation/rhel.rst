@@ -4,8 +4,8 @@
 
 .. _rhel:
 
-Red Hat Enterprise Linux / CentOS
-=================================
+Red Hat Enterprise Linux 
+========================
 
 .. include:: install_header.inc
 
