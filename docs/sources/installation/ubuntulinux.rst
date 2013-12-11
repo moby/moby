@@ -77,7 +77,7 @@ First add the Docker repository key to your local keychain. You can use the
    sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
 
 Add the Docker repository to your apt sources list, update and install the
-``lxc-docker`` package. 
+``lxc-docker`` package.
 
 *You may receive a warning that the package isn't trusted. Answer yes to
 continue installation.*
@@ -95,7 +95,7 @@ continue installation.*
 
     .. code-block:: bash
 
-        curl -s http://get.docker.io/ubuntu/ | sudo sh
+        curl -s https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.
