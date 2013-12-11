@@ -433,42 +433,58 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		return err
 	}
 
-	var out APIInfo
-	if err := json.Unmarshal(body, &out); err != nil {
+	out := engine.NewOutput()
+	remoteInfo, err := out.AddEnv()
+	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cli.out, "Containers: %d\n", out.Containers)
-	fmt.Fprintf(cli.out, "Images: %d\n", out.Images)
-	fmt.Fprintf(cli.out, "Driver: %s\n", out.Driver)
-	for _, pair := range out.DriverStatus {
-		fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
+	if _, err := out.Write(body); err != nil {
+		utils.Errorf("Error reading remote info: %s\n", err)
+		return err
 	}
-	if out.Debug || os.Getenv("DEBUG") != "" {
-		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", out.Debug)
-		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
-		fmt.Fprintf(cli.out, "Fds: %d\n", out.NFd)
-		fmt.Fprintf(cli.out, "Goroutines: %d\n", out.NGoroutines)
-		fmt.Fprintf(cli.out, "LXC Version: %s\n", out.LXCVersion)
-		fmt.Fprintf(cli.out, "EventsListeners: %d\n", out.NEventsListener)
-		fmt.Fprintf(cli.out, "Kernel Version: %s\n", out.KernelVersion)
-	}
+	out.Close()
 
-	if len(out.IndexServerAddress) != 0 {
-		cli.LoadConfigFile()
-		u := cli.configFile.Configs[out.IndexServerAddress].Username
-		if len(u) > 0 {
-			fmt.Fprintf(cli.out, "Username: %v\n", u)
-			fmt.Fprintf(cli.out, "Registry: %v\n", out.IndexServerAddress)
+	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
+	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
+	fmt.Fprintf(cli.out, "Driver: %s\n", remoteInfo.Get("Driver"))
+
+	//FIXME:Cleanup this mess
+	DriverStatus := remoteInfo.GetJson("DriverStatus")
+	if DriverStatus != nil {
+		if tab, ok := DriverStatus.([]interface{}); ok {
+			for _, line := range tab {
+				if pair, ok := line.([]interface{}); ok {
+					fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
+				}
+			}
 		}
 	}
-	if !out.MemoryLimit {
+	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
+		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))
+		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
+		fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
+		fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
+		fmt.Fprintf(cli.out, "LXC Version: %s\n", remoteInfo.Get("LXCVersion"))
+		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
+		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+	}
+
+	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
+		cli.LoadConfigFile()
+		u := cli.configFile.Configs[remoteInfo.Get("IndexServerAddress")].Username
+		if len(u) > 0 {
+			fmt.Fprintf(cli.out, "Username: %v\n", u)
+			fmt.Fprintf(cli.out, "Registry: %v\n", remoteInfo.GetList("IndexServerAddress"))
+		}
+	}
+	if !remoteInfo.GetBool("MemoryLimit") {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
 	}
-	if !out.SwapLimit {
+	if !remoteInfo.GetBool("SwapLimit") {
 		fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 	}
-	if !out.IPv4Forwarding {
+	if !remoteInfo.GetBool("IPv4Forwarding") {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
 	}
 	return nil

@@ -72,13 +72,17 @@ func TestGetInfo(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	infos := &docker.APIInfo{}
-	err = json.Unmarshal(r.Body.Bytes(), infos)
+	out := engine.NewOutput()
+	i, err := out.AddEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Images != len(initialImages) {
-		t.Errorf("Expected images: %d, %d found", len(initialImages), infos.Images)
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	if images := i.GetInt("Images"); images != int64(len(initialImages)) {
+		t.Errorf("Expected images: %d, %d found", len(initialImages), images)
 	}
 }
 

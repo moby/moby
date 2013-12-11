@@ -111,6 +111,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("info", srv.DockerInfo); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -610,13 +614,13 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 	return outs, nil
 }
 
-func (srv *Server) DockerInfo() *APIInfo {
+func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	images, _ := srv.runtime.graph.Map()
-	var imgcount int
+	var imgcount int64
 	if images == nil {
 		imgcount = 0
 	} else {
-		imgcount = len(images)
+		imgcount = int64(len(images))
 	}
 	lxcVersion := ""
 	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
@@ -630,22 +634,26 @@ func (srv *Server) DockerInfo() *APIInfo {
 		kernelVersion = kv.String()
 	}
 
-	return &APIInfo{
-		Containers:         len(srv.runtime.List()),
-		Images:             imgcount,
-		Driver:             srv.runtime.driver.String(),
-		DriverStatus:       srv.runtime.driver.Status(),
-		MemoryLimit:        srv.runtime.capabilities.MemoryLimit,
-		SwapLimit:          srv.runtime.capabilities.SwapLimit,
-		IPv4Forwarding:     !srv.runtime.capabilities.IPv4ForwardingDisabled,
-		Debug:              os.Getenv("DEBUG") != "",
-		NFd:                utils.GetTotalUsedFds(),
-		NGoroutines:        runtime.NumGoroutine(),
-		LXCVersion:         lxcVersion,
-		NEventsListener:    len(srv.events),
-		KernelVersion:      kernelVersion,
-		IndexServerAddress: auth.IndexServerAddress(),
+	v := &engine.Env{}
+	v.SetInt("Containers", int64(len(srv.runtime.List())))
+	v.SetInt("Images", imgcount)
+	v.Set("Driver", srv.runtime.driver.String())
+	v.SetJson("DriverStatus", srv.runtime.driver.Status())
+	v.SetBool("MemoryLimit", srv.runtime.capabilities.MemoryLimit)
+	v.SetBool("SwapLimit", srv.runtime.capabilities.SwapLimit)
+	v.SetBool("IPv4Forwarding", !srv.runtime.capabilities.IPv4ForwardingDisabled)
+	v.SetBool("Debug", os.Getenv("DEBUG") != "")
+	v.SetInt("NFd", int64(utils.GetTotalUsedFds()))
+	v.SetInt("NGoroutines", int64(runtime.NumGoroutine()))
+	v.Set("LXCVersion", lxcVersion)
+	v.SetInt("NEventsListener", int64(len(srv.events)))
+	v.Set("KernelVersion", kernelVersion)
+	v.Set("IndexServerAddress", auth.IndexServerAddress())
+	if _, err := v.WriteTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
+	return engine.StatusOK
 }
 
 func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
