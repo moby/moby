@@ -128,7 +128,9 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := eng.Job("stop", id, "1").Run(); err != nil {
+	job = eng.Job("stop", id)
+	job.SetenvInt("t", 1)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +188,9 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := eng.Job("stop", id, "15").Run(); err != nil {
+	job = eng.Job("stop", id)
+	job.SetenvInt("t", 15)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 

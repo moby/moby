@@ -1718,20 +1718,13 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
-	if len(job.Args) < 1 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER TIMEOUT\n", job.Name)
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s CONTAINER\n", job.Name)
 		return engine.StatusErr
 	}
 	name := job.Args[0]
-	var t uint64
-	if len(job.Args) == 2 {
-		var err error
-		t, err = strconv.ParseUint(job.Args[1], 10, 32)
-		if err != nil {
-			job.Errorf("Invalid delay format: %s. Please provide an integer number of seconds.\n", job.Args[1])
-			return engine.StatusErr
-		}
-	} else {
+	t := job.GetenvInt("t")
+	if t == -1 {
 		t = 10
 	}
 	if container := srv.runtime.Get(name); container != nil {

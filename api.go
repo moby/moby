@@ -687,9 +687,7 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	job := srv.Eng.Job("stop", vars["name"])
-	if t := r.Form.Get("t"); t != "" {
-		job.Args = append(job.Args, t)
-	}
+	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
 		return err
 	}
