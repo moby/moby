@@ -81,6 +81,14 @@ uncomment ``listen_addresses`` like so:
 
     listen_addresses='*'
 
+By default, installing PostgreSQL automatically starts the server in the
+background. To keep it from conflicting with the primary process we need
+for our Docker container, we need to stop that process.
+
+.. code-block:: bash
+
+    /etc/init.d/postgresql stop
+
 .. note::
 
     This PostgreSQL setup is for development only purposes. Refer
