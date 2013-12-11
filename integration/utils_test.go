@@ -105,7 +105,7 @@ func containerWaitTimeout(eng *engine.Engine, id string, t utils.Fataler) error 
 }
 
 func containerKill(eng *engine.Engine, id string, t utils.Fataler) {
-	if err := getContainer(eng, id, t).Kill(); err != nil {
+	if err := eng.Job("kill", id).Run(); err != nil {
 		t.Fatal(err)
 	}
 }
