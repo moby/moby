@@ -27,7 +27,7 @@ you can add ambassadors
 
 	(consumer) --> (redis-ambassador) ---network---> (redis-ambassador) --> (redis)
 
-When you need to rewire your consumer to talk to a different resdis server, you 
+When you need to rewire your consumer to talk to a different redis server, you 
 can just restart the ``redis-ambassador`` container that the consumer is connected to.
 
 This pattern also allows you to transparently move the redis server to a different
