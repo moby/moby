@@ -44,7 +44,8 @@ This following command will build a development environment using the Dockerfile
 
     sudo make build
 
-If the build is successful, congratulations! You have produced a clean build of docker, neatly encapsulated in a standard build environment. 
+If the build is successful, congratulations! You have produced a clean build of 
+docker, neatly encapsulated in a standard build environment. 
 
 
 Step 4: Build the Docker Binary
@@ -57,6 +58,19 @@ To create the Docker binary, run this command:
 	sudo make binary
 
 This will create the Docker binary in ``./bundles/<version>-dev/binary/``
+
+Using your built Docker binary
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The binary is available outside the container in the directory 
+``./bundles/<version>-dev/binary/``. You can swap your host docker executable 
+with this binary for live testing - for example, on ubuntu: 
+
+.. code-block:: bash
+
+	sudo service docker stop ; sudo cp $(which docker) $(which docker)_ ; sudo cp ./bundles/<version>-dev/binary/docker-<version>-dev $(which docker);sudo service docker start
+	
+.. note:: Its safer to run the tests below before swapping your hosts docker binary.
 
 
 Step 5: Run the Tests
@@ -132,9 +146,6 @@ to it, you can build the documentation and then serve it by:
 	sudo make docs
     # when its done, you can point your browser to http://yourdockerhost:8000
 	# type Ctrl-C to exit
-
-
-.. note:: The binary is available outside the container in the directory  ``./bundles/<version>-dev/binary/``. You can swap your host docker executable with this binary for live testing - for example, on ubuntu: ``sudo service docker stop ; sudo cp $(which docker) $(which docker)_ ; sudo cp ./bundles/<version>-dev/binary/docker-<version>-dev $(which docker);sudo service docker start``.
 
 
 **Need More Help?**
