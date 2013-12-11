@@ -116,6 +116,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("container_delete", srv.ContainerDestroy); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -1431,24 +1435,36 @@ func (srv *Server) ContainerRestart(name string, t int) error {
 	return nil
 }
 
-func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) error {
+func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Args[0]
+	removeVolume := job.GetenvBool("removeVolume")
+	removeLink := job.GetenvBool("removeLink")
+
 	container := srv.runtime.Get(name)
 
 	if removeLink {
 		if container == nil {
-			return fmt.Errorf("No such link: %s", name)
+			job.Errorf("No such link: %s", name)
+			return engine.StatusErr
 		}
 		name, err := srv.runtime.getFullName(name)
 		if err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
-			return fmt.Errorf("Conflict, cannot remove the default name of the container")
+			job.Errorf("Conflict, cannot remove the default name of the container")
+			return engine.StatusErr
 		}
 		pe := srv.runtime.containerGraph.Get(parent)
 		if pe == nil {
-			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
+			job.Errorf("Cannot get parent %s for name %s", parent, name)
+			return engine.StatusErr
 		}
 		parentContainer := srv.runtime.Get(pe.ID())
 
@@ -1461,14 +1477,16 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		}
 
 		if err := srv.runtime.containerGraph.Delete(name); err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
-		return nil
+		return engine.StatusOK
 	}
 
 	if container != nil {
 		if container.State.IsRunning() {
-			return fmt.Errorf("Impossible to remove a running container, please stop it first")
+			job.Errorf("Impossible to remove a running container, please stop it first")
+			return engine.StatusErr
 		}
 		volumes := make(map[string]struct{})
 
@@ -1493,7 +1511,8 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
-			return fmt.Errorf("Cannot destroy container %s: %s", name, err)
+			job.Errorf("Cannot destroy container %s: %s", name, err)
+			return engine.StatusErr
 		}
 		srv.LogEvent("destroy", container.ID, srv.runtime.repositories.ImageName(container.Image))
 
@@ -1513,14 +1532,16 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 					continue
 				}
 				if err := srv.runtime.volumes.Delete(volumeId); err != nil {
-					return err
+					job.Error(err)
+					return engine.StatusErr
 				}
 			}
 		}
 	} else {
-		return fmt.Errorf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
-	return nil
+	return engine.StatusOK
 }
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")

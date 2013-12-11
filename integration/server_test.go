@@ -95,7 +95,9 @@ func TestCreateRm(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(c))
 	}
 
-	if err = srv.ContainerDestroy(id, true, false); err != nil {
+	job := eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -135,7 +137,9 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = srv.ContainerDestroy(id, true, false); err != nil {
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,7 +215,9 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	if err := srv.ContainerDestroy(id, true, false); err != nil {
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
