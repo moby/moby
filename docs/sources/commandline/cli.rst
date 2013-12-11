@@ -900,6 +900,38 @@ containers will not be deleted.
     Usage: docker rmi IMAGE [IMAGE...]
 
     Remove one or more images
+    
+Removing tagged images
+~~~~~~~~~~~~~~~~~~~~~~
+
+Images can be removed either by their short or long ID's, or their image names.
+If an image has more than one name, each of them needs to be removed before the 
+image is removed.
+
+.. code-block:: bash
+
+    $ sudo docker images
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+
+    $ sudo docker rmi fd484f19954f
+    Error: Conflict, fd484f19954f wasn't deleted
+    2013/12/11 05:47:16 Error: failed to remove one or more images
+
+    $ sudo docker rmi test1
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    $ sudo docker rmi test2
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+
+    $ sudo docker images
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    $ sudo docker rmi test
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+
 
 .. _cli_run:
 
