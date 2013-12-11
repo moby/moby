@@ -12,25 +12,34 @@ Red Hat Enterprise Linux
 .. include:: install_unofficial.inc
 
 Docker is available for **RHEL** on EPEL. These instructions should work for
-both RHEL and  CentOS.  They will likely work with 
-other binary compatible EL6 version as well, but they haven't been tested.
+both RHEL and CentOS. They will likely work with other binary compatible EL6
+distributions as well, but the haven't been tested.
 
-Please note that this package is part of a `Extra Packages for Enterprise Linux (EPEL)`_, a community effort to create and maintain additional packages for RHEL distribution.
+Please note that this package is part of `Extra Packages for Enterprise
+Linux (EPEL)`_, a community effort to create and maintain additional packages
+for the RHEL distribution.
 
-Please note that due to the current Docker limitations Docker is able to run only on the **64 bit** architecture.
+Please note that due to the current Docker limitations, Docker is able to run
+only on the **64 bit** architecture.
 
 Installation
 ------------
 
-1. First, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
+1. Firstly, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
 
-2. Next let's install the ``docker-io`` package which will install Docker on our host.
+2. Next, let's install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
    sudo yum -y install docker-io
 
-3. Now it's installed lets start the Docker daemon.
+To keep docker up to date:
+
+.. code-block:: bash
+
+   sudo yum -y update docker-io
+
+3. Now that it's installed, lets start the Docker daemon.
 
 .. code-block:: bash
 
