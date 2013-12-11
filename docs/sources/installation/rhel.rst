@@ -1,6 +1,6 @@
-:title: Requirements and Installation on Red Hat Enterprise Linux / CentOS
+:title: Requirements and Installation on Red Hat Enterprise Linux
 :description: Please note this project is currently under heavy development. It should not be used in production.
-:keywords: Docker, Docker documentation, requirements, linux, rhel, centos
+:keywords: Docker, Docker documentation, requirements, linux, rhel
 
 .. _rhel:
 
@@ -11,7 +11,7 @@ Red Hat Enterprise Linux / CentOS
 
 .. include:: install_unofficial.inc
 
-Docker is available for **RHEL/CentOS 6**.
+Docker is available for **RHEL**.
 
 Please note that this package is part of a `Extra Packages for Enterprise Linux (EPEL)`_, a community effort to create and maintain additional packages for RHEL distribution.
 
@@ -20,21 +20,15 @@ Please note that due to the current Docker limitations Docker is able to run onl
 Installation
 ------------
 
-1. Firstly, let's make sure our RHEL host is up-to-date.
+1. First, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
 
-.. code-block:: bash
-
-    sudo yum -y upgrade
-
-2. Next you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
-
-3. Next let's install the ``docker-io`` package which will install Docker on our host.
+2. Next let's install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
    sudo yum -y install docker-io
 
-4. Now it's installed lets start the Docker daemon.
+3. Now it's installed lets start the Docker daemon.
 
 .. code-block:: bash
 
@@ -46,11 +40,11 @@ If we want Docker to start at boot we should also:
 
    sudo chkconfig docker on
 
-5. Now let's verify that Docker is working.
+4. Now let's verify that Docker is working.
 
 .. code-block:: bash
 
-   sudo docker run -i -t ubuntu /bin/bash
+   sudo docker run -i -t mattdm/fedora /bin/bash
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
