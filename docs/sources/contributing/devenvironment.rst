@@ -129,7 +129,7 @@ to it, you can build the documentation and then serve it by:
 
 .. code-block:: bash
 
-	sudo make doc
+	sudo make docs
     # when its done, you can point your browser to http://yourdockerhost:8000
 	# type Ctrl-C to exit
 

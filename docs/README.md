@@ -57,7 +57,7 @@ docs inside the container, even starting a simple HTTP server on port
 8000 so that you can connect and see your changes.
 
 In the ``docker`` source directory, run:
-    ```make doc```
+    ```make docs```
 
 This is the equivalent to ``make clean server`` since each container starts clean.
 
