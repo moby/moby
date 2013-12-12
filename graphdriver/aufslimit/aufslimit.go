@@ -31,7 +31,14 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"strconv"
 )
+
+const containerQuotaPath string = "containers_quota"
+const dev0 string = "/dev/zero"
+const blkSize int64 = 4 // MB
+const extension string = "ext3"
+const driverPath string = "diff"
 
 func init() {
 	graphdriver.Register("aufslimit", Init)
@@ -152,8 +159,15 @@ func (a *Driver) Create(id, parent string) error {
 }
 
 func (a *Driver) CreateWithQuota(id, parent string, quota int64) error {
-	log.Printf("We should limit this container to DiskQuota: %d", quota)
-	return a.Create(id, parent)
+	log.Printf("Creating with quota %d", quota)
+	if err := a.Create(id, parent); err != nil {
+		return err
+	}
+	log.Printf("Limiting container with quota %d", quota)
+	if err := a.limitContainer(id, quota); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Driver) createDirsFor(id string) error {
@@ -176,6 +190,10 @@ func (a *Driver) Remove(id string) error {
 	if err := a.unmount(id); err != nil {
 		return err
 	}
+	if err := a.unLimitContainer(id); err != nil {
+		return err
+	}
+
 	tmpDirs := []string{
 		"mnt",
 		"diff",
@@ -338,4 +356,77 @@ func (a *Driver) aufsMount(ro []string, rw, target string) error {
 		}
 	}
 	return nil
+}
+
+func (a *Driver) limitContainer(id string, quota int64) error {
+
+    // Make sure container's quota dir exists
+    if err := os.MkdirAll(path.Join(a.rootPath(), containerQuotaPath), 0755); err != nil {
+        return err
+    }
+
+    containerQuotaFile := path.Join(a.rootPath(), containerQuotaPath, id) + "." + extension
+    containerFilesystem := path.Join(a.rootPath(), driverPath, id)
+
+    log.Printf("Executing dd...")
+    cmd := "dd"
+    ifParam := "if=" + dev0 
+    ofParam := "of=" + containerQuotaFile
+    blkSizeBytes := blkSize * 1024 * 1024
+    bsParam := "bs=" + strconv.FormatInt(blkSizeBytes, 10)
+    blkNumber := quota / blkSize
+    countParam := "count=" + strconv.FormatInt(blkNumber, 10)
+    ddCmd := exec.Command(cmd, ifParam, ofParam, bsParam, countParam)
+    err := ddCmd.Run()
+    if err != nil {
+        return err
+    }
+
+    log.Printf("Executing mkfs...")
+    cmd = "/sbin/mkfs"
+    opt1 := "-t" 
+    opt2 := "-q"
+    opt3 := "-F"
+    mkfsCmd := exec.Command(cmd, opt1, extension, opt2, containerQuotaFile, opt3)
+    err = mkfsCmd.Run()
+    if err != nil {
+        return err
+    }
+
+    log.Printf("Executing mount -o loop...")
+    cmd = "mount"
+    opt1 = "-o" 
+    opt2 = "loop,rw,usrquota,grpquota"
+    mountCmd := exec.Command(cmd, opt1, opt2, containerQuotaFile, containerFilesystem)
+    err = mountCmd.Run()
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func (a *Driver) unLimitContainer(id string) error {
+
+    containerFilesystem := path.Join(a.rootPath(), driverPath, id)
+    containerQuotaFile := path.Join(a.rootPath(), containerQuotaPath, id) + "." + extension
+
+    log.Printf("Executing umount...")
+    cmd := "umount"
+    opt1 := "-l" 
+    umountCmd := exec.Command(cmd, opt1, containerFilesystem)
+    err := umountCmd.Run()
+    if err != nil {
+    	log.Printf("Error unmounting %s (probably a -init folder)", id)
+        return nil
+    }
+
+    log.Printf("Executing rm...")
+    cmd = "rm"
+    opt1 = "-f" 
+    rmQuotaCmd := exec.Command(cmd, opt1, containerQuotaFile)
+    err = rmQuotaCmd.Run()
+    if err != nil {
+        return err
+    }
+    return nil
 }
