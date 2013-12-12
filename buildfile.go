@@ -87,6 +87,26 @@ func (b *buildFile) CmdMaintainer(name string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
 
+// probeCache checks to see if image-caching is enabled (`b.utilizeCache`)
+// and if so attempts to look up the current `b.image` and `b.config` pair
+// in the current server `b.srv`. If an image is found, probeCache returns
+// `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
+// is any error, it returns `(false, err)`.
+func (b *buildFile) probeCache() (bool, error) {
+	if b.utilizeCache {
+		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+			return false, err
+		} else if cache != nil {
+			fmt.Fprintf(b.outStream, " ---> Using cache\n")
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.ID
+			return true, nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
+	}
+	return false, nil
+}
 func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -104,17 +124,12 @@ func (b *buildFile) CmdRun(args string) error {
 
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
-	if b.utilizeCache {
-		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-			return err
-		} else if cache != nil {
-			fmt.Fprintf(b.outStream, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return nil
-		} else {
-			utils.Debugf("[BUILDER] Cache miss")
-		}
+	hit, err := b.probeCache()
+	if err != nil {
+		return err
+	}
+	if hit {
+		return nil
 	}
 
 	cid, err := b.run()
@@ -460,17 +475,12 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
 		defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
-		if b.utilizeCache {
-			if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-				return err
-			} else if cache != nil {
-				fmt.Fprintf(b.outStream, " ---> Using cache\n")
-				utils.Debugf("[BUILDER] Use cached version")
-				b.image = cache.ID
-				return nil
-			} else {
-				utils.Debugf("[BUILDER] Cache miss")
-			}
+		hit, err := b.probeCache()
+		if err != nil {
+			return err
+		}
+		if hit {
+			return nil
 		}
 
 		container, warnings, err := b.runtime.Create(b.config, "")
