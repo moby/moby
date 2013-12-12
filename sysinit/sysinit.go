@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/netlink"
 	"github.com/dotcloud/docker/utils"
+	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"log"
 	"net"
@@ -16,73 +17,113 @@ import (
 	"syscall"
 )
 
+type DockerInitArgs struct {
+	user       string
+	gateway    string
+	workDir    string
+	privileged bool
+	env        []string
+	args       []string
+}
+
 // Setup networking
-func setupNetworking(gw string) {
-	if gw == "" {
-		return
+func setupNetworking(args *DockerInitArgs) error {
+	if args.gateway == "" {
+		return nil
 	}
 
-	ip := net.ParseIP(gw)
+	ip := net.ParseIP(args.gateway)
 	if ip == nil {
-		log.Fatalf("Unable to set up networking, %s is not a valid IP", gw)
-		return
+		return fmt.Errorf("Unable to set up networking, %s is not a valid IP", args.gateway)
 	}
 
 	if err := netlink.AddDefaultGw(ip); err != nil {
-		log.Fatalf("Unable to set up networking: %v", err)
+		return fmt.Errorf("Unable to set up networking: %v", err)
 	}
+
+	return nil
 }
 
 // Setup working directory
-func setupWorkingDirectory(workdir string) {
-	if workdir == "" {
-		return
+func setupWorkingDirectory(args *DockerInitArgs) error {
+	if args.workDir == "" {
+		return nil
 	}
-	if err := syscall.Chdir(workdir); err != nil {
-		log.Fatalf("Unable to change dir to %v: %v", workdir, err)
+	if err := syscall.Chdir(args.workDir); err != nil {
+		return fmt.Errorf("Unable to change dir to %v: %v", args.workDir, err)
 	}
+	return nil
 }
 
 // Takes care of dropping privileges to the desired user
-func changeUser(u string) {
-	if u == "" {
-		return
+func changeUser(args *DockerInitArgs) error {
+	if args.user == "" {
+		return nil
 	}
-	userent, err := utils.UserLookup(u)
+	userent, err := utils.UserLookup(args.user)
 	if err != nil {
-		log.Fatalf("Unable to find user %v: %v", u, err)
+		return fmt.Errorf("Unable to find user %v: %v", args.user, err)
 	}
 
 	uid, err := strconv.Atoi(userent.Uid)
 	if err != nil {
-		log.Fatalf("Invalid uid: %v", userent.Uid)
+		return fmt.Errorf("Invalid uid: %v", userent.Uid)
 	}
 	gid, err := strconv.Atoi(userent.Gid)
 	if err != nil {
-		log.Fatalf("Invalid gid: %v", userent.Gid)
+		return fmt.Errorf("Invalid gid: %v", userent.Gid)
 	}
 
 	if err := syscall.Setgid(gid); err != nil {
-		log.Fatalf("setgid failed: %v", err)
+		return fmt.Errorf("setgid failed: %v", err)
 	}
 	if err := syscall.Setuid(uid); err != nil {
-		log.Fatalf("setuid failed: %v", err)
+		return fmt.Errorf("setuid failed: %v", err)
 	}
+
+	return nil
+}
+
+func setupCapabilities(args *DockerInitArgs) error {
+
+	if args.privileged {
+		return nil
+	}
+
+	drop := []capability.Cap{
+		capability.CAP_SETPCAP,
+		capability.CAP_SYS_MODULE,
+		capability.CAP_SYS_RAWIO,
+		capability.CAP_SYS_PACCT,
+		capability.CAP_SYS_ADMIN,
+		capability.CAP_SYS_NICE,
+		capability.CAP_SYS_RESOURCE,
+		capability.CAP_SYS_TIME,
+		capability.CAP_SYS_TTY_CONFIG,
+		capability.CAP_MKNOD,
+		capability.CAP_AUDIT_WRITE,
+		capability.CAP_AUDIT_CONTROL,
+		capability.CAP_MAC_OVERRIDE,
+		capability.CAP_MAC_ADMIN,
+	}
+
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	c.Unset(capability.CAPS|capability.BOUNDS, drop...)
+
+	if err := c.Apply(capability.CAPS | capability.BOUNDS); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Clear environment pollution introduced by lxc-start
-func cleanupEnv() {
+func setupEnv(args *DockerInitArgs) {
 	os.Clearenv()
-	var lines []string
-	content, err := ioutil.ReadFile("/.dockerenv")
-	if err != nil {
-		log.Fatalf("Unable to load environment variables: %v", err)
-	}
-	err = json.Unmarshal(content, &lines)
-	if err != nil {
-		log.Fatalf("Unable to unmarshal environment variables: %v", err)
-	}
-	for _, kv := range lines {
+	for _, kv := range args.env {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) == 1 {
 			parts = append(parts, "")
@@ -91,16 +132,37 @@ func cleanupEnv() {
 	}
 }
 
-func executeProgram(name string, args []string) {
-	path, err := exec.LookPath(name)
+func executeProgram(args *DockerInitArgs) error {
+	setupEnv(args)
+
+	if err := setupNetworking(args); err != nil {
+		return err
+	}
+
+	if err := setupCapabilities(args); err != nil {
+		return err
+	}
+
+	if err := setupWorkingDirectory(args); err != nil {
+		return err
+	}
+
+	if err := changeUser(args); err != nil {
+		return err
+	}
+
+	path, err := exec.LookPath(args.args[0])
 	if err != nil {
-		log.Printf("Unable to locate %v", name)
+		log.Printf("Unable to locate %v", args.args[0])
 		os.Exit(127)
 	}
 
-	if err := syscall.Exec(path, args, os.Environ()); err != nil {
+	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
 		panic(err)
 	}
+
+	// Will never reach here
+	return nil
 }
 
 // Sys Init code
@@ -111,15 +173,34 @@ func SysInit() {
 		fmt.Println("You should not invoke dockerinit manually")
 		os.Exit(1)
 	}
-	var u = flag.String("u", "", "username or uid")
-	var gw = flag.String("g", "", "gateway address")
-	var workdir = flag.String("w", "", "workdir")
 
+	// Get cmdline arguments
+	user := flag.String("u", "", "username or uid")
+	gateway := flag.String("g", "", "gateway address")
+	workDir := flag.String("w", "", "workdir")
+	privileged := flag.Bool("privileged", false, "privileged mode")
 	flag.Parse()
 
-	cleanupEnv()
-	setupNetworking(*gw)
-	setupWorkingDirectory(*workdir)
-	changeUser(*u)
-	executeProgram(flag.Arg(0), flag.Args())
+	// Get env
+	var env []string
+	content, err := ioutil.ReadFile("/.dockerenv")
+	if err != nil {
+		log.Fatalf("Unable to load environment variables: %v", err)
+	}
+	if err := json.Unmarshal(content, &env); err != nil {
+		log.Fatalf("Unable to unmarshal environment variables: %v", err)
+	}
+
+	args := &DockerInitArgs{
+		user:       *user,
+		gateway:    *gateway,
+		workDir:    *workDir,
+		privileged: *privileged,
+		env:        env,
+		args:       flag.Args(),
+	}
+
+	if err := executeProgram(args); err != nil {
+		log.Fatal(err)
+	}
 }
