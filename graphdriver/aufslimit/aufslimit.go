@@ -23,6 +23,7 @@ package aufslimit
 import (
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
@@ -31,7 +32,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"syscall"
 )
 
 func init() {
