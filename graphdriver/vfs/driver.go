@@ -64,6 +64,10 @@ func (d *Driver) Create(id string, parent string) error {
 	return nil
 }
 
+func (d *Driver) CreateWithQuota(id, parent string, quota int64) error {
+	return d.Create(id, parent)
+}
+
 func (d *Driver) dir(id string) string {
 	return path.Join(d.home, "dir", path.Base(id))
 }

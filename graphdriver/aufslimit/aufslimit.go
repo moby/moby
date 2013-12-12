@@ -151,9 +151,9 @@ func (a *Driver) Create(id, parent string) error {
 	return nil
 }
 
-func (a *Driver) Create(id, parent string, quota int64) error {
+func (a *Driver) CreateWithQuota(id, parent string, quota int64) error {
 	log.Printf("We should limit this container to DiskQuota: %d", quota)
-	return Create(id, parent)
+	return a.Create(id, parent)
 }
 
 func (a *Driver) createDirsFor(id string) error {
