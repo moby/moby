@@ -37,6 +37,7 @@ var (
 	drivers map[string]InitFunc
 	// Slice of drivers that should be used in an order
 	priority = []string{
+		"aufslimit",
 		"aufs",
 		"devicemapper",
 		"vfs",
