@@ -80,6 +80,7 @@ if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
 
     echo 'Downloading VBox Guest Additions...'
     wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.2/VBoxGuestAdditions_4.3.2.iso
+    echo "f0b8fec99c65231641d5d01558abb53fe8b81f131dc71519cb7994c9e297300d  VBoxGuestAdditions_4.3.2.iso" | sha256sum --check || exit 1
 
     mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.2.iso /mnt
     /mnt/VBoxLinuxAdditions.run --nox11
