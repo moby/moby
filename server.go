@@ -1561,22 +1561,20 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		return nil, nil
 	}
 
-	// Prevent deletion if image is used by a running container
+	// Prevent deletion if image is used by a container
 	for _, container := range srv.runtime.List() {
-		if container.State.IsRunning() {
-			parent, err := srv.runtime.repositories.LookupImage(container.Image)
-			if err != nil {
-				return nil, err
-			}
+		parent, err := srv.runtime.repositories.LookupImage(container.Image)
+		if err != nil {
+			return nil, err
+		}
 
-			if err := parent.WalkHistory(func(p *Image) error {
-				if img.ID == p.ID {
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it", name, container.ID)
-				}
-				return nil
-			}); err != nil {
-				return nil, err
+		if err := parent.WalkHistory(func(p *Image) error {
+			if img.ID == p.ID {
+				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", name, container.ID)
 			}
+			return nil
+		}); err != nil {
+			return nil, err
 		}
 	}
 
