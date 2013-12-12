@@ -81,6 +81,10 @@ func (d *Driver) Create(id, parent string) error {
 	return nil
 }
 
+func (d *Driver) CreateWithQuota(id, parent string, quota int64) error {
+	return d.Create(id, parent)
+}
+
 func (d *Driver) Remove(id string) error {
 	mp := path.Join(d.home, "mnt", id)
 	if err := d.unmount(id, mp); err != nil {

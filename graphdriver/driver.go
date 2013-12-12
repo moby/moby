@@ -14,6 +14,7 @@ type Driver interface {
 	String() string
 
 	Create(id, parent string) error
+	CreateWithQuota(id, parent string, quota int64) error
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
@@ -37,6 +38,7 @@ var (
 	drivers map[string]InitFunc
 	// Slice of drivers that should be used in an order
 	priority = []string{
+		"aufslimit",
 		"aufs",
 		"devicemapper",
 		"vfs",

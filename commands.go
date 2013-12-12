@@ -1720,6 +1720,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flUser            = cmd.String("u", "", "Username or UID")
 		flWorkingDir      = cmd.String("w", "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64("c", 0, "CPU shares (relative weight)")
+		flDiskQuota       = cmd.Int64("quota", 0, "Disk quota (in MB)")
 
 		// For documentation purpose
 		_ = cmd.Bool("sig-proxy", true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -1849,6 +1850,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
+		DiskQuota:       *flDiskQuota,
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),

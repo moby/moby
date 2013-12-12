@@ -101,6 +101,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	DiskQuota		int64 // Disk quota (in MB)
 }
 
 type HostConfig struct {

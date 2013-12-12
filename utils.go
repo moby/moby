@@ -27,6 +27,7 @@ func CompareConfig(a, b *Config) bool {
 		a.Memory != b.Memory ||
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
+		a.DiskQuota != b.DiskQuota ||
 		a.OpenStdin != b.OpenStdin ||
 		a.Tty != b.Tty ||
 		a.VolumesFrom != b.VolumesFrom {
@@ -92,6 +93,9 @@ func MergeConfig(userConf, imageConf *Config) error {
 	}
 	if userConf.CpuShares == 0 {
 		userConf.CpuShares = imageConf.CpuShares
+	}
+	if userConf.DiskQuota == 0 {
+		userConf.DiskQuota = imageConf.DiskQuota
 	}
 	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts

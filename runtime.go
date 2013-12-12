@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/graphdb"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
+	_ "github.com/dotcloud/docker/graphdriver/aufslimit"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/utils"
@@ -498,7 +499,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	if err := runtime.driver.Create(container.ID, initID); err != nil {
+	if err := runtime.driver.CreateWithQuota(container.ID, initID, config.DiskQuota); err != nil {
 		return nil, nil, err
 	}
 	resolvConf, err := utils.GetResolvConf()
