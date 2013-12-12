@@ -51,7 +51,11 @@ func (env *Env) SetBool(key string, value bool) {
 	}
 }
 
-func (env *Env) GetInt(key string) int64 {
+func (env *Env) GetInt(key string) int {
+	return int(env.GetInt64(key))
+}
+
+func (env *Env) GetInt64(key string) int64 {
 	s := strings.Trim(env.Get(key), " \t")
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -60,7 +64,11 @@ func (env *Env) GetInt(key string) int64 {
 	return val
 }
 
-func (env *Env) SetInt(key string, value int64) {
+func (env *Env) SetInt(key string, value int) {
+	env.Set(key, fmt.Sprintf("%d", value))
+}
+
+func (env *Env) SetInt64(key string, value int64) {
 	env.Set(key, fmt.Sprintf("%d", value))
 }
 
@@ -145,7 +153,7 @@ func (env *Env) SetAuto(k string, v interface{}) {
 	// encoding/json decodes integers to float64, but cannot encode them back.
 	// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
 	if fval, ok := v.(float64); ok {
-		env.SetInt(k, int64(fval))
+		env.SetInt64(k, int64(fval))
 	} else if sval, ok := v.(string); ok {
 		env.Set(k, sval)
 	} else if val, err := json.Marshal(v); err == nil {

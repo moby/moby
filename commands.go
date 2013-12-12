@@ -448,17 +448,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
 	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
 	fmt.Fprintf(cli.out, "Driver: %s\n", remoteInfo.Get("Driver"))
-
-	//FIXME:Cleanup this mess
-	DriverStatus := remoteInfo.GetJson("DriverStatus")
-	if DriverStatus != nil {
-		if tab, ok := DriverStatus.([]interface{}); ok {
-			for _, line := range tab {
-				if pair, ok := line.([]interface{}); ok {
-					fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
-				}
-			}
-		}
+	var driverStatus [][2]string
+	if err := remoteInfo.GetJson("DriverStatus", &driverStatus); err != nil {
+		return err
+	}
+	for _, pair := range driverStatus {
+		fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
 	}
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))

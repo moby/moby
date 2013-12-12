@@ -616,11 +616,11 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 
 func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	images, _ := srv.runtime.graph.Map()
-	var imgcount int64
+	var imgcount int
 	if images == nil {
 		imgcount = 0
 	} else {
-		imgcount = int64(len(images))
+		imgcount = len(images)
 	}
 	lxcVersion := ""
 	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
@@ -635,7 +635,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	}
 
 	v := &engine.Env{}
-	v.SetInt("Containers", int64(len(srv.runtime.List())))
+	v.SetInt("Containers", len(srv.runtime.List()))
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", srv.runtime.driver.String())
 	v.SetJson("DriverStatus", srv.runtime.driver.Status())
@@ -643,10 +643,10 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetBool("SwapLimit", srv.runtime.capabilities.SwapLimit)
 	v.SetBool("IPv4Forwarding", !srv.runtime.capabilities.IPv4ForwardingDisabled)
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
-	v.SetInt("NFd", int64(utils.GetTotalUsedFds()))
-	v.SetInt("NGoroutines", int64(runtime.NumGoroutine()))
+	v.SetInt("NFd", utils.GetTotalUsedFds())
+	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("LXCVersion", lxcVersion)
-	v.SetInt("NEventsListener", int64(len(srv.events)))
+	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
 	if _, err := v.WriteTo(job.Stdout); err != nil {

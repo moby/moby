@@ -81,7 +81,7 @@ func TestGetInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Close()
-	if images := i.GetInt("Images"); images != int64(len(initialImages)) {
+	if images := i.GetInt("Images"); images != len(initialImages) {
 		t.Errorf("Expected images: %d, %d found", len(initialImages), images)
 	}
 }
