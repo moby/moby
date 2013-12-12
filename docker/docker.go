@@ -54,6 +54,10 @@ func main() {
 		// If we do not have a host, default to unix socket
 		flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
 	}
+	
+	if *bridgeName != "" && *bridgeIp != "" {
+		log.Fatal("You specified -b & -bip, mutually exclusive options. Please specify only one.")
+	}
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
