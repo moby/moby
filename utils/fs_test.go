@@ -1,15 +1,14 @@
 package utils
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-func abs(p string) string {
+func abs(t *testing.T, p string) string {
 	o, err := filepath.Abs(p)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	return o
 }
@@ -17,36 +16,31 @@ func abs(p string) string {
 func TestFollowSymLinkNormal(t *testing.T) {
 	link := "testdata/fs/a/d/c/data"
 
-	rewrite, err := FollowSymlink(link, "test")
+	rewrite, err := FollowSymlinkInScope(link, "testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if expected := abs("test/b/c/data"); expected != rewrite {
+	if expected := abs(t, "testdata/b/c/data"); expected != rewrite {
 		t.Fatalf("Expected %s got %s", expected, rewrite)
 	}
 }
 
 func TestFollowSymLinkRandomString(t *testing.T) {
-	rewrite, err := FollowSymlink("toto", "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if rewrite != "toto" {
-		t.Fatalf("Expected toto got %s", rewrite)
+	if _, err := FollowSymlinkInScope("toto", "testdata"); err == nil {
+		t.Fatal("Random string should fail but didn't")
 	}
 }
 
 func TestFollowSymLinkLastLink(t *testing.T) {
 	link := "testdata/fs/a/d"
 
-	rewrite, err := FollowSymlink(link, "test")
+	rewrite, err := FollowSymlinkInScope(link, "testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if expected := abs("test/b"); expected != rewrite {
+	if expected := abs(t, "testdata/b"); expected != rewrite {
 		t.Fatalf("Expected %s got %s", expected, rewrite)
 	}
 }
@@ -54,31 +48,36 @@ func TestFollowSymLinkLastLink(t *testing.T) {
 func TestFollowSymLinkRelativeLink(t *testing.T) {
 	link := "testdata/fs/a/e/c/data"
 
-	rewrite, err := FollowSymlink(link, "test")
+	rewrite, err := FollowSymlinkInScope(link, "testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if expected := abs("testdata/fs/a/e/c/data"); expected != rewrite {
+	if expected := abs(t, "testdata/fs/b/c/data"); expected != rewrite {
 		t.Fatalf("Expected %s got %s", expected, rewrite)
 	}
 }
 
 func TestFollowSymLinkRelativeLinkScope(t *testing.T) {
 	link := "testdata/fs/a/f"
-	pwd, err := os.Getwd()
+
+	rewrite, err := FollowSymlinkInScope(link, "testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	root := filepath.Join(pwd, "testdata")
+	if expected := abs(t, "testdata/test"); expected != rewrite {
+		t.Fatalf("Expected %s got %s", expected, rewrite)
+	}
 
-	rewrite, err := FollowSymlink(link, root)
+	link = "testdata/fs/b/h"
+
+	rewrite, err = FollowSymlinkInScope(link, "testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if expected := abs("testdata/test"); expected != rewrite {
+	if expected := abs(t, "testdata/root"); expected != rewrite {
 		t.Fatalf("Expected %s got %s", expected, rewrite)
 	}
 }

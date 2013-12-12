@@ -827,7 +827,7 @@ func (container *Container) createVolumes() error {
 
 		// Create the mountpoint
 		volPath = path.Join(container.RootfsPath(), volPath)
-		rootVolPath, err := utils.FollowSymlink(volPath, container.RootfsPath())
+		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
 		if err != nil {
 			panic(err)
 		}
