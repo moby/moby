@@ -135,7 +135,7 @@ You can run an interactive session in the newly built container:
 	# type 'exit' or Ctrl-D to exit
 
 
-Extra Step: Build and view the Documenation
+Extra Step: Build and view the Documentation
 -------------------------------------------
 
 If you want to read the documentation from a local website, or are making changes
@@ -150,4 +150,4 @@ to it, you can build the documentation and then serve it by:
 
 **Need More Help?**
 
-If you need more help then hop on to the `#docker-dev IRC channel <irc://chat.freenode.net#docker-dev>`_ or post a message on the `Docker developer mailinglist <https://groups.google.com/d/forum/docker-dev>`_.
+If you need more help then hop on to the `#docker-dev IRC channel <irc://chat.freenode.net#docker-dev>`_ or post a message on the `Docker developer mailing list <https://groups.google.com/d/forum/docker-dev>`_.
