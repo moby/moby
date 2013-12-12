@@ -34,7 +34,7 @@ Next, let's install the ``docker-io`` package which will install Docker on our h
 
    sudo yum -y install docker-io
 
-To keep docker up to date:
+To update the ``docker-io`` package
 
 .. code-block:: bash
 
@@ -46,7 +46,7 @@ Now that it's installed, let's start the Docker daemon.
 
     sudo service docker start
 
-If we want Docker to start at boot we should also:
+If we want Docker to start at boot, we should also:
 
 .. code-block:: bash
 
