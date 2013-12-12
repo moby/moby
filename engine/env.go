@@ -1,16 +1,15 @@
 package engine
 
 import (
-	"strings"
-	"io"
-	"encoding/json"
-	"strconv"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 )
 
 type Env []string
-
 
 func (env *Env) Get(key string) (value string) {
 	// FIXME: use Map()
@@ -44,7 +43,6 @@ func (env *Env) GetBool(key string) (value bool) {
 	return true
 }
 
-
 func (env *Env) SetBool(key string, value bool) {
 	if value {
 		env.Set(key, "1")
@@ -77,6 +75,17 @@ func (env *Env) GetList(key string) []string {
 		l = append(l, sval)
 	}
 	return l
+}
+
+func (env *Env) GetJson(key string) interface{} {
+	sval := env.Get(key)
+	if sval == "" {
+		return nil
+	}
+	var m interface{}
+	//Discard error on purpose
+	json.Unmarshal([]byte(sval), &m)
+	return m
 }
 
 func (env *Env) SetJson(key string, value interface{}) error {
@@ -218,4 +227,3 @@ func (env *Env) Map() map[string]string {
 	}
 	return m
 }
-

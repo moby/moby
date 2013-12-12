@@ -107,6 +107,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("commit", srv.ContainerCommit); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -769,16 +773,31 @@ func createAPIContainer(names []string, container *Container, size bool, runtime
 	}
 	return c
 }
-func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, config *Config) (string, error) {
+func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		job.Errorf("Usage: %s\n", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Getenv("container")
+
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return "", fmt.Errorf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
-	img, err := srv.runtime.Commit(container, repo, tag, comment, author, config)
+	var config *Config
+	iConfig, ok := job.GetenvJson("config").(Config)
+	if ok {
+		config = &iConfig
+	}
+
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), config)
 	if err != nil {
-		return "", err
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return img.ID, err
+	job.Printf("%s\n", img.ID)
+	return engine.StatusOK
 }
 
 func (srv *Server) ImageTag(job *engine.Job) engine.Status {

@@ -126,6 +126,10 @@ func (job *Job) GetenvList(key string) []string {
 	return job.env.GetList(key)
 }
 
+func (job *Job) GetenvJson(key string) interface{} {
+	return job.env.GetJson(key)
+}
+
 func (job *Job) SetenvJson(key string, value interface{}) error {
 	return job.env.SetJson(key, value)
 }
