@@ -23,7 +23,6 @@ package aufslimit
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
@@ -123,8 +122,8 @@ func (a Driver) Exists(id string) bool {
 
 // Three folders are created for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent string, config *Config) error {
-	log.Printf("We should limit this container to DiskQuota: %d", config.DiskQuota)
+func (a *Driver) Create(id, parent string, quota int64) error {
+	log.Printf("We should limit this container to DiskQuota: %d", quota)
 
 	if err := a.createDirsFor(id); err != nil {
 		return err

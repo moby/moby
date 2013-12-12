@@ -499,7 +499,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, err
 	}
 
-	if err := runtime.driver.Create(container.ID, initID); err != nil {
+	if err := runtime.driver.Create(container.ID, initID, config.DiskQuota); err != nil {
 		return nil, nil, err
 	}
 	resolvConf, err := utils.GetResolvConf()
