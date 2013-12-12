@@ -88,6 +88,16 @@ func TestNetworkRange(t *testing.T) {
 		t.Error(last.String())
 	}
 
+	// Simple IPv6 test
+	_, network, _ = net.ParseCIDR("fd13:514e:9236:6127::/64")
+	first, last = networkRange(network)
+	if !first.Equal(net.ParseIP("fd13:514e:9236:6127::")) {
+		t.Error(first.String())
+	}
+	if size, size1 := networkSize6(network.Mask); size != 0 || size1 != 18446744073709551615 {
+		t.Error(size, size1)
+	}
+
 	// 32bit mask
 	_, network, _ = net.ParseCIDR("10.1.2.3/32")
 	first, last = networkRange(network)
@@ -135,6 +145,18 @@ func TestConversion(t *testing.T) {
 		t.Fatal("converted to zero")
 	}
 	conv := intToIP(i)
+	if !ip.Equal(conv) {
+		t.Error(conv.String())
+	}
+}
+
+func TestConversion6(t *testing.T) {
+	ip := net.ParseIP("::1")
+	i, i2 := ip6ToInt(ip)
+	if i != 0 || i2 == 0 {
+		t.Fatal("converted to zero")
+	}
+	conv := intToIP6(i, i2)
 	if !ip.Equal(conv) {
 		t.Error(conv.String())
 	}
@@ -245,6 +267,115 @@ func TestIPAllocator(t *testing.T) {
 	}
 }
 
+func TestIPAllocator6(t *testing.T) {
+	expectedIPs := []net.IP{
+		0: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}),
+		1: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3}),
+		2: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}),
+		3: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5}),
+		4: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6}),
+		5: net.IP([]byte{32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7}),
+	}
+
+	gwIP, n, _ := net.ParseCIDR("2001:db8::1/125")
+	alloc := newIPAllocator(&net.IPNet{IP: gwIP, Mask: n.Mask})
+	// Pool after initialisation (f = free, u = used)
+	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//  ↑
+
+	// Check that we get 6 IPs, from 2001:db8::2-2001:db8::7, in that
+	// order.
+	for i := 0; i < 6; i++ {
+		ip, err := alloc.Acquire()
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIPEquals(t, expectedIPs[i], ip)
+	}
+	// Before loop begin
+	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//  ↑
+
+	// After i = 0
+	// 2(u) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//         ↑
+
+	// After i = 1
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(f)
+	//                ↑
+
+	// After i = 2
+	// 2(u) - 3(u) - 4(u) - 5(f) - 6(f) - 7(f)
+	//                       ↑
+
+	// After i = 3
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(f)
+	//                              ↑
+
+	// After i = 4
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(f)
+	//                                     ↑
+
+	// After i = 5
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(u)
+	//  ↑
+
+	// Check that there are no more IPs
+	_, err := alloc.Acquire()
+	if err == nil {
+		t.Fatal("There shouldn't be any IP addresses at this point")
+	}
+
+	// Release some IPs in non-sequential order
+	alloc.Release(expectedIPs[3])
+	// 2(u) - 3(u) - 4(u) - 5(f) - 6(u) - 7(u)
+	//                       ↑
+
+	alloc.Release(expectedIPs[2])
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(u) - 7(u)
+	//                       ↑
+
+	alloc.Release(expectedIPs[4])
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(u)
+	//                       ↑
+
+	// Make sure that IPs are reused in sequential order, starting
+	// with the first released IP
+	newIPs := make([]net.IP, 3)
+	for i := 0; i < 3; i++ {
+		ip, err := alloc.Acquire()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		newIPs[i] = ip
+	}
+	// Before loop begin
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(u)
+	//                       ↑
+
+	// After i = 0
+	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f) - 7(u)
+	//                              ↑
+
+	// After i = 1
+	// 2(u) - 3(u) - 4(f) - 5(u) - 6(u) - 7(u)
+	//                ↑
+
+	// After i = 2
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(u)
+	//                       ↑
+
+	assertIPEquals(t, expectedIPs[3], newIPs[0])
+	assertIPEquals(t, expectedIPs[4], newIPs[1])
+	assertIPEquals(t, expectedIPs[2], newIPs[2])
+
+	_, err = alloc.Acquire()
+	if err == nil {
+		t.Fatal("There shouldn't be any IP addresses at this point")
+	}
+}
+
 func assertIPEquals(t *testing.T, ip1, ip2 net.IP) {
 	if !ip1.Equal(ip2) {
 		t.Fatalf("Expected IP %s, got %s", ip1, ip2)
@@ -270,12 +401,16 @@ func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
 func TestNetworkOverlaps(t *testing.T) {
 	//netY starts at same IP and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/65", t)
 	//netY starts within netX and ends at same IP
 	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8:0:0:8000::1/65", t)
 	//netY starts and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8:0:0:4000::1/65", t)
 	//netY starts at same IP and ends outside of netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/63", t)
 	//netY starts before and ends at same IP of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
 	//netY starts before and ends outside of netX
