@@ -25,33 +25,34 @@ only on the **64 bit** architecture.
 Installation
 ------------
 
-1. Firstly, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
+Firstly, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
 
-2. Next, let's install the ``docker-io`` package which will install Docker on our host.
+
+Next, let's install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
    sudo yum -y install docker-io
 
-To keep docker up to date:
+To update the ``docker-io`` package
 
 .. code-block:: bash
 
    sudo yum -y update docker-io
 
-3. Now that it's installed, lets start the Docker daemon.
+Now that it's installed, let's start the Docker daemon.
 
 .. code-block:: bash
 
     sudo service docker start
 
-If we want Docker to start at boot we should also:
+If we want Docker to start at boot, we should also:
 
 .. code-block:: bash
 
    sudo chkconfig docker on
 
-4. Now let's verify that Docker is working.
+Now let's verify that Docker is working.
 
 .. code-block:: bash
 
