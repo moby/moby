@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestContainerTagImageDelete(t *testing.T) {
+func TestImageTagImageDelete(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
@@ -18,14 +18,15 @@ func TestContainerTagImageDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := srv.ContainerTag(unitTestImageName, "utest", "tag1", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerTag(unitTestImageName, "utest/docker", "tag2", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "utest/docker", "tag2").Run(); err != nil {
 		t.Fatal(err)
 	}
-	if err := srv.ContainerTag(unitTestImageName, "utest:5000/docker", "tag3", false); err != nil {
+
+	if err := eng.Job("tag", unitTestImageName, "utest:5000/docker", "tag3").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -265,8 +266,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = srv.ContainerTag(imageID, "test", "0.1", false)
-	if err != nil {
+	if err := eng.Job("tag", imageID, "test", "0.1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -329,14 +329,15 @@ func TestImagesFilter(t *testing.T) {
 
 	srv := mkServerFromEngine(eng, t)
 
-	if err := srv.ContainerTag(unitTestImageName, "utest", "tag1", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerTag(unitTestImageName, "utest/docker", "tag2", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "utest/docker", "tag2").Run(); err != nil {
 		t.Fatal(err)
 	}
-	if err := srv.ContainerTag(unitTestImageName, "utest:5000/docker", "tag3", false); err != nil {
+
+	if err := eng.Job("tag", unitTestImageName, "utest:5000/docker", "tag3").Run(); err != nil {
 		t.Fatal(err)
 	}
 

@@ -910,8 +910,7 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		t.Fatal(err)
 	}
 
-	err = mkServerFromEngine(eng, t).ContainerTag(image.ID, "test", "latest", false)
-	if err != nil {
+	if err := eng.Job("tag", image.ID, "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 

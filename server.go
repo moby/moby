@@ -95,6 +95,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("tag", srv.ImageTag); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -769,12 +773,20 @@ func (srv *Server) ContainerCommit(name, repo, tag, author, comment string, conf
 	return img.ID, err
 }
 
-// FIXME: this should be called ImageTag
-func (srv *Server) ContainerTag(name, repo, tag string, force bool) error {
-	if err := srv.runtime.repositories.Set(repo, tag, name, force); err != nil {
-		return err
+func (srv *Server) ImageTag(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 && len(job.Args) != 3 {
+		job.Errorf("Usage: %s IMAGE REPOSITORY [TAG]\n", job.Name)
+		return engine.StatusErr
 	}
-	return nil
+	var tag string
+	if len(job.Args) == 3 {
+		tag = job.Args[2]
+	}
+	if err := srv.runtime.repositories.Set(job.Args[1], tag, job.Args[0], job.GetenvBool("force")); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {

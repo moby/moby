@@ -356,18 +356,13 @@ func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	force, err := getBoolParam(r.Form.Get("force"))
-	if err != nil {
-		return err
-	}
 
-	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
+	job := srv.Eng.Job("tag", vars["name"], r.Form.Get("repo"), r.Form.Get("tag"))
+	job.Setenv("force", r.Form.Get("force"))
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
