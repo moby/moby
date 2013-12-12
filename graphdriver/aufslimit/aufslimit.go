@@ -164,8 +164,10 @@ func (a *Driver) CreateWithQuota(id, parent string, quota int64) error {
 		return err
 	}
 	log.Printf("Limiting container with quota %d", quota)
-	if err := a.limitContainer(id, quota); err != nil {
-		return err
+	if quota != 0 {
+		if err := a.limitContainer(id, quota); err != nil {
+			return err
+		}
 	}
 	return nil
 }
