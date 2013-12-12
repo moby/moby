@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -231,4 +232,77 @@ func (env *Env) Map() map[string]string {
 		m[parts[0]] = parts[1]
 	}
 	return m
+}
+
+type Table struct {
+	Data    []*Env
+	sortKey string
+}
+
+func NewTable(sortKey string, sizeHint int) *Table {
+	return &Table{
+		make([]*Env, 0, sizeHint),
+		sortKey,
+	}
+}
+
+func (t *Table) Add(env *Env) {
+	t.Data = append(t.Data, env)
+}
+
+func (t *Table) Len() int {
+	return len(t.Data)
+}
+
+func (t *Table) Less(a, b int) bool {
+	return t.lessBy(a, b, t.sortKey)
+}
+
+func (t *Table) lessBy(a, b int, by string) bool {
+	keyA := t.Data[a].Get(by)
+	keyB := t.Data[b].Get(by)
+	intA, errA := strconv.ParseInt(keyA, 10, 64)
+	intB, errB := strconv.ParseInt(keyB, 10, 64)
+	if errA == nil && errB == nil {
+		return intA < intB
+	}
+	return keyA < keyB
+}
+
+func (t *Table) Swap(a, b int) {
+	tmp := t.Data[a]
+	t.Data[a] = t.Data[b]
+	t.Data[b] = tmp
+}
+
+func (t *Table) Sort() {
+	sort.Sort(t)
+}
+
+func (t *Table) WriteTo(dst io.Writer) (n int64, err error) {
+	for _, env := range t.Data {
+		bytes, err := env.WriteTo(dst)
+		if err != nil {
+			return -1, err
+		}
+		if _, err := dst.Write([]byte{'\n'}); err != nil {
+			return -1, err
+		}
+		n += bytes + 1
+	}
+	return n, nil
+}
+
+func (t *Table) ReadFrom(src io.Reader) (n int64, err error) {
+	decoder := NewDecoder(src)
+	for {
+		env, err := decoder.Decode()
+		if err == io.EOF {
+			return 0, nil
+		} else if err != nil {
+			return -1, err
+		}
+		t.Add(env)
+	}
+	return 0, nil
 }

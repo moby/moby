@@ -190,3 +190,19 @@ func (o *Output) AddEnv() (dst *Env, err error) {
 	}()
 	return dst, nil
 }
+
+func (o *Output) AddTable() (dst *Table, err error) {
+	src, err := o.AddPipe()
+	if err != nil {
+		return nil, err
+	}
+	dst = NewTable("", 0)
+	o.tasks.Add(1)
+	go func() {
+		defer o.tasks.Done()
+		if _, err := dst.ReadFrom(src); err != nil {
+			return
+		}
+	}()
+	return dst, nil
+}

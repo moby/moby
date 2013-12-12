@@ -60,11 +60,14 @@ func TestGetInfo(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
 
-	initialImages, err := srv.Images(false, "")
+	job := eng.Job("images")
+	initialImages, err := job.Stdout.AddTable()
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
 	req, err := http.NewRequest("GET", "/info", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -85,8 +88,8 @@ func TestGetInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Close()
-	if images := i.GetInt("Images"); images != len(initialImages) {
-		t.Errorf("Expected images: %d, %d found", len(initialImages), images)
+	if images := i.GetInt("Images"); images != initialImages.Len() {
+		t.Errorf("Expected images: %d, %d found", initialImages.Len(), images)
 	}
 	expected := "application/json"
 	if result := r.HeaderMap.Get("Content-Type"); result != expected {
@@ -145,10 +148,12 @@ func TestGetImagesJSON(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
 
-	// all=0
-
-	initialImages, err := srv.Images(false, "")
+	job := eng.Job("images")
+	initialImages, err := job.Stdout.AddTable()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -164,18 +169,18 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	images := []docker.APIImages{}
-	if err := json.Unmarshal(r.Body.Bytes(), &images); err != nil {
+	images := engine.NewTable("Created", 0)
+	if _, err := images.ReadFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
+	if images.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
 	}
 
 	found := false
-	for _, img := range images {
-		if strings.Contains(img.RepoTags[0], unitTestImageName) {
+	for _, img := range images.Data {
+		if strings.Contains(img.GetList("RepoTags")[0], unitTestImageName) {
 			found = true
 			break
 		}
@@ -188,10 +193,7 @@ func TestGetImagesJSON(t *testing.T) {
 
 	// all=1
 
-	initialImages, err = srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	initialImages = getAllImages(eng, t)
 
 	req2, err := http.NewRequest("GET", "/images/json?all=true", nil)
 	if err != nil {
@@ -207,8 +209,8 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(images2) != len(initialImages) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images2))
+	if len(images2) != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), len(images2))
 	}
 
 	found = false
@@ -1126,21 +1128,16 @@ func TestDeleteImages(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
 
-	initialImages, err := srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	initialImages := getImages(eng, t, true, "")
 
 	if err := eng.Job("tag", unitTestImageName, "test", "test").Run(); err != nil {
 		t.Fatal(err)
 	}
-	images, err := srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
+	images := getImages(eng, t, true, "")
+
+	if images.Len() != initialImages.Len()+1 {
+		t.Errorf("Expected %d images, %d found", initialImages.Len()+1, images.Len())
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
@@ -1177,13 +1174,10 @@ func TestDeleteImages(t *testing.T) {
 	if len(outs) != 1 {
 		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs))
 	}
-	images, err = srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images = getImages(eng, t, false, "")
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
+	if images.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
 	}
 }
 

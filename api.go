@@ -181,27 +181,19 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err := parseForm(r); err != nil {
 		return err
 	}
-
-	all, err := getBoolParam(r.Form.Get("all"))
-	if err != nil {
+	fmt.Printf("getImagesJSON\n")
+	job := srv.Eng.Job("images")
+	job.Setenv("filter", r.Form.Get("filter"))
+	job.Setenv("all", r.Form.Get("all"))
+	// FIXME: 1.7 clients expect a single json list
+	job.Stdout.Add(w)
+	w.WriteHeader(http.StatusOK)
+	fmt.Printf("running images job\n")
+	if err := job.Run(); err != nil {
 		return err
 	}
-	filter := r.Form.Get("filter")
-
-	outs, err := srv.Images(all, filter)
-	if err != nil {
-		return err
-	}
-
-	if version < 1.7 {
-		outs2 := []APIImagesOld{}
-		for _, ctnr := range outs {
-			outs2 = append(outs2, ctnr.ToLegacy()...)
-		}
-
-		return writeJSON(w, http.StatusOK, outs2)
-	}
-	return writeJSON(w, http.StatusOK, outs)
+	fmt.Printf("job has been run\n")
+	return nil
 }
 
 func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
