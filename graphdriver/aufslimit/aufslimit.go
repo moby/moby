@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	graphdriver.Register("aufs", Init)
+	graphdriver.Register("aufslimit", Init)
 }
 
 type Driver struct {
@@ -101,7 +101,7 @@ func (a Driver) rootPath() string {
 }
 
 func (Driver) String() string {
-	return "aufs"
+	return "aufslimit"
 }
 
 func (a Driver) Status() [][2]string {
