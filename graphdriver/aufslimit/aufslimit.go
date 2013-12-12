@@ -122,9 +122,7 @@ func (a Driver) Exists(id string) bool {
 
 // Three folders are created for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent string, quota int64) error {
-	log.Printf("We should limit this container to DiskQuota: %d", quota)
-
+func (a *Driver) Create(id, parent string) error {
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
@@ -151,6 +149,11 @@ func (a *Driver) Create(id, parent string, quota int64) error {
 		}
 	}
 	return nil
+}
+
+func (a *Driver) Create(id, parent string, quota int64) error {
+	log.Printf("We should limit this container to DiskQuota: %d", quota)
+	return Create(id, parent)
 }
 
 func (a *Driver) createDirsFor(id string) error {
