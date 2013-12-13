@@ -32,8 +32,8 @@ lxc.rootfs = {{$ROOTFS}}
 
 {{if and .HostnamePath .HostsPath}}
 # enable domain name support
-lxc.mount.entry = {{escapeFstabSpaces .HostnamePath}} {{escapeFstabSpaces $ROOTFS}}/etc/hostname none bind,ro 0 0
-lxc.mount.entry = {{escapeFstabSpaces .HostsPath}} {{escapeFstabSpaces $ROOTFS}}/etc/hosts none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces .HostnamePath}} {{escapeFstabSpaces $ROOTFS}}/etc/hostname none bind,ro,uid=10000,gid=10000 0 0
+lxc.mount.entry = {{escapeFstabSpaces .HostsPath}} {{escapeFstabSpaces $ROOTFS}}/etc/hosts none bind,ro,uid=10000,gid=10000 0 0
 {{end}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal
@@ -95,17 +95,17 @@ lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstanc
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
 # Inject dockerinit
-lxc.mount.entry = {{escapeFstabSpaces .SysInitPath}} {{escapeFstabSpaces $ROOTFS}}/.dockerinit none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces .SysInitPath}} {{escapeFstabSpaces $ROOTFS}}/.dockerinit none bind,ro,uid=10000,gid=10000 0 0
 
 # Inject env
-lxc.mount.entry = {{escapeFstabSpaces .EnvConfigPath}} {{escapeFstabSpaces $ROOTFS}}/.dockerenv none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces .EnvConfigPath}} {{escapeFstabSpaces $ROOTFS}}/.dockerenv none bind,ro,uid=10000,gid=10000 0 0
 
 # In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
-lxc.mount.entry = {{escapeFstabSpaces .ResolvConfPath}} {{escapeFstabSpaces $ROOTFS}}/etc/resolv.conf none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces .ResolvConfPath}} {{escapeFstabSpaces $ROOTFS}}/etc/resolv.conf none bind,ro,uid=10000,gid=10000 0 0
 {{if .Volumes}}
 {{ $rw := .VolumesRW }}
 {{range $virtualPath, $realPath := .Volumes}}
-lxc.mount.entry = {{escapeFstabSpaces $realPath}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $virtualPath}} none bind,{{ if index $rw $virtualPath }}rw{{else}}ro{{end}} 0 0
+lxc.mount.entry = {{escapeFstabSpaces $realPath}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $virtualPath}} none bind,{{ if index $rw $virtualPath }}rw{{else}}ro{{end}},uid=10000,gid=10000 0 0
 {{end}}
 {{end}}
 
@@ -141,6 +141,10 @@ lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
 {{$pair.Key}} = {{$pair.Value}}
 {{end}}
 {{end}}
+
+# uid map
+lxc.id_map = u 0 10000 10000
+lxc.id_map = g 0 10000 10000
 `
 
 var LxcTemplateCompiled *template.Template

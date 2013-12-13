@@ -182,6 +182,9 @@ func (a *Driver) createDirsFor(id string) error {
 		if err := os.MkdirAll(path.Join(a.rootPath(), p, id), 0755); err != nil {
 			return err
 		}
+		if err := os.Chown(path.Join(a.rootPath(), p, id), 10000, 10000); err != nil {
+			return err
+		}
 	}
 	return nil
 }

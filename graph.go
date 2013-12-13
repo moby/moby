@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -194,6 +195,10 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err := StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err
 	}
+	uidmapshift := exec.Command("uidmapshift", "-b", rootfs, "0", "10000", "10000")
+    if err := uidmapshift.Run(); err != nil {
+        return err
+    }
 	// Commit
 	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
 		return err
@@ -265,6 +270,9 @@ func setupInitLayer(initLayer string) error {
 					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
 						return err
 					}
+					if err := os.Chown(path.Join(initLayer, pth), 10000, 10000); err != nil {
+						return err
+					}
 				case "file":
 					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
 						return err
@@ -274,6 +282,9 @@ func setupInitLayer(initLayer string) error {
 						return err
 					}
 					f.Close()
+					if err := os.Chown(path.Join(initLayer, pth), 10000, 10000); err != nil {
+						return err
+					}
 				}
 			} else {
 				return err
