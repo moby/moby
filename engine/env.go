@@ -77,15 +77,12 @@ func (env *Env) GetList(key string) []string {
 	return l
 }
 
-func (env *Env) GetJson(key string) interface{} {
+func (env *Env) GetJson(key string, iface interface{}) error {
 	sval := env.Get(key)
 	if sval == "" {
 		return nil
 	}
-	var m interface{}
-	//Discard error on purpose
-	json.Unmarshal([]byte(sval), &m)
-	return m
+	return json.Unmarshal([]byte(sval), iface)
 }
 
 func (env *Env) SetJson(key string, value interface{}) error {

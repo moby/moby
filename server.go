@@ -785,13 +785,13 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		job.Errorf("No such container: %s", name)
 		return engine.StatusErr
 	}
-	var config *Config
-	iConfig, ok := job.GetenvJson("config").(Config)
-	if ok {
-		config = &iConfig
+	var config Config
+	if err := job.GetenvJson("config", &config); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
 
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), config)
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
