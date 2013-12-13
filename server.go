@@ -1135,14 +1135,17 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 			for _, elem := range round {
 				var pushTags func() error
 				pushTags = func() error {
+					for tag, id := range localRepo {
+						if elem.ID == id {
+							out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", elem.ID, ep+"repositories/"+remoteName+"/tags/"+tag))
+							if err := r.PushRegistryTag(remoteName, elem.ID, tag, ep, repoData.Tokens); err != nil {
+								return err
+							}
+						}
+					}
 					if i < (len(imgList) - 1) {
 						// Only tag the top layer in the repository
 						return nil
-					}
-
-					out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", utils.TruncateID(elem.ID), ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
-					if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
-						return err
 					}
 					return nil
 				}
