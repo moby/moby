@@ -774,11 +774,11 @@ func createAPIContainer(names []string, container *Container, size bool, runtime
 	return c
 }
 func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
-	if len(job.Args) != 0 {
-		job.Errorf("Usage: %s\n", job.Name)
+	if len(job.Args) != 1 {
+		job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 		return engine.StatusErr
 	}
-	name := job.Getenv("container")
+	name := job.Args[0]
 
 	container := srv.runtime.Get(name)
 	if container == nil {

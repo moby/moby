@@ -155,8 +155,7 @@ func TestCommit(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	job := eng.Job("commit")
-	job.Setenv("container", id)
+	job := eng.Job("commit", id)
 	job.Setenv("repo", "testrepo")
 	job.Setenv("tag", "testtag")
 	job.SetenvJson("config", config)
@@ -268,8 +267,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = eng.Job("commit")
-	job.Setenv("container", containerID)
+	job = eng.Job("commit", containerID)
 	job.Setenv("repo", "test")
 	var imageID string
 	job.Stdout.AddString(&imageID)
@@ -296,8 +294,7 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = eng.Job("commit")
-	job.Setenv("container", containerID)
+	job = eng.Job("commit", containerID)
 	job.Setenv("repo", "test")
 	if err := job.Run(); err != nil {
 		t.Fatal(err)

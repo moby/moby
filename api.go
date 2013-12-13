@@ -378,10 +378,9 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		utils.Errorf("%s", err)
 	}
 
-	job := srv.Eng.Job("commit")
+	job := srv.Eng.Job("commit", r.Form.Get("container"))
 	job.Setenv("repo", r.Form.Get("repo"))
 	job.Setenv("tag", r.Form.Get("tag"))
-	job.Setenv("container", r.Form.Get("container"))
 	job.Setenv("author", r.Form.Get("author"))
 	job.Setenv("comment", r.Form.Get("comment"))
 	job.SetenvJson("config", config)
