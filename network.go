@@ -178,7 +178,11 @@ func CreateBridgeIface(config *DaemonConfig) error {
 func createBridgeIface(name string) error {
 	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
 	if err != nil {
-		return fmt.Errorf("Error creating bridge creation socket: %s", err)
+		utils.Debugf("Bridge socket creation failed IPv6 probably not enabled: %v", err)
+		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+		if err != nil {
+			return fmt.Errorf("Error creating bridge creation socket: %s", err)
+		}
 	}
 	defer syscall.Close(s)
 
