@@ -176,7 +176,7 @@ func (v *simpleVersionInfo) Version() string {
 // If a signal is given, then just send it to the container and return.
 func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	if n := len(job.Args); n < 1 || n > 2 {
-		job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
+		job.Usage("Invalid argument(s)", "[SIGNAL]")
 		return engine.StatusErr
 	}
 	name := job.Args[0]
@@ -215,7 +215,7 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s container_id", job.Name)
+		job.Usage("Invalid argument(s)", "CONTAINER")
 		return engine.StatusErr
 	}
 	name := job.Args[0]
@@ -843,7 +843,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 
 func (srv *Server) ImageTag(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 && len(job.Args) != 3 {
-		job.Errorf("Usage: %s IMAGE REPOSITORY [TAG]\n", job.Name)
+		job.Usage("Invalid argument(s)", "IMAGE REPOSITORY [TAG]")
 		return engine.StatusErr
 	}
 	var tag string
@@ -1371,12 +1371,13 @@ func (srv *Server) ImageImport(src, repo, tag string, in io.Reader, out io.Write
 }
 
 func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
+	if len(job.Args) > 1 {
+		job.Usage("Invalid argument(s)", "[NAME]")
+		return engine.StatusErr
+	}
 	var name string
 	if len(job.Args) == 1 {
 		name = job.Args[0]
-	} else if len(job.Args) > 1 {
-		job.Printf("Usage: %s", job.Name)
-		return engine.StatusErr
 	}
 	var config Config
 	if err := job.ExportEnv(&config); err != nil {
@@ -1747,8 +1748,8 @@ func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) e
 }
 
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
-	if len(job.Args) < 1 {
-		job.Errorf("Usage: %s container_id", job.Name)
+	if len(job.Args) != 1 {
+		job.Usage("Invalid argument(s)", "CONTAINER")
 		return engine.StatusErr
 	}
 	name := job.Args[0]
@@ -1807,7 +1808,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		job.Usage("Invalid argument(s)", "CONTAINER")
 		return engine.StatusErr
 	}
 	name := job.Args[0]
@@ -1830,7 +1831,7 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s", job.Name)
+		job.Usage("Invalid argument(s)", "CONTAINER")
 		return engine.StatusErr
 	}
 	name := job.Args[0]
@@ -1845,7 +1846,7 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 	if len(job.Args) != 3 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
+		job.Usage("Invalid argument(s)", "CONTAINER HEIGHT WIDTH")
 		return engine.StatusErr
 	}
 	name := job.Args[0]

@@ -78,3 +78,24 @@ func TestJobStderrString(t *testing.T) {
 		t.Fatalf("Stderr last line:\nExpected: %v\nReceived: %v", expectedOutput, output)
 	}
 }
+
+func TestJobUsage(t *testing.T) {
+	eng := newTestEngine(t)
+	defer os.RemoveAll(eng.Root())
+	eng.Register("job_test", func(job *Job) Status {
+		job.Usage("error", "ERROR")
+		return StatusOK
+	})
+	job := eng.Job("job_test")
+
+	var output string
+	if err := job.Stderr.AddString(&output); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if expectedOutput := "[error:error] Usage: job_test ERROR"; expectedOutput != output {
+		t.Fatalf("Expected \"%s\", got \"%s\"", expectedOutput, output)
+	}
+}
