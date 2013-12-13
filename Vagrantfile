@@ -26,7 +26,7 @@ fi
 # Adding an apt gpg key is idempotent.
 wget -q -O - https://get.docker.io/gpg | apt-key add -
 
-# Creating the docker.list file is idempotent, but it may overrite desired
+# Creating the docker.list file is idempotent, but it may overwrite desired
 # settings if it already exists.  This could be solved with md5sum but it
 # doesn't seem worth it.
 echo 'deb http://get.docker.io/ubuntu docker main' > \
@@ -41,7 +41,7 @@ apt-get install -q -y lxc-docker
 usermod -a -G docker "$user"
 
 tmp=`mktemp -q` && {
-    # Only install the backport kernel, don't bother upgrade if the backport is
+    # Only install the backport kernel, don't bother upgrading if the backport is
     # already installed.  We want parse the output of apt so we need to save it
     # with 'tee'.  NOTE: The installation of the kernel will trigger dkms to
     # install vboxguest if needed.
