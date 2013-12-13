@@ -99,6 +99,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("resize", srv.ContainerResize); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -1750,11 +1754,31 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	return engine.StatusErr
 }
 
-func (srv *Server) ContainerResize(name string, h, w int) error {
-	if container := srv.runtime.Get(name); container != nil {
-		return container.Resize(h, w)
+func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
+	if len(job.Args) != 3 {
+		job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
+		return engine.StatusErr
 	}
-	return fmt.Errorf("No such container: %s", name)
+	name := job.Args[0]
+	height, err := strconv.Atoi(job.Args[1])
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	width, err := strconv.Atoi(job.Args[2])
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	if container := srv.runtime.Get(name); container != nil {
+		if err := container.Resize(height, width); err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		return engine.StatusOK
+	}
+	job.Errorf("No such container: %s", name)
+	return engine.StatusErr
 }
 
 func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, inStream io.ReadCloser, outStream, errStream io.Writer) error {
