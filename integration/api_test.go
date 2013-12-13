@@ -1120,7 +1120,7 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerTag(unitTestImageName, "test", "test", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "test", "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 	images, err := srv.Images(false, "")
