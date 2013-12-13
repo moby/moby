@@ -795,6 +795,15 @@ Known Issues (kill)
 
     Fetch the logs of a container
 
+``docker logs`` is a convenience which batch-retrieves whatever logs
+are present at the time of execution. This does not guarantee
+execution order when combined with a ``docker run`` (i.e. your run may
+not have generated any logs at the time you execute ``docker logs``).
+
+``docker logs -f`` combines ``docker logs`` and ``docker attach``: it
+will first return all logs from the beginning and then continue
+streaming new output from the container's stdout and stderr.
+
 
 .. _cli_port:
 
