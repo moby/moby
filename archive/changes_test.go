@@ -258,48 +258,44 @@ func TestChangesDirsMutated(t *testing.T) {
 }
 
 func TestApplyLayer(t *testing.T) {
-	t.Skip("Skipping TestApplyLayer due to known failures") // Disable this for now as it is broken
-	return
+	src, err := ioutil.TempDir("", "docker-changes-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	createSampleDir(t, src)
+	defer os.RemoveAll(src)
+	dst := src + "-copy"
+	if err := copyDir(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	mutateSampleDir(t, dst)
+	defer os.RemoveAll(dst)
 
-	// src, err := ioutil.TempDir("", "docker-changes-test")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// createSampleDir(t, src)
-	// dst := src + "-copy"
-	// if err := copyDir(src, dst); err != nil {
-	// 	t.Fatal(err)
-	// }
-	// mutateSampleDir(t, dst)
+	changes, err := ChangesDirs(dst, src)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// changes, err := ChangesDirs(dst, src)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	layer, err := ExportChanges(dst, changes)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// layer, err := ExportChanges(dst, changes)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	layerCopy, err := NewTempArchive(layer, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// layerCopy, err := NewTempArchive(layer, "")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	if err := ApplyLayer(src, layerCopy); err != nil {
+		t.Fatal(err)
+	}
 
-	// if err := ApplyLayer(src, layerCopy); err != nil {
-	// 	t.Fatal(err)
-	// }
+	changes2, err := ChangesDirs(src, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// changes2, err := ChangesDirs(src, dst)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// if len(changes2) != 0 {
-	// 	t.Fatalf("Unexpected differences after re applying mutation: %v", changes)
-	// }
-
-	// os.RemoveAll(src)
-	// os.RemoveAll(dst)
+	if len(changes2) != 0 {
+		t.Fatalf("Unexpected differences after re applying mutation: %v", changes2)
+	}
 }
