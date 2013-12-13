@@ -586,7 +586,6 @@ func (container *Container) Start() (err error) {
 	env := []string{
 		"HOME=/",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"container=lxc",
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
