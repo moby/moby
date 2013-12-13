@@ -237,13 +237,19 @@ func (env *Env) Map() map[string]string {
 type Table struct {
 	Data    []*Env
 	sortKey string
+	Chan    chan *Env
 }
 
 func NewTable(sortKey string, sizeHint int) *Table {
 	return &Table{
 		make([]*Env, 0, sizeHint),
 		sortKey,
+		make(chan *Env),
 	}
+}
+
+func (t *Table) SetKey(sortKey string) {
+	t.sortKey = sortKey
 }
 
 func (t *Table) Add(env *Env) {
@@ -279,16 +285,41 @@ func (t *Table) Sort() {
 	sort.Sort(t)
 }
 
+func (t *Table) ReverseSort() {
+	sort.Sort(sort.Reverse(t))
+}
+
+func (t *Table) WriteListTo(dst io.Writer) (n int64, err error) {
+	if _, err := dst.Write([]byte{'['}); err != nil {
+		return -1, err
+	}
+	n = 1
+	for i, env := range t.Data {
+		bytes, err := env.WriteTo(dst)
+		if err != nil {
+			return -1, err
+		}
+		n += bytes
+		if i != len(t.Data)-1 {
+			if _, err := dst.Write([]byte{','}); err != nil {
+				return -1, err
+			}
+			n += 1
+		}
+	}
+	if _, err := dst.Write([]byte{']'}); err != nil {
+		return -1, err
+	}
+	return n + 1, nil
+}
+
 func (t *Table) WriteTo(dst io.Writer) (n int64, err error) {
 	for _, env := range t.Data {
 		bytes, err := env.WriteTo(dst)
 		if err != nil {
 			return -1, err
 		}
-		if _, err := dst.Write([]byte{'\n'}); err != nil {
-			return -1, err
-		}
-		n += bytes + 1
+		n += bytes
 	}
 	return n, nil
 }

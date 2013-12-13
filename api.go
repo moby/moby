@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	APIVERSION        = 1.8
+	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
@@ -181,18 +181,15 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	fmt.Printf("getImagesJSON\n")
 	job := srv.Eng.Job("images")
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
-	// FIXME: 1.7 clients expect a single json list
+	job.SetenvBool("list", version <= 1.8)
 	job.Stdout.Add(w)
 	w.WriteHeader(http.StatusOK)
-	fmt.Printf("running images job\n")
 	if err := job.Run(); err != nil {
 		return err
 	}
-	fmt.Printf("job has been run\n")
 	return nil
 }
 

@@ -324,8 +324,6 @@ func TestImagesFilter(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkRuntimeFromEngine(eng, t))
 
-	srv := mkServerFromEngine(eng, t)
-
 	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
 	}

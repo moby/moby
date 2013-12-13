@@ -204,18 +204,18 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	assertHttpNotError(r2, t)
 
-	images2 := []docker.APIImages{}
-	if err := json.Unmarshal(r2.Body.Bytes(), &images2); err != nil {
+	images2 := engine.NewTable("ID", 0)
+	if _, err := images2.ReadFrom(r2.Body); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images2) != initialImages.Len() {
-		t.Errorf("Expected %d image, %d found", initialImages.Len(), len(images2))
+	if images2.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images2.Len())
 	}
 
 	found = false
-	for _, img := range images2 {
-		if img.ID == unitTestImageID {
+	for _, img := range images2.Data {
+		if img.Get("ID") == unitTestImageID {
 			found = true
 			break
 		}
@@ -237,29 +237,13 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	assertHttpNotError(r3, t)
 
-	images3 := []docker.APIImages{}
-	if err := json.Unmarshal(r3.Body.Bytes(), &images3); err != nil {
+	images3 := engine.NewTable("ID", 0)
+	if _, err := images3.ReadFrom(r3.Body); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images3) != 0 {
-		t.Errorf("Expected 0 image, %d found", len(images3))
-	}
-
-	r4 := httptest.NewRecorder()
-
-	// all=foobar
-	req4, err := http.NewRequest("GET", "/images/json?all=foobar", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r4, req4); err != nil {
-		t.Fatal(err)
-	}
-	// Don't assert against HTTP error since we expect an error
-	if r4.Code != http.StatusBadRequest {
-		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
+	if images3.Len() != 0 {
+		t.Errorf("Expected 0 image, %d found", images3.Len())
 	}
 }
 
@@ -1136,8 +1120,8 @@ func TestDeleteImages(t *testing.T) {
 
 	images := getImages(eng, t, true, "")
 
-	if images.Len() != initialImages.Len()+1 {
-		t.Errorf("Expected %d images, %d found", initialImages.Len()+1, images.Len())
+	if len(images.Data[0].GetList("RepoTags")) != len(initialImages.Data[0].GetList("RepoTags"))+1 {
+		t.Errorf("Expected %d images, %d found", len(initialImages.Data[0].GetList("RepoTags"))+1, len(images.Data[0].GetList("RepoTags")))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)

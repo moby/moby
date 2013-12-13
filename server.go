@@ -573,8 +573,6 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 }
 
 func (srv *Server) Images(job *engine.Job) engine.Status {
-	fmt.Printf("Images()\n")
-	srv.Eng.Job("version").Run()
 	var (
 		allImages map[string]*Image
 		err       error
@@ -639,13 +637,15 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		}
 	}
 
-	outs.Sort()
-	job.Logf("Sending %d images to stdout", outs.Len())
-	if n, err := outs.WriteTo(job.Stdout); err != nil {
+	outs.ReverseSort()
+	if job.GetenvBool("list") {
+		if _, err := outs.WriteListTo(job.Stdout); err != nil {
+			job.Errorf("%s", err)
+			return engine.StatusErr
+		}
+	} else if _, err := outs.WriteTo(job.Stdout); err != nil {
 		job.Errorf("%s", err)
 		return engine.StatusErr
-	} else {
-		job.Logf("%d bytes sent", n)
 	}
 	return engine.StatusOK
 }
