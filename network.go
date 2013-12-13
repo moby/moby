@@ -118,6 +118,7 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		"192.168.44.1/24",
 	}
 
+
 	nameservers := []string{}
 	resolvConf, _ := utils.GetResolvConf()
 	// we don't check for an error here, because we don't really care
@@ -129,22 +130,30 @@ func CreateBridgeIface(config *DaemonConfig) error {
 	}
 
 	var ifaceAddr string
-	for _, addr := range addrs {
-		_, dockerNetwork, err := net.ParseCIDR(addr)
+	if len(config.BridgeIp) != 0 {
+		_, _, err := net.ParseCIDR(config.BridgeIp)
 		if err != nil {
 			return err
 		}
-		routes, err := netlink.NetworkGetRoutes()
-		if err != nil {
-			return err
-		}
-		if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
-			if err := checkNameserverOverlaps(nameservers, dockerNetwork); err == nil {
-				ifaceAddr = addr
-				break
+		ifaceAddr = config.BridgeIp
+	} else {
+		for _, addr := range addrs {
+			_, dockerNetwork, err := net.ParseCIDR(addr)
+			if err != nil {
+				return err
 			}
-		} else {
-			utils.Debugf("%s: %s", addr, err)
+			routes, err := netlink.NetworkGetRoutes()
+			if err != nil {
+				return err
+			}
+			if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
+				if err := checkNameserverOverlaps(nameservers, dockerNetwork); err == nil {
+					ifaceAddr = addr
+					break
+				}
+			} else {
+				utils.Debugf("%s: %s", addr, err)
+			}
 		}
 	}
 	if ifaceAddr == "" {
