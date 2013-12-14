@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -29,7 +30,10 @@ import (
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
 const MaxImageDepth = 127
 
-var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
+var (
+	defaultDns         = []string{"8.8.8.8", "8.8.4.4"}
+	validContainerName = regexp.MustCompile(`^/?[a-zA-Z0-9_-]+$`)
+)
 
 type Capabilities struct {
 	MemoryLimit            bool
@@ -420,7 +424,12 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		if err != nil {
 			name = utils.TruncateID(id)
 		}
+	} else {
+		if !validContainerName.MatchString(name) {
+			return nil, nil, fmt.Errorf("Invalid container name (%s), only [a-zA-Z0-9_-] are allowed", name)
+		}
 	}
+
 	if name[0] != '/' {
 		name = "/" + name
 	}
