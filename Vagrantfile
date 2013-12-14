@@ -70,7 +70,7 @@ SCRIPT
 # trigger dkms to build the virtualbox guest module install.
 $vbox_script = <<VBOX_SCRIPT + $script
 # Install the VirtualBox guest additions if they aren't already installed.
-if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
+if [ ! -d /opt/VBoxGuestAdditions-4.3.4/ ]; then
     # Update remote package metadata.  'apt-get update' is idempotent.
     apt-get update -q
 
