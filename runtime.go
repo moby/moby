@@ -24,8 +24,10 @@ import (
 	"time"
 )
 
-// Set the max depth to the aufs restriction
-const MaxImageDepth = 42
+// Set the max depth to the aufs default that most
+// kernels are compiled with
+// For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
+const MaxImageDepth = 127
 
 var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
 
