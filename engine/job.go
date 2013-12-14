@@ -113,11 +113,19 @@ func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
 }
 
-func (job *Job) GetenvInt(key string) int64 {
+func (job *Job) GetenvInt64(key string) int64 {
+	return job.env.GetInt64(key)
+}
+
+func (job *Job) GetenvInt(key string) int {
 	return job.env.GetInt(key)
 }
 
-func (job *Job) SetenvInt(key string, value int64) {
+func (job *Job) SetenvInt64(key string, value int64) {
+	job.env.SetInt64(key, value)
+}
+
+func (job *Job) SetenvInt(key string, value int) {
 	job.env.SetInt(key, value)
 }
 

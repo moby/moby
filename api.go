@@ -216,7 +216,8 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return writeJSON(w, http.StatusOK, srv.DockerInfo())
+	srv.Eng.ServeHTTP(w, r)
+	return nil
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
