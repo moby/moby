@@ -143,7 +143,7 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
 
   config.vm.provider :vmware_fusion do |f, override|
     override.vm.box_url = VF_BOX_URI
-    override.vm.synced_folder ".", "/vagrant", disabled: true
+    override.vm.synced_folder ".", "/vagrant", :disabled => true
     override.vm.provision :shell, :inline => $script
     f.vmx["displayName"] = "docker"
   end
