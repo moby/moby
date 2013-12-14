@@ -377,13 +377,17 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
 		utils.Errorf("%s", err)
 	}
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
-	container := r.Form.Get("container")
-	author := r.Form.Get("author")
-	comment := r.Form.Get("comment")
-	id, err := srv.ContainerCommit(container, repo, tag, author, comment, config)
-	if err != nil {
+
+	job := srv.Eng.Job("commit", r.Form.Get("container"))
+	job.Setenv("repo", r.Form.Get("repo"))
+	job.Setenv("tag", r.Form.Get("tag"))
+	job.Setenv("author", r.Form.Get("author"))
+	job.Setenv("comment", r.Form.Get("comment"))
+	job.SetenvJson("config", config)
+
+	var id string
+	job.Stdout.AddString(&id)
+	if err := job.Run(); err != nil {
 		return err
 	}
 

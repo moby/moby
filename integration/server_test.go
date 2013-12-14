@@ -146,7 +146,6 @@ func TestCreateRmVolumes(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "/bin/cat"}, nil)
@@ -156,7 +155,11 @@ func TestCommit(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	if _, err := srv.ContainerCommit(id, "testrepo", "testtag", "", "", config); err != nil {
+	job := eng.Job("commit", id)
+	job.Setenv("repo", "testrepo")
+	job.Setenv("tag", "testtag")
+	job.SetenvJson("config", config)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -264,8 +267,11 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imageID, err := srv.ContainerCommit(containerID, "test", "", "", "", nil)
-	if err != nil {
+	job = eng.Job("commit", containerID)
+	job.Setenv("repo", "test")
+	var imageID string
+	job.Stdout.AddString(&imageID)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -288,8 +294,9 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = srv.ContainerCommit(containerID, "test", "", "", "", nil)
-	if err != nil {
+	job = eng.Job("commit", containerID)
+	job.Setenv("repo", "test")
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
