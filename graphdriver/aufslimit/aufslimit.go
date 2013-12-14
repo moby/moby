@@ -407,6 +407,12 @@ func (a *Driver) limitContainer(id string, quota int64) error {
     if err != nil {
         return err
     }
+
+    log.Printf("Changing mountpoint owner...")
+    err = os.Chown(containerFilesystem, 10000, 10000)
+    if err != nil {
+        return err
+    }
     return nil
 }
 
