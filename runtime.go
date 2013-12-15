@@ -499,7 +499,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	if err := os.Mkdir(container.root, 0700); err != nil {
 		return nil, nil, err
 	}
-	if err := os.Chown(container.root, 10000, 10000); err != nil {
+	if err := os.Chown(container.root, 100000, 100000); err != nil {
 		return nil, nil, err
 	}
 
@@ -679,7 +679,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	if err := os.Chown(runtimeRepo, 10000, 10000); err != nil {
+	if err := os.Chown(runtimeRepo, 100000, 100000); err != nil {
 		return nil, err
 	}
 
