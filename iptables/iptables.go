@@ -117,6 +117,50 @@ func (c *Chain) Remove() error {
 	return nil
 }
 
+func CreateNetworkMetricRules(protocol, port string) error {
+	if ExistsNetworkMetricRule(protocol, port)	== true {
+		return fmt.Errorf("Error when creating metrics rules for %s/%s", port, protocol)
+	}
+	
+	if output, err := Raw("-I", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error when creating metrics input rule: %s", output)
+	}
+
+	if output, err := Raw("-I", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error when creating metrics output rule: %s", output)
+	}
+
+	return nil
+}
+
+func DeleteNetworkMetricRules(protocol, port string) error {
+	if ExistsNetworkMetricRule(protocol, port)	== false {
+		return fmt.Errorf("Error when deleting metrics rules for %s/%s", port, protocol)
+	}
+	
+	if output, err := Raw("-D", "INPUT", "-p", protocol, "--dport", port); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error when deleting metrics input rule: %s", output)
+	}
+
+	if output, err := Raw("-D", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error when deleting metrics output rule: %s", output)
+	}
+
+	return nil
+}
+
+func ExistsNetworkMetricRule(protocol, port string) bool {
+	return Exists("INPUT", "-p", protocol, "--dport", port)
+}
+
 // Check if an existing rule exists
 func Exists(args ...string) bool {
 	if _, err := Raw(append([]string{"-C"}, args...)...); err != nil {

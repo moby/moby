@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/dotcloud/docker/iptables"
 )
 
 // Set the max depth to the aufs restriction
@@ -232,6 +233,18 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 	if err := container.Stop(3); err != nil {
 		return err
+	}
+
+	bindings := container.hostConfig.PortBindings
+	if bindings != nil {
+		for port, binding := range bindings { 
+			for i := 0; i < len(binding); i++ {
+				b := binding[i]
+				if !iptables.ExistsNetworkMetricRule(port.Proto(), b.HostPort) {
+					iptables.DeleteNetworkMetricRules(port.Proto(), b.HostPort)
+				}
+			}
+		}
 	}
 
 	if err := runtime.driver.Remove(container.ID); err != nil {
