@@ -11,7 +11,8 @@ branch named [zfs_driver].
 
 # Status
 
-Pre-alpha
+Alpha: The code is now capable of creating, running and destroying containers
+and images.
 
 The code is under development. Contributions in the form of suggestions,
 code-reviews, and patches are welcome.
