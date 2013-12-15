@@ -182,7 +182,7 @@ func (a *Driver) createDirsFor(id string) error {
 		if err := os.MkdirAll(path.Join(a.rootPath(), p, id), 0755); err != nil {
 			return err
 		}
-		if err := os.Chown(path.Join(a.rootPath(), p, id), 10000, 10000); err != nil {
+		if err := os.Chown(path.Join(a.rootPath(), p, id), 100000, 100000); err != nil {
 			return err
 		}
 	}
@@ -409,7 +409,7 @@ func (a *Driver) limitContainer(id string, quota int64) error {
     }
 
     log.Printf("Changing mountpoint owner...")
-    err = os.Chown(containerFilesystem, 10000, 10000)
+    err = os.Chown(containerFilesystem, 100000, 100000)
     if err != nil {
         return err
     }

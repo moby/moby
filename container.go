@@ -299,7 +299,7 @@ func (container *Container) generateEnvConfig(env []string) error {
 		return err
 	}
 	ioutil.WriteFile(container.EnvConfigPath(), data, 0600)
-	if err := os.Chown(container.EnvConfigPath(), 10000, 10000); err != nil {
+	if err := os.Chown(container.EnvConfigPath(), 100000, 100000); err != nil {
 		return err
 	}
 	return nil
@@ -984,7 +984,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 func (container *Container) buildHostnameAndHostsFiles(IP string) {
 	container.HostnamePath = path.Join(container.root, "hostname")
 	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
-	os.Chown(container.HostnamePath, 10000, 10000)
+	os.Chown(container.HostnamePath, 100000, 100000)
 
 	hostsContent := []byte(`
 127.0.0.1	localhost
@@ -1004,7 +1004,7 @@ ff02::2		ip6-allrouters
 	}
 
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
-	os.Chown(container.HostsPath, 10000, 10000)
+	os.Chown(container.HostsPath, 100000, 100000)
 }
 
 func (container *Container) allocateNetwork() error {
