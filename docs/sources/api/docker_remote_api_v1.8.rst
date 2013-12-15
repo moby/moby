@@ -935,6 +935,38 @@ Remove an image
         :statuscode 500: server error
 
 
+Copy files or folders from an image
+***********************************
+
+.. http:post:: /images/(name)/copy
+
+	Copy files or folders of image ``name``
+
+	**Example request**:
+
+	.. sourcecode:: http
+
+	   POST /images/test/copy HTTP/1.1
+	   Content-Type: application/json
+
+	   {
+		"Resource":"test.txt"
+	   }
+
+	**Example response**:
+
+	.. sourcecode:: http
+
+	   HTTP/1.1 200 OK
+	   Content-Type: application/octet-stream
+
+	   {{ STREAM }}
+
+	:statuscode 200: no error
+	:statuscode 404: no such image
+	:statuscode 500: server error
+
+
 Search images
 *************
 

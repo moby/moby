@@ -882,6 +882,34 @@ func (srv *Server) ImageTag(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func (srv *Server) ImageCopy(name string, resource string, out io.Writer) error {
+	rootRepo, err := srv.runtime.repositories.Get(name)
+	if err != nil {
+		return err
+	}
+	if rootRepo != nil {
+		// raise error about inexact name?
+		for _, id := range rootRepo {
+			name = id
+			break
+		}
+	}
+	image, err := srv.ImageInspect(name)
+	if err != nil {
+		return err
+	}
+
+	data, err := image.Copy(resource)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(out, data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
 	history, err := r.GetRemoteHistory(imgID, endpoint, token)
 	if err != nil {

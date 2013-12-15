@@ -175,6 +175,11 @@ func (img *Image) TarLayer() (archive.Archive, error) {
 	}
 }
 
+func (img *Image) Copy(resource string) (archive.Archive, error) {
+	// TODO: extract only 'resource'
+	return img.TarLayer();
+}
+
 func ValidateID(id string) error {
 	if id == "" {
 		return fmt.Errorf("Image id can't be empty")
