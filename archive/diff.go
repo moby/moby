@@ -49,6 +49,23 @@ func ApplyLayer(dest string, layer Archive) error {
 			return err
 		}
 
+		// Normalize name, for safety and for a simple is-root check
+		hdr.Name = filepath.Clean(hdr.Name)
+
+		if !strings.HasSuffix(hdr.Name, "/") {
+			// Not the root directory, ensure that the parent directory exists
+			// This happened in some tests where an image had a tarfile without any
+			// parent directories
+			parent := filepath.Dir(hdr.Name)
+			parentPath := filepath.Join(dest, parent)
+			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
+				err = os.MkdirAll(parentPath, 600)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		// Skip AUFS metadata dirs
 		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
 			continue
