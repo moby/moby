@@ -889,12 +889,25 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if version < 1.3 {
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
-	remoteURL := r.FormValue("remote")
-	repoName := r.FormValue("t")
-	rawSuppressOutput := r.FormValue("q")
-	rawNoCache := r.FormValue("nocache")
-	rawRm := r.FormValue("rm")
-	repoName, tag := utils.ParseRepositoryTag(repoName)
+	var (
+		remoteURL         = r.FormValue("remote")
+		repoName          = r.FormValue("t")
+		rawSuppressOutput = r.FormValue("q")
+		rawNoCache        = r.FormValue("nocache")
+		rawRm             = r.FormValue("rm")
+		authEncoded       = r.Header.Get("X-Registry-Auth")
+		authConfig        = &auth.AuthConfig{}
+		tag               string
+	)
+	repoName, tag = utils.ParseRepositoryTag(repoName)
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	}
 
 	var context io.Reader
 
@@ -962,7 +975,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			Writer:          utils.NewWriteFlusher(w),
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf)
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig)
 	id, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {
