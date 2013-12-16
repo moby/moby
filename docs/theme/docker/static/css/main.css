@@ -186,8 +186,15 @@ body {
 .main-row {
   margin-top: 40px;
 }
+.sidebar {
+  width: 215px;
+  float: left;
+}
 .main-content {
   padding: 16px 18px inherit;
+  margin-left: 230px;
+  /* space for sidebar */
+
 }
 /* =======================
    Social footer
@@ -410,7 +417,7 @@ dt:hover > a.headerlink {
 .admonition.seealso {
   border-color: #23cb1f;
 }
-
+/* Add styles for other types of comments */
 .versionchanged,
 .versionadded,
 .versionmodified,
@@ -418,15 +425,12 @@ dt:hover > a.headerlink {
   font-size: larger;
   font-weight: bold;
 }
-
 .versionchanged {
   color: lightseagreen;
 }
-
 .versionadded {
   color: mediumblue;
 }
-
 .deprecated {
   color: orangered;
 }
