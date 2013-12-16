@@ -868,7 +868,7 @@ func linkLxcStart(root string) error {
 	}
 	targetPath := path.Join(root, "lxc-start-unconfined")
 
-	if _, err := os.Stat(targetPath); err != nil && !os.IsNotExist(err) {
+	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	} else if err == nil {
 		if err := os.Remove(targetPath); err != nil {
