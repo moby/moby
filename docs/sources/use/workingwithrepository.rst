@@ -1,11 +1,11 @@
-:title: Working With Repositories
+:title: Share Images via Repositories
 :description: Repositories allow users to share images.
 :keywords: repo, repositories, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
-Working with Repositories
-=========================
+Share Images via Repositories
+=============================
 
 A *repository* is a hosted collection of tagged :ref:`images
 <image_def>` that together create the file system for a container. The
@@ -151,6 +151,41 @@ or tag.
     $ sudo docker push myname/kickassapp
 
 .. _using_private_repositories:
+
+Trusted Builds
+--------------
+
+Trusted Builds automate the building and updating of images from GitHub, directly 
+on docker.io servers. It works by adding a commit hook to your selected repository,
+triggering a build and update when you push a commit.
+
+To setup a trusted build
+++++++++++++++++++++++++
+
+#. Create a `Docker Index account <https://index.docker.io/>`_ and login.
+#. Link your GitHub account through the ``Link Accounts`` menu.
+#. `Configure a Trusted build <https://index.docker.io/builds/>`_.
+#. Pick a GitHub project that has a ``Dockerfile`` that you want to build.
+#. Pick the branch you want to build (the default is the  ``master`` branch).
+#. Give the Trusted Build a name.
+#. Assign an optional Docker tag to the Build.
+#. Specify where the ``Dockerfile`` is located. The default is ``/``.
+
+Once the Trusted Build is configured it will automatically trigger a build, and
+in a few minutes, if there are no errors, you will see your new trusted build
+on the Docker Index. It will will stay in sync with your GitHub repo until you
+deactivate the Trusted Build.
+
+If you want to see the status of your Trusted Builds you can go to your
+`Trusted Builds page <https://index.docker.io/builds/>`_ on the Docker index,
+and it will show you the status of your builds, and the build history.
+
+Once you've created a Trusted Build you can deactive or delete it. You cannot
+however push to a Trusted Build with the ``docker push`` command. You can only
+manage it by committing code to your GitHub repository.
+
+You can create multiple Trusted Builds per repository and configure them to
+point to specific ``Dockerfile``'s or Git branches.
 
 Private Repositories
 --------------------

@@ -18,16 +18,22 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
 
-// Set the max depth to the aufs restriction
-const MaxImageDepth = 42
+// Set the max depth to the aufs default that most
+// kernels are compiled with
+// For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
+const MaxImageDepth = 127
 
-var defaultDns = []string{"8.8.8.8", "8.8.4.4"}
+var (
+	defaultDns         = []string{"8.8.8.8", "8.8.4.4"}
+	validContainerName = regexp.MustCompile(`^/?[a-zA-Z0-9_-]+$`)
+)
 
 type Capabilities struct {
 	MemoryLimit            bool
@@ -418,7 +424,12 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		if err != nil {
 			name = utils.TruncateID(id)
 		}
+	} else {
+		if !validContainerName.MatchString(name) {
+			return nil, nil, fmt.Errorf("Invalid container name (%s), only [a-zA-Z0-9_-] are allowed", name)
+		}
 	}
+
 	if name[0] != '/' {
 		name = "/" + name
 	}
@@ -857,7 +868,7 @@ func linkLxcStart(root string) error {
 	}
 	targetPath := path.Join(root, "lxc-start-unconfined")
 
-	if _, err := os.Stat(targetPath); err != nil && !os.IsNotExist(err) {
+	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	} else if err == nil {
 		if err := os.Remove(targetPath); err != nil {

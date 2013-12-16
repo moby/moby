@@ -574,7 +574,11 @@ func (container *Container) Start() (err error) {
 
 	// Networking
 	if !container.Config.NetworkDisabled {
-		params = append(params, "-g", container.network.Gateway.String())
+		network := container.NetworkSettings
+		params = append(params,
+			"-g", network.Gateway,
+			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
+		)
 	}
 
 	// User
@@ -586,12 +590,15 @@ func (container *Container) Start() (err error) {
 	env := []string{
 		"HOME=/",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"container=lxc",
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
+	}
+
+	if container.hostConfig.Privileged {
+		params = append(params, "-privileged")
 	}
 
 	// Init any links between the parent and children
@@ -774,14 +781,14 @@ func (container *Container) getBindMap() (map[string]BindMap, error) {
 		}
 		binds[path.Clean(dst)] = bindMap
 	}
-  return binds, nil
+	return binds, nil
 }
 
 func (container *Container) createVolumes() error {
-  binds, err := container.getBindMap()
-  if err != nil {
-    return err
-  }
+	binds, err := container.getBindMap()
+	if err != nil {
+		return err
+	}
 	volumesDriver := container.runtime.volumes.driver
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
@@ -801,15 +808,10 @@ func (container *Container) createVolumes() error {
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
 			}
-			if file, err := os.Open(bindMap.SrcPath); err != nil {
+			if stat, err := os.Lstat(bindMap.SrcPath); err != nil {
 				return err
 			} else {
-				defer file.Close()
-				if stat, err := file.Stat(); err != nil {
-					return err
-				} else {
-					volIsDir = stat.IsDir()
-				}
+				volIsDir = stat.IsDir()
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
@@ -829,26 +831,25 @@ func (container *Container) createVolumes() error {
 		}
 		container.Volumes[volPath] = srcPath
 		container.VolumesRW[volPath] = srcRW
+
 		// Create the mountpoint
-		rootVolPath := path.Join(container.RootfsPath(), volPath)
-		if volIsDir {
-			if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-				return err
-			}
+		volPath = path.Join(container.RootfsPath(), volPath)
+		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
+		if err != nil {
+			panic(err)
 		}
 
-		volPath = path.Join(container.RootfsPath(), volPath)
-		if _, err := os.Stat(volPath); err != nil {
+		if _, err := os.Stat(rootVolPath); err != nil {
 			if os.IsNotExist(err) {
 				if volIsDir {
-					if err := os.MkdirAll(volPath, 0755); err != nil {
+					if err := os.MkdirAll(rootVolPath, 0755); err != nil {
 						return err
 					}
 				} else {
-					if err := os.MkdirAll(path.Dir(volPath), 0755); err != nil {
+					if err := os.MkdirAll(path.Dir(rootVolPath), 0755); err != nil {
 						return err
 					}
-					if f, err := os.OpenFile(volPath, os.O_CREATE, 0755); err != nil {
+					if f, err := os.OpenFile(rootVolPath, os.O_CREATE, 0755); err != nil {
 						return err
 					} else {
 						f.Close()

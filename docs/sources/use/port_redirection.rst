@@ -1,12 +1,12 @@
-:title: Port redirection
+:title: Redirect Ports
 :description: usage about port redirection
 :keywords: Usage, basic port, docker, documentation, examples
 
 
 .. _port_redirection:
 
-Port redirection
-================
+Redirect Ports
+==============
 
 Interacting with a service is commonly done through a connection to a
 port. When this service runs inside a container, one can connect to

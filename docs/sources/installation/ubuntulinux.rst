@@ -63,7 +63,10 @@ Installation
    These instructions have changed for 0.6. If you are upgrading from
    an earlier version, you will need to follow them again.
 
-Docker is available as a Debian package, which makes installation easy.
+Docker is available as a Debian package, which makes installation
+easy. **See the :ref:`installmirrors` section below if you are not in
+the United States.** Other sources of the Debian packages may be
+faster for you to install.
 
 First add the Docker repository key to your local keychain. You can use the
 ``apt-key`` command to check the fingerprint matches: ``36A1 D786 9245 C895 0F96
@@ -74,7 +77,7 @@ First add the Docker repository key to your local keychain. You can use the
    sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
 
 Add the Docker repository to your apt sources list, update and install the
-``lxc-docker`` package. 
+``lxc-docker`` package.
 
 *You may receive a warning that the package isn't trusted. Answer yes to
 continue installation.*
@@ -92,7 +95,7 @@ continue installation.*
 
     .. code-block:: bash
 
-        curl -s http://get.docker.io/ubuntu/ | sudo sh
+        curl -s https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.
@@ -199,3 +202,25 @@ incoming connections on the Docker port (default 4243):
 
    sudo ufw allow 4243/tcp
 
+.. _installmirrors:
+
+Mirrors
+^^^^^^^
+
+You should ``ping get.docker.io`` and compare the latency to the
+following mirrors, and pick whichever one is best for you.
+
+Yandex
+------
+
+`Yandex <http://yandex.ru/>`_ in Russia is mirroring the Docker Debian
+packages, updating every 6 hours. Substitute
+``http://mirror.yandex.ru/mirrors/docker/`` for
+``http://get.docker.io/ubuntu`` in the instructions above. For example:
+
+.. code-block:: bash
+
+   sudo sh -c "echo deb http://mirror.yandex.ru/mirrors/docker/ docker main\
+   > /etc/apt/sources.list.d/docker.list"
+   sudo apt-get update
+   sudo apt-get install lxc-docker

@@ -192,13 +192,6 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 		} else {
 			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
 		}
-	} else if reqStatusCode == 403 {
-		if loginAgainstOfficialIndex {
-			return "", fmt.Errorf("Login: Your account hasn't been activated. " +
-				"Please check your e-mail for a confirmation link.")
-		}
-		return "", fmt.Errorf("Login: Your account hasn't been activated. " +
-			"Please see the documentation of the registry " + serverAddress + " for instructions how to activate it.")
 	} else if reqStatusCode == 400 {
 		if string(reqBody) == "\"Username or email already exists\"" {
 			req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
@@ -216,9 +209,13 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 				status = "Login Succeeded"
 			} else if resp.StatusCode == 401 {
 				return "", fmt.Errorf("Wrong login/password, please try again")
+			} else if resp.StatusCode == 403 {
+				if loginAgainstOfficialIndex {
+					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
+				}
+				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
 			} else {
-				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-					resp.StatusCode, resp.Header)
+				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 			}
 		} else {
 			return "", fmt.Errorf("Registration: %s", reqBody)
@@ -236,7 +233,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return "", err
-    	}
+		}
 		if resp.StatusCode == 200 {
 			status = "Login Succeeded"
 		} else if resp.StatusCode == 401 {

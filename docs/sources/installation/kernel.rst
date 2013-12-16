@@ -111,3 +111,40 @@ And replace it by the following one::
     GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 Then run ``update-grub``, and reboot.
+
+Details
+-------
+
+Networking:
+
+- CONFIG_BRIDGE
+- CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
+- CONFIG_NF_NAT
+- CONFIG_NF_NAT_IPV4
+- CONFIG_NF_NAT_NEEDED
+
+LVM:
+
+- CONFIG_BLK_DEV_DM
+- CONFIG_DM_THIN_PROVISIONING
+- CONFIG_EXT4_FS
+
+Namespaces:
+
+- CONFIG_NAMESPACES
+- CONFIG_UTS_NS
+- CONFIG_IPC_NS
+- CONFIG_UID_NS
+- CONFIG_PID_NS
+- CONFIG_NET_NS
+
+Cgroups:
+
+- CONFIG_CGROUPS
+
+Cgroup controllers (optional but highly recommended):
+
+- CONFIG_CGROUP_CPUACCT
+- CONFIG_BLK_CGROUP
+- CONFIG_MEMCG
+- CONFIG_MEMCG_SWAP

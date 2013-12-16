@@ -1,15 +1,16 @@
-:title: Working with Links and Names
-:description: How to create and use links and names
-:keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
+:title: Link Containers
+:description: How to create and use both links and names
+:keywords: Examples, Usage, links, linking, docker, documentation, examples, names, name, container naming
 
 .. _working_with_links_names:
 
-Working with Links and Names
-============================
+Link Containers
+===============
 
-From version 0.6.5 you are now able to ``name`` a container and ``link`` it to another
-container by referring to its name. This will create a parent -> child relationship
-where the parent container can see selected information about its child.
+From version 0.6.5 you are now able to ``name`` a container and
+``link`` it to another container by referring to its name. This will
+create a parent -> child relationship where the parent container can
+see selected information about its child.
 
 .. _run_name:
 
@@ -18,8 +19,9 @@ Container Naming
 
 .. versionadded:: v0.6.5
 
-You can now name your container by using the ``-name`` flag. If no name is provided, Docker
-will automatically generate a name. You can see this name using the ``docker ps`` command.
+You can now name your container by using the ``-name`` flag. If no
+name is provided, Docker will automatically generate a name. You can
+see this name using the ``docker ps`` command.
 
 .. code-block:: bash
 
@@ -38,47 +40,53 @@ Links: service discovery for docker
 
 .. versionadded:: v0.6.5
 
-Links allow containers to discover and securely communicate with each other by using the
-flag ``-link name:alias``. Inter-container communication can be disabled with the daemon
-flag ``-icc=false``. With this flag set to false, Container A cannot access Container B
-unless explicitly allowed via a link. This is a huge win for securing your containers.
-When two containers are linked together Docker creates a parent child relationship
-between the containers. The parent container will be able to access information via
-environment variables of the child such as name, exposed ports, IP and other selected
-environment variables.
+Links allow containers to discover and securely communicate with each
+other by using the flag ``-link name:alias``. Inter-container
+communication can be disabled with the daemon flag
+``-icc=false``. With this flag set to ``false``, Container A cannot
+access Container B unless explicitly allowed via a link. This is a
+huge win for securing your containers.  When two containers are linked
+together Docker creates a parent child relationship between the
+containers. The parent container will be able to access information
+via environment variables of the child such as name, exposed ports, IP
+and other selected environment variables.
 
-When linking two containers Docker will use the exposed ports of the container to create
-a secure tunnel for the parent to access. If a database container only exposes port 8080
-then the linked container will only be allowed to access port 8080 and nothing else if
+When linking two containers Docker will use the exposed ports of the
+container to create a secure tunnel for the parent to access. If a
+database container only exposes port 8080 then the linked container
+will only be allowed to access port 8080 and nothing else if
 inter-container communication is set to false.
 
+For example, there is an image called ``crosbymichael/redis`` that exposes the
+port 6379 and starts the Redis server. Let's name the container as ``redis``
+based on that image and run it as daemon.
+
 .. code-block:: bash
 
-    # Example: there is an image called crosbymichael/redis that exposes the port 6379 and starts redis-server.
-    # Let's name the container as "redis" based on that image and run it as daemon.
     $ sudo docker run -d -name redis crosbymichael/redis
 
-We can issue all the commands that you would expect using the name "redis"; start, stop,
-attach, using the name for our container. The name also allows us to link other containers
-into this one.
+We can issue all the commands that you would expect using the name
+``redis``; start, stop, attach, using the name for our container. The
+name also allows us to link other containers into this one.
 
-Next, we can start a new web application that has a dependency on Redis and apply a link
-to connect both containers. If you noticed when running our Redis server we did not use
-the -p flag to publish the Redis port to the host system. Redis exposed port 6379 and
-this is all we need to establish a link.
+Next, we can start a new web application that has a dependency on
+Redis and apply a link to connect both containers. If you noticed when
+running our Redis server we did not use the ``-p`` flag to publish the
+Redis port to the host system. Redis exposed port 6379 and this is all
+we need to establish a link.
 
 .. code-block:: bash
 
-    # Linking the redis container as a child
     $ sudo docker run -t -i -link redis:db -name webapp ubuntu bash
 
-When you specified -link redis:db you are telling docker to link the container named redis
-into this new container with the alias db. Environment variables are prefixed with the alias
-so that the parent container can access network and environment information from the containers
-that are linked into it.
+When you specified ``-link redis:db`` you are telling Docker to link
+the container named ``redis`` into this new container with the alias
+``db``. Environment variables are prefixed with the alias so that the
+parent container can access network and environment information from
+the containers that are linked into it.
 
-If we inspect the environment variables of the second container, we would see all the information
-about the child container.
+If we inspect the environment variables of the second container, we
+would see all the information about the child container.
 
 .. code-block:: bash
 
@@ -100,14 +108,17 @@ about the child container.
     _=/usr/bin/env
     root@4c01db0b339c:/#
 
-Accessing the network information along with the environment of the child container allows
-us to easily connect to the Redis service on the specific IP and port in the environment.
+Accessing the network information along with the environment of the
+child container allows us to easily connect to the Redis service on
+the specific IP and port in the environment.
 
-Running ``docker ps`` shows the 2 containers, and the webapp/db alias name for the redis container.
+Running ``docker ps`` shows the 2 containers, and the ``webapp/db``
+alias name for the redis container.
 
 .. code-block:: bash
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
-    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db     
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
+    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
+

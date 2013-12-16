@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -34,6 +35,9 @@ type Engine struct {
 	handlers map[string]Handler
 	hack     Hack // data for temporary hackery (see hack.go)
 	id       string
+	Stdout   io.Writer
+	Stderr   io.Writer
+	Stdin    io.Reader
 }
 
 func (eng *Engine) Root() string {
@@ -82,6 +86,9 @@ func New(root string) (*Engine, error) {
 		root:     root,
 		handlers: make(map[string]Handler),
 		id:       utils.RandomString(),
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Stdin:    os.Stdin,
 	}
 	// Copy existing global handlers
 	for k, v := range globalHandlers {
@@ -104,9 +111,9 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stdin:  NewInput(),
 		Stdout: NewOutput(),
 		Stderr: NewOutput(),
+		env:    &Env{},
 	}
-	job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
-	job.Stderr.Add(utils.NopWriteCloser(os.Stderr))
+	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	handler, exists := eng.handlers[name]
 	if exists {
 		job.handler = handler
@@ -116,5 +123,5 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
 	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(os.Stderr, prefixedFormat, args...)
+	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
 }

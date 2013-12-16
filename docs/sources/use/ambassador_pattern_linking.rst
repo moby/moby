@@ -1,11 +1,11 @@
-:title: Ambassador pattern linking
+:title: Link via an Ambassador Container
 :description: Using the Ambassador pattern to abstract (network) services
 :keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
 
 .. _ambassador_pattern_linking:
 
-Ambassador pattern linking
-==========================
+Link via an Ambassador Container
+================================
 
 Rather than hardcoding network links between a service consumer and provider, Docker
 encourages service portability.
@@ -27,7 +27,7 @@ you can add ambassadors
 
 	(consumer) --> (redis-ambassador) ---network---> (redis-ambassador) --> (redis)
 
-When you need to rewire your consumer to talk to a different resdis server, you 
+When you need to rewire your consumer to talk to a different redis server, you 
 can just restart the ``redis-ambassador`` container that the consumer is connected to.
 
 This pattern also allows you to transparently move the redis server to a different
@@ -161,11 +161,12 @@ variable using the ``-e`` command line option.
 local ``1234`` port to the remote IP and port - in this case ``192.168.1.52:6379``.
 
 
-.. code-block:: Dockerfile
+::
 
 	#
 	#
-	# first you need to build the docker-ut image using ./contrib/mkimage-unittest.sh
+	# first you need to build the docker-ut image 
+	# using ./contrib/mkimage-unittest.sh
 	# then 
 	#   docker build -t SvenDowideit/ambassador .
 	#   docker tag SvenDowideit/ambassador ambassador

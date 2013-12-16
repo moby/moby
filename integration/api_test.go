@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -35,12 +36,18 @@ func TestGetVersion(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	v := &docker.APIVersion{}
-	if err = json.Unmarshal(r.Body.Bytes(), v); err != nil {
+	out := engine.NewOutput()
+	v, err := out.AddEnv()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Version != docker.VERSION {
-		t.Errorf("Expected version %s, %s found", docker.VERSION, v.Version)
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	expected := docker.VERSION
+	if result := v.Get("Version"); result != expected {
+		t.Errorf("Expected version %s, %s found", expected, result)
 	}
 }
 
@@ -65,13 +72,17 @@ func TestGetInfo(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	infos := &docker.APIInfo{}
-	err = json.Unmarshal(r.Body.Bytes(), infos)
+	out := engine.NewOutput()
+	i, err := out.AddEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Images != len(initialImages) {
-		t.Errorf("Expected images: %d, %d found", len(initialImages), infos.Images)
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	if images := i.GetInt("Images"); images != len(initialImages) {
+		t.Errorf("Expected images: %d, %d found", len(initialImages), images)
 	}
 }
 
@@ -1113,7 +1124,7 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerTag(unitTestImageName, "test", "test", false); err != nil {
+	if err := eng.Job("tag", unitTestImageName, "test", "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 	images, err := srv.Images(false, "")

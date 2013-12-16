@@ -29,23 +29,6 @@ type (
 		VirtualSize int64
 	}
 
-	APIInfo struct {
-		Debug              bool
-		Containers         int
-		Images             int
-		Driver             string      `json:",omitempty"`
-		DriverStatus       [][2]string `json:",omitempty"`
-		NFd                int         `json:",omitempty"`
-		NGoroutines        int         `json:",omitempty"`
-		MemoryLimit        bool        `json:",omitempty"`
-		SwapLimit          bool        `json:",omitempty"`
-		IPv4Forwarding     bool        `json:",omitempty"`
-		LXCVersion         string      `json:",omitempty"`
-		NEventsListener    int         `json:",omitempty"`
-		KernelVersion      string      `json:",omitempty"`
-		IndexServerAddress string      `json:",omitempty"`
-	}
-
 	APITop struct {
 		Titles    []string
 		Processes [][]string
@@ -93,12 +76,6 @@ type (
 		PublicPort  int64
 		Type        string
 		IP          string
-	}
-
-	APIVersion struct {
-		Version   string
-		GitCommit string `json:",omitempty"`
-		GoVersion string `json:",omitempty"`
 	}
 
 	APIWait struct {
