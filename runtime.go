@@ -240,7 +240,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 		for port, binding := range bindings { 
 			for i := 0; i < len(binding); i++ {
 				b := binding[i]
-				if !iptables.ExistsNetworkMetricRule(port.Proto(), b.HostPort) {
+				if iptables.ExistsNetworkMetricRule(port.Proto(), b.HostPort) {
 					iptables.DeleteNetworkMetricRules(port.Proto(), b.HostPort)
 				}
 			}

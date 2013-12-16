@@ -122,13 +122,13 @@ func CreateNetworkMetricRules(protocol, port string) error {
 		return fmt.Errorf("Error when creating metrics rules for %s/%s", port, protocol)
 	}
 	
-	if output, err := Raw("-I", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+	if input, err := Raw("-I", "INPUT", "-p", protocol, "--dport", port); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error when creating metrics input rule: %s", output)
+	} else if len(input) != 0 {
+		return fmt.Errorf("Error when creating metrics input rule: %s", input)
 	}
 
-	if output, err := Raw("-I", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+	if output, err := Raw("-I", "OUTPUT", "-p", protocol, "--sport", port); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error when creating metrics output rule: %s", output)
@@ -142,13 +142,13 @@ func DeleteNetworkMetricRules(protocol, port string) error {
 		return fmt.Errorf("Error when deleting metrics rules for %s/%s", port, protocol)
 	}
 	
-	if output, err := Raw("-D", "INPUT", "-p", protocol, "--dport", port); err != nil {
+	if input, err := Raw("-D", "INPUT", "-p", protocol, "--dport", port); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error when deleting metrics input rule: %s", output)
+	} else if len(input) != 0 {
+		return fmt.Errorf("Error when deleting metrics input rule: %s", input)
 	}
 
-	if output, err := Raw("-D", "OUTPUT", "-p", protocol, "--dport", port); err != nil {
+	if output, err := Raw("-D", "OUTPUT", "-p", protocol, "--sport", port); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error when deleting metrics output rule: %s", output)
@@ -158,7 +158,12 @@ func DeleteNetworkMetricRules(protocol, port string) error {
 }
 
 func ExistsNetworkMetricRule(protocol, port string) bool {
-	return Exists("INPUT", "-p", protocol, "--dport", port)
+	input := Exists("INPUT", "-p", protocol, "--dport", port)
+	output := Exists("OUTPUT", "-p", protocol, "--sport", port)
+	fmt.Println("EXISTS INPUT:", input)
+	fmt.Println("EXISTS OUTPUT:", output)
+	fmt.Println("EXISTS:", ((input == output) && (input == true)))
+	return ((input == output) && (input == true))
 }
 
 // Check if an existing rule exists
