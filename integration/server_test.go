@@ -409,3 +409,50 @@ func TestImageInsert(t *testing.T) {
 		t.Fatalf("expected no error, but got %v", err)
 	}
 }
+
+// Regression test for being able to untag an image with an existing
+// container
+func TestDeleteTagWithExistingContainers(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+
+	srv := mkServerFromEngine(eng, t)
+
+	// Tag the image
+	if err := eng.Job("tag", unitTestImageID, "utest", "tag1").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a container from the image
+	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createNamedTestContainer(eng, config, t, "testingtags")
+	if id == "" {
+		t.Fatal("No id returned")
+	}
+
+	containers := srv.Containers(true, false, -1, "", "")
+
+	if len(containers) != 1 {
+		t.Fatalf("Expected 1 container got %d", len(containers))
+	}
+
+	// Try to remove the tag
+	imgs, err := srv.ImageDelete("utest:tag1", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(imgs) != 1 {
+		t.Fatalf("Should only have deleted one untag %d", len(imgs))
+	}
+
+	untag := imgs[0]
+
+	if untag.Untagged != unitTestImageID {
+		t.Fatalf("Expected %s got %s", unitTestImageID, untag.Untagged)
+	}
+}
