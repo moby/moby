@@ -1,7 +1,10 @@
 package archive
 
 import (
+	"archive/tar"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -310,24 +313,109 @@ func ChangesSize(newDir string, changes []Change) int64 {
 	return size
 }
 
+func major(device uint64) uint64 {
+	return (device >> 8) & 0xfff
+}
+
+func minor(device uint64) uint64 {
+	return (device & 0xff) | ((device >> 12) & 0xfff00)
+}
+
 func ExportChanges(dir string, changes []Change) (Archive, error) {
-	files := make([]string, 0)
-	deletions := make([]string, 0)
-	for _, change := range changes {
-		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
-			files = append(files, change.Path)
+	reader, writer := io.Pipe()
+	tw := tar.NewWriter(writer)
+
+	go func() {
+		// In general we log errors here but ignore them because
+		// during e.g. a diff operation the container can continue
+		// mutating the filesystem and we can see transient errors
+		// from this
+		for _, change := range changes {
+			if change.Kind == ChangeDelete {
+				whiteOutDir := filepath.Dir(change.Path)
+				whiteOutBase := filepath.Base(change.Path)
+				whiteOut := filepath.Join(whiteOutDir, ".wh."+whiteOutBase)
+				hdr := &tar.Header{
+					Name:       whiteOut[1:],
+					Size:       0,
+					ModTime:    time.Now(),
+					AccessTime: time.Now(),
+					ChangeTime: time.Now(),
+				}
+				if err := tw.WriteHeader(hdr); err != nil {
+					utils.Debugf("Can't write whiteout header: %s\n", err)
+				}
+			} else {
+				path := filepath.Join(dir, change.Path)
+
+				var stat syscall.Stat_t
+				if err := syscall.Lstat(path, &stat); err != nil {
+					utils.Debugf("Can't stat source file: %s\n", err)
+					continue
+				}
+
+				mtim := getLastModification(&stat)
+				atim := getLastAccess(&stat)
+				hdr := &tar.Header{
+					Name:       change.Path[1:],
+					Mode:       int64(stat.Mode & 07777),
+					Uid:        int(stat.Uid),
+					Gid:        int(stat.Gid),
+					ModTime:    time.Unix(mtim.Sec, mtim.Nsec),
+					AccessTime: time.Unix(atim.Sec, atim.Nsec),
+				}
+
+				if stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR {
+					hdr.Typeflag = tar.TypeDir
+				} else if stat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
+					hdr.Typeflag = tar.TypeSymlink
+					if link, err := os.Readlink(path); err != nil {
+						utils.Debugf("Can't readlink source file: %s\n", err)
+						continue
+					} else {
+						hdr.Linkname = link
+					}
+				} else if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
+					stat.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
+					if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK {
+						hdr.Typeflag = tar.TypeBlock
+					} else {
+						hdr.Typeflag = tar.TypeChar
+					}
+					hdr.Devmajor = int64(major(stat.Rdev))
+					hdr.Devminor = int64(minor(stat.Rdev))
+				} else if stat.Mode&syscall.S_IFIFO == syscall.S_IFIFO ||
+					stat.Mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
+					hdr.Typeflag = tar.TypeFifo
+				} else if stat.Mode&syscall.S_IFREG == syscall.S_IFREG {
+					hdr.Typeflag = tar.TypeReg
+					hdr.Size = stat.Size
+				} else {
+					utils.Debugf("Unknown file type: %s\n", path)
+					continue
+				}
+
+				if err := tw.WriteHeader(hdr); err != nil {
+					utils.Debugf("Can't write tar header: %s\n", err)
+				}
+				if hdr.Typeflag == tar.TypeReg {
+					if file, err := os.Open(path); err != nil {
+						utils.Debugf("Can't open file: %s\n", err)
+					} else {
+						_, err := io.Copy(tw, file)
+						if err != nil {
+							utils.Debugf("Can't copy file: %s\n", err)
+						}
+						file.Close()
+					}
+				}
+			}
 		}
-		if change.Kind == ChangeDelete {
-			base := filepath.Base(change.Path)
-			dir := filepath.Dir(change.Path)
-			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+		// Make sure to check the error on Close.
+		if err := tw.Close(); err != nil {
+			utils.Debugf("Can't close layer: %s\n", err)
 		}
-	}
-	// FIXME: Why do we create whiteout files inside Tar code ?
-	return TarFilter(dir, &TarOptions{
-		Compression: Uncompressed,
-		Includes:    files,
-		Recursive:   false,
-		CreateFiles: deletions,
-	})
+		writer.Close()
+	}()
+	return reader, nil
 }
