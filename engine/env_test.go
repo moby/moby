@@ -87,11 +87,13 @@ func TestSetenvList(t *testing.T) {
 func TestImportEnv(t *testing.T) {
 	type dummy struct {
 		DummyInt         int
+		DummyFloat64     float64
+		DummyString      string
 		DummyStringArray []string
 	}
 
 	job := mkJob(t, "dummy")
-	if err := job.ImportEnv(&dummy{42, []string{"foo", "bar"}}); err != nil {
+	if err := job.ImportEnv(&dummy{42, 44.55, "84", []string{"foo", "bar"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -102,6 +104,14 @@ func TestImportEnv(t *testing.T) {
 
 	if dmy.DummyInt != 42 {
 		t.Fatalf("Expected 42, got %d", dmy.DummyInt)
+	}
+
+	if dmy.DummyFloat64 != 44.55 {
+		t.Fatalf("Expected 44.55, got %f", dmy.DummyFloat64)
+	}
+
+	if dmy.DummyString != "84" {
+		t.Fatalf("Expected 84, got %s", dmy.DummyString)
 	}
 
 	if len(dmy.DummyStringArray) != 2 || dmy.DummyStringArray[0] != "foo" || dmy.DummyStringArray[1] != "bar" {
