@@ -299,28 +299,33 @@ func assertRAMInBytes(t *testing.T, size string, expectError bool, expectedBytes
 }
 
 func TestParseHost(t *testing.T) {
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "0.0.0.0"); err != nil || addr != "tcp://0.0.0.0:4243" {
+	var (
+		defaultHttpHost = "127.0.0.1"
+		defaultHttpPort = 4243
+		defaultUnix     = "/var/run/docker.sock"
+	)
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "0.0.0.0"); err != nil || addr != "tcp://0.0.0.0:4243" {
 		t.Errorf("0.0.0.0 -> expected tcp://0.0.0.0:4243, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
 		t.Errorf("0.0.0.1:5555 -> expected tcp://0.0.0.1:5555, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
 		t.Errorf(":6666 -> expected tcp://127.0.0.1:6666, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
 		t.Errorf("tcp://:7777 -> expected tcp://127.0.0.1:7777, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "unix://"); err != nil || addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "unix://"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "udp://127.0.0.1"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "udp://127.0.0.1"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
-	if addr, err := ParseHost("127.0.0.1", 4243, "/var/run/docker.sock", "udp://127.0.0.1:4243"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "udp://127.0.0.1:4243"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
 }
