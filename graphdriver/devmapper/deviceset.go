@@ -568,6 +568,15 @@ func (devices *DeviceSet) removeDevice(hash string) error {
 		return fmt.Errorf("hash %s doesn't exists", hash)
 	}
 
+	// This is a workaround for the kernel not discarding block so
+	// on the thin pool when we remove a thinp device, so we do it
+	// manually
+	if err := devices.activateDeviceIfNeeded(hash); err == nil {
+		if err := BlockDeviceDiscard(info.DevName()); err != nil {
+			utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
+		}
+	}
+
 	devinfo, _ := getInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
 		if err := removeDevice(info.Name()); err != nil {

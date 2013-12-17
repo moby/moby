@@ -66,6 +66,7 @@ type (
 // IOCTL consts
 const (
 	BlkGetSize64 = C.BLKGETSIZE64
+	BlkDiscard   = C.BLKDISCARD
 
 	LoopSetFd       = C.LOOP_SET_FD
 	LoopCtlGetFree  = C.LOOP_CTL_GET_FREE
