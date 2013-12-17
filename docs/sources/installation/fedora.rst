@@ -20,6 +20,7 @@ Installation
 
 The ``docker-io`` package provides Docker on fedora.
 
+
 If you already have the (unrelated) ``docker`` package installed, it will
 conflict with ``docker-io``. There's a `bug report`_ filed for it.
 To proceed with ``docker-io`` installation on fedora 19, please remove
@@ -71,3 +72,4 @@ Now let's verify that Docker is working.
 **Done!**, now continue with the :ref:`hello_world` example.
 
 .. _bug report: https://bugzilla.redhat.com/show_bug.cgi?id=1043676
+
