@@ -215,8 +215,12 @@ func executeProgram(args *DockerInitArgs) error {
 		cmd.Stdin = os.Stdin
 
 		if err := cmd.Run(); err != nil {
+			if e, ok := err.(*exec.ExitError); ok {
+				os.Exit(e.Sys().(syscall.WaitStatus).ExitStatus())
+			}
 			return err
 		}
+		os.Exit(0)
 	} else {
 		if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
 			panic(err)
