@@ -32,7 +32,7 @@ const MaxImageDepth = 127
 
 var (
 	defaultDns         = []string{"8.8.8.8", "8.8.4.4"}
-	validContainerName = regexp.MustCompile(`^/?[a-zA-Z0-9_-]+$`)
+	validContainerName = regexp.MustCompile(`^/?[a-zA-Z0-9_.-]+$`)
 )
 
 type Capabilities struct {
