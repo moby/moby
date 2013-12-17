@@ -486,10 +486,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		hostConfig:      &HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
-		// FIXME: do we need to store this in the container?
-		SysInitPath: runtime.sysInitPath,
-		Name:        name,
-		Driver:      runtime.driver.String(),
+		Name:            name,
+		Driver:          runtime.driver.String(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -788,6 +786,67 @@ func (runtime *Runtime) Close() error {
 		return fmt.Errorf("%s", strings.Join(errorsStrings, ", "))
 	}
 	return nil
+}
+
+func (runtime *Runtime) getMounts(container *Container) ([]*graphdriver.Mount, error) {
+	// Generate additional bind mounts
+	envPath, err := container.EnvConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	mounts := []*graphdriver.Mount{
+		{
+			Device:  runtime.sysInitPath,
+			Target:  "/.dockerinit",
+			Type:    "none",
+			Options: "bind,ro",
+		},
+		{
+			Device:  envPath,
+			Target:  "/.dockerenv",
+			Type:    "none",
+			Options: "bind,ro",
+		},
+		// In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
+		{
+			Device:  container.ResolvConfPath,
+			Target:  "/etc/resolv.conf",
+			Type:    "none",
+			Options: "bind,ro",
+		},
+	}
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		mounts = append(mounts,
+			&graphdriver.Mount{
+				Device:  container.HostnamePath,
+				Target:  "/etc/hostname",
+				Type:    "none",
+				Options: "bind,ro",
+			},
+			&graphdriver.Mount{
+				Device:  container.HostsPath,
+				Target:  "/etc/hosts",
+				Type:    "none",
+				Options: "bind,ro",
+			})
+	}
+
+	for r, v := range container.Volumes {
+		mountAs := "ro"
+		if container.VolumesRW[v] {
+			mountAs = "rw"
+		}
+
+		mounts = append(mounts,
+			&graphdriver.Mount{
+				Device:  v,
+				Target:  r,
+				Type:    "none",
+				Options: fmt.Sprintf("bind,%s", mountAs),
+			})
+	}
+	return mounts, nil
 }
 
 func (runtime *Runtime) Mount(container *Container) error {

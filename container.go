@@ -48,7 +48,6 @@ type Container struct {
 	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
-	SysInitPath    string
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
@@ -297,7 +296,11 @@ func (container *Container) generateEnvConfig(env []string) error {
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile(container.EnvConfigPath(), data, 0600)
+	p, err := container.EnvConfigPath()
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile(p, data, 0600)
 	return nil
 }
 
@@ -678,6 +681,17 @@ func (container *Container) Start() (err error) {
 
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
+	}
+
+	mounts, err := runtime.getMounts(container)
+	if err != nil {
+		return err
+	}
+
+	for _, m := range mounts {
+		if err := m.Mount(container.RootfsPath()); err != nil {
+			return err
 		}
 	}
 
@@ -1358,6 +1372,18 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Unmount() error {
+	mounts, err := container.runtime.getMounts(container)
+	if err != nil {
+		return err
+	}
+	for _, m := range mounts {
+		if lastError := m.Unmount(container.RootfsPath()); lastError != nil {
+			err = lastError
+		}
+	}
+	if err != nil {
+		return err
+	}
 	return container.runtime.Unmount(container)
 }
 
@@ -1377,8 +1403,20 @@ func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
 }
 
-func (container *Container) EnvConfigPath() string {
-	return path.Join(container.root, "config.env")
+func (container *Container) EnvConfigPath() (string, error) {
+	p := path.Join(container.root, "config.env")
+	if _, err := os.Stat(p); err != nil {
+		if os.IsNotExist(err) {
+			f, err := os.Create(p)
+			if err != nil {
+				return "", err
+			}
+			f.Close()
+		} else {
+			return "", err
+		}
+	}
+	return p, nil
 }
 
 func (container *Container) lxcConfigPath() string {
