@@ -95,7 +95,7 @@ continue installation.*
 
     .. warning::
     
-        Only run this when you trust you DNS and your OS' certificate chain.
+        Only run this when you trust your DNS and your OS's certificate chain.
 
     .. code-block:: bash
 
