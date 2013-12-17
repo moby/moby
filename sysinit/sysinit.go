@@ -214,7 +214,27 @@ func executeProgram(args *DockerInitArgs) error {
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 
-		if err := cmd.Run(); err != nil {
+		// Start the requested process
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+
+		// Forward all received signals to the child
+		sigc := make(chan os.Signal)
+		utils.CatchAll(sigc)
+		go func() {
+			for s := range sigc {
+				if s == syscall.SIGCHLD {
+					continue
+				}
+				if err := cmd.Process.Signal(s); err != nil {
+					utils.Debugf("Error sending signal: %s\n", err)
+				}
+			}
+		}()
+
+		// Wait on the process and exit with the proper exitcode
+		if err := cmd.Wait(); err != nil {
 			if e, ok := err.(*exec.ExitError); ok {
 				os.Exit(e.Sys().(syscall.WaitStatus).ExitStatus())
 			}
