@@ -23,6 +23,7 @@ type DockerInitArgs struct {
 	ip         string
 	workDir    string
 	privileged bool
+	fork       bool
 	env        []string
 	args       []string
 }
@@ -204,10 +205,23 @@ func executeProgram(args *DockerInitArgs) error {
 		os.Exit(127)
 	}
 
-	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
-		panic(err)
-	}
+	if args.fork {
+		cmd := &exec.Cmd{}
+		cmd.Path = path
+		cmd.Args = args.args
+		cmd.Env = os.Environ()
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
 
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	} else {
+		if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
+			panic(err)
+		}
+	}
 	// Will never reach here
 	return nil
 }
@@ -227,6 +241,7 @@ func SysInit() {
 	ip := flag.String("i", "", "ip address")
 	workDir := flag.String("w", "", "workdir")
 	privileged := flag.Bool("privileged", false, "privileged mode")
+	fork := flag.Bool("fork", true, "fork dockerinit to start a process")
 	flag.Parse()
 
 	// Get env
@@ -248,6 +263,7 @@ func SysInit() {
 		ip:         *ip,
 		workDir:    *workDir,
 		privileged: *privileged,
+		fork:       *fork,
 		env:        env,
 		args:       flag.Args(),
 	}

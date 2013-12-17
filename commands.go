@@ -1954,6 +1954,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	body, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), config)
 	//if image not found try to pull it
 	if statusCode == 404 {
+		// First parse the given image to get the requested tag. Use default if none
 		_, tag := utils.ParseRepositoryTag(config.Image)
 		if tag == "" {
 			tag = DEFAULTTAG
