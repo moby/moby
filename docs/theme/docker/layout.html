@@ -99,7 +99,7 @@
             
             {{ toctree(collapse=False, maxdepth=3) }}
 	    <form>
-	      <input type="text" id="st-search-input" class="st-search-input span3" style="width:160px;" />
+	      <input type="text" id="st-search-input" class="st-search-input span3" placeholder="search in documentation" style="width:210px;" />
           <div id="st-results-container"></div>
 	    </form>
         </div>
@@ -140,7 +140,9 @@
 
                         <div class="tbox version-flyer ">
                             <div class="content">
-                                <small>Current version:</small>
+                                <p><span class="version-note">Note: You are currently browsing the development documentation. The current release may work differently.</span></p>
+
+                                <small>Available versions:</small>
                                 <ul class="inline">
                                     {% for slug, url in versions %}
                                     <li class="alternative"><a href="{{ url }}{%- for word in pagename.split('/') -%}
@@ -163,6 +165,7 @@
         </div>
         <!-- end of footer -->
     </div>
+
 </div>
 
 

@@ -349,6 +349,7 @@ div.alert.alert-block {
   border: 1px solid #88BABC;
   padding: 5px;
   font-size: larger;
+  max-width: 300px;
 }
 .version-flyer .content {
   padding-right: 45px;
@@ -358,18 +359,18 @@ div.alert.alert-block {
   background-position: right center;
   background-repeat: no-repeat;
 }
-.version-flyer .alternative {
-  visibility: hidden;
-  display: none;
-}
 .version-flyer .active-slug {
   visibility: visible;
   display: inline-block;
+  font-weight: bolder;
 }
 .version-flyer:hover .alternative {
   animation-duration: 1s;
   display: inline-block;
-  visibility: visible;
+}
+.version-flyer .version-note {
+  font-size: 16px;
+  color: red;
 }
 /* =====================================
   Styles for 
