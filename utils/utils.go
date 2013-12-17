@@ -1117,3 +1117,59 @@ func CopyFile(src, dst string) (int64, error) {
 	defer df.Close()
 	return io.Copy(df, sf)
 }
+
+// Returns the relative path to the cgroup docker is running in.
+func GetThisCgroup(cgroupType string) (string, error) {
+	output, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		parts := strings.Split(line, ":")
+		// any type used by docker should work
+		if parts[1] == cgroupType {
+			return parts[2], nil
+		}
+	}
+	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", cgroupType)
+}
+
+// Returns a list of pids for the given container.
+func GetPidsForContainer(id string) ([]int, error) {
+	pids := []int{}
+
+	// memory is chosen randomly, any cgroup used by docker works
+	cgroupType := "memory"
+
+	cgroupRoot, err := FindCgroupMountpoint(cgroupType)
+	if err != nil {
+		return pids, err
+	}
+
+	cgroupThis, err := GetThisCgroup(cgroupType)
+	if err != nil {
+		return pids, err
+	}
+
+	filename := filepath.Join(cgroupRoot, cgroupThis, id, "tasks")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// With more recent lxc versions use, cgroup will be in lxc/
+		filename = filepath.Join(cgroupRoot, cgroupThis, "lxc", id, "tasks")
+	}
+
+	output, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return pids, err
+	}
+	for _, p := range strings.Split(string(output), "\n") {
+		if len(p) == 0 {
+			continue
+		}
+		pid, err := strconv.Atoi(p)
+		if err != nil {
+			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
+}
