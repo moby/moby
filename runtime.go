@@ -31,8 +31,9 @@ import (
 const MaxImageDepth = 127
 
 var (
-	defaultDns         = []string{"8.8.8.8", "8.8.4.4"}
-	validContainerName = regexp.MustCompile(`^/?[a-zA-Z0-9_.-]+$`)
+	defaultDns                = []string{"8.8.8.8", "8.8.4.4"}
+	validContainerNameChars   = `[a-zA-Z0-9_.-]`
+	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
 type Capabilities struct {
@@ -425,8 +426,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 			name = utils.TruncateID(id)
 		}
 	} else {
-		if !validContainerName.MatchString(name) {
-			return nil, nil, fmt.Errorf("Invalid container name (%s), only [a-zA-Z0-9_-] are allowed", name)
+		if !validContainerNamePattern.MatchString(name) {
+			return nil, nil, fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 		}
 	}
 
