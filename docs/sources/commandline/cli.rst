@@ -952,7 +952,7 @@ image is removed.
     test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
 
     $ sudo docker rmi fd484f19954f
-    Error: Conflict, fd484f19954f wasn't deleted
+    Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories
     2013/12/11 05:47:16 Error: failed to remove one or more images
 
     $ sudo docker rmi test1

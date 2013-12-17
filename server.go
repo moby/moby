@@ -1567,7 +1567,7 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 			} else if repoName != parsedRepo {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
-				return imgs, nil
+				return nil, fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories", utils.TruncateID(img.ID))
 			}
 		}
 	} else {
