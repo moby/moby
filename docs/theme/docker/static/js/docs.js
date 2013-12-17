@@ -53,14 +53,6 @@ $(function(){
         }
     }
 
-    if (doc_version == "") {
-        $('.version-flyer ul').html('<li class="alternative active-slug"><a href="" title="Switch to local">Local</a></li>');
-    }
-
-    // mark the active documentation in the version widget
-    $(".version-flyer a:contains('" + doc_version + "')").parent().addClass('active-slug');
-
-
     // attached handler on click
     // Do not attach to first element or last (intro, faq) so that
     // first and last link directly instead of accordian
@@ -94,5 +86,19 @@ $(function(){
 
     // add class to all those which have children
     $('.sidebar > ul > li').not(':last').not(':first').addClass('has-children');
+
+
+    if (doc_version == "") {
+        $('.version-flyer ul').html('<li class="alternative active-slug"><a href="" title="Switch to local">Local</a></li>');
+    }
+
+    if (doc_version == "master") {
+        $('.version-flyer .version-note').hide();
+    }
+
+    // mark the active documentation in the version widget
+    $(".version-flyer a:contains('" + doc_version + "')").parent().addClass('active-slug').setAttribute("title", "Current version");
+
+
 
 });
