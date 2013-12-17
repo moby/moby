@@ -1736,6 +1736,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flDetach          = cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 		flNetwork         = cmd.Bool("n", true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool("privileged", false, "Give extended privileges to this container")
+		flFork            = cmd.Bool("fork", true, "fork dockerinit to start a process")
 		flPublishAll      = cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
 		flStdin           = cmd.Bool("i", false, "Keep stdin open even if not attached")
 		flTty             = cmd.Bool("t", false, "Allocate a pseudo-tty")
@@ -1893,6 +1894,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
 		Privileged:      *flPrivileged,
+		Fork:            *flFork,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,

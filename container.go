@@ -108,6 +108,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
 	Privileged      bool
+	Fork            bool
 	PortBindings    map[Port][]PortBinding
 	Links           []string
 	PublishAllPorts bool
@@ -599,6 +600,9 @@ func (container *Container) Start() (err error) {
 
 	if container.hostConfig.Privileged {
 		params = append(params, "-privileged")
+	}
+	if !container.hostConfig.Fork {
+		params = append(params, "-fork=false")
 	}
 
 	// Init any links between the parent and children
