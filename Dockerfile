@@ -39,7 +39,7 @@ RUN	apt-get install -y -q build-essential libsqlite3-dev
 RUN	curl -s https://go.googlecode.com/files/go1.2.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
-RUN	cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
+RUN	cd /usr/local/go/src && ./make.bash
 
 # Ubuntu stuff
 RUN	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
