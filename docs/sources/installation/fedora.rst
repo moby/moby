@@ -18,11 +18,31 @@ architecture.
 Installation
 ------------
 
+The ``docker-io`` package provides Docker on fedora.
+
+If you already have the (unrelated) ``docker`` package installed, it will
+conflict with ``docker-io``. There's a `bug report`_ filed for it.
+To proceed with ``docker-io`` installation on fedora 19, please remove
+``docker`` first.
+
+.. code-block:: bash
+
+   sudo yum -y remove docker
+
+For fedora 20 and above, the ``wmdocker`` package will provide the same
+functionality as ``docker`` and will also not conflict with ``docker-io``
+
+.. code-block:: bash
+
+   sudo yum -y install wmdocker
+   sudo yum -y remove docker
+
 Install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
    sudo yum -y install docker-io
+
 
 To update the ``docker-io`` package
 
@@ -50,3 +70,4 @@ Now let's verify that Docker is working.
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
+.. _bug report: https://bugzilla.redhat.com/show_bug.cgi?id=1043676
