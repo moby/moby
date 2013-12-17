@@ -143,7 +143,7 @@ sudo('pip install -r {}/requirements.txt'.format(CFG_PATH))
 
 # Install docker and testing dependencies
 sudo('apt-get install -y -q lxc-docker')
-sudo('curl -s https://phantomjs.googlecode.com/files/'
+sudo('curl -sS https://phantomjs.googlecode.com/files/'
     'phantomjs-1.9.1-linux-x86_64.tar.bz2 | tar jx -C /usr/bin'
     ' --strip-components=2 phantomjs-1.9.1-linux-x86_64/bin/phantomjs')
 
