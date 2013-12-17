@@ -3,6 +3,8 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
+	"compress/bzip2"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -57,6 +59,35 @@ func DetectCompression(source []byte) Compression {
 		}
 	}
 	return Uncompressed
+}
+
+func DecompressStream(archive io.Reader) (io.Reader, error) {
+	buf := make([]byte, 10)
+	totalN := 0
+	for totalN < 10 {
+		n, err := archive.Read(buf[totalN:])
+		if err != nil {
+			if err == io.EOF {
+				return nil, fmt.Errorf("Tarball too short")
+			}
+			return nil, err
+		}
+		totalN += n
+		utils.Debugf("[tar autodetect] n: %d", n)
+	}
+	compression := DetectCompression(buf)
+	wrap := io.MultiReader(bytes.NewReader(buf), archive)
+
+	switch compression {
+	case Uncompressed:
+		return wrap, nil
+	case Gzip:
+		return gzip.NewReader(wrap)
+	case Bzip2:
+		return bzip2.NewReader(wrap), nil
+	default:
+		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+	}
 }
 
 func (compression *Compression) Flag() string {
