@@ -1,6 +1,7 @@
 package graphdriver
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/utils"
@@ -8,7 +9,10 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"time"
 )
+
+const mountinfoFormat = "%d %d %d:%d %s %s %s - %s %s %s"
 
 type InitFunc func(root string) (Driver, error)
 
@@ -99,15 +103,23 @@ func New(root string) (driver Driver, err error) {
 }
 
 func (m *Mount) Mount(root string) error {
-	var (
-		flag   int
-		data   []string
-		target = path.Join(root, m.Target)
-	)
-
+	target := path.Join(root, m.Target)
 	if mounted, err := Mounted(target); err != nil || mounted {
 		return err
 	}
+
+	flag, data := parseOptions(m.Options)
+	if err := syscall.Mount(m.Device, target, m.Type, uintptr(flag), data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseOptions(options string) (int, string) {
+	var (
+		flag int
+		data []string
+	)
 
 	flags := map[string]struct {
 		clear bool
@@ -140,7 +152,7 @@ func (m *Mount) Mount(root string) error {
 		"nostrictatime": {true, syscall.MS_STRICTATIME},
 	}
 
-	for _, o := range strings.Split(m.Options, ",") {
+	for _, o := range strings.Split(options, ",") {
 		// If the option does not exist in the flags table then it is a
 		// data value for a specific fs type
 		if f, exists := flags[o]; exists {
@@ -153,35 +165,73 @@ func (m *Mount) Mount(root string) error {
 			data = append(data, o)
 		}
 	}
-
-	if err := syscall.Mount(m.Device, target, m.Type, uintptr(flag), strings.Join(data, ",")); err != nil {
-		panic(err)
-	}
-	return nil
+	return flag, strings.Join(data, ",")
 }
 
-func (m *Mount) Unmount(root string) error {
+func (m *Mount) Unmount(root string) (err error) {
 	target := path.Join(root, m.Target)
 	if mounted, err := Mounted(target); err != nil || !mounted {
 		return err
 	}
-	return syscall.Unmount(target, 0)
+
+	// Simple retry logic for unmount
+	for i := 0; i < 10; i++ {
+		if err = syscall.Unmount(target, 0); err == nil {
+			return nil
+		}
+		utils.Debugf("[Unmount] %s", err)
+		time.Sleep(100 * time.Millisecond)
+	}
+	return
 }
 
 func Mounted(mountpoint string) (bool, error) {
-	mntpoint, err := os.Stat(mountpoint)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	parent, err := os.Stat(path.Join(mountpoint, ".."))
+	entries, err := parseMountTable()
 	if err != nil {
 		return false, err
 	}
-	mntpointSt := mntpoint.Sys().(*syscall.Stat_t)
-	parentSt := parent.Sys().(*syscall.Stat_t)
 
-	return mntpointSt.Dev != parentSt.Dev, nil
+	// Search the table for the mountpoint
+	for _, e := range entries {
+		if e.mountpoint == mountpoint {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Represents one line from /proc/self/mountinfo
+type procEntry struct {
+	id, parent, major, minor           int
+	source, mountpoint, fstype, device string
+	vfsopts, opts                      string
+}
+
+// Parse /proc/self/mountinfo because comparing Dev and ino does not work from bind mounts
+//
+// 180 20 0:2851 / /var/lib/docker/aufs/mnt/a22632d4ed3cb2438246064408f9f07734cbd331f50c81f1ca3dcbd78541ce83 rw,relatime - aufs none rw,si=e9663ac1adbdb4f8
+func parseMountTable() ([]*procEntry, error) {
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	out := []*procEntry{}
+	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+
+		p := &procEntry{}
+		if _, err := fmt.Sscanf(s.Text(), mountinfoFormat,
+			&p.id, &p.parent, &p.major, &p.minor,
+			&p.source, &p.mountpoint, &p.vfsopts, &p.fstype,
+			&p.device, &p.opts); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
 }

@@ -295,7 +295,7 @@ func (a *Driver) unmount(id string) error {
 
 func (a *Driver) mounted(id string) (bool, error) {
 	target := path.Join(a.rootPath(), "mnt", id)
-	return Mounted(target)
+	return graphdriver.Mounted(target)
 }
 
 // During cleanup aufs needs to unmount all mountpoints
