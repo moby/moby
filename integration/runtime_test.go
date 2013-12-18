@@ -748,6 +748,54 @@ func TestRandomContainerName(t *testing.T) {
 	}
 }
 
+func TestContainerNameValidation(t *testing.T) {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer nuke(runtime)
+
+	for _, test := range []struct {
+		Name  string
+		Valid bool
+	}{
+		{"abc-123_AAA.1", true},
+		{"\000asdf", false},
+	} {
+		config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+		if err != nil {
+			if !test.Valid {
+				continue
+			}
+			t.Fatal(err)
+		}
+
+		var shortID string
+		job := eng.Job("create", test.Name)
+		if err := job.ImportEnv(config); err != nil {
+			t.Fatal(err)
+		}
+		job.Stdout.AddString(&shortID)
+		if err := job.Run(); err != nil {
+			if !test.Valid {
+				continue
+			}
+			t.Fatal(err)
+		}
+
+		container := runtime.Get(shortID)
+
+		if container.Name != "/"+test.Name {
+			t.Fatalf("Expect /%s got %s", test.Name, container.Name)
+		}
+
+		if c := runtime.Get("/" + test.Name); c == nil {
+			t.Fatalf("Couldn't retrieve test container as /%s", test.Name)
+		} else if c.ID != container.ID {
+			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
+		}
+	}
+
+}
+
 func TestLinkChildContainer(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
