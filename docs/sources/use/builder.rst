@@ -94,6 +94,10 @@ Or
 
     ``FROM <image>:<tag>``
 
+Or (after the first ``TAG`` instruction)
+
+    ``FROM :<tag>``
+
 The ``FROM`` instruction sets the :ref:`base_image_def` for subsequent
 instructions. As such, a valid Dockerfile must have ``FROM`` as its
 first instruction. The image can be any valid image -- it is
@@ -109,6 +113,9 @@ output by the commit before each new ``FROM`` command.
 
 If no ``tag`` is given to the ``FROM`` instruction, ``latest`` is
 assumed. If the used tag does not exist, an error will be returned.
+If no ``image`` is given to the ``FROM`` instruction, the builder
+will try to lookup the tag from the current build environment, based
+on :ref:`dockerfile_tag`.
 
 .. _dockerfile_maintainer:
 
@@ -369,6 +376,22 @@ the image.
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
 
+.. _dockerfile_tag:
+
+3.12 TAG
+--------
+    ``TAG :<tag>``
+
+The ``TAG`` instruction saves the current image to the specified tag at the end of the build process.
+``TAG`` can appear multiple times within a single Dockerfile.
+
+``TAG`` is useful with the ``FROM :<tag>`` instruction, which allows building multiple images from 
+the current build environment.
+This facilitates creation of multiple image "flavors" based off a single Dockerfile, each of which
+can have different ``ENV``, ``ENTRYPOINT``, ``RUN`` or other build instructions.
+
+Tags must start with a ``:``.
+
 .. _dockerfile_examples:
 
 4. Dockerfile Examples
@@ -427,3 +450,28 @@ the command given by ``CMD`` is executed.
 
     # You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.
+
+.. code-block:: bash
+
+    # Multiple image flavors using tags
+    #
+    # VERSION               0.0.1
+    FROM ubuntu
+    ENV DEFAULT value
+    TAG :latest
+    # Will mark the current image as "latest" for use by future FROM statements
+
+    # Reset the build environment to "latest" to create a new flavor
+    FROM :latest
+    ENV WEB 1
+    ENTRYPOINT ["/bin/echo", "web"]
+    TAG :web
+    # Will output the current image as <image>:web
+
+    # Reset the build environment to "latest" to create a new flavor
+    FROM :latest
+    ENV WORKER 1
+    ENTRYPOINT ["/bin/echo", "worker"]
+    TAG :worker
+    # Will output the current image as <image>:worker
+

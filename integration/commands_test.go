@@ -905,16 +905,73 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		nil,
 		nil,
 	}
-	image, err := buildImage(testBuilder, t, eng, true)
+	images, err := buildImages(testBuilder, t, eng, true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	image := images["latest"]
 	if err := eng.Job("tag", image.ID, "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 
 	return image
+}
+
+func TestCmdBuildTags(t *testing.T) {
+
+	tmpDir, err := ioutil.TempDir("", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dockerfile := path.Join(tmpDir, "Dockerfile")
+	template := `
+from {IMAGE}
+entrypoint ["/bin/echo", "base"]
+tag :latest
+from :latest
+env WEB 1
+entrypoint ["/bin/echo", "web"]
+tag :web
+from :latest
+env SHELL 1
+cmd ["/bin/bash"]
+tag :bash
+`
+	replacer := strings.NewReplacer("{IMAGE}", unitTestImageID)
+	contents := replacer.Replace(template)
+	ioutil.WriteFile(dockerfile, []byte(contents), 0x777)
+
+	cli := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	err = cli.CmdBuild(tmpDir)
+	if err == nil {
+		t.Fatalf("Build with TAG instruction and no -t flag should error")
+	}
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		err := cli.CmdBuild("-t", "testing", tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	setTimeout(t, "CmdBuild timed out", 10*time.Second, func() {
+		<-c
+	})
+
+	srv := mkServerFromEngine(globalEngine, t)
+	for _, name := range []string{"testing", "testing:web", "testing:bash"} {
+		_, err := srv.ImageInspect(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 }
 
 // #2098 - Docker cidFiles only contain short version of the containerId

@@ -22,7 +22,7 @@ var (
 )
 
 type BuildFile interface {
-	Build(io.Reader) (string, error)
+	Build(io.Reader) (map[string]string, error)
 	CmdFrom(string) error
 	CmdRun(string) error
 }
@@ -38,6 +38,8 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	repoName     string
+	images       map[string]string
 
 	authConfig *auth.AuthConfig
 
@@ -61,19 +63,30 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 }
 
 func (b *buildFile) CmdFrom(name string) error {
-	image, err := b.runtime.repositories.LookupImage(name)
-	if err != nil {
-		if b.runtime.graph.IsNotExist(err) {
-			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
-				return err
-			}
-			image, err = b.runtime.repositories.LookupImage(name)
-			if err != nil {
-				return err
-			}
-		} else {
+	var (
+		image *Image
+		err   error
+	)
+	// look for a matching :tag in the current buildFile
+	if imageId, exists := b.images[name[1:]]; exists {
+		image, err = b.runtime.repositories.LookupImage(imageId)
+		if err != nil {
 			return err
+		}
+	} else {
+		// lookup the image by name and pull it if necessary
+		image, err = b.runtime.repositories.LookupImage(name)
+		if err != nil {
+			if b.runtime.graph.IsNotExist(err) {
+				remote, tag := utils.ParseRepositoryTag(name)
+				if err = b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
+					return err
+				}
+				image, err = b.runtime.repositories.LookupImage(name)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	b.image = image.ID
@@ -83,6 +96,20 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	}
+	return nil
+}
+
+func (b *buildFile) CmdTag(tag string) error {
+	if b.repoName == "" {
+		return fmt.Errorf("Tag instruction requires a Repository Name (-t)")
+	}
+	if !strings.HasPrefix(tag, ":") {
+		return fmt.Errorf("Tag instruction must be prefixed with :")
+	}
+	b.images[tag[1:]] = b.image
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("TAG %s", tag)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -515,27 +542,27 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 // Long lines can be split with a backslash
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
-func (b *buildFile) Build(context io.Reader) (string, error) {
+func (b *buildFile) Build(context io.Reader) (map[string]string, error) {
 	// FIXME: @creack "name" is a terrible variable name
 	name, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := archive.Untar(context, name, nil); err != nil {
-		return "", err
+		return nil, err
 	}
 	defer os.RemoveAll(name)
 	b.context = name
 	filename := path.Join(name, "Dockerfile")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
+		return nil, fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
 	fileBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(fileBytes) == 0 {
-		return "", ErrDockerfileEmpty
+		return nil, ErrDockerfileEmpty
 	}
 	dockerfile := string(fileBytes)
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
@@ -548,7 +575,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		tmp := strings.SplitN(line, " ", 2)
 		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+			return nil, fmt.Errorf("Invalid Dockerfile format")
 		}
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 		arguments := strings.Trim(tmp[1], " ")
@@ -564,7 +591,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
-			return "", ret.(error)
+			return nil, ret.(error)
 		}
 
 		fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
@@ -574,12 +601,16 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if b.rm {
 			b.clearTmp(b.tmpContainers)
 		}
-		return b.image, nil
+		// set a default "latest" image if tags were not explicitly provided
+		if len(b.images) == 0 {
+			b.images["latest"] = b.image
+		}
+		return b.images, nil
 	}
-	return "", fmt.Errorf("An error occurred during the build\n")
+	return nil, fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, repoName string) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -594,5 +625,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		sf:            sf,
 		authConfig:    auth,
 		outOld:        outOld,
+		repoName:      repoName,
+		images:        make(map[string]string),
 	}
 }
