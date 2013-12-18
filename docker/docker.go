@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -69,6 +70,20 @@ func main() {
 			flag.Usage()
 			return
 		}
+
+		// Docker makes some assumptions about the "absoluteness" of flRoot
+		// ... so let's make sure it has no symlinks
+		if p, err := filepath.Abs(*flRoot); err != nil {
+			log.Fatalf("Unable to get absolute root (%s): %s", flRoot, err)
+		} else {
+			*flRoot = p
+		}
+		if p, err := filepath.EvalSymlinks(*flRoot); err != nil {
+			log.Fatalf("Unable to canonicalize root (%s): %s", flRoot, err)
+		} else {
+			*flRoot = p
+		}
+
 		eng, err := engine.New(*flRoot)
 		if err != nil {
 			log.Fatal(err)
