@@ -31,7 +31,7 @@ client for these services via ``docker search, pull, login`` and
 Local Repositories
 ------------------
 
-Docker images which have been created and labled on your local docker server
+Docker images which have been created and labeled on your local Docker server
 need to be pushed to a Public or Private registry to be shared.
 
 .. _using_public_repositories:
@@ -64,8 +64,8 @@ Find Public Images on the Central Index
 ---------------------------------------
 
 You can search the Central Index `online <https://index.docker.io>`_
-or by the CLI. Searching can find images by name, user name or
-description:
+or using the command line interface. Searching can find images by name, user
+name or description:
 
 .. code-block:: bash
 
@@ -162,7 +162,7 @@ Trusted Builds
 --------------
 
 Trusted Builds automate the building and updating of images from GitHub, directly 
-on docker.io servers. It works by adding a commit hook to your selected repository,
+on ``docker.io`` servers. It works by adding a commit hook to your selected repository,
 triggering a build and update when you push a commit.
 
 To setup a trusted build
@@ -186,7 +186,7 @@ If you want to see the status of your Trusted Builds you can go to your
 `Trusted Builds page <https://index.docker.io/builds/>`_ on the Docker index,
 and it will show you the status of your builds, and the build history.
 
-Once you've created a Trusted Build you can deactive or delete it. You cannot
+Once you've created a Trusted Build you can deactivate or delete it. You cannot
 however push to a Trusted Build with the ``docker push`` command. You can only
 manage it by committing code to your GitHub repository.
 
