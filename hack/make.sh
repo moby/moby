@@ -63,7 +63,7 @@ fi
 # Use these flags when compiling the tests and final binary
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
 LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
-BUILDFLAGS='-tags netgo'
+BUILDFLAGS='-tags netgo -a'
 
 HAVE_GO_TEST_COVER=
 if \
@@ -88,10 +88,6 @@ go_test_dir() {
 		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
 		testcover=( -cover -coverprofile "$coverprofile" )
 	fi
-	( # we run "go test -i" ouside the "set -x" to provde cleaner output
-		cd "$dir"
-		go test -i -ldflags "$LDFLAGS" $BUILDFLAGS
-	)
 	(
 		set -x
 		cd "$dir"

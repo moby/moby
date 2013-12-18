@@ -3,7 +3,7 @@
 DEST=$1
 
 # dockerinit still needs to be a static binary, even if docker is dynamic
-CGO_ENABLED=0 go build -a -o $DEST/dockerinit-$VERSION -ldflags "$LDFLAGS -d" $BUILDFLAGS ./dockerinit
+CGO_ENABLED=0 go build -o $DEST/dockerinit-$VERSION -ldflags "$LDFLAGS -d" $BUILDFLAGS ./dockerinit
 echo "Created binary: $DEST/dockerinit-$VERSION"
 ln -sf dockerinit-$VERSION $DEST/dockerinit
 
