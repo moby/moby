@@ -30,7 +30,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"syscall"
 )
 
 func init() {
@@ -327,7 +326,7 @@ func (a *Driver) aufsMount(ro []string, rw, target string) (err error) {
 
 		for _, layer := range ro {
 			branch := fmt.Sprintf("append:%s=ro+wh", layer)
-			if err = mount("none", target, "aufs", syscall.MS_REMOUNT, branch); err != nil {
+			if err = mount("none", target, "aufs", MsRemount, branch); err != nil {
 				return
 			}
 		}
