@@ -32,7 +32,7 @@ func setupHostname(args *DockerInitArgs) error {
 	if hostname == "" {
 		return nil
 	}
-	return syscall.Sethostname([]byte(hostname))
+	return setHostname(hostname)
 }
 
 // Setup networking
