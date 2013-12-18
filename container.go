@@ -836,7 +836,7 @@ func (container *Container) createVolumes() error {
 		volPath = path.Join(container.RootfsPath(), volPath)
 		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if _, err := os.Stat(rootVolPath); err != nil {
