@@ -1814,6 +1814,8 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 			flVolumes.Set(dstDir)
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
+		} else if bind == "/" {
+			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
 		}
 	}
 
