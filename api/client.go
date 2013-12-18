@@ -1668,7 +1668,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 type ports []int
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE REPOSITORY[:TAG]", "Tag an image into a repository")
+	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1681,7 +1681,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	var repository, tag string
 
 	if cmd.NArg() == 3 {
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REPOSITORY[:TAG]]\n")
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]]\n")
 		repository, tag = cmd.Arg(1), cmd.Arg(2)
 	} else {
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))

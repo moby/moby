@@ -1301,7 +1301,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY[:TAG]
+    Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
     Tag an image into a repository
 

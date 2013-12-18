@@ -7,9 +7,9 @@
 Share Images via Repositories
 =============================
 
-A *repository* is a hosted collection of tagged :ref:`images
-<image_def>` that together create the file system for a container. The
-repository's name is a tag that indicates the provenance of the
+A *repository* is a shareable collection of tagged :ref:`images<image_def>` 
+that together create the file systems for containers. The
+repository's name is a label that indicates the provenance of the
 repository, i.e. who created it and where the original copy is
 located.
 
@@ -19,7 +19,7 @@ tag. The implicit registry is located at ``index.docker.io``, the home
 of "top-level" repositories and the Central Index. This registry may
 also include public "user" repositories.
 
-So Docker is not only a tool for creating and managing your own
+Docker is not only a tool for creating and managing your own
 :ref:`containers <container_def>` -- **Docker is also a tool for
 sharing**. The Docker project provides a Central Registry to host
 public repositories, namespaced by user, and a Central Index which
@@ -27,6 +27,12 @@ provides user authentication and search over all the public
 repositories. You can host your own Registry too! Docker acts as a
 client for these services via ``docker search, pull, login`` and
 ``push``.
+
+Local Repositories
+------------------
+
+Docker images which have been created and labled on your local docker server
+need to be pushed to a Public or Private registry to be shared.
 
 .. _using_public_repositories:
 
@@ -136,13 +142,13 @@ name for the image.
 
 .. _image_push:
 
-Pushing an image to its repository
-----------------------------------
+Pushing a repository to its registry
+------------------------------------
 
-In order to push an image to its repository you need to have committed
-your container to a named image (see above)
+In order to push an repository to its registry you need to have named an image, 
+or committed your container to a named image (see above)
 
-Now you can commit this image to the repository designated by its name
+Now you can push this repository to the registry designated by its name
 or tag.
 
 .. code-block:: bash
@@ -187,14 +193,15 @@ manage it by committing code to your GitHub repository.
 You can create multiple Trusted Builds per repository and configure them to
 point to specific ``Dockerfile``'s or Git branches.
 
-Private Repositories
---------------------
+Private Registry
+----------------
 
-Right now (version 0.6), private repositories are only possible by
-hosting `your own registry
+Private registries and private shared repositories are 
+only possible by hosting `your own registry
 <https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
 repository on your own registry, you must prefix the tag with the
-address of the registry's host, like this:
+address of the registry's host (a ``.`` or ``:`` is used to identify a host), 
+like this:
 
 .. code-block:: bash
 
