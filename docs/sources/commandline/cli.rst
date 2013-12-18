@@ -553,15 +553,15 @@ Displaying image hierarchy
 
     $ sudo docker images -tree
 
-    |─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
+    ├─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
     └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
       └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
-        |─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
-        | └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
-        |   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
-        |     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
-        |       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
-        |         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
+        ├─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
+        │ └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
+        │   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
+        │     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
+        │       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
+        │         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
         └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
           └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
             └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)

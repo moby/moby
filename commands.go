@@ -1237,9 +1237,9 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *[]APIImages, byParent map[s
 					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"  ", printNode)
 				}
 			} else {
-				printNode(cli, noTrunc, image, prefix+"|─")
+				printNode(cli, noTrunc, image, prefix+"├─")
 				if subimages, exists := byParent[image.ID]; exists {
-					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"| ", printNode)
+					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"│ ", printNode)
 				}
 			}
 		}
