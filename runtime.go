@@ -189,7 +189,6 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 
 			container.waitLock = make(chan struct{})
-
 			go container.monitor()
 		}
 	}
@@ -263,9 +262,8 @@ func (runtime *Runtime) Destroy(container *Container) error {
 }
 
 func (runtime *Runtime) restore() error {
-	wheel := "-\\|/"
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
-		fmt.Printf("Loading containers:  ")
+		fmt.Printf("Loading containers: ")
 	}
 	dir, err := ioutil.ReadDir(runtime.repository)
 	if err != nil {
@@ -274,11 +272,11 @@ func (runtime *Runtime) restore() error {
 	containers := make(map[string]*Container)
 	currentDriver := runtime.driver.String()
 
-	for i, v := range dir {
+	for _, v := range dir {
 		id := v.Name()
 		container, err := runtime.load(id)
-		if i%21 == 0 && os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
-			fmt.Printf("\b%c", wheel[i%4])
+		if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+			fmt.Print(".")
 		}
 		if err != nil {
 			utils.Errorf("Failed to load container %v: %v", id, err)
@@ -302,6 +300,9 @@ func (runtime *Runtime) restore() error {
 
 	if entities := runtime.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
+			if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+				fmt.Print(".")
+			}
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
 				register(container)
@@ -325,7 +326,7 @@ func (runtime *Runtime) restore() error {
 	}
 
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
-		fmt.Printf("\bdone.\n")
+		fmt.Printf(": done.\n")
 	}
 
 	return nil
@@ -676,14 +677,17 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	}
 
 	if ad, ok := driver.(*aufs.Driver); ok {
+		utils.Debugf("Migrating existing containers")
 		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
 			return nil, err
 		}
 	}
 
+	utils.Debugf("Escaping AppArmor confinement")
 	if err := linkLxcStart(config.Root); err != nil {
 		return nil, err
 	}
+	utils.Debugf("Creating images graph")
 	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
@@ -695,10 +699,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	utils.Debugf("Creating volumes graph")
 	volumes, err := NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
+	utils.Debugf("Creating repository list")
 	repositories, err := NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)

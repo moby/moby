@@ -56,6 +56,7 @@ func (graph *Graph) restore() error {
 			graph.idIndex.Add(id)
 		}
 	}
+	utils.Debugf("Restored %d elements", len(dir))
 	return nil
 }
 
