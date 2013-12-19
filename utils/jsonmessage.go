@@ -52,7 +52,7 @@ func (p *JSONProgress) String() string {
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-	if p.Start > 0 {
+	if p.Start > 0 && percentage < 50 {
 		fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
 		perEntry := fromStart / time.Duration(p.Current)
 		left := time.Duration(p.Total-p.Current) * perEntry
