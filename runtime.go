@@ -1,9 +1,7 @@
 package docker
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 	"container/list"
-	"database/sql"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdb"
@@ -718,19 +716,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	}
 
 	graphdbPath := path.Join(config.Root, "linkgraph.db")
-	initDatabase := false
-	if _, err := os.Stat(graphdbPath); err != nil {
-		if os.IsNotExist(err) {
-			initDatabase = true
-		} else {
-			return nil, err
-		}
-	}
-	conn, err := sql.Open("sqlite3", graphdbPath)
-	if err != nil {
-		return nil, err
-	}
-	graph, err := graphdb.NewDatabase(conn, initDatabase)
+	graph, err := graphdb.NewSqliteConn(graphdbPath)
 	if err != nil {
 		return nil, err
 	}
