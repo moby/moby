@@ -553,7 +553,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if s == syscall.SIGCHLD {
 				continue
 			}
-			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
+			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(s.(syscall.Signal))), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
 			if s == syscall.SIGTSTP {
@@ -563,7 +563,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 
 				// Unppon SIGCONT (fg/bg), resume the process
-				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, syscall.SIGCONT), nil); err != nil {
+				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(syscall.SIGCONT)), nil); err != nil {
 					utils.Debugf("Error sending signal: %s", err)
 				}
 			}
