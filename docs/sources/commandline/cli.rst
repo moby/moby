@@ -12,7 +12,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[unix:///var/run/docker.sock]: tcp://host:port to bind/connect to or unix://path/to/socket to use
+      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind/connect to or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used.
 
     A self-sufficient runtime for linux containers.
 
@@ -27,7 +27,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     Usage of docker:
       -D=false: Enable debug mode
-      -H=[unix:///var/run/docker.sock]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise
+      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used.
       -api-enable-cors=false: Enable CORS headers in the remote API
       -b="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       -bip="": Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of -b
@@ -952,7 +952,7 @@ image is removed.
     test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
 
     $ sudo docker rmi fd484f19954f
-    Error: Conflict, fd484f19954f wasn't deleted
+    Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories
     2013/12/11 05:47:16 Error: failed to remove one or more images
 
     $ sudo docker rmi test1

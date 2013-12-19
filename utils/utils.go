@@ -776,11 +776,21 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 	return nameservers
 }
 
-func ParseHost(host string, port int, addr string) (string, error) {
-	var proto string
+// FIXME: Change this not to receive default value as parameter
+func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (string, error) {
+	var (
+		proto string
+		host  string
+		port  int
+	)
+
 	switch {
 	case strings.HasPrefix(addr, "unix://"):
-		return addr, nil
+		proto = "unix"
+		addr = strings.TrimPrefix(addr, "unix://")
+		if addr == "" {
+			addr = defaultUnix
+		}
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
@@ -791,19 +801,29 @@ func ParseHost(host string, port int, addr string) (string, error) {
 		proto = "tcp"
 	}
 
-	if strings.Contains(addr, ":") {
+	if proto != "unix" && strings.Contains(addr, ":") {
 		hostParts := strings.Split(addr, ":")
 		if len(hostParts) != 2 {
 			return "", fmt.Errorf("Invalid bind address format: %s", addr)
 		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
+		} else {
+			host = defaultHost
 		}
-		if p, err := strconv.Atoi(hostParts[1]); err == nil {
+
+		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
 			port = p
+		} else {
+			port = defaultPort
 		}
+
 	} else {
 		host = addr
+		port = defaultPort
+	}
+	if proto == "unix" {
+		return fmt.Sprintf("%s://%s", proto, host), nil
 	}
 	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
@@ -1116,4 +1136,60 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
+}
+
+// Returns the relative path to the cgroup docker is running in.
+func GetThisCgroup(cgroupType string) (string, error) {
+	output, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		parts := strings.Split(line, ":")
+		// any type used by docker should work
+		if parts[1] == cgroupType {
+			return parts[2], nil
+		}
+	}
+	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", cgroupType)
+}
+
+// Returns a list of pids for the given container.
+func GetPidsForContainer(id string) ([]int, error) {
+	pids := []int{}
+
+	// memory is chosen randomly, any cgroup used by docker works
+	cgroupType := "memory"
+
+	cgroupRoot, err := FindCgroupMountpoint(cgroupType)
+	if err != nil {
+		return pids, err
+	}
+
+	cgroupThis, err := GetThisCgroup(cgroupType)
+	if err != nil {
+		return pids, err
+	}
+
+	filename := filepath.Join(cgroupRoot, cgroupThis, id, "tasks")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// With more recent lxc versions use, cgroup will be in lxc/
+		filename = filepath.Join(cgroupRoot, cgroupThis, "lxc", id, "tasks")
+	}
+
+	output, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return pids, err
+	}
+	for _, p := range strings.Split(string(output), "\n") {
+		if len(p) == 0 {
+			continue
+		}
+		pid, err := strconv.Atoi(p)
+		if err != nil {
+			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
 }

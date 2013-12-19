@@ -66,7 +66,10 @@ LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode ext
 BUILDFLAGS='-tags netgo'
 
 HAVE_GO_TEST_COVER=
-if go help testflag | grep -q -- -cover; then
+if \
+	go help testflag | grep -q -- -cover \
+	&& go tool -n cover > /dev/null 2>&1 \
+; then
 	HAVE_GO_TEST_COVER=1
 fi
 

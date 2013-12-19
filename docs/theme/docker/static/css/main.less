@@ -337,23 +337,63 @@ body {
   margin-top: 15px;
 }
 
-.social .twitter, .social .github, .social .googleplus {
-  background: url("https://www.docker.io/static/img/footer-links.png") no-repeat transparent;
-  display: inline-block;
-  height: 35px;
-  overflow: hidden;
-  text-indent: 9999px;
-  width: 35px;
-  margin-right: 10px;
+.social {
+  .twitter, .github, .googleplus, .facebook, .slideshare, .linkedin, .flickr, .youtube, .reddit {
+    background: url("../img/social/docker_social_logos.png") no-repeat transparent;
+    display: inline-block;
+    height: 32px;
+    overflow: hidden;
+    text-indent: 9999px;
+    width: 32px;
+    margin-right: 5px;
+  }
+}
+
+.social :hover {
+  -webkit-transform: rotate(-10deg);
+     -moz-transform: rotate(-10deg);
+       -o-transform: rotate(-10deg);
+      -ms-transform: rotate(-10deg);
+          transform: rotate(-10deg);
 }
 
 .social .twitter {
-  background-position: 0px 2px;
+  background-position: -160px 0px;
+}
+
+.social .reddit {
+  background-position: -256px 0px;
 }
 
 .social .github {
-  background-position: -59px 2px;
+  background-position: -64px 0px;
 }
+
+.social .googleplus {
+  background-position: -96px 0px;
+}
+
+.social .facebook {
+  background-position: -0px 0px;
+}
+
+.social .slideshare {
+  background-position: -128px 0px;
+}
+
+.social .youtube {
+  background-position: -192px 0px;
+}
+
+.social .flickr {
+  background-position: -32px 0px;
+}
+
+.social .linkedin {
+  background-position: -224px 0px;
+}
+
+
 
 // Styles on the forms
 // ----------------------------------
@@ -535,31 +575,34 @@ div.alert.alert-block {
   border: 1px solid #88BABC;
   padding: 5px;
   font-size: larger;
+  max-width: 300px;
 
   .content {
     padding-right: 45px;
     margin-top: 7px;
     margin-left: 7px;
-    // display: inline-block;
     background-image: url('../img/container3.png');
     background-position: right center; 
     background-repeat: no-repeat;
   }
 
   .alternative {
-    visibility: hidden;
-    display: none;
   }
 
   .active-slug {
     visibility: visible;
     display: inline-block;
+    font-weight: bolder;
   }
 
   &:hover .alternative {
     animation-duration: 1s;
     display: inline-block;
-    visibility: visible;
+  }
+
+  .version-note {
+    font-size: 16px;
+    color: black;
   }
 
 }
@@ -640,5 +683,3 @@ dt:hover > a.headerlink {
 .deprecated {
    color: orangered;
 }
-
-

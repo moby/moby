@@ -25,7 +25,7 @@ currently in active development, so this documentation will change
 frequently.
 
 For an overview of Docker, please see the `Introduction
-<http://www.docker.io>`_. When you're ready to start working with
+<http://www.docker.io/learn_more/>`_. When you're ready to start working with
 Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
 and a more in-depth guide to :ref:`ubuntu_linux` and other
 :ref:`installation_list` paths including prebuilt binaries,
