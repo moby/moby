@@ -485,10 +485,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		hostConfig:      &HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
-		// FIXME: do we need to store this in the container?
-		SysInitPath: runtime.sysInitPath,
-		Name:        name,
-		Driver:      runtime.driver.String(),
+		Name:            name,
+		Driver:          runtime.driver.String(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
