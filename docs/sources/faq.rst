@@ -111,7 +111,7 @@ What does Docker add to just plain LXC?
       registry to store and transfer private containers, for internal
       server deployments for example.
 
-   * *Tool ecosystem.* 
+   * *Tool ecosystem.*
       Docker defines an API for automating and customizing the
       creation and deployment of containers. There are a huge number
       of tools integrating with Docker to extend its
@@ -122,12 +122,64 @@ What does Docker add to just plain LXC?
       (Jenkins, Strider, Travis), etc. Docker is rapidly establishing
       itself as the standard for container-based tooling.
 
+What is different between a Docker container and a VM?
+......................................................
+
+There's a great StackOverflow answer `here
+<http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine>`_.
+
 Do I lose my data when the container exits?
 ...........................................
 
 Not at all! Any data that your application writes to disk gets preserved
 in its container until you explicitly delete the container. The file
 system for the container persists even after the container halts.
+
+How far do Docker containers scale?
+...................................
+
+Some of the largest server farms in the world today are based on containers.
+Large web deployments like Google and Twitter, and platform providers such as
+Heroku and dotCloud all run on container technology, at a scale of hundreds of
+thousands or even millions of containers running in parallel.
+
+How do I connect Docker containers?
+...................................
+
+Currently the recommended way to link containers is via the `link` primitive.
+You can see details of how to use it `here <http://docs.docker.io/en/latest/use/working_with_links_names/>`_. 
+
+Also of useful when enabling more flexible service portability is the
+`Ambassador linking pattern
+<http://docs.docker.io/en/latest/use/ambassador_pattern_linking/>`_.
+
+How do I run more than one process in a Docker container?
+.........................................................
+
+Any capable process supervisor such as http://supervisord.org/, runit, s6, or
+daemontools can do the trick. Docker will start up the process management
+daemon which will then fork to run additional processes. As long as the
+processor manager daemon continues to run, the container will continue to as
+well.  You can see a more subsantial example `here
+<http://docs.docker.io/en/latest/examples/using_supervisord/>`_.
+
+What platforms does Docker run on?
+..................................
+
+Linux:
+
+- Ubuntu 12.04, 13.04 et al
+- Fedora 19/20+
+- RHEL 6.5+
+- Centos 6+
+- Gento
+- ArchLinux
+
+Cloud:
+
+- Amazon EC2
+- Google Compute Engine
+- Rackspace
 
 Can I help by adding some questions and answers?
 ................................................
