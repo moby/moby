@@ -14,7 +14,6 @@ lxc.network.type = empty
 lxc.network.type = veth
 lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
-lxc.network.mtu = 1500
 {{end}}
 
 # root filesystem
