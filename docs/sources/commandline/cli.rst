@@ -681,11 +681,11 @@ Insert file from github
 
 ::
 
-    Usage: docker inspect [OPTIONS] CONTAINER
+    Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
-    Return low-level information on a container
+    Return low-level information on a container/image
 
-      -format="": template to output results
+      -format="": Format the output using the given go template.
 
 By default, this will render all results in a JSON array.  If a format
 is specified, the given template will be executed for each result.
