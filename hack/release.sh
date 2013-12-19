@@ -47,6 +47,7 @@ cd /go/src/github.com/dotcloud/docker
 
 RELEASE_BUNDLES=(
 	binary
+	cross
 	tgz
 	ubuntu
 )
@@ -233,6 +234,16 @@ EOF
 	fi
 }
 
+# Upload a cross-compiled client binaries to S3
+release_cross() {
+	[ -e bundles/$VERSION/cross ] || {
+		echo >&2 './hack/make.sh must be run before release_binary'
+		exit 1
+	}
+	
+	# TODO find out from @shykes what URLs he'd like to use here
+}
+
 # Upload the index script
 release_index() {
 	sed "s,https://get.docker.io/,$(s3_url)/," hack/install.sh | write_to_s3 s3://$BUCKET/index
@@ -247,6 +258,7 @@ release_test() {
 main() {
 	setup_s3
 	release_binary
+	release_cross
 	release_tgz
 	release_ubuntu
 	release_index

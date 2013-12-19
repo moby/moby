@@ -39,7 +39,12 @@ RUN	apt-get install -y -q build-essential libsqlite3-dev
 RUN	curl -s https://go.googlecode.com/files/go1.2.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
-RUN	cd /usr/local/go/src && ./make.bash
+RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
+
+# Cross compilation
+ENV	DOCKER_CROSSPLATFORMS	darwin/amd64 darwin/386
+# TODO add linux/386 and linux/arm
+RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
 
 # Ubuntu stuff
 RUN	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
