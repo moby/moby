@@ -469,6 +469,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "LXC Version: %s\n", remoteInfo.Get("LXCVersion"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+
+		if initSha1 := remoteInfo.Get("InitSha1"); initSha1 != "" {
+			fmt.Fprintf(cli.out, "Init SHA1: %s\n", initSha1)
+		}
+		if initPath := remoteInfo.Get("InitPath"); initPath != "" {
+			fmt.Fprintf(cli.out, "Init Path: %s\n", initPath)
+		}
 	}
 
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
