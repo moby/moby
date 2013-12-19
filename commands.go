@@ -558,7 +558,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			}
 			if s == syscall.SIGTSTP {
 				// SIGSTOP is not blockage nor can be handled. Force dettach
-				if err := syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSTOP); err != nil {
+				if err := utils.Suspend(); err != nil {
 					panic(err)
 				}
 

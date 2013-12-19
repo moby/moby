@@ -6,6 +6,13 @@ import (
 	"syscall"
 )
 
+func suspend() error {
+	if err := syscall.Kill(syscall.Getpid(), syscall.SIGSTOP); err != nil {
+		return err
+	}
+	return nil
+}
+
 func CatchAll(sigc chan os.Signal) {
 	signal.Notify(sigc,
 		syscall.SIGABRT,
