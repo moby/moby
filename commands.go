@@ -556,6 +556,16 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
+			if s == syscall.SIGTSTP {
+				p, err := os.FindProcess(os.Getpid())
+				if err != nil {
+					utils.Debugf("Error finding client process: %s", err)
+				}
+				// SIGSTOP is not blockage nor can be handled. Force dettach
+				if err := p.Signal(syscall.SIGSTOP); err != nil {
+					utils.Debugf("Error suspending client: %s", err)
+				}
+			}
 		}
 	}()
 	return sigc

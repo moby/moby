@@ -42,6 +42,6 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGWINCH,
 		syscall.SIGXCPU,
 		syscall.SIGXFSZ,
-		// Do not catch syscall.SIGTSTP, we need the client to receive it
+		syscall.SIGTSTP,
 	)
 }
