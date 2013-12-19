@@ -37,6 +37,7 @@ To list available commands, either run ``docker`` with no parameters or execute
       -icc=true: Enable inter-container communication
       -ip="0.0.0.0": Default IP address to use when binding container ports
       -iptables=true: Disable docker's addition of iptables rules
+      -mtu=1500: Set the containers network mtu
       -p="/var/run/docker.pid": Path to use for daemon PID file
       -r=true: Restart previously running containers
       -s="": Force the docker runtime to use a specific storage driver

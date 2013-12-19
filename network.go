@@ -19,6 +19,7 @@ import (
 const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
+	DefaultNetworkMtu    = 1500
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
@@ -117,7 +118,6 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		"192.168.43.1/24",
 		"192.168.44.1/24",
 	}
-
 
 	nameservers := []string{}
 	resolvConf, _ := utils.GetResolvConf()

@@ -582,7 +582,7 @@ func (container *Container) Start() (err error) {
 		params = append(params,
 			"-g", network.Gateway,
 			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
-			"-mtu", "1500",
+			"-mtu", strconv.Itoa(container.runtime.config.Mtu),
 		)
 	}
 
