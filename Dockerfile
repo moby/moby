@@ -27,9 +27,13 @@ docker-version	0.6.1
 FROM	ubuntu:12.04
 MAINTAINER	Solomon Hykes <solomon@dotcloud.com>
 
+# Prevent apt-get install from trying to prompt for stuff
+ENV	DEBIAN_FRONTEND noninteractive
+
 # Build dependencies
 RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
 RUN	apt-get update
+RUN	apt-get install -y -q apt-utils
 RUN	apt-get install -y -q curl
 RUN	apt-get install -y -q git
 RUN	apt-get install -y -q mercurial
