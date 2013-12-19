@@ -40,6 +40,7 @@ DEFAULT_BUNDLES=(
 	dyntest
 	dyntest-integration
 	cover
+	cross
 	tgz
 	ubuntu
 )

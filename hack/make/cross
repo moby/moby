@@ -1,0 +1,13 @@
+#!/bin/bash
+
+DEST=$1
+
+for platform in $DOCKER_CROSSPLATFORMS; do
+	(
+		export GOOS=${platform%/*}
+		export GOARCH=${platform##*/}
+		export VERSION="$GOOS-$GOARCH-$VERSION" # for a nice filename
+		export LDFLAGS_STATIC="" # we just need a simple client for these platforms (TODO this might change someday)
+		source "$(dirname "$BASH_SOURCE")/binary"
+	)
+done

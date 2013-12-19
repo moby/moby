@@ -1,4 +1,4 @@
-.PHONY: all binary build default docs shell test
+.PHONY: all binary build cross default docs shell test
 
 DOCKER_RUN_DOCKER := docker run -rm -i -t -privileged -e TESTFLAGS -v $(CURDIR)/bundles:/go/src/github.com/dotcloud/docker/bundles docker
 
@@ -9,6 +9,9 @@ all: build
 
 binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
+
+cross: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh cross
 
 docs:
 	docker build -t docker-docs docs && docker run -p 8000:8000 docker-docs
