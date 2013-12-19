@@ -1,4 +1,4 @@
-package graphdriver
+package mount
 
 import (
 	"os"
@@ -24,7 +24,7 @@ func TestMountOptionsParsing(t *testing.T) {
 }
 
 func TestMounted(t *testing.T) {
-	tmp := path.Join(os.TempDir(), "graphdriver-tests")
+	tmp := path.Join(os.TempDir(), "mount-tests")
 	if err := os.MkdirAll(tmp, 0777); err != nil {
 		t.Fatal(err)
 	}
@@ -48,18 +48,11 @@ func TestMounted(t *testing.T) {
 	}
 	f.Close()
 
-	mount := &Mount{
-		Device:  sourcePath,
-		Target:  targetPath,
-		Type:    "none",
-		Options: "bind,ro",
-	}
-
-	if err := mount.Mount("/"); err != nil {
+	if err := Mount(sourcePath, targetPath, "none", "bind,ro"); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := mount.Unmount("/"); err != nil {
+		if err := Unmount(targetPath); err != nil {
 			t.Fatal(err)
 		}
 	}()

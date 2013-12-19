@@ -788,67 +788,6 @@ func (runtime *Runtime) Close() error {
 	return nil
 }
 
-func (runtime *Runtime) getMounts(container *Container) ([]*graphdriver.Mount, error) {
-	// Generate additional bind mounts
-	envPath, err := container.EnvConfigPath()
-	if err != nil {
-		return nil, err
-	}
-	mounts := []*graphdriver.Mount{
-		{
-			Device:  runtime.sysInitPath,
-			Target:  "/.dockerinit",
-			Type:    "none",
-			Options: "bind,ro",
-		},
-		{
-			Device:  envPath,
-			Target:  "/.dockerenv",
-			Type:    "none",
-			Options: "bind,ro",
-		},
-		// In order to get a working DNS environment, mount bind (ro) the host's /etc/resolv.conf into the container
-		{
-			Device:  container.ResolvConfPath,
-			Target:  "/etc/resolv.conf",
-			Type:    "none",
-			Options: "bind,ro",
-		},
-	}
-
-	if container.HostnamePath != "" && container.HostsPath != "" {
-		mounts = append(mounts,
-			&graphdriver.Mount{
-				Device:  container.HostnamePath,
-				Target:  "/etc/hostname",
-				Type:    "none",
-				Options: "bind,ro",
-			},
-			&graphdriver.Mount{
-				Device:  container.HostsPath,
-				Target:  "/etc/hosts",
-				Type:    "none",
-				Options: "bind,ro",
-			})
-	}
-
-	for r, v := range container.Volumes {
-		mountAs := "ro"
-		if container.VolumesRW[v] {
-			mountAs = "rw"
-		}
-
-		mounts = append(mounts,
-			&graphdriver.Mount{
-				Device:  v,
-				Target:  r,
-				Type:    "none",
-				Options: fmt.Sprintf("bind,%s", mountAs),
-			})
-	}
-	return mounts, nil
-}
-
 func (runtime *Runtime) Mount(container *Container) error {
 	dir, err := runtime.driver.Get(container.ID)
 	if err != nil {

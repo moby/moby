@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/mount"
 	"github.com/dotcloud/docker/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
@@ -684,13 +685,41 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	mounts, err := runtime.getMounts(container)
+	root := container.RootfsPath()
+	envPath, err := container.EnvConfigPath()
 	if err != nil {
 		return err
 	}
 
-	for _, m := range mounts {
-		if err := m.Mount(container.RootfsPath()); err != nil {
+	// Mount docker specific files into the containers root fs
+	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro"); err != nil {
+		return err
+	}
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro"); err != nil {
+			return err
+		}
+		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro"); err != nil {
+			return err
+		}
+	}
+
+	// Mount user specified volumes
+
+	for r, v := range container.Volumes {
+		mountAs := "ro"
+		if container.VolumesRW[v] {
+			mountAs = "rw"
+		}
+
+		if err := mount.Mount(v, path.Join(root, r), "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
 			return err
 		}
 	}
@@ -1372,12 +1401,26 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Unmount() error {
-	mounts, err := container.runtime.getMounts(container)
-	if err != nil {
-		return err
+	var (
+		err    error
+		root   = container.RootfsPath()
+		mounts = []string{
+			path.Join(root, "/.dockerinit"),
+			path.Join(root, "/.dockerenv"),
+			path.Join(root, "/etc/resolv.conf"),
+		}
+	)
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		mounts = append(mounts, path.Join(root, "/etc/hostname"), path.Join(root, "/etc/hosts"))
 	}
+
+	for r := range container.Volumes {
+		mounts = append(mounts, path.Join(root, r))
+	}
+
 	for _, m := range mounts {
-		if lastError := m.Unmount(container.RootfsPath()); lastError != nil {
+		if lastError := mount.Unmount(m); lastError != nil {
 			err = lastError
 		}
 	}
