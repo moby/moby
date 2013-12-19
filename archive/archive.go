@@ -3,6 +3,8 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
+	"compress/bzip2"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -57,6 +59,43 @@ func DetectCompression(source []byte) Compression {
 		}
 	}
 	return Uncompressed
+}
+
+func xzDecompress(archive io.Reader) (io.Reader, error) {
+	args := []string{"xz", "-d", "-c", "-q"}
+
+	return CmdStream(exec.Command(args[0], args[1:]...), archive, nil)
+}
+
+func DecompressStream(archive io.Reader) (io.Reader, error) {
+	buf := make([]byte, 10)
+	totalN := 0
+	for totalN < 10 {
+		n, err := archive.Read(buf[totalN:])
+		if err != nil {
+			if err == io.EOF {
+				return nil, fmt.Errorf("Tarball too short")
+			}
+			return nil, err
+		}
+		totalN += n
+		utils.Debugf("[tar autodetect] n: %d", n)
+	}
+	compression := DetectCompression(buf)
+	wrap := io.MultiReader(bytes.NewReader(buf), archive)
+
+	switch compression {
+	case Uncompressed:
+		return wrap, nil
+	case Gzip:
+		return gzip.NewReader(wrap)
+	case Bzip2:
+		return bzip2.NewReader(wrap), nil
+	case Xz:
+		return xzDecompress(wrap)
+	default:
+		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+	}
 }
 
 func (compression *Compression) Flag() string {
@@ -155,7 +194,7 @@ func TarFilter(path string, options *TarOptions) (io.Reader, error) {
 		}
 	}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), &files, func() {
+	return CmdStream(exec.Command(args[0], args[1:]...), bytes.NewBufferString(files), func() {
 		if tmpDir != "" {
 			_ = os.RemoveAll(tmpDir)
 		}
@@ -301,7 +340,7 @@ func CopyFileWithTar(src, dst string) error {
 // CmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input *string, atEnd func()) (io.Reader, error) {
+func CmdStream(cmd *exec.Cmd, input io.Reader, atEnd func()) (io.Reader, error) {
 	if input != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -312,7 +351,7 @@ func CmdStream(cmd *exec.Cmd, input *string, atEnd func()) (io.Reader, error) {
 		}
 		// Write stdin if any
 		go func() {
-			_, _ = stdin.Write([]byte(*input))
+			io.Copy(stdin, input)
 			stdin.Close()
 		}()
 	}

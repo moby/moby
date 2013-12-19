@@ -34,6 +34,11 @@ func ApplyLayer(dest string, layer Archive) error {
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
 
+	layer, err := DecompressStream(layer)
+	if err != nil {
+		return err
+	}
+
 	tr := tar.NewReader(layer)
 
 	var dirs []*tar.Header
