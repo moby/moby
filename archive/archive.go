@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -285,45 +286,92 @@ func TarFilter(path string, options *TarOptions) (io.Reader, error) {
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, path string, options *TarOptions) error {
+func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
 	}
 
-	buf := make([]byte, 10)
-	totalN := 0
-	for totalN < 10 {
-		n, err := archive.Read(buf[totalN:])
+	archive, err := DecompressStream(archive)
+	if err != nil {
+		return err
+	}
+
+	tr := tar.NewReader(archive)
+
+	var dirs []*tar.Header
+
+	// Iterate through the files in the archive.
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			// end of tar archive
+			break
+		}
 		if err != nil {
-			if err == io.EOF {
-				return fmt.Errorf("Tarball too short")
-			}
 			return err
 		}
-		totalN += n
-		utils.Debugf("[tar autodetect] n: %d", n)
-	}
 
-	compression := DetectCompression(buf)
+		if options != nil {
+			excludeFile := false
+			for _, exclude := range options.Excludes {
+				if strings.HasPrefix(hdr.Name, exclude) {
+					excludeFile = true
+					break
+				}
+			}
+			if excludeFile {
+				continue
+			}
+		}
 
-	utils.Debugf("Archive compression detected: %s", compression.Extension())
-	args := []string{"--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
+		// Normalize name, for safety and for a simple is-root check
+		hdr.Name = filepath.Clean(hdr.Name)
 
-	if options != nil {
-		for _, exclude := range options.Excludes {
-			args = append(args, fmt.Sprintf("--exclude=%s", exclude))
+		if !strings.HasSuffix(hdr.Name, "/") {
+			// Not the root directory, ensure that the parent directory exists
+			parent := filepath.Dir(hdr.Name)
+			parentPath := filepath.Join(dest, parent)
+			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
+				err = os.MkdirAll(parentPath, 600)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		path := filepath.Join(dest, hdr.Name)
+
+		// If path exits we almost always just want to remove and replace it
+		// The only exception is when it is a directory *and* the file from
+		// the layer is also a directory. Then we want to merge them (i.e.
+		// just apply the metadata from the layer).
+		if fi, err := os.Lstat(path); err == nil {
+			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
+				if err := os.RemoveAll(path); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := createTarFile(path, dest, hdr, tr); err != nil {
+			return err
+		}
+
+		// Directory mtimes must be handled at the end to avoid further
+		// file creation in them to modify the directory mtime
+		if hdr.Typeflag == tar.TypeDir {
+			dirs = append(dirs, hdr)
 		}
 	}
 
-	cmd := exec.Command("tar", args...)
-	cmd.Stdin = io.MultiReader(bytes.NewReader(buf), archive)
-	// Hardcode locale environment for predictable outcome regardless of host configuration.
-	//   (see https://github.com/dotcloud/docker/issues/355)
-	cmd.Env = []string{"LANG=en_US.utf-8", "LC_ALL=en_US.utf-8"}
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", err, output)
+	for _, hdr := range dirs {
+		path := filepath.Join(dest, hdr.Name)
+		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
+		if err := syscall.UtimesNano(path, ts); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
