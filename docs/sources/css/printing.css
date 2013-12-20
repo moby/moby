@@ -1,0 +1,225 @@
+@media print {
+.noprint {
+display: none;
+}}
+
+body {
+    color: Black;
+    background-color: White;
+    font-family: "Georgia", Times, serif;
+    text-align: left;
+    margin: 0mm;
+    padding: 0mm;
+max-width: 150mm;
+}
+
+table {
+    /* Mickael Hartl's suggestion to get rid of cellspacing="0" in tables: */ 
+    border-collapse: collapse;
+    
+    border-left: 0.15mm solid Black;
+    border-bottom: 0.15mm solid Black;
+    margin: 0px 2mm 2mm 2mm;
+    padding: 0px;
+    font-size: 9pt;
+    color: Black;
+}
+
+table.was_pre {
+    border: none;
+}
+
+table caption {
+    padding: 2mm 2mm 0.5mm 3mm;
+    font-style: italic;
+    font-weight: bold;
+    font-size: 9pt;
+    background-color: White;
+    border: 0px;
+    text-align: left;
+    color: Black;
+}
+
+thead {display: table-header-group; }
+
+th {
+    padding: 0.5mm 1mm;
+    margin-top: 3mm;
+    background-color: #AAA;
+    border-top: 0.15mm solid Black;
+    border-right: 0.15mm solid Black;
+    border-bottom: 0px;
+    text-align: left;
+    font-size: 8pt;
+    color: White;
+}
+
+.logo {
+    border: 0px;
+    padding: 1mm 2mm;
+    margin: auto;
+    border-bottom: 2mm double Black;
+    vertical-align: middle;
+    width: auto;
+}
+
+td {
+    border-top: 0.15mm solid Black;
+    border-right: 0.15mm solid Black;
+    margin: 0px;
+    padding: 0px 2mm;
+    vertical-align: top;
+    font-size: 9pt;
+}
+
+table.was_pre td {
+    border: none;
+}
+
+.main {
+    background-color: #FFF;
+    color: #222;
+    width: 150mm;
+    margin: 0px;
+    padding: 0px;
+    font-size: 10pt;
+    border: 0px;
+}
+
+.content {
+    font-size: 10pt;
+    padding: 0px 10px 10px 10px;
+    margin: 0px;
+    margin-right: auto;
+    vertical-align: top;
+    border: 0px;
+}
+
+a {
+    color: Black;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #027;
+}
+
+h1 {
+    color: Black;
+    padding: 0px;
+    margin: 0px;
+    letter-spacing: .1em;
+    word-spacing: .05em;
+    font-size: 25pt;
+    font-weight: normal;
+	page-break-after: never;
+}
+
+h2 {
+    color: Black;
+    padding: 4mm 0px 0px 0px;
+    margin: 0px 0px 3mm 0px;
+    letter-spacing: .1em;
+    font-size: 16pt;
+    font-weight: bold;
+    border-bottom: 0.8mm solid Black; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+	page-break-after: never;
+}
+
+h3 {
+    color: Black;
+    padding: 3mm 0px 0px 0px;
+    margin: 0px;
+    letter-spacing: .1em;
+    font-size: 12pt;
+    font-weight: bold;
+    border-bottom: 0.4mm solid Black; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+    margin-bottom: 10px;
+	page-break-after: never;
+}
+
+h4 {
+    color: Black;
+    padding: 3mm 0px 0px 0px;
+    margin: 0px 0px 1mm 0px;
+    letter-spacing: .1em;
+    font-size: 10pt;
+    font-weight: normal;
+    font-style: italic;
+    border-bottom: 0.25mm dotted black; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+	page-break-after: never;
+}
+
+dl {
+    margin: 0px 0px 3mm 0px;
+    font-size: 8pt;
+}
+
+dt { 
+    font-style: italic;
+}
+
+dd { 
+    margin-left: 6mm;
+}
+
+.invisible {
+    display: none;
+}
+
+ul, ol {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+code {
+    color: Black;
+    font-size: 8pt;
+}
+
+pre {
+    color: Black;
+    padding: 3mm 3mm 3mm 3mm;
+    margin: 0px;
+    font-size: 8pt;
+}
+
+blockquote {
+    padding: 1.5mm;
+    margin: 1.5mm 2.5mm;
+    font-size: 9pt;
+    background-color: White;
+    border-top: 0.15mm dotted Black;
+    border-bottom: 0.15mm dotted Black;
+    display: block;
+}
+
+/********************
+CHANGE STYLES
+********************/
+/* All black !
+.since26 {color: #D82}
+.since25 {color: #722}
+.since24 {color: #0099CC}
+.since23 {color: #000}
+.since22 {color: #000}
+.since21 {color: #000}
+.since20 {color: #000}
+
+*/
+
+.warning {
+    color: Black;
+    font-weight: bold;
+}

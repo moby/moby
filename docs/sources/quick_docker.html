@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Docker Quick Reference</title>
+
+
+    <link href="css/modern.css" rel="stylesheet" type="text/css" title="Modern" media="all" />
+    <link href="css/modernbw.css" rel="alternate stylesheet" type="text/css" title="Modern Black &amp; White" media="all" />
+    <link href="css/modern-colored.css" rel="stylesheet" type="text/css" title="Modern Colored" media="all" />
+    <link href="css/classic.css" rel="alternate stylesheet" type="text/css" title="Classic" media="all" />
+    <link href="css/highcontrast.css" rel="alternate stylesheet" type="text/css" title="High contrast" media="all" />
+    <link href="css/printing.css" rel="alternate stylesheet" type="text/css" title="Printing" media="all" />
+    <script type="text/javascript" src="css/styleswitcher.js"></script>
+
+<body>
+
+<a name="top" id ="top"></a>
+
+
+    <table class="main" summary="Layout" border="0" cellpadding="0">
+    <tbody>
+    <tr>
+      <td colspan="20" class="logo" height="59">
+      <h1> Docker Quick Reference </h1>
+      </td>
+    </tr>
+    <tr>
+      <td class="content">
+      
+<style type="text/css">
+div.subheader {background-color:#B4B4FA;font-style:italic;}
+</style>
+
+        <p><span class="noprint"> Style chooser:
+          <a href="#" onclick="setActiveStyleSheet('Modern'); return false;" title="Modern style (default)">Modern</a>,
+          <a href="#" onclick="setActiveStyleSheet('Modern Black &amp; White'); return false;" title="Modern B&amp;W style, good for printing">Modern B&amp;W</a>,
+          <a href="#" onclick="setActiveStyleSheet('Modern Colored'); return false;" title="Modern variant, slightly Colored">Modern Colored</a>,
+          <a href="#" onclick="setActiveStyleSheet('Classic'); return false;" title="Classic (original) layout">Classic</a>,
+          <a href="#" onclick="setActiveStyleSheet('High contrast'); return false;" title="Black &amp; White">High contrast</a>
+          or <a href="#" onclick="setActiveStyleSheet('Printing'); return false;" title="Optimized for A4 paper">Printing</a>
+        </span><br />
+        <span  class="noprint" style="font-size:x-small"><span style="color:red">[Hint</span>: Use styles Modern B&amp;W or
+          Printing to print. If you get problems, try printing the <a href="http://charlesmerriam.com/#QuickRef" title="PDF versions">
+          PDF versions</a> instead]</span>
+        </p>
+         <h2>
+<a name="Contents" id ="Contents"></a>
+Contents
+</h2>
+
+<ul>
+<li><a href="#FrontMatter">Front Matter</a>
+<li><a href="#UsefulLinks">Useful Links</a>
+: 
+<a href="#FileSystems">File Systems</a>, <a href="#DockerSystemInformation">Docker System Information</a>, <a href="#ContainerandImageStatus">Container and Image Status</a>, <a href="#RunningImages">Running Images</a>, <a href="#Moreimages">More images</a>, <a href="#Containers">Containers</a>, <a href="#Workingwithrepositories">Working with repositories</a>
+<li><a href="#DockerCommands">Docker Commands</a>
+<li><a href="#ProjectsRelatedtoDocker">Projects Related to Docker</a>
+</ul> <h2>
+<a name="FrontMatter" id ="FrontMatter"></a>
+Front Matter
+</h2>
+
+<br>
+Client version 0.7.1.  Server version 0.7.1. (<a target="_blank" href="http://blog.docker.io/2013/11/docker-0-7-docker-now-runs-on-any-linux-distribution/">What's new?</a>)
+<br>
+<b>Please</b> report inaccuracies, oversights, and bugs to the <a target="_blank" href="https://github.com/merriam/quick_reference/issues">GitHub merriam/quick_reference repository</a>
+<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.
+<br>
+This is a work in progress, last updated in 12/2013.
+<br>
+Webpage design based on <a target="_blank" href="http://rgruet.free.fr/PQR27/PQR2.7.html">Richard Gruet's Python Quick Reference</a>.
+<h2>
+<a name="UsefulLinks" id ="UsefulLinks"></a>
+Useful Links
+</h2>
+
+<blockquote class="link_section">
+<ul>
+<li>
+<b>Docker Linux container runtime</b>:
+<a target="_blank" href="https://www.docker.io">Overview</a>, 
+<a target="_blank" href="http://docker.readthedocs.org/en/latest/">Documentation</a>, 
+<a target="_blank" href="https://github.com/dotcloud/docker/">GitHub repository</a>, 
+<a target="_blank" href="https://github.com/dotcloud/docker/issues?state=open">Bugs and Issues</a>, 
+<a target="_blank" href="irc://chat.freenode.net/docker">IRC</a>, 
+<a target="_blank" href="http://stackoverflow.com/questions/tagged/docker">Stack Overflow</a>, 
+<a target="_blank" href="https://github.com/dotcloud/docker/blob/master/LICENSE">License</a></li>
+<li>
+<b>Go (GoLang) programming language</b>:
+<a target="_blank" href="http://golang.org">Overview</a>, 
+<a target="_blank" href="http://golang.org/doc/">Documentation</a>, 
+<a target="_blank" href="http://code.google.com/p/go/source/browse">Source Repo</a>, 
+<a target="_blank" href="https://code.google.com/p/go/issues/list">Bugs and Issues</a>, 
+<a target="_blank" href="http://stackoverflow.com/questions/tagged/go">Stack Overflow</a>, 
+<a target="_blank" href="http://golang.org/LICENSE">License</a></li>
+<li>
+<b>VirtualBox VM manager by Oracle</b>:
+<a target="_blank" href="https://www.virtualbox.org">Overview</a>, 
+<a target="_blank" href="https://www.virtualbox.org/wiki/Documentation">Documentation</a>, 
+<a target="_blank" href="https://www.virtualbox.org/wiki/Downloads">Download</a>, 
+<a target="_blank" href="https://www.virtualbox.org/browser/vbox/trunk">Source Repo</a>, 
+<a target="_blank" href="https://www.virtualbox.org/wiki/Licensing_FAQ">License</a></li>
+<li>
+<b>Vagrant VM creation DSL</b>:
+<a target="_blank" href="http://www.vagrantup.com">Overview</a>, 
+<a target="_blank" href="http://docs.vagrantup.com/v2/">Documentation</a>, 
+<a target="_blank" href="http://www.vagrantbox.es">Box list</a>, 
+<a target="_blank" href="https://github.com/mitchellh/vagrant">GitHub Repository</a>, 
+<a target="_blank" href="http://stackoverflow.com/questions/tagged/vagrant">Stack Overflow</a>, 
+<a target="_blank" href="https://github.com/mitchellh/vagrant/blob/master/LICENSE">License</a></li>
+<li>
+<b>Chef configuration management by OpsCode</b>:
+<a target="_blank" href="http://www.getchef.com/chef/">Overview</a>, 
+<a target="_blank" href="http://docs.opscode.com">Documentation</a>, 
+<a target="_blank" href="https://github.com/opscode/chef">GitHub Repository</a>, 
+<a target="_blank" href="http://stackoverflow.com/questions/tagged/chef">Stack Overflow</a>, 
+<a target="_blank" href="https://github.com/opscode/chef/blob/master/LICENSE">License</a></li>
+<li>
+<b>Puppet configuration management</b>:
+<a target="_blank" href="http://puppetlabs.com">Overview</a>, 
+<a target="_blank" href="http://docs.puppetlabs.com">Documentation</a>, 
+<a target="_blank" href="https://github.com/puppetlabs/puppet">GitHub Repository</a>, 
+<a target="_blank" href="http://stackoverflow.com/questions/tagged/puppet">Stack Overflow</a>, 
+<a target="_blank" href="https://github.com/puppetlabs/puppet/blob/master/LICENSE">License</a></li>
+
+</ul>
+</blockquote>
+
+<h2>
+<a name="DockerCommands" id ="DockerCommands"></a>
+Docker Commands
+</h2>
+
+<table>
+<caption>Organized by type</caption>
+<thead><tr>
+<th width="150"><a target="_blank" href="http://docs.docker.io/en/latest/commandline/cli/">Command</a>
+<th width="270">Meaning
+<th width="10">Notes
+<tbody>
+<tr>
+<td><a name="FileSystems" id ="FileSystems"></a>
+<div class="subheader">File Systems</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>import</strong> <code>-</code> <strong>|</strong> <em>url</em> <em>[</em>REPOSITORY<em>[</em>:TAG<em>]</em><em>]</em>
+<td>Import tar file of filesystem into new <strong>image</strong>. Source can be <code>-</code> for stdin, like <code>docker import - &lt; a6ef_files.tar</code>.  Alternately, source can be an <em>http</em> or <em>https</em> URL.  Also, the optional <em>REPOSITORY</em> or <em>REPOSITORY:TAG</em> will <code>docker tag</code> the new image, like <code>docker import server.com/files.tar charlesmerriam/dwarf:in_progress</code>
+<td>
+<tr>
+<td><strong>export</strong> <em>CONTAINER</em>
+<td>Export <strong>container</strong> filesystem as tar file to <em>stdout</em>.  Use like <code>docker export a6e5 &gt; a6e5_files.tar</code>
+<td>(2)
+<tr>
+<td><strong>load</strong> <em>SOURCE</em>
+<td>Load an image from a tar archive
+<td>
+<tr>
+<td><strong>save</strong> <em>IMAGE</em>
+<td>Save an image to a tar archive streamed to <em>stdout</em>. Use like <code>docker save e71d &gt; e71d.tar</code>
+<td>
+<tr>
+<td><strong>diff</strong> <em>CONTAINER</em>
+<td>List differences between the filesytem of the <em>container</em> and the filesystem of the <em>image</em> in which it ran.  Output lines have a code letter for <strong>C</strong>hanged, <strong>D</strong>eleted, or <strong>A</strong>dded followed by the file or directory name.  Run like <code>docker diff a6e5</code>.
+<td>(1)
+<tr>
+<td><strong>insert</strong> <em>IMAGE</em> <em>URL</em> <em>PATH</em>
+<td>Insert a file from URL into the IMAGE at PATH, creating a new image. Returns the new image ID.  It also creates a new container as a side effect.
+<td>
+<tr>
+<td><strong>cp</strong> <em>CONTAINER</em>:<em>path</em> <em>path</em>
+<td>Recursively copy a file or directory out of a <strong>container</strong> filesystem to the local (host) filesystem.  So, <code>docker cp a6e5:/var/log .</code> would copy the directory tree from the container into a new subdirectory <code>./log</code>, while <code>docker cp a6e5:var/log/dpkg.log dpkg</code> copy a single file from the container to a local <em>existing directory</em> <code>dpkg/dpkg.log</code>.
+<td>(2)
+<tr>
+<td><a name="DockerSystemInformation" id ="DockerSystemInformation"></a>
+<div class="subheader">Docker System Information</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>events</strong> [-since="<em>timestamp</em>"]
+<td>Get real time events from the server, optionally including previous events from the current docker deaemon like <code>docker events -since="2013-01-01 04:48:23"</code>.  Quick with Ctrl-C
+<td> 
+<tr>
+<td><strong>info</strong>
+<td>Display system wide information including the number of containers and images.
+<td> 
+<tr>
+<td><strong>version</strong>
+<td>Display docker version information including the golang version  and git branch of both the client and server.
+<td> 
+<tr>
+<td><a name="ContainerandImageStatus" id ="ContainerandImageStatus"></a>
+<div class="subheader">Container and Image Status</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>history</strong> [-q][-notrunc] <em>IMAGE</em>
+<td>Show the history of an <em>image</em>, detailing which images and commands were used in its creation.   Use <code>-q</code> to show only the IDs and <code>-notrunc</code> to show full width IDs and commands
+<td>
+<tr>
+<td><strong>inspect</strong> [-format="<em>go-template</em>"] <em>containers_or_images</em>
+<td>Return JSON dump on one or more containers or images.  This dump containsall metadata and settings.
+<td> 
+<tr>
+<td><strong>images</strong> [-notrunc] [-q]<br>&nbsp;&nbsp;&nbsp;[-a|-tree|-viz|<em>IMAGE_REGEX</em>]
+<td>List images on your local system.  <code>-q</code> lists IDs only while <code>-notrunc</code> prints long IDs.  With no other arguments,the command prints all images and <code>-a</code> will also list intermediate build images.<code>-tree</code> and <code>-viz</code> print a tree of image ancestory as text or graphviz format.  Finally, providing image name or regex lists matching images, like<code>docker images "u*"</code>.
+<td>(3)(4)
+<tr>
+<td><strong>logs</strong> [-f] <em>container</em>
+<td>Fetch transcript of <em>stdout</em> and <em>stderr</em> of container, outputing to both <em>stdout</em> and <em>stderr</em>, like <code>docker logs ae4d &gt; last.stdout.txt 2&gt; last.stderr.txt</code>.  Use <code>-f</code> to output transcript and then follow continuing output of a running container.
+<td> 
+<tr>
+<td><strong>top</strong> <em>CONTAINER</em> [-ps_options]
+<td>Lists the running processes of a container, like the Unix <code>top</code> command. The <em>ps_options</em>, which are listed <strong>after</strong> the <em>container_id</em>, can be <code>-notrunc</code> or any of the many ps flags.   You can see a list of options by using a valid container_id, like <code>docker top 5e34 -?</code>.
+<td> 
+<tr>
+<td><strong>ps</strong> [-q] [-notrunc]
+<td>
+<td> 
+<tr>
+<td><strong>port</strong> CONTAINER PRIVATE_PORT
+<td>Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+<td> 
+<tr>
+<td><a name="RunningImages" id ="RunningImages"></a>
+<div class="subheader">Running Images</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>run</strong> <em>image</em> [Command]
+<td>Run a command in a new container.  Lots and lots of options.
+<td> 
+<tr>
+<td><strong>start</strong> [-a] [-i]
+<td>Restart a stopped container.
+<td> 
+<tr>
+<td><strong>stop</strong> [-t=<em>seconds</em>] <em>container_list</em>
+<td>Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
+<td> 
+<tr>
+<td><strong>restart</strong> [t=<em>seconds</em>
+<td>Restart, meaning stop and then start, a running container.  <code>-t</code> is the grace period in seconds to allow container to finish.
+<td> 
+<tr>
+<td><strong>wait</strong> <em>container_list</em>
+<td>Block until containers stop, printing exit code of each container as it finishes.
+<td> 
+<tr>
+<td><a name="Moreimages" id ="Moreimages"></a>
+<div class="subheader">More images</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>commit</strong> [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
+<td>Create a new image from a container's changes
+<td> 
+<tr>
+<td><strong>tag</strong>
+<td>Tag an image into a repository
+<td> 
+<tr>
+<td><strong>rmi</strong>
+<td>Remove one or more images.
+<td> 
+<tr>
+<td><a name="Containers" id ="Containers"></a>
+<div class="subheader">Containers</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>attach</strong> [-nostdin] [-sig-proxy]
+<td>Attach to a running container
+<td> 
+<tr>
+<td><strong>build</strong> [-q] [-no-cache] [-rm] [-t=<em>new_name_and_tag</em>]
+<td>Build a new container image from the source code at PATH.
+<td> 
+<tr>
+<td><strong>kill</strong> <em>container_list</em>
+<td>Kill a running container (send SIGKILL).
+<td> 
+<tr>
+<td><strong>rm</strong> [-link] [-v] <em>container-list</em>
+<td>Remove one or more containers.
+<td> 
+<tr>
+<td><a name="Workingwithrepositories" id ="Workingwithrepositories"></a>
+<div class="subheader">Working with repositories</div>
+<td><div class="subheader">&nbsp;</div>
+<td><div class="subheader">&nbsp;</div>
+<tr>
+<td><strong>login</strong> [<code>-e=</code><em>email</em>] [<code>-p=</code><em>password</em>] [<code>-u=</code><em>username] [</em>ServerURL*]
+<td>Login to a repository, or the <a target="_blank" href="https://index.docker.io">Public Docker Index</a> by default.  Also used to create an account, which is followed up with a confirmation email.  Login is required for <code>docker push</code>
+<td>(5)
+<tr>
+<td><strong>push</strong> <em>image-set</em>
+<td>Push an image or image set (also called a repository) to the registry, like <code>push charlesmerriam/ping2:latest</code>.  Prompts for login information unless logged in.
+<td>(7)
+<tr>
+<td><strong>pull</strong> [-t="<em>tag_name</em>"] <em>IMAGE_SET</em>
+<td>Pull an image set (also called a repository) from the registry.  Use <code>-t</code> to pullonly one tagged image from the set, like <code>docker pull -t="latest" charlesmerriam/ping</code>. 
+<td>(7)
+<tr>
+<td><strong>search</strong> [-notrunc] [-stars=<em>mininum_stars</em>] [-trusted] <em>TERM</em>
+<td>Search for images in the <a target="_blank" href="https://index.docker.io">Public Docker Index</a> with <em>TERM</em> matching in the name or description of the image.  You can filter by <em>mininum_stars</em> or select only <em>trusted</em> repositories, like <code>docker search -stars=2 -trusted git</code>.  Use <code>-notrunc</code> to see the full descriptions.
+<td>(6)
+</table>The <a target="_blank" href="http://docs.docker.io/en/latest/commandline/cli/">Command Line Documentation</a> may have additional examples.
+<br>
+<ul>
+<li>(1) The <code>docker diff</code> command lists <em>aufs</em> internal files.  These files are in the root directory and start with <code>.wh..wh.</code>.</li>
+<li>(2) Use <code>docker export</code> to copy an entire filesystem; current limitations return <code>Killed</code> otherwise.</li>
+<li>(3) Current limitations cause <code>docker image</code> to ignore the <code>*IMAGE*</code> and <code>-q</code> flags when used with <code>-tree</code> or <code>-viz</code>.</li>
+<li>(4) You can display graphviz format at <a target="_blank" href="http://graphviz-dev.appspot.com">http://graphviz-dev.appspot.com</a> or run locally like <code>docker images -viz | dot -Tpng -o tree.png</code>.</li>
+<li>(5) Your login is stored in ~/.dockercfg.  Remove it to logout.</li>
+<li>(6) The <em>TERM</em> uses spaces to denote OR, so <code>docker search "cassandra mysql"</code> searches documents with <code>cassandra</code> or <code>mysql</code> in either the name or description of the image.   A <code>*</code> means "followed later by the second term", but use <code>grep</code> for AND, like <code>docker search --notrunc sql | grep -i centos</code>.  Alternately, use the <a target="_blank" href="https://index.docker.io">Public Docker Index</a>webpage to search.</li>
+<li>(7) The <code>docker run</code> command also has this functionality.</li>
+<li>(8) The <em>image_set</em> may be the top level public repository, like <code>ubuntu</code>; in an account of the public repostiory, like <code>charlesmerriam/ubuntu</code>; or in a private repostory, like <code>localhost:5000/ubuntu</code>.</li>
+<li>(9) See <a target="_blank" href="http://golang.org/pkg/text/template/">http://golang.org/pkg/text/template/</a> for the Go Language template package.</li>
+</ul>
+<h2>
+<a name="ProjectsRelatedtoDocker" id ="ProjectsRelatedtoDocker"></a>
+Projects Related to Docker
+</h2>
+
+<table>
+<thead><tr>
+<th>Project
+<th>Description
+<tbody>
+<tr>
+<td><a target="_blank" href="https://stackdock.com">StackDock</a>
+<td>Hosting docker containers on SSD based hosts.
+<tr>
+<td><a target="_blank" href="http://dockerwharf.com">Wharf</a>
+<td>Try available services quickly using this open source Software as a Service.
+</table> </table>
+

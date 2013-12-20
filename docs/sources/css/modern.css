@@ -1,0 +1,208 @@
+@media print {
+.noprint {
+display: none;
+}}
+
+body {
+    color: #777;
+    background-color: #F9F9F9;
+    font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+    margin: 0px;
+    padding: 10px 0px;
+    /* look at .main for the parent font-size */
+}
+
+table {
+    /* Mickael Hartl's suggestion to get rid of cellspacing="0" in tables: */ 
+    border-collapse: collapse;
+    
+    border-left: 1px solid #AAA;
+    border-bottom: 1px solid #AAA;
+    margin: 0px 10px 10px 10px;
+    padding: 0px;
+    font-size: 9pt;
+    color: #000;
+}
+
+table caption {
+    padding: 1px 5px;
+    margin-top: 5px;
+    background-color: #AAA;
+    border-top: 1px solid #AAA;
+    border-right: 1px solid #AAA;
+    border-bottom: 0px;
+    text-align: left;
+    color: #EEE;
+    font-size: 9pt;
+    margin: 10px 10px 0px 10px;
+    font-weight: bold;
+}
+
+th {
+    padding: 1px 5px;
+    margin-top: 5px;
+    background-color: #EEE;
+    border-top: 1px solid #AAA;
+    border-right: 1px solid #AAA;
+    border-bottom: 0px;
+    text-align: left;
+    font-size: 8pt;
+    color: #AAA;
+}
+
+.logo {
+    border: 0px;
+    padding: 2px 5px;
+    margin: auto;
+    border-bottom: 3px double #AAA;
+    vertical-align: middle;
+    width: auto;
+}
+
+td {
+    border-top: 1px solid #AAA;
+    border-right: 1px solid #AAA;
+    margin: 0px;
+    padding: 0px 5px;
+    vertical-align: top;
+    font-size: 9pt;}
+
+.main {
+    background-color: #FFF;
+    color: #222;
+    width: 80%;
+    margin: auto;
+    padding: 0px;
+    font-size: 10pt;
+    border: 2px solid #AAA;
+}
+
+.content {
+    font-size: 9pt;
+    padding: 0px 10px 10px 10px;
+    margin: 0px;
+    margin-right: auto;
+    vertical-align: top;
+    border: 0px;
+}
+
+a {
+    color: #696;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #027;
+}
+
+h1 {
+    color: #AAA;
+    padding: 0px;
+    margin: 0px;
+    letter-spacing: .1em;
+    word-spacing: .05em;
+    font-size: 25pt;
+    font-weight: normal;
+}
+
+h2 {
+    color: #AAA;
+    padding:40px 0px 0px 0px;
+    margin: 0px 0px 10px 0px;
+    letter-spacing: .1em;
+    font-size: 16pt;
+    font-weight: bold;
+    border-bottom: 3px dotted #DDD; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+}
+
+h3 {
+    color: #AAA;
+    padding: 15px 0px 0px 0px;
+    margin: 0px;
+    letter-spacing: .1em;
+    font-size: 12pt;
+    font-weight: bold;
+    border-bottom: 2px dotted #DDD; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+    margin-bottom: 10px;
+}
+
+h4 {
+    color: #AAA;
+    padding:10px 0px 0px 0px;
+    margin: 0px 0px 5px 0px;
+    letter-spacing: .1em;
+    font-size: 10pt;
+    font-weight: normal;
+    font-style: italic;
+    border-bottom: 1px dotted #DDD; 
+    text-transform: none;
+    width: 100%;
+    display: block;
+}
+
+dl {
+    margin: 0px 0px 10px 0px;
+    font-size: 8pt;
+}
+
+dt { 
+    font-style: italic;
+}
+
+dd { 
+    margin-left: 20px;
+}
+
+.invisible {
+    display: none;
+}
+
+ul, ol {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+code {
+    color: #777;
+}
+
+pre {
+    color: #777;
+    padding: 5px 10px 5px 10px;
+    margin: 0px;
+    font-size: 8pt;
+}
+
+blockquote {
+    padding: 5px;
+    margin: 5px 10px;
+    font-size: 8pt;
+    background-color: #F8F8F8;
+    border-top: 1px solid #DDD;
+    border-bottom: 1px solid #DDD;
+    display: block;
+}
+
+/********************
+CHANGE STYLES
+********************/
+.since27 {color: #0099CC}
+.since26 {color: #D82}
+.since25 {color: #722}
+.since24 { }
+.since23 { }
+.since22 { }
+.since21 { }
+.since20 { }
+
+.warning {
+    color: #a00;
+}

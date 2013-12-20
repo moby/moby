@@ -1,0 +1,143 @@
+@media print {
+.noprint {
+display: none;
+}}
+
+body {
+    margin: 0px;
+    padding: 0px;
+}
+
+table {
+    /* Mickael Hartl's suggestion to get rid of cellspacing="0" in tables: */ 
+    border-collapse: collapse;
+    
+    border: 1px outset;
+    margin: 0px 10px 10px 10px;
+    padding: 0px;
+    color: #000;
+}
+
+table caption {
+    font-weight: bold;
+    padding-top: 5px;
+}
+
+th {
+    background-color: #367EBA;
+    color: #EAF2FB;
+    border: 1px inset;
+}
+
+td {
+    border: 1px inset;
+    padding: 0px 5px;
+    background-color: #EAF2FB;
+}
+
+.logo {
+    border: 0px;
+    background-color: #fff;
+    padding: 0px 10px;
+}
+
+.main {
+    background-color: #FFF;
+    color: #222;
+    max-width: 100%;
+    width: 100%;
+    margin: auto;
+    min-width: 570px;
+    padding: 0px;
+    border: 0px;
+}
+
+.content {
+    background-color: #FFF;
+    padding: 0px 10px;
+    margin: 0px;
+    margin-right: auto;
+    vertical-align: top;
+    border: 0px;
+}
+
+a {
+}
+
+a:hover {
+}
+
+h1 {
+}
+
+h2 {
+    padding: 0px;
+    margin: 30px 0px 15px 0px;
+    border-top: 5px double #000;
+}
+
+h3 {
+    padding: 10px 0px 0px 0px;
+    margin: 0px;
+}
+
+h4 {
+    margin: 10px 0px 5px 0px;
+}
+
+dl {
+    margin: 0px 0px 10px 0px;
+}
+
+dt { 
+}
+
+dd { 
+    margin-left: 20px;
+}
+
+.invisible {
+    display: none;
+}
+
+ul, ol {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+code {
+    font-size: 8pt;
+}
+
+pre {
+    font-size: 8pt;
+    padding: 5px 10px 5px 10px;
+    margin: 0px;
+}
+
+blockquote {
+    padding: 5px;
+    margin: 5px 10px;
+    border: 2px ridge #000;
+    display: block;
+    width: auto;
+    background-color: White;
+}
+
+/********************
+CHANGE STYLES
+********************/
+.since27 {color: #800}
+.since26{color: #006633}
+.since25 {color: #808}
+.since24 { }
+.since23 { }
+.since22 { }
+.since21 { }
+.since20 { }
+
+.warning {
+    color: #F00;
+}
