@@ -69,6 +69,7 @@ func main() {
 			flag.Usage()
 			return
 		}
+
 		eng, err := engine.New(*flRoot)
 		if err != nil {
 			log.Fatal(err)

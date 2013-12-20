@@ -26,6 +26,7 @@ import (
 var (
 	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
 	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
+	INITPATH  string // custom location to search for a valid dockerinit binary (available for packagers as a last resort escape hatch)
 )
 
 // A common interface to access the Fatal method of
@@ -162,14 +163,23 @@ func Trunc(s string, maxlen int) string {
 	return s[:maxlen]
 }
 
-// Figure out the absolute path of our own binary
+// Figure out the absolute path of our own binary (if it's still around).
 func SelfPath() string {
 	path, err := exec.LookPath(os.Args[0])
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
+		if execErr, ok := err.(*exec.Error); ok && os.IsNotExist(execErr.Err) {
+			return ""
+		}
 		panic(err)
 	}
 	path, err = filepath.Abs(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
 		panic(err)
 	}
 	return path
@@ -190,7 +200,13 @@ func dockerInitSha1(target string) string {
 }
 
 func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
+	if target == "" {
+		return false
+	}
 	if IAMSTATIC {
+		if selfPath == "" {
+			return false
+		}
 		if target == selfPath {
 			return true
 		}
@@ -216,6 +232,7 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
+		INITPATH,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 
 		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
@@ -229,6 +246,9 @@ func DockerInitPath(localCopy string) string {
 		"/usr/local/lib/docker/dockerinit",
 	}
 	for _, dockerInit := range possibleInits {
+		if dockerInit == "" {
+			continue
+		}
 		path, err := exec.LookPath(dockerInit)
 		if err == nil {
 			path, err = filepath.Abs(path)

@@ -633,6 +633,13 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 		kernelVersion = kv.String()
 	}
 
+	// if we still have the original dockerinit binary from before we copied it locally, let's return the path to that, since that's more intuitive (the copied path is trivial to derive by hand given VERSION)
+	initPath := utils.DockerInitPath("")
+	if initPath == "" {
+		// if that fails, we'll just return the path from the runtime
+		initPath = srv.runtime.sysInitPath
+	}
+
 	v := &engine.Env{}
 	v.SetInt("Containers", len(srv.runtime.List()))
 	v.SetInt("Images", imgcount)
@@ -648,6 +655,8 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
+	v.Set("InitSha1", utils.INITSHA1)
+	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		job.Error(err)
 		return engine.StatusErr

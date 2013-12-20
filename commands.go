@@ -469,6 +469,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "LXC Version: %s\n", remoteInfo.Get("LXCVersion"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+
+		if initSha1 := remoteInfo.Get("InitSha1"); initSha1 != "" {
+			fmt.Fprintf(cli.out, "Init SHA1: %s\n", initSha1)
+		}
+		if initPath := remoteInfo.Get("InitPath"); initPath != "" {
+			fmt.Fprintf(cli.out, "Init Path: %s\n", initPath)
+		}
 	}
 
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
@@ -1262,9 +1269,9 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *[]APIImages, byParent map[s
 					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"  ", printNode)
 				}
 			} else {
-				printNode(cli, noTrunc, image, prefix+"|─")
+				printNode(cli, noTrunc, image, prefix+"├─")
 				if subimages, exists := byParent[image.ID]; exists {
-					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"| ", printNode)
+					cli.WalkTree(noTrunc, &subimages, byParent, prefix+"│ ", printNode)
 				}
 			}
 		}
@@ -1840,6 +1847,8 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 			flVolumes.Set(dstDir)
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
+		} else if bind == "/" {
+			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
 		}
 	}
 
