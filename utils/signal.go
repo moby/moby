@@ -11,6 +11,7 @@ func StopCatch(sigc chan os.Signal) {
 	close(sigc)
 }
 
+// OS specific map to signals. map[originSignal]mappedSignal
 var signalMap map[syscall.Signal]syscall.Signal
 
 // SignalMap normalize the signals to Linux standard.

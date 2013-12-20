@@ -548,6 +548,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
 	utils.CatchAll(sigc)
+
 	go func() {
 		for s := range sigc {
 			if s == syscall.SIGCHLD {
@@ -556,13 +557,26 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(s.(syscall.Signal))), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
-			if s == syscall.SIGTSTP {
-				// SIGSTOP is not blockage nor can be handled. Force dettach
-				if err := utils.Suspend(); err != nil {
-					panic(err)
+			if s == syscall.SIGTSTP || s == syscall.SIGTTIN || s == syscall.SIGTTOU {
+				if cli.oldState != nil {
+					// Restore termcaps for shell
+					if err := term.RestoreTerminal(cli.terminalFd, cli.oldState); err != nil {
+						utils.Debugf("Error RestoreTerminal: %s", err)
+					}
 				}
 
-				// Unppon SIGCONT (fg/bg), resume the process
+				// SIGSTOP is not blockage nor can be handled. Force dettach
+				if err := utils.Suspend(); err != nil {
+					utils.Debugf("Error suspend: %s", err)
+				}
+
+				// Unppon SIGCONT (fg/bg), restore terminal and resume the process
+				if cli.oldState != nil {
+					if _, err := term.SetRawTerminal(cli.terminalFd); err != nil {
+						utils.Debugf("Error SetRawTerminal: %s", err)
+					}
+				}
+
 				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(syscall.SIGCONT)), nil); err != nil {
 					utils.Debugf("Error sending signal: %s", err)
 				}
@@ -2383,14 +2397,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	var receiveStdout chan error
 
-	var oldState *term.State
-
 	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err = term.SetRawTerminal(cli.terminalFd)
+		cli.oldState, err = term.SetRawTerminal(cli.terminalFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(cli.terminalFd, oldState)
+		defer term.RestoreTerminal(cli.terminalFd, cli.oldState)
 	}
 
 	if stdout != nil || stderr != nil {
@@ -2398,7 +2410,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			defer func() {
 				if in != nil {
 					if setRawTerminal && cli.isTerminal {
-						term.RestoreTerminal(cli.terminalFd, oldState)
+						term.RestoreTerminal(cli.terminalFd, cli.oldState)
 					}
 					in.Close()
 				}
@@ -2579,4 +2591,5 @@ type DockerCli struct {
 	err        io.Writer
 	isTerminal bool
 	terminalFd uintptr
+	oldState   *term.State
 }
