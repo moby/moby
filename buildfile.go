@@ -568,7 +568,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		return b.image, nil
 	}
-	return "", fmt.Errorf("An error occurred during the build\n")
+	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
