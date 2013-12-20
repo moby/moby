@@ -630,3 +630,11 @@ func TestBuildFails(t *testing.T) {
 		t.Fatalf("StatusCode %d unexpected, should be 23", sterr.Code)
 	}
 }
+
+func TestBuildFailsDockerfileEmpty(t *testing.T) {
+	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
+
+	if err != docker.ErrDockerfileEmpty {
+		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
+	}
+}

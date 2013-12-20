@@ -2,6 +2,7 @@ package docker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
@@ -14,6 +15,10 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+)
+
+var (
+	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
 type BuildFile interface {
@@ -528,6 +533,9 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	fileBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", err
+	}
+	if len(fileBytes) == 0 {
+		return "", ErrDockerfileEmpty
 	}
 	dockerfile := string(fileBytes)
 	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
