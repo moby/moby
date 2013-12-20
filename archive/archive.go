@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"syscall"
 )
 
 type Archive io.Reader
@@ -122,6 +123,84 @@ func (compression *Compression) Extension() string {
 		return "tar.xz"
 	}
 	return ""
+}
+
+func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader) error {
+	switch hdr.Typeflag {
+	case tar.TypeDir:
+		// Create directory unless it exists as a directory already.
+		// In that case we just want to merge the two
+		if fi, err := os.Lstat(path); !(err == nil && fi.IsDir()) {
+			if err := os.Mkdir(path, os.FileMode(hdr.Mode)); err != nil {
+				return err
+			}
+		}
+
+	case tar.TypeReg, tar.TypeRegA:
+		// Source is regular file
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.FileMode(hdr.Mode))
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(file, reader); err != nil {
+			file.Close()
+			return err
+		}
+		file.Close()
+
+	case tar.TypeBlock, tar.TypeChar, tar.TypeFifo:
+		mode := uint32(hdr.Mode & 07777)
+		switch hdr.Typeflag {
+		case tar.TypeBlock:
+			mode |= syscall.S_IFBLK
+		case tar.TypeChar:
+			mode |= syscall.S_IFCHR
+		case tar.TypeFifo:
+			mode |= syscall.S_IFIFO
+		}
+
+		if err := syscall.Mknod(path, mode, int(mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+			return err
+		}
+
+	case tar.TypeLink:
+		if err := os.Link(filepath.Join(extractDir, hdr.Linkname), path); err != nil {
+			return err
+		}
+
+	case tar.TypeSymlink:
+		if err := os.Symlink(hdr.Linkname, path); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
+	}
+
+	if err := syscall.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+		return err
+	}
+
+	// There is no LChmod, so ignore mode for symlink. Also, this
+	// must happen after chown, as that can modify the file mode
+	if hdr.Typeflag != tar.TypeSymlink {
+		if err := syscall.Chmod(path, uint32(hdr.Mode&07777)); err != nil {
+			return err
+		}
+	}
+
+	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
+	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
+	if hdr.Typeflag != tar.TypeSymlink {
+		if err := syscall.UtimesNano(path, ts); err != nil {
+			return err
+		}
+	} else {
+		if err := LUtimesNano(path, ts); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Tar creates an archive from the directory at `path`, and returns it as a
