@@ -2018,6 +2018,8 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 	httpVersion = append(httpVersion, &simpleVersionInfo{"go", v.Get("GoVersion")})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", v.Get("GitCommit")})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", v.Get("KernelVersion")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"os", v.Get("Os")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", v.Get("Arch")})
 	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
 	md := &utils.HTTPMetaHeadersDecorator{
 		Headers: metaHeaders,
