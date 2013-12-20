@@ -149,7 +149,7 @@ func escapeName(name string) string {
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
 func TarFilter(path string, options *TarOptions) (io.Reader, error) {
-	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
+	args := []string{"tar", "-S", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
 	if options.Includes == nil {
 		options.Includes = []string{"."}
 	}
@@ -228,7 +228,7 @@ func Untar(archive io.Reader, path string, options *TarOptions) error {
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
-	args := []string{"--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
+	args := []string{"-S", "--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
 
 	if options != nil {
 		for _, exclude := range options.Excludes {
