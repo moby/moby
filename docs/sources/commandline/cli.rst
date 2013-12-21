@@ -52,6 +52,18 @@ To set the dns server for all docker containers, use ``docker -d -dns 8.8.8.8``
 
 To run the daemon with debug output, use ``docker -d -D``
 
+The docker client will also honor the ``DOCKER_HOST`` environment variable to set
+the ``-H`` flag for the client.  
+
+::
+ 
+        docker -H tcp://0.0.0.0:4243 ps
+        # or
+        export DOCKER_HOST="tcp://0.0.0.0:4243"
+        docker ps
+        # both are equal
+
+
 .. _cli_attach:
 
 ``attach``
