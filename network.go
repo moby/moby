@@ -628,7 +628,7 @@ func (iface *NetworkInterface) Release() {
 				log.Printf("Unable to release port %s", nat)
 			}
 		} else if nat.Port.Proto() == "udp" {
-			if err := iface.manager.tcpPortAllocator.Release(ip, hostPort); err != nil {
+			if err := iface.manager.udpPortAllocator.Release(ip, hostPort); err != nil {
 				log.Printf("Unable to release port %s: %s", nat, err)
 			}
 		}
