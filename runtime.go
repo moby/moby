@@ -4,11 +4,12 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -332,7 +333,7 @@ func (runtime *Runtime) restore() error {
 
 // FIXME: comment please!
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
-	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
+	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
 			log.Printf("WARNING: %s\n", err)
 		}
