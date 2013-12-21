@@ -1543,7 +1543,7 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi, byParents m
 	if err != nil {
 		return err
 	}
-	if len(byParents[id]) == 0 {
+	if len(byParents[id]) == 0 && srv.canDeleteImage(id) == nil {
 		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
 			return err
 		}
@@ -1631,9 +1631,8 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	var (
 		repository, tag string
-		validate        = true
+		img, err        = srv.runtime.repositories.LookupImage(name)
 	)
-	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
@@ -1655,29 +1654,32 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 	//
 	// i.e. only validate if we are performing an actual delete and not
 	// an untag op
-	if repository != "" {
-		validate = len(srv.runtime.repositories.ByID()[img.ID]) == 1
-	}
-
-	if validate {
+	if repository != "" && len(srv.runtime.repositories.ByID()[img.ID]) == 1 {
 		// Prevent deletion if image is used by a container
-		for _, container := range srv.runtime.List() {
-			parent, err := srv.runtime.repositories.LookupImage(container.Image)
-			if err != nil {
-				return nil, err
-			}
-
-			if err := parent.WalkHistory(func(p *Image) error {
-				if img.ID == p.ID {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", name, container.ID)
-				}
-				return nil
-			}); err != nil {
-				return nil, err
-			}
+		if err := srv.canDeleteImage(img.ID); err != nil {
+			return nil, err
 		}
 	}
 	return srv.deleteImage(img, repository, tag)
+}
+
+func (srv *Server) canDeleteImage(imgID string) error {
+	for _, container := range srv.runtime.List() {
+		parent, err := srv.runtime.repositories.LookupImage(container.Image)
+		if err != nil {
+			return err
+		}
+
+		if err := parent.WalkHistory(func(p *Image) error {
+			if imgID == p.ID {
+				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
