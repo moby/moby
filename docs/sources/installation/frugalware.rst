@@ -17,7 +17,7 @@ Installing on FrugalWare is handled via the official packages:
 
 * `lxc-docker x86_64 <http://www.frugalware.org/packages/200130>`_
 
-The lxc-docker package will install the latest tagged version of docker. 
+The `lxc-docker` package will install the latest tagged version of docker. 
 
 Dependencies
 ------------
@@ -48,7 +48,7 @@ is all that is needed.
 Starting Docker
 ---------------
 
-There is a systemd service unit created for docker.  To start the docker service:
+There is a systemd service unit created for Docker.  To start Docker as service:
 
 ::
 
@@ -64,16 +64,16 @@ To start on system boot:
 Network Configuration
 ---------------------
 
-IPv4 packet forwarding is disabled by default on FrugalWare, so internet access from inside
+IPv4 packet forwarding is disabled by default on FrugalWare, so Internet access from inside
 the container may not work.
 
-To enable the forwarding, run as root on the host system:
+To enable packet forwarding, run the following command as the ``root`` user on the host system:
 
 ::
 
     sysctl net.ipv4.ip_forward=1
     
-And, to make it persistent across reboots, enable it on the host's **/etc/sysctl.d/docker.conf**:
+And, to make it persistent across reboots, add the following to a file named **/etc/sysctl.d/docker.conf**:
 
 ::
 
