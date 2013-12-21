@@ -164,9 +164,9 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 
 func (b *buildFile) CmdEnv(args string) error {
 	tmp := strings.Split(args, " ")
-  if len(tmp) % 2 != 0 {
-    return fmt.Errorf("Invalid ENV format")
-  }
+	if len(tmp) % 2 != 0 {
+		return fmt.Errorf("Invalid ENV format")
+	}
 	var key string
 	var value string
 	for i := len(tmp)/2; i > 0; i -= 1 {
