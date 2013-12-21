@@ -1121,6 +1121,26 @@ id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (rw or ro) as the reference container.
 
+A complete example
+..................
+
+.. code-block:: bash
+
+   $ sudo docker run -d -name static static-web-files sh
+   $ sudo docker run -d -expose=8098 -name riak riakserver
+   $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro -name app appserver
+   $ sudo docker run -d -p 1443:443 -dns=dns.dev.org -v /var/log/httpd -volumes-from static -link riak -link app -h www.sven.dev.org -name web webserver
+   $ sudo docker run -t -i -rm -volumes-from web -w /var/log/httpd busybox tail -f access.log
+
+This example shows 5 containers that might be set up to test a web application change:
+
+1. Start a pre-prepared volume image ``static-web-files`` (in the background) that has css, image and static html in it, (with a VOLUME statement in the Dockerfile to allow the web server to use those files);
+2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose 8098 to any containers that link to it;
+3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
+4. Start the ``webserver``, mapping port 443 (https) in the container to port 1443 on the docker server, setting the dns server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated ssl certificate;
+5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``-rm`` option means that when the container exits, the container's layer is removed.
+
+
 .. _cli_save:
 
 ``save``
