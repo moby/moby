@@ -979,7 +979,7 @@ func TestContainerOrphaning(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// setup a CLI and server
-	cli := docker.NewDockerCli(nil, os.Stdout, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	cli := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
 	defer cleanup(globalEngine, t)
 	srv := mkServerFromEngine(globalEngine, t)
 
