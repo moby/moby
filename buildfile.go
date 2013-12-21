@@ -169,6 +169,7 @@ func (b *buildFile) CmdEnv(args string) error {
 	}
 	var key string
 	var value string
+	var commitMsg string
 	for i := len(tmp)/2; i > 0; i -= 1 {
 		key   = strings.Trim(tmp[0], " \t")
 		value = strings.Trim(tmp[1], " \t")
@@ -187,8 +188,13 @@ func (b *buildFile) CmdEnv(args string) error {
 		} else {
 			b.config.Env = append(b.config.Env, replacedVar)
 		}
-		return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
+		if commitMsg != "" {
+			commitMsg = fmt.Sprintf("%s\nENV %s", commitMsg, replacedValue)
+		} else {
+			commitMsg = fmt.Sprintf("ENV %s", replacedValue)
+		}
 	}
+		return b.commit("", b.config.Cmd, commitMsg)
 }
 
 
