@@ -84,7 +84,7 @@ continue installation.*
 
 .. code-block:: bash
 
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\"
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
@@ -153,7 +153,7 @@ Add the Docker repository to your apt sources list, update and install the
 
 .. code-block:: bash
 
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\"
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
@@ -220,7 +220,7 @@ packages, updating every 6 hours. Substitute
 
 .. code-block:: bash
 
-   sudo sh -c "echo deb http://mirror.yandex.ru/mirrors/docker/ docker main\
+   sudo sh -c "echo deb http://mirror.yandex.ru/mirrors/docker/ docker main\"
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
