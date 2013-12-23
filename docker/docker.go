@@ -1,10 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"log"
@@ -25,25 +25,25 @@ func main() {
 	}
 
 	var (
-		flVersion            = flag.Bool("v", false, "Print version information and quit")
-		flDaemon             = flag.Bool("d", false, "Enable daemon mode")
-		flDebug              = flag.Bool("D", false, "Enable debug mode")
-		flAutoRestart        = flag.Bool("r", true, "Restart previously running containers")
-		bridgeName           = flag.String("b", "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
-		bridgeIp             = flag.String("bip", "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
-		pidfile              = flag.String("p", "/var/run/docker.pid", "Path to use for daemon PID file")
-		flRoot               = flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime")
-		flEnableCors         = flag.Bool("api-enable-cors", false, "Enable CORS headers in the remote API")
+		flVersion            = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+		flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
+		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
+		bridgeIp             = flag.String([]string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
+		pidfile              = flag.String([]string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
+		flRoot               = flag.String([]string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the docker runtime")
+		flEnableCors         = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 		flDns                = docker.NewListOpts(docker.ValidateIp4Address)
-		flEnableIptables     = flag.Bool("iptables", true, "Disable docker's addition of iptables rules")
-		flDefaultIp          = flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
-		flInterContainerComm = flag.Bool("icc", true, "Enable inter-container communication")
-		flGraphDriver        = flag.String("s", "", "Force the docker runtime to use a specific storage driver")
+		flEnableIptables     = flag.Bool([]string{"#iptables", "-iptables"}, true, "Disable docker's addition of iptables rules")
+		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
+		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
+		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
 		flHosts              = docker.NewListOpts(docker.ValidateHost)
-		flMtu                = flag.Int("mtu", docker.DefaultNetworkMtu, "Set the containers network mtu")
+		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, docker.DefaultNetworkMtu, "Set the containers network mtu")
 	)
-	flag.Var(&flDns, "dns", "Force docker to use specific DNS servers")
-	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
+	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
+	flag.Var(&flHosts, []string{"H", "-host"}, "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
 
 	flag.Parse()
 
@@ -62,7 +62,7 @@ func main() {
 	}
 
 	if *bridgeName != "" && *bridgeIp != "" {
-		log.Fatal("You specified -b & -bip, mutually exclusive options. Please specify only one.")
+		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 
 	if *flDebug {

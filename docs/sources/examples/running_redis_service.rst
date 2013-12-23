@@ -44,7 +44,7 @@ use a container link to provide access to our Redis database.
 
 .. code-block:: bash
 
-    sudo docker run -name redis -d <your username>/redis
+    sudo docker run --name redis -d <your username>/redis
 
 Create your web application container
 -------------------------------------
@@ -56,7 +56,7 @@ Redis instance running inside that container to only this container.
 
 .. code-block:: bash
 
-    sudo docker run -link redis:db -i -t ubuntu:12.10 /bin/bash
+    sudo docker run --link redis:db -i -t ubuntu:12.10 /bin/bash
 
 Once inside our freshly created container we need to install Redis to get the 
 ``redis-cli`` binary to test our connection.
