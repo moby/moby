@@ -15,8 +15,9 @@ set -e
 # - The script is intented to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
-# - The right way to call this script is to invoke "docker build ." from
-#   your checkout of the Docker repository, and then
+# - The right way to call this script is to invoke "make" from
+#   your checkout of the Docker repository. 
+#   the Makefile will so a "docker build -t docker ." and then
 #   "docker run hack/make.sh" in the resulting container image.
 #
 
@@ -28,7 +29,7 @@ RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
 grep -q "$RESOLVCONF" /proc/mounts || {
 	echo >&2 "# WARNING! I don't seem to be running in a docker container."
 	echo >&2 "# The result of this command might be an incorrect build, and will not be officially supported."
-	echo >&2 "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'"
+	echo >&2 "# Try this: 'make all'"
 }
 
 # List of bundles to create when no argument is passed
