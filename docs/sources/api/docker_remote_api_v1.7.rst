@@ -122,7 +122,6 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
-		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -364,7 +363,8 @@ Start a container
            {
                 "Binds":["/tmp:/tmp"],
                 "LxcConf":{"lxc.utsname":"docker"},
-                "PortBindings":null
+                "PortBindings":null,
+                "Privileged":false,
                 "PublishAllPorts":false
            }
            
