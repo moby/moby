@@ -698,6 +698,9 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 
 func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	if container := srv.runtime.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return nil, fmt.Errorf("Container %s is not running", name)
+		}
 		pids, err := utils.GetPidsForContainer(container.ID)
 		if err != nil {
 			return nil, err
