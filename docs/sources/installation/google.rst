@@ -57,9 +57,17 @@
     docker-playground:~$ curl get.docker.io | bash
     docker-playground:~$ sudo update-rc.d docker defaults
 
-7. Start a new container:
+7. If running in zones: us-central1-a, europe-west1-1, and europe-west1-b, the docker daemon must be started with the `-mtu` flag. Without the flag, you may experience intermittent network pauses. 
+`See this issue <https://code.google.com/p/google-compute-engine/issues/detail?id=57>`_ for more details.
+
+.. code-block:: bash
+
+    docker -d -mtu 1460
+
+8. Start a new container:
 
 .. code-block:: bash
 
     docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
     docker on GCE \o/
+
