@@ -52,8 +52,13 @@ func main() {
 		return
 	}
 	if flHosts.Len() == 0 {
-		// If we do not have a host, default to unix socket
-		flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
+		// If we do not have a host, check for environment variable
+		if os.Getenv("DOCKER_HOST") != "" {
+      flHosts.Set(os.Getenv("DOCKER_HOST"))
+    } else {
+		  // If we do not have a host, default to unix socket
+		  flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
+    }
 	}
 
 	if *bridgeName != "" && *bridgeIp != "" {
