@@ -2,7 +2,7 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/iptables"
+	"github.com/dotcloud/docker/pkg/iptables"
 	"path"
 	"strings"
 )

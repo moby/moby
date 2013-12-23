@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/iptables"
+	"github.com/dotcloud/docker/pkg/iptables"
 	"os"
 	"testing"
 )
