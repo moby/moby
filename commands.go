@@ -13,7 +13,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/term"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
