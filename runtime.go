@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/graphdb"
+	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"

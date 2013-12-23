@@ -7,7 +7,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/graphdb"
+	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
