@@ -76,9 +76,9 @@ type HTTPUserAgentDecorator struct {
 }
 
 func NewHTTPUserAgentDecorator(versions ...VersionInfo) HTTPRequestDecorator {
-	ret := new(HTTPUserAgentDecorator)
-	ret.versions = versions
-	return ret
+	return &HTTPUserAgentDecorator{
+		versions: versions,
+	}
 }
 
 func (h *HTTPUserAgentDecorator) ChangeRequest(req *http.Request) (newReq *http.Request, err error) {
@@ -108,15 +108,15 @@ func (h *HTTPMetaHeadersDecorator) ChangeRequest(req *http.Request) (newReq *htt
 }
 
 type HTTPAuthDecorator struct {
-	login string
+	login    string
 	password string
 }
 
 func NewHTTPAuthDecorator(login, password string) HTTPRequestDecorator {
-	ret := new(HTTPAuthDecorator)
-	ret.login = login
-	ret.password = password
-	return ret
+	return &HTTPAuthDecorator{
+		login:    login,
+		password: password,
+	}
 }
 
 func (self *HTTPAuthDecorator) ChangeRequest(req *http.Request) (*http.Request, error) {
@@ -136,7 +136,7 @@ func NewHTTPRequestFactory(d ...HTTPRequestDecorator) *HTTPRequestFactory {
 	}
 }
 
-func (self *HTTPRequestFactory) AddDecorator(d... HTTPRequestDecorator) {
+func (self *HTTPRequestFactory) AddDecorator(d ...HTTPRequestDecorator) {
 	self.decorators = append(self.decorators, d...)
 }
 
