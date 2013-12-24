@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/netlink"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/utils"
 	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"

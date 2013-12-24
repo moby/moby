@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/iptables"
-	"github.com/dotcloud/docker/netlink"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
 	"log"
