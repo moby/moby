@@ -11,7 +11,7 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 cross: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh cross
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
 docs:
 	docker build -t docker-docs docs && docker run -p 8000:8000 docker-docs

@@ -114,6 +114,77 @@ s3_url() {
 	esac
 }
 
+release_build() {
+	GOOS=$1
+	GOARCH=$2
+
+	BINARY=bundles/$VERSION/cross/$GOOS/$GOARCH/docker-$VERSION
+	TGZ=bundles/$VERSION/tgz/$GOOS/$GOARCH/docker-$VERSION.tgz
+
+	# we need to map our GOOS and GOARCH to uname values
+	# see https://en.wikipedia.org/wiki/Uname
+	# ie, GOOS=linux -> "uname -s"=Linux
+
+	S3OS=$GOOS
+	case "$S3OS" in
+		darwin)
+			S3OS=Darwin
+			;;
+		freebsd)
+			S3OS=FreeBSD
+			;;
+		linux)
+			S3OS=Linux
+			;;
+		*)
+			echo >&2 "error: can't convert $S3OS to an appropriate value for 'uname -s'"
+			exit 1
+			;;
+	esac
+
+	S3ARCH=$GOARCH
+	case "$S3ARCH" in
+		amd64)
+			S3ARCH=x86_64
+			;;
+		386)
+			S3ARCH=i386
+			;;
+		arm)
+			# GOARCH is fine
+			;;
+		*)
+			echo >&2 "error: can't convert $S3ARCH to an appropriate value for 'uname -m'"
+			exit 1
+			;;
+	esac
+
+	S3DIR=s3://$BUCKET/builds/$S3OS/$S3ARCH
+
+	if [ ! -x "$BINARY" ]; then
+		echo >&2 "error: can't find $BINARY - was it compiled properly?"
+		exit 1
+	fi
+	if [ ! -f "$TGZ" ]; then
+		echo >&2 "error: can't find $TGZ - was it packaged properly?"
+		exit 1
+	fi
+
+	echo "Uploading $BINARY to $S3OS/$S3ARCH/docker-$VERSION"
+	s3cmd --follow-symlinks --preserve --acl-public put $BINARY $S3DIR/docker-$VERSION
+
+	echo "Uploading $TGZ to $S3OS/$S3ARCH/docker-$VERSION.tgz"
+	s3cmd --follow-symlinks --preserve --acl-public put $TGZ $S3DIR/docker-$VERSION.tgz
+
+	if [ -z "$NOLATEST" ]; then
+		echo "Copying $S3OS/$S3ARCH/docker-$VERSION to $S3OS/$S3ARCH/docker-latest"
+		s3cmd --acl-public cp $S3DIR/docker-$VERSION $S3DIR/docker-latest
+
+		echo "Copying $S3OS/$S3ARCH/docker-$VERSION.tgz to $S3OS/$S3ARCH/docker-latest.tgz"
+		s3cmd --acl-public cp $S3DIR/docker-$VERSION.tgz $S3DIR/docker-latest.tgz
+	fi
+}
+
 # Upload the 'ubuntu' bundle to S3:
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
@@ -190,31 +261,21 @@ EOF
 	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
-# Upload a tgz to S3
-release_tgz() {
-	[ -e bundles/$VERSION/tgz/docker-$VERSION.tgz ] || {
-		echo >&2 './hack/make.sh must be run before release_binary'
+# Upload binaries and tgz files to S3
+release_binaries() {
+	[ -e bundles/$VERSION/cross/linux/amd64/docker-$VERSION ] || {
+		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
 
-	S3DIR=s3://$BUCKET/builds/Linux/x86_64
-	s3cmd --acl-public put bundles/$VERSION/tgz/docker-$VERSION.tgz $S3DIR/docker-$VERSION.tgz
+	for d in bundles/$VERSION/cross/*/*; do
+		GOARCH="$(basename "$d")"
+		GOOS="$(basename "$(dirname "$d")")"
+		release_build "$GOOS" "$GOARCH"
+	done
 
-	if [ -z "$NOLATEST" ]; then
-		echo "Copying docker-$VERSION.tgz to docker-latest.tgz"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION.tgz $S3DIR/docker-latest.tgz
-	fi
-}
+	# TODO create redirect from builds/*/i686 to builds/*/i386
 
-# Upload a static binary to S3
-release_binary() {
-	[ -e bundles/$VERSION/binary/docker-$VERSION ] || {
-		echo >&2 './hack/make.sh must be run before release_binary'
-		exit 1
-	}
-
-	S3DIR=s3://$BUCKET/builds/Linux/x86_64
-	s3cmd --acl-public put bundles/$VERSION/binary/docker-$VERSION $S3DIR/docker-$VERSION
 	cat <<EOF | write_to_s3 s3://$BUCKET/builds/index
 # To install, run the following command as root:
 curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
@@ -227,21 +288,9 @@ EOF
 	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/builds/info
 
 	if [ -z "$NOLATEST" ]; then
-		echo "Copying docker-$VERSION to docker-latest"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION $S3DIR/docker-latest
 		echo "Advertising $VERSION on $BUCKET as most recent version"
 		echo $VERSION | write_to_s3 s3://$BUCKET/latest
 	fi
-}
-
-# Upload a cross-compiled client binaries to S3
-release_cross() {
-	[ -e bundles/$VERSION/cross ] || {
-		echo >&2 './hack/make.sh must be run before release_binary'
-		exit 1
-	}
-	
-	# TODO find out from @shykes what URLs he'd like to use here
 }
 
 # Upload the index script
@@ -257,12 +306,15 @@ release_test() {
 
 main() {
 	setup_s3
-	release_binary
-	release_cross
-	release_tgz
+	release_binaries
 	release_ubuntu
 	release_index
 	release_test
 }
 
 main
+
+echo
+echo
+echo "Release complete; see $(s3_url)"
+echo
