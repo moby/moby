@@ -897,9 +897,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		rawRm             = r.FormValue("rm")
 		authEncoded       = r.Header.Get("X-Registry-Auth")
 		authConfig        = &auth.AuthConfig{}
-		tag               string
 	)
-	repoName, tag = utils.ParseRepositoryTag(repoName)
+	repoName, _ = utils.ParseRepositoryTag(repoName)
 	if authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
@@ -975,8 +974,8 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			Writer:          utils.NewWriteFlusher(w),
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig)
-	id, err := b.Build(context)
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig, repoName)
+	images, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {
 			w.Write(sf.FormatError(err))
@@ -985,7 +984,9 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return fmt.Errorf("Error build: %s", err)
 	}
 	if repoName != "" {
-		srv.runtime.repositories.Set(repoName, tag, id, false)
+		for tag, imageId := range images {
+			srv.runtime.repositories.Set(repoName, tag, imageId, false)
+		}
 	}
 	return nil
 }
