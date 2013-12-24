@@ -144,9 +144,9 @@ if [ -z "$strictDebootstrap" ]; then
 	echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
 	#  we want to effectively run "apt-get clean" after every install to keep images small (see output of "apt-get clean -s" for context)
 	{
-		aptGetClean='rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true'
-		echo 'DPkg::Post-Invoke { "'$aptGetClean'"; };'
-		echo 'APT::Update::Post-Invoke { "'$aptGetClean'"; };'
+		aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
+		echo "DPkg::Post-Invoke { ${aptGetClean} };"
+		echo "APT::Update::Post-Invoke { ${aptGetClean} };"
 		echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";'
 	} | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
 	#  and remove the translations, too
