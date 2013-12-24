@@ -2,12 +2,22 @@
 
 DEST=$1
 
+# if we have our linux/amd64 version compiled, let's symlink it in
+if [ -x "$DEST/../binary/docker-$VERSION" ]; then
+	mkdir -p "$DEST/linux/amd64"
+	(
+		cd "$DEST/linux/amd64"
+		ln -s ../../../binary/* ./
+	)
+	echo "Created symlinks:" "$DEST/linux/amd64/"*
+fi
+
 for platform in $DOCKER_CROSSPLATFORMS; do
 	(
+		mkdir -p "$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
-		export VERSION="$GOOS-$GOARCH-$VERSION" # for a nice filename
 		export LDFLAGS_STATIC="" # we just need a simple client for these platforms (TODO this might change someday)
-		source "$(dirname "$BASH_SOURCE")/binary"
+		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
 	)
 done
