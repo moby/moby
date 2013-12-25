@@ -425,15 +425,9 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 	}
 }
 
-func TestBuildImageWithCache(t *testing.T) {
+func checkCacheBehavior(t *testing.T, template testContextTemplate, expectHit bool) {
 	eng := NewTestEngine(t)
 	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        `,
-		nil, nil}
 
 	img, err := buildImage(template, t, eng, true)
 	if err != nil {
@@ -443,43 +437,115 @@ func TestBuildImageWithCache(t *testing.T) {
 	imageId := img.ID
 
 	img = nil
-	img, err = buildImage(template, t, eng, true)
+	img, err = buildImage(template, t, eng, expectHit)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if imageId != img.ID {
-		t.Logf("Image ids should match: %s != %s", imageId, img.ID)
+	hit := imageId == img.ID
+	if hit != expectHit {
+		t.Logf("Cache misbehavior, got hit=%t, expected hit=%t: (first: %s, second %s)",
+			hit, expectHit, imageId, img.ID)
 		t.Fail()
 	}
 }
 
-func TestBuildImageWithoutCache(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
+func TestBuildImageWithCache(t *testing.T) {
 	template := testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
         `,
 		nil, nil}
+	checkCacheBehavior(t, template, true)
+}
 
-	img, err := buildImage(template, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imageId := img.ID
+func TestBuildImageWithoutCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        `,
+		nil, nil}
+	checkCacheBehavior(t, template, false)
+}
 
-	img = nil
-	img, err = buildImage(template, t, eng, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestBuildADDLocalFileWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add foo /usr/lib/bla/bar
+        run echo "second"
+        `,
+		[][2]string{{"foo", "hello"}},
+		nil}
+	checkCacheBehavior(t, template, true)
+}
 
-	if imageId == img.ID {
-		t.Logf("Image ids should not match: %s == %s", imageId, img.ID)
-		t.Fail()
-	}
+func TestBuildADDLocalFileWithoutCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add foo /usr/lib/bla/bar
+        run echo "second"
+        `,
+		[][2]string{{"foo", "hello"}},
+		nil}
+	checkCacheBehavior(t, template, false)
+}
+
+func TestBuildADDRemoteFileWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/baz", "world!"}}}
+	checkCacheBehavior(t, template, true)
+}
+
+func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/baz", "world!"}}}
+	checkCacheBehavior(t, template, false)
+}
+
+func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add foo /usr/lib/bla/bar
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		[][2]string{{"foo", "hello"}},
+		[][2]string{{"/baz", "world!"}}}
+	checkCacheBehavior(t, template, true)
+}
+
+func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add foo /usr/lib/bla/bar
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		[][2]string{{"foo", "hello"}},
+		[][2]string{{"/baz", "world!"}}}
+	checkCacheBehavior(t, template, false)
 }
 
 func TestForbiddenContextPath(t *testing.T) {
