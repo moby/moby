@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-// Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes
-// The lower 8 bit is the lower 8 bit in the minor, the following 12 bits are the major,
-// and then there is the top 12 bits of then minor
+// Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
+// They are, from low to high: the lower 8 bits of the minor, then 12 bits of the major,
+// then the top 12 bits of the minor
 func mkdev(major int64, minor int64) uint32 {
 	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
 }
@@ -58,9 +58,9 @@ func ApplyLayer(dest string, layer Archive) error {
 		hdr.Name = filepath.Clean(hdr.Name)
 
 		if !strings.HasSuffix(hdr.Name, "/") {
-			// Not the root directory, ensure that the parent directory exists
+			// Not the root directory, ensure that the parent directory exists.
 			// This happened in some tests where an image had a tarfile without any
-			// parent directories
+			// parent directories.
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
@@ -85,7 +85,7 @@ func ApplyLayer(dest string, layer Archive) error {
 				return err
 			}
 		} else {
-			// If path exits we almost always just want to remove and replace it
+			// If path exits we almost always just want to remove and replace it.
 			// The only exception is when it is a directory *and* the file from
 			// the layer is also a directory. Then we want to merge them (i.e.
 			// just apply the metadata from the layer).
@@ -155,7 +155,7 @@ func ApplyLayer(dest string, layer Archive) error {
 				return err
 			}
 
-			// There is no LChmod, so ignore mode for symlink.  Also, this
+			// There is no LChmod, so ignore mode for symlink. Also, this
 			// must happen after chown, as that can modify the file mode
 			if hdr.Typeflag != tar.TypeSymlink {
 				err = syscall.Chmod(path, uint32(hdr.Mode&07777))

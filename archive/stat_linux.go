@@ -14,7 +14,7 @@ func getLastModification(stat *syscall.Stat_t) syscall.Timespec {
 }
 
 func LUtimesNano(path string, ts []syscall.Timespec) error {
-	// These are not currently availible in syscall
+	// These are not currently available in syscall
 	AT_FDCWD := -100
 	AT_SYMLINK_NOFOLLOW := 0x100
 

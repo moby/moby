@@ -296,6 +296,6 @@ func TestApplyLayer(t *testing.T) {
 	}
 
 	if len(changes2) != 0 {
-		t.Fatalf("Unexpected differences after re applying mutation: %v", changes2)
+		t.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
 	}
 }
