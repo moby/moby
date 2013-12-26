@@ -163,7 +163,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 
 	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
 
-	// to avoid sending the server address to the server it should be removed before marshalled
+	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig
 	authCopy.ServerAddress = ""
 
@@ -254,11 +254,11 @@ func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
 		// default to the index server
 		return config.Configs[IndexServerAddress()]
 	}
-	// if its not the index server there are three cases:
+	// if it's not the index server there are three cases:
 	//
-	// 1. this is a full config url -> it should be used as is
-	// 2. it could be a full url, but with the wrong protocol
-	// 3. it can be the hostname optionally with a port
+	// 1. a full config url -> it should be used as is
+	// 2. a full url, but with the wrong protocol
+	// 3. a hostname, with an optional port
 	//
 	// as there is only one auth entry which is fully qualified we need to start
 	// parsing and matching
