@@ -1,25 +1,16 @@
 package utils
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
-	"archive/tar"
 	"hash"
 	"io"
 	"sort"
 	"strconv"
 )
-
-type verboseHash struct {
-	hash.Hash
-}
-
-func (h verboseHash) Write(buf []byte) (int, error) {
-	Debugf("--->%s<---", buf)
-	return h.Hash.Write(buf)
-}
 
 type TarSum struct {
 	io.Reader
@@ -29,7 +20,6 @@ type TarSum struct {
 	bufTar   *bytes.Buffer
 	bufGz    *bytes.Buffer
 	h        hash.Hash
-	h2       verboseHash
 	sums     []string
 	finished bool
 	first    bool
@@ -52,7 +42,6 @@ func (ts *TarSum) encodeHeader(h *tar.Header) error {
 		// {"atime", strconv.Itoa(int(h.AccessTime.UTC().Unix()))},
 		// {"ctime", strconv.Itoa(int(h.ChangeTime.UTC().Unix()))},
 	} {
-		//		Debugf("-->%s<-- -->%s<--", elem[0], elem[1])
 		if _, err := ts.h.Write([]byte(elem[0] + elem[1])); err != nil {
 			return err
 		}
@@ -68,7 +57,6 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 		ts.tarW = tar.NewWriter(ts.bufTar)
 		ts.gz = gzip.NewWriter(ts.bufGz)
 		ts.h = sha256.New()
-		//		ts.h = verboseHash{sha256.New()}
 		ts.h.Reset()
 		ts.first = true
 	}
