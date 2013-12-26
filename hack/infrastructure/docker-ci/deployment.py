@@ -128,7 +128,7 @@ call('/usr/bin/rsync -aH {} {}@{}:{}'.format(DOCKER_CI_PATH, DO_IMAGE_USER, ip,
 # Install Docker and Buildbot dependencies
 sudo('mkdir /mnt/docker; ln -s /mnt/docker /var/lib/docker')
 sudo('wget -q -O - https://get.docker.io/gpg | apt-key add -')
-sudo('echo deb https://get.docker.io/ubuntu docker main >'
+sudo('echo deb http://get.docker.io/ubuntu docker main >'
     ' /etc/apt/sources.list.d/docker.list')
 sudo('echo -e "deb http://archive.ubuntu.com/ubuntu raring main universe\n'
     'deb http://us.archive.ubuntu.com/ubuntu/ raring-security main universe\n"'
