@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1694,16 +1695,13 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	}
 
 	// Store the tree in a map of map (map[parentId][childId])
-	imageMap := make(map[string]map[string]struct{})
+	imageMap := make(map[string][]string)
 	for _, img := range images {
-		if _, exists := imageMap[img.Parent]; !exists {
-			imageMap[img.Parent] = make(map[string]struct{})
-		}
-		imageMap[img.Parent][img.ID] = struct{}{}
+		imageMap[img.Parent] = append(imageMap[img.Parent], img.ID)
 	}
-
+	sort.Strings(imageMap[imgID])
 	// Loop on the children of the given image and check the config
-	for elem := range imageMap[imgID] {
+	for _, elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
 			return nil, err
