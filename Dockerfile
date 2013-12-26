@@ -32,6 +32,7 @@ ENV	DEBIAN_FRONTEND noninteractive
 
 # Build dependencies
 RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
+RUN	apt-get clean
 RUN	apt-get update
 RUN	apt-get install -y -q apt-utils
 RUN	apt-get install -y -q curl
