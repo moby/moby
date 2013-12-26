@@ -151,6 +151,7 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
+	:query name: Assign the specified name to the container. Must match ``/?[a-zA-Z0-9_-]+``.
 	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 406: impossible to attach (container not running)
