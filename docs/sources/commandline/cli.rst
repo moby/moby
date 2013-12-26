@@ -12,7 +12,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind/connect to or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used.
+      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind/connect to or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used. Can also be set via Environment Variable DOCKER_HOST
 
     A self-sufficient runtime for linux containers.
 
@@ -27,7 +27,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     Usage of docker:
       -D=false: Enable debug mode
-      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used.
+      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used. Can also be set via Environment Variable DOCKER_HOST
       -api-enable-cors=false: Enable CORS headers in the remote API
       -b="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       -bip="": Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of -b
@@ -49,6 +49,8 @@ daemon and client.  To run the daemon you provide the ``-d`` flag.
 To force docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``
 
 To set the dns server for all docker containers, use ``docker -d -dns 8.8.8.8``
+
+To set the docker host/port to serve from or to connect with use ``docker -H=tcp://127.0.0.1:4243`` or ``DOCKER_HOST=tcp://127.0.0.1:4243 docker``
 
 To run the daemon with debug output, use ``docker -d -D``
 
