@@ -4,6 +4,10 @@
 <dict>
 	<key>name</key>
 	<string>Dockerfile</string>
+	<key>fileTypes</key>
+	<array>
+		<string>Dockerfile</string>
+	</array>
 	<key>patterns</key>
 	<array>
 		<dict>
