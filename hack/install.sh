@@ -108,7 +108,7 @@ case "$lsb_dist" in
 		fi
 		(
 			set -x
-			$sh_c "$curl ${url}gpg | apt-key add -"
+			$sh_c "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
 			$sh_c "echo deb ${url}ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q lxc-docker'
 		)

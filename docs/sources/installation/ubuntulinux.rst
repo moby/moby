@@ -68,13 +68,11 @@ easy. **See the :ref:`installmirrors` section below if you are not in
 the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
-First add the Docker repository key to your local keychain. You can use the
-``apt-key`` command to check the fingerprint matches: ``36A1 D786 9245 C895 0F96
-6E92 D857 6A8B A88D 21E9``
+First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
+   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
@@ -142,13 +140,11 @@ Docker is available as a Debian package, which makes installation easy.
     Please note that these instructions have changed for 0.6. If you are upgrading from an earlier version, you will need
     to follow them again.
 
-First add the Docker repository key to your local keychain. You can use the
-``apt-key`` command to check the fingerprint matches: ``36A1 D786 9245 C895 0F96
-6E92 D857 6A8B A88D 21E9``
+First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo sh -c "wget -qO- https://get.docker.io/gpg | apt-key add -"
+   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
