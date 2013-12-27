@@ -17,7 +17,7 @@ Installing on FrugalWare is handled via the official packages:
 
 * `lxc-docker x86_64 <http://www.frugalware.org/packages/200130>`_
 
-The `lxc-docker` package will install the latest tagged version of docker. 
+The `lxc-docker` package will install the latest tagged version of Docker. 
 
 Dependencies
 ------------
