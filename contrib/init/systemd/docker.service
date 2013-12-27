@@ -4,8 +4,9 @@ Documentation=http://docs.docker.io
 After=network.target
 
 [Service]
+EnvironmentFile=-/etc/default/docker
 ExecStartPre=/bin/mount --make-rprivate /
-ExecStart=/usr/bin/docker -d
+ExecStart=/usr/bin/docker -d $DOCKER_OPTS
 
 [Install]
 WantedBy=multi-user.target
