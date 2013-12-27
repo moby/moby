@@ -10,6 +10,7 @@ import (
 	"io"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 type TarSum struct {
@@ -92,6 +93,7 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 				}
 				return n, err
 			}
+			ts.currentFile = strings.TrimSuffix(strings.TrimPrefix(currentHeader.Name, "./"), "/")
 			if err := ts.encodeHeader(currentHeader); err != nil {
 				return 0, err
 			}

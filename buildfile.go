@@ -1,9 +1,6 @@
 package docker
 
 import (
-	"archive/tar"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,8 +15,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
-	"time"
 )
 
 var (
@@ -36,10 +33,13 @@ type buildFile struct {
 	runtime *Runtime
 	srv     *Server
 
-	image        string
-	maintainer   string
-	config       *Config
-	context      string
+	image      string
+	maintainer string
+	config     *Config
+
+	contextPath string
+	context     *utils.TarSum
+
 	verbose      bool
 	utilizeCache bool
 	rm           bool
@@ -116,66 +116,6 @@ func (b *buildFile) probeCache() (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-// hashPath calculates a strong hash (sha256) value for a file tree located
-// at `basepth`/`pth`, including all attributes that would normally be
-// captured by `tar`. The path to hash is passed in two pieces only to
-// permit logging the second piece in isolation, assuming the first is a
-// temporary directory in which docker is running. If `clobberTimes` is
-// true and hashPath is applied to a single file, the ctime/atime/mtime of
-// the file is considered to be unix time 0, for purposes of hashing.
-func (b *buildFile) hashPath(basePth, pth string, clobberTimes bool) (string, error) {
-
-	p := path.Join(basePth, pth)
-
-	st, err := os.Stat(p)
-	if err != nil {
-		return "", err
-	}
-
-	h := sha256.New()
-
-	if st.IsDir() {
-		tarRd, err := archive.Tar(p, archive.Uncompressed)
-		if err != nil {
-			return "", err
-		}
-		_, err = io.Copy(h, tarRd)
-		if err != nil {
-			return "", err
-		}
-
-	} else {
-		hdr, err := tar.FileInfoHeader(st, "")
-		if err != nil {
-			return "", err
-		}
-		if clobberTimes {
-			hdr.AccessTime = time.Unix(0, 0)
-			hdr.ChangeTime = time.Unix(0, 0)
-			hdr.ModTime = time.Unix(0, 0)
-		}
-		hdr.Name = filepath.Base(p)
-		tarWr := tar.NewWriter(h)
-		if err := tarWr.WriteHeader(hdr); err != nil {
-			return "", err
-		}
-
-		fileRd, err := os.Open(p)
-		if err != nil {
-			return "", err
-		}
-
-		if _, err = io.Copy(tarWr, fileRd); err != nil {
-			return "", err
-		}
-		tarWr.Close()
-	}
-
-	hstr := hex.EncodeToString(h.Sum(nil))
-	fmt.Fprintf(b.outStream, " ---> data at %s has sha256 %.12s...\n", pth, hstr)
-	return hstr, nil
 }
 
 func (b *buildFile) CmdRun(args string) error {
@@ -347,8 +287,8 @@ func (b *buildFile) CmdVolume(args string) error {
 }
 
 func (b *buildFile) checkPathForAddition(orig string) error {
-	origPath := path.Join(b.context, orig)
-	if !strings.HasPrefix(origPath, b.context) {
+	origPath := path.Join(b.contextPath, orig)
+	if !strings.HasPrefix(origPath, b.contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
 	_, err := os.Stat(origPath)
@@ -359,8 +299,10 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 }
 
 func (b *buildFile) addContext(container *Container, orig, dest string) error {
-	origPath := path.Join(b.context, orig)
-	destPath := path.Join(container.RootfsPath(), dest)
+	var (
+		origPath = path.Join(b.contextPath, orig)
+		destPath = path.Join(container.RootfsPath(), dest)
+	)
 	// Preserve the trailing '/'
 	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
@@ -388,7 +330,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 }
 
 func (b *buildFile) CmdAdd(args string) error {
-	if b.context == "" {
+	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use ADD")
 	}
 	tmp := strings.SplitN(args, " ", 2)
@@ -408,22 +350,20 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
-
 	b.config.Image = b.image
 
-	origPath := orig
-	destPath := dest
-	clobberTimes := false
+	// FIXME: do we really need this?
+	var (
+		origPath = orig
+		destPath = dest
+	)
 
 	if utils.IsURL(orig) {
-
-		clobberTimes = true
-
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
 		}
-		tmpDirName, err := ioutil.TempDir(b.context, "docker-remote")
+		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-remote")
 		if err != nil {
 			return err
 		}
@@ -464,9 +404,23 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	// Hash path and check the cache
 	if b.utilizeCache {
-		hash, err := b.hashPath(b.context, origPath, clobberTimes)
-		if err != nil {
+		var (
+			hash string
+			sums = b.context.GetSums()
+		)
+		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
+		} else if fi.IsDir() {
+			var subfiles []string
+			for file, sum := range sums {
+				if strings.HasPrefix(file, origPath) {
+					subfiles = append(subfiles, sum)
+				}
+			}
+			sort.Strings(subfiles)
+			hash = strings.Join(subfiles, ",")
+		} else {
+			hash = sums[origPath]
 		}
 		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
 		hit, err := b.probeCache()
@@ -635,17 +589,17 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
-	// FIXME: @creack "name" is a terrible variable name
-	name, err := ioutil.TempDir("", "docker-build")
+	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return "", err
 	}
-	if err := archive.Untar(context, name, nil); err != nil {
+	b.context = &utils.TarSum{Reader: context}
+	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return "", err
 	}
-	defer os.RemoveAll(name)
-	b.context = name
-	filename := path.Join(name, "Dockerfile")
+	defer os.RemoveAll(tmpdirPath)
+	b.contextPath = tmpdirPath
+	filename := path.Join(tmpdirPath, "Dockerfile")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
