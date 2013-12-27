@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -418,9 +420,11 @@ func (b *buildFile) CmdAdd(args string) error {
 				}
 			}
 			sort.Strings(subfiles)
-			hash = strings.Join(subfiles, ",")
+			hasher := sha256.New()
+			hasher.Write([]byte(strings.Join(subfiles, ",")))
+			hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 		} else {
-			hash = sums[origPath]
+			hash = "file:" + sums[origPath]
 		}
 		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
 		hit, err := b.probeCache()
