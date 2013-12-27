@@ -14,15 +14,16 @@ import (
 
 type TarSum struct {
 	io.Reader
-	tarR     *tar.Reader
-	tarW     *tar.Writer
-	gz       *gzip.Writer
-	bufTar   *bytes.Buffer
-	bufGz    *bytes.Buffer
-	h        hash.Hash
-	sums     []string
-	finished bool
-	first    bool
+	tarR        *tar.Reader
+	tarW        *tar.Writer
+	gz          *gzip.Writer
+	bufTar      *bytes.Buffer
+	bufGz       *bytes.Buffer
+	h           hash.Hash
+	sums        map[string]string
+	currentFile string
+	finished    bool
+	first       bool
 }
 
 func (ts *TarSum) encodeHeader(h *tar.Header) error {
@@ -59,6 +60,7 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 		ts.h = sha256.New()
 		ts.h.Reset()
 		ts.first = true
+		ts.sums = make(map[string]string)
 	}
 
 	if ts.finished {
@@ -73,7 +75,7 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 			if !ts.first {
-				ts.sums = append(ts.sums, hex.EncodeToString(ts.h.Sum(nil)))
+				ts.sums[ts.currentFile] = hex.EncodeToString(ts.h.Sum(nil))
 				ts.h.Reset()
 			} else {
 				ts.first = false
@@ -131,16 +133,25 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 }
 
 func (ts *TarSum) Sum(extra []byte) string {
-	sort.Strings(ts.sums)
+	var sums []string
+
+	for _, sum := range ts.sums {
+		sums = append(sums, sum)
+	}
+	sort.Strings(sums)
 	h := sha256.New()
 	if extra != nil {
 		h.Write(extra)
 	}
-	for _, sum := range ts.sums {
+	for _, sum := range sums {
 		Debugf("-->%s<--", sum)
 		h.Write([]byte(sum))
 	}
 	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
 	Debugf("checksum processed: %s", checksum)
 	return checksum
+}
+
+func (ts *TarSum) GetSums() map[string]string {
+	return ts.sums
 }
