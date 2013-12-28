@@ -316,6 +316,9 @@ func TestParseHost(t *testing.T) {
 	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
 		t.Errorf("tcp://:7777 -> expected tcp://127.0.0.1:7777, got %s", addr)
 	}
+  if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, ""); err != nil || addr != "unix:///var/run/docker.sock" {
+    t.Errorf("empty argument -> expected unix:///var/run/docker.sock, got %s", addr)
+  }
 	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}

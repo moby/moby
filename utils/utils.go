@@ -803,7 +803,7 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 		host  string
 		port  int
 	)
-
+  addr = strings.TrimSpace(addr)
 	switch {
 	case strings.HasPrefix(addr, "unix://"):
 		proto = "unix"
@@ -814,6 +814,9 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	case addr == "":
+		proto = "unix"
+		addr = defaultUnix
 	default:
 		if strings.Contains(addr, "://") {
 			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)

@@ -115,6 +115,11 @@ For example:
 * ``tcp://host:4243`` -> tcp connection on host:4243
 * ``unix://path/to/socket`` -> unix socket located at ``path/to/socket``
 
+``-H``, when empty, will default to the same value as when no ``-H`` was passed in.
+
+``-H`` also accepts short form for TCP bindings:
+``host[:port]`` or ``:port``
+
 .. code-block:: bash
 
    # Run docker in daemon mode
