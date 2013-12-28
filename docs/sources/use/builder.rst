@@ -223,6 +223,12 @@ value ``<value>``. This value will be passed to all future ``RUN``
 instructions. This is functionally equivalent to prefixing the command
 with ``<key>=<value>``
 
+You can also set multiple environment variables in one line:
+
+    ``ENV { "key1":"value1", "key2":"value2" }``
+
+These will be persisted as a single layer.
+
 .. note::
     The environment variables will persist when a container is run
     from the resulting image.
