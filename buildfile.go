@@ -249,27 +249,40 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 }
 
 func (b *buildFile) CmdEnv(args string) error {
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
+	tmp := strings.Split(args, " ")
+	if len(tmp) % 2 != 0 {
 		return fmt.Errorf("Invalid ENV format")
 	}
-	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
+	var key string
+	var value string
+	var commitMsg string
+	for i := len(tmp)/2; i > 0; i -= 1 {
+		key   = strings.Trim(tmp[0], " \t")
+		value = strings.Trim(tmp[1], " \t")
+		tmp   = tmp[2:]
 
-	envKey := b.FindEnvKey(key)
-	replacedValue, err := b.ReplaceEnvMatches(value)
-	if err != nil {
-		return err
-	}
-	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+		envKey := b.FindEnvKey(key)
+		replacedValue, err := b.ReplacedEnvMatches(value)
+		if err != nil {
+			return err
+		}
 
-	if envKey >= 0 {
-		b.config.Env[envKey] = replacedVar
-	} else {
-		b.config.Env = append(b.config.Env, replacedVar)
+		replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+
+		if envKey >= 0 {
+			b.config.Env[envKey] = replacedVar
+		} else {
+			b.config.Env = append(b.config.Env, replacedVar)
+		}
+		if commitMsg != "" {
+			commitMsg = fmt.Sprintf("%s\nENV %s", commitMsg, replacedValue)
+		} else {
+			commitMsg = fmt.Sprintf("ENV %s", replacedValue)
+		}
 	}
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
+		return b.commit("", b.config.Cmd, commitMsg)
 }
+
 
 func (b *buildFile) CmdCmd(args string) error {
 	var cmd []string
