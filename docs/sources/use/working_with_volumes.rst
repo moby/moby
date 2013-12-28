@@ -13,7 +13,7 @@ Share Directories via Volumes
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the :ref:`ufs_def` to provide several useful
-features for persistant or shared data:
+features for persistent or shared data:
 
 * **Data volumes can be shared and reused between containers.** This
   is the feature that makes data volumes so powerful. You can use it
