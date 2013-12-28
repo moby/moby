@@ -345,6 +345,32 @@ func TestBuildEnv(t *testing.T) {
 	}
 }
 
+func TestBuildMultiEnv(t *testing.T) {
+	img, err := buildImage(testContextTemplate{`
+      from {IMAGE}
+      env {"FOO":"foo", "BAR":"bar"}
+      `,
+		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasEnv1 := false
+	hasEnv2 := false
+	for _, envVar := range img.Config.Env {
+		if envVar == "FOO=foo" {
+			hasEnv1 = true
+		}
+		if envVar == "BAR=bar" {
+			hasEnv2 = true
+		}
+	}
+	if !hasEnv1 && !hasEnv2 {
+		t.Fail()
+	}
+
+}
+
 func TestBuildCmd(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
