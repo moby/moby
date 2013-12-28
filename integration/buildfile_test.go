@@ -272,6 +272,24 @@ run    [ "$FOOPATH" = "$PATH:/foo/baz" ]
 	{
 		`
 from {IMAGE}
+env { "FOO":"foo", "BAR":"bar" }
+run [ "$FOO" = "foo" ]
+run [ "$BAR" = "bar" ]
+env { "FOO":"foo2" }
+run [ "$FOO" = "foo2" ]
+run [ "$BAR" = "bar" ]
+env { "BAZ":"baz" }
+run [ "$FOO" = "foo2" ]
+run [ "$BAR" = "bar" ]
+run [ "$BAZ" = "baz" ]
+`,
+		nil,
+		nil,
+	},
+
+	{
+		`
+from {IMAGE}
 env    FOO /bar
 env    TEST testdir
 env    BAZ /foobar
@@ -490,6 +508,33 @@ func TestBuildEnv(t *testing.T) {
 	if !hasEnv {
 		t.Fail()
 	}
+}
+
+func TestBuildMultiEnv(t *testing.T) {
+	img, err := buildImage(testContextTemplate{`
+      from {IMAGE}
+      env {"FOO":"foo", "BAR":"bar"}
+      `,
+		nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		hasEnv1 = false
+		hasEnv2 = false
+	)
+	for _, envVar := range img.Config.Env {
+		if envVar == "FOO=foo" {
+			hasEnv1 = true
+		}
+		if envVar == "BAR=bar" {
+			hasEnv2 = true
+		}
+	}
+	if !hasEnv1 || !hasEnv2 {
+		t.Fail()
+	}
+
 }
 
 func TestBuildCmd(t *testing.T) {
