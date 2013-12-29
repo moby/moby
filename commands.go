@@ -2203,7 +2203,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
