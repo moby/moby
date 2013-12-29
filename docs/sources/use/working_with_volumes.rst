@@ -46,7 +46,7 @@ volumes to any container created from the image::
 Mount Volumes from an Existing Container:
 -----------------------------------------
 
-The command below creates a new container which is runnning as daemon
+The command below creates a new container which is running as daemon
 ``-d`` and with one volume ``/var/lib/couchdb``::
 
   COUCH1=$(sudo docker run -d -v /var/lib/couchdb shykes/couchdb:2013-05-03)

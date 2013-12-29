@@ -29,7 +29,6 @@ func TestLXCConfig(t *testing.T) {
 	container := &Container{
 		root: root,
 		Config: &Config{
-			Hostname:        "foobar",
 			Memory:          int64(mem),
 			CpuShares:       int64(cpu),
 			NetworkDisabled: true,
@@ -41,7 +40,6 @@ func TestLXCConfig(t *testing.T) {
 	if err := container.generateLXCConfig(); err != nil {
 		t.Fatal(err)
 	}
-	grepFile(t, container.lxcConfigPath(), "lxc.utsname = foobar")
 	grepFile(t, container.lxcConfigPath(),
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 	grepFile(t, container.lxcConfigPath(),

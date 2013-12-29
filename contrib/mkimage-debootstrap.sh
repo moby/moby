@@ -142,14 +142,22 @@ if [ -z "$strictDebootstrap" ]; then
 	#  this forces dpkg not to call sync() after package extraction and speeds up install
 	#    the benefit is huge on spinning disks, and the penalty is nonexistent on SSD or decent server virtualization
 	echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
-	#  we want to effectively run "apt-get clean" after every install to keep images small
-	echo 'DPkg::Post-Invoke {"/bin/rm -f /var/cache/apt/archives/*.deb || true";};' | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
+	#  we want to effectively run "apt-get clean" after every install to keep images small (see output of "apt-get clean -s" for context)
+	{
+		aptGetClean='rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true'
+		echo 'DPkg::Post-Invoke { "'$aptGetClean'"; };'
+		echo 'APT::Update::Post-Invoke { "'$aptGetClean'"; };'
+		echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";'
+	} | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
+	#  and remove the translations, too
+	echo 'Acquire::Languages "none";' | sudo tee etc/apt/apt.conf.d/no-languages > /dev/null
 	
 	# helpful undo lines for each the above tweaks (for lack of a better home to keep track of them):
 	#  rm /usr/sbin/policy-rc.d
 	#  rm /sbin/initctl; dpkg-divert --rename --remove /sbin/initctl
 	#  rm /etc/dpkg/dpkg.cfg.d/02apt-speedup
 	#  rm /etc/apt/apt.conf.d/no-cache
+	#  rm /etc/apt/apt.conf.d/no-languages
 	
 	if [ -z "$skipDetection" ]; then
 		# see also rudimentary platform detection in hack/install.sh

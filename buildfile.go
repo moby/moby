@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,8 @@ type buildFile struct {
 	utilizeCache bool
 	rm           bool
 
+	authConfig *auth.AuthConfig
+
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
@@ -57,7 +60,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, nil, nil, true); err != nil {
+			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -568,7 +571,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("An error occurred during the build\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -581,6 +584,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		utilizeCache:  utilizeCache,
 		rm:            rm,
 		sf:            sf,
+		authConfig:    auth,
 		outOld:        outOld,
 	}
 }

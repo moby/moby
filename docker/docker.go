@@ -30,6 +30,7 @@ func main() {
 		flDebug              = flag.Bool("D", false, "Enable debug mode")
 		flAutoRestart        = flag.Bool("r", true, "Restart previously running containers")
 		bridgeName           = flag.String("b", "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
+		bridgeIp             = flag.String("bip", "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
 		pidfile              = flag.String("p", "/var/run/docker.pid", "Path to use for daemon PID file")
 		flRoot               = flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime")
 		flEnableCors         = flag.Bool("api-enable-cors", false, "Enable CORS headers in the remote API")
@@ -52,6 +53,10 @@ func main() {
 	if flHosts.Len() == 0 {
 		// If we do not have a host, default to unix socket
 		flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
+	}
+
+	if *bridgeName != "" && *bridgeIp != "" {
+		log.Fatal("You specified -b & -bip, mutually exclusive options. Please specify only one.")
 	}
 
 	if *flDebug {
@@ -77,6 +82,7 @@ func main() {
 		job.SetenvList("Dns", flDns.GetAll())
 		job.SetenvBool("EnableIptables", *flEnableIptables)
 		job.Setenv("BridgeIface", *bridgeName)
+		job.Setenv("BridgeIp", *bridgeIp)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 		job.Setenv("GraphDriver", *flGraphDriver)

@@ -30,6 +30,7 @@ To list available commands, either run ``docker`` with no parameters or execute
       -H=[unix:///var/run/docker.sock]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise
       -api-enable-cors=false: Enable CORS headers in the remote API
       -b="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
+      -bip="": Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of -b
       -d=false: Enable daemon mode
       -dns="": Force docker to use specific DNS servers
       -g="/var/lib/docker": Path to use as the root of the docker runtime
@@ -793,6 +794,15 @@ Known Issues (kill)
     Usage: docker logs [OPTIONS] CONTAINER
 
     Fetch the logs of a container
+
+``docker logs`` is a convenience which batch-retrieves whatever logs
+are present at the time of execution. This does not guarantee
+execution order when combined with a ``docker run`` (i.e. your run may
+not have generated any logs at the time you execute ``docker logs``).
+
+``docker logs -f`` combines ``docker logs`` and ``docker attach``: it
+will first return all logs from the beginning and then continue
+streaming new output from the container's stdout and stderr.
 
 
 .. _cli_port:

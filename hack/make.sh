@@ -35,8 +35,11 @@ grep -q "$RESOLVCONF" /proc/mounts || {
 DEFAULT_BUNDLES=(
 	binary
 	test
+	test-integration
 	dynbinary
 	dyntest
+	dyntest-integration
+	cover
 	tgz
 	ubuntu
 )
@@ -61,6 +64,37 @@ fi
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
 LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
 BUILDFLAGS='-tags netgo'
+
+HAVE_GO_TEST_COVER=
+if go help testflag | grep -q -- -cover; then
+	HAVE_GO_TEST_COVER=1
+fi
+
+# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
+# You can use this to select certain tests to run, eg.
+#
+#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#
+go_test_dir() {
+	dir=$1
+	testcover=()
+	if [ "$HAVE_GO_TEST_COVER" ]; then
+		# if our current go install has -cover, we want to use it :)
+		mkdir -p "$DEST/coverprofiles"
+		coverprofile="docker${dir#.}"
+		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
+		testcover=( -cover -coverprofile "$coverprofile" )
+	fi
+	( # we run "go test -i" ouside the "set -x" to provde cleaner output
+		cd "$dir"
+		go test -i -ldflags "$LDFLAGS" $BUILDFLAGS
+	)
+	(
+		set -x
+		cd "$dir"
+		go test ${testcover[@]} -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
+	)
+}
 
 bundle() {
 	bundlescript=$1

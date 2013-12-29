@@ -6,24 +6,15 @@ import (
 )
 
 const LxcTemplate = `
-# hostname
-{{if .Config.Hostname}}
-lxc.utsname = {{.Config.Hostname}}
-{{else}}
-lxc.utsname = {{.Id}}
-{{end}}
-
 {{if .Config.NetworkDisabled}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 {{else}}
 # network configuration
 lxc.network.type = veth
-lxc.network.flags = up
 lxc.network.link = {{.NetworkSettings.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = 1500
-lxc.network.ipv4 = {{.NetworkSettings.IPAddress}}/{{.NetworkSettings.IPPrefixLen}}
 {{end}}
 
 # root filesystem
@@ -110,18 +101,11 @@ lxc.mount.entry = {{escapeFstabSpaces $realPath}} {{escapeFstabSpaces $ROOTFS}}/
 {{end}}
 
 {{if (getHostConfig .).Privileged}}
-# retain all capabilities; no lxc.cap.drop line
 {{if (getCapabilities .).AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
 {{end}}
-{{else}}
-# drop linux capabilities (apply mainly to the user root in the container)
-#  (Note: 'lxc.cap.keep' is coming soon and should replace this under the
-#         security principle 'deny all unless explicitly permitted', see
-#         http://sourceforge.net/mailarchive/message.php?msg_id=31054627 )
-lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setpcap sys_admin sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 {{end}}
 
 # limits

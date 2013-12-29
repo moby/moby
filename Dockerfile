@@ -65,6 +65,9 @@ RUN	git clone https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /u
 RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# Grab Go's cover tool for dead-simple code coverage testing
+RUN	go get code.google.com/p/go.tools/cmd/cover
+
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
 

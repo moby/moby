@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.7.2 (2013-12-16)
+
+#### Runtime
+
++ Validate container names on creation with standard regex
+* Increase maximum image depth to 127 from 42
+* Continue to move api endpoints to the job api
++ Add -bip flag to allow specification of dynamic bridge IP via CIDR
+- Allow bridge creation when ipv6 is not enabled on certain systems
+* Set hostname and IP address from within dockerinit
+* Drop capabilities from within dockerinit
+- Fix volumes on host when symlink is present the image
+- Prevent deletion of image if ANY container is depending on it even if the container is not running
+* Update docker push to use new progress display
+* Use os.Lstat to allow mounting unix sockets when inspecting volumes
+- Adjusted handling of inactive user login
+- Add missing defines in devicemapper for older kernels
+- Allow untag operations with no container validation
+- Add auth config to docker build
+
+#### Documentation
+
+* Add more information about Docker logging
++ Add RHEL documentation
+* Add a direct example for changing the CMD that is run in a container
+* Update Arch installation documentation
++ Add section on Trusted Builds
++ Add Network documentation page
+
+#### Other
+
++ Add new cover bundle for providing code coverage reporting
+* Separate integration tests in bundles
+* Make Tianon the hack maintainer
+* Update mkimage-debootstrap with more tweaks for keeping images small
+* Use https to get the install script
+* Remove vendored dotcloud/tar now that Go 1.2 has been released
+
 ## 0.7.1 (2013-12-05)
 
 #### Documentation

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+DEST=$1
+
+set -e
+
+bundle_test_integration() {
+	LDFLAGS="$LDFLAGS $LDFLAGS_STATIC" go_test_dir ./integration
+}
+
+bundle_test_integration 2>&1 | tee $DEST/test.log
