@@ -30,35 +30,58 @@ Each container can have zero or more data volumes.
 Getting Started
 ...............
 
-Using data volumes is as simple as adding a new flag: ``-v``. The
-parameter ``-v`` can be used more than once in order to create more
-volumes within the new container. The example below shows the
-instruction to create a container with two new volumes::
+Using data volumes is as simple as adding a ``-v`` parameter to the ``docker run`` 
+command. The ``-v`` parameter can be used more than once in order to 
+create more volumes within the new container. To create a new container with 
+two new volumes::
 
-  docker run -v /var/volume1 -v /var/volume2 shykes/couchdb
+  $ docker run -v /var/volume1 -v /var/volume2 busybox true
 
-For a Dockerfile, the VOLUME instruction will add one or more new
-volumes to any container created from the image::
+This command will create the new container with two new volumes that 
+exits instantly (``true`` is pretty much the smallest, simplest program 
+that you can run). Once created you can mount its volumes in any other 
+container using the ``-volumes-from`` option; irrespecive of whether the
+container is running or not. 
 
-  VOLUME ["/var/volume1", "/var/volume2"]
+Or, you can use the VOLUME instruction in a Dockerfile to add one or more new
+volumes to any container created from that image::
 
+  # BUILD-USING:        docker build -t data .
+  # RUN-USING:          docker run -name DATA data 
+  FROM          busybox
+  VOLUME        ["/var/volume1", "/var/volume2"]
+  CMD           ["/usr/bin/true"]
 
-Mount Volumes from an Existing Container:
------------------------------------------
+Creating and mounting a Data Volume Container
+---------------------------------------------
 
-The command below creates a new container which is running as daemon
-``-d`` and with one volume ``/var/lib/couchdb``::
+If you have some persistent data that you want to share between containers, 
+or want to use from non-persistent containers, its best to create a named
+Data Volume Container, and then to mount the data from it.
 
-  COUCH1=$(sudo docker run -d -v /var/lib/couchdb shykes/couchdb:2013-05-03)
+Create a named container with volumes to share (``/var/volume1`` and ``/var/volume2``)::
 
-From the container id of that previous container ``$COUCH1`` it's
-possible to create new container sharing the same volume using the
-parameter ``-volumes-from container_id``::
+  $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
 
-  COUCH2=$(sudo docker run -d -volumes-from $COUCH1 shykes/couchdb:2013-05-03)
+Then mount those data volumes into your application containers::
 
-Now, the second container has the all the information from the first volume.
+  $ docker run -t -i -rm -volumes-from DATA -name client1 ubuntu bash
 
+You can use multiple ``-volumes-from`` parameters to bring together multiple 
+data volumes from multiple containers. 
+
+Interestingly, you can mount the volumes that came from the ``DATA`` container in 
+yet another container via the ``client1`` middleman container::
+
+  $ docker run -t -i -rm -volumes-from client1 ubuntu -name client2 bash
+
+This allows you to abstract the actual data source from users of that data, 
+similar to :ref:`ambassador_pattern_linking <ambassador_pattern_linking>`.
+
+If you remove containers that mount volumes, including the initial DATA container, 
+or the middleman, the volumes will not be deleted until there are no containers still
+referencing those volumes. This allows you to upgrade, or effectivly migrate data volumes
+between containers.
 
 Mount a Host Directory as a Container Volume:
 ---------------------------------------------
@@ -68,13 +91,13 @@ Mount a Host Directory as a Container Volume:
   -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
   If "host-dir" is missing, then docker creates a new volume.
 
-This is not available for a Dockerfile due the portability and sharing
-purpose of it. The [host-dir] volumes is something 100% host dependent
-and will break on any other machine.
+This is not available from a Dockerfile as it makes the built image less portable
+or shareable. [host-dir] volumes are 100% host dependent and will break on any 
+other machine.
 
 For example::
 
-  sudo docker run -v /var/logs:/var/host_logs:ro shykes/couchdb:2013-05-03
+  sudo docker run -v /var/logs:/var/host_logs:ro ubuntu bash
 
 The command above mounts the host directory ``/var/logs`` into the
 container with read only permissions as ``/var/host_logs``.
@@ -87,3 +110,6 @@ Known Issues
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
   could indicate a permissions problem with AppArmor. Please see the
   issue for a workaround.
+* :issue:`2528`:  the busybox container is used to make the resulting container as small and
+  simple as possible - whenever you need to interact with the data in the volume
+  you mount it into another container.
