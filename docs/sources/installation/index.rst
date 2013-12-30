@@ -22,6 +22,7 @@ Contents:
    fedora
    archlinux
    gentoolinux
+   frugalware
    vagrant
    windows
    amazon
