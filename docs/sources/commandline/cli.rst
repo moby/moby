@@ -43,14 +43,14 @@ To list available commands, either run ``docker`` with no parameters or execute
       -s="": Force the docker runtime to use a specific storage driver
       -v=false: Print version information and quit
 
-The docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
-To force docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``
+To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
 
-To set the dns server for all docker containers, use ``docker -d -dns 8.8.8.8``
+To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
 
-To run the daemon with debug output, use ``docker -d -D``
+To run the daemon with debug output, use ``docker -d -D``.
 
 .. _cli_attach:
 
@@ -69,11 +69,11 @@ To run the daemon with debug output, use ``docker -d -D``
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
 the Docker client when it quits.  When you detach from the container's 
-process the exit code will be retuned to the client.
+process the exit code will be returned to the client.
 
-To stop a container, use ``docker stop``
+To stop a container, use ``docker stop``.
 
-To kill the container, use ``docker kill``
+To kill the container, use ``docker kill``.
 
 .. _cli_attach_examples:
 
@@ -129,12 +129,11 @@ Examples:
       -no-cache: Do not use the cache when building the image.
       -rm: Remove intermediate containers after a successful build
 
-The files at PATH or URL are called the "context" of the build. The
-build process may refer to any of the files in the context, for
-example when using an :ref:`ADD <dockerfile_add>` instruction.  When a
-single ``Dockerfile`` is given as URL, then no context is set.  When a
-git repository is set as URL, then the repository is used as the
-context
+The files at ``PATH`` or ``URL`` are called the "context" of the build. The
+build process may refer to any of the files in the context, for example when
+using an :ref:`ADD <dockerfile_add>` instruction.  When a single ``Dockerfile``
+is given as ``URL``, then no context is set.  When a Git repository is set as
+``URL``, then the repository is used as the context
 
 .. _cli_build_examples:
 
@@ -169,13 +168,13 @@ Examples:
      ---> f52f38b7823e
     Successfully built f52f38b7823e
 
-This example specifies that the PATH is ``.``, and so all the files in
-the local directory get tar'd and sent to the Docker daemon.  The PATH
+This example specifies that the ``PATH`` is ``.``, and so all the files in
+the local directory get tar'd and sent to the Docker daemon.  The ``PATH``
 specifies where to find the files for the "context" of the build on
 the Docker daemon. Remember that the daemon could be running on a
-remote machine and that no parsing of the Dockerfile happens at the
+remote machine and that no parsing of the ``Dockerfile`` happens at the
 client side (where you're running ``docker build``). That means that
-*all* the files at PATH get sent, not just the ones listed to
+*all* the files at ``PATH`` get sent, not just the ones listed to
 :ref:`ADD <dockerfile_add>` in the ``Dockerfile``.
 
 The transfer of context from the local machine to the Docker daemon is
@@ -198,16 +197,16 @@ tag will be ``2.0``
 
 This will read a ``Dockerfile`` from *stdin* without context. Due to
 the lack of a context, no contents of any local directory will be sent
-to the ``docker`` daemon.  Since there is no context, a Dockerfile
+to the ``docker`` daemon.  Since there is no context, a ``Dockerfile``
 ``ADD`` only works if it refers to a remote URL.
 
 .. code-block:: bash
 
     $ sudo docker build github.com/creack/docker-firefox
 
-This will clone the Github repository and use the cloned repository as
+This will clone the GitHub repository and use the cloned repository as
 context. The ``Dockerfile`` at the root of the repository is used as
-``Dockerfile``.  Note that you can specify an arbitrary git repository
+``Dockerfile``.  Note that you can specify an arbitrary Git repository
 by using the ``git://`` schema.
 
 
@@ -248,7 +247,7 @@ Change the command that a container runs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes you have an application container running just a service and you need
-to make a quick change (run bash?) and then change it back.
+to make a quick change and then change it back.
 
 In this example, we run a container with ``ls`` and then change the image to
 run ``ls /etc``.
@@ -271,9 +270,9 @@ Full -run example
 The ``-run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
 or ``config`` when running ``docker inspect IMAGEID``.
 
-(multiline is ok within a single quote ``'``)
+(Multiline is okay within a single quote ``'``)
 
-::
+.. code-block:: bash
 
   $ sudo docker commit -run='
   {
@@ -316,7 +315,7 @@ or ``config`` when running ``docker inspect IMAGEID``.
 
     Copy files/folders from the containers filesystem to the host
     path.  Paths are relative to the root of the filesystem.
-    
+
 .. code-block:: bash
 
     $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
@@ -330,7 +329,7 @@ or ``config`` when running ``docker inspect IMAGEID``.
 ::
 
     Usage: docker diff CONTAINER
- 
+
     List the changed files and directories in a container's filesystem
 
 There are 3 events that are listed in the 'diff':
@@ -339,7 +338,7 @@ There are 3 events that are listed in the 'diff':
 2. ```D``` - Delete
 3. ```C``` - Change
 
-for example:
+For example:
 
 .. code-block:: bash
 
@@ -367,7 +366,7 @@ for example:
     Usage: docker events
 
     Get real time events from the server
-    
+
     -since="": Show previously created events and then stream.
                (either seconds since epoch, or date string as below)
 
@@ -430,8 +429,8 @@ Show events in the past from a specified time
     Usage: docker export CONTAINER
 
     Export the contents of a filesystem as a tar archive to STDOUT
-    
-for example:
+
+For example:
 
 .. code-block:: bash
 
@@ -451,7 +450,7 @@ for example:
       -notrunc=false: Don't truncate output
       -q=false: only show numeric IDs
 
-To see how the docker:latest image was built:
+To see how the ``docker:latest`` image was built:
 
 .. code-block:: bash
 
@@ -483,7 +482,7 @@ To see how the docker:latest image was built:
 	d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
 	13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
 	ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
-	ubuntu:12.04        6 months ago 
+	ubuntu:12.04        6 months ago
 
 .. _cli_images:
 
@@ -501,7 +500,7 @@ To see how the docker:latest image was built:
       -q=false: only show numeric IDs
       -tree=false: output graph in tree format
       -viz=false: output graph in graphviz format
-      
+
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -589,10 +588,9 @@ Displaying image hierarchy
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
-file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) containing a
+file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a
 root filesystem. If you would like to import from a local directory or
-archive, you can use the ``-`` parameter to take the data from
-standard in.
+archive, you can use the ``-`` parameter to take the data from *stdin*.
 
 Examples
 ~~~~~~~~
@@ -602,24 +600,30 @@ Import from a remote location
 
 This will create a new untagged image.
 
-``$ sudo docker import http://example.com/exampleimage.tgz``
+.. code-block:: bash
+
+    $ sudo docker import http://example.com/exampleimage.tgz
 
 Import from a local file
 ........................
 
-Import to docker via pipe and standard in
+Import to docker via pipe and *stdin*.
 
-``$ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new``
+.. code-block:: bash
+
+    $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
 Import from a local directory
 .............................
 
-``$ sudo tar -c . | docker import - exampleimagedir``
+.. code-block:: bash
 
-Note the ``sudo`` in this example -- you must preserve the ownership
-of the files (especially root ownership) during the archiving with
-tar. If you are not root (or sudo) when you tar, then the ownerships
-might not get preserved.
+    $ sudo tar -c . | docker import - exampleimagedir
+
+Note the ``sudo`` in this example -- you must preserve the ownership of the
+files (especially root ownership) during the archiving with tar. If you are not
+root (or the sudo command) when you tar, then the ownerships might not get
+preserved.
 
 .. _cli_info:
 
@@ -658,16 +662,16 @@ might not get preserved.
 
     Insert a file from URL in the IMAGE at PATH
 
-Use the specified IMAGE as the parent for a new image which adds a
-:ref:`layer <layer_def>` containing the new file. ``insert`` does not modify 
-the original image, and the new image has the contents of the parent image, 
-plus the new file.
+Use the specified ``IMAGE`` as the parent for a new image which adds a
+:ref:`layer <layer_def>` containing the new file. The ``insert`` command does
+not modify the original image, and the new image has the contents of the parent
+image, plus the new file.
 
 
 Examples
 ~~~~~~~~
 
-Insert file from github
+Insert file from GitHub
 .......................
 
 .. code-block:: bash
@@ -691,7 +695,7 @@ Insert file from github
 By default, this will render all results in a JSON array.  If a format
 is specified, the given template will be executed for each result.
 
-Go's `text/template <http://golang.org/pkg/text/template/>` package
+Go's `text/template <http://golang.org/pkg/text/template/>`_ package
 describes all the details of the format.
 
 Examples
@@ -796,14 +800,14 @@ Known Issues (kill)
 
     Fetch the logs of a container
 
-``docker logs`` is a convenience which batch-retrieves whatever logs
-are present at the time of execution. This does not guarantee
-execution order when combined with a ``docker run`` (i.e. your run may
-not have generated any logs at the time you execute ``docker logs``).
+The ``docker logs`` command is a convenience which batch-retrieves whatever
+logs are present at the time of execution. This does not guarantee execution
+order when combined with a ``docker run`` (i.e. your run may not have generated
+any logs at the time you execute ``docker logs``).
 
-``docker logs -f`` combines ``docker logs`` and ``docker attach``: it
-will first return all logs from the beginning and then continue
-streaming new output from the container's stdout and stderr.
+The ``docker logs -f`` command combines ``docker logs`` and ``docker attach``:
+it will first return all logs from the beginning and then continue streaming
+new output from the container's stdout and stderr.
 
 
 .. _cli_port:
@@ -941,7 +945,7 @@ Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Images can be removed either by their short or long ID's, or their image names.
-If an image has more than one name, each of them needs to be removed before the 
+If an image has more than one name, each of them needs to be removed before the
 image is removed.
 
 .. code-block:: bash
@@ -1005,13 +1009,14 @@ image is removed.
       -link="": Add link to another container (name:alias)
       -name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P=false: Publish all exposed ports to the host interfaces
-      
-``'docker run'`` first ``'creates'`` a writeable container layer over
-the specified image, and then ``'starts'`` it using the specified
-command. That is, ``'docker run'`` is equivalent to the API
-``/containers/create`` then ``/containers/(id)/start``.
 
-``docker run`` can be used in combination with ``docker commit`` to :ref:`change the command that a container runs <cli_commit_examples>`.
+The ``docker run`` command first ``creates`` a writeable container layer over
+the specified image, and then ``starts`` it using the specified command. That
+is, ``docker run`` is equivalent to the API ``/containers/create`` then
+``/containers/(id)/start``.
+
+The ``docker run`` command can be used in combination with ``docker commit`` to
+:ref:`change the command that a container runs <cli_commit_examples>`.
 
 Known Issues (run -volumes-from)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1027,10 +1032,10 @@ Examples:
 
     $ sudo docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
 
-This will create a container and print "test" to the console. The
-``cidfile`` flag makes docker attempt to create a new file and write the
-container ID to it. If the file exists already, docker will return an
-error. Docker will close this file when docker run exits.
+This will create a container and print ``test`` to the console. The
+``cidfile`` flag makes Docker attempt to create a new file and write the
+container ID to it. If the file exists already, Docker will return an
+error. Docker will close this file when ``docker run`` exits.
 
 .. code-block:: bash
 
@@ -1064,7 +1069,7 @@ use-cases, like running Docker within Docker.
    $ sudo docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
 The ``-w`` lets the command being executed inside directory given,
-here /path/to/dir/. If the path does not exists it is created inside the
+here ``/path/to/dir/``. If the path does not exists it is created inside the
 container.
 
 .. code-block:: bash
@@ -1081,7 +1086,7 @@ using the container, but inside the current working directory.
 
    $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This binds port ``8080`` of the container to port ``80`` on 127.0.0.1 of the
+This binds port ``8080`` of the container to port ``80`` on ``127.0.0.1`` of the
 host machine. :ref:`port_redirection` explains in detail how to manipulate ports
 in Docker.
 
@@ -1115,11 +1120,11 @@ to the newly created container.
    $ sudo docker run -volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The ``-volumes-from`` flag mounts all the defined volumes from the
-refrence containers. Containers can be specified by a comma seperated
+referenced containers. Containers can be specified by a comma seperated
 list or by repetitions of the ``-volumes-from`` argument. The container
-id may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
+ID may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
-in the same mode (rw or ro) as the reference container.
+in the same mode (read write or read only) as the reference container.
 
 A complete example
 ..................
@@ -1134,10 +1139,10 @@ A complete example
 
 This example shows 5 containers that might be set up to test a web application change:
 
-1. Start a pre-prepared volume image ``static-web-files`` (in the background) that has css, image and static html in it, (with a VOLUME statement in the Dockerfile to allow the web server to use those files);
-2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose 8098 to any containers that link to it;
+1. Start a pre-prepared volume image ``static-web-files`` (in the background) that has CSS, image and static HTML in it, (with a ``VOLUME`` instruction in the ``Dockerfile`` to allow the web server to use those files);
+2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose port ``8098`` to any containers that link to it;
 3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
-4. Start the ``webserver``, mapping port 443 (https) in the container to port 1443 on the docker server, setting the dns server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated ssl certificate;
+4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
 5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``-rm`` option means that when the container exits, the container's layer is removed.
 
 
@@ -1226,7 +1231,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 ``version``
 -----------
 
-Show the version of the docker client, daemon, and latest released version.
+Show the version of the Docker client, daemon, and latest released version.
 
 
 .. _cli_wait:
