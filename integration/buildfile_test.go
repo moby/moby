@@ -132,11 +132,41 @@ run [ "$(cat /e)" = "blah" ]
 		[][2]string{{"/x", "hello"}, {"/", "blah"}},
 	},
 
+	// Comments, shebangs, and executability, oh my!
+	{
+		`
+FROM {IMAGE}
+# This is an ordinary comment.
+RUN { echo '#!/bin/sh'; echo 'echo hello world'; } > /hello.sh
+RUN [ ! -x /hello.sh ]
+RUN chmod +x /hello.sh
+RUN [ -x /hello.sh ]
+RUN [ "$(cat /hello.sh)" = $'#!/bin/sh\necho hello world' ]
+RUN [ "$(/hello.sh)" = "hello world" ]
+`,
+		nil,
+		nil,
+	},
+
+	// Environment variable
 	{
 		`
 from   {IMAGE}
 env    FOO BAR
 run    [ "$FOO" = "BAR" ]
+`,
+		nil,
+		nil,
+	},
+
+	// Environment overwriting
+	{
+		`
+from   {IMAGE}
+env    FOO BAR
+run    [ "$FOO" = "BAR" ]
+env    FOO BAZ
+run    [ "$FOO" = "BAZ" ]
 `,
 		nil,
 		nil,
