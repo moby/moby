@@ -62,8 +62,11 @@ p a.btn {
   -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
 }
-.brand.logo a {
+.brand-logo a {
   color: white;
+}
+.brand-logo a img {
+  width: auto;
 }
 .inline-icon {
   margin-bottom: 6px;
