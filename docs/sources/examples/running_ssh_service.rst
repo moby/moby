@@ -94,5 +94,8 @@ The password is ``screencast``.
          $ ifconfig
          $ ssh root@192.168.33.10 -p 49154
          # Thanks for watching, Thatcher thatcher@dotcloud.com
+         # For Ubuntu 13.10 using stackbrew/ubuntu, I had do these additional steps:
+         # change /etc/pam.d/sshd, pam_loginuid line 'required' to 'optional'
+         # echo LANG=\"en_US.UTF-8\" > /etc/default/locale
 
 
