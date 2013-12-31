@@ -12,8 +12,8 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -238,6 +238,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
 	if jerr, ok := err.(*utils.JSONError); ok {
+		// If no error code is set, default to 1
+		if jerr.Code == 0 {
+			jerr.Code = 1
+		}
 		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
 	return err
