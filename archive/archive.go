@@ -228,7 +228,7 @@ func Untar(archive io.Reader, path string, options *TarOptions) error {
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
-	args := []string{"-S", "--numeric-owner", "-f", "-", "-C", path, "--after-date", "1970-01-01", "-x" + compression.Flag()}
+	args := []string{"-S", "--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
 
 	if options != nil {
 		for _, exclude := range options.Excludes {
