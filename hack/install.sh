@@ -116,7 +116,7 @@ case "$lsb_dist" in
 			(
 				set -x
 				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
-			)
+			) || true
 		fi
 		exit 0
 		;;
