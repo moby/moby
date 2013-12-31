@@ -4,7 +4,7 @@
 #
 # This script provides supports completion of:
 #  - commands and their options
-#  - container ids
+#  - container ids and names
 #  - image repos and tags
 #  - filepaths
 #
@@ -25,21 +25,24 @@ __docker_containers_all()
 {
 	local containers
 	containers="$( docker ps -a -q )"
-	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
+	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_running()
 {
 	local containers
 	containers="$( docker ps -q )"
-	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
+	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_stopped()
 {
 	local containers
 	containers="$( comm -13 <(docker ps -q | sort -u) <(docker ps -a -q | sort -u) )"
-	COMPREPLY=( $( compgen -W "$containers" -- "$cur" ) )
+	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_image_repos()
@@ -70,8 +73,9 @@ __docker_containers_and_images()
 {
 	local containers images
 	containers="$( docker ps -a -q )"
+	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
 	images="$( docker images | awk 'NR>1{print $1":"$2}' )"
-	COMPREPLY=( $( compgen -W "$images $containers" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "$images $names $containers" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
 }
 
