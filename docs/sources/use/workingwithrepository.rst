@@ -194,7 +194,8 @@ Sometimes what you want is a private repository that lets you keep your images
 private, host them locally, or simply somewhere other than the central index.
 Fortunately the docker community has several ways to accomplish this.
 
-1) Host your own
+Host your own
++++++++++++++
 
 The first option is to host your own registry using the `docker-registry project
 <https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
@@ -226,7 +227,8 @@ function completely independently from the Central Index.
 .. seealso:: `Docker Blog: How to use your own registry 
    <http://blog.docker.io/2013/07/how-to-use-your-own-registry/>`_
    
-2) Use a hosting service
+Use a hosting service
++++++++++++++++++++++
 
 Several groups in the docker community have responded to the need for private 
 repositories and now offer repository hosting services.  These can be a great
@@ -236,8 +238,8 @@ to grow and offer users more capabilities.
 
 The following sites offer docker hosting:
 
-#) __ http://quay.io
-#) __ http://dockify.io
+* `Quay.io <http://quay.io>`_
+* `Dockify.io <http://dockify.io>`_
 
 .. note::
 
