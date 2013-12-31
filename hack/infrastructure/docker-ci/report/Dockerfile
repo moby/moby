@@ -25,4 +25,4 @@ run dpkg-reconfigure --frontend noninteractive tzdata
 
 # Add report code and set default container command
 add . /report
-cmd "/report/report.py"
+cmd ["/report/report.py"]
