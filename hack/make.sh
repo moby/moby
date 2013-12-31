@@ -69,7 +69,7 @@ BUILDFLAGS='-tags netgo -a'
 
 HAVE_GO_TEST_COVER=
 if \
-	go help testflag | grep -q -- -cover \
+	go help testflag | grep -- -cover > /dev/null \
 	&& go tool -n cover > /dev/null 2>&1 \
 ; then
 	HAVE_GO_TEST_COVER=1
