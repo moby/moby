@@ -1,21 +1,20 @@
-:title: Documentation
-:description: -- todo: change me
-:keywords: todo, docker, documentation, installation, usage, examples, contributing, faq, command line, concepts
+:title: User Guide
+:description: Table of contents tree
+:keywords: toc, docker, user guide, documentation, installation, usage, examples, contributing, faq, command line, concepts
 
-Documentation
-=============
+User Guide
+==========
 
 This documentation has the following resources:
 
 .. toctree::
    :maxdepth: 1
 
-   Introduction <index>
-   installation/index
-   use/index
-   examples/index
-   commandline/index
+   User Guide <index>
+   overview/index
+   quickstart/index
+   core/index
+   troubleshooting/index
    contributing/index
-   api/index
-   terms/index
-   faq
+   appendix/index
+   reference/index
