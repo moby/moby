@@ -1705,16 +1705,19 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	}
 
 	// Loop on the children of the given image and check the config
+	var match *Image
 	for elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
 			return nil, err
 		}
 		if CompareConfig(&img.ContainerConfig, config) {
-			return img, nil
+			if match == nil || match.Created.Before(img.Created) {
+				match = img
+			}
 		}
 	}
-	return nil, nil
+	return match, nil
 }
 
 func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) error {
