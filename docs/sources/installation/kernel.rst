@@ -115,7 +115,7 @@ Then run ``update-grub``, and reboot.
 Details
 -------
 
-An easy way to check that the requirements below are met is to run `lxc-checkconfig`.
+To automatically check some of the requirements below, you can run `lxc-checkconfig`.
 
 Networking:
 
