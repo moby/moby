@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -26,6 +27,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"regexp"
+	"net"
 )
 
 func (srv *Server) Close() error {
@@ -136,8 +139,47 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 			return engine.StatusErr
 		}
 		go func() {
-			// FIXME: merge Server.ListenAndServe with ListenAndServe
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"))
+			r, err := createRouter(srv, job.GetenvBool("Logging"))
+			if err != nil {
+				chErrors <- err
+				return
+			}
+			l, e := net.Listen(protoAddrParts[0], protoAddrParts[1])
+			if e != nil {
+				chErrors <- e
+				return
+			}
+			if protoAddrParts[0] == "unix" {
+				if err := os.Chmod(protoAddrParts[1], 0660); err != nil {
+					chErrors <- err
+					return
+				}
+
+				groups, err := ioutil.ReadFile("/etc/group")
+				if err != nil {
+					chErrors <- err
+					return
+				}
+				re := regexp.MustCompile("(^|\n)docker:.*?:([0-9]+)")
+				if gidMatch := re.FindStringSubmatch(string(groups)); gidMatch != nil {
+					gid, err := strconv.Atoi(gidMatch[2])
+					if err != nil {
+						chErrors <- err
+						return
+					}
+					utils.Debugf("docker group found. gid: %d", gid)
+					if err := os.Chown(protoAddrParts[1], 0, gid); err != nil {
+						chErrors <- err
+						return
+					}
+				}
+			}
+			httpSrv := http.Server{Addr: protoAddrParts[1], Handler: r}
+
+			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[1], protoAddrParts[0])
+			// Tell the init daemon we are accepting requests
+			go systemd.SdNotify("READY=1")
+			chErrors <- httpSrv.Serve(l)
 		}()
 	}
 	for i := 0; i < len(protoAddrs); i += 1 {
@@ -1435,7 +1477,7 @@ func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) 
 		if container == nil {
 			return fmt.Errorf("No such link: %s", name)
 		}
-		name, err := srv.runtime.getFullName(name)
+		name, err := getFullName(name)
 		if err != nil {
 			return err
 		}

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -22,9 +21,9 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
+
 )
 
 const (
@@ -1179,42 +1178,4 @@ func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *h
 	req.URL.Path = fmt.Sprintf("/v%g%s", apiversion, req.URL.Path)
 	router.ServeHTTP(w, req)
 	return nil
-}
-
-func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	r, err := createRouter(srv, logging)
-	if err != nil {
-		return err
-	}
-	l, e := net.Listen(proto, addr)
-	if e != nil {
-		return e
-	}
-	if proto == "unix" {
-		if err := os.Chmod(addr, 0660); err != nil {
-			return err
-		}
-
-		groups, err := ioutil.ReadFile("/etc/group")
-		if err != nil {
-			return err
-		}
-		re := regexp.MustCompile("(^|\n)docker:.*?:([0-9]+)")
-		if gidMatch := re.FindStringSubmatch(string(groups)); gidMatch != nil {
-			gid, err := strconv.Atoi(gidMatch[2])
-			if err != nil {
-				return err
-			}
-			utils.Debugf("docker group found. gid: %d", gid)
-			if err := os.Chown(addr, 0, gid); err != nil {
-				return err
-			}
-		}
-	}
-	httpSrv := http.Server{Addr: addr, Handler: r}
-
-	log.Printf("Listening for HTTP on %s (%s)\n", addr, proto)
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
-	return httpSrv.Serve(l)
 }
