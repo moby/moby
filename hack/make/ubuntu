@@ -17,6 +17,7 @@ repeatability across servers.
 Docker is a great building block for automating distributed systems:
 large-scale web deployments, database clusters, continuous deployment systems,
 private PaaS, service-oriented architectures, etc."
+PACKAGE_LICENSE="Apache-2.0"
 
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
@@ -104,7 +105,7 @@ EOF
 		    --replaces lxc-docker \
 		    --replaces lxc-docker-virtual-package \
 		    --url "$PACKAGE_URL" \
-		    --vendor "$PACKAGE_VENDOR" \
+		    --license "$PACKAGE_LICENSE" \
 		    --config-files /etc/init/docker.conf \
 		    --config-files /etc/init.d/docker \
 		    --config-files /etc/default/docker \
@@ -118,7 +119,7 @@ EOF
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
-		    --vendor "$PACKAGE_VENDOR" \
+		    --license "$PACKAGE_LICENSE" \
 		    --config-files /etc/init/docker.conf \
 		    --config-files /etc/init.d/docker \
 		    --config-files /etc/default/docker \
