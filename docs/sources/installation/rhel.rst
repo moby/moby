@@ -65,7 +65,7 @@ Now let's verify that Docker is working.
 
 .. code-block:: bash
 
-   sudo docker run -i -t mattdm/fedora /bin/bash
+   sudo docker run -i -t fedora /bin/bash
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
