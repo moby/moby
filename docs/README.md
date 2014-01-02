@@ -46,7 +46,7 @@ directory:
 
 * Linux: `pip install -r docs/requirements.txt`
 
-* Mac OS X: `[sudo] pip-2.7 -r docs/requirements.txt`
+* Mac OS X: `[sudo] pip-2.7 install -r docs/requirements.txt`
 
 ###Alternative Installation: Docker Container
 
