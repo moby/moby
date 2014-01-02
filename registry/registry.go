@@ -25,11 +25,11 @@ var (
 	ErrLoginRequired         = errors.New("Authentication is required.")
 )
 
-func pingRegistryEndpoint(endpoint string) error {
+func pingRegistryEndpoint(endpoint string) (bool, error) {
 	if endpoint == auth.IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
-		return nil
+		return false, nil
 	}
 	httpDial := func(proto string, addr string) (net.Conn, error) {
 		// Set the connect timeout to 5 seconds
@@ -45,14 +45,26 @@ func pingRegistryEndpoint(endpoint string) error {
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer resp.Body.Close()
 
 	if resp.Header.Get("X-Docker-Registry-Version") == "" {
-		return errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
+		return false, errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
 	}
-	return nil
+
+	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
+	utils.Debugf("Registry standalone header: '%s'", standalone)
+	// If the header is absent, we assume true for compatibility with earlier
+	// versions of the registry
+	if standalone == "" {
+		return true, nil
+	// Accepted values are "true" (case-insensitive) and "1".
+	} else if strings.EqualFold(standalone, "true") || standalone == "1" {
+		return true, nil
+	}
+	// Otherwise, not standalone
+	return false, nil
 }
 
 func validateRepositoryName(repositoryName string) error {
@@ -122,16 +134,16 @@ func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
 			// there is no path given. Expand with default path
 			hostname = hostname + "/v1/"
 		}
-		if err := pingRegistryEndpoint(hostname); err != nil {
+		if _, err := pingRegistryEndpoint(hostname); err != nil {
 			return "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
 		return hostname, nil
 	}
 	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
-	if err := pingRegistryEndpoint(endpoint); err != nil {
+	if _, err := pingRegistryEndpoint(endpoint); err != nil {
 		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
 		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
-		if err = pingRegistryEndpoint(endpoint); err != nil {
+		if _, err = pingRegistryEndpoint(endpoint); err != nil {
 			//TODO: triggering highland build can be done there without "failing"
 			return "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
@@ -677,12 +689,18 @@ func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory,
 		return nil, err
 	}
 
-	// If we're working with a private registry over HTTPS, send Basic Auth headers
+	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
 	if indexEndpoint != auth.IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
-		utils.Debugf("Endpoint %s is eligible for private registry auth. Enabling decorator.", indexEndpoint)
-		dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
-		factory.AddDecorator(dec)
+		standalone, err := pingRegistryEndpoint(indexEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		if standalone {
+			utils.Debugf("Endpoint %s is eligible for private registry auth. Enabling decorator.", indexEndpoint)
+			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
+			factory.AddDecorator(dec)
+		}
 	}
 
 	r.reqFactory = factory
