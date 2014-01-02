@@ -248,12 +248,12 @@ type PortMapper struct {
 }
 
 func (mapper *PortMapper) Map(ip net.IP, port int, backendAddr net.Addr) error {
-	mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
-	if _, exists := mapper.tcpProxies[mapKey]; exists {
-		return fmt.Errorf("Port %s is already in use", mapKey)
-	}
 
 	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
+		mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
+		if _, exists := mapper.tcpProxies[mapKey]; exists {
+			return fmt.Errorf("TCP Port %s is already in use", mapKey)
+		}
 		backendPort := backendAddr.(*net.TCPAddr).Port
 		backendIP := backendAddr.(*net.TCPAddr).IP
 		if mapper.iptables != nil {
@@ -270,6 +270,10 @@ func (mapper *PortMapper) Map(ip net.IP, port int, backendAddr net.Addr) error {
 		mapper.tcpProxies[mapKey] = proxy
 		go proxy.Run()
 	} else {
+		mapKey := (&net.UDPAddr{Port: port, IP: ip}).String()
+		if _, exists := mapper.udpProxies[mapKey]; exists {
+			return fmt.Errorf("UDP: Port %s is already in use", mapKey)
+		}
 		backendPort := backendAddr.(*net.UDPAddr).Port
 		backendIP := backendAddr.(*net.UDPAddr).IP
 		if mapper.iptables != nil {
@@ -290,8 +294,8 @@ func (mapper *PortMapper) Map(ip net.IP, port int, backendAddr net.Addr) error {
 }
 
 func (mapper *PortMapper) Unmap(ip net.IP, port int, proto string) error {
-	mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
 	if proto == "tcp" {
+		mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
 		backendAddr, ok := mapper.tcpMapping[mapKey]
 		if !ok {
 			return fmt.Errorf("Port tcp/%s is not mapped", mapKey)
@@ -307,6 +311,7 @@ func (mapper *PortMapper) Unmap(ip net.IP, port int, proto string) error {
 		}
 		delete(mapper.tcpMapping, mapKey)
 	} else {
+		mapKey := (&net.UDPAddr{Port: port, IP: ip}).String()
 		backendAddr, ok := mapper.udpMapping[mapKey]
 		if !ok {
 			return fmt.Errorf("Port udp/%s is not mapped", mapKey)
