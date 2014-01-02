@@ -31,6 +31,20 @@ bundle_ubuntu() {
 	mkdir -p $DIR/lib/systemd
 	cp -R contrib/init/systemd $DIR/lib/systemd/system
 
+	mkdir -p $DIR/etc/default
+	cat > $DIR/etc/default/docker <<'EOF'
+# Docker Upstart and SysVinit configuration file
+
+# Customize location of Docker binary (especially for development testing).
+#DOCKER="/usr/local/bin/docker"
+
+# Use DOCKER_OPTS to modify the daemon startup options.
+#DOCKER_OPTS="-dns 8.8.8.8"
+
+# If you need Docker to use an HTTP proxy, it can also be specified here.
+#export http_proxy=http://127.0.0.1:3128/
+EOF
+
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
 	mkdir -p $DIR/usr/bin
@@ -120,12 +134,8 @@ EOF
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
 		    --license "$PACKAGE_LICENSE" \
-		    --config-files /etc/init/docker.conf \
-		    --config-files /etc/init.d/docker \
-		    --config-files /etc/default/docker \
 		    --deb-compression xz \
 		    -t deb .
-		# note: the --config-files lines have to be duplicated to stop overwrite on package upgrade (since we have to use this funky virtual package)
 	)
 }
 
