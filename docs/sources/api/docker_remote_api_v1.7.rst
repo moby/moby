@@ -135,12 +135,12 @@ Create a container
 			"/tmp": {}
 		},
 		"VolumesFrom":"",
-		"WorkingDir":""
-    "ExposedPorts":{
-      "22/tcp": {}
-    }
+		"WorkingDir":"",
+		"ExposedPorts":{
+			"22/tcp": {}
+		}
 	   }
-	
+
 	**Example response**:
 
 	.. sourcecode:: http
