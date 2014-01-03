@@ -1,8 +1,66 @@
 # Changelog
 
+## 0.7.3 (2013-01-02)
+
 #### Builder
 
-- ADD now uses image cache, based on sha256 of added content.
++ Updated ADD to use the image cache, based on a hash of the added content
+* Added error message for empty Dockerfile
+
+#### Documentation
+
+- Fixed outdated link to the "Introduction" on www.docker.io
++ Updated the docs to get wider when the screen does
+- Added information about needing to install LXC when using raw binaries
+* Updated Fedora documentation to disentangle the docker and docker.io conflict
+* Added a note about using the new `-mtu` flag in several GCE zones
++ Added FrugalWare installation instructions
++ Added a more complete example of `docker run`
+- Fixed API documentation for creating and starting Privileged containers
+- Added missing "name" parameter documentation on "/containers/create"
+* Added a mention of `lxc-checkconfig` as a way to check for some of the necessary kernel configuration
+- Updated the 1.8 API documentation with some additions that were added to the docs for 1.7
+
+#### Hack
+
+- Added missing libdevmapper dependency to the packagers documentation
+* Updated minimum Go requirement to a hard line at Go 1.2+
+* Many minor improvements to the Vagrantfile
++ Added ability to customize dockerinit search locations when compiling (to be used very sparingly only by packagers of platforms who require a nonstandard location)
++ Added coverprofile generation reporting
+- Added `-a` to our Go build flags, removing the need for recompiling the stdlib manually
+* Updated Dockerfile to be more canonical and have less spurious warnings during build
+- Fixed some miscellaneous `docker pull` progress bar display issues
+* Migrated more miscellaneous packages under the "pkg" folder
+* Updated TextMate highlighting to automatically be enabled for files named "Dockerfile"
+* Reorganized syntax highlighting files under a common "contrib/syntax" directory
+* Updated install.sh script (https://get.docker.io/) to not fail if busybox fails to download or run at the end of the Ubuntu/Debian installation
+* Added support for container names in bash completion
+
+#### Packaging
+
++ Added an official Docker client binary for Darwin (Mac OS X)
+* Removed empty "Vendor" string and added "License" on deb package
++ Added a stubbed version of "/etc/default/docker" in the deb package
+
+#### Runtime
+
+* Updated layer application to extract tars in place, avoiding file churn while handling whiteouts
+- Fixed permissiveness of mtime comparisons in tar handling (since GNU tar and Go tar do not yet support sub-second mtime precision)
+* Reimplemented `docker top` in pure Go to work more consistently, and even inside Docker-in-Docker
+- By reimplementing `docker top`, removed shell injection vulnerability present in some versions of `lxc-ps`
++ Updated `-H unix://` to work similarly to `-H tcp://` by inserting the default values for missing portions
+- Fixed more edge cases regarding dockerinit and deleted or replaced docker or dockerinit files
+* Updated container name validation to include '.'
+- Fixed use of a symlink or non-absolute path as the argument to `-g` to work as expected
+* Updated to handle external mounts outside of LXC, fixing many small mounting quirks and making future execution backends and other features simpler
+* Updated to use proper box-drawing characters everywhere in `docker images -tree`
+* Moved MTU setting from LXC configuration to directly using netlink
+* Added `-S` option to external tar invocation for more efficient spare file handling
++ Added arch/os info to User-Agent string, especially for registry requests
++ Added `-mtu` option to Docker daemon for configuring MTU
+- Fixed `docker build` to exit with a non-zero exit code on error
++ Added `DOCKER_HOST` environment variable to configure the client `-H` flag without specifying it manually for every invocation
 
 ## 0.7.2 (2013-12-16)
 
