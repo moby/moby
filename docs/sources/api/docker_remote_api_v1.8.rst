@@ -122,7 +122,6 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
-		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -132,12 +131,16 @@ Create a container
 		],
 		"Dns":null,
 		"Image":"base",
-		"Volumes":{},
+		"Volumes":{
+			"/tmp": {}
+		},
 		"VolumesFrom":"",
-		"WorkingDir":""
-
+		"WorkingDir":"",
+		"ExposedPorts":{
+			"22/tcp": {}
+		}
 	   }
-	   
+
 	**Example response**:
 
 	.. sourcecode:: http
@@ -378,7 +381,10 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":{"lxc.utsname":"docker"},
+                "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
+                "PublishAllPorts":false,
+                "Privileged":false
            }
 
         **Example response**:
