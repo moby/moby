@@ -1,34 +1,22 @@
-:title: Docker Documentation
+:title: User Guide
 :description: An overview of the Docker Documentation
 :keywords: containers, lxc, concepts, explanation
 
-Introduction
-------------
+Docker User Guide
+-----------------
 
-``docker``, the Linux Container Runtime, runs Unix processes with
-strong guarantees of isolation across servers. Your software runs
-repeatably everywhere because its :ref:`container_def` includes any
-dependencies.
+* Welcome! This is the user’s guide for Docker *insert version variable*.
 
-``docker`` runs three ways:
+  * If you are new to Docker, begin with the `quick start guide <http://www.docker.io/gettingstarted>`_ to create a small proof-of-concept deployment and experience the core Docker workflows. This guided walkthrough will take approximately 30 minutes.
 
-* as a daemon to manage LXC containers on your :ref:`Linux host
-  <kernel>` (``sudo docker -d``)
-* as a :ref:`CLI <cli>` which talks to the daemon's `REST API
-  <api/docker_remote_api>`_ (``docker run ...``)
-* as a client of :ref:`Repositories <working_with_the_repository>`
-  that let you share what you've built (``docker pull, docker
-  commit``).
+  * To install Docker, see the following pages:
 
-Each use of ``docker`` is documented here. The features of Docker are
-currently in active development, so this documentation will change
-frequently.
+      * :ref:`System Requirements <system_requirements>`.
 
-For an overview of Docker, please see the `Introduction
-<http://www.docker.io/learn_more/>`_. When you're ready to start working with
-Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
-and a more in-depth guide to :ref:`ubuntu_linux` and other
-:ref:`installation_list` paths including prebuilt binaries,
-Vagrant-created VMs, Rackspace and Amazon instances.
+      * :ref:`Installing Docker <installing_docker>`.
 
-Enough reading! :ref:`Try it out! <running_examples>`
+      * [Docker Downloads](link_to_page)
+
+* To see what’s new since the last release, see :ref:`New Features <new_features>`.
+
+If you are using an older version of Docker, you can find documentation for previous versions [here](link_to_previous).

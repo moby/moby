@@ -1,11 +1,12 @@
-:title: Share Images via Repositories
-:description: Repositories allow users to share images.
-:keywords: repo, repositories, usage, pull image, push image, image, documentation
+:title: Repositories and Registries
+:description: What is the registry?
+:keywords: registry, repo, repositories, usage, pull image, push image, image, documentation
 
+.. _repositories_and_registries:
 .. _working_with_the_repository:
 
-Share Images via Repositories
-=============================
+Repositories and Registries
+===========================
 
 A *repository* is a hosted collection of tagged :ref:`images
 <image_def>` that together create the file system for a container. The
