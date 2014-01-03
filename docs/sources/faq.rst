@@ -160,7 +160,7 @@ Any capable process supervisor such as http://supervisord.org/, runit, s6, or
 daemontools can do the trick. Docker will start up the process management
 daemon which will then fork to run additional processes. As long as the
 processor manager daemon continues to run, the container will continue to as
-well.  You can see a more subsantial example `that uses supervisord here
+well.  You can see a more substantial example `that uses supervisord here
 <http://docs.docker.io/en/latest/examples/using_supervisord/>`_.
 
 What platforms does Docker run on?
