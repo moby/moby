@@ -125,8 +125,7 @@ What does Docker add to just plain LXC?
 What is different between a Docker container and a VM?
 ......................................................
 
-There's a great StackOverflow answer `here
-<http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine>`_.
+There's a great StackOverflow answer `showing the differences <http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine>`_.
 
 Do I lose my data when the container exits?
 ...........................................
@@ -147,7 +146,8 @@ How do I connect Docker containers?
 ...................................
 
 Currently the recommended way to link containers is via the `link` primitive.
-You can see details of how to use it `here <http://docs.docker.io/en/latest/use/working_with_links_names/>`_. 
+You can see details of how to `work with links here
+<http://docs.docker.io/en/latest/use/working_with_links_names/>`_.
 
 Also of useful when enabling more flexible service portability is the
 `Ambassador linking pattern
@@ -160,7 +160,7 @@ Any capable process supervisor such as http://supervisord.org/, runit, s6, or
 daemontools can do the trick. Docker will start up the process management
 daemon which will then fork to run additional processes. As long as the
 processor manager daemon continues to run, the container will continue to as
-well.  You can see a more subsantial example `here
+well.  You can see a more subsantial example `that uses supervisord here
 <http://docs.docker.io/en/latest/examples/using_supervisord/>`_.
 
 What platforms does Docker run on?
