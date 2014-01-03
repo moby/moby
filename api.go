@@ -925,15 +925,31 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		rawRm             = r.FormValue("rm")
 		authEncoded       = r.Header.Get("X-Registry-Auth")
 		authConfig        = &auth.AuthConfig{}
+		configFileEncoded = r.Header.Get("X-Registry-Config")
+		configFile        = &auth.ConfigFile{}
 		tag               string
 	)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
-	if authEncoded != "" {
+
+	// This block can be removed when API versions prior to 1.9 are deprecated.
+	// Both headers will be parsed and sent along to the daemon, but if a non-empty
+	// ConfigFile is present, any value provided as an AuthConfig directly will
+	// be overridden. See BuildFile::CmdFrom for details.
+	if version < 1.9 && authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
 			authConfig = &auth.AuthConfig{}
+		}
+	}
+
+	if configFileEncoded != "" {
+		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
+		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			configFile = &auth.ConfigFile{}
 		}
 	}
 
@@ -1003,7 +1019,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			Writer:          utils.NewWriteFlusher(w),
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig)
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig, configFile)
 	id, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {
