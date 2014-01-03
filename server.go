@@ -1714,12 +1714,8 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	return nil, nil
 }
 
-func (srv *Server) RegisterLinks(name string, hostConfig *HostConfig) error {
+func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) error {
 	runtime := srv.runtime
-	container := runtime.Get(name)
-	if container == nil {
-		return fmt.Errorf("No such container: %s", name)
-	}
 
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
@@ -1792,8 +1788,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			}
 		}
 		// Register any links from the host config before starting the container
-		// FIXME: we could just pass the container here, no need to lookup by name again.
-		if err := srv.RegisterLinks(name, &hostConfig); err != nil {
+		if err := srv.RegisterLinks(container, &hostConfig); err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
