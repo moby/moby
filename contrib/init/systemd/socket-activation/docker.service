@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 ExecStartPre=/bin/mount --make-rprivate /
-ExecStart=/usr/bin/docker -d -H fd://*
+ExecStart=/usr/bin/docker -d -H fd://
 
 [Install]
 WantedBy=multi-user.target

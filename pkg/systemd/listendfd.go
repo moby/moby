@@ -17,6 +17,11 @@ func ListenFD(addr string) ([]net.Listener, error) {
 		return nil, errors.New("No sockets found")
 	}
 
+	// default to all fds just like unix:// and tcp://
+	if addr == "" {
+		addr = "*"
+	}
+
 	fdNum, _ := strconv.Atoi(addr)
 	fdOffset := fdNum - 3
 	if (addr != "*") && (len(files) < int(fdOffset)+1) {

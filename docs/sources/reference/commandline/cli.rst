@@ -63,8 +63,8 @@ the ``-H`` flag for the client.
         # both are equal
 
 
-To run the daemon with `systemd socket activation <http://0pointer.de/blog/projects/socket-activation.html>`, use ``docker -d -H fd://*``.
-Using ``fd://*`` will work perfectly for most setups but you can also specify individual sockets too ``docker -d -H fd://3``.
+To run the daemon with `systemd socket activation <http://0pointer.de/blog/projects/socket-activation.html>`, use ``docker -d -H fd://``.
+Using ``fd://`` will work perfectly for most setups but you can also specify individual sockets too ``docker -d -H fd://3``.
 If the specified socket activated files aren't found then docker will exit.
 You can find examples of using systemd socket activation with docker and systemd in the `docker source tree <https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/>`.
 
