@@ -1122,7 +1122,7 @@ Monitor Docker's events
 
 	.. sourcecode:: http
 
-           POST /events?since=1374067924
+           GET /events?since=1374067924
 
         **Example response**:
 

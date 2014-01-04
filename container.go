@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
-	"github.com/dotcloud/docker/term"
+	"github.com/dotcloud/docker/mount"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
 	"io"
@@ -48,7 +49,6 @@ type Container struct {
 	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
-	SysInitPath    string
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
@@ -297,7 +297,11 @@ func (container *Container) generateEnvConfig(env []string) error {
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile(container.EnvConfigPath(), data, 0600)
+	p, err := container.EnvConfigPath()
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile(p, data, 0600)
 	return nil
 }
 
@@ -578,6 +582,7 @@ func (container *Container) Start() (err error) {
 		params = append(params,
 			"-g", network.Gateway,
 			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
+			"-mtu", strconv.Itoa(container.runtime.config.Mtu),
 		)
 	}
 
@@ -678,6 +683,45 @@ func (container *Container) Start() (err error) {
 
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
+	}
+
+	root := container.RootfsPath()
+	envPath, err := container.EnvConfigPath()
+	if err != nil {
+		return err
+	}
+
+	// Mount docker specific files into the containers root fs
+	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro"); err != nil {
+		return err
+	}
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro"); err != nil {
+			return err
+		}
+		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro"); err != nil {
+			return err
+		}
+	}
+
+	// Mount user specified volumes
+
+	for r, v := range container.Volumes {
+		mountAs := "ro"
+		if container.VolumesRW[v] {
+			mountAs = "rw"
+		}
+
+		if err := mount.Mount(v, path.Join(root, r), "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
+			return err
 		}
 	}
 
@@ -836,7 +880,7 @@ func (container *Container) createVolumes() error {
 		volPath = path.Join(container.RootfsPath(), volPath)
 		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if _, err := os.Stat(rootVolPath); err != nil {
@@ -1358,6 +1402,32 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Unmount() error {
+	var (
+		err    error
+		root   = container.RootfsPath()
+		mounts = []string{
+			path.Join(root, "/.dockerinit"),
+			path.Join(root, "/.dockerenv"),
+			path.Join(root, "/etc/resolv.conf"),
+		}
+	)
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		mounts = append(mounts, path.Join(root, "/etc/hostname"), path.Join(root, "/etc/hosts"))
+	}
+
+	for r := range container.Volumes {
+		mounts = append(mounts, path.Join(root, r))
+	}
+
+	for _, m := range mounts {
+		if lastError := mount.Unmount(m); lastError != nil {
+			err = lastError
+		}
+	}
+	if err != nil {
+		return err
+	}
 	return container.runtime.Unmount(container)
 }
 
@@ -1377,8 +1447,20 @@ func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
 }
 
-func (container *Container) EnvConfigPath() string {
-	return path.Join(container.root, "config.env")
+func (container *Container) EnvConfigPath() (string, error) {
+	p := path.Join(container.root, "config.env")
+	if _, err := os.Stat(p); err != nil {
+		if os.IsNotExist(err) {
+			f, err := os.Create(p)
+			if err != nil {
+				return "", err
+			}
+			f.Close()
+		} else {
+			return "", err
+		}
+	}
+	return p, nil
 }
 
 func (container *Container) lxcConfigPath() string {

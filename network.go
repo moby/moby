@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/iptables"
-	"github.com/dotcloud/docker/netlink"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
 	"log"
@@ -19,6 +19,7 @@ import (
 const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
+	DefaultNetworkMtu    = 1500
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
@@ -117,7 +118,6 @@ func CreateBridgeIface(config *DaemonConfig) error {
 		"192.168.43.1/24",
 		"192.168.44.1/24",
 	}
-
 
 	nameservers := []string{}
 	resolvConf, _ := utils.GetResolvConf()
@@ -628,7 +628,7 @@ func (iface *NetworkInterface) Release() {
 				log.Printf("Unable to release port %s", nat)
 			}
 		} else if nat.Port.Proto() == "udp" {
-			if err := iface.manager.tcpPortAllocator.Release(ip, hostPort); err != nil {
+			if err := iface.manager.udpPortAllocator.Release(ip, hostPort); err != nil {
 				log.Printf("Unable to release port %s: %s", nat, err)
 			}
 		}

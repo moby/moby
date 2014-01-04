@@ -448,6 +448,11 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	if err != nil {
 		return "", fmt.Errorf("Failed to upload layer: %s", err)
 	}
+	if rc, ok := layer.(io.Closer); ok {
+		if err := rc.Close(); err != nil {
+			return "", err
+		}
+	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {

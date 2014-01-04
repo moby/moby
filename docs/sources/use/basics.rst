@@ -9,7 +9,7 @@ Learn Basic Commands
 Starting Docker
 ---------------
 
-If you have used one of the quick install paths', Docker may have been
+If you have used one of the quick install paths, Docker may have been
 installed with upstart, Ubuntu's system for starting processes at boot
 time. You should be able to run ``sudo docker help`` and get output.
 
@@ -30,8 +30,8 @@ Download a pre-built image
   # Download an ubuntu image
   sudo docker pull ubuntu
 
-This will find the ``ubuntu`` image by name in the :ref:`Central Index 
-<searching_central_index>` and download it from the top-level Central 
+This will find the ``ubuntu`` image by name in the :ref:`Central Index
+<searching_central_index>` and download it from the top-level Central
 Repository to a local image cache.
 
 .. NOTE:: When the image has successfully downloaded, you will see a
@@ -53,21 +53,23 @@ Running an interactive shell
 
 .. _dockergroup:
 
-sudo and the docker Group
--------------------------
+The sudo command and the docker Group
+-------------------------------------
 
-The ``docker`` daemon always runs as root, and since ``docker``
-version 0.5.2, ``docker`` binds to a Unix socket instead of a TCP
-port. By default that Unix socket is owned by the user *root*, and so,
-by default, you can access it with ``sudo``.
+The ``docker`` daemon always runs as the root user, and since Docker version
+0.5.2, the ``docker`` daemon binds to a Unix socket instead of a TCP port. By
+default that Unix socket is owned by the user *root*, and so, by default, you
+can access it with ``sudo``.
 
 Starting in version 0.5.3, if you (or your Docker installer) create a
 Unix group called *docker* and add users to it, then the ``docker``
 daemon will make the ownership of the Unix socket read/writable by the
 *docker* group when the daemon starts. The ``docker`` daemon must
-always run as root, but if you run the ``docker`` client as a user in
+always run as the root user, but if you run the ``docker`` client as a user in
 the *docker* group then you don't need to add ``sudo`` to all the
-client commands.  Warning: the *docker* group is root-equivalent.
+client commands.  
+
+.. warning:: The *docker* group is root-equivalent.
 
 **Example:**
 
@@ -97,10 +99,10 @@ Bind Docker to another host/port or a Unix socket
    <https://github.com/dotcloud/docker/issues/1369>`_). Make sure you
    control access to ``docker``.
 
-With -H it is possible to make the Docker daemon to listen on a
-specific ip and port. By default, it will listen on
+With ``-H`` it is possible to make the Docker daemon to listen on a
+specific IP and port. By default, it will listen on
 ``unix:///var/run/docker.sock`` to allow only local connections by the
-*root* user.  You *could* set it to 0.0.0.0:4243 or a specific host ip to
+*root* user.  You *could* set it to ``0.0.0.0:4243`` or a specific host IP to
 give access to everybody, but that is **not recommended** because then
 it is trivial for someone to gain root access to the host where the
 daemon is running.
@@ -179,10 +181,10 @@ Committing (saving) a container state
 
 Save your containers state to a container image, so the state can be re-used.
 
-When you commit your container only the differences between the image
-the container was created from and the current state of the container
-will be stored (as a diff). See which images you already have using
-``sudo docker images``
+When you commit your container only the differences between the image the
+container was created from and the current state of the container will be
+stored (as a diff). See which images you already have using the ``docker
+images`` command.
 
 .. code-block:: bash
 
@@ -193,8 +195,6 @@ will be stored (as a diff). See which images you already have using
     sudo docker images
 
 You now have a image state from which you can create new instances.
-
-
 
 Read more about :ref:`working_with_the_repository` or continue to the
 complete :ref:`cli`

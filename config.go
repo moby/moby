@@ -18,6 +18,7 @@ type DaemonConfig struct {
 	DefaultIp                   net.IP
 	InterContainerCommunication bool
 	GraphDriver                 string
+	Mtu                         int
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -41,5 +42,10 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	config.DefaultIp = net.ParseIP(job.Getenv("DefaultIp"))
 	config.InterContainerCommunication = job.GetenvBool("InterContainerCommunication")
 	config.GraphDriver = job.Getenv("GraphDriver")
+	if mtu := job.GetenvInt("Mtu"); mtu != -1 {
+		config.Mtu = mtu
+	} else {
+		config.Mtu = DefaultNetworkMtu
+	}
 	return &config
 }

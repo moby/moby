@@ -136,7 +136,7 @@ You can run an interactive session in the newly built container:
 
 
 Extra Step: Build and view the Documentation
--------------------------------------------
+--------------------------------------------
 
 If you want to read the documentation from a local website, or are making changes
 to it, you can build the documentation and then serve it by:

@@ -432,7 +432,6 @@ func TestGetContainersChanges(t *testing.T) {
 }
 
 func TestGetContainersTop(t *testing.T) {
-	t.Skip("Fixme. Skipping test for now. Reported error when testing using dind: 'api_test.go:527: Expected 2 processes, found 0.'")
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
@@ -475,7 +474,7 @@ func TestGetContainersTop(t *testing.T) {
 	})
 
 	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/"+containerID+"/top?ps_args=u", bytes.NewReader([]byte{}))
+	req, err := http.NewRequest("GET", "/containers/"+containerID+"/top?ps_args=aux", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,11 +497,11 @@ func TestGetContainersTop(t *testing.T) {
 	if len(procs.Processes) != 2 {
 		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
 	}
-	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "cat" {
-		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[0][10])
+	if procs.Processes[0][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", procs.Processes[0][10])
 	}
-	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "cat" {
-		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[1][10])
+	if procs.Processes[1][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", procs.Processes[1][10])
 	}
 }
 

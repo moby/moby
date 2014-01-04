@@ -1,6 +1,6 @@
 :title: Requirements and Installation on Fedora
 :description: Please note this project is currently under heavy development. It should not be used in production.
-:keywords: Docker, Docker documentation, fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+:keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 
 .. _fedora:
 
@@ -18,13 +18,34 @@ architecture.
 Installation
 ------------
 
+The ``docker-io`` package provides Docker on Fedora.
+
+
+If you have the (unrelated) ``docker`` package installed already, it will
+conflict with ``docker-io``. There's a `bug report`_ filed for it.
+To proceed with ``docker-io`` installation on Fedora 19, please remove
+``docker`` first.
+
+.. code-block:: bash
+
+   sudo yum -y remove docker
+
+For Fedora 20 and later, the ``wmdocker`` package will provide the same
+functionality as ``docker`` and will also not conflict with ``docker-io``.
+
+.. code-block:: bash
+
+   sudo yum -y install wmdocker
+   sudo yum -y remove docker
+
 Install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
 
    sudo yum -y install docker-io
 
-To update the ``docker-io`` package
+
+To update the ``docker-io`` package:
 
 .. code-block:: bash
 
@@ -49,4 +70,6 @@ Now let's verify that Docker is working.
    sudo docker run -i -t mattdm/fedora /bin/bash
 
 **Done!**, now continue with the :ref:`hello_world` example.
+
+.. _bug report: https://bugzilla.redhat.com/show_bug.cgi?id=1043676
 

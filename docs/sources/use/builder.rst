@@ -251,6 +251,11 @@ All new files and directories are created with mode 0755, uid and gid
    if you build using STDIN (``docker build - < somefile``), there is no build 
    context, so the Dockerfile can only contain an URL based ADD statement.
 
+.. note::
+   if your URL files are protected using authentication, you will need to use
+   an ``RUN wget`` , ``RUN curl`` or other tool from within the container as
+   ADD does not support authentication.
+
 The copy obeys the following rules:
 
 * The ``<src>`` path must be inside the *context* of the build; you cannot 
