@@ -10,7 +10,7 @@ import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/systemd"
+	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
