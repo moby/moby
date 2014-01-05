@@ -1100,7 +1100,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	if err := pull(authConfig); err != nil {
 		if err.Error() == registry.ErrLoginRequired.Error() {
-			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
 			if err := cli.CmdLogin(endpoint); err != nil {
 				return err
 			}
