@@ -609,53 +609,13 @@ func (container *Container) Start() (err error) {
 	if container.Config.WorkingDir != "" {
 		workingDir = path.Clean(container.Config.WorkingDir)
 		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
-			return nil
+			return err
 		}
 	}
 
 	root := container.RootfsPath()
-	envPath, err := container.EnvConfigPath()
-	if err != nil {
+	if err := container.mountVolumes(); err != nil {
 		return err
-	}
-
-	// Mount docker specific files into the containers root fs
-	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro"); err != nil {
-		return err
-	}
-	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro"); err != nil {
-		return err
-	}
-	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro"); err != nil {
-		return err
-	}
-
-	if container.HostnamePath != "" && container.HostsPath != "" {
-		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro"); err != nil {
-			return err
-		}
-		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro"); err != nil {
-			return err
-		}
-	}
-
-	// Mount user specified volumes
-	for r, v := range container.Volumes {
-		mountAs := "ro"
-		if container.VolumesRW[r] {
-			mountAs = "rw"
-		}
-
-		r = path.Join(root, r)
-		if p, err := utils.FollowSymlinkInScope(r, root); err != nil {
-			return err
-		} else {
-			r = p
-		}
-
-		if err := mount.Mount(v, r, "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
-			return err
-		}
 	}
 
 	var (
@@ -1356,16 +1316,15 @@ func (container *Container) Unmount() error {
 		mounts = append(mounts, path.Join(root, "/etc/hostname"), path.Join(root, "/etc/hosts"))
 	}
 
-	for r := range container.Volumes {
-		mounts = append(mounts, path.Join(root, r))
-	}
-
 	for _, m := range mounts {
 		if lastError := mount.Unmount(m); lastError != nil {
 			err = lastError
 		}
 	}
 	if err != nil {
+		return err
+	}
+	if err := container.unmountVolumes(); err != nil {
 		return err
 	}
 	return container.runtime.Unmount(container)
@@ -1454,17 +1413,36 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (archive.Archive, error) {
+func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	var filter []string
-	basePath := path.Join(container.RootfsPath(), resource)
-	stat, err := os.Stat(basePath)
-	if err != nil {
-		container.Unmount()
+	if err := container.mountVolumes(); err != nil {
 		return nil, err
 	}
+
+	unmount := func() error {
+		container.Lock()
+		defer container.Unlock()
+
+		if !container.State.IsRunning() {
+			return container.unmountVolumes()
+		}
+		container.Unmount()
+		return nil
+	}
+
+	var (
+		filter   []string
+		basePath = path.Join(container.RootfsPath(), resource)
+	)
+
+	stat, err := os.Stat(basePath)
+	if err != nil {
+		unmount()
+		return nil, err
+	}
+
 	if !stat.IsDir() {
 		d, f := path.Split(basePath)
 		basePath = d
@@ -1479,9 +1457,10 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		Includes:    filter,
 	})
 	if err != nil {
+		unmount()
 		return nil, err
 	}
-	return EofReader(archive, func() { container.Unmount() }), nil
+	return utils.NewReadCloserWrapper(archive, unmount), nil
 }
 
 // Returns true if the container exposes a certain port
@@ -1498,4 +1477,82 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 		return pty, nil
 	}
 	return nil, ErrNotATTY
+}
+
+// Mount docker specific files into the containers root fs
+func (container *Container) applyMounts() error {
+	var (
+		runtime = container.runtime
+		root    = container.RootfsPath()
+	)
+	envPath, err := container.EnvConfigPath()
+	if err != nil {
+		return err
+	}
+
+	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro"); err != nil {
+		return err
+	}
+	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro"); err != nil {
+		return err
+	}
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro"); err != nil {
+			return err
+		}
+		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro"); err != nil {
+			return err
+		}
+	}
+
+	if err := container.mountVolumes(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (container *Container) unmountVolumes() error {
+	var (
+		err    error
+		mounts = []string{}
+		root   = container.RootfsPath()
+	)
+
+	for r := range container.Volumes {
+		mounts = append(mounts, path.Join(root, r))
+	}
+
+	for _, m := range mounts {
+		if lastError := mount.Unmount(m); lastError != nil {
+			err = lastError
+		}
+	}
+	return err
+}
+
+func (container *Container) mountVolumes() error {
+	root := container.RootfsPath()
+	for r, v := range container.Volumes {
+		mountAs := "ro"
+		if container.VolumesRW[r] {
+			mountAs = "rw"
+		}
+
+		r = path.Join(root, r)
+		if p, err := utils.FollowSymlinkInScope(r, root); err != nil {
+			return err
+		} else {
+			r = p
+		}
+
+		if err := mount.Mount(v, path.Join(root, r), "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
