@@ -47,7 +47,7 @@ arch-chroot $ROOTFS /bin/sh -c 'echo "Server = http://mirrors.kernel.org/archlin
 
 # udev doesn't work in containers, rebuild /dev
 DEV=${ROOTFS}/dev
-mv ${DEV} ${DEV}.old
+rm -rf ${DEV}
 mkdir -p ${DEV}
 mknod -m 666 ${DEV}/null c 1 3
 mknod -m 666 ${DEV}/zero c 1 5
