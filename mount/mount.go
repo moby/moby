@@ -4,6 +4,10 @@ import (
 	"time"
 )
 
+func GetMounts() ([]*MountInfo, error) {
+	return parseMountTable()
+}
+
 // Looks at /proc/self/mountinfo to determine of the specified
 // mountpoint has been mounted
 func Mounted(mountpoint string) (bool, error) {
@@ -14,7 +18,7 @@ func Mounted(mountpoint string) (bool, error) {
 
 	// Search the table for the mountpoint
 	for _, e := range entries {
-		if e.mountpoint == mountpoint {
+		if e.Mountpoint == mountpoint {
 			return true, nil
 		}
 	}

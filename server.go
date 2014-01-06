@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
@@ -702,7 +703,7 @@ func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 		if !container.State.IsRunning() {
 			return nil, fmt.Errorf("Container %s is not running", name)
 		}
-		pids, err := utils.GetPidsForContainer(container.ID)
+		pids, err := cgroups.GetPidsForContainer(container.ID)
 		if err != nil {
 			return nil, err
 		}
