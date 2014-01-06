@@ -391,6 +391,8 @@ func TestBuildEntrypoint(t *testing.T) {
 	}
 
 	if img.Config.Entrypoint[0] != "/bin/echo" {
+		t.Log(img.Config.Entrypoint[0])
+		t.Fail()
 	}
 }
 
