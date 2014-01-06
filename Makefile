@@ -1,6 +1,6 @@
 .PHONY: all binary build cross default docs shell test
 
-DOCKER_RUN_DOCKER := docker run -rm -i -t -privileged -e TESTFLAGS -v $(CURDIR)/bundles:/go/src/github.com/dotcloud/docker/bundles docker
+DOCKER_RUN_DOCKER := docker run -rm -i -t -privileged -e TESTFLAGS -v $(CURDIR)/bundles:/go/src/github.com/dotcloud/docker/bundles docker_dev_img
 
 default: binary
 
@@ -23,7 +23,7 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -t docker .
+	docker images | awk '{print $1}' | grep docker_dev_img || docker build -t docker_dev_img .
 
 bundles:
-	mkdir bundles
+	mkdir -p bundles
