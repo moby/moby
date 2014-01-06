@@ -20,7 +20,7 @@ ROOTFS=$(mktemp -d /tmp/rootfs-archlinux-XXXXXXXXXX)
 
 # packages to ignore for space savings
 PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
- 
+
 expect <<EOF
   set timeout 60
   set send_slow {1 1}
@@ -38,10 +38,7 @@ EOF
 
 arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman -Rs --noconfirm haveged; pacman-key --populate archlinux"
 arch-chroot $ROOTFS /bin/sh -c "ln -s /usr/share/zoneinfo/UTC /etc/localtime"
-cat > $ROOTFS/etc/locale.gen <<DELIM
-en_US.UTF-8 UTF-8
-en_US ISO-8859-1
-DELIM
+echo 'en_US.UTF-8 UTF-8' > $ROOTFS/etc/locale.gen
 arch-chroot $ROOTFS locale-gen
 arch-chroot $ROOTFS /bin/sh -c 'echo "Server = http://mirrors.kernel.org/archlinux/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist'
 
