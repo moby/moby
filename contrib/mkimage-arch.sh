@@ -4,19 +4,19 @@
 # requires root
 set -e
 
-PACSTRAP=$(which pacstrap)
+PACSTRAP=$(hash pacstrap &>/dev/null)
 [ "$PACSTRAP" ] || {
     echo "Could not find pacstrap. Run pacman -S arch-install-scripts"
     exit 1
 }
-EXPECT=$(which expect)
-[ "$EXPECT" ] || {
+
+EXPECT=$(hash expect &>/dev/null)
+[[ "$EXPECT" ]] || {
     echo "Could not find expect. Run pacman -S expect"
     exit 1
 }
 
-ROOTFS=~/rootfs-arch-$$-$RANDOM
-mkdir $ROOTFS
+ROOTFS=$(mktemp -d /tmp/rootfs-archlinux-XXXXXXXXXX)
 
 #packages to ignore for space savings
 PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
