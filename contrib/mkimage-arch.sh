@@ -4,14 +4,12 @@
 # requires root
 set -e
 
-PACSTRAP=$(hash pacstrap &>/dev/null)
-[ "$PACSTRAP" ] || {
+hash pacstrap &>/dev/null || {
     echo "Could not find pacstrap. Run pacman -S arch-install-scripts"
     exit 1
 }
 
-EXPECT=$(hash expect &>/dev/null)
-[[ "$EXPECT" ]] || {
+hash expect &>/dev/null || {
     echo "Could not find expect. Run pacman -S expect"
     exit 1
 }
