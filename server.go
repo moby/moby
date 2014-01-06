@@ -457,7 +457,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		}
 		defer os.RemoveAll(root)
 
-		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+		if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
 			return job.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
