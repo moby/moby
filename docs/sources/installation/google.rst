@@ -62,7 +62,8 @@
 
 .. code-block:: bash
 
-    docker -d -mtu 1460
+    docker-playground:~$ echo "DOCKER_OPTS="$DOCKER_OPTS -mtu 1460" | sudo tee -a /etc/defaults/docker
+    docker-playground:~$ sudo service docker restart
 
 8. Start a new container:
 
