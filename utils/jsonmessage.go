@@ -127,7 +127,6 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			}
 			return err
 		}
-
 		if jm.Progress != nil {
 			jm.Progress.terminalFd = terminalFd
 		}

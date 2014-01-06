@@ -2207,18 +2207,45 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "URL|-", "Loads a tarred repository from the standard input stream or a remote url.\nRestores both images and tags.\n\n   Use \"docker://[OTHER_DOCKER_HOST]/[IMAGE]\" to load\n   an image directly from another docker daemon")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
 
-	if cmd.NArg() != 0 {
+	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 
-	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+	var (
+		v   = url.Values{}
+		src = cmd.Arg(0)
+	)
+
+	u, err := url.Parse(src)
+	if err != nil {
 		return err
+	}
+	if u.Scheme == "docker" {
+		src = "https://" + u.Host + "/images" + u.RequestURI() + "/get"
+	}
+	v.Set("fromSrc", src)
+
+	var in io.Reader
+
+	if src == "-" {
+		in = cli.in
+	}
+
+	if err := cli.stream("POST", "/images/load?"+v.Encode(), in, cli.out, nil); err != nil {
+		if u.Scheme == "docker" {
+			v.Set("fromSrc", "http://"+u.Host+"/images"+u.RequestURI()+"/get")
+			if err2 := cli.stream("POST", "/images/load?"+v.Encode(), in, cli.out, nil); err2 != nil {
+				return err2
+			}
+		} else {
+			return err
+		}
 	}
 	return nil
 }

@@ -774,10 +774,40 @@ Known Issues (kill)
 
 ::
 
-    Usage: docker load < repository.tar
+    Usage: docker load URL|-
 
-    Loads a tarred repository from the standard input stream.
+    Loads a tarred repository from the standard input stream
+    or a remote url.
     Restores both images and tags.
+
+    Use "docker://[OTHER_DOCKER_HOST]/[IMAGE]" to load
+    an image directly from another docker daemon
+
+Examples:
+~~~~~~~~~
+
+.. code-block:: bash
+
+    $ docker load docker://1.2.3.4:4243/busybox
+
+
+This will load the image ``busybox`` from the docker daemon
+located at ``1.2.3.4``.
+
+.. code-block:: bash
+
+    $ docker load docker://my_docker_host.com/e9aa60c60128
+
+
+This will load the image ``e9aa60c60128 (busybox)`` from the docker
+daemon located at ``my_docker_host``.
+
+.. code-block:: bash
+
+    $ docker load - < my_image.tar
+
+
+This will load the image from ``my_image.tar`` using stdin..
 
 .. _cli_login:
 

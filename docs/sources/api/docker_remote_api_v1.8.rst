@@ -1211,16 +1211,17 @@ Get a tarball containing all images and tags in a repository
   
            GET /images/ubuntu/get
 
-       **Example response**:
+  **Example response**:
 
-       .. sourcecode:: http
+  .. sourcecode:: http
 
           HTTP/1.1 200 OK
-    Content-Type: application/x-tar
+	  Content-Type: application/x-tar
 
-    Binary data stream
-        :statuscode 200: no error
-        :statuscode 500: server error
+	  Binary data stream
+        
+  :statuscode 200: no error
+  :statuscode 500: server error
 
 Load a tarball with a set of images and tags into docker
 ********************************************************
@@ -1233,18 +1234,24 @@ Load a tarball with a set of images and tags into docker
 
   .. sourcecode:: http
 
-           POST /images/load
+         POST /images/load
 
          Tarball in body
 
-       **Example response**:
+  **Example response**:
 
-       .. sourcecode:: http
+  .. sourcecode:: http
 
           HTTP/1.1 200 OK
 
-        :statuscode 200: no error
-        :statuscode 500: server error
+          {"status":"Loading","progressDetail":{"current":1,"total":100},"progress":"1 B/100 B"}
+          {"status":"Loading","progressDetail":{"current":5,"total":100},"progress":"5 B/100 B"}
+          {"status":"Loading","progressDetail":{"current":10,"total":100},"progress":"10 B/100 B"}
+          {"status":"Loaded: ubuntu:12.04"}
+
+  :query fromSrc: source to load, - means stdin
+  :statuscode 200: no error
+  :statuscode 500: server error
 
 3. Going further
 ================
