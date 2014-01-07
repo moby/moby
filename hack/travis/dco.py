@@ -24,6 +24,14 @@ p = re.compile(r'^{0} ([^<]+) <([^<>@]+@[^<>]+)> \(github: (\S+)\)$'.format(re.e
 failed_commits = 0
 
 for commit in commits:
+	commit['stat'] = subprocess.check_output([
+		'git', 'log', '--format=format:', '--max-count=1',
+		'--name-status', commit['hash'], '--',
+	])
+	if commit['stat'] == '':
+		print 'Commit {0} has no actual changed content, skipping.'.format(commit['hash'])
+		continue
+	
 	m = p.search(commit['message'])
 	if not m:
 		print 'Commit {1} does not have a properly formatted "{0}" marker.'.format(DCO, commit['hash'])
