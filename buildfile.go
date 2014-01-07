@@ -412,6 +412,13 @@ func (b *buildFile) CmdAdd(args string) error {
 		} else if fi.IsDir() {
 			var subfiles []string
 			for file, sum := range sums {
+				// Has tarsum stips the '.' and './', we put it back for comparaison.
+				if len(file) == 0 {
+					file = "./"
+				}
+				if file[0] != '.' && file[0] != '/' {
+					file = "./" + file
+				}
 				if strings.HasPrefix(file, origPath) {
 					subfiles = append(subfiles, sum)
 				}
