@@ -17,7 +17,7 @@ Ubuntu
 Docker is supported on the following versions of Ubuntu:
 
 - :ref:`ubuntu_precise`
-- :ref:`ubuntu_raring`
+- :ref:`ubuntu_raring_saucy`
 
 Please read :ref:`ufw`, if you plan to use `UFW (Uncomplicated
 Firewall) <https://help.ubuntu.com/community/UFW>`_
@@ -108,10 +108,12 @@ Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
-.. _ubuntu_raring:
+.. _ubuntu_raring_saucy:
 
-Ubuntu Raring 13.04 (64 bit)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These instructions cover both Ubuntu Raring 13.04 and Saucy 13.10.
 
 Dependencies
 ------------
@@ -168,7 +170,6 @@ and launching a container.
 Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
-
 
 .. _ufw:
 
