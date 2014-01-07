@@ -5,7 +5,7 @@ import yaml
 
 from env import commit_range
 
-commit_format = '-%n hash: %h%n author: %aN <%aE>%n message: |%n%w(0,2,2)%B'
+commit_format = '-%n hash: "%h"%n author: %aN <%aE>%n message: |%n%w(0,2,2)%B'
 
 gitlog = subprocess.check_output([
 	'git', 'log', '--reverse',
