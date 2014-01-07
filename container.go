@@ -305,7 +305,7 @@ func (container *Container) generateEnvConfig(env []string) error {
 		return err
 	}
 	ioutil.WriteFile(p, data, 0600)
-	if err := os.Chown(container.EnvConfigPath(), 100000, 100000); err != nil {
+	if err := os.Chown(p, 100000, 100000); err != nil {
 		return err
 	}
 	return nil
