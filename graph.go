@@ -87,17 +87,17 @@ func (graph *Graph) Get(name string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Check that the filesystem layer exists
-	rootfs, err := graph.driver.Get(img.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
-	}
 	if img.ID != id {
 		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
 	}
 	img.graph = graph
 
 	if img.Size < 0 {
+		rootfs, err := graph.driver.Get(img.ID)
+		if err != nil {
+			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
+		}
+
 		var size int64
 		if img.Parent == "" {
 			if size, err = utils.TreeSize(rootfs); err != nil {
