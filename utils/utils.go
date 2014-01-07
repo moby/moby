@@ -781,7 +781,7 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 		host  string
 		port  int
 	)
-  addr = strings.TrimSpace(addr)
+	addr = strings.TrimSpace(addr)
 	switch {
 	case strings.HasPrefix(addr, "unix://"):
 		proto = "unix"
