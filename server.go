@@ -123,6 +123,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("image_export", srv.ImageExport); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -251,11 +255,17 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 // uncompressed tar ball.
 // name is the set of tags to export.
 // out is the writer where the images are written to.
-func (srv *Server) ImageExport(name string, out io.Writer) error {
+func (srv *Server) ImageExport(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Args[0]
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	defer os.RemoveAll(tempdir)
 
@@ -263,17 +273,20 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 
 	rootRepo, err := srv.runtime.repositories.Get(name)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if rootRepo != nil {
 		for _, id := range rootRepo {
 			image, err := srv.ImageInspect(id)
 			if err != nil {
-				return err
+				job.Error(err)
+				return engine.StatusErr
 			}
 
 			if err := srv.exportImage(image, tempdir); err != nil {
-				return err
+				job.Error(err)
+				return engine.StatusErr
 			}
 		}
 
@@ -283,27 +296,32 @@ func (srv *Server) ImageExport(name string, out io.Writer) error {
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
 		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 	} else {
 		image, err := srv.ImageInspect(name)
 		if err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 		if err := srv.exportImage(image, tempdir); err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
-	if _, err := io.Copy(out, fs); err != nil {
-		return err
+	if _, err := io.Copy(job.Stdout, fs); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return nil
+	return engine.StatusOK
 }
 
 func (srv *Server) exportImage(image *Image, tempdir string) error {
