@@ -598,15 +598,12 @@ func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, 
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	t, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil || t < 0 {
-		t = 10
-	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	if err := srv.ContainerRestart(name, t); err != nil {
+	job := srv.Eng.Job("restart", vars["name"])
+	job.Setenv("t", r.Form.Get("t"))
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
