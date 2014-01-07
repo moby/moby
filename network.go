@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
 	"log"
+	"math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -203,6 +204,27 @@ func createBridgeIface(name string) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), siocBRADDBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
 		return fmt.Errorf("Error creating bridge: %s", err)
 	}
+
+	type IfreqHwaddr struct {
+		IfrnName [16]byte
+		IfruHwaddr syscall.RawSockaddr
+	}
+
+        var ifr IfreqHwaddr
+        copy(ifr.IfrnName[:], name)
+        ifr.IfruHwaddr.Family = syscall.ARPHRD_ETHER
+
+        for i := 0; i < 6; i++ {
+                ifr.IfruHwaddr.Data[i] = int8(rand.Intn(255))
+        }
+
+        ifr.IfruHwaddr.Data[0] &^= 0x1 // clear multicast bit
+        ifr.IfruHwaddr.Data[0] |= 0x2 // set local assignment bit (IEEE802)
+
+        if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), syscall.SIOCSIFHWADDR, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+                fmt.Errorf("Error setting bridge mac: %s", err)
+	}
+
 	return nil
 }
 
