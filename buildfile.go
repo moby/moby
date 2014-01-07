@@ -421,7 +421,9 @@ func (b *buildFile) CmdAdd(args string) error {
 		} else if fi.IsDir() {
 			var subfiles []string
 			for file, sum := range sums {
-				if strings.HasPrefix(file, origPath) {
+				absFile := path.Join(b.contextPath, file)
+				absOrigPath := path.Join(b.contextPath, origPath)
+				if strings.HasPrefix(absFile, absOrigPath) {
 					subfiles = append(subfiles, sum)
 				}
 			}
