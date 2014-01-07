@@ -7,7 +7,7 @@ ok      "/version":                             getVersion,             1
 ...     "/images/json":                         getImagesJSON,          N
 TODO    "/images/viz":                          getImagesViz,           0                       yes
 TODO    "/images/search":                       getImagesSearch,        N
-TODO    "/images/{name:.*}/get":                getImagesGet,           0
+#3490   "/images/{name:.*}/get":                getImagesGet,           0
 TODO    "/images/{name:.*}/history":            getImagesHistory,       1
 TODO    "/images/{name:.*}/json":               getImagesByName,        1
 TODO    "/containers/ps":                       getContainersJSON,      N
