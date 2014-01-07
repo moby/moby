@@ -1,0 +1,22 @@
+# Note: right now we don't use go-specific features of travis.
+# Later we might automate "go test" etc. (or do it inside a docker container...?)
+
+language: go
+
+go: 1.2
+
+# Disable the normal go build.
+install: true
+
+before_script:
+  - env | sort
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq python-yaml
+  - git remote add upstream git://github.com/dotcloud/docker.git
+  - git fetch upstream +refs/heads/master:refs/remotes/upstream/master
+
+script:
+  - hack/travis/dco.py
+  - hack/travis/gofmt.py
+
+# vim:set sw=2 ts=2:
