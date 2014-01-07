@@ -180,6 +180,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		context  archive.Archive
 		isRemote bool
 		err      error
+		excludes []string
 	)
 
 	if cmd.Arg(0) == "-" {
@@ -200,7 +201,25 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		context, err = archive.Tar(cmd.Arg(0), archive.Uncompressed)
+		dockerignore := path.Join(cmd.Arg(0), ".dockerignore")
+
+		if _, err = os.Stat(dockerignore); os.IsNotExist(err) == false {
+			file, err := os.Open(dockerignore)
+			if err != nil {
+				fmt.Printf("Error opening file\n")
+				return fmt.Errorf("could not open %s for reading", dockerignore)
+			}
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if strings.HasPrefix(line, "#") {
+					// pass
+				} else {
+					excludes = append(excludes, line)
+				}
+			}
+		}
+		context, err = archive.TarFilter(cmd.Arg(0), &archive.TarOptions{Recursive: true, Compression: archive.Uncompressed, Excludes: excludes})
 	}
 	var body io.Reader
 	// Setup an upload progress bar
