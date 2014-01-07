@@ -29,7 +29,7 @@ TODO    "/images/{name:.*}/push":               postImagesPush,         N       
 ok      "/images/{name:.*}/tag":                postImagesTag,          0
 ok      "/containers/create":                   postContainersCreate,   0
 ok      "/containers/{name:.*}/kill":           postContainersKill,     0
-TODO    "/containers/{name:.*}/restart":        postContainersRestart,  0
+#3476   "/containers/{name:.*}/restart":        postContainersRestart,  0
 ok      "/containers/{name:.*}/start":          postContainersStart,    0
 ok      "/containers/{name:.*}/stop":           postContainersStop,     0
 ok      "/containers/{name:.*}/wait":           postContainersWait,     0
