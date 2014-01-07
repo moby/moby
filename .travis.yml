@@ -1,0 +1,15 @@
+# Note: right now we don't use go-specific features of travis.
+# Later we might automate gofmt etc. (or do it inside the docker container...?)
+
+language: go
+
+# Disable the normal go build.
+install: true
+
+before_script:
+  - env | sort
+  - sudo pip install -r hack/testing/requirements.txt
+  - hack/testing/dco.py
+  - hack/testing/gofmt.py
+
+script: true
