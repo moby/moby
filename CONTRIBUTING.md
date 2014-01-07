@@ -131,7 +131,7 @@ e. I hereby grant to the Project, Docker, Inc and its successors;  and recipient
 
 then you just add a line saying
 
-    Docker-DCO-1.0-Signed-off-by: Joe Smith <joe.smith@email.com> @github_handle
+    Docker-DCO-1.0-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
 
 using your real name (sorry, no pseudonyms or anonymous contributions.)
 
