@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"os"
 	"io"
+	"os"
 )
 
 func CopyFile(dstFile, srcFile *os.File) error {

@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"path"
 	"net/http"
+	"path"
 )
 
 // ServeHTTP executes a job as specified by the http request `r`, and sends the
@@ -22,7 +22,7 @@ func (eng *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		jobArgs = []string{}
 	}
 	w.Header().Set("Job-Name", jobName)
-	for _, arg := range(jobArgs) {
+	for _, arg := range jobArgs {
 		w.Header().Add("Job-Args", arg)
 	}
 	job := eng.Job(jobName, jobArgs...)
