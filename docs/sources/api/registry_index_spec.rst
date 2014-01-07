@@ -15,11 +15,13 @@ Registry & Index Spec
 ---------
 
 The Index is responsible for centralizing information about:
+
 - User accounts
 - Checksums of the images
 - Public namespaces
 
 The Index has different components:
+
 - Web UI
 - Meta-data store (comments, stars, list public repositories)
 - Authentication service
@@ -27,7 +29,7 @@ The Index has different components:
 
 The index is authoritative for those information.
 
-We expect that there will be only one instance of the index, run and managed by dotCloud.
+We expect that there will be only one instance of the index, run and managed by Docker Inc.
 
 1.2 Registry
 ------------
@@ -53,12 +55,16 @@ We expect that there will be multiple registries out there. To help to grasp the
         - local mount point;
         - remote docker addressed through SSH.
 
-The latter would only require two new commands in docker, e.g. “registryget” and “registryput”, wrapping access to the local filesystem (and optionally doing consistency checks). Authentication and authorization are then delegated to SSH (e.g. with public keys).
+The latter would only require two new commands in docker, e.g. ``registryget``
+and ``registryput``, wrapping access to the local filesystem (and optionally
+doing consistency checks). Authentication and authorization are then delegated
+to SSH (e.g. with public keys).
 
 1.3 Docker
 ----------
 
 On top of being a runtime for LXC, Docker is the Registry client. It supports:
+
 - Push / Pull on the registry
 - Client authentication on the Index
 
@@ -72,21 +78,33 @@ On top of being a runtime for LXC, Docker is the Registry client. It supports:
 
 1. Contact the Index to know where I should download “samalba/busybox”
 2. Index replies:
-   a. “samalba/busybox” is on Registry A
-   b. here are the checksums for “samalba/busybox” (for all layers)
+   a. ``samalba/busybox`` is on Registry A
+   b. here are the checksums for ``samalba/busybox`` (for all layers)
    c. token
-3. Contact Registry A to receive the layers for “samalba/busybox” (all of them to the base image). Registry A is authoritative for “samalba/busybox” but keeps a copy of all inherited layers and serve them all from the same location.
+3. Contact Registry A to receive the layers for ``samalba/busybox`` (all of them to the base image). Registry A is authoritative for “samalba/busybox” but keeps a copy of all inherited layers and serve them all from the same location.
 4. registry contacts index to verify if token/user is allowed to download images
 5. Index returns true/false lettings registry know if it should proceed or error out
 6. Get the payload for all layers
 
-It’s possible to run docker pull \https://<registry>/repositories/samalba/busybox. In this case, docker bypasses the Index. However the security is not guaranteed (in case Registry A is corrupted) because there won’t be any checksum checks.
+It's possible to run:
 
-Currently registry redirects to s3 urls for downloads, going forward all downloads need to be streamed through the registry. The Registry will then abstract the calls to S3 by a top-level class which implements sub-classes for S3 and local storage.
+.. code-block:: bash
 
-Token is only returned when the 'X-Docker-Token' header is sent with request.
+    docker pull https://<registry>/repositories/samalba/busybox
 
-Basic Auth is required to pull private repos. Basic auth isn't required for pulling public repos, but if one is provided, it needs to be valid and for an active account.
+In this case, Docker bypasses the Index. However the security is not guaranteed
+(in case Registry A is corrupted) because there won’t be any checksum checks.
+
+Currently registry redirects to s3 urls for downloads, going forward all
+downloads need to be streamed through the registry. The Registry will then
+abstract the calls to S3 by a top-level class which implements sub-classes for
+S3 and local storage.
+
+Token is only returned when the ``X-Docker-Token`` header is sent with request.
+
+Basic Auth is required to pull private repos. Basic auth isn't required for
+pulling public repos, but if one is provided, it needs to be valid and for an
+active account.
 
 API (pulling repository foo/bar):
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,7 +173,9 @@ API (pulling repository foo/bar):
 
     **Index can be replaced!** For a private Registry deployed, a custom Index can be used to serve and validate token according to different policies.
 
-Docker computes the checksums and submit them to the Index at the end of the push. When a repository name does not have checksums on the Index, it means that the push is in progress (since checksums are submitted at the end).
+Docker computes the checksums and submit them to the Index at the end of the
+push. When a repository name does not have checksums on the Index, it means
+that the push is in progress (since checksums are submitted at the end).
 
 API (pushing repos foo/bar):
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -237,10 +257,11 @@ API (pushing repos foo/bar):
 2.3 Delete
 ----------
 
-If you need to delete something from the index or registry, we need a nice clean way to do that. Here is the workflow.
+If you need to delete something from the index or registry, we need a nice
+clean way to do that. Here is the workflow.
 
-1. Docker contacts the index to request a delete of a repository “samalba/busybox” (authentication required with user credentials)
-2. If authentication works and repository is valid, “samalba/busybox” is marked as deleted and a temporary token is returned
+1. Docker contacts the index to request a delete of a repository ``samalba/busybox`` (authentication required with user credentials)
+2. If authentication works and repository is valid, ``samalba/busybox`` is marked as deleted and a temporary token is returned
 3. Send a delete request to the registry for the repository (along with the token)
 4. Registry A contacts the Index to verify the token (token must corresponds to the repository name)
 5. Index validates the token. Registry A deletes the repository and everything associated to it.
@@ -312,24 +333,40 @@ The Index has two main purposes (along with its fancy social features):
 
 3.1 Without an Index
 --------------------
-Using the Registry without the Index can be useful to store the images on a private network without having to rely on an external entity controlled by dotCloud.
 
-In this case, the registry will be launched in a special mode (--standalone? --no-index?). In this mode, the only thing which changes is that Registry will never contact the Index to verify a token. It will be the Registry owner responsibility to authenticate the user who pushes (or even pulls) an image using any mechanism (HTTP auth, IP based, etc...).
+Using the Registry without the Index can be useful to store the images on a
+private network without having to rely on an external entity controlled by
+Docker Inc.
 
-In this scenario, the Registry is responsible for the security in case of data corruption since the checksums are not delivered by a trusted entity.
+In this case, the registry will be launched in a special mode (--standalone?
+--no-index?). In this mode, the only thing which changes is that Registry will
+never contact the Index to verify a token. It will be the Registry owner
+responsibility to authenticate the user who pushes (or even pulls) an image
+using any mechanism (HTTP auth, IP based, etc...).
 
-As hinted previously, a standalone registry can also be implemented by any HTTP server handling GET/PUT requests (or even only GET requests if no write access is necessary).
+In this scenario, the Registry is responsible for the security in case of data
+corruption since the checksums are not delivered by a trusted entity.
+
+As hinted previously, a standalone registry can also be implemented by any HTTP
+server handling GET/PUT requests (or even only GET requests if no write access
+is necessary).
 
 3.2 With an Index
 -----------------
 
 The Index data needed by the Registry are simple:
+
 - Serve the checksums
 - Provide and authorize a Token
 
-In the scenario of a Registry running on a private network with the need of centralizing and authorizing, it’s easy to use a custom Index.
+In the scenario of a Registry running on a private network with the need of
+centralizing and authorizing, it’s easy to use a custom Index.
 
-The only challenge will be to tell Docker to contact (and trust) this custom Index. Docker will be configurable at some point to use a specific Index, it’ll be the private entity responsibility (basically the organization who uses Docker in a private environment) to maintain the Index and the Docker’s configuration among its consumers.
+The only challenge will be to tell Docker to contact (and trust) this custom
+Index. Docker will be configurable at some point to use a specific Index, it’ll
+be the private entity responsibility (basically the organization who uses
+Docker in a private environment) to maintain the Index and the Docker’s
+configuration among its consumers.
 
 4. The API
 ==========
@@ -339,16 +376,22 @@ The first version of the api is available here: https://github.com/jpetazzo/dock
 4.1 Images
 ----------
 
-The format returned in the images is not defined here (for layer and json), basically because Registry stores exactly the same kind of information as Docker uses to manage them.
+The format returned in the images is not defined here (for layer and JSON),
+basically because Registry stores exactly the same kind of information as
+Docker uses to manage them.
 
-The format of ancestry is a line-separated list of image ids, in age order. I.e. the image’s parent is on the last line, the parent of the parent on the next-to-last line, etc.; if the image has no parent, the file is empty.
+The format of ancestry is a line-separated list of image ids, in age order,
+i.e. the image’s parent is on the last line, the parent of the parent on the
+next-to-last line, etc.; if the image has no parent, the file is empty.
 
-GET /v1/images/<image_id>/layer
-PUT /v1/images/<image_id>/layer
-GET /v1/images/<image_id>/json
-PUT /v1/images/<image_id>/json
-GET /v1/images/<image_id>/ancestry
-PUT /v1/images/<image_id>/ancestry
+.. code-block:: bash
+
+    GET /v1/images/<image_id>/layer
+    PUT /v1/images/<image_id>/layer
+    GET /v1/images/<image_id>/json
+    PUT /v1/images/<image_id>/json
+    GET /v1/images/<image_id>/ancestry
+    PUT /v1/images/<image_id>/ancestry
 
 4.2 Users
 ---------
@@ -393,7 +436,9 @@ PUT /v1/users/<username>
 
 4.2.3 Login (Index)
 ^^^^^^^^^^^^^^^^^^^
-Does nothing else but asking for a user authentication. Can be used to validate credentials. HTTP Basic Auth for now, maybe change in future.
+
+Does nothing else but asking for a user authentication. Can be used to validate
+credentials. HTTP Basic Auth for now, maybe change in future.
 
 GET /v1/users
 
@@ -405,7 +450,10 @@ GET /v1/users
 4.3 Tags (Registry)
 -------------------
 
-The Registry does not know anything about users. Even though repositories are under usernames, it’s just a namespace for the registry. Allowing us to implement organizations or different namespaces per user later, without modifying the Registry’s API.
+The Registry does not know anything about users. Even though repositories are
+under usernames, it’s just a namespace for the registry. Allowing us to
+implement organizations or different namespaces per user later, without
+modifying the Registry’s API.
 
 The following naming restrictions apply:
 
@@ -439,7 +487,10 @@ DELETE /v1/repositories/<namespace>/<repo_name>/tags/<tag>
 4.4 Images (Index)
 ------------------
 
-For the Index to “resolve” the repository name to a Registry location, it uses the X-Docker-Endpoints header. In other terms, this requests always add a “X-Docker-Endpoints” to indicate the location of the registry which hosts this repository.
+For the Index to “resolve” the repository name to a Registry location, it uses
+the X-Docker-Endpoints header. In other terms, this requests always add a
+``X-Docker-Endpoints`` to indicate the location of the registry which hosts this
+repository.
 
 4.4.1 Get the images
 ^^^^^^^^^^^^^^^^^^^^^
@@ -484,17 +535,20 @@ Return 202 OK
 ======================
 
 It’s possible to chain Registries server for several reasons:
+
 - Load balancing
 - Delegate the next request to another server
 
-When a Registry is a reference for a repository, it should host the entire images chain in order to avoid breaking the chain during the download.
+When a Registry is a reference for a repository, it should host the entire
+images chain in order to avoid breaking the chain during the download.
 
 The Index and Registry use this mechanism to redirect on one or the other.
 
 Example with an image download:
-On every request, a special header can be returned:
 
-X-Docker-Endpoints: server1,server2
+On every request, a special header can be returned::
+
+    X-Docker-Endpoints: server1,server2
 
 On the next request, the client will always pick a server from this list.
 
@@ -504,7 +558,8 @@ On the next request, the client will always pick a server from this list.
 6.1 On the Index
 -----------------
 
-The Index supports both “Basic” and “Token” challenges. Usually when there is a “401 Unauthorized”, the Index replies this::
+The Index supports both “Basic” and “Token” challenges. Usually when there is a
+``401 Unauthorized``, the Index replies this::
 
     401 Unauthorized
     WWW-Authenticate: Basic realm="auth required",Token
@@ -543,11 +598,13 @@ The Registry only supports the Token challenge::
     401 Unauthorized
     WWW-Authenticate: Token
 
-The only way is to provide a token on “401 Unauthorized” responses::
+The only way is to provide a token on ``401 Unauthorized`` responses::
 
-    Authorization: Token signature=123abc,repository=”foo/bar”,access=read
+    Authorization: Token signature=123abc,repository="foo/bar",access=read
 
-Usually, the Registry provides a Cookie when a Token verification succeeded. Every time the Registry passes a Cookie, you have to pass it back the same cookie.::
+Usually, the Registry provides a Cookie when a Token verification succeeded.
+Every time the Registry passes a Cookie, you have to pass it back the same
+cookie.::
 
     200 OK
     Set-Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="; Path=/; HttpOnly

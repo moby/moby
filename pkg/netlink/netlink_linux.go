@@ -328,7 +328,6 @@ func AddDefaultGw(ip net.IP) error {
 	}
 
 	return s.HandleAck(wb.Seq)
-
 }
 
 // Bring up a particular network interface
@@ -351,6 +350,37 @@ func NetworkLinkUp(iface *net.Interface) error {
 		return err
 	}
 
+	return s.HandleAck(wb.Seq)
+}
+
+func NetworkSetMTU(iface *net.Interface, mtu int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = 0xFFFFFFFF
+	wb.AddData(msg)
+
+	var (
+		b      = make([]byte, 4)
+		native = nativeEndian()
+	)
+	native.PutUint32(b, uint32(mtu))
+
+	data := newRtAttr(syscall.IFLA_MTU, b)
+	wb.AddData(data)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
 	return s.HandleAck(wb.Seq)
 }
 

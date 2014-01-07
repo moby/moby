@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -57,6 +58,7 @@ func (graph *Graph) restore() error {
 			graph.idIndex.Add(id)
 		}
 	}
+	utils.Debugf("Restored %d elements", len(dir))
 	return nil
 }
 
@@ -131,7 +133,8 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 		DockerVersion: VERSION,
 		Author:        author,
 		Config:        config,
-		Architecture:  "x86_64",
+		Architecture:  runtime.GOARCH,
+		OS:            runtime.GOOS,
 	}
 	if container != nil {
 		img.Parent = container.Image

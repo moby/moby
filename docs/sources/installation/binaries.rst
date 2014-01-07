@@ -21,6 +21,11 @@ Check Your Kernel
 
 Your host's Linux kernel must meet the Docker :ref:`kernel`
 
+Check for User Space Tools
+--------------------------
+
+You must have a working installation of the `lxc <http://linuxcontainers.org>`_ utilities and library.
+
 Get the docker binary:
 ----------------------
 

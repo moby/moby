@@ -136,7 +136,7 @@ sudo('echo -e "deb http://archive.ubuntu.com/ubuntu raring main universe\n'
 sudo('DEBIAN_FRONTEND=noninteractive apt-get install -q -y wget python-dev'
     ' python-pip supervisor git mercurial linux-image-extra-$(uname -r)'
     ' aufs-tools make libfontconfig libevent-dev libsqlite3-dev libssl-dev')
-sudo('wget -O - https://go.googlecode.com/files/go1.1.2.linux-amd64.tar.gz | '
+sudo('wget -O - https://go.googlecode.com/files/go1.2.linux-amd64.tar.gz | '
     'tar -v -C /usr/local -xz; ln -s /usr/local/go/bin/go /usr/bin/go')
 sudo('GOPATH=/go go get -d github.com/dotcloud/docker')
 sudo('pip install -r {}/requirements.txt'.format(CFG_PATH))

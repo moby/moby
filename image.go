@@ -28,6 +28,7 @@ type Image struct {
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
 	Architecture    string    `json:"architecture,omitempty"`
+	OS              string    `json:"os,omitempty"`
 	graph           *Graph
 	Size            int64
 }

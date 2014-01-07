@@ -129,7 +129,7 @@ func ValidateEnv(val string) (string, error) {
 }
 
 func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTHTTPPORT, val)
+	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTHTTPPORT, DEFAULTUNIXSOCKET, val)
 	if err != nil {
 		return val, err
 	}

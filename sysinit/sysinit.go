@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/netlink"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/utils"
 	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
@@ -25,6 +25,7 @@ type DockerInitArgs struct {
 	privileged bool
 	env        []string
 	args       []string
+	mtu        int
 }
 
 func setupHostname(args *DockerInitArgs) error {
@@ -32,7 +33,7 @@ func setupHostname(args *DockerInitArgs) error {
 	if hostname == "" {
 		return nil
 	}
-	return syscall.Sethostname([]byte(hostname))
+	return setHostname(hostname)
 }
 
 // Setup networking
@@ -49,6 +50,9 @@ func setupNetworking(args *DockerInitArgs) error {
 		}
 		if err := netlink.NetworkLinkAddIp(iface, ip, ipNet); err != nil {
 			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+		if err := netlink.NetworkSetMTU(iface, args.mtu); err != nil {
+			return fmt.Errorf("Unable to set MTU: %v", err)
 		}
 		if err := netlink.NetworkLinkUp(iface); err != nil {
 			return fmt.Errorf("Unable to set up networking: %v", err)
@@ -227,6 +231,7 @@ func SysInit() {
 	ip := flag.String("i", "", "ip address")
 	workDir := flag.String("w", "", "workdir")
 	privileged := flag.Bool("privileged", false, "privileged mode")
+	mtu := flag.Int("mtu", 1500, "interface mtu")
 	flag.Parse()
 
 	// Get env
@@ -250,6 +255,7 @@ func SysInit() {
 		privileged: *privileged,
 		env:        env,
 		args:       flag.Args(),
+		mtu:        *mtu,
 	}
 
 	if err := executeProgram(args); err != nil {

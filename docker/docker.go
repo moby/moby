@@ -40,6 +40,7 @@ func main() {
 		flInterContainerComm = flag.Bool("icc", true, "Enable inter-container communication")
 		flGraphDriver        = flag.String("s", "", "Force the docker runtime to use a specific storage driver")
 		flHosts              = docker.NewListOpts(docker.ValidateHost)
+		flMtu                = flag.Int("mtu", docker.DefaultNetworkMtu, "Set the containers network mtu")
 	)
 	flag.Var(&flDns, "dns", "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
@@ -51,8 +52,13 @@ func main() {
 		return
 	}
 	if flHosts.Len() == 0 {
-		// If we do not have a host, default to unix socket
-		flHosts.Set(fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET))
+		defaultHost := os.Getenv("DOCKER_HOST")
+
+		if defaultHost == "" || *flDaemon {
+			// If we do not have a host, default to unix socket
+			defaultHost = fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)
+		}
+		flHosts.Set(defaultHost)
 	}
 
 	if *bridgeName != "" && *bridgeIp != "" {
@@ -69,6 +75,7 @@ func main() {
 			flag.Usage()
 			return
 		}
+
 		eng, err := engine.New(*flRoot)
 		if err != nil {
 			log.Fatal(err)
@@ -86,6 +93,7 @@ func main() {
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 		job.Setenv("GraphDriver", *flGraphDriver)
+		job.SetenvInt("Mtu", *flMtu)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

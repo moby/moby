@@ -28,6 +28,15 @@ Installation
 Firstly, you need to install the EPEL repository. Please follow the `EPEL installation instructions`_.
 
 
+The ``docker-io`` package provides Docker on EPEL.
+
+
+If you already have the (unrelated) ``docker`` package installed, it will
+conflict with ``docker-io``. There's a `bug report`_ filed for it.
+To proceed with ``docker-io`` installation, please remove
+``docker`` first.
+
+
 Next, let's install the ``docker-io`` package which will install Docker on our host.
 
 .. code-block:: bash
@@ -68,4 +77,5 @@ If you have any issues - please report them directly in the `Red Hat Bugzilla fo
 .. _Extra Packages for Enterprise Linux (EPEL): https://fedoraproject.org/wiki/EPEL
 .. _EPEL installation instructions: https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F
 .. _Red Hat Bugzilla for docker-io component : https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora%20EPEL&component=docker-io
+.. _bug report: https://bugzilla.redhat.com/show_bug.cgi?id=1043676
 

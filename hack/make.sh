@@ -15,8 +15,9 @@ set -e
 # - The script is intented to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
-# - The right way to call this script is to invoke "docker build ." from
-#   your checkout of the Docker repository, and then
+# - The right way to call this script is to invoke "make" from
+#   your checkout of the Docker repository. 
+#   the Makefile will so a "docker build -t docker ." and then
 #   "docker run hack/make.sh" in the resulting container image.
 #
 
@@ -28,7 +29,7 @@ RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
 grep -q "$RESOLVCONF" /proc/mounts || {
 	echo >&2 "# WARNING! I don't seem to be running in a docker container."
 	echo >&2 "# The result of this command might be an incorrect build, and will not be officially supported."
-	echo >&2 "# Try this: 'docker build -t docker . && docker run docker ./hack/make.sh'"
+	echo >&2 "# Try this: 'make all'"
 }
 
 # List of bundles to create when no argument is passed
@@ -40,6 +41,7 @@ DEFAULT_BUNDLES=(
 	dyntest
 	dyntest-integration
 	cover
+	cross
 	tgz
 	ubuntu
 )
@@ -63,10 +65,13 @@ fi
 # Use these flags when compiling the tests and final binary
 LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
 LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
-BUILDFLAGS='-tags netgo'
+BUILDFLAGS='-tags netgo -a'
 
 HAVE_GO_TEST_COVER=
-if go help testflag | grep -q -- -cover; then
+if \
+	go help testflag | grep -- -cover > /dev/null \
+	&& go tool -n cover > /dev/null 2>&1 \
+; then
 	HAVE_GO_TEST_COVER=1
 fi
 
@@ -85,10 +90,6 @@ go_test_dir() {
 		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
 		testcover=( -cover -coverprofile "$coverprofile" )
 	fi
-	( # we run "go test -i" ouside the "set -x" to provde cleaner output
-		cd "$dir"
-		go test -i -ldflags "$LDFLAGS" $BUILDFLAGS
-	)
 	(
 		set -x
 		cd "$dir"

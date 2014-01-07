@@ -18,7 +18,7 @@ func TestRegister(t *testing.T) {
 
 	eng := newTestEngine(t)
 
-	//Should fail because globan handlers are copied
+	//Should fail because global handlers are copied
 	//at the engine creation
 	if err := eng.Register("dummy1", nil); err == nil {
 		t.Fatalf("Expecting error, got none")

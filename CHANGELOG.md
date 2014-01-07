@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.7.3 (2013-01-02)
+
+#### Builder
+
++ Update ADD to use the image cache, based on a hash of the added content
+* Add error message for empty Dockerfile
+
+#### Documentation
+
+- Fix outdated link to the "Introduction" on www.docker.io
++ Update the docs to get wider when the screen does
+- Add information about needing to install LXC when using raw binaries
+* Update Fedora documentation to disentangle the docker and docker.io conflict
+* Add a note about using the new `-mtu` flag in several GCE zones
++ Add FrugalWare installation instructions
++ Add a more complete example of `docker run`
+- Fix API documentation for creating and starting Privileged containers
+- Add missing "name" parameter documentation on "/containers/create"
+* Add a mention of `lxc-checkconfig` as a way to check for some of the necessary kernel configuration
+- Update the 1.8 API documentation with some additions that were added to the docs for 1.7
+
+#### Hack
+
+- Add missing libdevmapper dependency to the packagers documentation
+* Update minimum Go requirement to a hard line at Go 1.2+
+* Many minor improvements to the Vagrantfile
++ Add ability to customize dockerinit search locations when compiling (to be used very sparingly only by packagers of platforms who require a nonstandard location)
++ Add coverprofile generation reporting
+- Add `-a` to our Go build flags, removing the need for recompiling the stdlib manually
+* Update Dockerfile to be more canonical and have less spurious warnings during build
+- Fix some miscellaneous `docker pull` progress bar display issues
+* Migrate more miscellaneous packages under the "pkg" folder
+* Update TextMate highlighting to automatically be enabled for files named "Dockerfile"
+* Reorganize syntax highlighting files under a common "contrib/syntax" directory
+* Update install.sh script (https://get.docker.io/) to not fail if busybox fails to download or run at the end of the Ubuntu/Debian installation
+* Add support for container names in bash completion
+
+#### Packaging
+
++ Add an official Docker client binary for Darwin (Mac OS X)
+* Remove empty "Vendor" string and added "License" on deb package
++ Add a stubbed version of "/etc/default/docker" in the deb package
+
+#### Runtime
+
+* Update layer application to extract tars in place, avoiding file churn while handling whiteouts
+- Fix permissiveness of mtime comparisons in tar handling (since GNU tar and Go tar do not yet support sub-second mtime precision)
+* Reimplement `docker top` in pure Go to work more consistently, and even inside Docker-in-Docker (thus removing the shell injection vulnerability present in some versions of `lxc-ps`)
++ Update `-H unix://` to work similarly to `-H tcp://` by inserting the default values for missing portions
+- Fix more edge cases regarding dockerinit and deleted or replaced docker or dockerinit files
+* Update container name validation to include '.'
+- Fix use of a symlink or non-absolute path as the argument to `-g` to work as expected
+* Update to handle external mounts outside of LXC, fixing many small mounting quirks and making future execution backends and other features simpler
+* Update to use proper box-drawing characters everywhere in `docker images -tree`
+* Move MTU setting from LXC configuration to directly use netlink
+* Add `-S` option to external tar invocation for more efficient spare file handling
++ Add arch/os info to User-Agent string, especially for registry requests
++ Add `-mtu` option to Docker daemon for configuring MTU
+- Fix `docker build` to exit with a non-zero exit code on error
++ Add `DOCKER_HOST` environment variable to configure the client `-H` flag without specifying it manually for every invocation
+
 ## 0.7.2 (2013-12-16)
 
 #### Runtime
@@ -15,7 +76,7 @@
 - Prevent deletion of image if ANY container is depending on it even if the container is not running
 * Update docker push to use new progress display
 * Use os.Lstat to allow mounting unix sockets when inspecting volumes
-- Adjusted handling of inactive user login
+- Adjust handling of inactive user login
 - Add missing defines in devicemapper for older kernels
 - Allow untag operations with no container validation
 - Add auth config to docker build
@@ -110,7 +171,7 @@
 
 #### Runtime
 
-* Improved stability, fixes some race conditons
+* Improve stability, fixes some race conditons
 * Skip the volumes mounted when deleting the volumes of container.
 * Fix layer size computation: handle hard links correctly
 * Use the work Path for docker cp CONTAINER:PATH
@@ -153,7 +214,7 @@
 + Add lock around write operations in graph
 * Check if port is valid
 * Fix restart runtime error with ghost container networking
-+ Added some more colors and animals to increase the pool of generated names
++ Add some more colors and animals to increase the pool of generated names
 * Fix issues in docker inspect
 + Escape apparmor confinement
 + Set environment variables using a file.
@@ -307,7 +368,7 @@
 * Improve network performance for VirtualBox
 * Revamp install.sh to be usable by more people, and to use official install methods whenever possible (apt repo, portage tree, etc.)
 - Fix contrib/mkimage-debian.sh apt caching prevention
-+ Added Dockerfile.tmLanguage to contrib
++ Add Dockerfile.tmLanguage to contrib
 * Configured FPM to make /etc/init/docker.conf a config file
 * Enable SSH Agent forwarding in Vagrant VM
 * Several small tweaks/fixes for contrib/mkimage-debian.sh
@@ -421,7 +482,7 @@
 * Mount /dev/shm as a tmpfs
 - Switch from http to https for get.docker.io
 * Let userland proxy handle container-bound traffic
-* Updated the Docker CLI to specify a value for the "Host" header.
+* Update the Docker CLI to specify a value for the "Host" header.
 - Change network range to avoid conflict with EC2 DNS
 - Reduce connect and read timeout when pinging the registry
 * Parallel pull
@@ -617,7 +678,7 @@
 
 + Builder: 'docker build git://URL' fetches and builds a remote git repository
 * Runtime: 'docker ps -s' optionally prints container size
-* Tests: Improved and simplified
+* Tests: improved and simplified
 - Runtime: fix a regression introduced in 0.4.3 which caused the logs command to fail.
 - Builder: fix a regression when using ADD with single regular file.
 
@@ -632,7 +693,7 @@
 + ADD of a local file will detect tar archives and unpack them
 * ADD improvements: use tar for copy + automatically unpack local archives
 * ADD uses tar/untar for copies instead of calling 'cp -ar'
-* Fixed the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
+* Fix the behavior of ADD to be (mostly) reverse-compatible, predictable and well-documented.
 - Fix a bug which caused builds to fail if ADD was the first command
 * Nicer output for 'docker build'
 
@@ -677,7 +738,7 @@
 + Detect faulty DNS configuration and replace it with a public default
 + Allow docker run <name>:<id>
 + You can now specify public port (ex: -p 80:4500)
-* Improved image removal to garbage-collect unreferenced parents
+* Improve image removal to garbage-collect unreferenced parents
 
 #### Client
 
@@ -731,7 +792,7 @@
 
 #### Documentation
 
-* Improved install instructions.
+* Improve install instructions.
 
 ## 0.3.3 (2013-05-23)
 
@@ -816,7 +877,7 @@
 
 + Support for data volumes ('docker run -v=PATH')
 + Share data volumes between containers ('docker run -volumes-from')
-+ Improved documentation
++ Improve documentation
 * Upgrade to Go 1.0.3
 * Various upgrades to the dev environment for contributors
 
@@ -872,7 +933,7 @@
 - Add debian packaging
 - Documentation: installing on Arch Linux
 - Documentation: running Redis on docker
-- Fixed lxc 0.9 compatibility
+- Fix lxc 0.9 compatibility
 - Automatically load aufs module
 - Various bugfixes and stability improvements
 
@@ -907,7 +968,7 @@
 - Stabilize process management
 - Layers can include a commit message
 - Simplified 'docker attach'
-- Fixed support for re-attaching
+- Fix support for re-attaching
 - Various bugfixes and stability improvements
 - Auto-download at run
 - Auto-login on push

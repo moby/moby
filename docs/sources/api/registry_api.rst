@@ -19,7 +19,8 @@ Docker Registry API
 - It doesn’t have a local database
 - It will be open-sourced at some point
 
-We expect that there will be multiple registries out there. To help to grasp the context, here are some examples of registries:
+We expect that there will be multiple registries out there. To help to grasp
+the context, here are some examples of registries:
 
 - **sponsor registry**: such a registry is provided by a third-party hosting infrastructure as a convenience for their customers and the docker community as a whole. Its costs are supported by the third party, but the management and operation of the registry are supported by dotCloud. It features read/write access, and delegates authentication and authorization to the Index.
 - **mirror registry**: such a registry is provided by a third-party hosting infrastructure but is targeted at their customers only. Some mechanism (unspecified to date) ensures that public images are pulled from a sponsor registry to the mirror registry, to make sure that the customers of the third-party provider can “docker pull” those images locally.
@@ -37,7 +38,10 @@ We expect that there will be multiple registries out there. To help to grasp the
         - local mount point;
         - remote docker addressed through SSH.
 
-The latter would only require two new commands in docker, e.g. “registryget” and “registryput”, wrapping access to the local filesystem (and optionally doing consistency checks). Authentication and authorization are then delegated to SSH (e.g. with public keys).
+The latter would only require two new commands in docker, e.g. ``registryget``
+and ``registryput``, wrapping access to the local filesystem (and optionally
+doing consistency checks). Authentication and authorization are then delegated
+to SSH (e.g. with public keys).
 
 2. Endpoints
 ============

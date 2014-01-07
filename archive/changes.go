@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type ChangeType int
@@ -32,6 +33,21 @@ func (change *Change) String() string {
 		kind = "D"
 	}
 	return fmt.Sprintf("%s %s", kind, change.Path)
+}
+
+// Gnu tar and the go tar writer don't have sub-second mtime
+// precision, which is problematic when we apply changes via tar
+// files, we handle this by comparing for exact times, *or* same
+// second count and either a or b having exactly 0 nanoseconds
+func sameFsTime(a, b time.Time) bool {
+	return a == b ||
+		(a.Unix() == b.Unix() &&
+			(a.Nanosecond() == 0 || b.Nanosecond() == 0))
+}
+
+func sameFsTimeSpec(a, b syscall.Timespec) bool {
+	return a.Sec == b.Sec &&
+		(a.Nsec == b.Nsec || a.Nsec == 0 || b.Nsec == 0)
 }
 
 func Changes(layers []string, rw string) ([]Change, error) {
@@ -85,7 +101,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 					// However, if it's a directory, maybe it wasn't actually modified.
 					// If you modify /foo/bar/baz, then /foo will be part of the changed files only because it's the parent of bar
 					if stat.IsDir() && f.IsDir() {
-						if f.Size() == stat.Size() && f.Mode() == stat.Mode() && f.ModTime() == stat.ModTime() {
+						if f.Size() == stat.Size() && f.Mode() == stat.Mode() && sameFsTime(f.ModTime(), stat.ModTime()) {
 							// Both directories are the same, don't record the change
 							return nil
 						}
@@ -181,7 +197,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
 				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				getLastModification(oldStat) != getLastModification(newStat) {
+				!sameFsTimeSpec(getLastModification(oldStat), getLastModification(newStat)) {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
