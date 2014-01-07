@@ -23,3 +23,4 @@ Contents:
    working_with_links_names
    ambassador_pattern_linking
    puppet
+   service_providers

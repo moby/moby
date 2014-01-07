@@ -190,8 +190,25 @@ point to specific ``Dockerfile``'s or Git branches.
 Private Repositories
 --------------------
 
-Right now (version 0.6), private repositories are only possible by
-hosting `your own registry
+Sometimes what you want is a private repository that lets you keep your images
+private, host them locally, or simply somewhere other than the central index.
+Fortunately the docker community has several ways to accomplish this.
+
+Use a hosting service
++++++++++++++++++++++
+
+Several groups in the docker community have responded to the need for private 
+repositories and now offer repository hosting services.  These can be a great
+option if you want to let someone else handle the details of the hosting.
+
+You can find some of these options by searching on the web or looking at the
+partial list in :ref:`service_providers`.
+
+
+Host your own
++++++++++++++
+
+The first option is to host your own registry using the `docker-registry project
 <https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
 repository on your own registry, you must prefix the tag with the
 address of the registry's host, like this:
@@ -220,6 +237,7 @@ function completely independently from the Central Index.
 
 .. seealso:: `Docker Blog: How to use your own registry 
    <http://blog.docker.io/2013/07/how-to-use-your-own-registry/>`_
+       
 
 Authentication file
 -------------------
