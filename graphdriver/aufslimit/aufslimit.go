@@ -35,9 +35,7 @@ import (
 )
 
 const containerQuotaPath string = "containers_quota"
-const dev0 string = "/dev/zero"
-const blkSize int64 = 4 // MB
-const extension string = "ext3"
+const extension string = "ext4"
 const driverPath string = "diff"
 
 func init() {
@@ -373,23 +371,18 @@ func (a *Driver) limitContainer(id string, quota int64) error {
     containerQuotaFile := path.Join(a.rootPath(), containerQuotaPath, id) + "." + extension
     containerFilesystem := path.Join(a.rootPath(), driverPath, id)
 
-    log.Printf("Executing dd...")
-    cmd := "dd"
-    ifParam := "if=" + dev0 
-    ofParam := "of=" + containerQuotaFile
-    blkSizeBytes := blkSize * 1024 * 1024
-    bsParam := "bs=" + strconv.FormatInt(blkSizeBytes, 10)
-    blkNumber := quota / blkSize
-    countParam := "count=" + strconv.FormatInt(blkNumber, 10)
-    ddCmd := exec.Command(cmd, ifParam, ofParam, bsParam, countParam)
-    err := ddCmd.Run()
+    log.Printf("Executing truncate to create container quota file...")
+    cmd := "truncate"
+    opt1 := "-s"
+    truncateCmd := exec.Command(cmd, containerQuotaFile, opt1, strconv.FormatInt(quota, 10))
+    err := truncateCmd.Run()
     if err != nil {
         return err
     }
 
     log.Printf("Executing mkfs...")
     cmd = "/sbin/mkfs"
-    opt1 := "-t" 
+    opt1 = "-t" 
     opt2 := "-q"
     opt3 := "-F"
     mkfsCmd := exec.Command(cmd, opt1, extension, opt2, containerQuotaFile, opt3)
