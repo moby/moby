@@ -756,6 +756,9 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		if err := os.Chmod(localCopy, 0700); err != nil {
 			return nil, err
 		}
+		if err := os.Chown(localCopy, 100000, 100000); err != nil {
+			return err
+		}
 		sysInitPath = localCopy
 	}
 
