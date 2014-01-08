@@ -408,14 +408,6 @@ func (b *buildFile) CmdAdd(args string) error {
 			sums = b.context.GetSums()
 		)
 
-		// Has tarsum strips the '.' and './', we put it back for comparaison.
-		for file, sum := range sums {
-			if len(file) == 0 || file[0] != '.' && file[0] != '/' {
-				delete(sums, file)
-				sums["./"+file] = sum
-			}
-		}
-
 		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
 		} else if fi.IsDir() {
@@ -432,7 +424,13 @@ func (b *buildFile) CmdAdd(args string) error {
 			hasher.Write([]byte(strings.Join(subfiles, ",")))
 			hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 		} else {
-			hash = "file:" + sums[origPath]
+			if origPath[0] == '/' && len(origPath) > 1 {
+				origPath = origPath[1:]
+			}
+			origPath = strings.TrimPrefix(origPath, "./")
+			if h, ok := sums[origPath]; ok {
+				hash = "file:" + h
+			}
 		}
 		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
 		hit, err := b.probeCache()
