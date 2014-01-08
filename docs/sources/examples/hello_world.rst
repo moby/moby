@@ -131,7 +131,7 @@ Attach to the container to see the results in real-time.
 
 - **"docker attach**" This will allow us to attach to a background
   process to see what is going on.
-- "-sig-proxy=false" Do not forward signals to the container; allows
+- **"-sig-proxy=false"** Do not forward signals to the container; allows
   us to exit the attachment using Control-C without stopping the container.
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
