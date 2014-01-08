@@ -190,9 +190,10 @@ func executeProgram(args *DockerInitArgs) error {
 		return err
 	}
 
-	if err := setupCapabilities(args); err != nil {
-		return err
-	}
+	// Tutum: moved to lxc_template.go for user namespace compatibility
+	// if err := setupCapabilities(args); err != nil {
+	// 	return err
+	// }
 
 	if err := setupWorkingDirectory(args); err != nil {
 		return err

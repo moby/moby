@@ -87,6 +87,8 @@ lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
 {{end}}
+{{else}}
+lxc.cap.drop = audit_control audit_write mac_admin mac_override mknod setpcap sys_admin sys_module sys_nice sys_pacct sys_rawio sys_resource sys_time sys_tty_config
 {{end}}
 
 # limits
