@@ -140,6 +140,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 }
 
 func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
 	srv.Eng.ServeHTTP(w, r)
 	return nil
 }
@@ -216,6 +217,7 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
 	srv.Eng.ServeHTTP(w, r)
 	return nil
 }
