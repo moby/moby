@@ -532,6 +532,21 @@ func TestBuildADDLocalFileWithCache(t *testing.T) {
 	if id5 == id6 {
 		t.Fatal("The cache should have been invalided but hasn't.")
 	}
+
+	template.dockerfile += `
+	add bar /src2/bar2
+	add /bar /src2/bar3
+	run ls /src2/bar2 /src2/bar3
+	`
+	id7 := checkCacheBehaviorFromEngime(t, template, true, eng)
+	if id6 == id7 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	template.files[1][1] = "hello5"
+	id8 := checkCacheBehaviorFromEngime(t, template, true, eng)
+	if id7 == id8 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
 }
 
 func TestBuildADDLocalFileWithoutCache(t *testing.T) {
