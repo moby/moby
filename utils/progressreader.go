@@ -7,21 +7,18 @@ import (
 
 // Reader with progress bar
 type progressReader struct {
-	reader   io.ReadCloser // Stream to read from
-	output   io.Writer     // Where to send progress bar to
-	progress JSONProgress
-	//	readTotal    int    // Expected stream length (bytes)
-	//	readProgress int    // How much has been read so far (bytes)
+	reader     io.ReadCloser // Stream to read from
+	output     io.Writer     // Where to send progress bar to
+	progress   JSONProgress
 	lastUpdate int // How many bytes read at least update
 	ID         string
 	action     string
-	//	template   string // Template to print. Default "%v/%v (%v)"
-	sf      *StreamFormatter
-	newLine bool
+	sf         *StreamFormatter
+	newLine    bool
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
-	read, err := io.ReadCloser(r.reader).Read(p)
+	read, err := r.reader.Read(p)
 	r.progress.Current += read
 	updateEvery := 1024 * 512 //512kB
 	if r.progress.Total > 0 {
@@ -41,7 +38,9 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 	return read, err
 }
 func (r *progressReader) Close() error {
-	return io.ReadCloser(r.reader).Close()
+	r.progress.Current = r.progress.Total
+	r.output.Write(r.sf.FormatProgress(r.ID, r.action, &r.progress))
+	return r.reader.Close()
 }
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, sf *StreamFormatter, newline bool, ID, action string) *progressReader {
 	return &progressReader{

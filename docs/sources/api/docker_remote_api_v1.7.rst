@@ -122,7 +122,6 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
-		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -136,10 +135,12 @@ Create a container
 			"/tmp": {}
 		},
 		"VolumesFrom":"",
-		"WorkingDir":""
-
+		"WorkingDir":"",
+		"ExposedPorts":{
+			"22/tcp": {}
+		}
 	   }
-	   
+
 	**Example response**:
 
 	.. sourcecode:: http
@@ -364,10 +365,11 @@ Start a container
            {
                 "Binds":["/tmp:/tmp"],
                 "LxcConf":{"lxc.utsname":"docker"},
-                "PortBindings":null
+                "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
+                "Privileged":false,
                 "PublishAllPorts":false
            }
-           
+
         Binds need to reference Volumes that were defined during container creation.
 
         **Example response**:
@@ -1159,7 +1161,7 @@ Monitor Docker's events
 
 	.. sourcecode:: http
 
-           POST /events?since=1374067924
+           GET /events?since=1374067924
 
         **Example response**:
 

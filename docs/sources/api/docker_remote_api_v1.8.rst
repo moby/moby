@@ -122,7 +122,6 @@ Create a container
 		"AttachStdout":true,
 		"AttachStderr":true,
 		"PortSpecs":null,
-		"Privileged": false,
 		"Tty":false,
 		"OpenStdin":false,
 		"StdinOnce":false,
@@ -132,12 +131,16 @@ Create a container
 		],
 		"Dns":null,
 		"Image":"base",
-		"Volumes":{},
+		"Volumes":{
+			"/tmp": {}
+		},
 		"VolumesFrom":"",
-		"WorkingDir":""
-
+		"WorkingDir":"",
+		"ExposedPorts":{
+			"22/tcp": {}
+		}
 	   }
-	   
+
 	**Example response**:
 
 	.. sourcecode:: http
@@ -151,6 +154,7 @@ Create a container
 	   }
 	
 	:jsonparam config: the container's configuration
+	:query name: Assign the specified name to the container. Must match ``/?[a-zA-Z0-9_-]+``.
 	:statuscode 201: no error
 	:statuscode 404: no such container
 	:statuscode 406: impossible to attach (container not running)
@@ -377,7 +381,10 @@ Start a container
 
            {
                 "Binds":["/tmp:/tmp"],
-                "LxcConf":{"lxc.utsname":"docker"}
+                "LxcConf":{"lxc.utsname":"docker"},
+                "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
+                "PublishAllPorts":false,
+                "Privileged":false
            }
 
         **Example response**:
@@ -1026,6 +1033,7 @@ Build an image from Dockerfile via stdin
    :query q: suppress verbose build output
    :query nocache: do not use the cache when building the image
    :reqheader Content-type: should be set to ``"application/tar"``.
+   :reqheader X-Registry-Auth: base64-encoded AuthConfig object
    :statuscode 200: no error
    :statuscode 500: server error
 
@@ -1172,7 +1180,7 @@ Monitor Docker's events
 
 	.. sourcecode:: http
 
-           POST /events?since=1374067924
+           GET /events?since=1374067924
 
         **Example response**:
 

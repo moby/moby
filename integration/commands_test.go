@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/term"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -867,11 +867,11 @@ func TestImagesTree(t *testing.T) {
 		}
 		cmdOutput := string(cmdOutputBytes)
 		regexpStrings := []string{
-			fmt.Sprintf("└─%s Size: (\\d+.\\d+ MB) \\(virtual \\d+.\\d+ MB\\) Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
+			fmt.Sprintf("└─%s Virtual Size: \\d+.\\d+ MB Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
 			"(?m)   └─[0-9a-f]+.*",
 			"(?m)    └─[0-9a-f]+.*",
 			"(?m)      └─[0-9a-f]+.*",
-			fmt.Sprintf("(?m)^        └─%s Size: \\d+ B \\(virtual \\d+.\\d+ MB\\) Tags: test:latest", utils.TruncateID(image.ID)),
+			fmt.Sprintf("(?m)^        └─%s Virtual Size: \\d+.\\d+ MB Tags: test:latest", utils.TruncateID(image.ID)),
 		}
 
 		compiledRegexps := []*regexp.Regexp{}
@@ -910,8 +910,7 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 		t.Fatal(err)
 	}
 
-	err = mkServerFromEngine(eng, t).ContainerTag(image.ID, "test", "latest", false)
-	if err != nil {
+	if err := eng.Job("tag", image.ID, "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -967,5 +966,68 @@ func TestRunCidFile(t *testing.T) {
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
 	})
+
+}
+
+func TestContainerOrphaning(t *testing.T) {
+
+	// setup a temporary directory
+	tmpDir, err := ioutil.TempDir("", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// setup a CLI and server
+	cli := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+	srv := mkServerFromEngine(globalEngine, t)
+
+	// closure to build something
+	buildSomething := func(template string, image string) string {
+		dockerfile := path.Join(tmpDir, "Dockerfile")
+		replacer := strings.NewReplacer("{IMAGE}", unitTestImageID)
+		contents := replacer.Replace(template)
+		ioutil.WriteFile(dockerfile, []byte(contents), 0x777)
+		if err := cli.CmdBuild("-t", image, tmpDir); err != nil {
+			t.Fatal(err)
+		}
+		img, err := srv.ImageInspect(image)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return img.ID
+	}
+
+	// build an image
+	imageName := "orphan-test"
+	template1 := `
+	from {IMAGE}
+	cmd ["/bin/echo", "holla"]
+	`
+	img1 := buildSomething(template1, imageName)
+
+	// create a container using the fist image
+	if err := cli.CmdRun(imageName); err != nil {
+		t.Fatal(err)
+	}
+
+	// build a new image that splits lineage
+	template2 := `
+	from {IMAGE}
+	cmd ["/bin/echo", "holla"]
+	expose 22
+	`
+	buildSomething(template2, imageName)
+
+	// remove the second image by name
+	resp, err := srv.ImageDelete(imageName, true)
+
+	// see if we deleted the first image (and orphaned the container)
+	for _, i := range resp {
+		if img1 == i.Deleted {
+			t.Fatal("Orphaned image with container")
+		}
+	}
 
 }

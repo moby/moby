@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	mountpk "github.com/dotcloud/docker/mount"
 	"github.com/dotcloud/docker/utils"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -303,7 +303,7 @@ func (a *Driver) unmount(id string) error {
 
 func (a *Driver) mounted(id string) (bool, error) {
 	target := path.Join(a.rootPath(), "mnt", id)
-	return Mounted(target)
+	return mountpk.Mounted(target)
 }
 
 // During cleanup aufs needs to unmount all mountpoints
@@ -320,24 +320,44 @@ func (a *Driver) Cleanup() error {
 	return nil
 }
 
-func (a *Driver) aufsMount(ro []string, rw, target string) error {
-	rwBranch := fmt.Sprintf("%v=rw", rw)
-	roBranches := ""
-	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
-	}
-	branches := fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches)
+func (a *Driver) aufsMount(ro []string, rw, target string) (err error) {
+	defer func() {
+		if err != nil {
+			Unmount(target)
+		}
+	}()
 
-	//if error, try to load aufs kernel module
-	if err := mount("none", target, "aufs", 0, branches); err != nil {
-		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
-		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
+	if err = a.tryMount(ro, rw, target); err != nil {
+		if err = a.mountRw(rw, target); err != nil {
+			return
 		}
-		log.Printf("...module loaded.")
-		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs %s", err)
+
+		for _, layer := range ro {
+			branch := fmt.Sprintf("append:%s=ro+wh", layer)
+			if err = mount("none", target, "aufs", MsRemount, branch); err != nil {
+				return
+			}
 		}
 	}
-	return nil
+	return
+}
+
+// Try to mount using the aufs fast path, if this fails then
+// append ro layers.
+func (a *Driver) tryMount(ro []string, rw, target string) (err error) {
+	var (
+		rwBranch   = fmt.Sprintf("%s=rw", rw)
+		roBranches = fmt.Sprintf("%s=ro+wh:", strings.Join(ro, "=ro+wh:"))
+	)
+	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches))
+}
+
+func (a *Driver) mountRw(rw, target string) error {
+	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%s,xino=/dev/shm/aufs.xino", rw))
+}
+
+func rollbackMount(target string, err error) {
+	if err != nil {
+		Unmount(target)
+	}
 }

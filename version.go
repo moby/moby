@@ -25,6 +25,8 @@ func dockerVersion() *engine.Env {
 	v.Set("Version", VERSION)
 	v.Set("GitCommit", GITCOMMIT)
 	v.Set("GoVersion", runtime.Version())
+	v.Set("Os", runtime.GOOS)
+	v.Set("Arch", runtime.GOARCH)
 	// FIXME:utils.GetKernelVersion should only be needed here
 	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
 		v.Set("KernelVersion", kernelVersion.String())

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/systemd"
+	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -216,7 +216,8 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return writeJSON(w, http.StatusOK, srv.DockerInfo())
+	srv.Eng.ServeHTTP(w, r)
+	return nil
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -356,18 +357,13 @@ func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	force, err := getBoolParam(r.Form.Get("force"))
-	if err != nil {
-		return err
-	}
 
-	if err := srv.ContainerTag(name, repo, tag, force); err != nil {
+	job := srv.Eng.Job("tag", vars["name"], r.Form.Get("repo"), r.Form.Get("tag"))
+	job.Setenv("force", r.Form.Get("force"))
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -382,13 +378,17 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
 		utils.Errorf("%s", err)
 	}
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
-	container := r.Form.Get("container")
-	author := r.Form.Get("author")
-	comment := r.Form.Get("comment")
-	id, err := srv.ContainerCommit(container, repo, tag, author, comment, config)
-	if err != nil {
+
+	job := srv.Eng.Job("commit", r.Form.Get("container"))
+	job.Setenv("repo", r.Form.Get("repo"))
+	job.Setenv("tag", r.Form.Get("tag"))
+	job.Setenv("author", r.Form.Get("author"))
+	job.Setenv("comment", r.Form.Get("comment"))
+	job.SetenvJson("config", config)
+
+	var id string
+	job.Stdout.AddString(&id)
+	if err := job.Run(); err != nil {
 		return err
 	}
 
@@ -683,17 +683,12 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	t, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil || t < 0 {
-		t = 10
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	if err := srv.ContainerStop(name, t); err != nil {
+	job := srv.Eng.Job("stop", vars["name"])
+	job.Setenv("t", r.Form.Get("t"))
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -722,19 +717,10 @@ func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	height, err := strconv.Atoi(r.Form.Get("h"))
-	if err != nil {
-		return err
-	}
-	width, err := strconv.Atoi(r.Form.Get("w"))
-	if err != nil {
-		return err
-	}
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	if err := srv.ContainerResize(name, height, width); err != nil {
+	if err := srv.Eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
 		return err
 	}
 	return nil
@@ -903,12 +889,25 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 	if version < 1.3 {
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
-	remoteURL := r.FormValue("remote")
-	repoName := r.FormValue("t")
-	rawSuppressOutput := r.FormValue("q")
-	rawNoCache := r.FormValue("nocache")
-	rawRm := r.FormValue("rm")
-	repoName, tag := utils.ParseRepositoryTag(repoName)
+	var (
+		remoteURL         = r.FormValue("remote")
+		repoName          = r.FormValue("t")
+		rawSuppressOutput = r.FormValue("q")
+		rawNoCache        = r.FormValue("nocache")
+		rawRm             = r.FormValue("rm")
+		authEncoded       = r.Header.Get("X-Registry-Auth")
+		authConfig        = &auth.AuthConfig{}
+		tag               string
+	)
+	repoName, tag = utils.ParseRepositoryTag(repoName)
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfig = &auth.AuthConfig{}
+		}
+	}
 
 	var context io.Reader
 
@@ -976,7 +975,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			Writer:          utils.NewWriteFlusher(w),
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf)
+		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig)
 	id, err := b.Build(context)
 	if err != nil {
 		if sf.Used() {

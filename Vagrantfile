@@ -26,7 +26,7 @@ fi
 # Adding an apt gpg key is idempotent.
 wget -q -O - https://get.docker.io/gpg | apt-key add -
 
-# Creating the docker.list file is idempotent, but it may overrite desired
+# Creating the docker.list file is idempotent, but it may overwrite desired
 # settings if it already exists.  This could be solved with md5sum but it
 # doesn't seem worth it.
 echo 'deb http://get.docker.io/ubuntu docker main' > \
@@ -41,7 +41,7 @@ apt-get install -q -y lxc-docker
 usermod -a -G docker "$user"
 
 tmp=`mktemp -q` && {
-    # Only install the backport kernel, don't bother upgrade if the backport is
+    # Only install the backport kernel, don't bother upgrading if the backport is
     # already installed.  We want parse the output of apt so we need to save it
     # with 'tee'.  NOTE: The installation of the kernel will trigger dkms to
     # install vboxguest if needed.
@@ -70,7 +70,7 @@ SCRIPT
 # trigger dkms to build the virtualbox guest module install.
 $vbox_script = <<VBOX_SCRIPT + $script
 # Install the VirtualBox guest additions if they aren't already installed.
-if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
+if [ ! -d /opt/VBoxGuestAdditions-4.3.4/ ]; then
     # Update remote package metadata.  'apt-get update' is idempotent.
     apt-get update -q
 
@@ -79,9 +79,10 @@ if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
     apt-get install -q -y linux-headers-generic-lts-raring dkms
 
     echo 'Downloading VBox Guest Additions...'
-    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.2/VBoxGuestAdditions_4.3.2.iso
+    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.4/VBoxGuestAdditions_4.3.4.iso
+    echo "f120793fa35050a8280eacf9c930cf8d9b88795161520f6515c0cc5edda2fe8a  VBoxGuestAdditions_4.3.4.iso" | sha256sum --check || exit 1
 
-    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.2.iso /mnt
+    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.4.iso /mnt
     /mnt/VBoxLinuxAdditions.run --nox11
     umount /mnt
 fi

@@ -25,3 +25,7 @@ func AddDefaultGw(ip net.IP) error {
 	return fmt.Errorf("Not implemented")
 
 }
+
+func NetworkSetMTU(iface *net.Interface, mtu int) error {
+	return fmt.Errorf("Not implemented")
+}

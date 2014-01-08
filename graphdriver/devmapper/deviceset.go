@@ -154,7 +154,7 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 func (devices *DeviceSet) saveMetadata() error {
 	jsonData, err := json.Marshal(devices.MetaData)
 	if err != nil {
-		return fmt.Errorf("Error encoding metaadata to json: %s", err)
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
 	}
 	tmpFile, err := ioutil.TempFile(filepath.Dir(devices.jsonFile()), ".json")
 	if err != nil {

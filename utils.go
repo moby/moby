@@ -3,7 +3,7 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/namesgenerator"
+	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"strconv"

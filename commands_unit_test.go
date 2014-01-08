@@ -128,7 +128,9 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, without volume, no volume should be present. Received %v", config.Volumes)
 	}
 
-	mustParse(t, "-v /")
+	if _, _, err := parse(t, "-v /"); err == nil {
+		t.Fatalf("Expected error, but got none")
+	}
 
 	if _, _, err := parse(t, "-v /:/"); err == nil {
 		t.Fatalf("Error parsing volume flags, `-v /:/` should fail but didn't")

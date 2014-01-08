@@ -1,7 +1,11 @@
 package aufs
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -619,5 +623,72 @@ func TestApplyDiff(t *testing.T) {
 	}
 	if _, err := os.Stat(path.Join(mountPoint, "test_file")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func hash(c string) string {
+	h := sha256.New()
+	fmt.Fprint(h, c)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func TestMountMoreThan42Layers(t *testing.T) {
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+	var last string
+	var expected int
+
+	for i := 1; i < 127; i++ {
+		expected++
+		var (
+			parent  = fmt.Sprintf("%d", i-1)
+			current = fmt.Sprintf("%d", i)
+		)
+
+		if parent == "0" {
+			parent = ""
+		} else {
+			parent = hash(parent)
+		}
+		current = hash(current)
+
+		if err := d.Create(current, parent); err != nil {
+			t.Logf("Current layer %d", i)
+			t.Fatal(err)
+		}
+		point, err := d.Get(current)
+		if err != nil {
+			t.Logf("Current layer %d", i)
+			t.Fatal(err)
+		}
+		f, err := os.Create(path.Join(point, current))
+		if err != nil {
+			t.Logf("Current layer %d", i)
+			t.Fatal(err)
+		}
+		f.Close()
+
+		if i%10 == 0 {
+			if err := os.Remove(path.Join(point, parent)); err != nil {
+				t.Logf("Current layer %d", i)
+				t.Fatal(err)
+			}
+			expected--
+		}
+		last = current
+	}
+
+	// Perform the actual mount for the top most image
+	point, err := d.Get(last)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := ioutil.ReadDir(point)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != expected {
+		t.Fatalf("Expected %d got %d", expected, len(files))
 	}
 }
