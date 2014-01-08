@@ -234,7 +234,7 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 	return nil
 }
 
-func (s *NetlinkSocket) Recieve() ([]syscall.NetlinkMessage, error) {
+func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
 	rb := make([]byte, syscall.Getpagesize())
 	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
 	if err != nil {
@@ -269,7 +269,7 @@ func (s *NetlinkSocket) HandleAck(seq uint32) error {
 
 done:
 	for {
-		msgs, err := s.Recieve()
+		msgs, err := s.Receive()
 		if err != nil {
 			return err
 		}
@@ -500,7 +500,7 @@ func NetworkGetRoutes() ([]*net.IPNet, error) {
 
 done:
 	for {
-		msgs, err := s.Recieve()
+		msgs, err := s.Receive()
 		if err != nil {
 			return nil, err
 		}
