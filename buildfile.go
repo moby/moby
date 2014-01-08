@@ -604,11 +604,12 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b.context = &utils.TarSum{Reader: context}
+	b.context = &utils.TarSum{Reader: context, DisableCompression: true}
 	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(tmpdirPath)
+
 	b.contextPath = tmpdirPath
 	filename := path.Join(tmpdirPath, "Dockerfile")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
