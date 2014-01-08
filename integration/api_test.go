@@ -49,6 +49,10 @@ func TestGetVersion(t *testing.T) {
 	if result := v.Get("Version"); result != expected {
 		t.Errorf("Expected version %s, %s found", expected, result)
 	}
+	expected = "application/json"
+	if result := r.HeaderMap.Get("Content-Type"); result != expected {
+		t.Errorf("Expected Content-Type %s, %s found", expected, result)
+	}
 }
 
 func TestGetInfo(t *testing.T) {
@@ -83,6 +87,10 @@ func TestGetInfo(t *testing.T) {
 	out.Close()
 	if images := i.GetInt("Images"); images != len(initialImages) {
 		t.Errorf("Expected images: %d, %d found", len(initialImages), images)
+	}
+	expected := "application/json"
+	if result := r.HeaderMap.Get("Content-Type"); result != expected {
+		t.Errorf("Expected Content-Type %s, %s found", expected, result)
 	}
 }
 
