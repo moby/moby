@@ -1128,8 +1128,8 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 // Retrieve the all the images to be uploaded in the correct order
 func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[string][]string, error) {
 	var (
-		imageList []string
-		imagesSeen map[string]bool = make(map[string]bool)
+		imageList   []string
+		imagesSeen  map[string]bool     = make(map[string]bool)
 		tagsByImage map[string][]string = make(map[string][]string)
 	)
 
@@ -1153,7 +1153,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 		}
 
 		// reverse the image list for this tag (so the "most"-parent image is first)
-		for i, j := 0, len(imageListForThisTag) - 1; i < j; i, j = i + 1, j - 1 {
+		for i, j := 0, len(imageListForThisTag)-1; i < j; i, j = i+1, j-1 {
 			imageListForThisTag[i], imageListForThisTag[j] = imageListForThisTag[j], imageListForThisTag[i]
 		}
 
@@ -1183,7 +1183,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	for imgId, tags := range tagsByImage {
 		for _, tag := range tags {
 			imageIndex = append(imageIndex, &registry.ImgData{
-				ID: imgId,
+				ID:  imgId,
 				Tag: tag,
 			})
 		}
@@ -1643,24 +1643,24 @@ func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
 		}
 	}
 	return srv.deleteImage(img, repository, tag)
-	}
+}
 
 func (srv *Server) canDeleteImage(imgID string) error {
-		for _, container := range srv.runtime.List() {
-			parent, err := srv.runtime.repositories.LookupImage(container.Image)
-			if err != nil {
+	for _, container := range srv.runtime.List() {
+		parent, err := srv.runtime.repositories.LookupImage(container.Image)
+		if err != nil {
 			return err
-			}
+		}
 
-			if err := parent.WalkHistory(func(p *Image) error {
+		if err := parent.WalkHistory(func(p *Image) error {
 			if imgID == p.ID {
 				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", utils.TruncateID(imgID), utils.TruncateID(container.ID))
-				}
-				return nil
-			}); err != nil {
-			return err
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
+	}
 	return nil
 }
 
@@ -1676,7 +1676,7 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	imageMap := make(map[string][]string)
 	for _, img := range images {
 		imageMap[img.Parent] = append(imageMap[img.Parent], img.ID)
-		}
+	}
 	sort.Strings(imageMap[imgID])
 	// Loop on the children of the given image and check the config
 	for _, elem := range imageMap[imgID] {
