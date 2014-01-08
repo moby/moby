@@ -92,7 +92,7 @@ $(function(){
         $('.version-flyer ul').html('<li class="alternative active-slug"><a href="" title="Switch to local">Local</a></li>');
     }
 
-    if (doc_version == "master") {
+    if (doc_version == "latest") {
         $('.version-flyer .version-note').hide();
     }
 

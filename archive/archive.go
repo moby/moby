@@ -3,8 +3,8 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"compress/bzip2"
+	"compress/gzip"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -149,7 +149,7 @@ func escapeName(name string) string {
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
 func TarFilter(path string, options *TarOptions) (io.Reader, error) {
-	args := []string{"tar", "-S", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
+	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
 	if options.Includes == nil {
 		options.Includes = []string{"."}
 	}
@@ -228,7 +228,7 @@ func Untar(archive io.Reader, path string, options *TarOptions) error {
 	compression := DetectCompression(buf)
 
 	utils.Debugf("Archive compression detected: %s", compression.Extension())
-	args := []string{"-S", "--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
+	args := []string{"--numeric-owner", "-f", "-", "-C", path, "-x" + compression.Flag()}
 
 	if options != nil {
 		for _, exclude := range options.Excludes {
@@ -299,7 +299,7 @@ func CopyWithTar(src, dst string) error {
 //
 // If `dst` ends with a trailing slash '/', the final destination path
 // will be `dst/base(src)`.
-func CopyFileWithTar(src, dst string) error {
+func CopyFileWithTar(src, dst string) (err error) {
 	utils.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
@@ -316,25 +316,38 @@ func CopyFileWithTar(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-	hdr, err := tar.FileInfoHeader(srcSt, "")
-	if err != nil {
-		return err
-	}
-	hdr.Name = filepath.Base(dst)
-	if err := tw.WriteHeader(hdr); err != nil {
-		return err
-	}
-	srcF, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(tw, srcF); err != nil {
-		return err
-	}
-	tw.Close()
-	return Untar(buf, filepath.Dir(dst), nil)
+
+	r, w := io.Pipe()
+	errC := utils.Go(func() error {
+		defer w.Close()
+
+		srcF, err := os.Open(src)
+		if err != nil {
+			return err
+		}
+		defer srcF.Close()
+
+		tw := tar.NewWriter(w)
+		hdr, err := tar.FileInfoHeader(srcSt, "")
+		if err != nil {
+			return err
+		}
+		hdr.Name = filepath.Base(dst)
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := io.Copy(tw, srcF); err != nil {
+			return err
+		}
+		tw.Close()
+		return nil
+	})
+	defer func() {
+		if er := <-errC; err != nil {
+			err = er
+		}
+	}()
+	return Untar(r, filepath.Dir(dst), nil)
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.

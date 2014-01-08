@@ -17,7 +17,7 @@ set -e
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "make" from
 #   your checkout of the Docker repository. 
-#   the Makefile will so a "docker build -t docker ." and then
+#   the Makefile will do a "docker build -t docker ." and then
 #   "docker run hack/make.sh" in the resulting container image.
 #
 

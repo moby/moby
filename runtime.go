@@ -4,12 +4,13 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/aufslimit"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -346,7 +347,7 @@ func (runtime *Runtime) restore() error {
 
 // FIXME: comment please!
 func (runtime *Runtime) UpdateCapabilities(quiet bool) {
-	if cgroupMemoryMountpoint, err := utils.FindCgroupMountpoint("memory"); err != nil {
+	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
 			log.Printf("WARNING: %s\n", err)
 		}
@@ -599,11 +600,6 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-// FIXME: this is deprecated by the getFullName *function*
-func (runtime *Runtime) getFullName(name string) (string, error) {
-	return getFullName(name)
-}
-
 func getFullName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
@@ -615,7 +611,7 @@ func getFullName(name string) (string, error) {
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	fullName, err := runtime.getFullName(name)
+	fullName, err := getFullName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +627,7 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
-	name, err := runtime.getFullName(name)
+	name, err := getFullName(name)
 	if err != nil {
 		return nil, err
 	}

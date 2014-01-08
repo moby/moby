@@ -82,7 +82,7 @@ In this scenario:
     $ sudo ifconfig bridge0 192.168.227.1 netmask 255.255.255.0
 
     # Edit your Docker startup file
-    $ echo "DOCKER_OPTS=\"-b=bridge0\"" /etc/default/docker 
+    $ echo "DOCKER_OPTS=\"-b=bridge0\"" >> /etc/default/docker 
     
     # Start Docker 
     $ sudo service docker start

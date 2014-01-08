@@ -25,8 +25,8 @@ btrfs_reflink(int fd_out, int fd_in)
 import "C"
 
 import (
-	"os"
 	"io"
+	"os"
 	"syscall"
 )
 

@@ -1,6 +1,40 @@
 # Changelog
 
-## 0.7.3 (2013-01-02)
+## 0.7.4 (2014-01-07)
+
+#### Builder
+
+- Fix ADD caching issue with . prefixed path
+- Fix docker build on devicemapper by reverting sparse file tar option
+- Fix issue with file caching and prevent wrong cache hit
+* Use same error handling while unmarshalling  CMD and ENTRYPOINT
+
+#### Documentation
+
+* Simplify and streamline Amazon Quickstart
+* Install instructions use unprefixed fedora image
+* Update instructions for mtu flag for Docker on GCE
++ Add Ubuntu Saucy to installation
+- Fix for wrong version warning on master instead of latest
+
+#### Runtime
+
+- Only get the image's rootfs when we need to calculate the image size
+- Correctly handle unmapping UDP ports 
+* Make CopyFileWithTar use a pipe instead of a buffer to save memory on docker build
+- Fix login message to say pull instead of push
+- Fix "docker load" help by removing "SOURCE" prompt and mentioning STDIN
+* Make blank -H option default to the same as no -H was sent
+* Extract cgroups utilities to own submodule
+
+#### Other
+
++ Add Travis CI configuration to validate DCO and gofmt requirements
++ Add Developer Certificate of Origin Text
+* Upgrade VBox Guest Additions
+* Check standalone header when pinging a registry server
+
+## 0.7.3 (2014-01-02)
 
 #### Builder
 

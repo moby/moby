@@ -326,7 +326,6 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	return nil
 }
 
-
 // Links come in the format of
 // name:alias
 func parseLink(rawLink string) (map[string]string, error) {
