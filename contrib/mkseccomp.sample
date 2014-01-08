@@ -195,6 +195,7 @@ shutdown
 socket                 // (*)
 socketcall
 socketpair
+sethostname            // (*)
 
 // Signal related
 pause
@@ -261,7 +262,7 @@ vmsplice
 
 // Process control
 capget
-//capset
+capset                 // (*)
 clone                  // (*)
 execve                 // (*)
 exit                   // (*)
@@ -401,7 +402,6 @@ tkill
 //quotactl
 //reboot
 //setdomainname
-//sethostname
 //setns
 //settimeofday
 //sgetmask             // Obsolete
