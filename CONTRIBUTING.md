@@ -129,11 +129,26 @@ d. I understand and agree that this Project and the contribution are publicly kn
 e. I hereby grant to the Project, Docker, Inc and its successors;  and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, modify, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute this contribution and such modifications and derivative works consistent with this Project, the open source license indicated in the previous work or other appropriate open source license specified by the Project and approved by the Open Source Initiative(OSI) at http://www.opensource.org.
 ```
 
-then you just add a line saying
+then you just add a line to every git commit message:
 
     Docker-DCO-1.0-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
 
 using your real name (sorry, no pseudonyms or anonymous contributions.)
+
+One way to automate this, is customise your get ``commit.template`` by adding
+the following to your ``.git/hooks/prepare-commit-msg`` script (needs 
+``chmod 755 .git/hooks/prepare-commit-msg`` ) in the docker checkout:
+
+```
+   #!/bin/sh
+   #       Auto sign all commits to allow them to be used by the Docker project.
+   #       see https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md#sign-your-work
+   #
+   GH_USER=$(git config --get github.user)
+   SOB=$(git var GIT_AUTHOR_IDENT | sed -n "s/^\(.*>\).*$/Docker-DCO-1.0-Signed-off-by: \1 \(github: $GH_USER\)/p")
+   grep -qs "^$SOB" "$1" || echo "\n$SOB" >> "$1"
+
+```
 
 If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
 
