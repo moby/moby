@@ -41,7 +41,7 @@ use warnings;
 
 if( -t ) {
     print STDERR "Helper script to make seccomp filters for Docker/LXC.\n";
-    print STDERR "Usage: mkseccomp.pl [files...]\n";
+    print STDERR "Usage: mkseccomp.pl < [files...]\n";
     exit 1;
 }
 
