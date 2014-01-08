@@ -1009,6 +1009,7 @@ image is removed.
       -n, --networking=true: Enable networking for this container
       -p, --publish=[]: Map a network port to the container
       --rm=false: Automatically remove the container when it exits (incompatible with -d)
+      --shm="65536k": /dev/shm size (format: <number><optional unit>, where unit = b, k, m or g)
       -t, --tty=false: Allocate a pseudo-tty
       -u, --username="": Username or UID
       --dns=[]: Set custom dns servers for the container

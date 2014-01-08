@@ -1781,6 +1781,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-username"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flShmString       = cmd.String([]string{"#shm", "-shm"}, "65536k", "/dev/shm size (format: <number><optional unit>, where unit = b, k, m or g)")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -1836,6 +1837,15 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 			return nil, nil, cmd, err
 		}
 		flMemory = parsedMemory
+	}
+
+	var flShm int64
+	if *flShmString != "" {
+		parsedShm, err := utils.RAMInBytes(*flShmString)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		flShm = parsedShm
 	}
 
 	var binds []string
@@ -1921,6 +1931,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
+		Shm:             flShm,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}
