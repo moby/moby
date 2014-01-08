@@ -353,8 +353,9 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	// FIXME: do we really need this?
 	var (
-		origPath = orig
-		destPath = dest
+		origPath   = orig
+		destPath   = dest
+		remoteHash string
 	)
 
 	if utils.IsURL(orig) {
@@ -373,10 +374,19 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		defer os.RemoveAll(tmpDirName)
 		if _, err = io.Copy(tmpFile, resp.Body); err != nil {
+			tmpFile.Close()
 			return err
 		}
 		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 		tmpFile.Close()
+
+		// Process the checksum
+		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+		if err != nil {
+			return err
+		}
+		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
+		remoteHash = tarSum.Sum(nil)
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(dest, "/") {
@@ -408,7 +418,9 @@ func (b *buildFile) CmdAdd(args string) error {
 			sums = b.context.GetSums()
 		)
 
-		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
+		if remoteHash != "" {
+			hash = remoteHash
+		} else if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
 		} else if fi.IsDir() {
 			var subfiles []string
