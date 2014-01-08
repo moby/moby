@@ -592,6 +592,26 @@ func TestBuildADDLocalFileWithoutCache(t *testing.T) {
 	checkCacheBehavior(t, template, false)
 }
 
+func TestBuildADDCurrentDirectoryWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        add . /usr/lib/bla
+        `,
+		nil, nil}
+	checkCacheBehavior(t, template, true)
+}
+
+func TestBuildADDCurrentDirectoryWithoutCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        add . /usr/lib/bla
+        `,
+		nil, nil}
+	checkCacheBehavior(t, template, false)
+}
+
 func TestBuildADDRemoteFileWithCache(t *testing.T) {
 	template := testContextTemplate{`
         from {IMAGE}
