@@ -405,7 +405,7 @@ func (a *Driver) limitContainer(id string, quota int64) error {
     log.Printf("Executing mkfs...")
     cmd = "/sbin/mkfs"
     opt1 = "-t" 
-    opt2 := "-q"
+    opt2 = "-q"
     opt3 := "-F"
     mkfsCmd := exec.Command(cmd, opt1, extension, opt2, containerQuotaFile, opt3)
     err = mkfsCmd.Run()
