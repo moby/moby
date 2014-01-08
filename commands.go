@@ -2510,11 +2510,7 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 func waitForExit(cli *DockerCli, containerId string) (int, error) {
 	body, _, err := cli.call("POST", "/containers/"+containerId+"/wait", nil)
 	if err != nil {
-		// If we can't connect, then the daemon probably died.
-		if err != ErrConnectionRefused {
-			return -1, err
-		}
-		return -1, nil
+		return -1, err
 	}
 
 	var out APIWait
