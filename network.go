@@ -19,11 +19,18 @@ import (
 const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
-	DefaultNetworkMtu    = 1500
+	defaultNetworkMtu    = 1500
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
 )
+
+func GetDefaultNetworkMtu() int {
+	if iface, err := net.InterfaceByName("eth0"); err == nil {
+		return iface.MTU
+	}
+	return defaultNetworkMtu
+}
 
 // Calculates the first and last IP addresses in an IPNet
 func networkRange(network *net.IPNet) (net.IP, net.IP) {
