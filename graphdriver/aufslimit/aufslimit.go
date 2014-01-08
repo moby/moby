@@ -395,7 +395,8 @@ func (a *Driver) limitContainer(id string, quota int64) error {
     log.Printf("Executing truncate to create container quota file...")
     cmd := "truncate"
     opt1 := "-s"
-    truncateCmd := exec.Command(cmd, containerQuotaFile, opt1, strconv.FormatInt(quota, 10))
+    opt2 := fmt.Sprintf("%sM", strconv.FormatInt(quota, 10))
+    truncateCmd := exec.Command(cmd, containerQuotaFile, opt1, opt2)
     err := truncateCmd.Run()
     if err != nil {
         return err
