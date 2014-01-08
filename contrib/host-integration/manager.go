@@ -56,7 +56,7 @@ func main() {
 
 	// Check that the requested process manager is supported
 	if _, exists := templates[*kind]; !exists {
-		panic("Unkown script template")
+		panic("Unknown script template")
 	}
 
 	// Load the requested template
