@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/iptables"
+	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/proxy"
 	"net"
 	"testing"
@@ -340,6 +340,7 @@ func NewStubProxy(frontendAddr, backendAddr net.Addr) (proxy.Proxy, error) {
 }
 
 func TestPortMapper(t *testing.T) {
+	// FIXME: is this iptables chain still used anywhere?
 	var chain *iptables.Chain
 	mapper := &PortMapper{
 		tcpMapping:       make(map[string]*net.TCPAddr),

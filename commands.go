@@ -1100,7 +1100,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	if err := pull(authConfig); err != nil {
 		if err.Error() == registry.ErrLoginRequired.Error() {
-			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
 			if err := cli.CmdLogin(endpoint); err != nil {
 				return err
 			}
@@ -2207,7 +2207,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "SOURCE", "Load an image from a tar archive")
+	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}

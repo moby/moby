@@ -26,18 +26,13 @@ Amazon QuickStart
      <https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:>`_ menu
      on your AWS Console.
 
-   * When picking the source AMI for your instance type, select "Community
-     AMIs".
+   * Click the ``Select`` button for a 64Bit Ubuntu image. For example: Ubuntu Server 12.04.3 LTS
 
-   * Search for ``amd64 precise``. Pick one of the amd64 Ubuntu images.
-
-   * If you choose a EBS enabled AMI, you'll also be able to launch a
+   * For testing you can use the default (possibly free)
      ``t1.micro`` instance (more info on `pricing
-     <http://aws.amazon.com/en/ec2/pricing/>`_).  ``t1.micro`` instances are
-     eligible for Amazon's Free Usage Tier.
+     <http://aws.amazon.com/en/ec2/pricing/>`_).
 
-   * When you click select you'll be taken to the instance setup, and you're one
-     click away from having your Ubuntu VM up and running.
+   * Click the ``Next: Configure Instance Details`` button at the bottom right.
 
 2. **Tell CloudInit to install Docker:**
 

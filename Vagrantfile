@@ -70,7 +70,7 @@ SCRIPT
 # trigger dkms to build the virtualbox guest module install.
 $vbox_script = <<VBOX_SCRIPT + $script
 # Install the VirtualBox guest additions if they aren't already installed.
-if [ ! -d /opt/VBoxGuestAdditions-4.3.4/ ]; then
+if [ ! -d /opt/VBoxGuestAdditions-4.3.6/ ]; then
     # Update remote package metadata.  'apt-get update' is idempotent.
     apt-get update -q
 
@@ -79,10 +79,10 @@ if [ ! -d /opt/VBoxGuestAdditions-4.3.4/ ]; then
     apt-get install -q -y linux-headers-generic-lts-raring dkms
 
     echo 'Downloading VBox Guest Additions...'
-    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.4/VBoxGuestAdditions_4.3.4.iso
-    echo "f120793fa35050a8280eacf9c930cf8d9b88795161520f6515c0cc5edda2fe8a  VBoxGuestAdditions_4.3.4.iso" | sha256sum --check || exit 1
+    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.6/VBoxGuestAdditions_4.3.6.iso
+    echo "95648fcdb5d028e64145a2fe2f2f28c946d219da366389295a61fed296ca79f0  VBoxGuestAdditions_4.3.6.iso" | sha256sum --check || exit 1
 
-    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.4.iso /mnt
+    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.6.iso /mnt
     /mnt/VBoxLinuxAdditions.run --nox11
     umount /mnt
 fi

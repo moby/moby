@@ -57,12 +57,13 @@
     docker-playground:~$ curl get.docker.io | bash
     docker-playground:~$ sudo update-rc.d docker defaults
 
-7. If running in zones: us-central1-a, europe-west1-1, and europe-west1-b, the docker daemon must be started with the `-mtu` flag. Without the flag, you may experience intermittent network pauses. 
+7. If running in zones: ``us-central1-a``, ``europe-west1-1``, and ``europe-west1-b``, the docker daemon must be started with the ``-mtu`` flag. Without the flag, you may experience intermittent network pauses. 
 `See this issue <https://code.google.com/p/google-compute-engine/issues/detail?id=57>`_ for more details.
 
 .. code-block:: bash
 
-    docker -d -mtu 1460
+    docker-playground:~$ echo "DOCKER_OPTS="$DOCKER_OPTS -mtu 1460" | sudo tee -a /etc/defaults/docker
+    docker-playground:~$ sudo service docker restart
 
 8. Start a new container:
 

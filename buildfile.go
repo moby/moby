@@ -213,16 +213,30 @@ func (b *buildFile) CmdEnv(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
-func (b *buildFile) CmdCmd(args string) error {
+func (b *buildFile) buildCmdFromJson(args string) []string {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, setting cmd to /bin/sh -c", err)
+		utils.Debugf("Error unmarshalling: %s, setting to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
-	if err := b.commit("", cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+	return cmd
+}
+
+func (b *buildFile) CmdCmd(args string) error {
+	cmd := b.buildCmdFromJson(args)
+	b.config.Cmd = cmd
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
+	return nil
+}
+
+func (b *buildFile) CmdEntrypoint(args string) error {
+	entrypoint := b.buildCmdFromJson(args)
+	b.config.Entrypoint = entrypoint
+	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -243,23 +257,6 @@ func (b *buildFile) CmdInsert(args string) error {
 
 func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
-}
-
-func (b *buildFile) CmdEntrypoint(args string) error {
-	if args == "" {
-		return fmt.Errorf("Entrypoint cannot be empty")
-	}
-
-	var entrypoint []string
-	if err := json.Unmarshal([]byte(args), &entrypoint); err != nil {
-		b.config.Entrypoint = []string{"/bin/sh", "-c", args}
-	} else {
-		b.config.Entrypoint = entrypoint
-	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %s", args)); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
@@ -410,6 +407,15 @@ func (b *buildFile) CmdAdd(args string) error {
 			hash string
 			sums = b.context.GetSums()
 		)
+
+		// Has tarsum strips the '.' and './', we put it back for comparaison.
+		for file, sum := range sums {
+			if len(file) == 0 || file[0] != '.' && file[0] != '/' {
+				delete(sums, file)
+				sums["./"+file] = sum
+			}
+		}
+
 		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
 		} else if fi.IsDir() {
@@ -431,7 +437,8 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		if hit {
+		// If we do not have a hash, never use the cache
+		if hit && hash != "" {
 			return nil
 		}
 	}
@@ -653,7 +660,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		return b.image, nil
 	}
-	return "", fmt.Errorf("An error occurred during the build\n")
+	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
