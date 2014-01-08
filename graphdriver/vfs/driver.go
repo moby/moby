@@ -36,9 +36,8 @@ func (d *Driver) Cleanup() error {
 }
 
 func copyDir(src, dst string) error {
-	cmd := exec.Command("cp", "-aT", "--reflink=auto", src, dst)
-	if err := cmd.Run(); err != nil {
-		return err
+	if output, err := exec.Command("cp", "-aT", "--reflink=auto", src, dst).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
 	}
 	return nil
 }
