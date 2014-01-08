@@ -199,9 +199,9 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 		return err
 	}
 	uidmapshift := exec.Command("uidmapshift", "-b", rootfs, "0", "100000", "100000")
-    if err := uidmapshift.Run(); err != nil {
-        return err
-    }
+	if err := uidmapshift.Run(); err != nil {
+		return err
+	}
 	// Commit
 	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
 		return err

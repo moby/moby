@@ -10,6 +10,7 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/aufslimit"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/iptables"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -23,7 +24,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"github.com/dotcloud/docker/iptables"
 )
 
 // Set the max depth to the aufs default that most
@@ -242,7 +242,7 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 	bindings := container.hostConfig.PortBindings
 	if bindings != nil {
-		for port, binding := range bindings { 
+		for port, binding := range bindings {
 			for i := 0; i < len(binding); i++ {
 				b := binding[i]
 				if iptables.ExistsNetworkMetricRule(port.Proto(), b.HostPort) {

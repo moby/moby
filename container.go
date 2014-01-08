@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/iptables"
 	"github.com/dotcloud/docker/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -23,7 +24,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"github.com/dotcloud/docker/iptables"
 )
 
 var (
@@ -102,7 +102,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
-	DiskQuota		int64 // Disk quota (in MB)
+	DiskQuota       int64 // Disk quota (in MB)
 }
 
 type HostConfig struct {
@@ -1142,7 +1142,7 @@ func (container *Container) allocateNetwork() error {
 			}
 			utils.Debugf("Allocate port: %s:%s->%s", nat.Binding.HostIp, port, nat.Binding.HostPort)
 			binding[i] = nat.Binding
-			
+
 			if !iptables.ExistsNetworkMetricRule(port.Proto(), nat.Binding.HostPort) {
 				iptables.CreateNetworkMetricRules(port.Proto(), nat.Binding.HostPort)
 			}
