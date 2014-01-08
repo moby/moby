@@ -11,6 +11,7 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
