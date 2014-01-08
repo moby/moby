@@ -769,33 +769,11 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	logs, err := getBoolParam(r.Form.Get("logs"))
-	if err != nil {
-		return err
-	}
-	stream, err := getBoolParam(r.Form.Get("stream"))
-	if err != nil {
-		return err
-	}
-	stdin, err := getBoolParam(r.Form.Get("stdin"))
-	if err != nil {
-		return err
-	}
-	stdout, err := getBoolParam(r.Form.Get("stdout"))
-	if err != nil {
-		return err
-	}
-	stderr, err := getBoolParam(r.Form.Get("stderr"))
-	if err != nil {
-		return err
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
 
-	c, err := srv.ContainerInspect(name)
+	c, err := srv.ContainerInspect(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -830,51 +808,46 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		errStream = outStream
 	}
 
-	if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, inStream, outStream, errStream); err != nil {
+	job := srv.Eng.Job("attach", vars["name"])
+	job.Setenv("logs", r.Form.Get("logs"))
+	job.Setenv("stream", r.Form.Get("stream"))
+	job.Setenv("stdin", r.Form.Get("stdin"))
+	job.Setenv("stdout", r.Form.Get("stdout"))
+	job.Setenv("stderr", r.Form.Get("stderr"))
+	job.Stdin.Add(inStream)
+	job.Stdout.Add(outStream)
+	job.Stderr.Add(errStream)
+	if err := job.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error: %s\n", err)
+
 	}
 	return nil
 }
 
 func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	logs, err := getBoolParam(r.Form.Get("logs"))
-	if err != nil {
-		return err
-	}
-	stream, err := getBoolParam(r.Form.Get("stream"))
-	if err != nil {
-		return err
-	}
-	stdin, err := getBoolParam(r.Form.Get("stdin"))
-	if err != nil {
-		return err
-	}
-	stdout, err := getBoolParam(r.Form.Get("stdout"))
-	if err != nil {
-		return err
-	}
-	stderr, err := getBoolParam(r.Form.Get("stderr"))
-	if err != nil {
-		return err
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
 
-	if _, err := srv.ContainerInspect(name); err != nil {
+	if _, err := srv.ContainerInspect(vars["name"]); err != nil {
 		return err
 	}
 
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
-
-		if err := srv.ContainerAttach(name, logs, stream, stdin, stdout, stderr, ws, ws, ws); err != nil {
+		job := srv.Eng.Job("attach", vars["name"])
+		job.Setenv("logs", r.Form.Get("logs"))
+		job.Setenv("stream", r.Form.Get("stream"))
+		job.Setenv("stdin", r.Form.Get("stdin"))
+		job.Setenv("stdout", r.Form.Get("stdout"))
+		job.Setenv("stderr", r.Form.Get("stderr"))
+		job.Stdin.Add(ws)
+		job.Stdout.Add(ws)
+		job.Stderr.Add(ws)
+		if err := job.Run(); err != nil {
 			utils.Errorf("Error: %s", err)
 		}
 	})

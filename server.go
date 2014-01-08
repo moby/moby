@@ -147,6 +147,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("attach", srv.ContainerAttach); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -1980,10 +1984,25 @@ func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 	return engine.StatusErr
 }
 
-func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, stderr bool, inStream io.ReadCloser, outStream, errStream io.Writer) error {
+func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return engine.StatusErr
+	}
+
+	var (
+		name   = job.Args[0]
+		logs   = job.GetenvBool("logs")
+		stream = job.GetenvBool("stream")
+		stdin  = job.GetenvBool("stdin")
+		stdout = job.GetenvBool("stdout")
+		stderr = job.GetenvBool("stderr")
+	)
+
 	container := srv.runtime.Get(name)
 	if container == nil {
-		return fmt.Errorf("No such container: %s", name)
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
 	}
 
 	//logs
@@ -1991,12 +2010,12 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 		cLog, err := container.ReadLog("json")
 		if err != nil && os.IsNotExist(err) {
 			// Legacy logs
-			utils.Errorf("Old logs format")
+			utils.Debugf("Old logs format")
 			if stdout {
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
 					utils.Errorf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(outStream, cLog); err != nil {
+				} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
 					utils.Errorf("Error streaming logs (stdout): %s", err)
 				}
 			}
@@ -2004,7 +2023,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
 					utils.Errorf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(errStream, cLog); err != nil {
+				} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
 					utils.Errorf("Error streaming logs (stderr): %s", err)
 				}
 			}
@@ -2022,10 +2041,10 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 					break
 				}
 				if l.Stream == "stdout" && stdout {
-					fmt.Fprintf(outStream, "%s", l.Log)
+					fmt.Fprintf(job.Stdout, "%s", l.Log)
 				}
 				if l.Stream == "stderr" && stderr {
-					fmt.Fprintf(errStream, "%s", l.Log)
+					fmt.Fprintf(job.Stderr, "%s", l.Log)
 				}
 			}
 		}
@@ -2034,7 +2053,8 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 	//stream
 	if stream {
 		if container.State.IsGhost() {
-			return fmt.Errorf("Impossible to attach to a ghost container")
+			job.Errorf("Impossible to attach to a ghost container")
+			return engine.StatusErr
 		}
 
 		var (
@@ -2048,16 +2068,16 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			go func() {
 				defer w.Close()
 				defer utils.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, inStream)
+				io.Copy(w, job.Stdin)
 			}()
 			cStdin = r
-			cStdinCloser = inStream
+			cStdinCloser = job.Stdin
 		}
 		if stdout {
-			cStdout = outStream
+			cStdout = job.Stdout
 		}
 		if stderr {
-			cStderr = errStream
+			cStderr = job.Stderr
 		}
 
 		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
@@ -2068,7 +2088,7 @@ func (srv *Server) ContainerAttach(name string, logs, stream, stdin, stdout, std
 			container.Wait()
 		}
 	}
-	return nil
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerInspect(name string) (*Container, error) {
