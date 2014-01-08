@@ -407,6 +407,15 @@ func (b *buildFile) CmdAdd(args string) error {
 			hash string
 			sums = b.context.GetSums()
 		)
+
+		// Has tarsum strips the '.' and './', we put it back for comparaison.
+		for file, sum := range sums {
+			if len(file) == 0 || file[0] != '.' && file[0] != '/' {
+				delete(sums, file)
+				sums["./"+file] = sum
+			}
+		}
+
 		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
 		} else if fi.IsDir() {
@@ -428,7 +437,8 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		if hit {
+		// If we do not have a hash, never use the cache
+		if hit && hash != "" {
 			return nil
 		}
 	}
