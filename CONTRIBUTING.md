@@ -126,7 +126,6 @@ c. The contribution was provided directly to me by some other person who represe
 
 d. I understand and agree that this Project and the contribution are publicly known and that a record of the contribution (including all personal information I submit with it, including my sign-off record) is maintained indefinitely and may be redistributed consistent with this Project or the open source license(s) involved.
 
-e. I hereby grant to the Project, Docker, Inc and its successors;  and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, modify, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute this contribution and such modifications and derivative works consistent with this Project, the open source license indicated in the previous work or other appropriate open source license specified by the Project and approved by the Open Source Initiative(OSI) at http://www.opensource.org.
 ```
 
 then you just add a line saying
