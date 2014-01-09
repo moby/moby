@@ -125,12 +125,14 @@ Check the logs make sure it is working correctly.
 
 .. code-block:: bash
 
-    sudo docker attach $CONTAINER_ID
+    sudo docker attach -sig-proxy=false $CONTAINER_ID
 
 Attach to the container to see the results in real-time.
 
 - **"docker attach**" This will allow us to attach to a background
   process to see what is going on.
+- **"-sig-proxy=false"** Do not forward signals to the container; allows
+  us to exit the attachment using Control-C without stopping the container.
 - **$CONTAINER_ID** The Id of the container we want to attach too.
 
 Exit from the container attachment by pressing Control-C.

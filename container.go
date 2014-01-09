@@ -120,7 +120,7 @@ type BindMap struct {
 }
 
 var (
-	ErrContainerStart           = errors.New("The container failed to start. Unkown error")
+	ErrContainerStart           = errors.New("The container failed to start. Unknown error")
 	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
 	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
@@ -1044,7 +1044,7 @@ ff02::2		ip6-allrouters
 
 	if container.Config.Domainname != "" {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else {
+	} else if !container.Config.NetworkDisabled {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
 

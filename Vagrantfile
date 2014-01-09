@@ -24,7 +24,7 @@ if [ -z "$user" ]; then
 fi
 
 # Adding an apt gpg key is idempotent.
-wget -q -O - https://get.docker.io/gpg | apt-key add -
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 # Creating the docker.list file is idempotent, but it may overwrite desired
 # settings if it already exists.  This could be solved with md5sum but it

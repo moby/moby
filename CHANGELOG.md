@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.7.5 (2014-01-09)
+
+#### Builder
+
+* Disable compression for build. More space usage but a much faster upload
+- Fix ADD caching for certain paths
+- Do not compress archive from git build
+
+#### Documentation
+
+- Fix error in GROUP add example
+* Make sure the GPG fingerprint is inline in the documentation
+* Give more specific advice on setting up signing of commits for DCO
+
+#### Runtime
+
+- Fix misspelled container names
+- Do not add hostname when networking is disabled
+* Return most recent image from the cache by date
+- Return all errors from docker wait
+* Add Content-Type Header "application/json" to GET /version and /info responses 
+
+#### Other
+
+* Update DCO to version 1.1
++ Update Makefile to use "docker:GIT_BRANCH" as the generated image name
+* Update Travis to check for new 1.1 DCO version
+
 ## 0.7.4 (2014-01-07)
 
 #### Builder

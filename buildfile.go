@@ -353,8 +353,9 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	// FIXME: do we really need this?
 	var (
-		origPath = orig
-		destPath = dest
+		origPath   = orig
+		destPath   = dest
+		remoteHash string
 	)
 
 	if utils.IsURL(orig) {
@@ -373,10 +374,19 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		defer os.RemoveAll(tmpDirName)
 		if _, err = io.Copy(tmpFile, resp.Body); err != nil {
+			tmpFile.Close()
 			return err
 		}
 		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 		tmpFile.Close()
+
+		// Process the checksum
+		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+		if err != nil {
+			return err
+		}
+		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
+		remoteHash = tarSum.Sum(nil)
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(dest, "/") {
@@ -408,20 +418,16 @@ func (b *buildFile) CmdAdd(args string) error {
 			sums = b.context.GetSums()
 		)
 
-		// Has tarsum strips the '.' and './', we put it back for comparaison.
-		for file, sum := range sums {
-			if len(file) == 0 || file[0] != '.' && file[0] != '/' {
-				delete(sums, file)
-				sums["./"+file] = sum
-			}
-		}
-
-		if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
+		if remoteHash != "" {
+			hash = remoteHash
+		} else if fi, err := os.Stat(path.Join(b.contextPath, origPath)); err != nil {
 			return err
 		} else if fi.IsDir() {
 			var subfiles []string
 			for file, sum := range sums {
-				if strings.HasPrefix(file, origPath) {
+				absFile := path.Join(b.contextPath, file)
+				absOrigPath := path.Join(b.contextPath, origPath)
+				if strings.HasPrefix(absFile, absOrigPath) {
 					subfiles = append(subfiles, sum)
 				}
 			}
@@ -430,7 +436,13 @@ func (b *buildFile) CmdAdd(args string) error {
 			hasher.Write([]byte(strings.Join(subfiles, ",")))
 			hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 		} else {
-			hash = "file:" + sums[origPath]
+			if origPath[0] == '/' && len(origPath) > 1 {
+				origPath = origPath[1:]
+			}
+			origPath = strings.TrimPrefix(origPath, "./")
+			if h, ok := sums[origPath]; ok {
+				hash = "file:" + h
+			}
 		}
 		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
 		hit, err := b.probeCache()
@@ -604,11 +616,12 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b.context = &utils.TarSum{Reader: context}
+	b.context = &utils.TarSum{Reader: context, DisableCompression: true}
 	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(tmpdirPath)
+
 	b.contextPath = tmpdirPath
 	filename := path.Join(tmpdirPath, "Dockerfile")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {

@@ -140,6 +140,7 @@ func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Reque
 }
 
 func getVersion(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
 	srv.Eng.ServeHTTP(w, r)
 	return nil
 }
@@ -216,6 +217,7 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
 	srv.Eng.ServeHTTP(w, r)
 	return nil
 }
@@ -927,7 +929,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
-		c, err := archive.Tar(root, archive.Bzip2)
+		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {
 			return err
 		}
