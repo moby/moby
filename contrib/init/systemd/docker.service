@@ -1,11 +1,13 @@
 [Unit]
-Description=Docker Application Container Engine 
+Description=Docker Application Container Engine
 Documentation=http://docs.docker.io
 After=network.target
 
 [Service]
-ExecStartPre=/bin/mount --make-rprivate /
+Type=simple
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.ip_forward=1 net.ipv6.conf.all.forwarding=1
 ExecStart=/usr/bin/docker -d
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
