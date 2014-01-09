@@ -929,7 +929,7 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
-		c, err := archive.Tar(root, archive.Bzip2)
+		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {
 			return err
 		}
