@@ -1044,7 +1044,7 @@ ff02::2		ip6-allrouters
 
 	if container.Config.Domainname != "" {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else {
+	} else if !container.Config.NetworkDisabled {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
 
