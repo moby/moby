@@ -17,7 +17,7 @@ commits = yaml.load(gitlog)
 if not commits:
 	exit(0) # what?  how can we have no commits?
 
-DCO = 'Docker-DCO-1.0-Signed-off-by:'
+DCO = 'Docker-DCO-1.1-Signed-off-by:'
 
 p = re.compile(r'^{0} ([^<]+) <([^<>@]+@[^<>]+)> \(github: (\S+)\)$'.format(re.escape(DCO)), re.MULTILINE|re.UNICODE)
 
