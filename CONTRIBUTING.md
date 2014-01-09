@@ -113,7 +113,7 @@ pass it on as an open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
 ```
-Docker Developer Grant and Certificate of Origin 1.0
+Docker Developer Grant and Certificate of Origin 1.1
 
 By making a contribution to the Docker Project ("Project"), I represent and warrant that:
 
@@ -129,7 +129,7 @@ d. I understand and agree that this Project and the contribution are publicly kn
 
 then you just add a line saying
 
-    Docker-DCO-1.0-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
+    Docker-DCO-1.1-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
 
 using your real name (sorry, no pseudonyms or anonymous contributions.)
 
