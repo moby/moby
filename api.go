@@ -510,24 +510,19 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if err := parseForm(r); err != nil {
 		return err
 	}
-
-	url := r.Form.Get("url")
-	path := r.Form.Get("path")
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	sf := utils.NewStreamFormatter(version > 1.0)
-	err := srv.ImageInsert(name, url, path, w, sf)
-	if err != nil {
-		if sf.Used() {
-			w.Write(sf.FormatError(err))
-			return nil
-		}
-		return err
+
+	job := srv.Eng.Job("insert", vars["name"], r.Form.Get("url"), r.Form.Get("path"))
+	job.SetenvBool("json", version > 1.0)
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
+		sf := utils.NewStreamFormatter(version > 1.0)
+		w.Write(sf.FormatError(err))
 	}
 
 	return nil

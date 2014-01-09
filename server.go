@@ -143,6 +143,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("insert", srv.ImageInsert); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -511,39 +515,58 @@ func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
 	return results.Results, nil
 }
 
-func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.StreamFormatter) error {
-	out = utils.NewWriteFlusher(out)
+func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
+	if len(job.Args) != 3 {
+		job.Errorf("Usage: %s IMAGE URL PATH\n", job.Name)
+		return engine.StatusErr
+	}
+
+	var (
+		name = job.Args[0]
+		url  = job.Args[1]
+		path = job.Args[2]
+	)
+
+	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
+
+	out := utils.NewWriteFlusher(job.Stdout)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	file, err := utils.Download(url)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	defer file.Body.Close()
 
 	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	c, _, err := srv.runtime.Create(config, "")
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, "", "Downloading"), path); err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	// FIXME: Handle custom repo, tag comment, author
 	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
-		return err
+		out.Write(sf.FormatError(err))
+		return engine.StatusOK
 	}
-	out.Write(sf.FormatStatus(img.ID, ""))
-	return nil
+	out.Write(sf.FormatStatus("", img.ID))
+	return engine.StatusOK
 }
 
 func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
