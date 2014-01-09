@@ -658,7 +658,7 @@ List Images
 	   
 	   [
 	     {
-	   	"RepoTag": [
+	   	"RepoTags": [
 	   	  "ubuntu:12.04",
 	   	  "ubuntu:precise",
 	   	  "ubuntu:latest"
@@ -669,7 +669,7 @@ List Images
 	   	"VirtualSize": 131506275
 	     },
 	     {
-	   	"RepoTag": [
+	   	"RepoTags": [
 	   	  "ubuntu:12.10",
 	   	  "ubuntu:quantal"
 	   	],
