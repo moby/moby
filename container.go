@@ -93,6 +93,7 @@ type Config struct {
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
 	Env             []string
+	Param           []string
 	Cmd             []string
 	Dns             []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
@@ -647,6 +648,10 @@ func (container *Container) Start() (err error) {
 
 	for _, elem := range container.Config.Env {
 		env = append(env, elem)
+	}
+
+	for _, param := range container.Config.Param {
+		env = append(env, param)
 	}
 
 	if err := container.generateEnvConfig(env); err != nil {
