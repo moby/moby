@@ -143,7 +143,7 @@ the following to your ``.git/hooks/prepare-commit-msg`` script (needs
    #       see https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md#sign-your-work
    #
    GH_USER=$(git config --get github.user)
-   SOB=$(git var GIT_AUTHOR_IDENT | sed -n "s/^\(.*>\).*$/Docker-DCO-1.0-Signed-off-by: \1 \(github: $GH_USER\)/p")
+   SOB=$(git var GIT_AUTHOR_IDENT | sed -n "s/^\(.*>\).*$/Docker-DCO-1.1-Signed-off-by: \1 \(github: $GH_USER\)/p")
    grep -qs "^$SOB" "$1" || echo "\n$SOB" >> "$1"
 
 ```
