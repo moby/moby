@@ -2138,7 +2138,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if _, status, err = getExitCode(cli, runResult.ID); err != nil {
 			return err
 		}
-		if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID, nil); err != nil {
+		if _, _, err := cli.call("DELETE", "/containers/"+runResult.ID+"?v=1", nil); err != nil {
 			return err
 		}
 	} else {
