@@ -113,12 +113,11 @@ pass it on as an open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
 ```
-Docker Developer Grant and Certificate of Origin 1.0
+Docker Developer Grant and Certificate of Origin 1.1
 
 By making a contribution to the Docker Project ("Project"), I represent and warrant that:
 
 a. The contribution was created in whole or in part by me and I have the right to submit the contribution on my own behalf or on behalf of a third party who has authorized me to submit this contribution to the Project; or
-
 
 b. The contribution is based upon previous work that, to the best of my knowledge, is covered under an appropriate open source license and I have the right and authorization to submit that work with modifications, whether created in whole or in part by me, under the same open source license (unless I am permitted to submit under a different license) that I have identified in the contribution; or
 
@@ -126,12 +125,11 @@ c. The contribution was provided directly to me by some other person who represe
 
 d. I understand and agree that this Project and the contribution are publicly known and that a record of the contribution (including all personal information I submit with it, including my sign-off record) is maintained indefinitely and may be redistributed consistent with this Project or the open source license(s) involved.
 
-e. I hereby grant to the Project, Docker, Inc and its successors;  and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, modify, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute this contribution and such modifications and derivative works consistent with this Project, the open source license indicated in the previous work or other appropriate open source license specified by the Project and approved by the Open Source Initiative(OSI) at http://www.opensource.org.
 ```
 
 then you just add a line to every git commit message:
 
-    Docker-DCO-1.0-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
+    Docker-DCO-1.1-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
 
 using your real name (sorry, no pseudonyms or anonymous contributions.)
 
