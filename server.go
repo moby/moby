@@ -615,8 +615,11 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 }
 
 func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
+	var (
+		imgcount int
+		v        = make(engine.Env)
+	)
 	images, _ := srv.runtime.graph.Map()
-	var imgcount int
 	if images == nil {
 		imgcount = 0
 	} else {
@@ -641,7 +644,6 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 		initPath = srv.runtime.sysInitPath
 	}
 
-	v := &engine.Env{}
 	v.SetInt("Containers", len(srv.runtime.List()))
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", srv.runtime.driver.String())
@@ -825,12 +827,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		job.Errorf("No such container: %s", name)
 		return engine.StatusErr
 	}
-	var config Config
-	if err := job.GetenvJson("config", &config); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-
+	config, _ := job.GetenvJson("config").(Config)
 	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
 	if err != nil {
 		job.Error(err)

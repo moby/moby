@@ -409,9 +409,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 	portBindings[p] = []docker.PortBinding{
 		{},
 	}
-	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {
-		t.Fatal(err)
-	}
+	jobStart.SetenvJson("PortsBindings", portBindings)
 	if err := jobStart.Run(); err != nil {
 		t.Fatal(err)
 	}
