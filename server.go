@@ -139,6 +139,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("container_copy", srv.ContainerCopy); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -2058,20 +2062,33 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) error {
+func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 {
+		job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
+		return engine.StatusErr
+	}
+
+	var (
+		name     = job.Args[0]
+		resource = job.Args[1]
+	)
+
 	if container := srv.runtime.Get(name); container != nil {
 
 		data, err := container.Copy(resource)
 		if err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 
-		if _, err := io.Copy(out, data); err != nil {
-			return err
+		if _, err := io.Copy(job.Stdout, data); err != nil {
+			job.Error(err)
+			return engine.StatusErr
 		}
-		return nil
+		return engine.StatusOK
 	}
-	return fmt.Errorf("No such container: %s", name)
+	job.Errorf("No such container: %s", name)
+	return engine.StatusErr
 
 }
 

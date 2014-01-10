@@ -1035,7 +1035,6 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
 
 	copyData := &APICopy{}
 	contentType := r.Header.Get("Content-Type")
@@ -1054,9 +1053,10 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 		copyData.Resource = copyData.Resource[1:]
 	}
 
-	if err := srv.ContainerCopy(name, copyData.Resource, w); err != nil {
+	job := srv.Eng.Job("container_copy", vars["name"], copyData.Resource)
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
-		return err
 	}
 	return nil
 }
