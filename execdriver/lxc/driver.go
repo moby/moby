@@ -81,7 +81,6 @@ func (d *driver) Start(c *execdriver.Process) error {
 	c.Args = append([]string{name}, arg...)
 
 	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	c.SysProcAttr.Setctty = true
 
 	if err := c.Start(); err != nil {
 		return err

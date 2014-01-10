@@ -329,6 +329,7 @@ func (container *Container) startPty() error {
 	// stdin
 	if container.Config.OpenStdin {
 		container.process.Stdin = ptySlave
+		container.process.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
 			utils.Debugf("startPty: begin of stdin pipe")
