@@ -188,7 +188,9 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerRestart(id, 15); err != nil {
+	job = eng.Job("restart", id)
+	job.SetenvInt("t", 15)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 

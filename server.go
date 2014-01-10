@@ -83,6 +83,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("restart", srv.ContainerRestart); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
 		job.Error(err)
 		return engine.StatusErr
@@ -1418,16 +1422,28 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ContainerRestart(name string, t int) error {
+func (srv *Server) ContainerRestart(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Args[0]
+	t := job.GetenvInt("t")
+	if t == -1 {
+		t = 10
+	}
 	if container := srv.runtime.Get(name); container != nil {
-		if err := container.Restart(t); err != nil {
-			return fmt.Errorf("Cannot restart container %s: %s", name, err)
+		if err := container.Restart(int(t)); err != nil {
+			job.Errorf("Cannot restart container %s: %s\n", name, err)
+			return engine.StatusErr
 		}
 		srv.LogEvent("restart", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	} else {
-		return fmt.Errorf("No such container: %s", name)
+		job.Errorf("No such container: %s\n", name)
+		return engine.StatusErr
 	}
-	return nil
+	return engine.StatusOK
+
 }
 
 func (srv *Server) ContainerDestroy(name string, removeVolume, removeLink bool) error {
