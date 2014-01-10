@@ -196,7 +196,7 @@ Where can I find more answers?
     * `Docker user mailinglist`_
     * `Docker developer mailinglist`_
     * `IRC, docker on freenode`_
-    * `Github`_
+    * `GitHub`_
     * `Ask questions on Stackoverflow`_
     * `Join the conversation on Twitter`_
 
