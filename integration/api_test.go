@@ -423,6 +423,33 @@ func TestGetContainersChanges(t *testing.T) {
 	if !success {
 		t.Fatalf("/etc/passwd as been removed but is not present in the diff")
 	}
+
+	// Create a container and make no changes
+	containerID = createTestContainer(eng,
+		&docker.Config{
+			Image: unitTestImageID,
+			Cmd:   []string{"[]"},
+		},
+		t,
+	)
+	containerRun(eng, containerID, t)
+
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/containers/"+containerID+"/changes", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+	if string(r.Body.Bytes()) != "[]" {
+		t.Fatalf("an empty array or slice should return [], but %s was found instead", r.Body.Bytes())
+	}
+	outs = engine.NewTable("", 0)
+	if _, err := outs.ReadListFrom(r.Body); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetContainersTop(t *testing.T) {
