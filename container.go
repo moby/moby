@@ -754,7 +754,7 @@ func (container *Container) Start() (err error) {
 	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
-
+	container.waitLock = make(chan struct{})
 	go container.monitor()
 
 	if container.Config.Tty {
@@ -1143,7 +1143,6 @@ func (container *Container) releaseNetwork() {
 
 func (container *Container) monitor() {
 	// Wait for the program to exit
-	fmt.Printf("--->Before WAIT %s\n", container.ID)
 	if container.process == nil {
 		if err := container.runtime.Wait(container, 0); err != nil {
 			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
@@ -1161,7 +1160,6 @@ func (container *Container) monitor() {
 		}
 	}
 
-	fmt.Printf("--->After WAIT %s\n", container.ID)
 	// Cleanup
 	container.cleanup()
 
@@ -1173,6 +1171,7 @@ func (container *Container) monitor() {
 	exitCode := container.process.GetExitCode()
 	container.State.SetStopped(exitCode)
 
+	close(container.waitLock)
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
 		// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -1286,8 +1285,8 @@ func (container *Container) Restart(seconds int) error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-	<-container.process.WaitLock
-	return container.process.GetExitCode()
+	<-container.waitLock
+	return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {

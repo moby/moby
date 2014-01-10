@@ -17,6 +17,7 @@ const (
 var (
 	ErrNotRunning         = errors.New("Process could not be started")
 	ErrWaitTimeoutReached = errors.New("Wait timeout reached")
+	Debug                 bool
 )
 
 func init() {
@@ -120,7 +121,12 @@ func (d *driver) Wait(id string, duration time.Duration) error {
 }
 
 func (d *driver) kill(c *execdriver.Process, sig int) error {
-	return exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).Run()
+	output, err := exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+	if err != nil {
+		fmt.Printf("--->%s\n", output)
+		return fmt.Errorf("Err: %s Output: %s", err, output)
+	}
+	return nil
 }
 
 func (d *driver) waitForStart(c *execdriver.Process) error {
