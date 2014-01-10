@@ -733,10 +733,10 @@ func (container *Container) Start() (err error) {
 	container.process = &execdriver.Process{
 		Name:       container.ID,
 		Privileged: container.hostConfig.Privileged,
-		Dir:        root,
+		Rootfs:     root,
 		InitPath:   "/.dockerinit",
 		Entrypoint: container.Path,
-		Args:       container.Args,
+		Arguments:  container.Args,
 		WorkingDir: workingDir,
 		ConfigPath: container.lxcConfigPath(),
 		Network:    en,

@@ -67,22 +67,28 @@ func (d *driver) Start(c *execdriver.Process) error {
 	}
 
 	params = append(params, "--", c.Entrypoint)
-	params = append(params, c.Args...)
+	params = append(params, c.Arguments...)
 
-	cmd := exec.Command(params[0], params[1:]...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	cmd.SysProcAttr.Setctty = true
-
-	if err := c.SetCmd(cmd); err != nil {
-		return err
+	var (
+		name = params[0]
+		arg  = params[1:]
+	)
+	aname, err := exec.LookPath(name)
+	if err != nil {
+		aname = name
 	}
+	c.Path = aname
+	c.Args = append([]string{name}, arg...)
 
-	if err := cmd.Start(); err != nil {
+	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	c.SysProcAttr.Setctty = true
+
+	if err := c.Start(); err != nil {
 		return err
 	}
 
 	// Poll for running
-	if err := d.waitForStart(cmd, c); err != nil {
+	if err := d.waitForStart(c); err != nil {
 		return err
 	}
 	return nil
@@ -113,11 +119,11 @@ func (d *driver) Wait(c *execdriver.Process, duration time.Duration) error {
 
 // If seconds < 0 then wait forever
 func (d *driver) wait(c *execdriver.Process, duration time.Duration) error {
-begin:
 	var (
 		killer bool
 		done   = d.waitCmd(c)
 	)
+begin:
 	if duration > 0 {
 		select {
 		case err := <-done:
@@ -146,23 +152,7 @@ func (d *driver) kill(c *execdriver.Process, sig int) error {
 	return exec.Command("lxc-kill", "-n", c.Name, strconv.Itoa(sig)).Run()
 }
 
-/* Generate the lxc configuration and return the path to the file
-func (d *driver) generateConfig(c *execdriver.Process) (string, error) {
-	p := path.Join(d.root, c.Name)
-	f, err := os.Create(p)
-	if err != nil {
-		return "", nil
-	}
-	defer f.Close()
-
-	if err := LxcTemplateCompiled.Execute(f, c.Context); err != nil {
-		return "", err
-	}
-	return p, nil
-}
-*/
-
-func (d *driver) waitForStart(cmd *exec.Cmd, c *execdriver.Process) error {
+func (d *driver) waitForStart(c *execdriver.Process) error {
 	// We wait for the container to be fully running.
 	// Timeout after 5 seconds. In case of broken pipe, just retry.
 	// Note: The container can run and finish correctly before
