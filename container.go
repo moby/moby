@@ -761,6 +761,8 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	container.State.SetRunning(container.process.Pid())
+
 	// Init the lock
 	container.waitLock = make(chan struct{})
 
@@ -1160,6 +1162,9 @@ func (container *Container) monitor() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
+
+	exitCode := container.process.GetExitCode()
+	container.State.SetStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)

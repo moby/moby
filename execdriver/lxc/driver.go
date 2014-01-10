@@ -38,10 +38,6 @@ func NewDriver(root string) (execdriver.Driver, error) {
 }
 
 func (d *driver) Start(c *execdriver.Process) error {
-	if c.State.IsRunning() {
-		return nil
-	}
-
 	params := []string{
 		startPath,
 		"-n", c.Name,
@@ -104,13 +100,10 @@ func (d *driver) Stop(c *execdriver.Process) error {
 			return err
 		}
 	}
-	exitCode := c.GetExitCode()
-	return c.State.SetStopped(exitCode)
+	return nil
 }
 
 func (d *driver) Kill(c *execdriver.Process, sig int) error {
-	c.State.Lock()
-	defer c.State.Unlock()
 	return d.kill(c, sig)
 }
 
@@ -146,8 +139,7 @@ begin:
 			return err
 		}
 	}
-	exitCode := c.GetExitCode()
-	return c.State.SetStopped(exitCode)
+	return nil
 }
 
 func (d *driver) kill(c *execdriver.Process, sig int) error {
@@ -177,9 +169,11 @@ func (d *driver) waitForStart(cmd *exec.Cmd, c *execdriver.Process) error {
 	// the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		// If the container dies while waiting for it, just return
-		if !c.State.IsRunning() {
-			return nil
-		}
+		/*
+			if !c.State.IsRunning() {
+				return nil
+			}
+		*/
 		output, err := exec.Command("lxc-info", "-s", "-n", c.Name).CombinedOutput()
 		if err != nil {
 			output, err = exec.Command("lxc-info", "-s", "-n", c.Name).CombinedOutput()
