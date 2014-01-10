@@ -71,13 +71,13 @@ func httpError(w http.ResponseWriter, err error) {
 	// create appropriate error types with clearly defined meaning.
 	if strings.Contains(err.Error(), "No such") {
 		statusCode = http.StatusNotFound
-	} else if strings.HasPrefix(err.Error(), "Bad parameter") {
+	} else if strings.Contains(err.Error(), "Bad parameter") {
 		statusCode = http.StatusBadRequest
-	} else if strings.HasPrefix(err.Error(), "Conflict") {
+	} else if strings.Contains(err.Error(), "Conflict") {
 		statusCode = http.StatusConflict
-	} else if strings.HasPrefix(err.Error(), "Impossible") {
+	} else if strings.Contains(err.Error(), "Impossible") {
 		statusCode = http.StatusNotAcceptable
-	} else if strings.HasPrefix(err.Error(), "Wrong login/password") {
+	} else if strings.Contains(err.Error(), "Wrong login/password") {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
@@ -617,18 +617,10 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	removeVolume, err := getBoolParam(r.Form.Get("v"))
-	if err != nil {
-		return err
-	}
-	removeLink, err := getBoolParam(r.Form.Get("link"))
-	if err != nil {
-		return err
-	}
-
-	if err := srv.ContainerDestroy(name, removeVolume, removeLink); err != nil {
+	job := srv.Eng.Job("container_delete", vars["name"])
+	job.Setenv("removeVolume", r.Form.Get("v"))
+	job.Setenv("removeLink", r.Form.Get("link"))
+	if err := job.Run(); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
