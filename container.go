@@ -337,7 +337,7 @@ func (container *Container) startPty() error {
 			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
-	if err := container.runtime.execDriver.Start(container.process); err != nil {
+	if err := container.runtime.Start(container); err != nil {
 		return err
 	}
 	ptySlave.Close()
@@ -359,7 +359,7 @@ func (container *Container) start() error {
 			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
-	return container.runtime.execDriver.Start(container.process)
+	return container.runtime.Start(container)
 }
 
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
@@ -732,7 +732,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	container.process = &execdriver.Process{
-		Name:       container.ID,
+		ID:         container.ID,
 		Privileged: container.hostConfig.Privileged,
 		Rootfs:     root,
 		InitPath:   "/.dockerinit",
@@ -744,6 +744,7 @@ func (container *Container) Start() (err error) {
 		Tty:        container.Config.Tty,
 		User:       container.Config.User,
 	}
+	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -752,6 +753,10 @@ func (container *Container) Start() (err error) {
 	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
 		return err
 	}
+
+	// Init the lock
+	container.waitLock = make(chan struct{})
+	go container.monitor()
 
 	if container.Config.Tty {
 		err = container.startPty()
@@ -763,12 +768,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	container.State.SetRunning(container.process.Pid())
-
-	// Init the lock
-	container.waitLock = make(chan struct{})
-
 	container.ToDisk()
-	go container.monitor()
 	return nil
 }
 
@@ -1143,11 +1143,10 @@ func (container *Container) releaseNetwork() {
 }
 
 func (container *Container) monitor() {
+	time.Sleep(1 * time.Second)
 	// Wait for the program to exit
-	if container.process == nil {
-		panic("Container process is nil")
-	}
-	if err := container.runtime.execDriver.Wait(container.process, time.Duration(0)); err != nil {
+	fmt.Printf("--->Before WAIT %s\n", container.ID)
+	if err := container.runtime.Wait(container, time.Duration(0)); err != nil {
 		// Since non-zero exit status and signal terminations will cause err to be non-nil,
 		// we have to actually discard it. Still, log it anyway, just in case.
 		utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
@@ -1156,6 +1155,7 @@ func (container *Container) monitor() {
 		}
 	}
 
+	fmt.Printf("--->After WAIT %s\n", container.ID)
 	// Cleanup
 	container.cleanup()
 
@@ -1221,7 +1221,7 @@ func (container *Container) kill(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
-	return container.runtime.execDriver.Kill(container.process, sig)
+	return container.runtime.Kill(container, sig)
 }
 
 func (container *Container) Kill() error {
@@ -1240,7 +1240,7 @@ func (container *Container) Kill() error {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))
-		if err := container.runtime.execDriver.Kill(container.process, 9); err != nil {
+		if err := container.runtime.Kill(container, 9); err != nil {
 			return err
 		}
 	}

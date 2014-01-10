@@ -838,6 +838,18 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	return archive.ExportChanges(cDir, changes)
 }
 
+func (runtime *Runtime) Start(c *Container) error {
+	return runtime.execDriver.Start(c.process)
+}
+
+func (runtime *Runtime) Kill(c *Container, sig int) error {
+	return runtime.execDriver.Kill(c.process, sig)
+}
+
+func (runtime *Runtime) Wait(c *Container, duration time.Duration) error {
+	return runtime.execDriver.Wait(c.process, duration)
+}
+
 // Nuke kills all containers then removes all content
 // from the content root, including images, volumes and
 // container filesystems.

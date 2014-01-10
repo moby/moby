@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -25,22 +25,20 @@ func init() {
 }
 
 type driver struct {
-	root       string // root path for the driver to use
-	containers map[string]*execdriver.Process
+	root string // root path for the driver to use
 }
 
 func NewDriver(root string) (execdriver.Driver, error) {
 	// setup unconfined symlink
 	return &driver{
-		root:       root,
-		containers: make(map[string]*execdriver.Process),
+		root: root,
 	}, nil
 }
 
 func (d *driver) Start(c *execdriver.Process) error {
 	params := []string{
 		startPath,
-		"-n", c.Name,
+		"-n", c.ID,
 		"-f", c.ConfigPath,
 		"--",
 		c.InitPath,
@@ -80,8 +78,7 @@ func (d *driver) Start(c *execdriver.Process) error {
 	c.Path = aname
 	c.Args = append([]string{name}, arg...)
 
-	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
+	fmt.Printf("-->%s\n-->%v\n", name, arg)
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -89,21 +86,6 @@ func (d *driver) Start(c *execdriver.Process) error {
 	// Poll for running
 	if err := d.waitForStart(c); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (d *driver) Stop(c *execdriver.Process) error {
-	if err := d.kill(c, 15); err != nil {
-		if err := d.kill(c, 9); err != nil {
-			return err
-		}
-	}
-
-	if err := d.wait(c, 10*time.Second); err != nil {
-		if err := d.kill(c, 9); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -148,40 +130,49 @@ begin:
 }
 
 func (d *driver) kill(c *execdriver.Process, sig int) error {
-	return exec.Command("lxc-kill", "-n", c.Name, strconv.Itoa(sig)).Run()
+	return exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).Run()
 }
 
 func (d *driver) waitForStart(c *execdriver.Process) error {
+	var (
+		err    error
+		output []byte
+	)
 	// We wait for the container to be fully running.
 	// Timeout after 5 seconds. In case of broken pipe, just retry.
 	// Note: The container can run and finish correctly before
 	// the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the container dies while waiting for it, just return
-		/*
-			if !c.State.IsRunning() {
-				return nil
-			}
-		*/
-		output, err := exec.Command("lxc-info", "-s", "-n", c.Name).CombinedOutput()
+		// If the process dies while waiting for it, just return
+		if c.ProcessState != nil && c.ProcessState.Exited() {
+			return nil
+		}
+
+		output, err = d.getInfo(c)
 		if err != nil {
-			output, err = exec.Command("lxc-info", "-s", "-n", c.Name).CombinedOutput()
+			output, err = d.getInfo(c)
 			if err != nil {
 				return err
 			}
-
 		}
 		if strings.Contains(string(output), "RUNNING") {
 			return nil
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+	fmt.Printf("-->%s\n", string(output))
+
+	os.Exit(1)
 	return ErrNotRunning
 }
 
 func (d *driver) waitCmd(c *execdriver.Process) <-chan error {
 	done := make(chan error)
 	go func() {
+		if c == nil {
+			done <- execdriver.ErrCommandIsNil
+			return
+		}
 		done <- c.Wait()
 	}()
 	return done
@@ -191,7 +182,7 @@ func (d *driver) waitLxc(c *execdriver.Process, kill *bool) <-chan error {
 	done := make(chan error)
 	go func() {
 		for *kill {
-			output, err := exec.Command("lxc-info", "-n", c.Name).CombinedOutput()
+			output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
 			if err != nil {
 				done <- err
 				return
@@ -204,4 +195,8 @@ func (d *driver) waitLxc(c *execdriver.Process, kill *bool) <-chan error {
 		}
 	}()
 	return done
+}
+
+func (d *driver) getInfo(c *execdriver.Process) ([]byte, error) {
+	return exec.Command("lxc-info", "-s", "-n", c.ID).CombinedOutput()
 }

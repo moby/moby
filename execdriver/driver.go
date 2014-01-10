@@ -13,7 +13,6 @@ var (
 
 type Driver interface {
 	Start(c *Process) error
-	Stop(c *Process) error
 	Kill(c *Process, sig int) error
 	Wait(c *Process, duration time.Duration) error
 }
@@ -26,10 +25,11 @@ type Network struct {
 	Mtu         int
 }
 
+// Process wrapps an os/exec.Cmd to add more metadata
 type Process struct {
 	exec.Cmd
 
-	Name       string // unique name for the conatienr
+	ID         string
 	Privileged bool
 	User       string
 	Rootfs     string // root fs of the container
