@@ -42,6 +42,10 @@ const (
 	StatusNotFound Status = 127
 )
 
+func (job *Job) Usage(error, description string) {
+	job.Errorf("[error:%s] Usage: %s %s", error, job.Name, description)
+}
+
 // Run executes the job and blocks until the job completes.
 // If the job returns a failure status, an error is returned
 // which includes the status.
