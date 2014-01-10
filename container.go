@@ -1142,8 +1142,8 @@ func (container *Container) allocateNetwork() error {
 			utils.Debugf("Allocate port: %s:%s->%s", nat.Binding.HostIp, port, nat.Binding.HostPort)
 			binding[i] = nat.Binding
 
-			if !iptables.ExistsNetworkMetricRule(port.Proto(), nat.Binding.HostPort) {
-				iptables.CreateNetworkMetricRules(port.Proto(), nat.Binding.HostPort)
+			if !iptables.ExistsNetworkMetricRule(port.Proto(), nat.Binding.HostPort, nat.Binding.HostIp) {
+				iptables.CreateNetworkMetricRules(port.Proto(), nat.Binding.HostPort, nat.Binding.HostIp)
 			}
 		}
 		bindings[port] = binding
