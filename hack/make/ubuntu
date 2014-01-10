@@ -123,7 +123,7 @@ EOF
 		    --config-files /etc/init/docker.conf \
 		    --config-files /etc/init.d/docker \
 		    --config-files /etc/default/docker \
-		    --deb-compression xz \
+		    --deb-compression gz \
 		    -t deb .
 		mkdir empty
 		fpm -s dir -C empty \
@@ -134,7 +134,7 @@ EOF
 		    --maintainer "$PACKAGE_MAINTAINER" \
 		    --url "$PACKAGE_URL" \
 		    --license "$PACKAGE_LICENSE" \
-		    --deb-compression xz \
+		    --deb-compression gz \
 		    -t deb .
 	)
 }
