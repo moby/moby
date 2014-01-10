@@ -1141,10 +1141,6 @@ func (container *Container) allocateNetwork() error {
 			}
 			utils.Debugf("Allocate port: %s:%s->%s", nat.Binding.HostIp, port, nat.Binding.HostPort)
 			binding[i] = nat.Binding
-
-			if !iptables.ExistsNetworkMetricRule(port.Proto(), nat.Binding.HostPort, nat.Binding.HostIp) {
-				iptables.CreateNetworkMetricRules(port.Proto(), nat.Binding.HostPort, nat.Binding.HostIp)
-			}
 		}
 		bindings[port] = binding
 	}
@@ -1152,16 +1148,25 @@ func (container *Container) allocateNetwork() error {
 
 	container.NetworkSettings.Ports = bindings
 	container.network = iface
-
 	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
 	container.NetworkSettings.IPAddress = iface.IPNet.IP.String()
+	fmt.Println("IP: %s", container.NetworkSettings.IPAddress)
 	container.NetworkSettings.IPPrefixLen, _ = iface.IPNet.Mask.Size()
 	container.NetworkSettings.Gateway = iface.Gateway.String()
+
+	if !iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
+		iptables.CreateNetworkMetricRules(container.NetworkSettings.IPAddress)
+	}
 
 	return nil
 }
 
 func (container *Container) releaseNetwork() {
+	
+	if iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
+		iptables.DeleteNetworkMetricRules(container.NetworkSettings.IPAddress)
+	}
+
 	if container.Config.NetworkDisabled || container.network == nil {
 		return
 	}

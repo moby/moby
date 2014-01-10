@@ -11,7 +11,6 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -238,18 +237,6 @@ func (runtime *Runtime) Destroy(container *Container) error {
 
 	if err := container.Stop(3); err != nil {
 		return err
-	}
-
-	bindings := container.hostConfig.PortBindings
-	if bindings != nil {
-		for port, binding := range bindings {
-			for i := 0; i < len(binding); i++ {
-				b := binding[i]
-				if iptables.ExistsNetworkMetricRule(port.Proto(), b.HostPort, b.HostIp) {
-					iptables.DeleteNetworkMetricRules(port.Proto(), b.HostPort, b.HostIp)
-				}
-			}
-		}
 	}
 
 	if err := runtime.driver.Remove(container.ID); err != nil {
