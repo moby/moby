@@ -15,6 +15,8 @@ PRIVATE_NETWORK = ENV['PRIVATE_NETWORK']
 # See http://docs.docker.io/en/latest/use/port_redirection/ for more
 # $ FORWARD_DOCKER_PORTS=1 vagrant [up|reload]
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
+VAGRANT_RAM = ENV['VAGRANT_RAM'] || 512
+VAGRANT_CORES = ENV['VAGRANT_CORES'] || 1
 
 # You may also provide a comma-separated list of ports
 # for Vagrant to forward. For example:
@@ -30,6 +32,10 @@ user="$1"
 if [ -z "$user" ]; then
     user=vagrant
 fi
+
+# Enable memory cgroup and swap accounting
+sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
+update-grub
 
 # Adding an apt gpg key is idempotent.
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
@@ -160,6 +166,8 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     override.vm.provision :shell, :inline => $vbox_script
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    vb.customize ["modifyvm", :id, "--memory", VAGRANT_RAM]
+    vb.customize ["modifyvm", :id, "--cpus", VAGRANT_CORES]
   end
 end
 
@@ -170,7 +178,7 @@ Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
 end
 
 # Setup port forwarding per loaded environment variables
-forward_ports = FORWARD_DOCKER_PORTS.nil? ? [] : [*49000..49900]
+forward_ports = FORWARD_DOCKER_PORTS.nil? ? [] : [*49153..49900]
 forward_ports += FORWARD_PORTS.split(',').map{|i| i.to_i } if FORWARD_PORTS
 if forward_ports.any?
   Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
@@ -181,7 +189,7 @@ if forward_ports.any?
 
   Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     forward_ports.each do |port|
-      config.vm.network :forwarded_port, :host => port, :guest => port
+      config.vm.network :forwarded_port, :host => port, :guest => port, auto_correct: true
     end
   end
 end
