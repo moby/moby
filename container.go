@@ -1,11 +1,11 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/mount"
 	"github.com/dotcloud/docker/pkg/term"
@@ -16,7 +16,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -55,7 +54,7 @@ type Container struct {
 	Name           string
 	Driver         string
 
-	cmd       *exec.Cmd
+	process   *execdriver.Process
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
@@ -235,10 +234,6 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	return nil
 }
 
-func (container *Container) Cmd() *exec.Cmd {
-	return container.cmd
-}
-
 func (container *Container) When() time.Time {
 	return container.Created
 }
@@ -320,8 +315,8 @@ func (container *Container) startPty() error {
 		return err
 	}
 	container.ptyMaster = ptyMaster
-	container.cmd.Stdout = ptySlave
-	container.cmd.Stderr = ptySlave
+	container.process.Stdout = ptySlave
+	container.process.Stderr = ptySlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
@@ -333,8 +328,7 @@ func (container *Container) startPty() error {
 
 	// stdin
 	if container.Config.OpenStdin {
-		container.cmd.Stdin = ptySlave
-		container.cmd.SysProcAttr.Setctty = true
+		container.process.Stdin = ptySlave
 		go func() {
 			defer container.stdin.Close()
 			utils.Debugf("startPty: begin of stdin pipe")
@@ -342,7 +336,7 @@ func (container *Container) startPty() error {
 			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
-	if err := container.cmd.Start(); err != nil {
+	if err := container.runtime.execDriver.Start(container.process); err != nil {
 		return err
 	}
 	ptySlave.Close()
@@ -350,10 +344,10 @@ func (container *Container) startPty() error {
 }
 
 func (container *Container) start() error {
-	container.cmd.Stdout = container.stdout
-	container.cmd.Stderr = container.stderr
+	container.process.Stdout = container.stdout
+	container.process.Stderr = container.stderr
 	if container.Config.OpenStdin {
-		stdin, err := container.cmd.StdinPipe()
+		stdin, err := container.process.StdinPipe()
 		if err != nil {
 			return err
 		}
@@ -364,7 +358,7 @@ func (container *Container) start() error {
 			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
-	return container.cmd.Start()
+	return container.runtime.execDriver.Start(container.process)
 }
 
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
@@ -653,8 +647,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	var workingDir string
 	if container.Config.WorkingDir != "" {
-		workingDir := path.Clean(container.Config.WorkingDir)
+		workingDir = path.Clean(container.Config.WorkingDir)
 		utils.Debugf("[working dir] working dir is %s", workingDir)
 
 		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
@@ -713,7 +708,6 @@ func (container *Container) Start() (err error) {
 	}
 
 	// Mount user specified volumes
-
 	for r, v := range container.Volumes {
 		mountAs := "ro"
 		if container.VolumesRW[r] {
@@ -725,7 +719,30 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	container.cmd = exec.Command(params[0], params[1:]...)
+	var en *execdriver.Network
+	if !container.runtime.networkManager.disabled {
+		network := container.NetworkSettings
+		en = &execdriver.Network{
+			Gateway:     network.Gateway,
+			IPAddress:   network.IPAddress,
+			IPPrefixLen: network.IPPrefixLen,
+			Mtu:         container.runtime.config.Mtu,
+		}
+	}
+
+	container.process = &execdriver.Process{
+		Name:       container.ID,
+		Privileged: container.hostConfig.Privileged,
+		Dir:        root,
+		InitPath:   "/.dockerinit",
+		Entrypoint: container.Path,
+		Args:       container.Args,
+		WorkingDir: workingDir,
+		ConfigPath: container.lxcConfigPath(),
+		Network:    en,
+		Tty:        container.Config.Tty,
+		User:       container.Config.User,
+	}
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -735,8 +752,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	container.cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
 	if container.Config.Tty {
 		err = container.startPty()
 	} else {
@@ -745,48 +760,13 @@ func (container *Container) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	// FIXME: save state on disk *first*, then converge
-	// this way disk state is used as a journal, eg. we can restore after crash etc.
-	container.State.SetRunning(container.cmd.Process.Pid)
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
 
 	container.ToDisk()
 	go container.monitor()
-
-	defer utils.Debugf("Container running: %v", container.State.IsRunning())
-	// We wait for the container to be fully running.
-	// Timeout after 5 seconds. In case of broken pipe, just retry.
-	// Note: The container can run and finish correctly before
-	//       the end of this loop
-	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the container dies while waiting for it, just return
-		if !container.State.IsRunning() {
-			return nil
-		}
-		output, err := exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			utils.Debugf("Error with lxc-info: %s (%s)", err, output)
-
-			output, err = exec.Command("lxc-info", "-s", "-n", container.ID).CombinedOutput()
-			if err != nil {
-				utils.Debugf("Second Error with lxc-info: %s (%s)", err, output)
-				return err
-			}
-
-		}
-		if strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		utils.Debugf("Waiting for the container to start (running: %v): %s", container.State.IsRunning(), bytes.TrimSpace(output))
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	if container.State.IsRunning() {
-		return ErrContainerStartTimeout
-	}
-	return ErrContainerStart
+	return nil
 }
 
 func (container *Container) getBindMap() (map[string]BindMap, error) {
@@ -1159,47 +1139,18 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-// FIXME: replace this with a control socket within dockerinit
-func (container *Container) waitLxc() error {
-	for {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
 func (container *Container) monitor() {
 	// Wait for the program to exit
-
-	// If the command does not exist, try to wait via lxc
-	// (This probably happens only for ghost containers, i.e. containers that were running when Docker started)
-	if container.cmd == nil {
-		utils.Debugf("monitor: waiting for container %s using waitLxc", container.ID)
-		if err := container.waitLxc(); err != nil {
-			utils.Errorf("monitor: while waiting for container %s, waitLxc had a problem: %s", container.ID, err)
-		}
-	} else {
-		utils.Debugf("monitor: waiting for container %s using cmd.Wait", container.ID)
-		if err := container.cmd.Wait(); err != nil {
-			// Since non-zero exit status and signal terminations will cause err to be non-nil,
-			// we have to actually discard it. Still, log it anyway, just in case.
-			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
-		}
+	if container.process == nil {
+		panic("Container process is nil")
 	}
-	utils.Debugf("monitor: container %s finished", container.ID)
-
-	exitCode := -1
-	if container.cmd != nil {
-		exitCode = container.cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
+	if err := container.runtime.execDriver.Wait(container.process, time.Duration(0)); err != nil {
+		// Since non-zero exit status and signal terminations will cause err to be non-nil,
+		// we have to actually discard it. Still, log it anyway, just in case.
+		utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
+		if container.runtime != nil && container.runtime.srv != nil {
+			container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
+		}
 	}
 
 	// Cleanup
@@ -1209,9 +1160,6 @@ func (container *Container) monitor() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
-	// Report status back
-	container.State.SetStopped(exitCode)
 
 	// Release the lock
 	close(container.waitLock)
@@ -1267,13 +1215,7 @@ func (container *Container) kill(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
-
-	if output, err := exec.Command("lxc-kill", "-n", container.ID, strconv.Itoa(sig)).CombinedOutput(); err != nil {
-		log.Printf("error killing container %s (%s, %s)", utils.TruncateID(container.ID), output, err)
-		return err
-	}
-
-	return nil
+	return container.runtime.execDriver.Kill(container.process, sig)
 }
 
 func (container *Container) Kill() error {
@@ -1288,11 +1230,11 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		if container.cmd == nil {
+		if container.process == nil {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))
-		if err := container.cmd.Process.Kill(); err != nil {
+		if err := container.runtime.execDriver.Kill(container.process, 9); err != nil {
 			return err
 		}
 	}

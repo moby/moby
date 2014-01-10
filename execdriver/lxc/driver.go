@@ -42,13 +42,6 @@ func (d *driver) Start(c *execdriver.Process) error {
 		return nil
 	}
 
-	/*
-		configPath, err := d.generateConfig(c)
-		if err != nil {
-			return err
-		}
-	*/
-
 	params := []string{
 		startPath,
 		"-n", c.Name,
@@ -82,6 +75,7 @@ func (d *driver) Start(c *execdriver.Process) error {
 
 	cmd := exec.Command(params[0], params[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.SysProcAttr.Setctty = true
 
 	if err := c.SetCmd(cmd); err != nil {
 		return err
@@ -111,10 +105,7 @@ func (d *driver) Stop(c *execdriver.Process) error {
 		}
 	}
 	exitCode := c.GetExitCode()
-	if err := c.State.SetStopped(exitCode); err != nil {
-		return err
-	}
-	return nil
+	return c.State.SetStopped(exitCode)
 }
 
 func (d *driver) Kill(c *execdriver.Process, sig int) error {
@@ -155,7 +146,8 @@ begin:
 			return err
 		}
 	}
-	return nil
+	exitCode := c.GetExitCode()
+	return c.State.SetStopped(exitCode)
 }
 
 func (d *driver) kill(c *execdriver.Process, sig int) error {

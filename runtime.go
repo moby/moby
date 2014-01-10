@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
@@ -56,6 +58,7 @@ type Runtime struct {
 	config         *DaemonConfig
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
+	execDriver     execdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -735,6 +738,11 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		sysInitPath = localCopy
 	}
 
+	ed, err := lxc.NewDriver("")
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -748,6 +756,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		containerGraph: graph,
 		driver:         driver,
 		sysInitPath:    sysInitPath,
+		execDriver:     ed,
 	}
 
 	if err := runtime.restore(); err != nil {

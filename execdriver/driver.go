@@ -3,7 +3,6 @@ package execdriver
 import (
 	"errors"
 	"io"
-	"net"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -24,7 +23,7 @@ type Driver interface {
 // Network settings of the container
 type Network struct {
 	Gateway     string
-	IPAddress   net.IPAddr
+	IPAddress   string
 	IPPrefixLen int
 	Mtu         int
 }
@@ -67,20 +66,21 @@ func (s *State) SetStopped(exitCode int) error {
 type Process struct {
 	State State
 
-	Name        string // unique name for the conatienr
-	Privileged  bool
-	User        string
-	Dir         string // root fs of the container
-	InitPath    string // dockerinit
-	Entrypoint  string
-	Args        []string
-	Environment map[string]string
-	WorkingDir  string
-	ConfigPath  string
-	Network     *Network // if network is nil then networking is disabled
-	Stdin       io.Reader
-	Stdout      io.Writer
-	Stderr      io.Writer
+	Name       string // unique name for the conatienr
+	Privileged bool
+	User       string
+	Dir        string // root fs of the container
+	InitPath   string // dockerinit
+	Entrypoint string
+	Args       []string
+	//	Environment map[string]string // we don't use this right now because we use an env file
+	WorkingDir string
+	ConfigPath string
+	Tty        bool
+	Network    *Network // if network is nil then networking is disabled
+	Stdin      io.Reader
+	Stdout     io.Writer
+	Stderr     io.Writer
 
 	cmd *exec.Cmd
 }
