@@ -1008,6 +1008,92 @@ func TestTty(t *testing.T) {
 	}
 }
 
+func TestParam(t *testing.T) {
+
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "grep hello"}, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container1, _, err := runtime.Create(config, "")
+
+	img, err := runtime.Commit(container1, "", "", "unit test commited image", "", &docker.Config{
+		Param: []string{"WHATEVER=test", "WHAT=test"},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer runtime.Destroy(container1)
+
+	// creates the container then compares the env values.
+
+	container2, _, err := runtime.Create(
+		&docker.Config{
+			Image: img.ID,
+			Cmd:   []string{"/bin/sh", "-c", "env"},
+			Param: []string{"WHATEVER=test", "WHAT=ever"},
+		},
+		"",
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer runtime.Destroy(container2)
+
+	stdout, err := container2.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer stdout.Close()
+
+	if err := container2.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	container2.Wait()
+	output, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actualEnv := strings.Split(string(output), "\n")
+
+	if actualEnv[len(actualEnv)-1] == "" {
+		actualEnv = actualEnv[:len(actualEnv)-1]
+	}
+
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/",
+		"PWD=/",
+		"container=lxc",
+		"HOSTNAME=" + utils.TruncateID(container2.ID),
+		"WHATEVER=test",
+		"WHAT=ever",
+	}
+
+	sort.Strings(goodEnv)
+
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+}
+
 func TestEnv(t *testing.T) {
 	os.Setenv("TRUE", "false")
 	os.Setenv("TRICKY", "tri\ncky\n")

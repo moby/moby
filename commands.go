@@ -2,7 +2,6 @@ package docker
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -275,16 +274,6 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		} else {
 			fmt.Fprintf(cli.out, "%s (%s): ", prompt, configDefault)
 		}
-	}
-
-	readInput := func(in io.Reader, out io.Writer) string {
-		reader := bufio.NewReader(in)
-		line, _, err := reader.ReadLine()
-		if err != nil {
-			fmt.Fprintln(out, err.Error())
-			os.Exit(1)
-		}
-		return string(line)
 	}
 
 	cli.LoadConfigFile()
@@ -1736,6 +1725,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flVolumes = NewListOpts(ValidatePath)
 		flLinks   = NewListOpts(ValidateLink)
 		flEnv     = NewListOpts(ValidateEnv)
+		flParam   = NewListOpts(ValidateEnv)
 
 		flPublish     ListOpts
 		flExpose      ListOpts
@@ -1767,6 +1757,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 	cmd.Var(&flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, "link", "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, "e", "Set environment variables")
+	cmd.Var(&flParam, "param", "Set required parameters")
 
 	cmd.Var(&flPublish, "p", fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", PortSpecTemplateFormat))
 	cmd.Var(&flExpose, "expose", "Expose a port from the container without publishing it to your host")
@@ -1892,6 +1883,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
 		Env:             flEnv.GetAll(),
+		Param:           flParam.GetAll(),
 		Cmd:             runCmd,
 		Dns:             flDns.GetAll(),
 		Image:           image,
@@ -1945,6 +1937,39 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// Disable sigProxy in case on TTY
 	if config.Tty {
 		sigProxy = false
+	}
+
+	// below is to implement the stdin query of required config variables.
+	// if they are not set in the container config, prompt the user for them.
+	img, _, err := cli.call("GET", "/images/"+config.Image+"/json", nil)
+	if err != nil {
+		return err
+	}
+
+	nConfig := Config{}
+
+	imgValues := Image{
+		Config: &nConfig,
+	}
+
+	if err := json.Unmarshal(img, &imgValues); err != nil {
+		return err
+	}
+
+	if imgValues.Config.Param != nil {
+		imgParam := decodeParams(imgValues.Config.Param)
+		confParam := decodeParams(mergeEnvValues(config.Env, config.Param))
+		for k, kv := range imgParam {
+			if _, ok := confParam[k]; !ok {
+				fmt.Fprintf(cli.out, "%s (enter for default: %s): ", k, kv)
+				setParam := readInput(cli.in, cli.out)
+				if setParam == "" {
+					setParam = kv
+				}
+				confParam[k] = setParam
+			}
+		}
+		config.Param = encodeParams(confParam)
 	}
 
 	var containerIDFile io.WriteCloser
