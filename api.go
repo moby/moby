@@ -536,11 +536,17 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 }
 
 func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	name := vars["name"]
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
-	return srv.ImageExport(name, w)
+	job := srv.Eng.Job("image_export", vars["name"])
+	if err := job.Stdout.Add(w); err != nil {
+		return err
+	}
+	return job.Run()
 }
 
 func postImagesLoad(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
