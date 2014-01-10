@@ -563,7 +563,7 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
 	if err != nil {
 		out.Write(sf.FormatError(err))
-		return engine.StatusOK
+		return engine.StatusErr
 	}
 	out.Write(sf.FormatStatus("", img.ID))
 	return engine.StatusOK

@@ -521,6 +521,9 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 	job.SetenvBool("json", version > 1.0)
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
+		if !job.Stdout.Used() {
+			return err
+		}
 		sf := utils.NewStreamFormatter(version > 1.0)
 		w.Write(sf.FormatError(err))
 	}
