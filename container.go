@@ -743,6 +743,7 @@ func (container *Container) Start() (err error) {
 		Network:    en,
 		Tty:        container.Config.Tty,
 		User:       container.Config.User,
+		WaitLock:   make(chan struct{}),
 	}
 	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
@@ -754,8 +755,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	// Init the lock
-	container.waitLock = make(chan struct{})
 	go container.monitor()
 
 	if container.Config.Tty {
@@ -1143,10 +1142,17 @@ func (container *Container) releaseNetwork() {
 }
 
 func (container *Container) monitor() {
-	time.Sleep(1 * time.Second)
 	// Wait for the program to exit
 	fmt.Printf("--->Before WAIT %s\n", container.ID)
-	if err := container.runtime.Wait(container, time.Duration(0)); err != nil {
+	if container.process == nil {
+		if err := container.runtime.Wait(container, 0); err != nil {
+			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
+		}
+	} else {
+		<-container.process.WaitLock
+	}
+
+	if err := container.process.WaitError; err != nil {
 		// Since non-zero exit status and signal terminations will cause err to be non-nil,
 		// we have to actually discard it. Still, log it anyway, just in case.
 		utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
@@ -1166,9 +1172,6 @@ func (container *Container) monitor() {
 
 	exitCode := container.process.GetExitCode()
 	container.State.SetStopped(exitCode)
-
-	// Release the lock
-	close(container.waitLock)
 
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
@@ -1283,8 +1286,8 @@ func (container *Container) Restart(seconds int) error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-	<-container.waitLock
-	return container.State.GetExitCode()
+	<-container.process.WaitLock
+	return container.process.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {

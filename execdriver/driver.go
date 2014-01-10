@@ -1,20 +1,15 @@
 package execdriver
 
 import (
-	"errors"
 	"os/exec"
 	"syscall"
 	"time"
 )
 
-var (
-	ErrCommandIsNil = errors.New("Process's cmd is nil")
-)
-
 type Driver interface {
 	Start(c *Process) error
 	Kill(c *Process, sig int) error
-	Wait(c *Process, duration time.Duration) error
+	Wait(id string, duration time.Duration) error // Wait on an out of process option - lxc ghosts
 }
 
 // Network settings of the container
@@ -40,6 +35,8 @@ type Process struct {
 	ConfigPath string
 	Tty        bool
 	Network    *Network // if network is nil then networking is disabled
+	WaitLock   chan struct{}
+	WaitError  error
 }
 
 func (c *Process) Pid() int {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -78,10 +77,16 @@ func (d *driver) Start(c *execdriver.Process) error {
 	c.Path = aname
 	c.Args = append([]string{name}, arg...)
 
-	fmt.Printf("-->%s\n-->%v\n", name, arg)
 	if err := c.Start(); err != nil {
 		return err
 	}
+
+	go func() {
+		if err := c.Wait(); err != nil {
+			c.WaitError = err
+		}
+		close(c.WaitLock)
+	}()
 
 	// Poll for running
 	if err := d.waitForStart(c); err != nil {
@@ -94,37 +99,22 @@ func (d *driver) Kill(c *execdriver.Process, sig int) error {
 	return d.kill(c, sig)
 }
 
-func (d *driver) Wait(c *execdriver.Process, duration time.Duration) error {
-	return d.wait(c, duration)
-}
-
-// If seconds < 0 then wait forever
-func (d *driver) wait(c *execdriver.Process, duration time.Duration) error {
+func (d *driver) Wait(id string, duration time.Duration) error {
 	var (
 		killer bool
-		done   = d.waitCmd(c)
+		done   = d.waitLxc(id, &killer)
 	)
-begin:
+
 	if duration > 0 {
 		select {
 		case err := <-done:
-			if err != nil && err == execdriver.ErrCommandIsNil {
-				done = d.waitLxc(c, &killer)
-				goto begin
-			}
 			return err
 		case <-time.After(duration):
 			killer = true
 			return ErrWaitTimeoutReached
 		}
 	} else {
-		if err := <-done; err != nil {
-			if err == execdriver.ErrCommandIsNil {
-				done = d.waitLxc(c, &killer)
-				goto begin
-			}
-			return err
-		}
+		return <-done
 	}
 	return nil
 }
@@ -160,29 +150,14 @@ func (d *driver) waitForStart(c *execdriver.Process) error {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	fmt.Printf("-->%s\n", string(output))
-
-	os.Exit(1)
 	return ErrNotRunning
 }
 
-func (d *driver) waitCmd(c *execdriver.Process) <-chan error {
-	done := make(chan error)
-	go func() {
-		if c == nil {
-			done <- execdriver.ErrCommandIsNil
-			return
-		}
-		done <- c.Wait()
-	}()
-	return done
-}
-
-func (d *driver) waitLxc(c *execdriver.Process, kill *bool) <-chan error {
+func (d *driver) waitLxc(id string, kill *bool) <-chan error {
 	done := make(chan error)
 	go func() {
 		for *kill {
-			output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
+			output, err := exec.Command("lxc-info", "-n", id).CombinedOutput()
 			if err != nil {
 				done <- err
 				return

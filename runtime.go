@@ -847,7 +847,7 @@ func (runtime *Runtime) Kill(c *Container, sig int) error {
 }
 
 func (runtime *Runtime) Wait(c *Container, duration time.Duration) error {
-	return runtime.execDriver.Wait(c.process, duration)
+	return runtime.execDriver.Wait(c.ID, duration)
 }
 
 // Nuke kills all containers then removes all content
