@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
@@ -735,7 +736,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	}
 
 	capabilities := NewRuntimeCapabilities(false)
-	ed, err := lxc.NewDriver(config.Root, capabilities.AppArmor)
+	var ed execdriver.Driver
+	if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
+		ed, err = lxc.NewDriver(config.Root, capabilities.AppArmor)
+	} else {
+		ed, err = chroot.NewDriver()
+	}
 	if err != nil {
 		return nil, err
 	}

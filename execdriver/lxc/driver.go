@@ -88,7 +88,6 @@ func (d *driver) Start(c *execdriver.Process) error {
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
-
 	}
 
 	params = append(params, "--", c.Entrypoint)

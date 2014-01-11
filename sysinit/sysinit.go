@@ -182,24 +182,25 @@ func getEnv(args *DockerInitArgs, key string) string {
 func executeProgram(args *DockerInitArgs) error {
 	setupEnv(args)
 
-	if err := setupHostname(args); err != nil {
-		return err
-	}
+	if false {
+		if err := setupHostname(args); err != nil {
+			return err
+		}
 
-	if err := setupNetworking(args); err != nil {
-		return err
-	}
+		if err := setupNetworking(args); err != nil {
+			return err
+		}
 
-	if err := setupCapabilities(args); err != nil {
-		return err
-	}
+		if err := setupCapabilities(args); err != nil {
+			return err
+		}
+		if err := setupWorkingDirectory(args); err != nil {
+			return err
+		}
 
-	if err := setupWorkingDirectory(args); err != nil {
-		return err
-	}
-
-	if err := changeUser(args); err != nil {
-		return err
+		if err := changeUser(args); err != nil {
+			return err
+		}
 	}
 
 	path, err := exec.LookPath(args.args[0])
