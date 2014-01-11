@@ -139,7 +139,7 @@ What's new
       
       [
         {
-           "RepoTag": [
+           "RepoTags": [
              "ubuntu:12.04",
              "ubuntu:precise",
              "ubuntu:latest"
@@ -150,7 +150,7 @@ What's new
            "VirtualSize": 131506275
         },
         {
-           "RepoTag": [
+           "RepoTags": [
              "ubuntu:12.10",
              "ubuntu:quantal"
            ],
