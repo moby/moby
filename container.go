@@ -760,6 +760,7 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.waitLock = make(chan struct{})
+	container.State.SetRunning(0)
 	go container.monitor()
 
 	if container.Config.Tty {
@@ -771,7 +772,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	container.State.SetRunning(container.process.Pid())
+	// TODO: @crosbymichael @creack
+	// find a way to update this
+	//	container.State.SetRunning(container.process.Pid())
 	container.ToDisk()
 	return nil
 }
@@ -1176,6 +1179,8 @@ func (container *Container) monitor() {
 	exitCode := container.process.GetExitCode()
 	container.State.SetStopped(exitCode)
 
+	close(container.waitLock)
+
 	if err := container.ToDisk(); err != nil {
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
 		// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -1185,7 +1190,6 @@ func (container *Container) monitor() {
 		// FIXME: why are we serializing running state to disk in the first place?
 		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
 	}
-	close(container.waitLock)
 }
 
 func (container *Container) cleanup() {
