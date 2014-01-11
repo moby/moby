@@ -91,9 +91,13 @@ continue installation.*
 
     There is also a simple ``curl`` script available to help with this process.
 
+    .. warning::
+    
+        Only run this when you trust your DNS and your OS's certificate chain.
+
     .. code-block:: bash
 
-        curl -s https://get.docker.io/ubuntu/ | sudo sh
+        curl -sS https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.
