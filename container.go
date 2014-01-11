@@ -17,7 +17,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -563,34 +562,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	var lxcStart string = "lxc-start"
-	if container.hostConfig.Privileged && container.runtime.capabilities.AppArmor {
-		lxcStart = path.Join(container.runtime.config.Root, "lxc-start-unconfined")
-	}
-
-	params := []string{
-		lxcStart,
-		"-n", container.ID,
-		"-f", container.lxcConfigPath(),
-		"--",
-		"/.dockerinit",
-	}
-
-	// Networking
-	if !container.Config.NetworkDisabled {
-		network := container.NetworkSettings
-		params = append(params,
-			"-g", network.Gateway,
-			"-i", fmt.Sprintf("%s/%d", network.IPAddress, network.IPPrefixLen),
-			"-mtu", strconv.Itoa(container.runtime.config.Mtu),
-		)
-	}
-
-	// User
-	if container.Config.User != "" {
-		params = append(params, "-u", container.Config.User)
-	}
-
 	// Setup environment
 	env := []string{
 		"HOME=/",
@@ -600,10 +571,6 @@ func (container *Container) Start() (err error) {
 
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
-	}
-
-	if container.hostConfig.Privileged {
-		params = append(params, "-privileged")
 	}
 
 	// Init any links between the parent and children
@@ -661,31 +628,25 @@ func (container *Container) Start() (err error) {
 		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
 			return nil
 		}
-
-		params = append(params,
-			"-w", workingDir,
-		)
 	}
 
-	// Program
-	params = append(params, "--", container.Path)
-	params = append(params, container.Args...)
+	/*
+		if RootIsShared() {
+			// lxc-start really needs / to be non-shared, or all kinds of stuff break
+			// when lxc-start unmount things and those unmounts propagate to the main
+			// mount namespace.
+			// What we really want is to clone into a new namespace and then
+			// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
+			// without exec in go we have to do this horrible shell hack...
+			shellString :=
+				"mount --make-rslave /; exec " +
+					utils.ShellQuoteArguments(params)
 
-	if RootIsShared() {
-		// lxc-start really needs / to be non-shared, or all kinds of stuff break
-		// when lxc-start unmount things and those unmounts propagate to the main
-		// mount namespace.
-		// What we really want is to clone into a new namespace and then
-		// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
-		// without exec in go we have to do this horrible shell hack...
-		shellString :=
-			"mount --make-rslave /; exec " +
-				utils.ShellQuoteArguments(params)
-
-		params = []string{
-			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+			params = []string{
+				"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+			}
 		}
-	}
+	*/
 
 	root := container.RootfsPath()
 	envPath, err := container.EnvConfigPath()

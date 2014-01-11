@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
+	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -17,21 +19,21 @@ const (
 var (
 	ErrNotRunning         = errors.New("Process could not be started")
 	ErrWaitTimeoutReached = errors.New("Wait timeout reached")
-	Debug                 bool
 )
 
-func init() {
-	// Register driver
-}
-
 type driver struct {
-	root string // root path for the driver to use
+	root     string // root path for the driver to use
+	apparmor bool
 }
 
-func NewDriver(root string) (execdriver.Driver, error) {
+func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
 	// setup unconfined symlink
+	if err := linkLxcStart(root); err != nil {
+		return nil, err
+	}
 	return &driver{
-		root: root,
+		apparmor: apparmor,
+		root:     root,
 	}, nil
 }
 
@@ -57,6 +59,10 @@ func (d *driver) Start(c *execdriver.Process) error {
 	}
 
 	if c.Privileged {
+		if d.apparmor {
+			params[0] = path.Join(d.root, "lxc-start-unconfined")
+
+		}
 		params = append(params, "-privileged")
 	}
 
@@ -118,6 +124,17 @@ func (d *driver) Wait(id string, duration time.Duration) error {
 		return <-done
 	}
 	return nil
+}
+
+func (d *driver) Version() string {
+	version := ""
+	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
+		outputStr := string(output)
+		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
+			version = strings.TrimSpace(strings.SplitN(outputStr, ":", 2)[1])
+		}
+	}
+	return version
 }
 
 func (d *driver) kill(c *execdriver.Process, sig int) error {
@@ -183,4 +200,21 @@ func (d *driver) waitLxc(id string, kill *bool) <-chan error {
 
 func (d *driver) getInfo(c *execdriver.Process) ([]byte, error) {
 	return exec.Command("lxc-info", "-s", "-n", c.ID).CombinedOutput()
+}
+
+func linkLxcStart(root string) error {
+	sourcePath, err := exec.LookPath("lxc-start")
+	if err != nil {
+		return err
+	}
+	targetPath := path.Join(root, "lxc-start-unconfined")
+
+	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
+		return err
+	} else if err == nil {
+		if err := os.Remove(targetPath); err != nil {
+			return err
+		}
+	}
+	return os.Symlink(sourcePath, targetPath)
 }

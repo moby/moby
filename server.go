@@ -661,13 +661,6 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	} else {
 		imgcount = len(images)
 	}
-	lxcVersion := ""
-	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
-		outputStr := string(output)
-		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
-			lxcVersion = strings.TrimSpace(strings.SplitN(string(output), ":", 2)[1])
-		}
-	}
 	kernelVersion := "<unknown>"
 	if kv, err := utils.GetKernelVersion(); err == nil {
 		kernelVersion = kv.String()
@@ -691,7 +684,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
-	v.Set("LXCVersion", lxcVersion)
+	v.Set("LXCVersion", srv.runtime.execDriver.Version())
 	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())

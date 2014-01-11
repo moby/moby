@@ -334,8 +334,8 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
-// FIXME: comment please!
-func (runtime *Runtime) UpdateCapabilities(quiet bool) {
+func NewRuntimeCapabilities(quiet bool) *Capabilities {
+	capabilities := &Capabilities{}
 	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
 			log.Printf("WARNING: %s\n", err)
@@ -343,32 +343,33 @@ func (runtime *Runtime) UpdateCapabilities(quiet bool) {
 	} else {
 		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
 		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
-		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
-		if !runtime.capabilities.MemoryLimit && !quiet {
+		capabilities.MemoryLimit = err1 == nil && err2 == nil
+		if !capabilities.MemoryLimit && !quiet {
 			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
 		}
 
 		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		runtime.capabilities.SwapLimit = err == nil
-		if !runtime.capabilities.SwapLimit && !quiet {
+		capabilities.SwapLimit = err == nil
+		if !capabilities.SwapLimit && !quiet {
 			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
 		}
 	}
 
 	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
-	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
+	capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
+	if capabilities.IPv4ForwardingDisabled && !quiet {
 		log.Printf("WARNING: IPv4 forwarding is disabled.")
 	}
 
 	// Check if AppArmor seems to be enabled on this system.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
 		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
-		runtime.capabilities.AppArmor = false
+		capabilities.AppArmor = false
 	} else {
 		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
-		runtime.capabilities.AppArmor = true
+		capabilities.AppArmor = true
 	}
+	return capabilities
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -649,7 +650,6 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }
 
@@ -678,10 +678,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		}
 	}
 
-	utils.Debugf("Escaping AppArmor confinement")
-	if err := linkLxcStart(config.Root); err != nil {
-		return nil, err
-	}
 	utils.Debugf("Creating images graph")
 	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
@@ -738,7 +734,8 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		sysInitPath = localCopy
 	}
 
-	ed, err := lxc.NewDriver("")
+	capabilities := NewRuntimeCapabilities(false)
+	ed, err := lxc.NewDriver(config.Root, capabilities.AppArmor)
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +747,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
-		capabilities:   &Capabilities{},
+		capabilities:   capabilities,
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
@@ -867,23 +864,6 @@ func (runtime *Runtime) Nuke() error {
 	runtime.Close()
 
 	return os.RemoveAll(runtime.config.Root)
-}
-
-func linkLxcStart(root string) error {
-	sourcePath, err := exec.LookPath("lxc-start")
-	if err != nil {
-		return err
-	}
-	targetPath := path.Join(root, "lxc-start-unconfined")
-
-	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
-		return err
-	} else if err == nil {
-		if err := os.Remove(targetPath); err != nil {
-			return err
-		}
-	}
-	return os.Symlink(sourcePath, targetPath)
 }
 
 // FIXME: this is a convenience function for integration tests
