@@ -726,7 +726,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	var en *execdriver.Network
-	if !container.runtime.networkManager.disabled {
+	if !container.Config.NetworkDisabled {
 		network := container.NetworkSettings
 		en = &execdriver.Network{
 			Gateway:     network.Gateway,
