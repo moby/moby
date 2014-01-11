@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -22,8 +24,9 @@ var (
 )
 
 type driver struct {
-	root     string // root path for the driver to use
-	apparmor bool
+	root       string // root path for the driver to use
+	apparmor   bool
+	sharedRoot bool
 }
 
 func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
@@ -32,8 +35,9 @@ func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
 		return nil, err
 	}
 	return &driver{
-		apparmor: apparmor,
-		root:     root,
+		apparmor:   apparmor,
+		root:       root,
+		sharedRoot: rootIsShared(),
 	}, nil
 }
 
@@ -68,6 +72,23 @@ func (d *driver) Start(c *execdriver.Process) error {
 
 	if c.WorkingDir != "" {
 		params = append(params, "-w", c.WorkingDir)
+	}
+
+	if d.sharedRoot {
+		// lxc-start really needs / to be non-shared, or all kinds of stuff break
+		// when lxc-start unmount things and those unmounts propagate to the main
+		// mount namespace.
+		// What we really want is to clone into a new namespace and then
+		// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
+		// without exec in go we have to do this horrible shell hack...
+		shellString :=
+			"mount --make-rslave /; exec " +
+				utils.ShellQuoteArguments(params)
+
+		params = []string{
+			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
+		}
+
 	}
 
 	params = append(params, "--", c.Entrypoint)
@@ -217,4 +238,18 @@ func linkLxcStart(root string) error {
 		}
 	}
 	return os.Symlink(sourcePath, targetPath)
+}
+
+func rootIsShared() bool {
+	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			cols := strings.Split(line, " ")
+			if len(cols) >= 6 && cols[4] == "/" {
+				return strings.HasPrefix(cols[6], "shared")
+			}
+		}
+	}
+
+	// No idea, probably safe to assume so
+	return true
 }

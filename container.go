@@ -623,30 +623,10 @@ func (container *Container) Start() (err error) {
 	var workingDir string
 	if container.Config.WorkingDir != "" {
 		workingDir = path.Clean(container.Config.WorkingDir)
-		utils.Debugf("[working dir] working dir is %s", workingDir)
-
 		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
 			return nil
 		}
 	}
-
-	/*
-		if RootIsShared() {
-			// lxc-start really needs / to be non-shared, or all kinds of stuff break
-			// when lxc-start unmount things and those unmounts propagate to the main
-			// mount namespace.
-			// What we really want is to clone into a new namespace and then
-			// mount / MS_REC|MS_SLAVE, but since we can't really clone or fork
-			// without exec in go we have to do this horrible shell hack...
-			shellString :=
-				"mount --make-rslave /; exec " +
-					utils.ShellQuoteArguments(params)
-
-			params = []string{
-				"unshare", "-m", "--", "/bin/sh", "-c", shellString,
-			}
-		}
-	*/
 
 	root := container.RootfsPath()
 	envPath, err := container.EnvConfigPath()
