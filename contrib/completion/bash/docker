@@ -23,60 +23,80 @@
 
 __docker_containers_all()
 {
-	local containers
-	containers="$( docker ps -a -q )"
-	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( docker ps -a -q )"
+	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_running()
 {
-	local containers
-	containers="$( docker ps -q )"
-	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( docker ps -q )"
+	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_stopped()
 {
-	local containers
-	containers="$( comm -13 <(docker ps -q | sort -u) <(docker ps -a -q | sort -u) )"
-	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( { docker ps -a -q; docker ps -q; } | sort | uniq -u )"
+	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_image_repos()
 {
-	local repos
-	repos="$( docker images | awk 'NR>1{print $1}' )"
+	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
 	COMPREPLY=( $( compgen -W "$repos" -- "$cur" ) )
-}
-
-__docker_images()
-{
-	local images
-	images="$( docker images | awk 'NR>1{print $1":"$2}' )"
-	COMPREPLY=( $( compgen -W "$images" -- "$cur" ) )
-	__ltrim_colon_completions "$cur"
 }
 
 __docker_image_repos_and_tags()
 {
-	local repos images
-	repos="$( docker images | awk 'NR>1{print $1}' )"
-	images="$( docker images | awk 'NR>1{print $1":"$2}' )"
+	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
 	COMPREPLY=( $( compgen -W "$repos $images" -- "$cur" ) )
+	__ltrim_colon_completions "$cur"
+}
+
+__docker_image_repos_and_tags_and_ids()
+{
+	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
+	local ids="$( docker images -a -q )"
+	COMPREPLY=( $( compgen -W "$repos $images $ids" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
 }
 
 __docker_containers_and_images()
 {
-	local containers images
-	containers="$( docker ps -a -q )"
-	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
-	images="$( docker images | awk 'NR>1{print $1":"$2}' )"
-	COMPREPLY=( $( compgen -W "$images $names $containers" -- "$cur" ) )
+	local containers="$( docker ps -a -q )"
+	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
+	local ids="$( docker images -a -q )"
+	COMPREPLY=( $( compgen -W "$containers $names $repos $images $ids" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
+}
+
+__docker_pos_first_nonflag()
+{
+	local argument_flags=$1
+
+	local counter=$cpos
+	while [ $counter -le $cword ]; do
+		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
+			(( counter++ ))
+		else
+			case "${words[$counter]}" in
+				-*)
+					;;
+				*)
+					break
+					;;
+			esac
+		fi
+		(( counter++ ))
+	done
+
+	echo $counter
 }
 
 _docker_docker()
@@ -101,15 +121,24 @@ _docker_docker()
 
 _docker_attach()
 {
-	if [ $cpos -eq $cword ]; then
-		__docker_containers_running
-	fi
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--no-stdin --sig-proxy" -- "$cur" ) )
+			;;
+		*)
+			local counter="$(__docker_pos_first_nonflag)"
+			if [ $cword -eq $counter ]; then
+				__docker_containers_running
+			fi
+			;;
+	esac
 }
 
 _docker_build()
 {
 	case "$prev" in
-		-t)
+		-t|--tag)
+			__docker_image_repos_and_tags
 			return
 			;;
 		*)
@@ -118,10 +147,13 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--no-cache -t -q --rm" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --tag -q --quiet --no-cache --rm" -- "$cur" ) )
 			;;
 		*)
-			_filedir
+			local counter="$(__docker_pos_first_nonflag '-t|--tag')"
+			if [ $cword -eq $counter ]; then
+				_filedir
+			fi
 			;;
 	esac
 }
@@ -129,7 +161,7 @@ _docker_build()
 _docker_commit()
 {
 	case "$prev" in
-		-author|-m|-run)
+		-m|--message|-a|--author|--run)
 			return
 			;;
 		*)
@@ -138,26 +170,20 @@ _docker_commit()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--author -m --run" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-m --message -a --author --run" -- "$cur" ) )
 			;;
 		*)
-			local counter=$cpos
-			while [ $counter -le $cword ]; do
-				case "${words[$counter]}" in
-					-author|-m|-run)
-						(( counter++ ))
-						;;
-					-*)
-						;;
-					*)
-						break
-						;;
-				esac
-				(( counter++ ))
-			done
+			local counter=$(__docker_pos_first_nonflag '-m|--message|-a|--author|--run')
 
-			if [ $counter -eq $cword ]; then
+			if [ $cword -eq $counter ]; then
 				__docker_containers_all
+				return
+			fi
+			(( counter++ ))
+
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags
+				return
 			fi
 			;;
 	esac
@@ -165,16 +191,32 @@ _docker_commit()
 
 _docker_cp()
 {
-	if [ $cpos -eq $cword ]; then
-		__docker_containers_all
-	else
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		case "$cur" in
+			*:)
+				return
+				;;
+			*)
+				__docker_containers_all
+				COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+				compopt -o nospace
+				return
+				;;
+		esac
+	fi
+	(( counter++ ))
+
+	if [ $cword -eq $counter ]; then
 		_filedir
+		return
 	fi
 }
 
 _docker_diff()
 {
-	if [ $cpos -eq $cword ]; then
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
 		__docker_containers_all
 	fi
 }
@@ -182,7 +224,7 @@ _docker_diff()
 _docker_events()
 {
 	case "$prev" in
-		-since)
+		--since)
 			return
 			;;
 		*)
@@ -200,45 +242,44 @@ _docker_events()
 
 _docker_export()
 {
-	if [ $cpos -eq $cword ]; then
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
 		__docker_containers_all
 	fi
 }
 
 _docker_help()
 {
-	if [ $cpos -eq $cword ]; then
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
 		COMPREPLY=( $( compgen -W "$commands" -- "$cur" ) )
 	fi
 }
 
 _docker_history()
 {
-	if [ $cpos -eq $cword ]; then
-		__docker_image_repos_and_tags
-	fi
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-q --quiet --no-trunc" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags_and_ids
+			fi
+			;;
+	esac
 }
 
 _docker_images()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a --no-trunc -q --viz" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet -a --all --no-trunc -v --viz -t --tree" -- "$cur" ) )
 			;;
 		*)
-			local counter=$cpos
-			while [ $counter -le $cword ]; do
-				case "${words[$counter]}" in
-					-*)
-						;;
-					*)
-						break
-						;;
-				esac
-				(( counter++ ))
-			done
-
-			if [ $counter -eq $cword ]; then
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
 				__docker_image_repos
 			fi
 			;;
@@ -247,7 +288,16 @@ _docker_images()
 
 _docker_import()
 {
-	return
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		return
+	fi
+	(( counter++ ))
+
+	if [ $cword -eq $counter ]; then
+		__docker_image_repos_and_tags
+		return
+	fi
 }
 
 _docker_info()
@@ -257,25 +307,16 @@ _docker_info()
 
 _docker_insert()
 {
-	if [ $cpos -eq $cword ]; then
-		__docker_image_repos_and_tags
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_image_repos_and_tags_and_ids
 	fi
 }
 
 _docker_inspect()
 {
-	__docker_containers_and_images
-}
-
-_docker_kill()
-{
-	__docker_containers_running
-}
-
-_docker_login()
-{
 	case "$prev" in
-		-e|-p|-u)
+		-f|--format)
 			return
 			;;
 		*)
@@ -284,7 +325,37 @@ _docker_login()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-e -p -u" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-f --format" -- "$cur" ) )
+			;;
+		*)
+			__docker_containers_and_images
+			;;
+	esac
+}
+
+_docker_kill()
+{
+	__docker_containers_running
+}
+
+_docker_load()
+{
+	return
+}
+
+_docker_login()
+{
+	case "$prev" in
+		-u|--username|-p|--password|-e|--email)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-u --username -p --password -e --email" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -293,14 +364,23 @@ _docker_login()
 
 _docker_logs()
 {
-	if [ $cpos -eq $cword ]; then
-		__docker_containers_all
-	fi
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-f --follow" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_containers_all
+			fi
+			;;
+	esac
 }
 
 _docker_port()
 {
-	if [ $cpos -eq $cword ]; then
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
 		__docker_containers_all
 	fi
 }
@@ -308,7 +388,13 @@ _docker_port()
 _docker_ps()
 {
 	case "$prev" in
-		-before-id|-n|-since-id)
+		--since-id|--before-id)
+			COMPREPLY=( $( compgen -W "$(docker ps -a -q)" -- "$cur" ) )
+			# TODO replace this with __docker_containers_all
+			# see https://github.com/dotcloud/docker/issues/3565
+			return
+			;;
+		-n)
 			return
 			;;
 		*)
@@ -317,7 +403,7 @@ _docker_ps()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a --before-id -l -n --no-trunc -q -s --since-id" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since-id --before-id -n" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -327,7 +413,7 @@ _docker_ps()
 _docker_pull()
 {
 	case "$prev" in
-		-t)
+		-t|--tag)
 			return
 			;;
 		*)
@@ -336,22 +422,31 @@ _docker_pull()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --tag" -- "$cur" ) )
 			;;
 		*)
+			local counter=$(__docker_pos_first_nonflag '-t|--tag')
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags
+			fi
 			;;
 	esac
 }
 
 _docker_push()
 {
-	__docker_image_repos
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_image_repos
+		# TODO replace this with __docker_image_repos_and_tags
+		# see https://github.com/dotcloud/docker/issues/3411
+	fi
 }
 
 _docker_restart()
 {
 	case "$prev" in
-		-t)
+		-t|--time)
 			return
 			;;
 		*)
@@ -360,7 +455,7 @@ _docker_restart()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --time" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_all
@@ -372,7 +467,7 @@ _docker_rm()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-v" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-v --volumes -l --link" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_stopped
@@ -382,7 +477,7 @@ _docker_rm()
 
 _docker_rmi()
 {
-	__docker_image_repos_and_tags
+	__docker_image_repos_and_tags_and_ids
 }
 
 _docker_run()
@@ -394,7 +489,15 @@ _docker_run()
 		--volumes-from)
 			__docker_containers_all
 			;;
-		-a|-c|--dns|-e|--entrypoint|-h|--lxc-conf|-m|-p|-u|-v|-w)
+		-v|--volume)
+			# TODO something magical with colons and _filedir ?
+			return
+			;;
+		-e|--env)
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			return
+			;;
+		--entrypoint|-h|--hostname|-m|--memory|-u|--username|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf)
 			return
 			;;
 		*)
@@ -403,45 +506,30 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -c --cidfile -d --dns -e --entrypoint -h -i --lxc-conf -m -n -p --privileged -t -u -v --volumes-from -w" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--rm -d --detach -n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --username -w --workdir -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf" -- "$cur" ) )
 			;;
 		*)
-			local counter=$cpos
-			while [ $counter -le $cword ]; do
-				case "${words[$counter]}" in
-					-a|-c|--cidfile|--dns|-e|--entrypoint|-h|--lxc-conf|-m|-p|-u|-v|--volumes-from|-w)
-						(( counter++ ))
-						;;
-					-*)
-						;;
-					*)
-						break
-						;;
-				esac
-				(( counter++ ))
-			done
+			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--username|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf')
 
-			if [ $counter -eq $cword ]; then
-				__docker_image_repos_and_tags
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags_and_ids
 			fi
 			;;
 	esac
 }
 
+_docker_save()
+{
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_image_repos_and_tags_and_ids
+	fi
+}
+
 _docker_search()
 {
-	COMPREPLY=( $( compgen -W "--no-trunc" "--stars" "--trusted" -- "$cur" ) )
-}
-
-_docker_start()
-{
-	__docker_containers_stopped
-}
-
-_docker_stop()
-{
 	case "$prev" in
-		-t)
+		-s|--stars)
 			return
 			;;
 		*)
@@ -450,7 +538,38 @@ _docker_stop()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--no-trunc -t --trusted -s --stars" -- "$cur" ) )
+			;;
+		*)
+			;;
+	esac
+}
+
+_docker_start()
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-a --attach -i --interactive" -- "$cur" ) )
+			;;
+		*)
+			__docker_containers_stopped
+			;;
+	esac
+}
+
+_docker_stop()
+{
+	case "$prev" in
+		-t|--time)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-t --time" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_running
@@ -460,12 +579,31 @@ _docker_stop()
 
 _docker_tag()
 {
-	COMPREPLY=( $( compgen -W "-f" -- "$cur" ) )
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-f --force" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags
+				return
+			fi
+			(( counter++ ))
+
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags
+				return
+			fi
+			;;
+	esac
 }
 
 _docker_top()
 {
-	if [ $cpos -eq $cword ]; then
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
 		__docker_containers_running
 	fi
 }
@@ -482,7 +620,6 @@ _docker_wait()
 
 _docker()
 {
-	local cur prev words cword command="docker" counter=1 word cpos
 	local commands="
 			attach
 			build
@@ -498,6 +635,7 @@ _docker()
 			insert
 			inspect
 			kill
+			load
 			login
 			logs
 			port
@@ -508,6 +646,7 @@ _docker()
 			rm
 			rmi
 			run
+			save
 			search
 			start
 			stop
@@ -518,18 +657,20 @@ _docker()
 		"
 
 	COMPREPLY=()
+	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
+	local command='docker'
+	local counter=1
 	while [ $counter -lt $cword ]; do
-		word="${words[$counter]}"
-		case "$word" in
+		case "${words[$counter]}" in
 			-H)
 				(( counter++ ))
 				;;
 			-*)
 				;;
 			*)
-				command="$word"
+				command="${words[$counter]}"
 				cpos=$counter
 				(( cpos++ ))
 				break
