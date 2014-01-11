@@ -139,9 +139,13 @@ func (d *driver) waitForStart(c *execdriver.Process) error {
 	// Note: The container can run and finish correctly before
 	// the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
-		// If the process dies while waiting for it, just return
-		if c.ProcessState != nil && c.ProcessState.Exited() {
-			return nil
+		select {
+		case <-c.WaitLock:
+			// If the process dies while waiting for it, just return
+			if c.ProcessState != nil && c.ProcessState.Exited() {
+				return nil
+			}
+		default:
 		}
 
 		output, err = d.getInfo(c)

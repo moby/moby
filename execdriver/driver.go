@@ -44,6 +44,8 @@ func (c *Process) Pid() int {
 }
 
 func (c *Process) GetExitCode() int {
+	if c.ProcessState == nil {
+		return -1
+	}
 	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	return -1
 }
