@@ -379,12 +379,14 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
 				} else {
-					if cStdout != nil {
-						defer cStdout.Close()
-					}
-					if cStderr != nil {
-						defer cStderr.Close()
-					}
+					defer func() {
+						if cStdout != nil {
+							cStdout.Close()
+						}
+						if cStderr != nil {
+							cStderr.Close()
+						}
+					}()
 				}
 				if container.Config.Tty {
 					_, err = utils.CopyEscapable(cStdin, stdin)
@@ -480,12 +482,15 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	}
 
 	return utils.Go(func() error {
-		if cStdout != nil {
-			defer cStdout.Close()
-		}
-		if cStderr != nil {
-			defer cStderr.Close()
-		}
+		defer func() {
+			if cStdout != nil {
+				cStdout.Close()
+			}
+			if cStderr != nil {
+				cStderr.Close()
+			}
+		}()
+
 		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
 		for i := 0; i < nJobs; i += 1 {
