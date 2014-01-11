@@ -125,8 +125,7 @@ EOF
 		    --config-files /etc/default/docker \
 		    --deb-compression gz \
 		    -t deb .
-		mkdir empty
-		fpm -s dir -C empty \
+		fpm -s empty \
 		    --name lxc-docker --version $PKGVERSION \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --depends lxc-docker-$VERSION \
@@ -135,7 +134,7 @@ EOF
 		    --url "$PACKAGE_URL" \
 		    --license "$PACKAGE_LICENSE" \
 		    --deb-compression gz \
-		    -t deb .
+		    -t deb
 	)
 }
 
