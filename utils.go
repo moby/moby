@@ -151,19 +151,19 @@ func MergeConfig(userConf, imageConf *Config) error {
 		userConf.StdinOnce = imageConf.StdinOnce
 	}
 	imgParam, userEnv := decodeParams(imageConf.Param), decodeParams(userConf.Env)
-        for key, _ := range userEnv {
-                if _, ok := imgParam[key]; ok {
-                        delete(imgParam, key)
-                }
-        }
-        imageConf.Param = encodeParams(imgParam)
-        userParam,  imgEnv := decodeParams(userConf.Param), decodeParams(imageConf.Env)
-        for key, _ := range userParam {
-                if _, ok := imgEnv[key]; ok {
-                        delete(imgEnv, key)
-                }
-        }
-        imageConf.Env = encodeParams(imgEnv)
+	for key, _ := range userEnv {
+		if _, ok := imgParam[key]; ok {
+			delete(imgParam, key)
+		}
+	}
+	imageConf.Param = encodeParams(imgParam)
+	userParam, imgEnv := decodeParams(userConf.Param), decodeParams(imageConf.Env)
+	for key, _ := range userParam {
+		if _, ok := imgEnv[key]; ok {
+			delete(imgEnv, key)
+		}
+	}
+	imageConf.Env = encodeParams(imgEnv)
 	if userConf.Env == nil || len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
