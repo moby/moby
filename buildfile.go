@@ -156,8 +156,8 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
-func (b *buildFile) FindEnvKey(key string) int {
-	for k, envVar := range b.config.Env {
+func FindEnvKey(key string, vars []string) int {
+	for k, envVar := range vars {
 		envParts := strings.SplitN(envVar, "=", 2)
 		if key == envParts[0] {
 			return k
@@ -198,19 +198,55 @@ func (b *buildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	envKey := b.FindEnvKey(key)
 	replacedValue, err := b.ReplaceEnvMatches(value)
 	if err != nil {
 		return err
 	}
 	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
 
+	// If param is set, remove it. This will override it.
+	paramKey := FindEnvKey(key, b.config.Param)
+        if paramKey >= 0 {
+		fmt.Println("Remove param")
+                b.config.Param = append(b.config.Param[:paramKey], b.config.Param[paramKey + 1:]...)
+	}
+
+	envKey := FindEnvKey(key, b.config.Env)
 	if envKey >= 0 {
 		b.config.Env[envKey] = replacedVar
 	} else {
 		b.config.Env = append(b.config.Env, replacedVar)
 	}
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
+}
+
+func (b *buildFile) CmdParam(args string) error {
+        tmp := strings.SplitN(args, " ", 2)
+        if len(tmp) != 2 {
+                return fmt.Errorf("Invalid PARAM format: ")
+        }
+        key := strings.Trim(tmp[0], " \t")
+        value := strings.Trim(tmp[1], " \t")
+
+        replacedValue, err := b.ReplaceEnvMatches(value)
+        if err != nil {
+                return err
+        }
+
+	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+
+	envKey := FindEnvKey(key, b.config.Env)
+	if envKey >= 0 {
+		b.config.Env = append(b.config.Env[:envKey], b.config.Env[envKey + 1:]...)
+	}
+
+        paramKey := FindEnvKey(key, b.config.Param)
+        if paramKey >= 0 {
+                b.config.Param[paramKey] = replacedVar
+        } else {
+                b.config.Param = append(b.config.Param, replacedVar)
+        }
+        return b.commit("", b.config.Cmd, fmt.Sprintf("PARAM %s", replacedVar))
 }
 
 func (b *buildFile) buildCmdFromJson(args string) []string {

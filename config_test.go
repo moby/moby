@@ -11,6 +11,7 @@ func TestCompareConfig(t *testing.T) {
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "11111111",
 		Volumes:     volumes1,
 	}
@@ -18,6 +19,7 @@ func TestCompareConfig(t *testing.T) {
 		Dns:         []string{"0.0.0.0", "2.2.2.2"},
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "11111111",
 		Volumes:     volumes1,
 	}
@@ -25,6 +27,7 @@ func TestCompareConfig(t *testing.T) {
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "11111111",
 		Volumes:     volumes1,
 	}
@@ -32,6 +35,7 @@ func TestCompareConfig(t *testing.T) {
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "22222222",
 		Volumes:     volumes1,
 	}
@@ -41,6 +45,7 @@ func TestCompareConfig(t *testing.T) {
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "11111111",
 		Volumes:     volumes2,
 	}
@@ -69,6 +74,7 @@ func TestMergeConfig(t *testing.T) {
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
+		Param:       []string{"PARAM1=1", "PARAM2=2"},
 		VolumesFrom: "1111",
 		Volumes:     volumesImage,
 	}
@@ -79,6 +85,7 @@ func TestMergeConfig(t *testing.T) {
 		Dns:       []string{"3.3.3.3"},
 		PortSpecs: []string{"3333:2222", "3333:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
+		Param:     []string{"PARAM2=3", "PARAM3=3"},
 		Volumes:   volumesUser,
 	}
 
@@ -111,7 +118,14 @@ func TestMergeConfig(t *testing.T) {
 			t.Fatalf("Expected VAR1=1 or VAR2=3 or VAR3=3, found %s", env)
 		}
 	}
-
+	if len(configUser.Param) != 3 {
+		t.Fatalf("Expected 3 param var, PARAM1=1, PARAM2=3 and PARAM3=3, found %d", len(configUser.Param))
+	}
+	for _, param := range configUser.Param {
+		if param != "PARAM1=1" && param != "PARAM2=3" && param != "PARAM3=3" {
+			t.Fatalf("Expected PARAM1=1 or PARAM2=3 or PARAM3=3, found %s", param)
+		}
+	}
 	if len(configUser.Volumes) != 3 {
 		t.Fatalf("Expected 3 volumes, /test1, /test2 and /test3, found %d", len(configUser.Volumes))
 	}

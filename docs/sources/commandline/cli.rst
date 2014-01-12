@@ -308,6 +308,10 @@ or ``config`` when running ``docker inspect IMAGEID``.
          "HOME=/",
          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       ],
+      "Param" :  [
+         "USERNAME=bob",
+	 "PASSWORD=password"
+	],
       "StdinOnce" : false,
       "Domainname" : "",
       "WorkingDir" : "/",
@@ -1001,6 +1005,7 @@ image is removed.
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
+      -param=[]: Set required parameters
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
