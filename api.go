@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -181,16 +182,54 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	job := srv.Eng.Job("images")
+
+	var (
+		buffer *bytes.Buffer
+		job    = srv.Eng.Job("images")
+	)
+
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
-	job.SetenvBool("list", version <= 1.8)
-	job.SetenvBool("legacy", version <= 1.7)
-	job.Stdout.Add(w)
-	w.WriteHeader(http.StatusOK)
+
+	if version >= 1.9 {
+		job.Stdout.Add(w)
+	} else {
+		buffer = bytes.NewBuffer(nil)
+		job.Stdout.Add(buffer)
+	}
+
 	if err := job.Run(); err != nil {
 		return err
 	}
+
+	if version < 1.9 { // Send as a valide JSON array
+		outs := engine.NewTable("Created", 0)
+		if _, err := outs.ReadFrom(buffer); err != nil {
+			return err
+		}
+		if version < 1.8 { // Convert to legacy format
+			outsLegacy := engine.NewTable("Created", 0)
+			for _, out := range outs.Data {
+				for _, repoTag := range out.GetList("RepoTags") {
+					parts := strings.Split(repoTag, ":")
+					outLegacy := &engine.Env{}
+					outLegacy.Set("Repository", parts[0])
+					outLegacy.Set("Tag", parts[1])
+					outLegacy.Set("ID", out.Get("ID"))
+					outLegacy.SetInt64("Created", out.GetInt64("Created"))
+					outLegacy.SetInt64("Size", out.GetInt64("Size"))
+					outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
+					outsLegacy.Add(outLegacy)
+				}
+			}
+			if _, err := outsLegacy.WriteListTo(w); err != nil {
+				return err
+			}
+		} else if _, err := outs.WriteListTo(w); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

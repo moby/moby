@@ -1,9 +1,9 @@
 package engine
 
 import (
-	"testing"
 	"bytes"
 	"encoding/json"
+	"testing"
 )
 
 func TestTableWriteTo(t *testing.T) {
@@ -19,7 +19,7 @@ func TestTableWriteTo(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
 		t.Fatal(err)
 	}
-	if len(output) != 1  {
+	if len(output) != 1 {
 		t.Fatalf("Incorrect output: %v", output)
 	}
 	if val, exists := output["foo"]; !exists || val != "bar" {
