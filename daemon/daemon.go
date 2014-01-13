@@ -39,6 +39,8 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+	"github.com/docker/metricdriver"
+	_ "github.com/docker/metricdriver/lxc"
 )
 
 var (
@@ -98,6 +100,7 @@ type Daemon struct {
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
+	metricDriver   metricdriver.Driver
 }
 
 // Install installs daemon capabilities to eng.
@@ -894,6 +897,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	md, err := metricdriver.GetDriver("lxc")
+	if err != nil {
+		return nil, err
+	}
+	utils.Debugf("Using mertic driver lxc")
+
 	daemon := &Daemon{
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
@@ -910,6 +919,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		execDriver:     ed,
 		eng:            eng,
 		trustStore:     t,
+		metricDriver:   md,
 	}
 	if err := daemon.restore(); err != nil {
 		return nil, err
@@ -1012,6 +1022,10 @@ func (daemon *Daemon) Unpause(c *Container) error {
 
 func (daemon *Daemon) Kill(c *Container, sig int) error {
 	return daemon.execDriver.Kill(c.command, sig)
+}
+
+func (daemon *Daemon) UpdateConfig(c *Container) error {
+	return daemon.execDriver.UpdateConfig(c.command)
 }
 
 // Nuke kills all containers then removes all content
@@ -1124,4 +1138,8 @@ func checkKernelAndArch() error {
 		}
 	}
 	return nil
+}
+
+func (daemon *Daemon) GetMetric(c *Container) (*metricdriver.Metric, error) {
+	return daemon.metricDriver.Get(c.ID)
 }

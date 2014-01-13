@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -1243,4 +1244,48 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	default:
 		return nil, fmt.Errorf("network mode not set to container")
 	}
+}
+
+func (container *Container) AddLXCConfig(subsystem string, value string) error {
+	findAndUpdate := false
+	for i := range container.hostConfig.LxcConf {
+		if strings.HasSuffix(container.hostConfig.LxcConf[i].Key, subsystem) {
+			if utils.IsInBytesSubsystem(subsystem) {
+				parsedValue, err := utils.RAMInBytes(value)
+				if err != nil {
+					return err
+				}
+				value = strconv.FormatInt(parsedValue, 10)
+			}
+			container.hostConfig.LxcConf[i].Value = value
+			findAndUpdate = true
+		}
+	}
+	if !findAndUpdate {
+		var kvPair utils.KeyValuePair
+		if !strings.HasPrefix(subsystem, "lxc.cgroup.") {
+			kvPair.Key = "lxc.cgroup." + subsystem
+		}
+		if utils.IsInBytesSubsystem(subsystem) {
+			parsedValue, err := utils.RAMInBytes(value)
+			if err != nil {
+				return err
+			}
+			value = strconv.FormatInt(parsedValue, 10)
+		}
+		kvPair.Value = value
+		container.hostConfig.LxcConf = append(container.hostConfig.LxcConf, kvPair)
+	}
+	return nil
+}
+
+func (container *Container) GenerateLXCConfig() error {
+	env := container.createDaemonEnvironment(nil)
+	if err := populateCommand(container, env); err != nil {
+		return err
+	}
+	if err := container.daemon.UpdateConfig(container); err != nil {
+		return err
+	}
+	return nil
 }

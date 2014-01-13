@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coreos/etcd/server"
 	"github.com/docker/docker/engine"
 )
 
@@ -291,5 +292,301 @@ func TestImagesFilter(t *testing.T) {
 
 	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
+	}
+}
+
+func TestListContainers(t *testing.T) {
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	config := runconfig.Config{
+		Image:     unitTestImageID,
+		Cmd:       []string{"/bin/sh", "-c", "cat"},
+		OpenStdin: true,
+	}
+
+	firstID := createTestContainer(eng, &config, t)
+	secondID := createTestContainer(eng, &config, t)
+	thirdID := createTestContainer(eng, &config, t)
+	fourthID := createTestContainer(eng, &config, t)
+	defer func() {
+		containerKill(eng, firstID, t)
+		containerKill(eng, secondID, t)
+		containerKill(eng, fourthID, t)
+		containerWait(eng, firstID, t)
+		containerWait(eng, secondID, t)
+		containerWait(eng, fourthID, t)
+	}()
+
+	startContainer(eng, firstID, t)
+	startContainer(eng, secondID, t)
+	startContainer(eng, fourthID, t)
+
+	// all
+	if !assertContainerList(srv, true, -1, "", "", []string{fourthID, thirdID, secondID, firstID}) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// running
+	if !assertContainerList(srv, false, -1, "", "", []string{fourthID, secondID, firstID}) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// from here 'all' flag is ignored
+
+	// limit
+	expected := []string{fourthID, thirdID}
+	if !assertContainerList(srv, true, 2, "", "", expected) ||
+		!assertContainerList(srv, false, 2, "", "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since
+	expected = []string{fourthID, thirdID, secondID}
+	if !assertContainerList(srv, true, -1, firstID, "", expected) ||
+		!assertContainerList(srv, false, -1, firstID, "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// before
+	expected = []string{secondID, firstID}
+	if !assertContainerList(srv, true, -1, "", thirdID, expected) ||
+		!assertContainerList(srv, false, -1, "", thirdID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & before
+	expected = []string{thirdID, secondID}
+	if !assertContainerList(srv, true, -1, firstID, fourthID, expected) ||
+		!assertContainerList(srv, false, -1, firstID, fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & limit
+	expected = []string{fourthID, thirdID}
+	if !assertContainerList(srv, true, 2, firstID, "", expected) ||
+		!assertContainerList(srv, false, 2, firstID, "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// before & limit
+	expected = []string{thirdID}
+	if !assertContainerList(srv, true, 1, "", fourthID, expected) ||
+		!assertContainerList(srv, false, 1, "", fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & before & limit
+	expected = []string{thirdID}
+	if !assertContainerList(srv, true, 1, firstID, fourthID, expected) ||
+		!assertContainerList(srv, false, 1, firstID, fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+}
+
+func assertContainerList(srv *server.Server, all bool, limit int, since, before string, expected []string) bool {
+	job := srv.Eng.Job("containers")
+	job.SetenvBool("all", all)
+	job.SetenvInt("limit", limit)
+	job.Setenv("since", since)
+	job.Setenv("before", before)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		return false
+	}
+	if err := job.Run(); err != nil {
+		return false
+	}
+	if len(outs.Data) != len(expected) {
+		return false
+	}
+	for i := 0; i < len(outs.Data); i++ {
+		if outs.Data[i].Get("Id") != expected[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Regression test for being able to untag an image with an existing
+// container
+func TestDeleteTagWithExistingContainers(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer nuke(mkDaemonFromEngine(eng, t))
+
+	srv := mkServerFromEngine(eng, t)
+
+	// Tag the image
+	if err := eng.Job("tag", unitTestImageID, "utest", "tag1").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a container from the image
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createNamedTestContainer(eng, config, t, "testingtags")
+	if id == "" {
+		t.Fatal("No id returned")
+	}
+
+	job := srv.Eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 1 {
+		t.Fatalf("Expected 1 container got %d", len(outs.Data))
+	}
+
+	// Try to remove the tag
+	imgs := engine.NewTable("", 0)
+	if err := srv.DeleteImage("utest:tag1", imgs, true, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(imgs.Data) != 1 {
+		t.Fatalf("Should only have deleted one untag %d", len(imgs.Data))
+	}
+
+	if untag := imgs.Data[0].Get("Untagged"); untag != "utest:tag1" {
+		t.Fatalf("Expected %s got %s", unitTestImageID, untag)
+	}
+}
+
+func TestReadCgroup(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", "-lxc-conf", "lxc.cgroup.cpuset.cpus=1", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := map[string]string{
+		"memory.limit_in_bytes": "104857600",
+		"cpu.shares":            "1000",
+		"cpuset.cpus":           "1",
+	}
+
+	var (
+		readSubsystem []string
+	)
+	readSubsystem = []string{"memory.limit_in_bytes", "cpu.shares", "cpuset.cpus"}
+
+	job = eng.Job("cgroup", id)
+	job.SetenvList("readSubsystem", readSubsystem)
+	cgroupResponses, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := job.Run(); err != nil {
+		t.Fatal("Unexpected error: %s", err)
+	}
+
+	if len(cgroupResponses.Data) != 3 {
+		t.Fatalf("Except length is 3, actual is %d", len(cgroupResponses.Data))
+	}
+
+	for _, cgroupResponse := range cgroupResponses.Data {
+		if cgroupResponse.GetInt("Status") != 0 {
+			t.Fatalf("Unexcepted status %d for subsystem %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"))
+		}
+		value, exist := raw[cgroupResponse.Get("Subsystem")]
+		if exist {
+			if value != cgroupResponse.Get("Out") {
+				t.Fatalf("Unexcepted output %s for subsystem %s", cgroupResponse.Get("Out"), cgroupResponse.Get("Subsystem"))
+			}
+		} else {
+			t.Fatalf("Unexcepted subsystem %s", cgroupResponse.Get("Subsystem"))
+		}
+	}
+}
+
+func TestWriteCgroup(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", "-lxc-conf", "lxc.cgroup.cpuset.cpus=1", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := map[string]string{
+		"memory.memsw.limit_in_bytes": "524288000",
+		"memory.limit_in_bytes":       "209715200",
+		"cpu.shares":                  "500",
+		"cpuset.cpus":                 "0-1",
+	}
+
+	var (
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
+	for key, value := range raw {
+		writeSubsystem = append(writeSubsystem, struct {
+			Key   string
+			Value string
+		}{Key: key, Value: value})
+	}
+
+	job = eng.Job("cgroup", id)
+	job.SetenvJson("writeSubsystem", writeSubsystem)
+	cgroupResponses, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := job.Run(); err != nil {
+		t.Fatal("Unexpected error: %s", err)
+	}
+
+	if len(cgroupResponses.Data) != 4 {
+		t.Fatalf("Except length is 4, actual is %d", len(cgroupResponses.Data))
+	}
+
+	for _, cgroupResponse := range cgroupResponses.Data {
+		if cgroupResponse.GetInt("Status") != 0 {
+			t.Fatalf("Unexcepted status %d for subsystem %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"))
+		}
+		_, exist := raw[cgroupResponse.Get("Subsystem")]
+		if exist {
+			if cgroupResponse.Get("Out") != "" || cgroupResponse.Get("Err") != "" {
+				t.Fatalf("Unexcepted stdout %s, stderr %s for subsystem %s", cgroupResponse.Get("Out"), cgroupResponse.Get("Err"), cgroupResponse.Get("Subsystem"))
+			}
+		} else {
+			t.Fatalf("Unexcepted subsystem %s", cgroupResponse.Get("Subsystem"))
+		}
 	}
 }

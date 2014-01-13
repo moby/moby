@@ -1152,6 +1152,90 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 	}
 }
 
+func TestPostContainersCgroup(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	memory := int64(524288)
+	containerID := createTestContainer(eng,
+		&runconfig.Config{
+			Memory:    memory,
+			Image:     unitTestImageID,
+			Cmd:       []string{"/bin/top"},
+			OpenStdin: true,
+		},
+		t,
+	)
+
+	defer func() {
+		// Make sure the process dies before destroying runtime
+		containerKill(eng, containerID, t)
+		containerWait(eng, containerID, t)
+	}()
+
+	startContainer(eng, containerID, t)
+
+	// Give some time to the process to start
+	containerWaitTimeout(eng, containerID, t)
+
+	if !containerRunning(eng, containerID, t) {
+		t.Errorf("Container should be running")
+	}
+
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
+	readSubsystem = append(readSubsystem, "memory.limit_in_bytes")
+	writeSubsystem = append(writeSubsystem, struct {
+		Key   string
+		Value string
+	}{Key: "cpuset.cpus", Value: "0"})
+	cgroupData.SetList("ReadSubsystem", readSubsystem)
+	cgroupData.SetJson("WriteSubsystem", writeSubsystem)
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := cgroupData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/cgroup?w=1", jsonData)
+	req.Header.Add("Content-Type", "application/json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+	var cgroupResponses []struct {
+		Subsystem string
+		Out       string
+		Err       string
+		Status    int
+	}
+
+	if err := json.Unmarshal(r.Body.Bytes(), &cgroupResponses); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, cgroupResponse := range cgroupResponses {
+		if cgroupResponse.Status != 0 {
+			t.Fatalf("The status of cgroup response is not zero, subsystem: %s, out: %s, err: %s, status: %s",
+				cgroupResponse.Subsystem, cgroupResponse.Out, cgroupResponse.Err, cgroupResponse.Status)
+		}
+	}
+}
+
 // Mocked types for tests
 type NopConn struct {
 	io.ReadCloser

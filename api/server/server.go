@@ -1160,6 +1160,60 @@ func postContainerExecResize(eng *engine.Engine, version version.Version, w http
 	return nil
 }
 
+func postContainersCgroup(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	saveToFile, err := getBoolParam(r.FormValue("w"))
+	if err != nil {
+		return err
+	}
+
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
+
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
+		if err := cgroupData.Decode(r.Body); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	readSubsystem = cgroupData.GetList("ReadSubsystem")
+	if err := cgroupData.GetJson("WriteSubsystem", &writeSubsystem); err != nil {
+		return err
+	}
+
+	job := eng.Job("cgroup", vars["name"])
+	job.SetenvList("readSubsystem", readSubsystem)
+	job.SetenvJson("writeSubsystem", writeSubsystem)
+	job.SetenvBool("saveToFile", saveToFile)
+
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getContainersMetric(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	var job = eng.Job("metric", vars["name"])
+	job.Stdout.Add(w)
+	return job.Run()
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1262,6 +1316,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/containers/{name:.*}/metric":    getContainersMetric,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1285,6 +1340,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/exec":    postContainerExecCreate,
 			"/exec/{name:.*}/start":         postContainerExecStart,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
+			"/containers/{name:.*}/cgroup":  postContainersCgroup,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
