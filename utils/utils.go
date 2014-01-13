@@ -827,7 +827,7 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 }
 
 func GetReleaseVersion() string {
-	resp, err := http.Get("http://get.docker.io/latest")
+	resp, err := http.Get("https://get.docker.io/latest")
 	if err != nil {
 		return ""
 	}
