@@ -45,7 +45,7 @@ func (d *driver) String() string {
 	return "lxc"
 }
 
-func (d *driver) Start(c *execdriver.Process) error {
+func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
 	params := []string{
 		startPath,
 		"-n", c.ID,
@@ -111,21 +111,32 @@ func (d *driver) Start(c *execdriver.Process) error {
 	c.Args = append([]string{name}, arg...)
 
 	if err := c.Start(); err != nil {
-		return err
+		return -1, err
 	}
 
+	var (
+		waitErr  error
+		waitLock = make(chan struct{})
+	)
 	go func() {
 		if err := c.Wait(); err != nil {
-			c.WaitError = err
+			waitErr = err
 		}
-		close(c.WaitLock)
+		close(waitLock)
 	}()
 
-	// Poll for running
-	if err := d.waitForStart(c); err != nil {
-		return err
+	// Poll lxc for RUNNING status
+	if err := d.waitForStart(c, waitLock); err != nil {
+		return -1, err
 	}
-	return nil
+
+	if startCallback != nil {
+		startCallback(c)
+	}
+
+	<-waitLock
+
+	return c.GetExitCode(), waitErr
 }
 
 func (d *driver) Kill(c *execdriver.Process, sig int) error {
@@ -171,7 +182,7 @@ func (d *driver) kill(c *execdriver.Process, sig int) error {
 	return nil
 }
 
-func (d *driver) waitForStart(c *execdriver.Process) error {
+func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) error {
 	var (
 		err    error
 		output []byte
@@ -182,7 +193,7 @@ func (d *driver) waitForStart(c *execdriver.Process) error {
 	// the end of this loop
 	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		select {
-		case <-c.WaitLock:
+		case <-waitLock:
 			// If the process dies while waiting for it, just return
 			if c.ProcessState != nil && c.ProcessState.Exited() {
 				return nil

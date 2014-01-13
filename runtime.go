@@ -192,7 +192,7 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 
 			container.waitLock = make(chan struct{})
-			go container.monitor()
+			go container.monitor(nil)
 		}
 	}
 	return nil
@@ -841,8 +841,8 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	return archive.ExportChanges(cDir, changes)
 }
 
-func (runtime *Runtime) Start(c *Container) error {
-	return runtime.execDriver.Start(c.process)
+func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
+	return runtime.execDriver.Run(c.process, startCallback)
 }
 
 func (runtime *Runtime) Kill(c *Container, sig int) error {

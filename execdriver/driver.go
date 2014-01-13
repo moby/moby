@@ -6,10 +6,13 @@ import (
 	"time"
 )
 
+type StartCallback func(*Process)
+
 type Driver interface {
-	Start(c *Process) error
+	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
-	Wait(id string, duration time.Duration) error // Wait on an out of process option - lxc ghosts
+	// TODO: @crosbymichael @creack wait should probably return the exit code
+	Wait(id string, duration time.Duration) error // Wait on an out of process...process - lxc ghosts
 	Version() string
 	String() string
 }
@@ -38,8 +41,6 @@ type Process struct {
 	Tty         bool
 	Network     *Network // if network is nil then networking is disabled
 	SysInitPath string
-	WaitLock    chan struct{}
-	WaitError   error
 }
 
 func (c *Process) Pid() int {

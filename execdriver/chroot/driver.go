@@ -17,7 +17,7 @@ func (d *driver) String() string {
 	return "chroot"
 }
 
-func (d *driver) Start(c *execdriver.Process) error {
+func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
 	params := []string{
 		"chroot",
 		c.Rootfs,
@@ -40,17 +40,27 @@ func (d *driver) Start(c *execdriver.Process) error {
 	c.Args = append([]string{name}, arg...)
 
 	if err := c.Start(); err != nil {
-		return err
+		return -1, err
 	}
 
+	var (
+		waitErr  error
+		waitLock = make(chan struct{})
+	)
 	go func() {
 		if err := c.Wait(); err != nil {
-			c.WaitError = err
+			waitErr = err
 		}
-		close(c.WaitLock)
+		close(waitLock)
 	}()
 
-	return nil
+	if startCallback != nil {
+		startCallback(c)
+	}
+
+	<-waitLock
+
+	return c.GetExitCode(), waitErr
 }
 
 func (d *driver) Kill(p *execdriver.Process, sig int) error {

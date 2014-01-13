@@ -308,10 +308,10 @@ func (container *Container) generateLXCConfig() error {
 	return LxcTemplateCompiled.Execute(fo, container)
 }
 
-func (container *Container) startPty() error {
+func (container *Container) startPty(startCallback execdriver.StartCallback) (int, error) {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
-		return err
+		return -1, err
 	}
 	container.ptyMaster = ptyMaster
 	container.process.Stdout = ptySlave
@@ -336,20 +336,17 @@ func (container *Container) startPty() error {
 			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
-	if err := container.runtime.Start(container); err != nil {
-		return err
-	}
-	ptySlave.Close()
-	return nil
+
+	return container.runtime.Run(container, startCallback)
 }
 
-func (container *Container) start() error {
+func (container *Container) start(startCallback execdriver.StartCallback) (int, error) {
 	container.process.Stdout = container.stdout
 	container.process.Stderr = container.stderr
 	if container.Config.OpenStdin {
 		stdin, err := container.process.StdinPipe()
 		if err != nil {
-			return err
+			return -1, err
 		}
 		go func() {
 			defer stdin.Close()
@@ -358,7 +355,7 @@ func (container *Container) start() error {
 			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
-	return container.runtime.Start(container)
+	return container.runtime.Run(container, startCallback)
 }
 
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
@@ -689,7 +686,6 @@ func (container *Container) Start() (err error) {
 		Network:     en,
 		Tty:         container.Config.Tty,
 		User:        container.Config.User,
-		WaitLock:    make(chan struct{}),
 		SysInitPath: runtime.sysInitPath,
 	}
 	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -703,21 +699,26 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 	container.State.SetRunning(0)
-	go container.monitor()
 
-	if container.Config.Tty {
-		err = container.startPty()
-	} else {
-		err = container.start()
-	}
-	if err != nil {
-		return err
+	waitLock := make(chan struct{})
+	f := func(process *execdriver.Process) {
+		container.State.SetRunning(process.Pid())
+		if process.Tty {
+			if c, ok := process.Stdout.(io.Closer); ok {
+				c.Close()
+			}
+		}
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("%s", err)
+		}
+		close(waitLock)
 	}
 
-	// TODO: @crosbymichael @creack
-	// find a way to update this
-	//	container.State.SetRunning(container.process.Pid())
-	container.ToDisk()
+	go container.monitor(f)
+
+	// Start should not return until the process is actually running
+	<-waitLock
+
 	return nil
 }
 
@@ -1091,17 +1092,24 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-func (container *Container) monitor() {
-	// Wait for the program to exit
+func (container *Container) monitor(f execdriver.StartCallback) {
+	var (
+		err      error
+		exitCode int
+	)
+
 	if container.process == nil {
-		if err := container.runtime.Wait(container, 0); err != nil {
-			utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
-		}
+		// This happends when you have a GHOST container with lxc
+		err = container.runtime.Wait(container, 0)
 	} else {
-		<-container.process.WaitLock
+		if container.Config.Tty {
+			exitCode, err = container.startPty(f)
+		} else {
+			exitCode, err = container.start(f)
+		}
 	}
 
-	if err := container.process.WaitError; err != nil {
+	if err != nil { //TODO: @crosbymichael @creack report error
 		// Since non-zero exit status and signal terminations will cause err to be non-nil,
 		// we have to actually discard it. Still, log it anyway, just in case.
 		utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
@@ -1118,7 +1126,6 @@ func (container *Container) monitor() {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
-	exitCode := container.process.GetExitCode()
 	container.State.SetStopped(exitCode)
 
 	close(container.waitLock)
