@@ -1,7 +1,5 @@
 package docker
 
-import "strings"
-
 type (
 	APIHistory struct {
 		ID        string   `json:"Id"`
@@ -9,24 +7,6 @@ type (
 		Created   int64
 		CreatedBy string `json:",omitempty"`
 		Size      int64
-	}
-
-	APIImages struct {
-		ID          string   `json:"Id"`
-		RepoTags    []string `json:",omitempty"`
-		Created     int64
-		Size        int64
-		VirtualSize int64
-		ParentId    string `json:",omitempty"`
-	}
-
-	APIImagesOld struct {
-		Repository  string `json:",omitempty"`
-		Tag         string `json:",omitempty"`
-		ID          string `json:"Id"`
-		Created     int64
-		Size        int64
-		VirtualSize int64
 	}
 
 	APITop struct {
@@ -100,22 +80,6 @@ type (
 		HostConfig *HostConfig
 	}
 )
-
-func (api APIImages) ToLegacy() []APIImagesOld {
-	outs := []APIImagesOld{}
-	for _, repotag := range api.RepoTags {
-		components := strings.SplitN(repotag, ":", 2)
-		outs = append(outs, APIImagesOld{
-			ID:          api.ID,
-			Repository:  components[0],
-			Tag:         components[1],
-			Created:     api.Created,
-			Size:        api.Size,
-			VirtualSize: api.VirtualSize,
-		})
-	}
-	return outs
-}
 
 func (api APIContainers) ToLegacy() *APIContainersOld {
 	return &APIContainersOld{

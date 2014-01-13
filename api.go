@@ -185,6 +185,7 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
 	job.SetenvBool("list", version <= 1.8)
+	job.SetenvBool("legacy", version <= 1.7)
 	job.Stdout.Add(w)
 	w.WriteHeader(http.StatusOK)
 	if err := job.Run(); err != nil {

@@ -601,13 +601,27 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			}
 
 			if out, exists := lookup[id]; exists {
-				repotag := fmt.Sprintf("%s:%s", name, tag)
-				out.SetList("RepoTags", append(out.GetList("RepoTags"), repotag))
+				if job.GetenvBool("legacy") {
+					out2 := &engine.Env{}
+					out2.Set("Repository", name)
+					out2.Set("Tag", tag)
+					out2.Set("ID", out.Get("ID"))
+					out2.SetInt64("Created", out.GetInt64("Created"))
+					out2.SetInt64("Size", out.GetInt64("Size"))
+					out2.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
+				} else {
+					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
+				}
 			} else {
 				out := &engine.Env{}
 				delete(allImages, id)
-				out.Set("ParentId", image.Parent)
-				out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
+				if job.GetenvBool("legacy") {
+					out.Set("Repository", name)
+					out.Set("Tag", tag)
+				} else {
+					out.Set("ParentId", image.Parent)
+					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
+				}
 				out.Set("ID", image.ID)
 				out.SetInt64("Created", image.Created.Unix())
 				out.SetInt64("Size", image.Size)
@@ -627,8 +641,13 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	if job.Getenv("filter") == "" {
 		for _, image := range allImages {
 			out := &engine.Env{}
-			out.Set("ParentId", image.Parent)
-			out.SetList("RepoTags", []string{"<none>:<none>"})
+			if job.GetenvBool("legacy") {
+				out.Set("Repository", "<none>")
+				out.Set("Tag", "<none>")
+			} else {
+				out.Set("ParentId", image.Parent)
+				out.SetList("RepoTags", []string{"<none>:<none>"})
+			}
 			out.Set("ID", image.ID)
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
