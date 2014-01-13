@@ -256,6 +256,7 @@ func linkLxcStart(root string) error {
 	return os.Symlink(sourcePath, targetPath)
 }
 
+// TODO: This can be moved to the mountinfo reader in the mount pkg
 func rootIsShared() bool {
 	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
 		for _, line := range strings.Split(string(data), "\n") {

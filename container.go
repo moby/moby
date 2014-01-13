@@ -675,18 +675,17 @@ func (container *Container) Start() (err error) {
 	}
 
 	container.process = &execdriver.Process{
-		ID:          container.ID,
-		Privileged:  container.hostConfig.Privileged,
-		Rootfs:      root,
-		InitPath:    "/.dockerinit",
-		Entrypoint:  container.Path,
-		Arguments:   container.Args,
-		WorkingDir:  workingDir,
-		ConfigPath:  container.lxcConfigPath(),
-		Network:     en,
-		Tty:         container.Config.Tty,
-		User:        container.Config.User,
-		SysInitPath: runtime.sysInitPath,
+		ID:         container.ID,
+		Privileged: container.hostConfig.Privileged,
+		Rootfs:     root,
+		InitPath:   "/.dockerinit",
+		Entrypoint: container.Path,
+		Arguments:  container.Args,
+		WorkingDir: workingDir,
+		ConfigPath: container.lxcConfigPath(),
+		Network:    en,
+		Tty:        container.Config.Tty,
+		User:       container.Config.User,
 	}
 	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 

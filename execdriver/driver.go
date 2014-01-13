@@ -29,18 +29,17 @@ type Network struct {
 type Process struct {
 	exec.Cmd
 
-	ID          string
-	Privileged  bool
-	User        string
-	Rootfs      string // root fs of the container
-	InitPath    string // dockerinit
-	Entrypoint  string
-	Arguments   []string
-	WorkingDir  string
-	ConfigPath  string
-	Tty         bool
-	Network     *Network // if network is nil then networking is disabled
-	SysInitPath string
+	ID         string
+	Privileged bool
+	User       string
+	Rootfs     string // root fs of the container
+	InitPath   string // dockerinit
+	Entrypoint string
+	Arguments  []string
+	WorkingDir string
+	ConfigPath string
+	Tty        bool
+	Network    *Network // if network is nil then networking is disabled
 }
 
 func (c *Process) Pid() int {
