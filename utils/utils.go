@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"index/suffixarray"
 	"io"
@@ -46,14 +45,12 @@ func Go(f func() error) chan error {
 }
 
 // Request a given URL and return an io.Reader
-func Download(url string) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
+		return nil, fmt.Errorf("Got HTTP status code >= 400: %s", resp.Status)
 	}
 	return resp, nil
 }

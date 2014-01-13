@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1697,22 +1696,28 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	}
 
 	// Store the tree in a map of map (map[parentId][childId])
-	imageMap := make(map[string][]string)
+	imageMap := make(map[string]map[string]struct{})
 	for _, img := range images {
-		imageMap[img.Parent] = append(imageMap[img.Parent], img.ID)
+		if _, exists := imageMap[img.Parent]; !exists {
+			imageMap[img.Parent] = make(map[string]struct{})
+		}
+		imageMap[img.Parent][img.ID] = struct{}{}
 	}
-	sort.Strings(imageMap[imgID])
+
 	// Loop on the children of the given image and check the config
-	for _, elem := range imageMap[imgID] {
+	var match *Image
+	for elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
 			return nil, err
 		}
 		if CompareConfig(&img.ContainerConfig, config) {
-			return img, nil
+			if match == nil || match.Created.Before(img.Created) {
+				match = img
+			}
 		}
 	}
-	return nil, nil
+	return match, nil
 }
 
 func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) error {

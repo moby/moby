@@ -8,15 +8,15 @@ ok      "/version":                             getVersion,             1
 TODO    "/images/viz":                          getImagesViz,           0                       yes
 TODO    "/images/search":                       getImagesSearch,        N
 #3490   "/images/{name:.*}/get":                getImagesGet,           0
-TODO    "/images/{name:.*}/history":            getImagesHistory,       1
+TODO    "/images/{name:.*}/history":            getImagesHistory,       N
 TODO    "/images/{name:.*}/json":               getImagesByName,        1
 TODO    "/containers/ps":                       getContainersJSON,      N
 TODO    "/containers/json":                     getContainersJSON,      1
 ok      "/containers/{name:.*}/export":         getContainersExport,    0
-TODO    "/containers/{name:.*}/changes":        getContainersChanges,   1
+TODO    "/containers/{name:.*}/changes":        getContainersChanges,   N
 TODO    "/containers/{name:.*}/json":           getContainersByName,    1
 TODO    "/containers/{name:.*}/top":            getContainersTop,       N
-TODO    "/containers/{name:.*}/attach/ws":      wsContainersAttach,     0                                       yes
+#3512   "/containers/{name:.*}/attach/ws":      wsContainersAttach,     0                                       yes
 
 **POST**
 TODO    "/auth":                                postAuth,               0                       yes
@@ -34,7 +34,7 @@ ok      "/containers/{name:.*}/start":          postContainersStart,    0
 ok      "/containers/{name:.*}/stop":           postContainersStop,     0
 ok      "/containers/{name:.*}/wait":           postContainersWait,     0
 ok      "/containers/{name:.*}/resize":         postContainersResize,   0
-TODO    "/containers/{name:.*}/attach":         postContainersAttach,   0                                       yes
+#3512   "/containers/{name:.*}/attach":         postContainersAttach,   0                                       yes
 TODO    "/containers/{name:.*}/copy":           postContainersCopy,     0                       yes
 
 **DELETE**
