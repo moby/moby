@@ -308,10 +308,10 @@ func (container *Container) generateLXCConfig() error {
 	return LxcTemplateCompiled.Execute(fo, container)
 }
 
-func (container *Container) startPty(startCallback execdriver.StartCallback) (int, error) {
+func (container *Container) setupPty() error {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
-		return -1, err
+		return err
 	}
 	container.ptyMaster = ptyMaster
 	container.process.Stdout = ptySlave
@@ -336,17 +336,16 @@ func (container *Container) startPty(startCallback execdriver.StartCallback) (in
 			utils.Debugf("startPty: end of stdin pipe")
 		}()
 	}
-
-	return container.runtime.Run(container, startCallback)
+	return nil
 }
 
-func (container *Container) start(startCallback execdriver.StartCallback) (int, error) {
+func (container *Container) setupStd() error {
 	container.process.Stdout = container.stdout
 	container.process.Stderr = container.stderr
 	if container.Config.OpenStdin {
 		stdin, err := container.process.StdinPipe()
 		if err != nil {
-			return -1, err
+			return err
 		}
 		go func() {
 			defer stdin.Close()
@@ -355,7 +354,7 @@ func (container *Container) start(startCallback execdriver.StartCallback) (int, 
 			utils.Debugf("start: end of stdin pipe")
 		}()
 	}
-	return container.runtime.Run(container, startCallback)
+	return nil
 }
 
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
@@ -697,12 +696,24 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.waitLock = make(chan struct{})
-	container.State.SetRunning(0)
+
+	// Setup pipes
+	if container.Config.Tty {
+		err = container.setupPty()
+	} else {
+		err = container.setupStd()
+	}
+	if err != nil {
+		return err
+	}
 
 	waitLock := make(chan struct{})
 	f := func(process *execdriver.Process) {
 		container.State.SetRunning(process.Pid())
 		if process.Tty {
+			// The callback is called after the process Start()
+			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
+			// which we close here.
 			if c, ok := process.Stdout.(io.Closer); ok {
 				c.Close()
 			}
@@ -1091,7 +1102,7 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-func (container *Container) monitor(f execdriver.StartCallback) {
+func (container *Container) monitor(callback execdriver.StartCallback) {
 	var (
 		err      error
 		exitCode int
@@ -1101,11 +1112,7 @@ func (container *Container) monitor(f execdriver.StartCallback) {
 		// This happends when you have a GHOST container with lxc
 		err = container.runtime.Wait(container, 0)
 	} else {
-		if container.Config.Tty {
-			exitCode, err = container.startPty(f)
-		} else {
-			exitCode, err = container.start(f)
-		}
+		exitCode, err = container.runtime.Run(container, callback)
 	}
 
 	if err != nil { //TODO: @crosbymichael @creack report error
