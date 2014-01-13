@@ -1010,7 +1010,7 @@ image is removed.
       -p, --publish=[]: Map a network port to the container
       --rm=false: Automatically remove the container when it exits (incompatible with -d)
       -t, --tty=false: Allocate a pseudo-tty
-      -u, --username="": Username or UID
+      -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
       -v, --volume=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
