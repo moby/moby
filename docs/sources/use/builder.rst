@@ -40,9 +40,31 @@ build succeeds:
     ``sudo docker build -t shykes/myapp .``
 
 The Docker daemon will run your steps one-by-one, committing the
-result if necessary, before finally outputting the ID of your new
-image. The Docker daemon will automatically clean up the context you
-sent.
+result to a new image if necessary, before finally outputting the 
+ID of your new image. The Docker daemon will automatically clean 
+up the context you sent.
+
+Note that each instruction is run independently, and causes a new image 
+to be created - so ``RUN cd /tmp`` will not have any effect on the next
+instructions.
+
+Whenever possible, Docker will re-use the intermediate images, 
+accelerating ``docker build`` significantly (indicated by ``Using cache``:
+
+.. code-block:: bash
+
+   $ docker build -t SvenDowideit/ambassador .
+   Uploading context 10.24 kB
+   Uploading context 
+   Step 1 : FROM docker-ut
+    ---> cbba202fe96b
+   Step 2 : MAINTAINER SvenDowideit@home.org.au
+    ---> Using cache
+    ---> 51182097be13
+   Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+    ---> Using cache
+    ---> 1a5ffc17324d
+   Successfully built 1a5ffc17324d
 
 When you're done with your build, you're ready to look into
 :ref:`image_push`.
