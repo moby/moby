@@ -41,6 +41,10 @@ func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
 	}, nil
 }
 
+func (d *driver) String() string {
+	return "lxc"
+}
+
 func (d *driver) Start(c *execdriver.Process) error {
 	params := []string{
 		startPath,
@@ -48,6 +52,8 @@ func (d *driver) Start(c *execdriver.Process) error {
 		"-f", c.ConfigPath,
 		"--",
 		c.InitPath,
+		"-driver",
+		d.String(),
 	}
 
 	if c.Network != nil {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dotcloud/docker/mount"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/utils"
 	"github.com/syndtr/gocapability/capability"
@@ -26,6 +27,7 @@ type DockerInitArgs struct {
 	env        []string
 	args       []string
 	mtu        int
+	driver     string
 }
 
 func setupHostname(args *DockerInitArgs) error {
@@ -90,6 +92,10 @@ func setupWorkingDirectory(args *DockerInitArgs) error {
 		return fmt.Errorf("Unable to change dir to %v: %v", args.workDir, err)
 	}
 	return nil
+}
+
+func setupMounts(args *DockerInitArgs) error {
+	return mount.ForceMount("proc", "proc", "proc", "")
 }
 
 // Takes care of dropping privileges to the desired user
@@ -182,7 +188,7 @@ func getEnv(args *DockerInitArgs, key string) string {
 func executeProgram(args *DockerInitArgs) error {
 	setupEnv(args)
 
-	if false {
+	if args.driver == "lxc" {
 		if err := setupHostname(args); err != nil {
 			return err
 		}
@@ -199,6 +205,12 @@ func executeProgram(args *DockerInitArgs) error {
 		}
 
 		if err := changeUser(args); err != nil {
+			return err
+		}
+	} else if args.driver == "chroot" {
+		// TODO: @crosbymichael @creack how do we unmount this after the
+		// process exists?
+		if err := setupMounts(args); err != nil {
 			return err
 		}
 	}
@@ -233,6 +245,7 @@ func SysInit() {
 	workDir := flag.String("w", "", "workdir")
 	privileged := flag.Bool("privileged", false, "privileged mode")
 	mtu := flag.Int("mtu", 1500, "interface mtu")
+	driver := flag.String("driver", "", "exec driver")
 	flag.Parse()
 
 	// Get env
@@ -257,6 +270,7 @@ func SysInit() {
 		env:        env,
 		args:       flag.Args(),
 		mtu:        *mtu,
+		driver:     *driver,
 	}
 
 	if err := executeProgram(args); err != nil {

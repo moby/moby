@@ -11,6 +11,7 @@ type Driver interface {
 	Kill(c *Process, sig int) error
 	Wait(id string, duration time.Duration) error // Wait on an out of process option - lxc ghosts
 	Version() string
+	String() string
 }
 
 // Network settings of the container

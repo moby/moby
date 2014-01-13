@@ -1,11 +1,8 @@
 package chroot
 
 import (
-	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	"io/ioutil"
 	"os/exec"
-	"path"
 	"time"
 )
 
@@ -16,15 +13,18 @@ func NewDriver() (execdriver.Driver, error) {
 	return &driver{}, nil
 }
 
+func (d *driver) String() string {
+	return "chroot"
+}
+
 func (d *driver) Start(c *execdriver.Process) error {
-	data, _ := ioutil.ReadFile(c.SysInitPath)
-	ioutil.WriteFile(path.Join(c.Rootfs, ".dockerinit"), data, 0644)
 	params := []string{
 		"chroot",
 		c.Rootfs,
 		"/.dockerinit",
+		"-driver",
+		d.String(),
 	}
-	// need to mount proc
 	params = append(params, c.Entrypoint)
 	params = append(params, c.Arguments...)
 
