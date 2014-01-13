@@ -413,11 +413,21 @@ func (a *Driver) limitContainer(id string, quota int64) error {
         return err
     }
 
-    log.Printf("Executing mount -o loop...")
+    log.Printf("Appending to fstab...")
+    text := containerQuotaFile + " " + containerFilesystem + " " + extension + " " + "loop,rw,usrquota,grpquota 0 0\n"
+    f, err := os.OpenFile("/etc/fstab", os.O_APPEND|os.O_RDWR, 0666)
+    if err != nil {
+        return err
+    }
+    _, err = f.WriteString(text)
+    if err != nil {
+        return err
+    }
+    f.Close()
+
+    log.Printf("Executing mount...")
     cmd = "mount"
-    opt1 = "-o" 
-    opt2 = "loop,rw,usrquota,grpquota"
-    mountCmd := exec.Command(cmd, opt1, opt2, containerQuotaFile, containerFilesystem)
+    mountCmd := exec.Command(cmd, containerFilesystem)
     err = mountCmd.Run()
     if err != nil {
         return err
@@ -444,6 +454,16 @@ func (a *Driver) unLimitContainer(id string) error {
     if err != nil {
     	log.Printf("Error unmounting %s (probably a -init folder)", id)
         return nil
+    }
+
+    log.Printf("Removing line from fstab...")
+    cmd = "sed"
+    opt1 = "-i" 
+    opt2 := "/" + id + "/d"
+    sedCmd := exec.Command(cmd, opt1, opt2, "/etc/fstab")
+    err = sedCmd.Run()
+    if err != nil {
+        return err
     }
 
     log.Printf("Executing rm...")
