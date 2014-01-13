@@ -15,16 +15,34 @@ import (
 
 type TarSum struct {
 	io.Reader
-	tarR        *tar.Reader
-	tarW        *tar.Writer
-	gz          *gzip.Writer
-	bufTar      *bytes.Buffer
-	bufGz       *bytes.Buffer
-	h           hash.Hash
-	sums        map[string]string
-	currentFile string
-	finished    bool
-	first       bool
+	tarR               *tar.Reader
+	tarW               *tar.Writer
+	gz                 writeCloseFlusher
+	bufTar             *bytes.Buffer
+	bufGz              *bytes.Buffer
+	h                  hash.Hash
+	sums               map[string]string
+	currentFile        string
+	finished           bool
+	first              bool
+	DisableCompression bool
+}
+
+type writeCloseFlusher interface {
+	io.WriteCloser
+	Flush() error
+}
+
+type nopCloseFlusher struct {
+	io.Writer
+}
+
+func (n *nopCloseFlusher) Close() error {
+	return nil
+}
+
+func (n *nopCloseFlusher) Flush() error {
+	return nil
 }
 
 func (ts *TarSum) encodeHeader(h *tar.Header) error {
@@ -57,7 +75,11 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 		ts.bufGz = bytes.NewBuffer([]byte{})
 		ts.tarR = tar.NewReader(ts.Reader)
 		ts.tarW = tar.NewWriter(ts.bufTar)
-		ts.gz = gzip.NewWriter(ts.bufGz)
+		if !ts.DisableCompression {
+			ts.gz = gzip.NewWriter(ts.bufGz)
+		} else {
+			ts.gz = &nopCloseFlusher{Writer: ts.bufGz}
+		}
 		ts.h = sha256.New()
 		ts.h.Reset()
 		ts.first = true

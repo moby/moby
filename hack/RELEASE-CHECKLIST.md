@@ -1,3 +1,4 @@
+# Release Checklist
 ## A maintainer's guide to releasing Docker
 
 So you're in charge of a Docker release? Cool. Here's what to do.
@@ -8,9 +9,10 @@ to keep it up-to-date.
 ### 1. Pull from master and create a release branch
 
 ```bash
-export VERSION=vXXX
+export VERSION=vX.Y.Z
 git checkout release
-git pull
+git fetch
+git reset --hard origin/release
 git checkout -b bump_$VERSION
 git merge origin/master
 ```
@@ -20,16 +22,13 @@ git merge origin/master
 You can run this command for reference:
 
 ```bash
-LAST_VERSION=$(git tag | grep -E "v[0-9\.]+$" | sort -nr | head -n 1)
-git log $LAST_VERSION..HEAD
+LAST_VERSION=$(git tag | grep -E 'v[0-9\.]+$' | sort -nr | head -n 1)
+git log --stat $LAST_VERSION..HEAD
 ```
 
-Each change should be formatted as ```BULLET CATEGORY: DESCRIPTION```
+Each change should be listed under a category heading formatted as `#### CATEGORY`.
 
-* BULLET is either ```-```, ```+``` or ```*```, to indicate a bugfix,
-  new feature or upgrade, respectively.
-
-* CATEGORY should describe which part of the project is affected.
+`CATEGORY` should describe which part of the project is affected.
   Valid categories are:
   * Builder
   * Documentation
@@ -37,19 +36,34 @@ Each change should be formatted as ```BULLET CATEGORY: DESCRIPTION```
   * Packaging
   * Remote API
   * Runtime
+  * Other (please use this category sparingly)
 
-* DESCRIPTION: a concise description of the change that is relevant to the 
-  end-user, using the present tense. Changes should be described in terms 
-  of how they affect the user, for example "new feature X which allows Y", 
-  "fixed bug which caused X", "increased performance of Y".
+Each change should be formatted as `BULLET DESCRIPTION`, given:
+
+* BULLET: either `-`, `+` or `*`, to indicate a bugfix, new feature or
+  upgrade, respectively.
+
+* DESCRIPTION: a concise description of the change that is relevant to the
+  end-user, using the present tense. Changes should be described in terms
+  of how they affect the user, for example "Add new feature X which allows Y",
+  "Fix bug which caused X", "Increase performance of Y".
 
 EXAMPLES:
 
-```
-+ Builder: 'docker build -t FOO' applies the tag FOO to the newly built
-  container.
-* Runtime: improve detection of kernel version
-- Remote API: fix a bug in the optional unix socket transport
+```markdown
+## 0.3.6 (1995-12-25)
+
+#### Builder
+
++ 'docker build -t FOO .' applies the tag FOO to the newly built container
+
+#### Remote API
+
+- Fix a bug in the optional unix socket transport
+
+#### Runtime
+
+* Improve detection of kernel version
 ```
 
 ### 3. Change the contents of the VERSION file
@@ -61,14 +75,14 @@ echo ${VERSION#v} > VERSION
 ### 4. Run all tests
 
 ```bash
-docker run -privileged docker hack/make.sh test
+make test
 ```
 
 ### 5. Test the docs
 
 Make sure that your tree includes documentation for any modified or
 new features, syntax or semantic changes. Instructions for building
-the docs are in ``docs/README.md``
+the docs are in `docs/README.md`.
 
 ### 6. Commit and create a pull request to the "release" branch
 
@@ -76,44 +90,32 @@ the docs are in ``docs/README.md``
 git add VERSION CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 git push origin bump_$VERSION
+echo "https://github.com/dotcloud/docker/compare/release...bump_$VERSION"
 ```
+
+That last command will give you the proper link to visit to ensure that you
+open the PR against the "release" branch instead of accidentally against
+"master" (like so many brave souls before you already have).
 
 ### 7. Get 2 other maintainers to validate the pull request
 
-### 8. Apply tag
-
-```bash
-git tag -a $VERSION -m $VERSION bump_$VERSION
-git push origin $VERSION
-```
-
-Merging the pull request to the release branch will automatically
-update the documentation on the "latest" revision of the docs. You
-should see the updated docs 5-10 minutes after the merge. The docs
-will appear on http://docs.docker.io/. For more information about
-documentation releases, see ``docs/README.md``
-
-### 9. Go to github to merge the bump_$VERSION into release
-
-Don't forget to push that pretty blue button to delete the leftover
-branch afterwards!
-
-### 10. Publish binaries
+### 8. Publish binaries
 
 To run this you will need access to the release credentials.
 Get them from [the infrastructure maintainers](
 https://github.com/dotcloud/docker/blob/master/hack/infrastructure/MAINTAINERS).
 
 ```bash
-git checkout release
-git fetch
-git reset --hard origin/release
 docker build -t docker .
-docker run  \
+export AWS_S3_BUCKET="test.docker.io"
+export AWS_ACCESS_KEY="$(cat ~/.aws/access_key)"
+export AWS_SECRET_KEY="$(cat ~/.aws/secret_key)"
+export GPG_PASSPHRASE=supersecretsesame
+docker run \
        -e AWS_S3_BUCKET=test.docker.io \
-       -e AWS_ACCESS_KEY=$(cat ~/.aws/access_key) \
-       -e AWS_SECRET_KEY=$(cat ~/.aws/secret_key) \
-       -e GPG_PASSPHRASE=supersecretsesame \
+       -e AWS_ACCESS_KEY \
+       -e AWS_SECRET_KEY \
+       -e GPG_PASSPHRASE \
        -i -t -privileged \
        docker \
        hack/release.sh
@@ -121,9 +123,78 @@ docker run  \
 
 It will run the test suite one more time, build the binaries and packages,
 and upload to the specified bucket (you should use test.docker.io for
-general testing, and once everything is fine, switch to get.docker.io).
+general testing, and once everything is fine, switch to get.docker.io as
+noted below).
 
-### 11. Rejoice and Evangelize!
+After the binaries and packages are uploaded to test.docker.io, make sure
+they get tested in both Ubuntu and Debian for any obvious installation
+issues or runtime issues.
+
+Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
+help testing!  An easy way to get some useful links for sharing:
+
+```bash
+echo "Ubuntu/Debian install script: curl -sLS https://test.docker.io/ | sh"
+echo "Linux 64bit binary: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}"
+echo "Darwin/OSX 64bit client binary: https://test.docker.io/builds/Darwin/x86_64/docker-${VERSION#v}"
+echo "Darwin/OSX 32bit client binary: https://test.docker.io/builds/Darwin/i386/docker-${VERSION#v}"
+echo "Linux 64bit tgz: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
+```
+
+Once they're tested and reasonably believed to be working, run against
+get.docker.io:
+
+```bash
+docker run \
+       -e AWS_S3_BUCKET=get.docker.io \
+       -e AWS_ACCESS_KEY \
+       -e AWS_SECRET_KEY \
+       -e GPG_PASSPHRASE \
+       -i -t -privileged \
+       docker \
+       hack/release.sh
+```
+
+### 9. Apply tag
+
+```bash
+git tag -a $VERSION -m $VERSION bump_$VERSION
+git push origin $VERSION
+```
+
+It's very important that we don't make the tag until after the official
+release is uploaded to get.docker.io!
+
+### 10. Go to github to merge the `bump_$VERSION` into release
+
+Merging the pull request to the release branch will automatically
+update the documentation on the "latest" revision of the docs. You
+should see the updated docs 5-10 minutes after the merge. The docs
+will appear on http://docs.docker.io/. For more information about
+documentation releases, see `docs/README.md`.
+
+Don't forget to push that pretty blue button to delete the leftover
+branch afterwards!
+
+### 11. Create a new pull request to merge release back into master
+
+```bash
+git checkout master
+git fetch
+git reset --hard origin/master
+git merge origin/release
+git checkout -b merge_release_$VERSION
+echo ${VERSION#v}-dev > VERSION
+git add VERSION
+git commit -m "Change version to $(cat VERSION)"
+git push origin merge_release_$VERSION
+echo "https://github.com/dotcloud/docker/compare/master...merge_release_$VERSION"
+```
+
+Again, get two maintainers to validate, then merge, then push that pretty
+blue button to delete your branch.
+
+### 12. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
