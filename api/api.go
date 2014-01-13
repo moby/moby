@@ -917,6 +917,39 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	return nil
 }
 
+func postContainersCgroup(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	saveToFile, err := getBoolParam(r.FormValue("w"))
+	if err != nil {
+		return err
+	}
+
+	cgroupData := &APICgroup{}
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		if err := json.NewDecoder(r.Body).Decode(cgroupData); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	cgroupResponse, err := srv.ContainerCgroup(name, cgroupData, saveToFile)
+	if err != nil {
+		utils.Errorf("%s", err.Error())
+		return err
+	}
+
+	writeJSON(w, http.StatusOK, &cgroupResponse)
+
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1030,6 +1063,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/{name:.*}/cgroup":  postContainersCgroup,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
