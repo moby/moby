@@ -406,6 +406,12 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	}
 
 	if img.Config != nil {
+		if img.Config.Param != nil {
+			imgParam, conParam := decodeParams(img.Config.Param), decodeParams(mergeEnvValues(config.Param, config.Env))
+			if !doParamsMatch(imgParam, conParam) {
+				return nil, nil, fmt.Errorf("Missing required parameters. Looking for: %s, received: %s", imgParam, conParam)
+			}
+		}
 		if err := MergeConfig(config, img.Config); err != nil {
 			return nil, nil, err
 		}

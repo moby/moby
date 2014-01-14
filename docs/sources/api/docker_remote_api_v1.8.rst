@@ -126,6 +126,7 @@ Create a container
 		"OpenStdin":false,
 		"StdinOnce":false,
 		"Env":null,
+		"Param":null,
 		"Cmd":[
 			"date"
 		],
@@ -199,6 +200,7 @@ Inspect a container
 				"OpenStdin": false,
 				"StdinOnce": false,
 				"Env": null,
+				"Param":null,
 				"Cmd": [
 					"date"
 				],
@@ -790,6 +792,7 @@ Inspect an image
 				"OpenStdin":true,
 				"StdinOnce":false,
 				"Env":null,
+				"Param":null,
 				"Cmd": ["/bin/bash"]
 				,"Dns":null,
 				"Image":"base",

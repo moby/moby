@@ -1,11 +1,14 @@
 package docker
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
+	"io"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -35,6 +38,7 @@ func CompareConfig(a, b *Config) bool {
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
+		len(a.Param) != len(b.Param) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		len(a.Entrypoint) != len(b.Entrypoint) ||
@@ -146,22 +150,29 @@ func MergeConfig(userConf, imageConf *Config) error {
 	if !userConf.StdinOnce {
 		userConf.StdinOnce = imageConf.StdinOnce
 	}
+	imgParam, userEnv := decodeParams(imageConf.Param), decodeParams(userConf.Env)
+	for key, _ := range userEnv {
+		if _, ok := imgParam[key]; ok {
+			delete(imgParam, key)
+		}
+	}
+	imageConf.Param = encodeParams(imgParam)
+	userParam, imgEnv := decodeParams(userConf.Param), decodeParams(imageConf.Env)
+	for key, _ := range userParam {
+		if _, ok := imgEnv[key]; ok {
+			delete(imgEnv, key)
+		}
+	}
+	imageConf.Env = encodeParams(imgEnv)
 	if userConf.Env == nil || len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
-		for _, imageEnv := range imageConf.Env {
-			found := false
-			imageEnvKey := strings.Split(imageEnv, "=")[0]
-			for _, userEnv := range userConf.Env {
-				userEnvKey := strings.Split(userEnv, "=")[0]
-				if imageEnvKey == userEnvKey {
-					found = true
-				}
-			}
-			if !found {
-				userConf.Env = append(userConf.Env, imageEnv)
-			}
-		}
+		userConf.Env = mergeEnvValues(imageConf.Env, userConf.Env)
+	}
+	if userConf.Param == nil || len(userConf.Param) == 0 {
+		userConf.Param = imageConf.Param
+	} else {
+		userConf.Param = mergeEnvValues(imageConf.Param, userConf.Param)
 	}
 	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
 		userConf.Cmd = imageConf.Cmd
@@ -353,4 +364,61 @@ func (c *checker) Exists(name string) bool {
 // Generate a random and unique name
 func generateRandomName(runtime *Runtime) (string, error) {
 	return namesgenerator.GenerateRandomName(&checker{runtime})
+}
+
+// Decode Params from slice to map
+func decodeParams(params []string) map[string]string {
+	m := make(map[string]string)
+	for _, kv := range params {
+		parts := strings.SplitN(kv, "=", 2)
+		m[parts[0]] = parts[1]
+	}
+	return m
+}
+
+// Checks and sees if the Param keys supplied in the container config match the params needed in the image.
+func doParamsMatch(imgp map[string]string, contp map[string]string) bool {
+	for k, _ := range imgp {
+		if _, ok := contp[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// Encodes params back to a slice
+func encodeParams(m map[string]string) []string {
+	var ns []string
+	for k, kv := range m {
+		ns = append(ns, (k + "=" + kv))
+	}
+	return ns
+}
+
+// Reads stdin prompt. moved from login function in commands.go.
+func readInput(in io.Reader, out io.Writer) string {
+	reader := bufio.NewReader(in)
+	line, _, err := reader.ReadLine()
+	if err != nil {
+		fmt.Fprintln(out, err.Error())
+		os.Exit(1)
+	}
+	return string(line)
+}
+
+func mergeEnvValues(imageConfEnv []string, userConfEnv []string) []string {
+	for _, imageEnv := range imageConfEnv {
+		found := false
+		imageEnvKey := strings.Split(imageEnv, "=")[0]
+		for _, userEnv := range userConfEnv {
+			userEnvKey := strings.Split(userEnv, "=")[0]
+			if imageEnvKey == userEnvKey {
+				found = true
+			}
+		}
+		if !found {
+			userConfEnv = append(userConfEnv, imageEnv)
+		}
+	}
+	return userConfEnv
 }
