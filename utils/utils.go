@@ -1015,3 +1015,26 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 		closer: closer,
 	}
 }
+
+// Returns the relative path to the cgroup docker is running in.
+func GetThisCgroup(cgroupType string) (string, error) {
+	output, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		parts := strings.Split(line, ":")
+		// any type used by docker should work
+		if parts[1] == cgroupType {
+			return parts[2], nil
+		}
+	}
+	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", cgroupType)
+}
+
+func IsInBytesSubsystem(subsystem string) bool {
+	if strings.Contains(subsystem, "in_bytes") {
+		return true
+	}
+	return false
+}

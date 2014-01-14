@@ -3,8 +3,6 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
-	"strconv"
-	"strings"
 )
 
 func (srv *Server) ContainerCgroup(name string, cgroupData *APICgroup, saveToFile bool) ([]APICgroupResponse, error) {
@@ -45,7 +43,7 @@ func (srv *Server) ContainerCgroup(name string, cgroupData *APICgroup, saveToFil
 				cgroupResponse.Out = output
 				cgroupResponse.Status = 0
 				if saveToFile {
-					addLXCConfig(container, pair.Key, pair.Value)
+					container.AddLXCConfig(pair.Key, pair.Value)
 				}
 			}
 			cgroupResponses = append(cgroupResponses, cgroupResponse)
@@ -64,42 +62,4 @@ func (srv *Server) ContainerCgroup(name string, cgroupData *APICgroup, saveToFil
 		return cgroupResponses, nil
 	}
 	return nil, fmt.Errorf("No such container: %s", name)
-}
-
-func addLXCConfig(container *Container, subsystem string, value string) error {
-	findAndUpdate := false
-	for i, _ := range container.hostConfig.LxcConf {
-		if strings.HasSuffix(container.hostConfig.LxcConf[i].Key, subsystem) {
-			if isInBytesSubsystem(subsystem) {
-				parsedValue, err := utils.RAMInBytes(value)
-				if err != nil {
-					return err
-				}
-				value = strconv.FormatInt(parsedValue, 10)
-			}
-			container.hostConfig.LxcConf[i].Value = value
-			findAndUpdate = true
-		}
-	}
-	if !findAndUpdate {
-		var kvPair KeyValuePair
-		kvPair.Key = "lxc.cgroup." + subsystem
-		if isInBytesSubsystem(subsystem) {
-			parsedValue, err := utils.RAMInBytes(value)
-			if err != nil {
-				return err
-			}
-			value = strconv.FormatInt(parsedValue, 10)
-		}
-		kvPair.Value = value
-		container.hostConfig.LxcConf = append(container.hostConfig.LxcConf, kvPair)
-	}
-	return nil
-}
-
-func isInBytesSubsystem(subsystem string) bool {
-	if strings.Contains(subsystem, "in_bytes") {
-		return true
-	}
-	return false
 }
