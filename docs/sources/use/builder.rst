@@ -374,6 +374,24 @@ the image.
 The ``WORKDIR`` instruction sets the working directory in which
 the command given by ``CMD`` is executed.
 
+
+3.12 PARAM
+
+	``PARAM <key> <key_value>``
+
+The ``PARAM`` instruction sets required parameters. ``<key>`` is the name of the required parameter
+and the ``<key_value>`` is the default value.
+
+These are environment variables that will be requested at runtime of the container. 
+These can be set at runtime with the ``-param`` flag, or at the prompt when a 
+container is run. The Remote API will raise an error if the parameters are not 
+set at runtime. The CLI will prompt the user to either enter their desired values 
+or hit enter to accept the default values.
+
+When committing a new image, if the new configuration contains any ``ENV`` or ``PARAM`` 
+values that may conflict, the new value overwrites the old. This effectively allows for
+``PARAM`` values to be removed and replaced by ``ENV`` values, and the reverse as well.
+
 .. _dockerfile_examples:
 
 4. Dockerfile Examples

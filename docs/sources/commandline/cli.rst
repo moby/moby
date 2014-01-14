@@ -310,7 +310,7 @@ or ``config`` when running ``docker inspect IMAGEID``.
       ],
       "Param" :  [
          "USERNAME=bob",
-	 "PASSWORD=password"
+         "PASSWORD=password"
 	],
       "StdinOnce" : false,
       "Domainname" : "",
@@ -1005,7 +1005,8 @@ image is removed.
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
-      -param=[]: Set required parameters
+      -param=[]: Set required parameters. Required parameters are requested at run and are
+                 passed to a container in the form of environment variables.
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
