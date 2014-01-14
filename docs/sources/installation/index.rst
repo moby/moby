@@ -22,6 +22,7 @@ Contents:
    fedora
    archlinux
    gentoolinux
+   openSUSE
    frugalware
    vagrant
    windows
