@@ -587,7 +587,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		allImages, err = srv.runtime.graph.Heads()
 	}
 	if err != nil {
-		job.Errorf("%s", err)
+		job.Error(err)
 		return engine.StatusErr
 	}
 	lookup := make(map[string]*engine.Env)
@@ -642,7 +642,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 
 	outs.ReverseSort()
 	if _, err := outs.WriteTo(job.Stdout); err != nil {
-		job.Errorf("%s", err)
+		job.Error(err)
 		return engine.StatusErr
 	}
 	return engine.StatusOK
@@ -735,7 +735,7 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	})
 	outs.ReverseSort()
 	if _, err := outs.WriteTo(job.Stdout); err != nil {
-		job.Errorf("%s", err)
+		job.Error(err)
 		return engine.StatusErr
 	}
 	return engine.StatusOK

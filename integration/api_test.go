@@ -263,12 +263,12 @@ func TestGetImagesHistory(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	history := []docker.APIHistory{}
-	if err := json.Unmarshal(r.Body.Bytes(), &history); err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	if len(history) != 1 {
-		t.Errorf("Expected 1 line, %d found", len(history))
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 line, %d found", len(outs.Data))
 	}
 }
 
