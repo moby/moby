@@ -51,14 +51,17 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 		container.Kill()
 		runtime.Destroy(container)
 	}
-	srv := mkServerFromEngine(eng, t)
-	images, err := srv.Images(true, "")
+	job := eng.Job("images")
+	images, err := job.Stdout.AddTable()
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-	for _, image := range images {
-		if image.ID != unitTestImageID {
-			srv.ImageDelete(image.ID, false)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	for _, image := range images.Data {
+		if image.Get("ID") != unitTestImageID {
+			mkServerFromEngine(eng, t).ImageDelete(image.Get("ID"), false)
 		}
 	}
 	return nil
@@ -158,7 +161,7 @@ func spawnGlobalDaemon() {
 			Host:   testDaemonAddr,
 		}
 		job := eng.Job("serveapi", listenURL.String())
-		job.SetenvBool("Logging", os.Getenv("DEBUG") != "")
+		job.SetenvBool("Logging", true)
 		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}

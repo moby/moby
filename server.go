@@ -127,6 +127,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("images", srv.Images); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -568,23 +572,24 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	return nil
 }
 
-func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
+func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
 		allImages map[string]*Image
 		err       error
 	)
-	if all {
+	if job.GetenvBool("all") {
 		allImages, err = srv.runtime.graph.Map()
 	} else {
 		allImages, err = srv.runtime.graph.Heads()
 	}
 	if err != nil {
-		return nil, err
+		job.Errorf("%s", err)
+		return engine.StatusErr
 	}
-	lookup := make(map[string]APIImages)
+	lookup := make(map[string]*engine.Env)
 	for name, repository := range srv.runtime.repositories.Repositories {
-		if filter != "" {
-			if match, _ := path.Match(filter, name); !match {
+		if job.Getenv("filter") != "" {
+			if match, _ := path.Match(job.Getenv("filter"), name); !match {
 				continue
 			}
 		}
@@ -596,48 +601,47 @@ func (srv *Server) Images(all bool, filter string) ([]APIImages, error) {
 			}
 
 			if out, exists := lookup[id]; exists {
-				out.RepoTags = append(out.RepoTags, fmt.Sprintf("%s:%s", name, tag))
-
-				lookup[id] = out
+				out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
 			} else {
-				var out APIImages
-
+				out := &engine.Env{}
 				delete(allImages, id)
-
-				out.ParentId = image.Parent
-				out.RepoTags = []string{fmt.Sprintf("%s:%s", name, tag)}
-				out.ID = image.ID
-				out.Created = image.Created.Unix()
-				out.Size = image.Size
-				out.VirtualSize = image.getParentsSize(0) + image.Size
-
+				out.Set("ParentId", image.Parent)
+				out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
+				out.Set("ID", image.ID)
+				out.SetInt64("Created", image.Created.Unix())
+				out.SetInt64("Size", image.Size)
+				out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
 				lookup[id] = out
 			}
 
 		}
 	}
 
-	outs := make([]APIImages, 0, len(lookup))
+	outs := engine.NewTable("Created", len(lookup))
 	for _, value := range lookup {
-		outs = append(outs, value)
+		outs.Add(value)
 	}
 
 	// Display images which aren't part of a repository/tag
-	if filter == "" {
+	if job.Getenv("filter") == "" {
 		for _, image := range allImages {
-			var out APIImages
-			out.ID = image.ID
-			out.ParentId = image.Parent
-			out.RepoTags = []string{"<none>:<none>"}
-			out.Created = image.Created.Unix()
-			out.Size = image.Size
-			out.VirtualSize = image.getParentsSize(0) + image.Size
-			outs = append(outs, out)
+			out := &engine.Env{}
+			out.Set("ParentId", image.Parent)
+			out.SetList("RepoTags", []string{"<none>:<none>"})
+			out.Set("ID", image.ID)
+			out.SetInt64("Created", image.Created.Unix())
+			out.SetInt64("Size", image.Size)
+			out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
+			outs.Add(out)
 		}
 	}
 
-	sortImagesByCreationAndTag(outs)
-	return outs, nil
+	outs.ReverseSort()
+	if _, err := outs.WriteTo(job.Stdout); err != nil {
+		job.Errorf("%s", err)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) DockerInfo(job *engine.Job) engine.Status {

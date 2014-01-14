@@ -17,13 +17,10 @@ func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, true, "")
 
-	if images[0].Created < images[1].Created {
-		t.Error("Expected []APIImges to be ordered by most recent creation date.")
+	if images.Data[0].GetInt("Created") < images.Data[1].GetInt("Created") {
+		t.Error("Expected images to be ordered by most recent creation date.")
 	}
 }
 
@@ -44,13 +41,10 @@ func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, true, "")
 
-	if images[0].RepoTags[0] != "repo:zed" && images[0].RepoTags[0] != "repo:bar" {
-		t.Errorf("Expected []APIImges to be ordered by most recent creation date. %s", images)
+	if repoTags := images.Data[0].GetList("RepoTags"); repoTags[0] != "repo:zed" && repoTags[0] != "repo:bar" {
+		t.Errorf("Expected Images to be ordered by most recent creation date.")
 	}
 }
 

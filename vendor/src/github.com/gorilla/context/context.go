@@ -92,7 +92,7 @@ func Purge(maxAge int) int {
 		datat = make(map[*http.Request]int64)
 	} else {
 		min := time.Now().Unix() - int64(maxAge)
-		for r, _ := range data {
+		for r := range data {
 			if datat[r] < min {
 				clear(r)
 				count++

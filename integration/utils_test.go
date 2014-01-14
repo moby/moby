@@ -186,8 +186,6 @@ func NewTestEngine(t utils.Fataler) *engine.Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng.Stdout = ioutil.Discard
-	eng.Stderr = ioutil.Discard
 	// Load default plugins
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
 	job := eng.Job("initapi")
@@ -328,4 +326,23 @@ func fakeTar() (io.Reader, error) {
 	}
 	tw.Close()
 	return buf, nil
+}
+
+func getAllImages(eng *engine.Engine, t *testing.T) *engine.Table {
+	return getImages(eng, t, true, "")
+}
+
+func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) *engine.Table {
+	job := eng.Job("images")
+	job.SetenvBool("all", all)
+	job.Setenv("filter", filter)
+	images, err := job.Stdout.AddTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	return images
+
 }

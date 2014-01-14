@@ -59,7 +59,7 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 	// versions of the registry
 	if standalone == "" {
 		return true, nil
-	// Accepted values are "true" (case-insensitive) and "1".
+		// Accepted values are "true" (case-insensitive) and "1".
 	} else if strings.EqualFold(standalone, "true") || standalone == "1" {
 		return true, nil
 	}
