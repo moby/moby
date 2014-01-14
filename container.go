@@ -716,7 +716,7 @@ func (container *Container) Start() (err error) {
 
 	for r, v := range container.Volumes {
 		mountAs := "ro"
-		if container.VolumesRW[v] {
+		if container.VolumesRW[r] {
 			mountAs = "rw"
 		}
 
