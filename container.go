@@ -1115,7 +1115,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 
 	if container.process == nil {
 		// This happends when you have a GHOST container with lxc
-		err = container.runtime.Wait(container, 0)
+		err = container.runtime.WaitGhost(container)
 	} else {
 		exitCode, err = container.runtime.Run(container, callback)
 	}

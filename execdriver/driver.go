@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os/exec"
 	"syscall"
-	"time"
 )
 
 var (
@@ -18,7 +17,7 @@ type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
 	// TODO: @crosbymichael @creack wait should probably return the exit code
-	Wait(id string, duration time.Duration) error // Wait on an out of process...process - lxc ghosts
+	Wait(id string) error // Wait on an out of process...process - lxc ghosts
 	Version() string
 	Name() string
 }

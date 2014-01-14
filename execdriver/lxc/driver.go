@@ -133,24 +133,17 @@ func (d *driver) Kill(c *execdriver.Process, sig int) error {
 	return d.kill(c, sig)
 }
 
-func (d *driver) Wait(id string, duration time.Duration) error {
-	var (
-		killer bool
-		done   = d.waitLxc(id, &killer)
-	)
-
-	if duration > 0 {
-		select {
-		case err := <-done:
+func (d *driver) Wait(id string) error {
+	for {
+		output, err := exec.Command("lxc-info", "-n", id).CombinedOutput()
+		if err != nil {
 			return err
-		case <-time.After(duration):
-			killer = true
-			return execdriver.ErrWaitTimeoutReached
 		}
-	} else {
-		return <-done
+		if !strings.Contains(string(output), "RUNNING") {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
-	return nil
 }
 
 func (d *driver) Version() string {
@@ -205,25 +198,6 @@ func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) err
 		time.Sleep(50 * time.Millisecond)
 	}
 	return execdriver.ErrNotRunning
-}
-
-func (d *driver) waitLxc(id string, kill *bool) <-chan error {
-	done := make(chan error)
-	go func() {
-		for *kill {
-			output, err := exec.Command("lxc-info", "-n", id).CombinedOutput()
-			if err != nil {
-				done <- err
-				return
-			}
-			if !strings.Contains(string(output), "RUNNING") {
-				done <- err
-				return
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-	return done
 }
 
 func (d *driver) getInfo(c *execdriver.Process) ([]byte, error) {

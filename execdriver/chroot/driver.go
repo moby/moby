@@ -3,7 +3,6 @@ package chroot
 import (
 	"github.com/dotcloud/docker/execdriver"
 	"os/exec"
-	"time"
 )
 
 type driver struct {
@@ -55,8 +54,8 @@ func (d *driver) Kill(p *execdriver.Process, sig int) error {
 	return p.Process.Kill()
 }
 
-func (d *driver) Wait(id string, duration time.Duration) error {
-	panic("No Implemented")
+func (d *driver) Wait(id string) error {
+	panic("Not Implemented")
 }
 
 func (d *driver) Version() string {
