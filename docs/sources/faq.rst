@@ -174,6 +174,7 @@ Linux:
 - Centos 6+
 - Gento
 - ArchLinux
+- openSUSE 12.3+
 
 Cloud:
 
