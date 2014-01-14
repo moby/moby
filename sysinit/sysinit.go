@@ -208,11 +208,10 @@ func executeProgram(args *DockerInitArgs) error {
 			return err
 		}
 	} else if args.driver == "chroot" {
-		// TODO: @crosbymichael @creack how do we unmount this after the
-		// process exists?
 		if err := setupMounts(args); err != nil {
 			return err
 		}
+		defer mount.ForceUnmount("proc")
 	}
 
 	path, err := exec.LookPath(args.args[0])
@@ -221,11 +220,22 @@ func executeProgram(args *DockerInitArgs) error {
 		os.Exit(127)
 	}
 
-	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
-		return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-	}
+	if args.driver == "lxc" {
+		if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
+			panic(err)
+		}
+		// Will never reach
+	} else if args.driver == "chroot" {
+		cmd := exec.Command(path, args.args[1:]...)
 
-	// Will never reach here
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		cmd.Stdin = os.Stdin
+
+		return cmd.Run()
+	}
+	panic("Should not be here")
+
 	return nil
 }
 
