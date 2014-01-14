@@ -670,9 +670,12 @@ preserved.
 
 ::
 
-    Usage: docker insert IMAGE URL PATH
+    Usage: docker insert IMAGE SRC PATH
 
-    Insert a file from URL in the IMAGE at PATH
+    Insert a file from SRC in the IMAGE at PATH.
+
+SRC may be a path to a file on the host system or a URL.
+
 
 Use the specified ``IMAGE`` as the parent for a new image which adds a
 :ref:`layer <layer_def>` containing the new file. The ``insert`` command does

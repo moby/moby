@@ -121,7 +121,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInsert(args ...string) error {
-	cmd := cli.Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
+	cmd := cli.Subcmd("insert", "IMAGE URL|FILE DESTPATH", "Insert a file from URL or FILE in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
