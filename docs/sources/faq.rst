@@ -172,7 +172,7 @@ Linux:
 - Fedora 19/20+
 - RHEL 6.5+
 - Centos 6+
-- Gento
+- Gentoo
 - ArchLinux
 
 Cloud:
