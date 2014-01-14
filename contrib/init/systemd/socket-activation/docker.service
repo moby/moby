@@ -4,7 +4,6 @@ Documentation=http://docs.docker.io
 After=network.target
 
 [Service]
-ExecStartPre=/bin/mount --make-rprivate /
 ExecStart=/usr/bin/docker -d -H fd://
 
 [Install]
