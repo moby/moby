@@ -14,7 +14,7 @@ type Driver interface {
 	// TODO: @crosbymichael @creack wait should probably return the exit code
 	Wait(id string, duration time.Duration) error // Wait on an out of process...process - lxc ghosts
 	Version() string
-	String() string
+	Name() string
 }
 
 // Network settings of the container
@@ -43,6 +43,9 @@ type Process struct {
 }
 
 func (c *Process) Pid() int {
+	if c.Process == nil {
+		return -1
+	}
 	return c.Process.Pid
 }
 

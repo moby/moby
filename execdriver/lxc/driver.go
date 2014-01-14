@@ -29,7 +29,7 @@ type driver struct {
 	sharedRoot bool
 }
 
-func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
+func NewDriver(root string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func NewDriver(root string, apparmor bool) (execdriver.Driver, error) {
 	}, nil
 }
 
-func (d *driver) String() string {
+func (d *driver) Name() string {
 	return "lxc"
 }
 
@@ -53,7 +53,7 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		"--",
 		c.InitPath,
 		"-driver",
-		d.String(),
+		d.Name(),
 	}
 
 	if c.Network != nil {
@@ -195,6 +195,7 @@ func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) err
 		select {
 		case <-waitLock:
 			// If the process dies while waiting for it, just return
+			return nil
 			if c.ProcessState != nil && c.ProcessState.Exited() {
 				return nil
 			}

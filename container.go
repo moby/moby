@@ -708,7 +708,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	waitLock := make(chan struct{})
-	f := func(process *execdriver.Process) {
+	callback := func(process *execdriver.Process) {
 		container.State.SetRunning(process.Pid())
 		if process.Tty {
 			// The callback is called after the process Start()
@@ -724,7 +724,9 @@ func (container *Container) Start() (err error) {
 		close(waitLock)
 	}
 
-	go container.monitor(f)
+	// We use a callback here instead of a goroutine and an chan for
+	// syncronization purposes
+	go container.monitor(callback)
 
 	// Start should not return until the process is actually running
 	<-waitLock

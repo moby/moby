@@ -9,11 +9,11 @@ import (
 type driver struct {
 }
 
-func NewDriver() (execdriver.Driver, error) {
+func NewDriver() (*driver, error) {
 	return &driver{}, nil
 }
 
-func (d *driver) String() string {
+func (d *driver) Name() string {
 	return "chroot"
 }
 
@@ -23,7 +23,7 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		c.Rootfs,
 		"/.dockerinit",
 		"-driver",
-		d.String(),
+		d.Name(),
 	}
 	params = append(params, c.Entrypoint)
 	params = append(params, c.Arguments...)
@@ -43,24 +43,12 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		return -1, err
 	}
 
-	var (
-		waitErr  error
-		waitLock = make(chan struct{})
-	)
-	go func() {
-		if err := c.Wait(); err != nil {
-			waitErr = err
-		}
-		close(waitLock)
-	}()
-
 	if startCallback != nil {
 		startCallback(c)
 	}
 
-	<-waitLock
-
-	return c.GetExitCode(), waitErr
+	err = c.Wait()
+	return c.GetExitCode(), err
 }
 
 func (d *driver) Kill(p *execdriver.Process, sig int) error {
