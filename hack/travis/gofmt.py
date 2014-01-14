@@ -11,6 +11,9 @@ files = subprocess.check_output([
 exit_status = 0
 
 for filename in files.split('\n'):
+	if filename.startswith('vendor/'):
+		continue # we can't be changing our upstream vendors for gofmt, so don't even check them
+	
 	if filename.endswith('.go'):
 		try:
 			out = subprocess.check_output(['gofmt', '-s', '-l', filename])
