@@ -862,9 +862,8 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		return err
 	}
 
-	var outs []APIHistory
-	err = json.Unmarshal(body, &outs)
-	if err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadFrom(bytes.NewReader(body)); err != nil {
 		return err
 	}
 
@@ -873,27 +872,28 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE")
 	}
 
-	for _, out := range outs {
+	for _, out := range outs.Data {
+		outID := out.Get("ID")
 		if !*quiet {
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", out.ID)
+				fmt.Fprintf(w, "%s\t", outID)
 			} else {
-				fmt.Fprintf(w, "%s\t", utils.TruncateID(out.ID))
+				fmt.Fprintf(w, "%s\t", utils.TruncateID(outID))
 			}
 
-			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))))
+			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))))
 
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", out.CreatedBy)
+				fmt.Fprintf(w, "%s\t", out.Get("CreatedBy"))
 			} else {
-				fmt.Fprintf(w, "%s\t", utils.Trunc(out.CreatedBy, 45))
+				fmt.Fprintf(w, "%s\t", utils.Trunc(out.Get("CreatedBy"), 45))
 			}
-			fmt.Fprintf(w, "%s\n", utils.HumanSize(out.Size))
+			fmt.Fprintf(w, "%s\n", utils.HumanSize(out.GetInt64("Size")))
 		} else {
 			if *noTrunc {
-				fmt.Fprintln(w, out.ID)
+				fmt.Fprintln(w, outID)
 			} else {
-				fmt.Fprintln(w, utils.TruncateID(out.ID))
+				fmt.Fprintln(w, utils.TruncateID(outID))
 			}
 		}
 	}
