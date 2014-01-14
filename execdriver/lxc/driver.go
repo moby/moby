@@ -1,7 +1,6 @@
 package lxc
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/utils"
@@ -12,15 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-)
-
-const (
-	startPath = "lxc-start"
-)
-
-var (
-	ErrNotRunning         = errors.New("Process could not be started")
-	ErrWaitTimeoutReached = errors.New("Wait timeout reached")
 )
 
 type driver struct {
@@ -47,7 +37,7 @@ func (d *driver) Name() string {
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
 	params := []string{
-		startPath,
+		"lxc-start",
 		"-n", c.ID,
 		"-f", c.ConfigPath,
 		"--",
@@ -155,7 +145,7 @@ func (d *driver) Wait(id string, duration time.Duration) error {
 			return err
 		case <-time.After(duration):
 			killer = true
-			return ErrWaitTimeoutReached
+			return execdriver.ErrWaitTimeoutReached
 		}
 	} else {
 		return <-done
@@ -214,7 +204,7 @@ func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) err
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	return ErrNotRunning
+	return execdriver.ErrNotRunning
 }
 
 func (d *driver) waitLxc(id string, kill *bool) <-chan error {
