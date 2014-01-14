@@ -72,7 +72,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
+			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true, false); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)

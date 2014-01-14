@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +26,7 @@ var (
 	ErrLoginRequired         = errors.New("Authentication is required.")
 )
 
-func pingRegistryEndpoint(endpoint string) (bool, error) {
+func pingRegistryEndpoint(endpoint string, allowInsecureSSL bool) (bool, error) {
 	if endpoint == auth.IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
@@ -41,7 +42,8 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
 		return conn, nil
 	}
-	httpTransport := &http.Transport{Dial: httpDial}
+
+	httpTransport := &http.Transport{Dial: httpDial, TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL}}
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
@@ -92,7 +94,7 @@ func validateRepositoryName(repositoryName string) error {
 }
 
 // Resolves a repository name to a endpoint + name
-func ResolveRepositoryName(reposName string) (string, string, error) {
+func ResolveRepositoryName(reposName string, allowInsecureSSL bool) (string, string, error) {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
 		return "", "", ErrInvalidRepositoryName
@@ -117,7 +119,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	if err := validateRepositoryName(reposName); err != nil {
 		return "", "", err
 	}
-	endpoint, err := ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err := ExpandAndVerifyRegistryUrl(hostname, allowInsecureSSL)
 	if err != nil {
 		return "", "", err
 	}
@@ -127,23 +129,23 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 // this method expands the registry name as used in the prefix of a repo
 // to a full url. if it already is a url, there will be no change.
 // The registry is pinged to test if it http or https
-func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
+func ExpandAndVerifyRegistryUrl(hostname string, allowInsecureSSL bool) (string, error) {
 	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
 		// if there is no slash after https:// (8 characters) then we have no path in the url
 		if strings.LastIndex(hostname, "/") < 9 {
 			// there is no path given. Expand with default path
 			hostname = hostname + "/v1/"
 		}
-		if _, err := pingRegistryEndpoint(hostname); err != nil {
+		if _, err := pingRegistryEndpoint(hostname, allowInsecureSSL); err != nil {
 			return "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
 		return hostname, nil
 	}
 	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
-	if _, err := pingRegistryEndpoint(endpoint); err != nil {
+	if _, err := pingRegistryEndpoint(endpoint, allowInsecureSSL); err != nil {
 		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
 		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
-		if _, err = pingRegistryEndpoint(endpoint); err != nil {
+		if _, err = pingRegistryEndpoint(endpoint, allowInsecureSSL); err != nil {
 			//TODO: triggering highland build can be done there without "failing"
 			return "", errors.New("Invalid Registry endpoint: " + err.Error())
 		}
@@ -676,10 +678,11 @@ type Registry struct {
 	indexEndpoint string
 }
 
-func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string, allowInsecureSSL bool) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: allowInsecureSSL},
 	}
 
 	r = &Registry{
@@ -697,7 +700,7 @@ func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory,
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
 	if indexEndpoint != auth.IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
-		standalone, err := pingRegistryEndpoint(indexEndpoint)
+		standalone, err := pingRegistryEndpoint(indexEndpoint, allowInsecureSSL)
 		if err != nil {
 			return nil, err
 		}

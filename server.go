@@ -488,7 +488,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 }
 
 func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
-	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress())
+	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -1116,7 +1116,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 	return nil
 }
 
-func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool) error {
+func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, parallel bool, allowInsecureSSL bool) error {
 	out = utils.NewWriteFlusher(out)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
@@ -1132,12 +1132,12 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 	defer srv.poolRemove("pull", localName+":"+tag)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
+	endpoint, remoteName, err := registry.ResolveRepositoryName(localName, allowInsecureSSL)
 	if err != nil {
 		return err
 	}
 
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint, allowInsecureSSL)
 	if err != nil {
 		return err
 	}
@@ -1320,21 +1320,21 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
-func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string) error {
+func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string, allowInsecureSSL bool) error {
 	if _, err := srv.poolAdd("push", localName); err != nil {
 		return err
 	}
 	defer srv.poolRemove("push", localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
+	endpoint, remoteName, err := registry.ResolveRepositoryName(localName, allowInsecureSSL)
 	if err != nil {
 		return err
 	}
 
 	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
-	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint, allowInsecureSSL)
 	if err2 != nil {
 		return err2
 	}
