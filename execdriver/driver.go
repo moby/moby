@@ -7,11 +7,49 @@ import (
 )
 
 var (
-	ErrNotRunning         = errors.New("Process could not be started")
-	ErrWaitTimeoutReached = errors.New("Wait timeout reached")
+	ErrNotRunning              = errors.New("Process could not be started")
+	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
+	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
+	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-type StartCallback func(*Process)
+var dockerInitFcts map[string]DockerInitFct
+
+type (
+	StartCallback func(*Process)
+	DockerInitFct func(i *DockerInitArgs) error
+)
+
+func RegisterDockerInitFct(name string, fct DockerInitFct) error {
+	if dockerInitFcts == nil {
+		dockerInitFcts = make(map[string]DockerInitFct)
+	}
+	if _, ok := dockerInitFcts[name]; ok {
+		return ErrDriverAlreadyRegistered
+	}
+	dockerInitFcts[name] = fct
+	return nil
+}
+
+func GetDockerInitFct(name string) (DockerInitFct, error) {
+	fct, ok := dockerInitFcts[name]
+	if !ok {
+		return nil, ErrDriverNotFound
+	}
+	return fct, nil
+}
+
+type DockerInitArgs struct {
+	User       string
+	Gateway    string
+	Ip         string
+	WorkDir    string
+	Privileged bool
+	Env        []string
+	Args       []string
+	Mtu        int
+	Driver     string
+}
 
 type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code

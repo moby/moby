@@ -2,8 +2,28 @@ package chroot
 
 import (
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/mount"
+	"os"
 	"os/exec"
 )
+
+const DriverName = "chroot"
+
+func init() {
+	execdriver.RegisterDockerInitFct(DriverName, func(args *execdriver.DockerInitArgs) error {
+		if err := mount.ForceMount("proc", "proc", "proc", ""); err != nil {
+			return err
+		}
+		defer mount.ForceUnmount("proc")
+		cmd := exec.Command(args.Args[0], args.Args[1:]...)
+
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		cmd.Stdin = os.Stdin
+
+		return cmd.Run()
+	})
+}
 
 type driver struct {
 }
@@ -13,7 +33,7 @@ func NewDriver() (*driver, error) {
 }
 
 func (d *driver) Name() string {
-	return "chroot"
+	return DriverName
 }
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {

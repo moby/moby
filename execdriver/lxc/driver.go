@@ -5,13 +5,49 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
+
+const DriverName = "lxc"
+
+func init() {
+	execdriver.RegisterDockerInitFct(DriverName, func(args *execdriver.DockerInitArgs) error {
+		if err := setupHostname(args); err != nil {
+			return err
+		}
+
+		if err := setupNetworking(args); err != nil {
+			return err
+		}
+
+		if err := setupCapabilities(args); err != nil {
+			return err
+		}
+		if err := setupWorkingDirectory(args); err != nil {
+			return err
+		}
+
+		if err := changeUser(args); err != nil {
+			return err
+		}
+		path, err := exec.LookPath(args.Args[0])
+		if err != nil {
+			log.Printf("Unable to locate %v", args.Args[0])
+			os.Exit(127)
+		}
+		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
+			panic(err)
+		}
+		panic("Unreachable")
+	})
+}
 
 type driver struct {
 	root       string // root path for the driver to use
@@ -32,7 +68,7 @@ func NewDriver(root string, apparmor bool) (*driver, error) {
 }
 
 func (d *driver) Name() string {
-	return "lxc"
+	return DriverName
 }
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
