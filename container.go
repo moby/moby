@@ -726,11 +726,14 @@ func (container *Container) Start() (err error) {
 
 	// We use a callback here instead of a goroutine and an chan for
 	// syncronization purposes
-	go container.monitor(callback)
+	cErr := utils.Go(func() error { return container.monitor(callback) })
 
 	// Start should not return until the process is actually running
-	<-waitLock
-
+	select {
+	case <-waitLock:
+	case err := <-cErr:
+		return err
+	}
 	return nil
 }
 
@@ -1104,7 +1107,7 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-func (container *Container) monitor(callback execdriver.StartCallback) {
+func (container *Container) monitor(callback execdriver.StartCallback) error {
 	var (
 		err      error
 		exitCode int
@@ -1117,10 +1120,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) {
 		exitCode, err = container.runtime.Run(container, callback)
 	}
 
-	if err != nil { //TODO: @crosbymichael @creack report error
-		// Since non-zero exit status and signal terminations will cause err to be non-nil,
-		// we have to actually discard it. Still, log it anyway, just in case.
-		utils.Debugf("monitor: cmd.Wait reported exit status %s for container %s", err, container.ID)
+	if err != nil {
 		if container.runtime != nil && container.runtime.srv != nil {
 			container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
 		}
@@ -1138,15 +1138,16 @@ func (container *Container) monitor(callback execdriver.StartCallback) {
 
 	close(container.waitLock)
 
-	if err := container.ToDisk(); err != nil {
-		// FIXME: there is a race condition here which causes this to fail during the unit tests.
-		// If another goroutine was waiting for Wait() to return before removing the container's root
-		// from the filesystem... At this point it may already have done so.
-		// This is because State.setStopped() has already been called, and has caused Wait()
-		// to return.
-		// FIXME: why are we serializing running state to disk in the first place?
-		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
-	}
+	// FIXME: there is a race condition here which causes this to fail during the unit tests.
+	// If another goroutine was waiting for Wait() to return before removing the container's root
+	// from the filesystem... At this point it may already have done so.
+	// This is because State.setStopped() has already been called, and has caused Wait()
+	// to return.
+	// FIXME: why are we serializing running state to disk in the first place?
+	//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+	container.ToDisk()
+
+	return err
 }
 
 func (container *Container) cleanup() {
