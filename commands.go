@@ -2279,7 +2279,6 @@ func (cli *DockerCli) CmdCgroup(args ...string) error {
 	name := cmd.Arg(0)
 
 	var cgroupData APICgroup
-	//cgroupData.WriteSubsystem = make(map[string]string)
 
 	for _, entry := range cmd.Args()[1:] {
 		pair := strings.Split(entry, "=")

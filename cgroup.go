@@ -24,10 +24,10 @@ func (srv *Server) ContainerCgroup(name string, cgroupData *APICgroup, saveToFil
 			cgroupResponse.Subsystem = subsystem
 			output, err := container.GetCgroupSubsysem(subsystem)
 			if err != nil {
-				cgroupResponse.Err = strings.TrimSuffix(output, "\n")
+				cgroupResponse.Err = output
 				cgroupResponse.Status = 255
 			} else {
-				cgroupResponse.Out = strings.TrimSuffix(output, "\n")
+				cgroupResponse.Out = output
 				cgroupResponse.Status = 0
 			}
 			cgroupResponses = append(cgroupResponses, cgroupResponse)
@@ -39,10 +39,10 @@ func (srv *Server) ContainerCgroup(name string, cgroupData *APICgroup, saveToFil
 			cgroupResponse.Subsystem = pair.Key
 			output, err := container.SetCgroupSubsysem(pair.Key, pair.Value)
 			if err != nil {
-				cgroupResponse.Err = strings.TrimSuffix(output, "\n")
+				cgroupResponse.Err = output
 				cgroupResponse.Status = 255
 			} else {
-				cgroupResponse.Out = strings.TrimSuffix(output, "\n")
+				cgroupResponse.Out = output
 				cgroupResponse.Status = 0
 				if saveToFile {
 					addLXCConfig(container, pair.Key, pair.Value)

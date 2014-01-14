@@ -1604,7 +1604,7 @@ func (container *Container) GetCgroupSubsysem(subsystem string) (string, error) 
 		utils.Debugf("Error with lxc-cgroup: %s (%s)", err, output)
 	}
 
-	return string(output), err
+	return strings.TrimSuffix(string(output), "\n"), err
 }
 
 func (container *Container) SetCgroupSubsysem(subsystem, value string) (string, error) {
@@ -1619,7 +1619,7 @@ func (container *Container) SetCgroupSubsysem(subsystem, value string) (string, 
 		utils.Debugf("Error with lxc-cgroup: %s (%s)", err, output)
 	}
 
-	return string(output), err
+	return strings.TrimSuffix(string(output), "\n"), err
 }
 
 // Returns true if the container exposes a certain port
