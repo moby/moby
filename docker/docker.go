@@ -40,7 +40,7 @@ func main() {
 		flInterContainerComm = flag.Bool("icc", true, "Enable inter-container communication")
 		flGraphDriver        = flag.String("s", "", "Force the docker runtime to use a specific storage driver")
 		flHosts              = docker.NewListOpts(docker.ValidateHost)
-		flMtu                = flag.Int("mtu", docker.DefaultNetworkMtu, "Set the containers network mtu")
+		flMtu                = flag.Int("mtu", docker.GetDefaultNetworkMtu(), "Set the containers network mtu")
 	)
 	flag.Var(&flDns, "dns", "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")

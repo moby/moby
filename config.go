@@ -45,7 +45,7 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	if mtu := job.GetenvInt("Mtu"); mtu != -1 {
 		config.Mtu = mtu
 	} else {
-		config.Mtu = DefaultNetworkMtu
+		config.Mtu = GetDefaultNetworkMtu()
 	}
 	return &config
 }

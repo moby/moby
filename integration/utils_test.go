@@ -32,7 +32,7 @@ func mkRuntime(f utils.Fataler) *docker.Runtime {
 	config := &docker.DaemonConfig{
 		Root:        root,
 		AutoRestart: false,
-		Mtu:         docker.DefaultNetworkMtu,
+		Mtu:         docker.GetDefaultNetworkMtu(),
 	}
 	r, err := docker.NewRuntimeFromDirectory(config)
 	if err != nil {
