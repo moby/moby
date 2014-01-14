@@ -31,72 +31,72 @@ List containers
 
 .. http:get:: /containers/json
 
-	List containers
+        List containers
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
-	   
-	**Example response**:
+           GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
-	   
-	   [
-		{
-			"Id": "8dfafdbc3a40",
-			"Image": "base:latest",
-			"Command": "echo 1",
-			"Created": 1367854155,
-			"Status": "Exit 0",
-			"Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
-			"SizeRw":12288,
-			"SizeRootFs":0
-		},
-		{
-			"Id": "9cd87474be90",
-			"Image": "base:latest",
-			"Command": "echo 222222",
-			"Created": 1367854155,
-			"Status": "Exit 0",
-			"Ports":[],
-			"SizeRw":12288,
-			"SizeRootFs":0
-		},
-		{
-			"Id": "3176a2479c92",
-			"Image": "base:latest",
-			"Command": "echo 3333333333333333",
-			"Created": 1367854154,
-			"Status": "Exit 0",
-			"Ports":[],
-			"SizeRw":12288,
-			"SizeRootFs":0
-		},
-		{
-			"Id": "4cb07b47f9fb",
-			"Image": "base:latest",
-			"Command": "echo 444444444444444444444444444444444",
-			"Created": 1367854152,
-			"Status": "Exit 0",
-			"Ports":[],
-			"SizeRw":12288,
-			"SizeRootFs":0
-		}
-	   ]
- 
-	:query all: 1/True/true or 0/False/false, Show all containers. Only running containers are shown by default
-	:query limit: Show ``limit`` last created containers, include non-running ones.
-	:query since: Show only containers created since Id, include non-running ones.
-	:query before: Show only containers created before Id, include non-running ones.
-	:query size: 1/True/true or 0/False/false, Show the containers sizes
-	:statuscode 200: no error
-	:statuscode 400: bad parameter
-	:statuscode 500: server error
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+           Content-Type: application/json
+
+           [
+                {
+                        "Id": "8dfafdbc3a40",
+                        "Image": "base:latest",
+                        "Command": "echo 1",
+                        "Created": 1367854155,
+                        "Status": "Exit 0",
+                        "Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
+                        "SizeRw":12288,
+                        "SizeRootFs":0
+                },
+                {
+                        "Id": "9cd87474be90",
+                        "Image": "base:latest",
+                        "Command": "echo 222222",
+                        "Created": 1367854155,
+                        "Status": "Exit 0",
+                        "Ports":[],
+                        "SizeRw":12288,
+                        "SizeRootFs":0
+                },
+                {
+                        "Id": "3176a2479c92",
+                        "Image": "base:latest",
+                        "Command": "echo 3333333333333333",
+                        "Created": 1367854154,
+                        "Status": "Exit 0",
+                        "Ports":[],
+                        "SizeRw":12288,
+                        "SizeRootFs":0
+                },
+                {
+                        "Id": "4cb07b47f9fb",
+                        "Image": "base:latest",
+                        "Command": "echo 444444444444444444444444444444444",
+                        "Created": 1367854152,
+                        "Status": "Exit 0",
+                        "Ports":[],
+                        "SizeRw":12288,
+                        "SizeRootFs":0
+                }
+           ]
+
+        :query all: 1/True/true or 0/False/false, Show all containers. Only running containers are shown by default
+        :query limit: Show ``limit`` last created containers, include non-running ones.
+        :query since: Show only containers created since Id, include non-running ones.
+        :query before: Show only containers created before Id, include non-running ones.
+        :query size: 1/True/true or 0/False/false, Show the containers sizes
+        :statuscode 200: no error
+        :statuscode 400: bad parameter
+        :statuscode 500: server error
 
 
 Create a container
@@ -104,61 +104,61 @@ Create a container
 
 .. http:post:: /containers/create
 
-	Create a container
+        Create a container
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/create HTTP/1.1
-	   Content-Type: application/json
+           POST /containers/create HTTP/1.1
+           Content-Type: application/json
 
-	   {
-		"Hostname":"",
-		"User":"",
-		"Memory":0,
-		"MemorySwap":0,
-		"AttachStdin":false,
-		"AttachStdout":true,
-		"AttachStderr":true,
-		"PortSpecs":null,
-		"Tty":false,
-		"OpenStdin":false,
-		"StdinOnce":false,
-		"Env":null,
-		"Cmd":[
-			"date"
-		],
-		"Dns":null,
-		"Image":"base",
-		"Volumes":{
-			"/tmp": {}
-		},
-		"VolumesFrom":"",
-		"WorkingDir":"",
-		"ExposedPorts":{
-			"22/tcp": {}
-		}
-	   }
+           {
+                "Hostname":"",
+                "User":"",
+                "Memory":0,
+                "MemorySwap":0,
+                "AttachStdin":false,
+                "AttachStdout":true,
+                "AttachStderr":true,
+                "PortSpecs":null,
+                "Tty":false,
+                "OpenStdin":false,
+                "StdinOnce":false,
+                "Env":null,
+                "Cmd":[
+                        "date"
+                ],
+                "Dns":null,
+                "Image":"base",
+                "Volumes":{
+                        "/tmp": {}
+                },
+                "VolumesFrom":"",
+                "WorkingDir":"",
+                "ExposedPorts":{
+                        "22/tcp": {}
+                }
+           }
 
-	**Example response**:
+        **Example response**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   HTTP/1.1 201 OK
-	   Content-Type: application/json
+           HTTP/1.1 201 OK
+           Content-Type: application/json
 
-	   {
-		"Id":"e90e34656806"
-		"Warnings":[]
-	   }
-	
-	:jsonparam config: the container's configuration
-	:query name: Assign the specified name to the container. Must match ``/?[a-zA-Z0-9_-]+``.
-	:statuscode 201: no error
-	:statuscode 404: no such container
-	:statuscode 406: impossible to attach (container not running)
-	:statuscode 500: server error
+           {
+                "Id":"e90e34656806"
+                "Warnings":[]
+           }
+
+        :jsonparam config: the container's configuration
+        :query name: Assign the specified name to the container. Must match ``/?[a-zA-Z0-9_-]+``.
+        :statuscode 201: no error
+        :statuscode 404: no such container
+        :statuscode 406: impossible to attach (container not running)
+        :statuscode 500: server error
 
 
 Inspect a container
@@ -166,67 +166,67 @@ Inspect a container
 
 .. http:get:: /containers/(id)/json
 
-	Return low-level information on the container ``id``
+        Return low-level information on the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678/json HTTP/1.1
-	   
-	**Example response**:
+           GET /containers/4fa6e0f0c678/json HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
+        .. sourcecode:: http
 
-	   {
-			"Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
-			"Created": "2013-05-07T14:51:42.041847+02:00",
-			"Path": "date",
-			"Args": [],
-			"Config": {
-				"Hostname": "4fa6e0f0c678",
-				"User": "",
-				"Memory": 0,
-				"MemorySwap": 0,
-				"AttachStdin": false,
-				"AttachStdout": true,
-				"AttachStderr": true,
-				"PortSpecs": null,
-				"Tty": false,
-				"OpenStdin": false,
-				"StdinOnce": false,
-				"Env": null,
-				"Cmd": [
-					"date"
-				],
-				"Dns": null,
-				"Image": "base",
-				"Volumes": {},
-				"VolumesFrom": "",
-				"WorkingDir":""
+           HTTP/1.1 200 OK
+           Content-Type: application/json
 
-			},
-			"State": {
-				"Running": false,
-				"Pid": 0,
-				"ExitCode": 0,
-				"StartedAt": "2013-05-07T14:51:42.087658+02:01360",
-				"Ghost": false
-			},
-			"Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-			"NetworkSettings": {
-				"IpAddress": "",
-				"IpPrefixLen": 0,
-				"Gateway": "",
-				"Bridge": "",
-				"PortMapping": null
-			},
-			"SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
-			"ResolvConfPath": "/etc/resolv.conf",
-			"Volumes": {},
+           {
+                        "Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
+                        "Created": "2013-05-07T14:51:42.041847+02:00",
+                        "Path": "date",
+                        "Args": [],
+                        "Config": {
+                                "Hostname": "4fa6e0f0c678",
+                                "User": "",
+                                "Memory": 0,
+                                "MemorySwap": 0,
+                                "AttachStdin": false,
+                                "AttachStdout": true,
+                                "AttachStderr": true,
+                                "PortSpecs": null,
+                                "Tty": false,
+                                "OpenStdin": false,
+                                "StdinOnce": false,
+                                "Env": null,
+                                "Cmd": [
+                                        "date"
+                                ],
+                                "Dns": null,
+                                "Image": "base",
+                                "Volumes": {},
+                                "VolumesFrom": "",
+                                "WorkingDir":""
+
+                        },
+                        "State": {
+                                "Running": false,
+                                "Pid": 0,
+                                "ExitCode": 0,
+                                "StartedAt": "2013-05-07T14:51:42.087658+02:01360",
+                                "Ghost": false
+                        },
+                        "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+                        "NetworkSettings": {
+                                "IpAddress": "",
+                                "IpPrefixLen": 0,
+                                "Gateway": "",
+                                "Bridge": "",
+                                "PortMapping": null
+                        },
+                        "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                        "ResolvConfPath": "/etc/resolv.conf",
+                        "Volumes": {},
                         "HostConfig": {
                             "Binds": null,
                             "ContainerIDFile": "",
@@ -243,11 +243,11 @@ Inspect a container
                             "Links": null,
                             "PublishAllPorts": false
                         }
-	   }
+           }
 
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 List processes running inside a container
@@ -255,45 +255,45 @@ List processes running inside a container
 
 .. http:get:: /containers/(id)/top
 
-	List processes running inside the container ``id``
+        List processes running inside the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678/top HTTP/1.1
+           GET /containers/4fa6e0f0c678/top HTTP/1.1
 
-	**Example response**:
+        **Example response**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
+           HTTP/1.1 200 OK
+           Content-Type: application/json
 
-	   {
-		"Titles":[
-			"USER",
-			"PID",
-			"%CPU",
-			"%MEM",
-			"VSZ",
-			"RSS",
-			"TTY",
-			"STAT",
-			"START",
-			"TIME",
-			"COMMAND"
-			],
-		"Processes":[
-			["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
-			["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
-		]
-	   }
+           {
+                "Titles":[
+                        "USER",
+                        "PID",
+                        "%CPU",
+                        "%MEM",
+                        "VSZ",
+                        "RSS",
+                        "TTY",
+                        "STAT",
+                        "START",
+                        "TIME",
+                        "COMMAND"
+                        ],
+                "Processes":[
+                        ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
+                        ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
+                ]
+           }
 
-	:query ps_args: ps arguments to use (eg. aux)
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        :query ps_args: ps arguments to use (eg. aux)
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Inspect changes on a container's filesystem
@@ -301,40 +301,40 @@ Inspect changes on a container's filesystem
 
 .. http:get:: /containers/(id)/changes
 
-	Inspect changes on container ``id`` 's filesystem
+        Inspect changes on container ``id`` 's filesystem
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678/changes HTTP/1.1
+           GET /containers/4fa6e0f0c678/changes HTTP/1.1
 
-	   
-	**Example response**:
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
-	   
-	   [
-		{
-			"Path":"/dev",
-			"Kind":0
-		},
-		{
-			"Path":"/dev/kmsg",
-			"Kind":1
-		},
-		{
-			"Path":"/test",
-			"Kind":1
-		}
-	   ]
+        .. sourcecode:: http
 
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+           HTTP/1.1 200 OK
+           Content-Type: application/json
+
+           [
+                {
+                        "Path":"/dev",
+                        "Kind":0
+                },
+                {
+                        "Path":"/dev/kmsg",
+                        "Kind":1
+                },
+                {
+                        "Path":"/test",
+                        "Kind":1
+                }
+           ]
+
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Export a container
@@ -342,27 +342,27 @@ Export a container
 
 .. http:get:: /containers/(id)/export
 
-	Export the contents of container ``id``
+        Export the contents of container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /containers/4fa6e0f0c678/export HTTP/1.1
+           GET /containers/4fa6e0f0c678/export HTTP/1.1
 
-	   
-	**Example response**:
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/octet-stream
-	   
-	   {{ STREAM }}
+        .. sourcecode:: http
 
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+           HTTP/1.1 200 OK
+           Content-Type: application/octet-stream
+
+           {{ STREAM }}
+
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Start a container
@@ -405,24 +405,24 @@ Stop a container
 
 .. http:post:: /containers/(id)/stop
 
-	Stop the container ``id``
+        Stop the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/stop?t=5 HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/e90e34656806/stop?t=5 HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 204 OK
-	   	
-	:query t: number of seconds to wait before killing the container
-	:statuscode 204: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        .. sourcecode:: http
+
+           HTTP/1.1 204 OK
+
+        :query t: number of seconds to wait before killing the container
+        :statuscode 204: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Restart a container
@@ -430,24 +430,24 @@ Restart a container
 
 .. http:post:: /containers/(id)/restart
 
-	Restart the container ``id``
+        Restart the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/restart?t=5 HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/e90e34656806/restart?t=5 HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 204 OK
-	   	
-	:query t: number of seconds to wait before killing the container
-	:statuscode 204: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        .. sourcecode:: http
+
+           HTTP/1.1 204 OK
+
+        :query t: number of seconds to wait before killing the container
+        :statuscode 204: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Kill a container
@@ -455,23 +455,23 @@ Kill a container
 
 .. http:post:: /containers/(id)/kill
 
-	Kill the container ``id``
+        Kill the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/e90e34656806/kill HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/e90e34656806/kill HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 204 OK
-	   	
-	:statuscode 204: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+        .. sourcecode:: http
+
+           HTTP/1.1 204 OK
+
+        :statuscode 204: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Attach to a container
@@ -479,74 +479,74 @@ Attach to a container
 
 .. http:post:: /containers/(id)/attach
 
-	Attach to the container ``id``
+        Attach to the container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/16253994b7c4/attach?logs=1&stream=0&stdout=1 HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/16253994b7c4/attach?logs=1&stream=0&stdout=1 HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/vnd.docker.raw-stream
+        .. sourcecode:: http
 
-	   {{ STREAM }}
-	   	
-	:query logs: 1/True/true or 0/False/false, return logs. Default false
-	:query stream: 1/True/true or 0/False/false, return stream. Default false
-	:query stdin: 1/True/true or 0/False/false, if stream=true, attach to stdin. Default false
-	:query stdout: 1/True/true or 0/False/false, if logs=true, return stdout log, if stream=true, attach to stdout. Default false
-	:query stderr: 1/True/true or 0/False/false, if logs=true, return stderr log, if stream=true, attach to stderr. Default false
-	:statuscode 200: no error
-	:statuscode 400: bad parameter
-	:statuscode 404: no such container
-	:statuscode 500: server error
+           HTTP/1.1 200 OK
+           Content-Type: application/vnd.docker.raw-stream
 
-	**Stream details**:
+           {{ STREAM }}
 
-	When using the TTY setting is enabled in
-	:http:post:`/containers/create`, the stream is the raw data
-	from the process PTY and client's stdin.  When the TTY is
-	disabled, then the stream is multiplexed to separate stdout
-	and stderr.
+        :query logs: 1/True/true or 0/False/false, return logs. Default false
+        :query stream: 1/True/true or 0/False/false, return stream. Default false
+        :query stdin: 1/True/true or 0/False/false, if stream=true, attach to stdin. Default false
+        :query stdout: 1/True/true or 0/False/false, if logs=true, return stdout log, if stream=true, attach to stdout. Default false
+        :query stderr: 1/True/true or 0/False/false, if logs=true, return stderr log, if stream=true, attach to stderr. Default false
+        :statuscode 200: no error
+        :statuscode 400: bad parameter
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
-	The format is a **Header** and a **Payload** (frame).
+        **Stream details**:
 
-	**HEADER**
+        When using the TTY setting is enabled in
+        :http:post:`/containers/create`, the stream is the raw data
+        from the process PTY and client's stdin.  When the TTY is
+        disabled, then the stream is multiplexed to separate stdout
+        and stderr.
 
-	The header will contain the information on which stream write
-	the stream (stdout or stderr). It also contain the size of
-	the associated frame encoded on the last 4 bytes (uint32).
+        The format is a **Header** and a **Payload** (frame).
 
-	It is encoded on the first 8 bytes like this::
+        **HEADER**
 
-	    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+        The header will contain the information on which stream write
+        the stream (stdout or stderr). It also contain the size of
+        the associated frame encoded on the last 4 bytes (uint32).
 
-	``STREAM_TYPE`` can be:
+        It is encoded on the first 8 bytes like this::
 
-	- 0: stdin (will be writen on stdout)
-	- 1: stdout
-	- 2: stderr
+            header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
 
-	``SIZE1, SIZE2, SIZE3, SIZE4`` are the 4 bytes of the uint32 size encoded as big endian.
+        ``STREAM_TYPE`` can be:
 
-	**PAYLOAD**
+        - 0: stdin (will be writen on stdout)
+        - 1: stdout
+        - 2: stderr
 
-	The payload is the raw stream.
+        ``SIZE1, SIZE2, SIZE3, SIZE4`` are the 4 bytes of the uint32 size encoded as big endian.
 
-	**IMPLEMENTATION**
+        **PAYLOAD**
 
-	The simplest way to implement the Attach protocol is the following:
+        The payload is the raw stream.
 
-	1) Read 8 bytes
-	2) chose stdout or stderr depending on the first byte
-	3) Extract the frame size from the last 4 byets
-	4) Read the extracted size and output it on the correct output
-	5) Goto 1)
+        **IMPLEMENTATION**
+
+        The simplest way to implement the Attach protocol is the following:
+
+        1) Read 8 bytes
+        2) chose stdout or stderr depending on the first byte
+        3) Extract the frame size from the last 4 byets
+        4) Read the extracted size and output it on the correct output
+        5) Goto 1)
 
 
 
@@ -555,26 +555,26 @@ Wait a container
 
 .. http:post:: /containers/(id)/wait
 
-	Block until container ``id`` stops, then returns the exit code
+        Block until container ``id`` stops, then returns the exit code
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/16253994b7c4/wait HTTP/1.1
-	   
-	**Example response**:
+           POST /containers/16253994b7c4/wait HTTP/1.1
 
-	.. sourcecode:: http
+        **Example response**:
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
+        .. sourcecode:: http
 
-	   {"StatusCode":0}
-	   	
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+           HTTP/1.1 200 OK
+           Content-Type: application/json
+
+           {"StatusCode":0}
+
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 Remove a container
@@ -582,9 +582,9 @@ Remove a container
 
 .. http:delete:: /containers/(id)
 
-	Remove the container ``id`` from the filesystem
+        Remove the container ``id`` from the filesystem
 
-	**Example request**:
+        **Example request**:
 
         .. sourcecode:: http
 
@@ -594,11 +594,11 @@ Remove a container
 
         .. sourcecode:: http
 
-	   HTTP/1.1 204 OK
+           HTTP/1.1 204 OK
 
-	:query v: 1/True/true or 0/False/false, Remove the volumes associated to the container. Default false
+        :query v: 1/True/true or 0/False/false, Remove the volumes associated to the container. Default false
         :statuscode 204: no error
-	:statuscode 400: bad parameter
+        :statuscode 400: bad parameter
         :statuscode 404: no such container
         :statuscode 500: server error
 
@@ -608,31 +608,31 @@ Copy files or folders from a container
 
 .. http:post:: /containers/(id)/copy
 
-	Copy files or folders of container ``id``
+        Copy files or folders of container ``id``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   POST /containers/4fa6e0f0c678/copy HTTP/1.1
-	   Content-Type: application/json
+           POST /containers/4fa6e0f0c678/copy HTTP/1.1
+           Content-Type: application/json
 
-	   {
-		"Resource":"test.txt"
-	   }
+           {
+                "Resource":"test.txt"
+           }
 
-	**Example response**:
+        **Example response**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/octet-stream
-	   
-	   {{ STREAM }}
+           HTTP/1.1 200 OK
+           Content-Type: application/octet-stream
 
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
+           {{ STREAM }}
+
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
 
 
 2.2 Images
@@ -643,43 +643,43 @@ List Images
 
 .. http:get:: /images/json
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /images/json?all=0 HTTP/1.1
+           GET /images/json?all=0 HTTP/1.1
 
-	**Example response**:
+        **Example response**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
-	   
-	   [
-	     {
-	   	"RepoTags": [
-	   	  "ubuntu:12.04",
-	   	  "ubuntu:precise",
-	   	  "ubuntu:latest"
-	   	],
-	   	"Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-	   	"Created": 1365714795,
-	   	"Size": 131506275,
-	   	"VirtualSize": 131506275
-	     },
-	     {
-	   	"RepoTags": [
-	   	  "ubuntu:12.10",
-	   	  "ubuntu:quantal"
-	   	],
-	   	"ParentId": "27cf784147099545",
-	   	"Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-	   	"Created": 1364102658,
-	   	"Size": 24653,
-	   	"VirtualSize": 180116135
-	     }
-	   ]
+           HTTP/1.1 200 OK
+           Content-Type: application/json
+
+           [
+             {
+                "RepoTags": [
+                  "ubuntu:12.04",
+                  "ubuntu:precise",
+                  "ubuntu:latest"
+                ],
+                "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+                "Created": 1365714795,
+                "Size": 131506275,
+                "VirtualSize": 131506275
+             },
+             {
+                "RepoTags": [
+                  "ubuntu:12.10",
+                  "ubuntu:quantal"
+                ],
+                "ParentId": "27cf784147099545",
+                "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+                "Created": 1364102658,
+                "Size": 24653,
+                "VirtualSize": 180116135
+             }
+           ]
 
 
 Create an image
@@ -687,9 +687,9 @@ Create an image
 
 .. http:post:: /images/create
 
-	Create an image, either by pull it from the registry or by importing it
+        Create an image, either by pull it from the registry or by importing it
 
-	**Example request**:
+        **Example request**:
 
         .. sourcecode:: http
 
@@ -700,23 +700,23 @@ Create an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {"status":"Pulling..."}
-	   {"status":"Pulling", "progress":"1 B/ 100 B", "progressDetail":{"current":1, "total":100}}
-	   {"error":"Invalid..."}
-	   ...
+           {"status":"Pulling..."}
+           {"status":"Pulling", "progress":"1 B/ 100 B", "progressDetail":{"current":1, "total":100}}
+           {"error":"Invalid..."}
+           ...
 
-	When using this endpoint to pull an image from the registry,
-	the ``X-Registry-Auth`` header can be used to include a
-	base64-encoded AuthConfig object.
+        When using this endpoint to pull an image from the registry,
+        the ``X-Registry-Auth`` header can be used to include a
+        base64-encoded AuthConfig object.
 
         :query fromImage: name of the image to pull
-	:query fromSrc: source to import, - means stdin
+        :query fromSrc: source to import, - means stdin
         :query repo: repository
-	:query tag: tag
-	:query registry: the registry to pull from
-	:reqheader X-Registry-Auth: base64-encoded AuthConfig object
+        :query tag: tag
+        :query registry: the registry to pull from
+        :reqheader X-Registry-Auth: base64-encoded AuthConfig object
         :statuscode 200: no error
         :statuscode 500: server error
 
@@ -727,27 +727,27 @@ Insert a file in an image
 
 .. http:post:: /images/(name)/insert
 
-	Insert a file from ``url`` in the image ``name`` at ``path``
+        Insert a file from ``url`` in the image ``name`` at ``path``
 
-	**Example request**:
+        **Example request**:
 
         .. sourcecode:: http
 
            POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
 
-	**Example response**:
+        **Example response**:
 
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {"status":"Inserting..."}
-	   {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
-	   {"error":"Invalid..."}
-	   ...
+           {"status":"Inserting..."}
+           {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
+           {"error":"Invalid..."}
+           ...
 
-	:statuscode 200: no error
+        :statuscode 200: no error
         :statuscode 500: server error
 
 
@@ -756,52 +756,52 @@ Inspect an image
 
 .. http:get:: /images/(name)/json
 
-	Return low-level information on the image ``name``
+        Return low-level information on the image ``name``
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   GET /images/base/json HTTP/1.1
+           GET /images/base/json HTTP/1.1
 
-	**Example response**:
+        **Example response**:
 
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {
-		"id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-		"parent":"27cf784147099545",
-		"created":"2013-03-23T22:24:18.818426-07:00",
-		"container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-		"container_config":
-			{
-				"Hostname":"",
-				"User":"",
-				"Memory":0,
-				"MemorySwap":0,
-				"AttachStdin":false,
-				"AttachStdout":false,
-				"AttachStderr":false,
-				"PortSpecs":null,
-				"Tty":true,
-				"OpenStdin":true,
-				"StdinOnce":false,
-				"Env":null,
-				"Cmd": ["/bin/bash"]
-				,"Dns":null,
-				"Image":"base",
-				"Volumes":null,
-				"VolumesFrom":"",
-				"WorkingDir":""
-			},
-		"Size": 6824592
-	   }
+           {
+                "id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+                "parent":"27cf784147099545",
+                "created":"2013-03-23T22:24:18.818426-07:00",
+                "container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+                "container_config":
+                        {
+                                "Hostname":"",
+                                "User":"",
+                                "Memory":0,
+                                "MemorySwap":0,
+                                "AttachStdin":false,
+                                "AttachStdout":false,
+                                "AttachStderr":false,
+                                "PortSpecs":null,
+                                "Tty":true,
+                                "OpenStdin":true,
+                                "StdinOnce":false,
+                                "Env":null,
+                                "Cmd": ["/bin/bash"]
+                                ,"Dns":null,
+                                "Image":"base",
+                                "Volumes":null,
+                                "VolumesFrom":"",
+                                "WorkingDir":""
+                        },
+                "Size": 6824592
+           }
 
-	:statuscode 200: no error
-	:statuscode 404: no such image
+        :statuscode 200: no error
+        :statuscode 404: no such image
         :statuscode 500: server error
 
 
@@ -823,20 +823,20 @@ Get the history of an image
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   [
-		{
-			"Id":"b750fe79269d",
-			"Created":1364102658,
-			"CreatedBy":"/bin/bash"
-		},
-		{
-			"Id":"27cf78414709",
-			"Created":1364068391,
-			"CreatedBy":""
-		}
-	   ]
+           [
+                {
+                        "Id":"b750fe79269d",
+                        "Created":1364102658,
+                        "CreatedBy":"/bin/bash"
+                },
+                {
+                        "Id":"27cf78414709",
+                        "Created":1364068391,
+                        "CreatedBy":""
+                }
+           ]
 
         :statuscode 200: no error
         :statuscode 404: no such image
@@ -880,26 +880,26 @@ Tag an image into a repository
 
 .. http:post:: /images/(name)/tag
 
-	Tag the image ``name`` into a repository
+        Tag the image ``name`` into a repository
 
         **Example request**:
 
         .. sourcecode:: http
-			
-	   POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
 
-	**Example response**:
+           POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+
+        **Example response**:
 
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
 
-	:query repo: The repository to tag in
-	:query force: 1/True/true or 0/False/false, default false
-	:statuscode 200: no error
-	:statuscode 400: bad parameter
-	:statuscode 404: no such image
-	:statuscode 409: conflict
+        :query repo: The repository to tag in
+        :query force: 1/True/true or 0/False/false, default false
+        :statuscode 200: no error
+        :statuscode 400: bad parameter
+        :statuscode 404: no such image
+        :statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -908,30 +908,30 @@ Remove an image
 
 .. http:delete:: /images/(name)
 
-	Remove the image ``name`` from the filesystem 
-	
-	**Example request**:
+        Remove the image ``name`` from the filesystem
 
-	.. sourcecode:: http
-
-	   DELETE /images/test HTTP/1.1
-
-	**Example response**:
+        **Example request**:
 
         .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
-	   Content-type: application/json
+           DELETE /images/test HTTP/1.1
 
-	   [
-	    {"Untagged":"3e2f21a89f"},
-	    {"Deleted":"3e2f21a89f"},
-	    {"Deleted":"53b4f83ac9"}
-	   ]
+        **Example response**:
 
-	:statuscode 200: no error
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+           Content-type: application/json
+
+           [
+            {"Untagged":"3e2f21a89f"},
+            {"Deleted":"3e2f21a89f"},
+            {"Deleted":"53b4f83ac9"}
+           ]
+
+        :statuscode 200: no error
         :statuscode 404: no such image
-	:statuscode 409: conflict
+        :statuscode 409: conflict
         :statuscode 500: server error
 
 
@@ -940,54 +940,54 @@ Search images
 
 .. http:get:: /images/search
 
-	Search for an image in the docker index.
-	
-	.. note::
-	
-	   The response keys have changed from API v1.6 to reflect the JSON 
-	   sent by the registry server to the docker daemon's request.
-	
-	**Example request**:
+        Search for an image in the docker index.
+
+        .. note::
+
+           The response keys have changed from API v1.6 to reflect the JSON
+           sent by the registry server to the docker daemon's request.
+
+        **Example request**:
 
         .. sourcecode:: http
 
            GET /images/search?term=sshd HTTP/1.1
 
-	**Example response**:
+        **Example response**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
-	   
-	   [
-		   {
-		       "description": "",
-		       "is_official": false,
-		       "is_trusted": false,
-		       "name": "wma55/u1210sshd",
-		       "star_count": 0
-		   },
-		   {
-		       "description": "",
-		       "is_official": false,
-		       "is_trusted": false,
-		       "name": "jdswinbank/sshd",
-		       "star_count": 0
-		   },
-		   {
-		       "description": "",
-		       "is_official": false,
-		       "is_trusted": false,
-		       "name": "vgauthier/sshd",
-		       "star_count": 0
-		   }
-	   ...
-	   ]
+           HTTP/1.1 200 OK
+           Content-Type: application/json
 
-	:query term: term to search
-	:statuscode 200: no error
-	:statuscode 500: server error
+           [
+                   {
+                       "description": "",
+                       "is_official": false,
+                       "is_trusted": false,
+                       "name": "wma55/u1210sshd",
+                       "star_count": 0
+                   },
+                   {
+                       "description": "",
+                       "is_official": false,
+                       "is_trusted": false,
+                       "name": "jdswinbank/sshd",
+                       "star_count": 0
+                   },
+                   {
+                       "description": "",
+                       "is_official": false,
+                       "is_trusted": false,
+                       "name": "vgauthier/sshd",
+                       "star_count": 0
+                   }
+           ...
+           ]
+
+        :query term: term to search
+        :statuscode 200: no error
+        :statuscode 500: server error
 
 
 2.3 Misc
@@ -1022,7 +1022,7 @@ Build an image from Dockerfile via stdin
 
    The stream must be a tar archive compressed with one of the
    following algorithms: identity (no compression), gzip, bzip2,
-   xz. 
+   xz.
 
    The archive must include a file called ``Dockerfile`` at its
    root. It may include any number of other files, which will be
@@ -1051,14 +1051,14 @@ Check auth configuration
         .. sourcecode:: http
 
            POST /auth HTTP/1.1
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {
-		"username":"hannibal",
-		"password:"xxxx",
-		"email":"hannibal@a-team.com",
-		"serveraddress":"https://index.docker.io/v1/"
-	   }
+           {
+                "username":"hannibal",
+                "password:"xxxx",
+                "email":"hannibal@a-team.com",
+                "serveraddress":"https://index.docker.io/v1/"
+           }
 
         **Example response**:
 
@@ -1076,9 +1076,9 @@ Display system-wide information
 
 .. http:get:: /info
 
-	Display system-wide information
-	
-	**Example request**:
+        Display system-wide information
+
+        **Example request**:
 
         .. sourcecode:: http
 
@@ -1089,18 +1089,18 @@ Display system-wide information
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {
-		"Containers":11,
-		"Images":16,
-		"Debug":false,
-		"NFd": 11,
-		"NGoroutines":21,
-		"MemoryLimit":true,
-		"SwapLimit":false,
-		"IPv4Forwarding":true
-	   }
+           {
+                "Containers":11,
+                "Images":16,
+                "Debug":false,
+                "NFd": 11,
+                "NGoroutines":21,
+                "MemoryLimit":true,
+                "SwapLimit":false,
+                "IPv4Forwarding":true
+           }
 
         :statuscode 200: no error
         :statuscode 500: server error
@@ -1111,9 +1111,9 @@ Show the docker version information
 
 .. http:get:: /version
 
-	Show the docker version information
+        Show the docker version information
 
-	**Example request**:
+        **Example request**:
 
         .. sourcecode:: http
 
@@ -1124,16 +1124,16 @@ Show the docker version information
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {
-		"Version":"0.2.2",
-		"GitCommit":"5a2a5cc+CHANGES",
-		"GoVersion":"go1.0.3"
-	   }
+           {
+                "Version":"0.2.2",
+                "GitCommit":"5a2a5cc+CHANGES",
+                "GoVersion":"go1.0.3"
+           }
 
         :statuscode 200: no error
-	:statuscode 500: server error
+        :statuscode 500: server error
 
 
 Create a new image from a container's changes
@@ -1154,7 +1154,7 @@ Create a new image from a container's changes
     .. sourcecode:: http
 
         HTTP/1.1 201 OK
-	    Content-Type: application/vnd.docker.raw-stream
+            Content-Type: application/vnd.docker.raw-stream
 
         {"Id":"596069db4bf5"}
 
@@ -1174,11 +1174,11 @@ Monitor Docker's events
 
 .. http:get:: /events
 
-	Get events from docker, either in real time via streaming, or via polling (using `since`)
+        Get events from docker, either in real time via streaming, or via polling (using `since`)
 
-	**Example request**:
+        **Example request**:
 
-	.. sourcecode:: http
+        .. sourcecode:: http
 
            GET /events?since=1374067924
 
@@ -1187,14 +1187,14 @@ Monitor Docker's events
         .. sourcecode:: http
 
            HTTP/1.1 200 OK
-	   Content-Type: application/json
+           Content-Type: application/json
 
-	   {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
-	   {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
-	   {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
-	   {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
+           {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+           {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+           {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
+           {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
 
-	:query since: timestamp used for polling
+        :query since: timestamp used for polling
         :statuscode 200: no error
         :statuscode 500: server error
 
@@ -1203,22 +1203,23 @@ Get a tarball containing all images and tags in a repository
 
 .. http:get:: /images/(name)/get
 
-  Get a tarball containing all images and metadata for the repository specified by ``name``.
+        Get a tarball containing all images and metadata for the repository specified by ``name``.
 
-  **Example request**
+        **Example request**
 
-  .. sourcecode:: http
-  
+        .. sourcecode:: http
+
            GET /images/ubuntu/get
 
-       **Example response**:
+        **Example response**:
 
-       .. sourcecode:: http
+        .. sourcecode:: http
 
-          HTTP/1.1 200 OK
-    Content-Type: application/x-tar
+           HTTP/1.1 200 OK
+           Content-Type: application/x-tar
 
-    Binary data stream
+           Binary data stream
+
         :statuscode 200: no error
         :statuscode 500: server error
 
@@ -1227,24 +1228,24 @@ Load a tarball with a set of images and tags into docker
 
 .. http:post:: /images/load
 
-  Load a set of images and tags into the docker repository.
+   Load a set of images and tags into the docker repository.
 
-  **Example request**
+   **Example request**
 
-  .. sourcecode:: http
+   .. sourcecode:: http
 
-           POST /images/load
+      POST /images/load
 
-         Tarball in body
+      Tarball in body
 
-       **Example response**:
+   **Example response**:
 
-       .. sourcecode:: http
+   .. sourcecode:: http
 
-          HTTP/1.1 200 OK
+      HTTP/1.1 200 OK
 
-        :statuscode 200: no error
-        :statuscode 500: server error
+   :statuscode 200: no error
+   :statuscode 500: server error
 
 3. Going further
 ================
@@ -1262,7 +1263,7 @@ Here are the steps of 'docker run' :
 * If you are not in detached mode:
         * Attach to the container, using logs=1 (to have stdout and stderr from the container's start) and stream=1
 * If in detached mode or only stdin is attached:
-	* Display the container's id
+        * Display the container's id
 
 
 3.2 Hijacking
@@ -1278,4 +1279,3 @@ To enable cross origin requests to the remote api add the flag "-api-enable-cors
 .. code-block:: bash
 
    docker -d -H="192.168.1.9:4243" -api-enable-cors
-
