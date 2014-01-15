@@ -477,3 +477,13 @@ func StrSlicesEqual(a, b []string) bool {
 
 	return true
 }
+
+func TestIsInBytesSubsystem(t *testing.T) {
+	if IsInBytesSubsystem("foo") {
+		t.Fatalf("Unexpected true result")
+	}
+
+	if !IsInBytesSubsystem("memory.limit_in_bytes") {
+		t.Fatalf("Unexpected false result")
+	}
+}

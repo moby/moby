@@ -1215,6 +1215,69 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 }
 
+func TestPostContainersCgroup(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+	srv := mkServerFromEngine(eng, t)
+
+	memory := int64(524288)
+	containerID := createTestContainer(eng,
+		&docker.Config{
+			Memory:    memory,
+			Image:     unitTestImageID,
+			Cmd:       []string{"/bin/top"},
+			OpenStdin: true,
+		},
+		t,
+	)
+
+	startContainer(eng, containerID, t)
+
+	// Give some time to the process to start
+	containerWaitTimeout(eng, containerID, t)
+
+	if !containerRunning(eng, containerID, t) {
+		t.Errorf("Container should be running")
+	}
+
+	r := httptest.NewRecorder()
+	var cgroupData docker.APICgroup
+	cgroupData.ReadSubsystem = append(cgroupData.ReadSubsystem, "memory.limit_in_bytes")
+	cgroupData.WriteSubsystem = append(cgroupData.WriteSubsystem, docker.KeyValuePair{Key: "cpuset.cpus", Value: "0,1"})
+
+	jsonData, err := json.Marshal(cgroupData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/cgroup?w=1", bytes.NewReader(jsonData))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+	cgroupResponses := &[]docker.APICgroupResponse{}
+	if err := json.Unmarshal(r.Body.Bytes(), cgroupResponses); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, cgroupResponse := range *cgroupResponses {
+		if cgroupResponse.Status != 0 {
+			t.Fatalf("The status of cgroup response is not zero, subsystem: %s, out: %s, err: %s, status: %s",
+				cgroupResponse.Subsystem, cgroupResponse.Out, cgroupResponse.Err, cgroupResponse.Status)
+		}
+
+	}
+}
+
 // Mocked types for tests
 type NopConn struct {
 	io.ReadCloser
