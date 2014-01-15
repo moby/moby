@@ -154,7 +154,7 @@ Add the Docker repository to your apt sources list, update and install the
    sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
-   sudo apt-get install lxc-docker
+   sudo apt-get install lxc-docker cgroup-lite
 
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.
