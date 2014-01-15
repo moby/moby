@@ -223,6 +223,16 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	// Sparse file
+	{
+		`
+from   {IMAGE}
+run    busybox dd if=/dev/zero of=/tmp/sparse bs=1 count=0 seek=1M
+`,
+		nil,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
