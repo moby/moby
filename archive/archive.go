@@ -251,6 +251,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 		return err
 	}
 
+	for key, value := range hdr.Xattrs {
+		if err := Lsetxattr(path, key, []byte(value), 0); err != nil {
+			return err
+		}
+	}
+
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
 	if hdr.Typeflag != tar.TypeSymlink {
