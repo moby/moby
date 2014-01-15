@@ -12,7 +12,7 @@ import (
 )
 
 // Clear environment pollution introduced by lxc-start
-func setupEnv(args *execdriver.DockerInitArgs) {
+func setupEnv(args *execdriver.InitArgs) {
 	os.Clearenv()
 	for _, kv := range args.Env {
 		parts := strings.SplitN(kv, "=", 2)
@@ -23,9 +23,9 @@ func setupEnv(args *execdriver.DockerInitArgs) {
 	}
 }
 
-func executeProgram(args *execdriver.DockerInitArgs) error {
+func executeProgram(args *execdriver.InitArgs) error {
 	setupEnv(args)
-	dockerInitFct, err := execdriver.GetDockerInitFct(args.Driver)
+	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ func SysInit() {
 	// Propagate the plugin-specific container env variable
 	env = append(env, "container="+os.Getenv("container"))
 
-	args := &execdriver.DockerInitArgs{
+	args := &execdriver.InitArgs{
 		User:       *user,
 		Gateway:    *gateway,
 		Ip:         *ip,

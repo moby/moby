@@ -18,7 +18,7 @@ import (
 const DriverName = "lxc"
 
 func init() {
-	execdriver.RegisterDockerInitFct(DriverName, func(args *execdriver.DockerInitArgs) error {
+	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		if err := setupHostname(args); err != nil {
 			return err
 		}

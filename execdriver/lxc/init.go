@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-func setupHostname(args *execdriver.DockerInitArgs) error {
+func setupHostname(args *execdriver.InitArgs) error {
 	hostname := getEnv(args, "HOSTNAME")
 	if hostname == "" {
 		return nil
@@ -22,7 +22,7 @@ func setupHostname(args *execdriver.DockerInitArgs) error {
 }
 
 // Setup networking
-func setupNetworking(args *execdriver.DockerInitArgs) error {
+func setupNetworking(args *execdriver.InitArgs) error {
 	if args.Ip != "" {
 		// eth0
 		iface, err := net.InterfaceByName("eth0")
@@ -67,7 +67,7 @@ func setupNetworking(args *execdriver.DockerInitArgs) error {
 }
 
 // Setup working directory
-func setupWorkingDirectory(args *execdriver.DockerInitArgs) error {
+func setupWorkingDirectory(args *execdriver.InitArgs) error {
 	if args.WorkDir == "" {
 		return nil
 	}
@@ -78,7 +78,7 @@ func setupWorkingDirectory(args *execdriver.DockerInitArgs) error {
 }
 
 // Takes care of dropping privileges to the desired user
-func changeUser(args *execdriver.DockerInitArgs) error {
+func changeUser(args *execdriver.InitArgs) error {
 	if args.User == "" {
 		return nil
 	}
@@ -106,7 +106,7 @@ func changeUser(args *execdriver.DockerInitArgs) error {
 	return nil
 }
 
-func setupCapabilities(args *execdriver.DockerInitArgs) error {
+func setupCapabilities(args *execdriver.InitArgs) error {
 
 	if args.Privileged {
 		return nil
@@ -142,7 +142,7 @@ func setupCapabilities(args *execdriver.DockerInitArgs) error {
 	return nil
 }
 
-func getEnv(args *execdriver.DockerInitArgs, key string) string {
+func getEnv(args *execdriver.InitArgs, key string) string {
 	for _, kv := range args.Env {
 		parts := strings.SplitN(kv, "=", 2)
 		if parts[0] == key && len(parts) == 2 {

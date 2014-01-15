@@ -13,7 +13,7 @@ const (
 )
 
 func init() {
-	execdriver.RegisterDockerInitFct(DriverName, func(args *execdriver.DockerInitArgs) error {
+	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		if err := mount.ForceMount("proc", "proc", "proc", ""); err != nil {
 			return err
 		}

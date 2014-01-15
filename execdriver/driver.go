@@ -13,16 +13,16 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-var dockerInitFcts map[string]DockerInitFct
+var dockerInitFcts map[string]InitFunc
 
 type (
 	StartCallback func(*Process)
-	DockerInitFct func(i *DockerInitArgs) error
+	InitFunc      func(i *InitArgs) error
 )
 
-func RegisterDockerInitFct(name string, fct DockerInitFct) error {
+func RegisterInitFunc(name string, fct InitFunc) error {
 	if dockerInitFcts == nil {
-		dockerInitFcts = make(map[string]DockerInitFct)
+		dockerInitFcts = make(map[string]InitFunc)
 	}
 	if _, ok := dockerInitFcts[name]; ok {
 		return ErrDriverAlreadyRegistered
@@ -31,7 +31,7 @@ func RegisterDockerInitFct(name string, fct DockerInitFct) error {
 	return nil
 }
 
-func GetDockerInitFct(name string) (DockerInitFct, error) {
+func GetInitFunc(name string) (InitFunc, error) {
 	fct, ok := dockerInitFcts[name]
 	if !ok {
 		return nil, ErrDriverNotFound
@@ -39,7 +39,8 @@ func GetDockerInitFct(name string) (DockerInitFct, error) {
 	return fct, nil
 }
 
-type DockerInitArgs struct {
+// Args provided to the init function for a driver
+type InitArgs struct {
 	User       string
 	Gateway    string
 	Ip         string
@@ -51,6 +52,8 @@ type DockerInitArgs struct {
 	Driver     string
 }
 
+// Driver specific information based on
+// processes registered with the driver
 type Info interface {
 	IsRunning() bool
 }
@@ -58,12 +61,10 @@ type Info interface {
 type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
-	// TODO: @crosbymichael @creack wait should probably return the exit code
 	Wait(id string) error // Wait on an out of process...process - lxc ghosts
-	Version() string
-	Name() string
-
-	Info(id string) Info // "temporary" hack (until we move state from core to plugins)
+	Version() string      // Driver version number
+	Name() string         // Driver name
+	Info(id string) Info  // "temporary" hack (until we move state from core to plugins)
 }
 
 // Network settings of the container
