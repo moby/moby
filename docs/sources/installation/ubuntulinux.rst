@@ -221,3 +221,10 @@ packages, updating every 6 hours. Substitute
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
+   
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+On Mint 16 cgroups-lite is not installed by default, before you can use lxc you will need to install this via
+    sudo apt-get update && sudo apt-get install cgroups-lite
