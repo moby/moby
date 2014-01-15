@@ -221,9 +221,9 @@ func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) err
 		default:
 		}
 
-		output, err = d.getInfo(c)
+		output, err = d.getInfo(c.ID)
 		if err != nil {
-			output, err = d.getInfo(c)
+			output, err = d.getInfo(c.ID)
 			if err != nil {
 				return err
 			}
@@ -236,8 +236,34 @@ func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) err
 	return execdriver.ErrNotRunning
 }
 
-func (d *driver) getInfo(c *execdriver.Process) ([]byte, error) {
-	return exec.Command("lxc-info", "-s", "-n", c.ID).CombinedOutput()
+func (d *driver) getInfo(id string) ([]byte, error) {
+	return exec.Command("lxc-info", "-s", "-n", id).CombinedOutput()
+}
+
+type info struct {
+	ID     string
+	driver *driver
+}
+
+func (i *info) IsRunning() bool {
+	var running bool
+
+	output, err := i.driver.getInfo(i.ID)
+	if err != nil {
+		panic(err)
+	}
+	if strings.Contains(string(output), "RUNNING") {
+		running = true
+	}
+	return running
+}
+
+func (d *driver) Info(id string) execdriver.Info {
+
+	return &info{
+		ID:     id,
+		driver: d,
+	}
 }
 
 func linkLxcStart(root string) error {

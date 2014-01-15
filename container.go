@@ -697,17 +697,18 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 
-	// Setup pipes
+	// Setuping pipes and/or Pty
+	var setup func() error
 	if container.Config.Tty {
-		err = container.setupPty()
+		setup = container.setupPty
 	} else {
-		err = container.setupStd()
+		setup = container.setupStd
 	}
-	if err != nil {
+	if err := setup(); err != nil {
 		return err
 	}
 
-	waitLock := make(chan struct{})
+	callbackLock := make(chan struct{})
 	callback := func(process *execdriver.Process) {
 		container.State.SetRunning(process.Pid())
 		if process.Tty {
@@ -721,7 +722,7 @@ func (container *Container) Start() (err error) {
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
-		close(waitLock)
+		close(callbackLock)
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
@@ -730,7 +731,7 @@ func (container *Container) Start() (err error) {
 
 	// Start should not return until the process is actually running
 	select {
-	case <-waitLock:
+	case <-callbackLock:
 	case err := <-cErr:
 		return err
 	}

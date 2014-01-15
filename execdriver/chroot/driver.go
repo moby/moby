@@ -7,7 +7,10 @@ import (
 	"os/exec"
 )
 
-const DriverName = "chroot"
+const (
+	DriverName = "chroot"
+	Version    = "0.1"
+)
 
 func init() {
 	execdriver.RegisterDockerInitFct(DriverName, func(args *execdriver.DockerInitArgs) error {
@@ -30,10 +33,6 @@ type driver struct {
 
 func NewDriver() (*driver, error) {
 	return &driver{}, nil
-}
-
-func (d *driver) Name() string {
-	return DriverName
 }
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
@@ -78,6 +77,14 @@ func (d *driver) Wait(id string) error {
 	panic("Not Implemented")
 }
 
+func (d *driver) Info(id string) execdriver.Info {
+	panic("Not implemented")
+}
+
+func (d *driver) Name() string {
+	return DriverName
+}
+
 func (d *driver) Version() string {
-	return "0.1"
+	return Version
 }

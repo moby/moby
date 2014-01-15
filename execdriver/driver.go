@@ -51,6 +51,10 @@ type DockerInitArgs struct {
 	Driver     string
 }
 
+type Info interface {
+	IsRunning() bool
+}
+
 type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
@@ -58,6 +62,8 @@ type Driver interface {
 	Wait(id string) error // Wait on an out of process...process - lxc ghosts
 	Version() string
 	Name() string
+
+	Info(id string) Info // "temporary" hack (until we move state from core to plugins)
 }
 
 // Network settings of the container

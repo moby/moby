@@ -18,7 +18,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -164,11 +163,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
+		info := runtime.execDriver.Info(container.ID)
+
+		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
@@ -736,12 +733,21 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	}
 
 	capabilities := NewRuntimeCapabilities(false)
-	var ed execdriver.Driver
-	if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
-		ed, err = lxc.NewDriver(config.Root, capabilities.AppArmor)
-	} else {
-		ed, err = chroot.NewDriver()
+
+	/*
+		temporarilly disabled.
+	*/
+	if false {
+		var ed execdriver.Driver
+		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
+			ed, err = lxc.NewDriver(config.Root, capabilities.AppArmor)
+		} else {
+			ed, err = chroot.NewDriver()
+		}
+		if ed != nil {
+		}
 	}
+	ed, err := lxc.NewDriver(config.Root, capabilities.AppArmor)
 	if err != nil {
 		return nil, err
 	}
