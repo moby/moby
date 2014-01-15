@@ -1525,13 +1525,21 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return err
 	}
 
-	changes := []Change{}
-	err = json.Unmarshal(body, &changes)
-	if err != nil {
+	outs := engine.NewTable("", 0)
+	if _, err := outs.ReadFrom(bytes.NewReader(body)); err != nil {
 		return err
 	}
-	for _, change := range changes {
-		fmt.Fprintf(cli.out, "%s\n", change.String())
+	for _, change := range outs.Data {
+		var kind string
+		switch change.GetInt("Kind") {
+		case archive.ChangeModify:
+			kind = "C"
+		case archive.ChangeAdd:
+			kind = "A"
+		case archive.ChangeDelete:
+			kind = "D"
+		}
+		fmt.Fprintf(cli.out, "%s %s\n", kind, change.Get("Path"))
 	}
 	return nil
 }

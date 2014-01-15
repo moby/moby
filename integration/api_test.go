@@ -408,15 +408,15 @@ func TestGetContainersChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	changes := []docker.Change{}
-	if err := json.Unmarshal(r.Body.Bytes(), &changes); err != nil {
+	outs := engine.NewTable("", 0)
+	if _, err := outs.ReadFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
 
 	// Check the changelog
 	success := false
-	for _, elem := range changes {
-		if elem.Path == "/etc/passwd" && elem.Kind == 2 {
+	for _, elem := range outs.Data {
+		if elem.Get("Path") == "/etc/passwd" && elem.GetInt("Kind") == 2 {
 			success = true
 		}
 	}
