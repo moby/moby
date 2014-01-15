@@ -418,6 +418,7 @@ func GetTotalUsedFds() int {
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
+	sync.RWMutex
 	index *suffixarray.Index
 	ids   map[string]bool
 	bytes []byte
@@ -432,6 +433,8 @@ func NewTruncIndex() *TruncIndex {
 }
 
 func (idx *TruncIndex) Add(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
@@ -445,6 +448,8 @@ func (idx *TruncIndex) Add(id string) error {
 }
 
 func (idx *TruncIndex) Delete(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if _, exists := idx.ids[id]; !exists {
 		return fmt.Errorf("No such id: %s", id)
 	}
@@ -470,6 +475,8 @@ func (idx *TruncIndex) lookup(s string) (int, int, error) {
 }
 
 func (idx *TruncIndex) Get(s string) (string, error) {
+	idx.RLock()
+	defer idx.RUnlock()
 	before, after, err := idx.lookup(s)
 	//log.Printf("Get(%s) bytes=|%s| before=|%d| after=|%d|\n", s, idx.bytes, before, after)
 	if err != nil {
