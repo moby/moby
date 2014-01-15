@@ -361,8 +361,8 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					Mode:       int64(stat.Mode & 07777),
 					Uid:        int(stat.Uid),
 					Gid:        int(stat.Gid),
-					ModTime:    time.Unix(mtim.Sec, mtim.Nsec),
-					AccessTime: time.Unix(atim.Sec, atim.Nsec),
+					ModTime:    time.Unix(int64(mtim.Sec), int64(mtim.Nsec)),
+					AccessTime: time.Unix(int64(atim.Sec), int64(atim.Nsec)),
 				}
 
 				if stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR {
@@ -382,8 +382,8 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					} else {
 						hdr.Typeflag = tar.TypeChar
 					}
-					hdr.Devmajor = int64(major(stat.Rdev))
-					hdr.Devminor = int64(minor(stat.Rdev))
+					hdr.Devmajor = int64(major(uint64(stat.Rdev)))
+					hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 				} else if stat.Mode&syscall.S_IFIFO == syscall.S_IFIFO ||
 					stat.Mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
 					hdr.Typeflag = tar.TypeFifo
