@@ -238,10 +238,7 @@ func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusNotFound)
 		return fmt.Errorf("This is now implemented in the client.")
 	}
-
-	if err := srv.ImagesViz(w); err != nil {
-		return err
-	}
+	srv.Eng.ServeHTTP(w, r)
 	return nil
 }
 

@@ -135,6 +135,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("viz", srv.ImagesViz); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -538,12 +542,12 @@ func (srv *Server) ImageInsert(name, url, path string, out io.Writer, sf *utils.
 	return nil
 }
 
-func (srv *Server) ImagesViz(out io.Writer) error {
+func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 	images, _ := srv.runtime.graph.Map()
 	if images == nil {
-		return nil
+		return engine.StatusOK
 	}
-	out.Write([]byte("digraph docker {\n"))
+	job.Stdout.Write([]byte("digraph docker {\n"))
 
 	var (
 		parentImage *Image
@@ -552,12 +556,13 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
-			return fmt.Errorf("Error while getting parent image: %v", err)
+			job.Errorf("Error while getting parent image: %v", err)
+			return engine.StatusErr
 		}
 		if parentImage != nil {
-			out.Write([]byte(" \"" + parentImage.ID + "\" -> \"" + image.ID + "\"\n"))
+			job.Stdout.Write([]byte(" \"" + parentImage.ID + "\" -> \"" + image.ID + "\"\n"))
 		} else {
-			out.Write([]byte(" base -> \"" + image.ID + "\" [style=invis]\n"))
+			job.Stdout.Write([]byte(" base -> \"" + image.ID + "\" [style=invis]\n"))
 		}
 	}
 
@@ -570,10 +575,10 @@ func (srv *Server) ImagesViz(out io.Writer) error {
 	}
 
 	for id, repos := range reporefs {
-		out.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
+		job.Stdout.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
 	}
-	out.Write([]byte(" base [style=invisible]\n}\n"))
-	return nil
+	job.Stdout.Write([]byte(" base [style=invisible]\n}\n"))
+	return engine.StatusOK
 }
 
 func (srv *Server) Images(job *engine.Job) engine.Status {
