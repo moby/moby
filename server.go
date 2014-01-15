@@ -131,6 +131,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("history", srv.ImageHistory); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -583,7 +587,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		allImages, err = srv.runtime.graph.Heads()
 	}
 	if err != nil {
-		job.Errorf("%s", err)
+		job.Error(err)
 		return engine.StatusErr
 	}
 	lookup := make(map[string]*engine.Env)
@@ -638,7 +642,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 
 	outs.ReverseSort()
 	if _, err := outs.WriteTo(job.Stdout); err != nil {
-		job.Errorf("%s", err)
+		job.Error(err)
 		return engine.StatusErr
 	}
 	return engine.StatusOK
@@ -695,10 +699,16 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
+func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s IMAGE", job.Name)
+		return engine.StatusErr
+	}
+	name := job.Args[0]
 	image, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return nil, err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	lookupMap := make(map[string][]string)
@@ -712,19 +722,23 @@ func (srv *Server) ImageHistory(name string) ([]APIHistory, error) {
 		}
 	}
 
-	outs := []APIHistory{} //produce [] when empty instead of 'null'
+	outs := engine.NewTable("Created", 0)
 	err = image.WalkHistory(func(img *Image) error {
-		var out APIHistory
-		out.ID = img.ID
-		out.Created = img.Created.Unix()
-		out.CreatedBy = strings.Join(img.ContainerConfig.Cmd, " ")
-		out.Tags = lookupMap[img.ID]
-		out.Size = img.Size
-		outs = append(outs, out)
+		out := &engine.Env{}
+		out.Set("ID", img.ID)
+		out.SetInt64("Created", img.Created.Unix())
+		out.Set("CreatedBy", strings.Join(img.ContainerConfig.Cmd, " "))
+		out.SetList("Tags", lookupMap[img.ID])
+		out.SetInt64("Size", img.Size)
+		outs.Add(out)
 		return nil
 	})
-	return outs, nil
-
+	outs.ReverseSort()
+	if _, err := outs.WriteTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {

@@ -26,14 +26,33 @@ Docker Remote API
 2. Versions
 ===========
 
-The current version of the API is 1.8
+The current version of the API is 1.9
 
 Calling /images/<name>/insert is the same as calling
-/v1.8/images/<name>/insert
+/v1.9/images/<name>/insert
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
 
+
+v1.9
+****
+
+Full Documentation
+------------------
+
+:doc:`docker_remote_api_v1.9`
+
+What's new
+----------
+
+.. http:get:: /images/json
+
+   **New!** This endpoint now returns a list of json message, like the events endpoint
+
+.. http:get:: /images/(name)/history
+
+   **New!** This endpoint now returns a list of json message, like the events endpoint
 
 v1.8
 ****

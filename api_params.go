@@ -1,14 +1,6 @@
 package docker
 
 type (
-	APIHistory struct {
-		ID        string   `json:"Id"`
-		Tags      []string `json:",omitempty"`
-		Created   int64
-		CreatedBy string `json:",omitempty"`
-		Size      int64
-	}
-
 	APITop struct {
 		Titles    []string
 		Processes [][]string
