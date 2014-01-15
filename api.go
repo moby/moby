@@ -497,13 +497,29 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 		return err
 	}
 
-	term := r.Form.Get("term")
-	outs, err := srv.ImagesSearch(term)
-	if err != nil {
+	var (
+		buffer *bytes.Buffer
+		job    = srv.Eng.Job("search", r.Form.Get("term"))
+	)
+	if version >= 1.9 {
+		job.Stdout.Add(w)
+	} else {
+		buffer = bytes.NewBuffer(nil)
+		job.Stdout.Add(buffer)
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
-
-	return writeJSON(w, http.StatusOK, outs)
+	if version < 1.9 { // Send as a valid JSON array
+		outs := engine.NewTable("", 0)
+		if _, err := outs.ReadFrom(buffer); err != nil {
+			return err
+		}
+		if _, err := outs.WriteListTo(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

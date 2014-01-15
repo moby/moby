@@ -956,30 +956,28 @@ Search images
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           [
-                   {
+           {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "wma55/u1210sshd",
                        "star_count": 0
-                   },
-                   {
+           }
+           {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "jdswinbank/sshd",
                        "star_count": 0
-                   },
-                   {
+           }
+           {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "vgauthier/sshd",
                        "star_count": 0
-                   }
+           }
            ...
-           ]
 
         :query term: term to search
         :statuscode 200: no error
