@@ -12,12 +12,20 @@ type Output struct {
 	sync.Mutex
 	dests []io.Writer
 	tasks sync.WaitGroup
+	used  bool
 }
 
 // NewOutput returns a new Output object with no destinations attached.
 // Writing to an empty Output will cause the written data to be discarded.
 func NewOutput() *Output {
 	return &Output{}
+}
+
+// Return true if something was written on this output
+func (o *Output) Used() bool {
+	o.Mutex.Lock()
+	defer o.Mutex.Unlock()
+	return o.used
 }
 
 // Add attaches a new destination to the Output. Any data subsequently written
@@ -82,6 +90,7 @@ func (o *Output) AddString(dst *string) error {
 func (o *Output) Write(p []byte) (n int, err error) {
 	o.Mutex.Lock()
 	defer o.Mutex.Unlock()
+	o.used = true
 	var firstErr error
 	for _, dst := range o.dests {
 		_, err := dst.Write(p)

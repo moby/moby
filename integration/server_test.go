@@ -2,8 +2,6 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -365,20 +363,19 @@ func TestImageInsert(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
-	sf := utils.NewStreamFormatter(true)
 
 	// bad image name fails
-	if err := srv.ImageInsert("foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err == nil {
+	if err := srv.Eng.Job("insert", "foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err == nil {
 		t.Fatal("expected an error and got none")
 	}
 
 	// bad url fails
-	if err := srv.ImageInsert(unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo", ioutil.Discard, sf); err == nil {
+	if err := srv.Eng.Job("insert", unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo").Run(); err == nil {
 		t.Fatal("expected an error and got none")
 	}
 
 	// success returns nil
-	if err := srv.ImageInsert(unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err != nil {
+	if err := srv.Eng.Job("insert", unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err != nil {
 		t.Fatalf("expected no error, but got %v", err)
 	}
 }
