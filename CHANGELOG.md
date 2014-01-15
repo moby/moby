@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.6 (2014-01-14)
+
+#### Builder
+
+* Do not follow symlink outside of build context
+
+#### Runtime
+
+- Remount bind mounts when ro is specified
+* Use https for fetching docker version
+
+#### Other
+
+* Inline the test.docker.io fingerprint
+* Add ca-certificates to packaging documentation
+
 ## 0.7.5 (2014-01-09)
 
 #### Builder
