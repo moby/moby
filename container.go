@@ -1640,7 +1640,7 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 
 func (container *Container) AddLXCConfig(subsystem string, value string) error {
 	findAndUpdate := false
-	for i, _ := range container.hostConfig.LxcConf {
+	for i := range container.hostConfig.LxcConf {
 		if strings.HasSuffix(container.hostConfig.LxcConf[i].Key, subsystem) {
 			if utils.IsInBytesSubsystem(subsystem) {
 				parsedValue, err := utils.RAMInBytes(value)
