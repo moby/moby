@@ -295,7 +295,7 @@ EOF
 
 # Upload the index script
 release_index() {
-	sed "s,https://get.docker.io/,$(s3_url)/," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	sed "s,url='https://get.docker.io/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
 }
 
 release_test() {
