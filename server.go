@@ -9,8 +9,8 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/pkg/systemd"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -123,7 +123,7 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		go func () {
+		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"))
 		}()

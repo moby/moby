@@ -1094,9 +1094,9 @@ func ServeFd(addr string, handle http.Handler) error {
 
 	// Since ListenFD will return one or more sockets we have
 	// to create a go func to spawn off multiple serves
-	for i, _ := range(ls) {
+	for i, _ := range ls {
 		listener := ls[i]
-		go func () {
+		go func() {
 			httpSrv := http.Server{Handler: handle}
 			chErrors <- httpSrv.Serve(listener)
 		}()
