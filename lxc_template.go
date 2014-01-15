@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/pkg/sysinfo"
 	"strings"
 	"text/template"
 )
@@ -31,7 +32,7 @@ lxc.console = none
 lxc.tty = 1
 
 {{if (getHostConfig .).Privileged}}
-lxc.cgroup.devices.allow = a 
+lxc.cgroup.devices.allow = a
 {{else}}
 # no implicit access to devices
 lxc.cgroup.devices.deny = a
@@ -82,7 +83,7 @@ lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstanc
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
 {{if (getHostConfig .).Privileged}}
-{{if (getCapabilities .).AppArmor}}
+{{if (getSysInfo .).AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
@@ -129,8 +130,8 @@ func getHostConfig(container *Container) *HostConfig {
 	return container.hostConfig
 }
 
-func getCapabilities(container *Container) *Capabilities {
-	return container.runtime.capabilities
+func getSysInfo(container *Container) *sysinfo.SysInfo {
+	return container.runtime.sysInfo
 }
 
 func init() {
@@ -138,7 +139,7 @@ func init() {
 	funcMap := template.FuncMap{
 		"getMemorySwap":     getMemorySwap,
 		"getHostConfig":     getHostConfig,
-		"getCapabilities":   getCapabilities,
+		"getSysInfo":        getSysInfo,
 		"escapeFstabSpaces": escapeFstabSpaces,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)

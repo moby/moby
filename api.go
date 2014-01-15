@@ -657,16 +657,16 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	for scanner.Scan() {
 		out.Warnings = append(out.Warnings, scanner.Text())
 	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.MemoryLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.MemoryLimit {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.capabilities.SwapLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.SwapLimit {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 
-	if !job.GetenvBool("NetworkDisabled") && srv.runtime.capabilities.IPv4ForwardingDisabled {
+	if !job.GetenvBool("NetworkDisabled") && srv.runtime.sysInfo.IPv4ForwardingDisabled {
 		log.Println("Warning: IPv4 forwarding is disabled.")
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}

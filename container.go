@@ -527,16 +527,16 @@ func (container *Container) Start() (err error) {
 	}
 
 	// Make sure the config is compatible with the current kernel
-	if container.Config.Memory > 0 && !container.runtime.capabilities.MemoryLimit {
+	if container.Config.Memory > 0 && !container.runtime.sysInfo.MemoryLimit {
 		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		container.Config.Memory = 0
 	}
-	if container.Config.Memory > 0 && !container.runtime.capabilities.SwapLimit {
+	if container.Config.Memory > 0 && !container.runtime.sysInfo.SwapLimit {
 		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
 
-	if container.runtime.capabilities.IPv4ForwardingDisabled {
+	if container.runtime.sysInfo.IPv4ForwardingDisabled {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
 

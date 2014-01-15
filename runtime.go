@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
@@ -13,10 +12,10 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"regexp"
@@ -37,13 +36,6 @@ var (
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
-type Capabilities struct {
-	MemoryLimit            bool
-	SwapLimit              bool
-	IPv4ForwardingDisabled bool
-	AppArmor               bool
-}
-
 type Runtime struct {
 	repository     string
 	sysInitPath    string
@@ -52,7 +44,7 @@ type Runtime struct {
 	graph          *Graph
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
-	capabilities   *Capabilities
+	sysInfo        *sysinfo.SysInfo
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
@@ -330,44 +322,6 @@ func (runtime *Runtime) restore() error {
 	}
 
 	return nil
-}
-
-func NewRuntimeCapabilities(quiet bool) *Capabilities {
-	capabilities := &Capabilities{}
-	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
-		if !quiet {
-			log.Printf("WARNING: %s\n", err)
-		}
-	} else {
-		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
-		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
-		capabilities.MemoryLimit = err1 == nil && err2 == nil
-		if !capabilities.MemoryLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
-		}
-
-		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		capabilities.SwapLimit = err == nil
-		if !capabilities.SwapLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
-		}
-	}
-
-	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
-	if capabilities.IPv4ForwardingDisabled && !quiet {
-		log.Printf("WARNING: IPv4 forwarding is disabled.")
-	}
-
-	// Check if AppArmor seems to be enabled on this system.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
-		capabilities.AppArmor = false
-	} else {
-		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
-		capabilities.AppArmor = true
-	}
-	return capabilities
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -732,7 +686,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		sysInitPath = localCopy
 	}
 
-	capabilities := NewRuntimeCapabilities(false)
+	sysInfo := sysinfo.New(false)
 
 	/*
 		temporarilly disabled.
@@ -740,14 +694,14 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if false {
 		var ed execdriver.Driver
 		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
-			ed, err = lxc.NewDriver(config.Root, capabilities.AppArmor)
+			ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
 		} else {
 			ed, err = chroot.NewDriver()
 		}
 		if ed != nil {
 		}
 	}
-	ed, err := lxc.NewDriver(config.Root, capabilities.AppArmor)
+	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +713,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
-		capabilities:   capabilities,
+		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,

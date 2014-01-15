@@ -516,7 +516,7 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 	}
 	defer file.Body.Close()
 
-	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.capabilities)
+	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.sysInfo)
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
@@ -678,9 +678,9 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", srv.runtime.driver.String())
 	v.SetJson("DriverStatus", srv.runtime.driver.Status())
-	v.SetBool("MemoryLimit", srv.runtime.capabilities.MemoryLimit)
-	v.SetBool("SwapLimit", srv.runtime.capabilities.SwapLimit)
-	v.SetBool("IPv4Forwarding", !srv.runtime.capabilities.IPv4ForwardingDisabled)
+	v.SetBool("MemoryLimit", srv.runtime.sysInfo.MemoryLimit)
+	v.SetBool("SwapLimit", srv.runtime.sysInfo.SwapLimit)
+	v.SetBool("IPv4Forwarding", !srv.runtime.sysInfo.IPv4ForwardingDisabled)
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
@@ -1470,10 +1470,10 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Errorf("Minimum memory limit allowed is 512k")
 		return engine.StatusErr
 	}
-	if config.Memory > 0 && !srv.runtime.capabilities.MemoryLimit {
+	if config.Memory > 0 && !srv.runtime.sysInfo.MemoryLimit {
 		config.Memory = 0
 	}
-	if config.Memory > 0 && !srv.runtime.capabilities.SwapLimit {
+	if config.Memory > 0 && !srv.runtime.sysInfo.SwapLimit {
 		config.MemorySwap = -1
 	}
 	container, buildWarnings, err := srv.runtime.Create(&config, name)
