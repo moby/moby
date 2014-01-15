@@ -555,7 +555,7 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, "", "Downloading"), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, utils.TruncateID(img.ID), "Downloading"), path); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
