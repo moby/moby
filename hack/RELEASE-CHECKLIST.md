@@ -194,7 +194,12 @@ echo "https://github.com/dotcloud/docker/compare/master...merge_release_$VERSION
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 12. Rejoice and Evangelize!
+### 12. Ping Docker marketing team
+
+Send an email to julien@docker.com and victor.coisne@docker.com with a link to the changelog
+and a brief summary of the release.
+
+### 13. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
