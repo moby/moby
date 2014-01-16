@@ -155,6 +155,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("changes", srv.ContainerChanges); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -860,11 +864,36 @@ func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ContainerChanges(name string) ([]archive.Change, error) {
-	if container := srv.runtime.Get(name); container != nil {
-		return container.Changes()
+func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s CONTAINER", job.Name)
+		return engine.StatusErr
 	}
-	return nil, fmt.Errorf("No such container: %s", name)
+	name := job.Args[0]
+	if container := srv.runtime.Get(name); container != nil {
+		outs := engine.NewTable("", 0)
+		changes, err := container.Changes()
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		for _, change := range changes {
+			out := &engine.Env{}
+			if err := out.Import(change); err != nil {
+				job.Error(err)
+				return engine.StatusErr
+			}
+			outs.Add(out)
+		}
+		if _, err := outs.WriteTo(job.Stdout); err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+	} else {
+		job.Errorf("No such container: %s", name)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {

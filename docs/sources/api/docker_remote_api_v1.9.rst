@@ -317,20 +317,18 @@ Inspect changes on a container's filesystem
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           [
-                {
+           {
                         "Path":"/dev",
                         "Kind":0
-                },
-                {
+           }
+           {
                         "Path":"/dev/kmsg",
                         "Kind":1
-                },
-                {
+           }
+           {
                         "Path":"/test",
                         "Kind":1
-                }
-           ]
+           }
 
         :statuscode 200: no error
         :statuscode 404: no such container
