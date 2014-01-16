@@ -4,8 +4,8 @@
 
 .. _windows:
 
-Using Vagrant (Windows)
-=======================
+Installing Docker on Windows
+============================
 
 Docker can run on Windows using a VM like VirtualBox. You then run
 Linux within the VM.
