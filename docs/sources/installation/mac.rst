@@ -65,8 +65,28 @@ To access the VM and use Docker, Run ``vagrant ssh`` from the same directory as 
 
    vagrant ssh
 
+
+Upgrades
+--------
+
+Since your local VM is based on Ubuntu, you can upgrade docker by logging in to the
+VM and calling ``apt-get``:
+
+
+.. code-block:: bash
+
+   # Log into the VM
+   vagrant ssh
+
+   # update your sources list
+   sudo apt-get update
+
+   # install the latest
+   sudo apt-get install lxc-docker
+
+
 Run
------
+---
 
 Now you are in the VM, run docker
 

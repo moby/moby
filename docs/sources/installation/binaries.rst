@@ -43,6 +43,17 @@ Run the docker daemon
     # start the docker in daemon mode from the directory you unpacked
     sudo ./docker -d &
 
+Upgrades
+--------
+
+To upgrade your manual installation of Docker, first kill the docker daemon:
+
+.. code-block:: bash
+
+   killall docker
+
+Then follow the regular installation steps.
+
 
 Run your first container!
 -------------------------

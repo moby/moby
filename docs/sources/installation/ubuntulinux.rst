@@ -167,6 +167,21 @@ Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
+Upgrades
+--------
+
+To install the latest version of docker, use the standard ``apt-get`` method:
+
+
+.. code-block:: bash
+
+   # update your sources list
+   sudo apt-get update
+
+   # install the latest
+   sudo apt-get install lxc-docker
+
+
 .. _ufw:
 
 Docker and UFW
