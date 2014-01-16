@@ -323,15 +323,18 @@ or ``config`` when running ``docker inspect IMAGEID``.
 
 ::
 
-    Usage: docker cp CONTAINER:PATH HOSTPATH
+    Usage: docker cp [OPTIONS] NAME:PATH HOSTPATH
 
-    Copy files/folders from the containers filesystem to the host
+    Copy files/folders from the PATH on the container NAME to the host
     path.  Paths are relative to the root of the filesystem.
 
+      -image=false: Treat NAME as an image (and not a container).
+    
 .. code-block:: bash
 
     $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
     $ sudo docker cp blue_frog:/etc/hosts .
+    $ sudo docker cp -image ubuntu:/etc/debian_version .
 
 .. _cli_diff:
 

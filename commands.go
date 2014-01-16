@@ -83,7 +83,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
-		{"cp", "Copy files/folders from the containers filesystem to the host path"},
+		{"cp", "Copy files/folders from the container's/image's filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -2155,9 +2155,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	cmd := cli.Subcmd("cp", "[OPTIONS] NAME:PATH HOSTPATH", "Copy files/folders from the PATH on the container NAME to the HOSTPATH")
+	image := cmd.Bool("image", false, "Treat NAME as an image (and not a container).")
 	if err := cmd.Parse(args); err != nil {
 		return nil
+	}
+	endpoint := "/containers/"
+	if *image {
+		endpoint = "/images/"
 	}
 
 	if cmd.NArg() != 2 {
@@ -2175,7 +2180,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	copyData.Resource = info[1]
 	copyData.HostPath = cmd.Arg(1)
 
-	data, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData)
+	data, statusCode, err := cli.call("POST", endpoint+info[0]+"/copy", copyData)
 	if err != nil {
 		return err
 	}

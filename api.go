@@ -416,6 +416,36 @@ func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.
 	return nil
 }
 
+func postImagesCopy(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+
+	copyData := &APICopy{}
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		if err := json.NewDecoder(r.Body).Decode(copyData); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	if copyData.Resource == "" {
+		return fmt.Errorf("Path cannot be empty")
+	}
+	if copyData.Resource[0] == '/' {
+		copyData.Resource = copyData.Resource[1:]
+	}
+
+	if err := srv.ImageCopy(name, copyData.Resource, w); err != nil {
+		utils.Errorf("%s", err.Error())
+		return err
+	}
+	return nil
+}
+
 func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1152,6 +1182,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			"/images/load":                  postImagesLoad,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
+			"/images/{name:.*}/copy":        postImagesCopy,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/restart": postContainersRestart,

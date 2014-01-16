@@ -1165,6 +1165,52 @@ func TestDeleteImages(t *testing.T) {
 	}
 }
 
+func TestPostImagesCopy(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+	srv := mkServerFromEngine(eng, t)
+
+	r := httptest.NewRecorder()
+	copyData := docker.APICopy{HostPath: ".", Resource: "/bin/sh"}
+
+	jsonData, err := json.Marshal(copyData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/images/"+unitTestImageName+"/copy", bytes.NewReader(jsonData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	found := false
+	for tarReader := tar.NewReader(r.Body); ; {
+		h, err := tarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if h.Name == "sh" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("The requested file has not been found in the copied output")
+	}
+}
+
 func TestPostContainersCopy(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
