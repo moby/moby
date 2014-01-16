@@ -337,6 +337,14 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("inspect_image", srv.JobImageInspect); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	if err := job.Eng.Register("inspect_container", srv.JobContainerInspect); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -2303,11 +2311,55 @@ func (srv *Server) ContainerInspect(name string) (*Container, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
+func (srv *Server) JobContainerInspect(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s CONTAINER", job.Name)
+		return engine.StatusErr
+	}
+	container, err := srv.ContainerInspect(job.Args[0])
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+
+	type HostConfigPacker struct {
+		*Container
+		HostConfig *HostConfig
+	}
+
+	b, err := json.Marshal(&HostConfigPacker{container, container.hostConfig})
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	job.Stdout.Write(b)
+	return engine.StatusOK
+}
+
 func (srv *Server) ImageInspect(name string) (*Image, error) {
 	if image, err := srv.runtime.repositories.LookupImage(name); err == nil && image != nil {
 		return image, nil
 	}
 	return nil, fmt.Errorf("No such image: %s", name)
+}
+
+func (srv *Server) JobImageInspect(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s IMAGE", job.Name)
+		return engine.StatusErr
+	}
+	image, err := srv.ImageInspect(job.Args[0])
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	b, err := json.Marshal(image)
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	job.Stdout.Write(b)
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
