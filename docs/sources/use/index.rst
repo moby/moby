@@ -13,7 +13,6 @@ Contents:
    :maxdepth: 1
 
    basics
-   builder
    workingwithrepository
    baseimages
    port_redirection

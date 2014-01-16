@@ -9,7 +9,7 @@ Share Directories via Volumes
 
 .. versionadded:: v0.3.0
    Data volumes have been available since version 1 of the
-   :doc:`../api/docker_remote_api`
+   :doc:`../reference/api/docker_remote_api`
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the :ref:`ufs_def` to provide several useful
