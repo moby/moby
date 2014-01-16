@@ -72,10 +72,14 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
+	configPath, err := d.generateLXCConfig(c)
+	if err != nil {
+		return -1, err
+	}
 	params := []string{
 		"lxc-start",
 		"-n", c.ID,
-		"-f", c.ConfigPath,
+		"-f", configPath,
 		"--",
 		c.InitPath,
 		"-driver",
@@ -259,7 +263,6 @@ func (i *info) IsRunning() bool {
 }
 
 func (d *driver) Info(id string) execdriver.Info {
-
 	return &info{
 		ID:     id,
 		driver: d,
@@ -296,4 +299,24 @@ func rootIsShared() bool {
 
 	// No idea, probably safe to assume so
 	return true
+}
+
+func (d *driver) generateLXCConfig(p *execdriver.Process) (string, error) {
+	root := path.Join(d.root, "containers", p.ID, "config.lxc")
+	fo, err := os.Create(root)
+	if err != nil {
+		return "", err
+	}
+	defer fo.Close()
+
+	if err := LxcTemplateCompiled.Execute(fo, struct {
+		*execdriver.Process
+		AppArmor bool
+	}{
+		Process:  p,
+		AppArmor: d.apparmor,
+	}); err != nil {
+		return "", err
+	}
+	return root, nil
 }

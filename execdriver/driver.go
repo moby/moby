@@ -2,6 +2,7 @@ package execdriver
 
 import (
 	"errors"
+	"github.com/dotcloud/docker/cgroups"
 	"os/exec"
 	"syscall"
 )
@@ -71,6 +72,7 @@ type Driver interface {
 type Network struct {
 	Gateway     string `json:"gateway"`
 	IPAddress   string `json:"ip"`
+	Bridge      string `json:"bridge"`
 	IPPrefixLen int    `json:"ip_prefix_len"`
 	Mtu         int    `json:"mtu"`
 }
@@ -79,17 +81,19 @@ type Network struct {
 type Process struct {
 	exec.Cmd
 
-	ID         string   `json:"id"`
-	Privileged bool     `json:"privileged"`
-	User       string   `json:"user"`
-	Rootfs     string   `json:"rootfs"`   // root fs of the container
-	InitPath   string   `json:"initpath"` // dockerinit
-	Entrypoint string   `json:"entrypoint"`
-	Arguments  []string `json:"arguments"`
-	WorkingDir string   `json:"working_dir"`
-	ConfigPath string   `json:"config_path"` // This should be able to be removed when the lxc template is moved into the driver
-	Tty        bool     `json:"tty"`
-	Network    *Network `json:"network"` // if network is nil then networking is disabled
+	ID         string          `json:"id"`
+	Privileged bool            `json:"privileged"`
+	User       string          `json:"user"`
+	Rootfs     string          `json:"rootfs"`   // root fs of the container
+	InitPath   string          `json:"initpath"` // dockerinit
+	Entrypoint string          `json:"entrypoint"`
+	Arguments  []string        `json:"arguments"`
+	WorkingDir string          `json:"working_dir"`
+	ConfigPath string          `json:"config_path"` // This should be able to be removed when the lxc template is moved into the driver
+	Tty        bool            `json:"tty"`
+	Network    *Network        `json:"network"` // if network is nil then networking is disabled
+	Config     []string        `json:"config"`
+	Cgroups    *cgroups.Values `json:"cgroups"`
 }
 
 // Return the pid of the process

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/mount"
@@ -299,15 +300,6 @@ func (container *Container) generateEnvConfig(env []string) error {
 	return nil
 }
 
-func (container *Container) generateLXCConfig() error {
-	fo, err := os.Create(container.lxcConfigPath())
-	if err != nil {
-		return err
-	}
-	defer fo.Close()
-	return LxcTemplateCompiled.Execute(fo, container)
-}
-
 func (container *Container) setupPty() error {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
@@ -554,10 +546,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	if err := container.generateLXCConfig(); err != nil {
-		return err
-	}
-
 	// Setup environment
 	env := []string{
 		"HOME=/",
@@ -662,15 +650,31 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	var en *execdriver.Network
+	var (
+		en           *execdriver.Network
+		driverConfig []string
+	)
+
 	if !container.Config.NetworkDisabled {
 		network := container.NetworkSettings
 		en = &execdriver.Network{
 			Gateway:     network.Gateway,
+			Bridge:      network.Bridge,
 			IPAddress:   network.IPAddress,
 			IPPrefixLen: network.IPPrefixLen,
 			Mtu:         container.runtime.config.Mtu,
 		}
+	}
+
+	if lxcConf := container.hostConfig.LxcConf; lxcConf != nil {
+		for _, pair := range lxcConf {
+			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
+		}
+	}
+	cgroupValues := &cgroups.Values{
+		Memory:     container.Config.Memory,
+		MemorySwap: container.Config.MemorySwap,
+		CpuShares:  container.Config.CpuShares,
 	}
 
 	container.process = &execdriver.Process{
@@ -681,10 +685,11 @@ func (container *Container) Start() (err error) {
 		Entrypoint: container.Path,
 		Arguments:  container.Args,
 		WorkingDir: workingDir,
-		ConfigPath: container.lxcConfigPath(),
 		Network:    en,
 		Tty:        container.Config.Tty,
 		User:       container.Config.User,
+		Config:     driverConfig,
+		Cgroups:    cgroupValues,
 	}
 	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
@@ -1379,10 +1384,6 @@ func (container *Container) EnvConfigPath() (string, error) {
 		}
 	}
 	return p, nil
-}
-
-func (container *Container) lxcConfigPath() string {
-	return path.Join(container.root, "config.lxc")
 }
 
 // This method must be exported to be used from the lxc template
