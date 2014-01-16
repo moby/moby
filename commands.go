@@ -1655,30 +1655,28 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	if err != nil {
 		return err
 	}
-
-	outs := []registry.SearchResult{}
-	err = json.Unmarshal(body, &outs)
-	if err != nil {
+	outs := engine.NewTable("star_count", 0)
+	if _, err := outs.ReadFrom(bytes.NewReader(body)); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tTRUSTED\n")
-	for _, out := range outs {
-		if (*trusted && !out.IsTrusted) || (*stars > out.StarCount) {
+	for _, out := range outs.Data {
+		if (*trusted && !out.GetBool("is_trusted")) || (*stars > out.GetInt("star_count")) {
 			continue
 		}
-		desc := strings.Replace(out.Description, "\n", " ", -1)
+		desc := strings.Replace(out.Get("description"), "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !*noTrunc && len(desc) > 45 {
 			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Name, desc, out.StarCount)
-		if out.IsOfficial {
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Get("name"), desc, out.GetInt("star_count"))
+		if out.GetBool("is_official") {
 			fmt.Fprint(w, "[OK]")
 
 		}
 		fmt.Fprint(w, "\t")
-		if out.IsTrusted {
+		if out.GetBool("is_trusted") {
 			fmt.Fprint(w, "[OK]")
 		}
 		fmt.Fprint(w, "\n")

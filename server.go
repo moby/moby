@@ -151,6 +151,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("search", srv.ImagesSearch); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -507,16 +511,35 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 	return nil
 }
 
-func (srv *Server) ImagesSearch(term string) ([]registry.SearchResult, error) {
+func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s TERM", job.Name)
+		return engine.StatusErr
+	}
+	term := job.Args[0]
+
 	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress())
 	if err != nil {
-		return nil, err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	results, err := r.SearchRepositories(term)
 	if err != nil {
-		return nil, err
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return results.Results, nil
+	outs := engine.NewTable("star_count", 0)
+	for _, result := range results.Results {
+		out := &engine.Env{}
+		out.Import(result)
+		outs.Add(out)
+	}
+	outs.ReverseSort()
+	if _, err := outs.WriteTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
