@@ -141,6 +141,17 @@ func (i *Input) Read(p []byte) (n int, err error) {
 	return i.src.Read(p)
 }
 
+// Closes the src
+// Not thread safe on purpose
+func (i *Input) Close() error {
+	if i.src != nil {
+		if closer, ok := i.src.(io.WriteCloser); ok {
+			return closer.Close()
+		}
+	}
+	return nil
+}
+
 // Add attaches a new source to the input.
 // Add can only be called once per input. Subsequent calls will
 // return an error.
