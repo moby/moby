@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
+	_ "github.com/dotcloud/docker/execdriver/chroot"
+	_ "github.com/dotcloud/docker/execdriver/lxc"
 	"io/ioutil"
 	"log"
 	"os"

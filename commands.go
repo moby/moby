@@ -471,7 +471,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
-		fmt.Fprintf(cli.out, "LXC Version: %s\n", remoteInfo.Get("LXCVersion"))
+		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 

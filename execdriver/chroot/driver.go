@@ -42,7 +42,7 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		c.Rootfs,
 		"/.dockerinit",
 		"-driver",
-		d.Name(),
+		DriverName,
 	}
 	params = append(params, c.Entrypoint)
 	params = append(params, c.Arguments...)

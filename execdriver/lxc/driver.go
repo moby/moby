@@ -84,7 +84,7 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		"--",
 		c.InitPath,
 		"-driver",
-		d.Name(),
+		DriverName,
 	}
 
 	if c.Network != nil {
