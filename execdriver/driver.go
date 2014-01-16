@@ -63,7 +63,6 @@ type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
 	Wait(id string) error // Wait on an out of process...process - lxc ghosts
-	Version() string      // Driver version number
 	Name() string         // Driver name
 	Info(id string) Info  // "temporary" hack (until we move state from core to plugins)
 }
@@ -89,10 +88,10 @@ type Process struct {
 	Entrypoint string          `json:"entrypoint"`
 	Arguments  []string        `json:"arguments"`
 	WorkingDir string          `json:"working_dir"`
-	ConfigPath string          `json:"config_path"` // This should be able to be removed when the lxc template is moved into the driver
+	ConfigPath string          `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Tty        bool            `json:"tty"`
 	Network    *Network        `json:"network"` // if network is nil then networking is disabled
-	Config     []string        `json:"config"`
+	Config     []string        `json:"config"`  //  generic values that specific drivers can consume
 	Cgroups    *cgroups.Values `json:"cgroups"`
 }
 

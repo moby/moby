@@ -684,7 +684,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
-	v.Set("LXCVersion", srv.runtime.execDriver.Version())
+	v.Set("ExecutionDriver", srv.runtime.execDriver.Name())
 	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())

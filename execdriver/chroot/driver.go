@@ -1,6 +1,7 @@
 package chroot
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/mount"
 	"os"
@@ -82,9 +83,5 @@ func (d *driver) Info(id string) execdriver.Info {
 }
 
 func (d *driver) Name() string {
-	return DriverName
-}
-
-func (d *driver) Version() string {
-	return Version
+	return fmt.Sprintf("%s-%s", DriverName, Version)
 }

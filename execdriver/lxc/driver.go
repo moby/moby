@@ -68,7 +68,8 @@ func NewDriver(root string, apparmor bool) (*driver, error) {
 }
 
 func (d *driver) Name() string {
-	return DriverName
+	version := d.version()
+	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
 func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
@@ -186,7 +187,7 @@ func (d *driver) Wait(id string) error {
 	}
 }
 
-func (d *driver) Version() string {
+func (d *driver) version() string {
 	version := ""
 	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
 		outputStr := string(output)
