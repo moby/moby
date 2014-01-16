@@ -751,8 +751,17 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
-	c, err := srv.ContainerInspect(vars["name"])
-	if err != nil {
+	var (
+		job    = srv.Eng.Job("inspect_container", vars["name"])
+		buffer = bytes.NewBuffer(nil)
+		c      Container
+	)
+	job.Stdout.Add(buffer)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(buffer.Bytes(), &c); err != nil {
 		return err
 	}
 
@@ -786,7 +795,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		errStream = outStream
 	}
 
-	job := srv.Eng.Job("attach", vars["name"])
+	job = srv.Eng.Job("attach", vars["name"])
 	job.Setenv("logs", r.Form.Get("logs"))
 	job.Setenv("stream", r.Form.Get("stream"))
 	job.Setenv("stdin", r.Form.Get("stdin"))
@@ -810,7 +819,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if _, err := srv.ContainerInspect(vars["name"]); err != nil {
+	if err := srv.Eng.Job("inspect_container", vars["name"]).Run(); err != nil {
 		return err
 	}
 

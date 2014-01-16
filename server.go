@@ -2322,12 +2322,10 @@ func (srv *Server) JobContainerInspect(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 
-	type HostConfigPacker struct {
+	b, err := json.Marshal(&struct {
 		*Container
 		HostConfig *HostConfig
-	}
-
-	b, err := json.Marshal(&HostConfigPacker{container, container.hostConfig})
+	}{container, container.hostConfig})
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
