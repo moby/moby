@@ -313,6 +313,14 @@ func (t *Table) WriteListTo(dst io.Writer) (n int64, err error) {
 	return n + 1, nil
 }
 
+func (t *Table) ToListString() (string, error) {
+	buffer := bytes.NewBuffer(nil)
+	if _, err := t.WriteListTo(buffer); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
+}
+
 func (t *Table) WriteTo(dst io.Writer) (n int64, err error) {
 	for _, env := range t.Data {
 		bytes, err := env.WriteTo(dst)

@@ -291,32 +291,37 @@ func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *h
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	all, err := getBoolParam(r.Form.Get("all"))
-	if err != nil {
+	var (
+		err  error
+		outs *engine.Table
+		job  = srv.Eng.Job("containers")
+	)
+
+	job.Setenv("all", r.Form.Get("all"))
+	job.Setenv("size", r.Form.Get("size"))
+	job.Setenv("since", r.Form.Get("since"))
+	job.Setenv("before", r.Form.Get("before"))
+	job.Setenv("limit", r.Form.Get("limit"))
+
+	if version > 1.5 {
+		job.Stdout.Add(w)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
 		return err
 	}
-	size, err := getBoolParam(r.Form.Get("size"))
-	if err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
-	since := r.Form.Get("since")
-	before := r.Form.Get("before")
-	n, err := strconv.Atoi(r.Form.Get("limit"))
-	if err != nil {
-		n = -1
-	}
-
-	outs := srv.Containers(all, size, n, since, before)
-
-	if version < 1.5 {
-		outs2 := []APIContainersOld{}
-		for _, ctnr := range outs {
-			outs2 = append(outs2, *ctnr.ToLegacy())
+	if version < 1.5 { // Convert to legacy format
+		for _, out := range outs.Data {
+			ports := engine.NewTable("", 0)
+			ports.ReadListFrom([]byte(out.Get("Ports")))
+			out.Set("Ports", displayablePorts(ports))
 		}
-
-		return writeJSON(w, http.StatusOK, outs2)
+		if _, err = outs.WriteListTo(w); err != nil {
+			return err
+		}
 	}
-	return writeJSON(w, http.StatusOK, outs)
+	return nil
 }
 
 func postImagesTag(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

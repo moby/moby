@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/networkdriver/ipallocator"
@@ -175,29 +176,28 @@ type NetworkSettings struct {
 	Ports       map[Port][]PortBinding
 }
 
-func (settings *NetworkSettings) PortMappingAPI() []APIPort {
-	var mapping []APIPort
+func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
+	var outs = engine.NewTable("", 0)
 	for port, bindings := range settings.Ports {
 		p, _ := parsePort(port.Port())
 		if len(bindings) == 0 {
-			mapping = append(mapping, APIPort{
-				PublicPort: int64(p),
-				Type:       port.Proto(),
-			})
+			out := &engine.Env{}
+			out.SetInt("PublicPort", p)
+			out.Set("Type", port.Proto())
+			outs.Add(out)
 			continue
 		}
 		for _, binding := range bindings {
-			p, _ := parsePort(port.Port())
+			out := &engine.Env{}
 			h, _ := parsePort(binding.HostPort)
-			mapping = append(mapping, APIPort{
-				PrivatePort: int64(p),
-				PublicPort:  int64(h),
-				Type:        port.Proto(),
-				IP:          binding.HostIp,
-			})
+			out.SetInt("PrivatePort", p)
+			out.SetInt("PublicPort", h)
+			out.Set("Type", port.Proto())
+			out.Set("IP", binding.HostIp)
+			outs.Add(out)
 		}
 	}
-	return mapping
+	return outs
 }
 
 // Inject the io.Reader at the given path. Note: do not close the reader
