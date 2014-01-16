@@ -159,6 +159,10 @@ func jobInitApi(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("top", srv.ContainerTop); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -804,28 +808,40 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
+func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 && len(job.Args) != 2 {
+		job.Errorf("Not enough arguments. Usage: %s CONTAINER [PS_ARGS]\n", job.Name)
+		return engine.StatusErr
+	}
+	var (
+		name   = job.Args[0]
+		psArgs = "-ef"
+	)
+
+	if len(job.Args) == 2 && job.Args[1] != "" {
+		psArgs = job.Args[1]
+	}
+
 	if container := srv.runtime.Get(name); container != nil {
 		if !container.State.IsRunning() {
-			return nil, fmt.Errorf("Container %s is not running", name)
+			job.Errorf("Container %s is not running", name)
+			return engine.StatusErr
 		}
 		pids, err := cgroups.GetPidsForContainer(container.ID)
 		if err != nil {
-			return nil, err
-		}
-		if len(psArgs) == 0 {
-			psArgs = "-ef"
+			job.Error(err)
+			return engine.StatusErr
 		}
 		output, err := exec.Command("ps", psArgs).Output()
 		if err != nil {
-			return nil, fmt.Errorf("Error running ps: %s", err)
+			job.Errorf("Error running ps: %s", err)
+			return engine.StatusErr
 		}
 
 		lines := strings.Split(string(output), "\n")
 		header := strings.Fields(lines[0])
-		procs := APITop{
-			Titles: header,
-		}
+		out := &engine.Env{}
+		out.SetList("Titles", header)
 
 		pidIndex := -1
 		for i, name := range header {
@@ -834,9 +850,11 @@ func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 			}
 		}
 		if pidIndex == -1 {
-			return nil, errors.New("Couldn't find PID field in ps output")
+			job.Errorf("Couldn't find PID field in ps output")
+			return engine.StatusErr
 		}
 
+		processes := [][]string{}
 		for _, line := range lines[1:] {
 			if len(line) == 0 {
 				continue
@@ -844,24 +862,27 @@ func (srv *Server) ContainerTop(name, psArgs string) (*APITop, error) {
 			fields := strings.Fields(line)
 			p, err := strconv.Atoi(fields[pidIndex])
 			if err != nil {
-				return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
+				job.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
+				return engine.StatusErr
 			}
 
 			for _, pid := range pids {
 				if pid == p {
 					// Make sure number of fields equals number of header titles
 					// merging "overhanging" fields
-					processes := fields[:len(procs.Titles)-1]
-					processes = append(processes, strings.Join(fields[len(procs.Titles)-1:], " "))
-
-					procs.Processes = append(procs.Processes, processes)
+					process := fields[:len(header)-1]
+					process = append(process, strings.Join(fields[len(header)-1:], " "))
+					processes = append(processes, process)
 				}
 			}
 		}
-		return &procs, nil
+		out.SetJson("Processes", processes)
+		out.WriteTo(job.Stdout)
+		return engine.StatusOK
 
 	}
-	return nil, fmt.Errorf("No such container: %s", name)
+	job.Errorf("No such container: %s", name)
+	return engine.StatusErr
 }
 
 func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
