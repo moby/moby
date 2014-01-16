@@ -23,6 +23,7 @@ type DockerInitArgs struct {
 	ip         string
 	workDir    string
 	privileged bool
+	fork       bool
 	env        []string
 	args       []string
 	mtu        int
@@ -208,10 +209,49 @@ func executeProgram(args *DockerInitArgs) error {
 		os.Exit(127)
 	}
 
-	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
-		panic(err)
-	}
+	if args.fork {
+		cmd := &exec.Cmd{}
+		cmd.Path = path
+		cmd.Args = args.args
+		cmd.Env = os.Environ()
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
 
+		// Start the requested process
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+
+		// Forward all received signals to the child
+		sigc := make(chan os.Signal)
+		utils.CatchAll(sigc)
+		go func() {
+			for s := range sigc {
+				if s == syscall.SIGCHLD {
+					continue
+				}
+				if err := cmd.Process.Signal(s); err != nil {
+					utils.Debugf("Error sending signal: %s\n", err)
+				}
+			}
+		}()
+
+		// Wait for the app to exit.  Also, as pid 1 it's our job to reap all
+		// orphaned zombies.
+		var wstatus syscall.WaitStatus
+		for {
+			var rusage syscall.Rusage
+			if pid, err := syscall.Wait4(-1, &wstatus, 0, &rusage); err == nil && pid == cmd.Process.Pid {
+				break
+			}
+		}
+		os.Exit(wstatus.ExitStatus())
+	} else {
+		if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
+			panic(err)
+		}
+	}
 	// Will never reach here
 	return nil
 }
@@ -231,6 +271,7 @@ func SysInit() {
 	ip := flag.String("i", "", "ip address")
 	workDir := flag.String("w", "", "workdir")
 	privileged := flag.Bool("privileged", false, "privileged mode")
+	fork := flag.Bool("fork", true, "fork dockerinit to start a process")
 	mtu := flag.Int("mtu", 1500, "interface mtu")
 	flag.Parse()
 
@@ -253,6 +294,7 @@ func SysInit() {
 		ip:         *ip,
 		workDir:    *workDir,
 		privileged: *privileged,
+		fork:       *fork,
 		env:        env,
 		args:       flag.Args(),
 		mtu:        *mtu,

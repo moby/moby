@@ -6,6 +6,15 @@ import (
 	"syscall"
 )
 
+func suspend() error {
+	// Kill the process takes too long, we kill the main thread
+	if err := syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSTOP); err != nil {
+		return err
+	}
+	return nil
+}
+
+
 func CatchAll(sigc chan os.Signal) {
 	signal.Notify(sigc,
 		syscall.SIGABRT,
@@ -32,7 +41,6 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGSYS,
 		syscall.SIGTERM,
 		syscall.SIGTRAP,
-		syscall.SIGTSTP,
 		syscall.SIGTTIN,
 		syscall.SIGTTOU,
 		syscall.SIGUNUSED,
@@ -43,5 +51,6 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGWINCH,
 		syscall.SIGXCPU,
 		syscall.SIGXFSZ,
+		syscall.SIGTSTP,
 	)
 }

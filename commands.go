@@ -559,13 +559,38 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
 	utils.CatchAll(sigc)
+
 	go func() {
 		for s := range sigc {
 			if s == syscall.SIGCHLD {
 				continue
 			}
-			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil); err != nil {
+			if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(s.(syscall.Signal))), nil); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
+			}
+			if s == syscall.SIGTSTP || s == syscall.SIGTTIN || s == syscall.SIGTTOU {
+				if cli.oldState != nil {
+					// Restore termcaps for shell
+					if err := term.RestoreTerminal(cli.terminalFd, cli.oldState); err != nil {
+						utils.Debugf("Error RestoreTerminal: %s", err)
+					}
+				}
+
+				// SIGSTOP is not blockage nor can be handled. Force dettach
+				if err := utils.Suspend(); err != nil {
+					utils.Debugf("Error suspend: %s", err)
+				}
+
+				// Unppon SIGCONT (fg/bg), restore terminal and resume the process
+				if cli.oldState != nil {
+					if _, err := term.SetRawTerminal(cli.terminalFd); err != nil {
+						utils.Debugf("Error SetRawTerminal: %s", err)
+					}
+				}
+
+				if _, _, err := cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, utils.SignalMap(syscall.SIGCONT)), nil); err != nil {
+					utils.Debugf("Error sending signal: %s", err)
+				}
 			}
 		}
 	}()
@@ -1748,6 +1773,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		flDetach          = cmd.Bool("d", false, "Detached mode: Run container in the background, print new container id")
 		flNetwork         = cmd.Bool("n", true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool("privileged", false, "Give extended privileges to this container")
+		flFork            = cmd.Bool("fork", true, "fork dockerinit to start a process")
 		flPublishAll      = cmd.Bool("P", false, "Publish all exposed ports to the host interfaces")
 		flStdin           = cmd.Bool("i", false, "Keep stdin open even if not attached")
 		flTty             = cmd.Bool("t", false, "Allocate a pseudo-tty")
@@ -1907,6 +1933,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
 		Privileged:      *flPrivileged,
+		Fork:            *flFork,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
@@ -1968,6 +1995,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	body, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), config)
 	//if image not found try to pull it
 	if statusCode == 404 {
+		// First parse the given image to get the requested tag. Use default if none
 		_, tag := utils.ParseRepositoryTag(config.Image)
 		if tag == "" {
 			tag = DEFAULTTAG
@@ -2383,14 +2411,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	var receiveStdout chan error
 
-	var oldState *term.State
-
 	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err = term.SetRawTerminal(cli.terminalFd)
+		cli.oldState, err = term.SetRawTerminal(cli.terminalFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(cli.terminalFd, oldState)
+		defer term.RestoreTerminal(cli.terminalFd, cli.oldState)
 	}
 
 	if stdout != nil || stderr != nil {
@@ -2398,7 +2424,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			defer func() {
 				if in != nil {
 					if setRawTerminal && cli.isTerminal {
-						term.RestoreTerminal(cli.terminalFd, oldState)
+						term.RestoreTerminal(cli.terminalFd, cli.oldState)
 					}
 					in.Close()
 				}
@@ -2575,4 +2601,5 @@ type DockerCli struct {
 	err        io.Writer
 	isTerminal bool
 	terminalFd uintptr
+	oldState   *term.State
 }

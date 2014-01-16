@@ -1001,6 +1001,7 @@ image is removed.
       -cidfile="": Write the container ID to the file
       -d=false: Detached mode: Run container in the background, print new container id
       -e=[]: Set environment variables
+      -fork=true: Fork dockerinit to start a process
       -h="": Container host name
       -i=false: Keep stdin open even if not attached
       -privileged=false: Give extended privileges to this container
