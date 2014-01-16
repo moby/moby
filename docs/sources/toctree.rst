@@ -14,6 +14,7 @@ This documentation has the following resources:
    installation/index
    use/index
    examples/index
+   operations/index
    commandline/index
    contributing/index
    api/index

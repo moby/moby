@@ -31,5 +31,4 @@ Contents:
    google
    kernel
    binaries
-   security
    upgrading
