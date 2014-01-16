@@ -1,16 +1,14 @@
-:title: Using Vagrant (Mac, Linux)
-:description: This guide will setup a new virtualbox virtual machine with docker installed on your computer.
-:keywords: Docker, Docker documentation, virtualbox, vagrant, git, ssh, putty, cygwin
+:title: Installing Docker on a Mac
+:description: Installing Docker on a Mac
+:keywords: Docker, Docker documentation, virtualbox, git, ssh
 
 .. _install_using_vagrant:
 
-Using Vagrant (Mac, Linux)
+Installing Docker on a Mac
 ==========================
 
-This guide will setup a new virtualbox virtual machine with docker
-installed on your computer. This works on most operating systems,
-including MacOSX, Windows, Linux, FreeBSD and others. If you can
-install these and have at least 400MB RAM to spare you should be good.
+This guide explains how to install a full Docker setup on your Mac,
+using Virtualbox and Vagrant.
 
 Install Vagrant and Virtualbox
 ------------------------------

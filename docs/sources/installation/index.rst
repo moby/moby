@@ -24,7 +24,7 @@ Contents:
    gentoolinux
    openSUSE
    frugalware
-   vagrant
+   mac
    windows
    amazon
    rackspace
