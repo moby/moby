@@ -347,70 +347,12 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
-
-				var stat syscall.Stat_t
-				if err := syscall.Lstat(path, &stat); err != nil {
-					utils.Debugf("Can't stat source file: %s\n", err)
-					continue
-				}
-
-				mtim := getLastModification(&stat)
-				atim := getLastAccess(&stat)
-				hdr := &tar.Header{
-					Name:       change.Path[1:],
-					Mode:       int64(stat.Mode & 07777),
-					Uid:        int(stat.Uid),
-					Gid:        int(stat.Gid),
-					ModTime:    time.Unix(int64(mtim.Sec), int64(mtim.Nsec)),
-					AccessTime: time.Unix(int64(atim.Sec), int64(atim.Nsec)),
-				}
-
-				if stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR {
-					hdr.Typeflag = tar.TypeDir
-				} else if stat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
-					hdr.Typeflag = tar.TypeSymlink
-					if link, err := os.Readlink(path); err != nil {
-						utils.Debugf("Can't readlink source file: %s\n", err)
-						continue
-					} else {
-						hdr.Linkname = link
-					}
-				} else if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
-					stat.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
-					if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK {
-						hdr.Typeflag = tar.TypeBlock
-					} else {
-						hdr.Typeflag = tar.TypeChar
-					}
-					hdr.Devmajor = int64(major(uint64(stat.Rdev)))
-					hdr.Devminor = int64(minor(uint64(stat.Rdev)))
-				} else if stat.Mode&syscall.S_IFIFO == syscall.S_IFIFO ||
-					stat.Mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
-					hdr.Typeflag = tar.TypeFifo
-				} else if stat.Mode&syscall.S_IFREG == syscall.S_IFREG {
-					hdr.Typeflag = tar.TypeReg
-					hdr.Size = stat.Size
-				} else {
-					utils.Debugf("Unknown file type: %s\n", path)
-					continue
-				}
-
-				if err := tw.WriteHeader(hdr); err != nil {
-					utils.Debugf("Can't write tar header: %s\n", err)
-				}
-				if hdr.Typeflag == tar.TypeReg {
-					if file, err := os.Open(path); err != nil {
-						utils.Debugf("Can't open file: %s\n", err)
-					} else {
-						_, err := io.Copy(tw, file)
-						if err != nil {
-							utils.Debugf("Can't copy file: %s\n", err)
-						}
-						file.Close()
-					}
+				if err := addTarFile(path, change.Path[1:], tw); err != nil {
+					utils.Debugf("Can't add file %s to tar: %s\n", path, err)
 				}
 			}
 		}
+
 		// Make sure to check the error on Close.
 		if err := tw.Close(); err != nil {
 			utils.Debugf("Can't close layer: %s\n", err)

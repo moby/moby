@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Archive io.Reader
@@ -121,6 +122,70 @@ func (compression *Compression) Extension() string {
 		return "tar.xz"
 	}
 	return ""
+}
+
+func addTarFile(path, name string, tw *tar.Writer) error {
+	var stat syscall.Stat_t
+	if err := syscall.Lstat(path, &stat); err != nil {
+		return err
+	}
+
+	mtim := getLastModification(&stat)
+	atim := getLastAccess(&stat)
+	hdr := &tar.Header{
+		Name:       name,
+		Mode:       int64(stat.Mode & 07777),
+		Uid:        int(stat.Uid),
+		Gid:        int(stat.Gid),
+		ModTime:    time.Unix(int64(mtim.Sec), int64(mtim.Nsec)),
+		AccessTime: time.Unix(int64(atim.Sec), int64(atim.Nsec)),
+	}
+
+	if stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR {
+		hdr.Typeflag = tar.TypeDir
+	} else if stat.Mode&syscall.S_IFLNK == syscall.S_IFLNK {
+		hdr.Typeflag = tar.TypeSymlink
+		if link, err := os.Readlink(path); err != nil {
+			return err
+		} else {
+			hdr.Linkname = link
+		}
+	} else if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
+		stat.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
+		if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK {
+			hdr.Typeflag = tar.TypeBlock
+		} else {
+			hdr.Typeflag = tar.TypeChar
+		}
+		hdr.Devmajor = int64(major(uint64(stat.Rdev)))
+		hdr.Devminor = int64(minor(uint64(stat.Rdev)))
+	} else if stat.Mode&syscall.S_IFIFO == syscall.S_IFIFO ||
+		stat.Mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
+		hdr.Typeflag = tar.TypeFifo
+	} else if stat.Mode&syscall.S_IFREG == syscall.S_IFREG {
+		hdr.Typeflag = tar.TypeReg
+		hdr.Size = stat.Size
+	} else {
+		return fmt.Errorf("Unknown file type: %s\n", path)
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+
+	if hdr.Typeflag == tar.TypeReg {
+		if file, err := os.Open(path); err != nil {
+			return err
+		} else {
+			_, err := io.Copy(tw, file)
+			if err != nil {
+				return err
+			}
+			file.Close()
+		}
+	}
+
+	return nil
 }
 
 func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader) error {
