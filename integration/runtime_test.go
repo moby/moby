@@ -61,7 +61,7 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 	}
 	for _, image := range images.Data {
 		if image.Get("ID") != unitTestImageID {
-			mkServerFromEngine(eng, t).ImageDelete(image.Get("ID"), false)
+			mkServerFromEngine(eng, t).DeleteImage(image.Get("ID"), false)
 		}
 	}
 	return nil

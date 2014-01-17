@@ -35,7 +35,7 @@ func TestImageTagImageDelete(t *testing.T) {
 		t.Errorf("Expected %d images, %d found", nExpected, nActual)
 	}
 
-	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
+	if _, err := srv.DeleteImage("utest/docker:tag2", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -47,7 +47,7 @@ func TestImageTagImageDelete(t *testing.T) {
 		t.Errorf("Expected %d images, %d found", nExpected, nActual)
 	}
 
-	if _, err := srv.ImageDelete("utest:5000/docker:tag3", true); err != nil {
+	if _, err := srv.DeleteImage("utest:5000/docker:tag3", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -56,7 +56,7 @@ func TestImageTagImageDelete(t *testing.T) {
 	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 1
 	nActual = len(images.Data[0].GetList("RepoTags"))
 
-	if _, err := srv.ImageDelete("utest:tag1", true); err != nil {
+	if _, err := srv.DeleteImage("utest:tag1", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -358,7 +358,7 @@ func TestRmi(t *testing.T) {
 		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
 	}
 
-	_, err = srv.ImageDelete(imageID, true)
+	_, err = srv.DeleteImage(imageID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -472,18 +472,16 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 	}
 
 	// Try to remove the tag
-	imgs, err := srv.ImageDelete("utest:tag1", true)
+	imgs, err := srv.DeleteImage("utest:tag1", true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(imgs) != 1 {
-		t.Fatalf("Should only have deleted one untag %d", len(imgs))
+	if len(imgs.Data) != 1 {
+		t.Fatalf("Should only have deleted one untag %d", len(imgs.Data))
 	}
 
-	untag := imgs[0]
-
-	if untag.Untagged != unitTestImageID {
-		t.Fatalf("Expected %s got %s", unitTestImageID, untag.Untagged)
+	if untag := imgs.Data[0].Get("Untagged"); untag != unitTestImageID {
+		t.Fatalf("Expected %s got %s", unitTestImageID, untag)
 	}
 }

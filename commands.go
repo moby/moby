@@ -828,18 +828,17 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
-			var outs []APIRmi
-			err = json.Unmarshal(body, &outs)
-			if err != nil {
+			outs := engine.NewTable("Created", 0)
+			if _, err := outs.ReadFrom(bytes.NewReader(body)); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 				continue
 			}
-			for _, out := range outs {
-				if out.Deleted != "" {
-					fmt.Fprintf(cli.out, "Deleted: %s\n", out.Deleted)
+			for _, out := range outs.Data {
+				if out.Get("Deleted") != "" {
+					fmt.Fprintf(cli.out, "Deleted: %s\n", out.Get("Deleted"))
 				} else {
-					fmt.Fprintf(cli.out, "Untagged: %s\n", out.Untagged)
+					fmt.Fprintf(cli.out, "Untagged: %s\n", out.Get("Untagged"))
 				}
 			}
 		}

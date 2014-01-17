@@ -336,6 +336,10 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := job.Eng.Register("image_delete", srv.ImageDelete); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 
@@ -1813,7 +1817,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 
 var ErrImageReferenced = errors.New("Image referenced by a repository")
 
-func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi, byParents map[string][]*Image) error {
+func (srv *Server) deleteImageAndChildren(id string, imgs *engine.Table, byParents map[string][]*Image) error {
 	// If the image is referenced by a repo, do not delete
 	if len(srv.runtime.repositories.ByID()[id]) != 0 {
 		return ErrImageReferenced
@@ -1845,14 +1849,16 @@ func (srv *Server) deleteImageAndChildren(id string, imgs *[]APIRmi, byParents m
 		if err != nil {
 			return err
 		}
-		*imgs = append(*imgs, APIRmi{Deleted: id})
+		out := &engine.Env{}
+		out.Set("Deleted", id)
+		imgs.Add(out)
 		srv.LogEvent("delete", id, "")
 		return nil
 	}
 	return nil
 }
 
-func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
+func (srv *Server) deleteImageParents(img *Image, imgs *engine.Table) error {
 	if img.Parent != "" {
 		parent, err := srv.runtime.graph.Get(img.Parent)
 		if err != nil {
@@ -1871,11 +1877,41 @@ func (srv *Server) deleteImageParents(img *Image, imgs *[]APIRmi) error {
 	return nil
 }
 
-func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, error) {
+func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, error) {
 	var (
-		imgs = []APIRmi{}
-		tags = []string{}
+		repoName, tag string
+		img, err      = srv.runtime.repositories.LookupImage(name)
+		imgs          = engine.NewTable("", 0)
+		tags          = []string{}
 	)
+
+	if err != nil {
+		return nil, fmt.Errorf("No such image: %s", name)
+	}
+
+	// FIXME: What does autoPrune mean ?
+	if !autoPrune {
+		if err := srv.runtime.graph.Delete(img.ID); err != nil {
+			return nil, fmt.Errorf("Cannot delete image %s: %s", name, err)
+		}
+		return nil, nil
+	}
+
+	if !strings.Contains(img.ID, name) {
+		repoName, tag = utils.ParseRepositoryTag(name)
+	}
+
+	// If we have a repo and the image is not referenced anywhere else
+	// then just perform an untag and do not validate.
+	//
+	// i.e. only validate if we are performing an actual delete and not
+	// an untag op
+	if repoName != "" && len(srv.runtime.repositories.ByID()[img.ID]) == 1 {
+		// Prevent deletion if image is used by a container
+		if err := srv.canDeleteImage(img.ID); err != nil {
+			return nil, err
+		}
+	}
 
 	//If delete by id, see if the id belong only to one repository
 	if repoName == "" {
@@ -1903,17 +1939,19 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 			return nil, err
 		}
 		if tagDeleted {
-			imgs = append(imgs, APIRmi{Untagged: img.ID})
+			out := &engine.Env{}
+			out.Set("Untagged", img.ID)
+			imgs.Add(out)
 			srv.LogEvent("untag", img.ID, "")
 		}
 	}
 
 	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
-		if err := srv.deleteImageAndChildren(img.ID, &imgs, nil); err != nil {
+		if err := srv.deleteImageAndChildren(img.ID, imgs, nil); err != nil {
 			if err != ErrImageReferenced {
 				return imgs, err
 			}
-		} else if err := srv.deleteImageParents(img, &imgs); err != nil {
+		} else if err := srv.deleteImageParents(img, imgs); err != nil {
 			if err != ErrImageReferenced {
 				return imgs, err
 			}
@@ -1922,39 +1960,22 @@ func (srv *Server) deleteImage(img *Image, repoName, tag string) ([]APIRmi, erro
 	return imgs, nil
 }
 
-func (srv *Server) ImageDelete(name string, autoPrune bool) ([]APIRmi, error) {
-	var (
-		repository, tag string
-		img, err        = srv.runtime.repositories.LookupImage(name)
-	)
+func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s IMAGE", job.Name)
+		return engine.StatusErr
+	}
+
+	imgs, err := srv.DeleteImage(job.Args[0], job.GetenvBool("autoPrune"))
 	if err != nil {
-		return nil, fmt.Errorf("No such image: %s", name)
+		job.Error(err)
+		return engine.StatusErr
 	}
-
-	// FIXME: What does autoPrune mean ?
-	if !autoPrune {
-		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Cannot delete image %s: %s", name, err)
-		}
-		return nil, nil
+	if _, err := imgs.WriteTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
-
-	if !strings.Contains(img.ID, name) {
-		repository, tag = utils.ParseRepositoryTag(name)
-	}
-
-	// If we have a repo and the image is not referenced anywhere else
-	// then just perform an untag and do not validate.
-	//
-	// i.e. only validate if we are performing an actual delete and not
-	// an untag op
-	if repository != "" && len(srv.runtime.repositories.ByID()[img.ID]) == 1 {
-		// Prevent deletion if image is used by a container
-		if err := srv.canDeleteImage(img.ID); err != nil {
-			return nil, err
-		}
-	}
-	return srv.deleteImage(img, repository, tag)
+	return engine.StatusOK
 }
 
 func (srv *Server) canDeleteImage(imgID string) error {
