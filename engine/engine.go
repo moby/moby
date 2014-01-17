@@ -46,7 +46,6 @@ func (eng *Engine) Root() string {
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
-	eng.Logf("Register(%s) (handlers=%v)", name, eng.handlers)
 	_, exists := eng.handlers[name]
 	if exists {
 		return fmt.Errorf("Can't overwrite handler for command %s", name)

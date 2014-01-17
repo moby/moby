@@ -377,11 +377,10 @@ func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	procsStr, err := srv.ContainerTop(vars["name"], r.Form.Get("ps_args"))
-	if err != nil {
-		return err
-	}
-	return writeJSON(w, http.StatusOK, procsStr)
+
+	job := srv.Eng.Job("top", vars["name"], r.Form.Get("ps_args"))
+	job.Stdout.Add(w)
+	return job.Run()
 }
 
 func getContainersJSON(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
