@@ -14,8 +14,7 @@ This documentation has the following resources:
    installation/index
    use/index
    examples/index
-   commandline/index
+   reference/index
    contributing/index
-   api/index
    terms/index
    faq
