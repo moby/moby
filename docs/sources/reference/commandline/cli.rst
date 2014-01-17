@@ -82,7 +82,7 @@ Commands
       -v, --version=false: Print version information and quit
       -mtu, --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available
 
-The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
@@ -92,10 +92,10 @@ To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
 To run the daemon with debug output, use ``docker -d -D``.
 
 The docker client will also honor the ``DOCKER_HOST`` environment variable to set
-the ``-H`` flag for the client.  
+the ``-H`` flag for the client.
 
 ::
- 
+
         docker -H tcp://0.0.0.0:4243 ps
         # or
         export DOCKER_HOST="tcp://0.0.0.0:4243"
@@ -124,7 +124,7 @@ You can find examples of using systemd socket activation with docker and systemd
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
-the Docker client when it quits.  When you detach from the container's 
+the Docker client when it quits.  When you detach from the container's
 process the exit code will be returned to the client.
 
 To stop a container, use ``docker stop``.
@@ -266,6 +266,55 @@ context. The ``Dockerfile`` at the root of the repository is used as
 by using the ``git://`` schema.
 
 
+.. _cli_cgroup:
+
+``cgroup``
+----------
+
+::
+
+    Usage: docker cgroup [OPTIONS] CONTAINER SUBSYSTEM=[VALUE]...
+
+    Set or get cgroup subsystems on a container
+
+      -w=false: Save change to rcFile
+
+.. _cli_cgroup_examples:
+
+Get cgroup subsystem on a running container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cgroup command will render all results in a JSON array.
+
+.. code-block:: bash
+
+  $ sudo docker ps
+  ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+  c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+  197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+  $ docker cgroup c3f279d17e0a cpuset.cpus memory.limit_in_bytes
+  [{"Subsystem":"cpuset.cpus","Out":"0-1","Err":"","Status":0},{"Subsystem":"memory.limit_in_bytes","Out":"104857600","Err":"","Status":0}]
+
+Set cgroup subsystem on a running container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use -w flag you can save changes to config.lxc file, even the container get restarted, the changed subsystem still will be applied to it.
+
+.. code-block:: bash
+
+  $ sudo docker ps
+  ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+  c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+  197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+  $ docker cgroup -w c3f279d17e0a cpuset.cpus=1-2 memory.limit_in_bytes=150m
+  [{"Subsystem":"cpuset.cpus","Out":"","Err":"","Status":0},{"Subsystem":"memory.limit_in_bytes","Out":"","Err":"","Status":0}]
+  $ docker cgroup c3f279d17e0a cpuset.cpus memory.limit_in_bytes
+  [{"Subsystem":"cpuset.cpus","Out":"1-2","Err":"","Status":0},{"Subsystem":"memory.limit_in_bytes","Out":"157286400","Err":"","Status":0}]
+  $ docker restart c3f279d17e0a
+  c3f279d17e0a
+  $ docker cgroup c3f279d17e0a cpuset.cpus memory.limit_in_bytes
+  [{"Subsystem":"cpuset.cpus","Out":"1-2","Err":"","Status":0},{"Subsystem":"memory.limit_in_bytes","Out":"157286400","Err":"","Status":0}]
+
 .. _cli_commit:
 
 ``commit``
@@ -291,14 +340,14 @@ Commit an existing container
 
 	$ sudo docker ps
 	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
 	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
 	f5283438590d
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
-	
+
 Change the command that a container runs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -640,7 +689,7 @@ Displaying image hierarchy
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball 
+    Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
@@ -1005,7 +1054,7 @@ containers will not be deleted.
     Usage: docker rmi IMAGE [IMAGE...]
 
     Remove one or more images
-    
+
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
 
