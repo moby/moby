@@ -1142,3 +1142,19 @@ func CopyFile(src, dst string) (int64, error) {
 	defer df.Close()
 	return io.Copy(df, sf)
 }
+
+type readCloserWrapper struct {
+	io.Reader
+	closer func() error
+}
+
+func (r *readCloserWrapper) Close() error {
+	return r.closer()
+}
+
+func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
+	return &readCloserWrapper{
+		Reader: r,
+		closer: closer,
+	}
+}
