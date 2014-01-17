@@ -209,7 +209,7 @@ func executeProgram(args *DockerInitArgs) error {
 	}
 
 	if err := syscall.Exec(path, args.args, os.Environ()); err != nil {
-		panic(err)
+		return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
 	}
 
 	// Will never reach here
