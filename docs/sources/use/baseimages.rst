@@ -37,7 +37,10 @@ There are more example scripts for creating base images in the
 Docker Github Repo:
 
 * `BusyBox <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh>`_
-* `CentOS / Scientific Linux CERN (SLC)
+* CentOS / Scientific Linux CERN (SLC) `on Debian/Ubuntu
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-rinse.sh>`_
+  or
+  `on CentOS/RHEL/SLC/etc.
+  <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-yum.sh>`_
 * `Debian / Ubuntu
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debootstrap.sh>`_
