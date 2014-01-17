@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -39,27 +38,24 @@ func parseLine(line string, v ...interface{}) {
 			break
 		}
 
-		t := reflect.TypeOf(v[i])
-		if t.Kind() != reflect.Ptr {
+		switch e := v[i].(type) {
+		case *string:
+			// "root", "adm", "/bin/bash"
+			*e = p
+		case *int:
+			// "0", "4", "1000"
+			// ignore string to int conversion errors, for great "tolerance" of naughty configuration files
+			*e, _ = strconv.Atoi(p)
+		case *[]string:
+			// "", "root", "root,adm,daemon"
+			if p != "" {
+				*e = strings.Split(p, ",")
+			} else {
+				*e = []string{}
+			}
+		default:
 			// panic, because this is a programming/logic error, not a runtime one
 			panic("parseLine expects only pointers!  argument " + strconv.Itoa(i) + " is not a pointer!")
-		}
-
-		switch t.Elem().Kind() {
-		case reflect.String:
-			// "root", "adm", "/bin/bash"
-			*v[i].(*string) = p
-		case reflect.Int:
-			// "0", "4", "1000"
-			*v[i].(*int), _ = strconv.Atoi(p)
-			// ignore string to int conversion errors, for great "tolerance" of naughty configuration files
-		case reflect.Slice, reflect.Array:
-			// "", "root", "root,adm,daemon"
-			list := []string{}
-			if p != "" {
-				list = strings.Split(p, ",")
-			}
-			*v[i].(*[]string) = list
 		}
 	}
 }
