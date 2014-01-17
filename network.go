@@ -73,7 +73,7 @@ func networkSize(mask net.IPMask) int32 {
 
 func checkRouteOverlaps(networks []netlink.Route, dockerNetwork *net.IPNet) error {
 	for _, network := range networks {
-		if networkOverlaps(dockerNetwork, network.IPNet) {
+		if !network.Default && networkOverlaps(dockerNetwork, network.IPNet) {
 			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, network)
 		}
 	}
