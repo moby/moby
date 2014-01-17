@@ -471,13 +471,6 @@ func NetworkLinkAdd(name string, linkType string) error {
 	return s.HandleAck(wb.Seq)
 }
 
-// A Route is a subnet associated with the interface to reach it.
-type Route struct {
-	*net.IPNet
-	Iface   *net.Interface
-	Default bool
-}
-
 // Returns an array of IPNet for all the currently routed subnets on ipv4
 // This is similar to the first column of "ip route" output
 func NetworkGetRoutes() ([]Route, error) {
