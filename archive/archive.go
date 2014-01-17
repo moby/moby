@@ -23,10 +23,7 @@ type Compression int
 
 type TarOptions struct {
 	Includes    []string
-	Excludes    []string
-	Recursive   bool
 	Compression Compression
-	CreateFiles []string
 }
 
 const (
@@ -66,7 +63,7 @@ func DetectCompression(source []byte) Compression {
 func xzDecompress(archive io.Reader) (io.Reader, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), archive, nil)
+	return CmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
 func DecompressStream(archive io.Reader) (io.Reader, error) {
@@ -207,7 +204,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
 func Tar(path string, compression Compression) (io.Reader, error) {
-	return TarFilter(path, &TarOptions{Recursive: true, Compression: compression})
+	return TarFilter(path, &TarOptions{Compression: compression})
 }
 
 func escapeName(name string) string {
@@ -235,50 +232,12 @@ func TarFilter(path string, options *TarOptions) (io.Reader, error) {
 	}
 	args = append(args, "-c"+options.Compression.Flag())
 
-	for _, exclude := range options.Excludes {
-		args = append(args, fmt.Sprintf("--exclude=%s", exclude))
-	}
-
-	if !options.Recursive {
-		args = append(args, "--no-recursion")
-	}
-
 	files := ""
 	for _, f := range options.Includes {
 		files = files + escapeName(f) + "\n"
 	}
 
-	tmpDir := ""
-
-	if options.CreateFiles != nil {
-		var err error // Can't use := here or we override the outer tmpDir
-		tmpDir, err = ioutil.TempDir("", "docker-tar")
-		if err != nil {
-			return nil, err
-		}
-
-		files = files + "-C" + tmpDir + "\n"
-		for _, f := range options.CreateFiles {
-			path := filepath.Join(tmpDir, f)
-			err := os.MkdirAll(filepath.Dir(path), 0600)
-			if err != nil {
-				return nil, err
-			}
-
-			if file, err := os.OpenFile(path, os.O_CREATE, 0600); err != nil {
-				return nil, err
-			} else {
-				file.Close()
-			}
-			files = files + escapeName(f) + "\n"
-		}
-	}
-
-	return CmdStream(exec.Command(args[0], args[1:]...), bytes.NewBufferString(files), func() {
-		if tmpDir != "" {
-			_ = os.RemoveAll(tmpDir)
-		}
-	})
+	return CmdStream(exec.Command(args[0], args[1:]...), bytes.NewBufferString(files))
 }
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
@@ -309,19 +268,6 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		}
 		if err != nil {
 			return err
-		}
-
-		if options != nil {
-			excludeFile := false
-			for _, exclude := range options.Excludes {
-				if strings.HasPrefix(hdr.Name, exclude) {
-					excludeFile = true
-					break
-				}
-			}
-			if excludeFile {
-				continue
-			}
 		}
 
 		// Normalize name, for safety and for a simple is-root check
@@ -378,9 +324,9 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 // TarUntar is a convenience function which calls Tar and Untar, with
 // the output of one piped into the other. If either Tar or Untar fails,
 // TarUntar aborts and returns the error.
-func TarUntar(src string, filter []string, dst string) error {
-	utils.Debugf("TarUntar(%s %s %s)", src, filter, dst)
-	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed, Includes: filter, Recursive: true})
+func TarUntar(src string, dst string) error {
+	utils.Debugf("TarUntar(%s %s)", src, dst)
+	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
 	}
@@ -417,7 +363,7 @@ func CopyWithTar(src, dst string) error {
 		return err
 	}
 	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
-	return TarUntar(src, nil, dst)
+	return TarUntar(src, dst)
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
@@ -480,13 +426,10 @@ func CopyFileWithTar(src, dst string) (err error) {
 // CmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input io.Reader, atEnd func()) (io.Reader, error) {
+func CmdStream(cmd *exec.Cmd, input io.Reader) (io.Reader, error) {
 	if input != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
-			if atEnd != nil {
-				atEnd()
-			}
 			return nil, err
 		}
 		// Write stdin if any
@@ -497,16 +440,10 @@ func CmdStream(cmd *exec.Cmd, input io.Reader, atEnd func()) (io.Reader, error) 
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		if atEnd != nil {
-			atEnd()
-		}
 		return nil, err
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		if atEnd != nil {
-			atEnd()
-		}
 		return nil, err
 	}
 	pipeR, pipeW := io.Pipe()
@@ -530,9 +467,6 @@ func CmdStream(cmd *exec.Cmd, input io.Reader, atEnd func()) (io.Reader, error) 
 			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errText))
 		} else {
 			pipeW.Close()
-		}
-		if atEnd != nil {
-			atEnd()
 		}
 	}()
 	// Run the command and return the pipe
