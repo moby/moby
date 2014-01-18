@@ -4,18 +4,19 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/chroot"
+	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -35,13 +36,6 @@ var (
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
-type Capabilities struct {
-	MemoryLimit            bool
-	SwapLimit              bool
-	IPv4ForwardingDisabled bool
-	AppArmor               bool
-}
-
 type Runtime struct {
 	repository     string
 	sysInitPath    string
@@ -50,12 +44,13 @@ type Runtime struct {
 	graph          *Graph
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
-	capabilities   *Capabilities
+	sysInfo        *sysinfo.SysInfo
 	volumes        *Graph
 	srv            *Server
 	config         *DaemonConfig
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
+	execDriver     execdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -160,11 +155,9 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
+		info := runtime.execDriver.Info(container.ID)
+
+		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
@@ -188,7 +181,7 @@ func (runtime *Runtime) Register(container *Container) error {
 			}
 
 			container.waitLock = make(chan struct{})
-			go container.monitor()
+			go container.monitor(nil)
 		}
 	}
 	return nil
@@ -329,43 +322,6 @@ func (runtime *Runtime) restore() error {
 	}
 
 	return nil
-}
-
-// FIXME: comment please!
-func (runtime *Runtime) UpdateCapabilities(quiet bool) {
-	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
-		if !quiet {
-			log.Printf("WARNING: %s\n", err)
-		}
-	} else {
-		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
-		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
-		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
-		if !runtime.capabilities.MemoryLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
-		}
-
-		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		runtime.capabilities.SwapLimit = err == nil
-		if !runtime.capabilities.SwapLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
-		}
-	}
-
-	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
-	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
-		log.Printf("WARNING: IPv4 forwarding is disabled.")
-	}
-
-	// Check if AppArmor seems to be enabled on this system.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
-		runtime.capabilities.AppArmor = false
-	} else {
-		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
-		runtime.capabilities.AppArmor = true
-	}
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -646,7 +602,6 @@ func NewRuntime(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }
 
@@ -675,10 +630,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		}
 	}
 
-	utils.Debugf("Escaping AppArmor confinement")
-	if err := linkLxcStart(config.Root); err != nil {
-		return nil, err
-	}
 	utils.Debugf("Creating images graph")
 	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
@@ -735,6 +686,26 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		sysInitPath = localCopy
 	}
 
+	sysInfo := sysinfo.New(false)
+
+	/*
+		temporarilly disabled.
+	*/
+	if false {
+		var ed execdriver.Driver
+		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
+			ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
+		} else {
+			ed, err = chroot.NewDriver()
+		}
+		if ed != nil {
+		}
+	}
+	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
@@ -742,12 +713,13 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
-		capabilities:   &Capabilities{},
+		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
 		driver:         driver,
 		sysInitPath:    sysInitPath,
+		execDriver:     ed,
 	}
 
 	if err := runtime.restore(); err != nil {
@@ -829,6 +801,18 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	return archive.ExportChanges(cDir, changes)
 }
 
+func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
+	return runtime.execDriver.Run(c.process, startCallback)
+}
+
+func (runtime *Runtime) Kill(c *Container, sig int) error {
+	return runtime.execDriver.Kill(c.process, sig)
+}
+
+func (runtime *Runtime) WaitGhost(c *Container) error {
+	return runtime.execDriver.Wait(c.ID)
+}
+
 // Nuke kills all containers then removes all content
 // from the content root, including images, volumes and
 // container filesystems.
@@ -846,23 +830,6 @@ func (runtime *Runtime) Nuke() error {
 	runtime.Close()
 
 	return os.RemoveAll(runtime.config.Root)
-}
-
-func linkLxcStart(root string) error {
-	sourcePath, err := exec.LookPath("lxc-start")
-	if err != nil {
-		return err
-	}
-	targetPath := path.Join(root, "lxc-start-unconfined")
-
-	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
-		return err
-	} else if err == nil {
-		if err := os.Remove(targetPath); err != nil {
-			return err
-		}
-	}
-	return os.Symlink(sourcePath, targetPath)
 }
 
 // FIXME: this is a convenience function for integration tests

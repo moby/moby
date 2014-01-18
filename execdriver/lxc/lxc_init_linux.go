@@ -1,4 +1,4 @@
-package sysinit
+package lxc
 
 import (
 	"syscall"

@@ -38,7 +38,6 @@ func mkRuntime(f utils.Fataler) *docker.Runtime {
 	if err != nil {
 		f.Fatal(err)
 	}
-	r.UpdateCapabilities(true)
 	return r
 }
 

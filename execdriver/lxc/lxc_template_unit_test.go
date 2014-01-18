@@ -1,11 +1,14 @@
-package docker
+package lxc
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/execdriver"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -17,32 +20,39 @@ func TestLXCConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(root)
+
+	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
+
 	// Memory is allocated randomly for testing
 	rand.Seed(time.Now().UTC().UnixNano())
-	memMin := 33554432
-	memMax := 536870912
-	mem := memMin + rand.Intn(memMax-memMin)
-	// CPU shares as well
-	cpuMin := 100
-	cpuMax := 10000
-	cpu := cpuMin + rand.Intn(cpuMax-cpuMin)
-	container := &Container{
-		root: root,
-		Config: &Config{
-			Memory:          int64(mem),
-			CpuShares:       int64(cpu),
-			NetworkDisabled: true,
-		},
-		hostConfig: &HostConfig{
-			Privileged: false,
-		},
-	}
-	if err := container.generateLXCConfig(); err != nil {
+	var (
+		memMin = 33554432
+		memMax = 536870912
+		mem    = memMin + rand.Intn(memMax-memMin)
+		cpuMin = 100
+		cpuMax = 10000
+		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
+	)
+
+	driver, err := NewDriver(root, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	grepFile(t, container.lxcConfigPath(),
+	process := &execdriver.Process{
+		ID: "1",
+		Cgroups: &cgroups.Values{
+			Memory:    int64(mem),
+			CpuShares: int64(cpu),
+		},
+	}
+	p, err := driver.generateLXCConfig(process)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grepFile(t, p,
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
-	grepFile(t, container.lxcConfigPath(),
+
+	grepFile(t, p,
 		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
 }
 
@@ -52,31 +62,29 @@ func TestCustomLxcConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(root)
-	container := &Container{
-		root: root,
-		Config: &Config{
-			Hostname:        "foobar",
-			NetworkDisabled: true,
-		},
-		hostConfig: &HostConfig{
-			Privileged: false,
-			LxcConf: []KeyValuePair{
-				{
-					Key:   "lxc.utsname",
-					Value: "docker",
-				},
-				{
-					Key:   "lxc.cgroup.cpuset.cpus",
-					Value: "0,1",
-				},
-			},
-		},
-	}
-	if err := container.generateLXCConfig(); err != nil {
+
+	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
+
+	driver, err := NewDriver(root, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	grepFile(t, container.lxcConfigPath(), "lxc.utsname = docker")
-	grepFile(t, container.lxcConfigPath(), "lxc.cgroup.cpuset.cpus = 0,1")
+	process := &execdriver.Process{
+		ID:         "1",
+		Privileged: false,
+		Config: []string{
+			"lxc.utsname = docker",
+			"lxc.cgroup.cpuset.cpus = 0,1",
+		},
+	}
+
+	p, err := driver.generateLXCConfig(process)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	grepFile(t, p, "lxc.utsname = docker")
+	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
 }
 
 func grepFile(t *testing.T, path string, pattern string) {

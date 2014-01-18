@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
@@ -470,7 +471,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
-		fmt.Fprintf(cli.out, "LXC Version: %s\n", remoteInfo.Get("LXCVersion"))
+		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 
@@ -1745,14 +1746,14 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 //FIXME Only used in tests
-func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+func ParseRun(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
 	cmd.SetOutput(ioutil.Discard)
 	cmd.Usage = nil
-	return parseRun(cmd, args, capabilities)
+	return parseRun(cmd, args, sysInfo)
 }
 
-func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Config, *HostConfig, *flag.FlagSet, error) {
+func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = NewListOpts(ValidateAttach)
@@ -1802,7 +1803,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 	}
 
 	// Check if the kernel supports memory limit cgroup.
-	if capabilities != nil && *flMemoryString != "" && !capabilities.MemoryLimit {
+	if sysInfo != nil && *flMemoryString != "" && !sysInfo.MemoryLimit {
 		*flMemoryString = ""
 	}
 
@@ -1934,7 +1935,7 @@ func parseRun(cmd *flag.FlagSet, args []string, capabilities *Capabilities) (*Co
 		PublishAllPorts: *flPublishAll,
 	}
 
-	if capabilities != nil && flMemory > 0 && !capabilities.SwapLimit {
+	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}

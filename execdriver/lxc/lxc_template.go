@@ -1,23 +1,24 @@
-package docker
+package lxc
 
 import (
+	"github.com/dotcloud/docker/cgroups"
 	"strings"
 	"text/template"
 )
 
 const LxcTemplate = `
-{{if .Config.NetworkDisabled}}
-# network is disabled (-n=false)
-lxc.network.type = empty
-{{else}}
+{{if .Network}}
 # network configuration
 lxc.network.type = veth
-lxc.network.link = {{.NetworkSettings.Bridge}}
+lxc.network.link = {{.Network.Bridge}}
 lxc.network.name = eth0
+{{else}}
+# network is disabled (-n=false)
+lxc.network.type = empty
 {{end}}
 
 # root filesystem
-{{$ROOTFS := .RootfsPath}}
+{{$ROOTFS := .Rootfs}}
 lxc.rootfs = {{$ROOTFS}}
 
 # use a dedicated pts for the container (and limit the number of pseudo terminal
@@ -30,8 +31,8 @@ lxc.console = none
 # no controlling tty at all
 lxc.tty = 1
 
-{{if (getHostConfig .).Privileged}}
-lxc.cgroup.devices.allow = a 
+{{if .Privileged}}
+lxc.cgroup.devices.allow = a
 {{else}}
 # no implicit access to devices
 lxc.cgroup.devices.deny = a
@@ -81,8 +82,8 @@ lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noe
 lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
-{{if (getHostConfig .).Privileged}}
-{{if (getCapabilities .).AppArmor}}
+{{if .Privileged}}
+{{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
 #lxc.aa_profile = unconfined
@@ -90,20 +91,22 @@ lxc.aa_profile = unconfined
 {{end}}
 
 # limits
-{{if .Config.Memory}}
-lxc.cgroup.memory.limit_in_bytes = {{.Config.Memory}}
-lxc.cgroup.memory.soft_limit_in_bytes = {{.Config.Memory}}
-{{with $memSwap := getMemorySwap .Config}}
+{{if .Cgroups}}
+{{if .Cgroups.Memory}}
+lxc.cgroup.memory.limit_in_bytes = {{.Cgroups.Memory}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Cgroups.Memory}}
+{{with $memSwap := getMemorySwap .Cgroups}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
-{{if .Config.CpuShares}}
-lxc.cgroup.cpu.shares = {{.Config.CpuShares}}
+{{if .Cgroups.CpuShares}}
+lxc.cgroup.cpu.shares = {{.Cgroups.CpuShares}}
+{{end}}
 {{end}}
 
-{{if (getHostConfig .).LxcConf}}
-{{range $pair := (getHostConfig .).LxcConf}}
-{{$pair.Key}} = {{$pair.Value}}
+{{if .Config}}
+{{range $value := .Config}}
+{{$value}}
 {{end}}
 {{end}}
 `
@@ -116,29 +119,19 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
-func getMemorySwap(config *Config) int64 {
+func getMemorySwap(v *cgroups.Values) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
-	if config.MemorySwap < 0 {
+	if v.MemorySwap < 0 {
 		return 0
 	}
-	return config.Memory * 2
-}
-
-func getHostConfig(container *Container) *HostConfig {
-	return container.hostConfig
-}
-
-func getCapabilities(container *Container) *Capabilities {
-	return container.runtime.capabilities
+	return v.Memory * 2
 }
 
 func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap":     getMemorySwap,
-		"getHostConfig":     getHostConfig,
-		"getCapabilities":   getCapabilities,
 		"escapeFstabSpaces": escapeFstabSpaces,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
