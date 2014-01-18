@@ -25,7 +25,7 @@ __docker_containers_all()
 {
 	local containers
 	containers="$( docker ps -a -q )"
-	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
@@ -33,7 +33,7 @@ __docker_containers_running()
 {
 	local containers
 	containers="$( docker ps -q )"
-	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
@@ -41,7 +41,7 @@ __docker_containers_stopped()
 {
 	local containers
 	containers="$( comm -13 <(docker ps -q | sort -u) <(docker ps -a -q | sort -u) )"
-	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
@@ -73,7 +73,7 @@ __docker_containers_and_images()
 {
 	local containers images
 	containers="$( docker ps -a -q )"
-	names="$( docker inspect -format '{{.Name}}' $containers | sed 's,^/,,' )"
+	names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	images="$( docker images | awk 'NR>1{print $1":"$2}' )"
 	COMPREPLY=( $( compgen -W "$images $names $containers" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
@@ -118,7 +118,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-no-cache -t -q -rm" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--no-cache -t -q --rm" -- "$cur" ) )
 			;;
 		*)
 			_filedir
@@ -138,7 +138,7 @@ _docker_commit()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-author -m -run" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--author -m --run" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
@@ -191,7 +191,7 @@ _docker_events()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--since" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -223,7 +223,7 @@ _docker_images()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -notrunc -q -viz" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --no-trunc -q --viz" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
@@ -308,7 +308,7 @@ _docker_port()
 _docker_ps()
 {
 	case "$prev" in
-		-beforeId|-n|-sinceId)
+		-before-id|-n|-since-id)
 			return
 			;;
 		*)
@@ -317,7 +317,7 @@ _docker_ps()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -beforeId -l -n -notrunc -q -s -sinceId" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a --before-id -l -n --no-trunc -q -s --since-id" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -388,13 +388,13 @@ _docker_rmi()
 _docker_run()
 {
 	case "$prev" in
-		-cidfile)
+		--cidfile)
 			_filedir
 			;;
-		-volumes-from)
+		--volumes-from)
 			__docker_containers_all
 			;;
-		-a|-c|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-w)
+		-a|-c|--dns|-e|--entrypoint|-h|--lxc-conf|-m|-p|-u|-v|-w)
 			return
 			;;
 		*)
@@ -403,13 +403,13 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-a -c -cidfile -d -dns -e -entrypoint -h -i -lxc-conf -m -n -p -privileged -t -u -v -volumes-from -w" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-a -c --cidfile -d --dns -e --entrypoint -h -i --lxc-conf -m -n -p --privileged -t -u -v --volumes-from -w" -- "$cur" ) )
 			;;
 		*)
 			local counter=$cpos
 			while [ $counter -le $cword ]; do
 				case "${words[$counter]}" in
-					-a|-c|-cidfile|-dns|-e|-entrypoint|-h|-lxc-conf|-m|-p|-u|-v|-volumes-from|-w)
+					-a|-c|--cidfile|--dns|-e|--entrypoint|-h|--lxc-conf|-m|-p|-u|-v|--volumes-from|-w)
 						(( counter++ ))
 						;;
 					-*)
@@ -430,7 +430,7 @@ _docker_run()
 
 _docker_search()
 {
-	COMPREPLY=( $( compgen -W "-notrunc" "-stars" "-trusted" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "--no-trunc" "--stars" "--trusted" -- "$cur" ) )
 }
 
 _docker_start()

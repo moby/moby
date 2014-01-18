@@ -43,7 +43,7 @@ container. The ``BUILD_JOB`` environment variable will be set with the new conta
     [...]
 
 While this container is running, we can attach to the new container to
-see what is going on. The flag ``-sig-proxy`` set as ``false`` allows you to connect and
+see what is going on. The flag ``--sig-proxy`` set as ``false`` allows you to connect and
 disconnect (Ctrl-C) to it without stopping the container.
 
 .. code-block:: bash
