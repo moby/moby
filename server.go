@@ -71,97 +71,35 @@ func jobInitApi(job *engine.Job) engine.Status {
 	if srv.runtime.networkManager.bridgeNetwork != nil {
 		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
 	}
-	if err := job.Eng.Register("export", srv.ContainerExport); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("create", srv.ContainerCreate); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("stop", srv.ContainerStop); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("restart", srv.ContainerRestart); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("start", srv.ContainerStart); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("kill", srv.ContainerKill); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("serveapi", srv.ListenAndServe); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("wait", srv.ContainerWait); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("tag", srv.ImageTag); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("resize", srv.ContainerResize); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("commit", srv.ContainerCommit); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("info", srv.DockerInfo); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("container_delete", srv.ContainerDestroy); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("image_export", srv.ImageExport); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("images", srv.Images); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("history", srv.ImageHistory); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("viz", srv.ImagesViz); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("container_copy", srv.ContainerCopy); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("insert", srv.ImageInsert); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("attach", srv.ContainerAttach); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("search", srv.ImagesSearch); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("changes", srv.ContainerChanges); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("top", srv.ContainerTop); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+	for name, handler := range map[string]engine.Handler{
+		"export":           srv.ContainerExport,
+		"create":           srv.ContainerCreate,
+		"stop":             srv.ContainerStop,
+		"restart":          srv.ContainerRestart,
+		"start":            srv.ContainerStart,
+		"kill":             srv.ContainerKill,
+		"serveapi":         srv.ListenAndServe,
+		"wait":             srv.ContainerWait,
+		"tag":              srv.ImageTag,
+		"resize":           srv.ContainerResize,
+		"commit":           srv.ContainerCommit,
+		"info":             srv.DockerInfo,
+		"container_delete": srv.ContainerDestroy,
+		"image_export":     srv.ImageExport,
+		"images":           srv.Images,
+		"history":          srv.ImageHistory,
+		"viz":              srv.ImagesViz,
+		"container_copy":   srv.ContainerCopy,
+		"insert":           srv.ImageInsert,
+		"attach":           srv.ContainerAttach,
+		"search":           srv.ImagesSearch,
+		"changes":          srv.ContainerChanges,
+		"top":              srv.ContainerTop,
+	} {
+		if err := job.Eng.Register(name, handler); err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
 	}
 	return engine.StatusOK
 }
