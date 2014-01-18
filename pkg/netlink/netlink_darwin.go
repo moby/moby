@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-func NetworkGetRoutes() ([]*net.IPNet, error) {
+func NetworkGetRoutes() ([]Route, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
