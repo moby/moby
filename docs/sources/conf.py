@@ -237,6 +237,8 @@ latex_documents = [
 man_pages = [
     ('reference/commandline/cli', 'docker', u'Docker CLI Documentation',
      [u'Team Docker'], 1),
+    ('reference/builder', 'Dockerfile', u'Dockerfile Documentation',
+     [u'Team Docker'], 5),
 ]
 
 # If true, show URL addresses after external links.
