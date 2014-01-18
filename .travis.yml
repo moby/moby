@@ -20,9 +20,11 @@ before_script:
     git fetch --append --no-tags upstream refs/heads/$upstream:refs/remotes/upstream/$upstream
 # sometimes we have upstream master already as origin/master (PRs), but other times we don't, so let's just make sure we have a completely unambiguous way to specify "upstream master" from here out
 # but if it's a PR against non-master, we need that upstream branch instead :)
+  - sudo pip install -r docs/requirements.txt
 
 script:
   - hack/travis/dco.py
   - hack/travis/gofmt.py
+  - make -sC docs SPHINXOPTS=-q docs # man
 
 # vim:set sw=2 ts=2:
