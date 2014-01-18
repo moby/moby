@@ -62,7 +62,7 @@ type Info interface {
 type Driver interface {
 	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Process, sig int) error
-	Wait(id string) error // Wait on an out of process...process - lxc ghosts
+	Wait(id string) error // Wait on an out of process...process - lxc ghosts TODO: Rename to reattach, reconnect
 	Name() string         // Driver name
 	Info(id string) Info  // "temporary" hack (until we move state from core to plugins)
 }
@@ -77,6 +77,7 @@ type Network struct {
 }
 
 // Process wrapps an os/exec.Cmd to add more metadata
+// TODO: Rename to Command
 type Process struct {
 	exec.Cmd
 
