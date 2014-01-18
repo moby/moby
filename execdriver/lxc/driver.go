@@ -43,7 +43,7 @@ func init() {
 			os.Exit(127)
 		}
 		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-			panic(err)
+			return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
 		}
 		panic("Unreachable")
 	})
