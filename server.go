@@ -1891,7 +1891,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		//        The source to be bind mounted must exist.
 		for _, bind := range hostConfig.Binds {
 			splitBind := strings.Split(bind, ":")
-			source := splitBind[0]
+			source := path.Clean(splitBind[0])
 
 			// refuse to bind mount "/" to the container
 			if source == "/" {
