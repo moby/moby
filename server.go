@@ -1893,8 +1893,8 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			splitBind := strings.Split(bind, ":")
 			source := splitBind[0]
 
-			// refuse to bind mount "/" to the container
-			if source == "/" {
+			// refuse to bind mount "/" to the container, while also making sure the path isn't something like /bin/.. where it resolves to /
+			if path.Clean(source) == "/" {
 				job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
 				return engine.StatusErr
 			}
