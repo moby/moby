@@ -1025,7 +1025,7 @@ Build an image from Dockerfile via stdin
    :query q: suppress verbose build output
    :query nocache: do not use the cache when building the image
    :reqheader Content-type: should be set to ``"application/tar"``.
-   :reqheader X-Registry-Auth: base64-encoded AuthConfig object
+   :reqheader X-Registry-Config: base64-encoded ConfigFile object
    :statuscode 200: no error
    :statuscode 500: server error
 

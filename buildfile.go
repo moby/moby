@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -47,6 +48,7 @@ type buildFile struct {
 	rm           bool
 
 	authConfig *auth.AuthConfig
+	configFile *auth.ConfigFile
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -72,7 +74,17 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
+			pullRegistryAuth := b.authConfig
+			if len(b.configFile.Configs) > 0 {
+				// The request came with a full auth config file, we prefer to use that
+				endpoint, _, err := registry.ResolveRepositoryName(remote)
+				if err != nil {
+					return err
+				}
+				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+				pullRegistryAuth = &resolvedAuth
+			}
+			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, pullRegistryAuth, nil, true); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -696,7 +708,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, authConfigFile *auth.ConfigFile) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -710,6 +722,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		rm:            rm,
 		sf:            sf,
 		authConfig:    auth,
+		configFile:    authConfigFile,
 		outOld:        outOld,
 	}
 }

@@ -54,6 +54,13 @@ What's new
 
    **New!** This endpoint now returns a list of json message, like the events endpoint
 
+.. http:post:: /build
+
+   **New!** This endpoint now takes a serialized ConfigFile which it uses to
+   resolve the proper registry auth credentials for pulling the base image.
+   Clients which previously implemented the version accepting an AuthConfig
+   object must be updated.
+
 v1.8
 ****
 

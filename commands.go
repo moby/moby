@@ -227,12 +227,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		v.Set("rm", "1")
 	}
 
+	cli.LoadConfigFile()
+
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(cli.configFile)
 	if err != nil {
 		return err
 	}
-	headers.Add("X-Registry-Auth", base64.URLEncoding.EncodeToString(buf))
+	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")
