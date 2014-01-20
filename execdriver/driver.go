@@ -2,7 +2,6 @@ package execdriver
 
 import (
 	"errors"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"os/exec"
 	"syscall"
 )
@@ -76,24 +75,30 @@ type Network struct {
 	Mtu         int    `json:"mtu"`
 }
 
+type Resources struct {
+	Memory     int64 `json:"memory"`
+	MemorySwap int64 `json:"memory_swap"`
+	CpuShares  int64 `json:"cpu_shares"`
+}
+
 // Process wrapps an os/exec.Cmd to add more metadata
 // TODO: Rename to Command
 type Process struct {
 	exec.Cmd
 
-	ID         string          `json:"id"`
-	Privileged bool            `json:"privileged"`
-	User       string          `json:"user"`
-	Rootfs     string          `json:"rootfs"`   // root fs of the container
-	InitPath   string          `json:"initpath"` // dockerinit
-	Entrypoint string          `json:"entrypoint"`
-	Arguments  []string        `json:"arguments"`
-	WorkingDir string          `json:"working_dir"`
-	ConfigPath string          `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Tty        bool            `json:"tty"`
-	Network    *Network        `json:"network"` // if network is nil then networking is disabled
-	Config     []string        `json:"config"`  //  generic values that specific drivers can consume
-	Cgroups    *cgroups.Values `json:"cgroups"`
+	ID         string     `json:"id"`
+	Privileged bool       `json:"privileged"`
+	User       string     `json:"user"`
+	Rootfs     string     `json:"rootfs"`   // root fs of the container
+	InitPath   string     `json:"initpath"` // dockerinit
+	Entrypoint string     `json:"entrypoint"`
+	Arguments  []string   `json:"arguments"`
+	WorkingDir string     `json:"working_dir"`
+	ConfigPath string     `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Tty        bool       `json:"tty"`
+	Network    *Network   `json:"network"` // if network is nil then networking is disabled
+	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
+	Resources  *Resources `json:"resources"`
 }
 
 // Return the pid of the process

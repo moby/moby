@@ -1,7 +1,7 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/execdriver"
 	"strings"
 	"text/template"
 )
@@ -91,16 +91,16 @@ lxc.aa_profile = unconfined
 {{end}}
 
 # limits
-{{if .Cgroups}}
-{{if .Cgroups.Memory}}
-lxc.cgroup.memory.limit_in_bytes = {{.Cgroups.Memory}}
-lxc.cgroup.memory.soft_limit_in_bytes = {{.Cgroups.Memory}}
-{{with $memSwap := getMemorySwap .Cgroups}}
+{{if .Resources}}
+{{if .Resources.Memory}}
+lxc.cgroup.memory.limit_in_bytes = {{.Resources.Memory}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Resources.Memory}}
+{{with $memSwap := getMemorySwap .Resources}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
-{{if .Cgroups.CpuShares}}
-lxc.cgroup.cpu.shares = {{.Cgroups.CpuShares}}
+{{if .Resources.CpuShares}}
+lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 {{end}}
 {{end}}
 
@@ -119,7 +119,7 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
-func getMemorySwap(v *cgroups.Values) int64 {
+func getMemorySwap(v *execdriver.Resources) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
 	if v.MemorySwap < 0 {

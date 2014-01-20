@@ -12,12 +12,6 @@ import (
 	"strings"
 )
 
-type Values struct {
-	Memory     int64 `json:"memory"`
-	MemorySwap int64 `json:"memory_swap"`
-	CpuShares  int64 `json:"cpu_shares"`
-}
-
 // https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
 	mounts, err := mount.GetMounts()
