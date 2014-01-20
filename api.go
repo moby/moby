@@ -184,8 +184,9 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	}
 
 	var (
-		buffer *bytes.Buffer
-		job    = srv.Eng.Job("images")
+		err  error
+		outs *engine.Table
+		job  = srv.Eng.Job("images")
 	)
 
 	job.Setenv("filter", r.Form.Get("filter"))
@@ -193,20 +194,15 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 
 	if version >= 1.9 {
 		job.Stdout.Add(w)
-	} else {
-		buffer = bytes.NewBuffer(nil)
-		job.Stdout.Add(buffer)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
+		return err
 	}
 
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 
 	if version < 1.9 { // Send as a valid JSON array
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadFrom(buffer); err != nil {
-			return err
-		}
 		if version < 1.8 { // Convert to legacy format
 			outsLegacy := engine.NewTable("Created", 0)
 			for _, out := range outs.Data {
@@ -222,10 +218,10 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 					outsLegacy.Add(outLegacy)
 				}
 			}
-			if _, err := outsLegacy.WriteListTo(w); err != nil {
+			if _, err = outsLegacy.WriteListTo(w); err != nil {
 				return err
 			}
-		} else if _, err := outs.WriteListTo(w); err != nil {
+		} else if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
 	}
@@ -312,25 +308,21 @@ func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 
 	var (
-		buffer *bytes.Buffer
-		job    = srv.Eng.Job("history", vars["name"])
+		err  error
+		outs *engine.Table
+		job  = srv.Eng.Job("history", vars["name"])
 	)
 
 	if version >= 1.9 {
 		job.Stdout.Add(w)
-	} else {
-		buffer = bytes.NewBuffer(nil)
-		job.Stdout.Add(buffer)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
+		return err
 	}
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 	if version < 1.9 { // Send as a valid JSON array
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadFrom(buffer); err != nil {
-			return err
-		}
-		if _, err := outs.WriteListTo(w); err != nil {
+		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
 	}
@@ -342,25 +334,21 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 	var (
-		buffer *bytes.Buffer
-		job    = srv.Eng.Job("changes", vars["name"])
+		err  error
+		outs *engine.Table
+		job  = srv.Eng.Job("changes", vars["name"])
 	)
 
 	if version >= 1.9 {
 		job.Stdout.Add(w)
-	} else {
-		buffer = bytes.NewBuffer(nil)
-		job.Stdout.Add(buffer)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
+		return err
 	}
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 	if version < 1.9 { // Send as a valid JSON array
-		outs := engine.NewTable("", 0)
-		if _, err := outs.ReadFrom(buffer); err != nil {
-			return err
-		}
-		if _, err := outs.WriteListTo(w); err != nil {
+		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
 	}
@@ -514,24 +502,20 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 	}
 
 	var (
-		buffer *bytes.Buffer
-		job    = srv.Eng.Job("search", r.Form.Get("term"))
+		err  error
+		outs *engine.Table
+		job  = srv.Eng.Job("search", r.Form.Get("term"))
 	)
 	if version >= 1.9 {
 		job.Stdout.Add(w)
-	} else {
-		buffer = bytes.NewBuffer(nil)
-		job.Stdout.Add(buffer)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
+		return err
 	}
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 	if version < 1.9 { // Send as a valid JSON array
-		outs := engine.NewTable("", 0)
-		if _, err := outs.ReadFrom(buffer); err != nil {
-			return err
-		}
-		if _, err := outs.WriteListTo(w); err != nil {
+		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
 	}
