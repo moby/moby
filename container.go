@@ -8,7 +8,7 @@ import (
 	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
-	"github.com/dotcloud/docker/mount"
+	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"

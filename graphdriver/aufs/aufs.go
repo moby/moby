@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
-	mountpk "github.com/dotcloud/docker/mount"
+	mountpk "github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"os/exec"
