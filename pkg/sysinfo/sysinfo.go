@@ -1,8 +1,7 @@
 package sysinfo
 
 import (
-	"github.com/dotcloud/docker/cgroups"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/cgroups" // FIXME: move cgroups in pkg
 	"io/ioutil"
 	"log"
 	"os"
@@ -45,10 +44,8 @@ func New(quiet bool) *SysInfo {
 
 	// Check if AppArmor seems to be enabled on this system.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
 		sysInfo.AppArmor = false
 	} else {
-		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
 		sysInfo.AppArmor = true
 	}
 	return sysInfo
