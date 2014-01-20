@@ -2,7 +2,7 @@ package execdriver
 
 import (
 	"errors"
-	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"os/exec"
 	"syscall"
 )

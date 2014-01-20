@@ -3,8 +3,8 @@ package lxc
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/cgroups"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"io/ioutil"
 	"math/rand"
 	"os"
