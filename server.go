@@ -99,6 +99,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"build":            srv.Build,
 		"pull":             srv.ImagePull,
 		"import":           srv.ImageImport,
+		"image_delete":     srv.ImageDelete,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -333,10 +334,6 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	}
 
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("image_delete", srv.ImageDelete); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -1971,7 +1968,11 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
-	if _, err := imgs.WriteTo(job.Stdout); err != nil {
+	if len(imgs.Data) == 0 {
+		job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
+		return engine.StatusErr
+	}
+	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}

@@ -668,31 +668,11 @@ func deleteImages(srv *Server, version float64, w http.ResponseWriter, r *http.R
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		buffer = bytes.NewBuffer(nil)
-		job    = srv.Eng.Job("image_delete", vars["name"])
-	)
-	job.Stdout.Add(buffer)
+	var job = srv.Eng.Job("image_delete", vars["name"])
+	job.Stdout.Add(w)
 	job.SetenvBool("autoPrune", version > 1.1)
-	if err := job.Run(); err != nil {
-		return err
-	}
 
-	outs := engine.NewTable("", 0)
-	if _, err := outs.ReadFrom(buffer); err != nil {
-		return err
-	}
-
-	if len(outs.Data) != 0 {
-		var err error
-		if version < 1.9 {
-			_, err = outs.WriteTo(w)
-		} else {
-			_, err = outs.WriteListTo(w)
-		}
-		return err
-	}
-	return fmt.Errorf("Conflict, %s wasn't deleted", vars["name"])
+	return job.Run()
 }
 
 func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

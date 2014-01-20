@@ -823,13 +823,13 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		body, _, err := readBody(cli.call("DELETE", "/images/"+name, nil, false))
+		stream, _, err := cli.call("DELETE", "/images/"+name, nil, false)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
 			outs := engine.NewTable("Created", 0)
-			if _, err := outs.ReadFrom(bytes.NewReader(body)); err != nil {
+			if _, err := outs.ReadListFrom(stream); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 				continue
