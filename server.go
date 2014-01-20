@@ -1263,15 +1263,34 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	var repoData *registry.RepositoryData
 	var imageIndex []*registry.ImgData
 
-	for imgId, tags := range tagsByImage {
-		for _, tag := range tags {
+	for _, imgId := range imgList {
+		if tags, exists := tagsByImage[imgId]; exists {
+			// If an image has tags you must add an entry in the image index
+			// for each tag
+			for _, tag := range tags {
+				imageIndex = append(imageIndex, &registry.ImgData{
+					ID:  imgId,
+					Tag: tag,
+				})
+			}
+		} else {
+			// If the image does not have a tag it still needs to be sent to the
+			// registry with an empty tag so that it is accociated with the repository
 			imageIndex = append(imageIndex, &registry.ImgData{
 				ID:  imgId,
-				Tag: tag,
+				Tag: "",
 			})
+
 		}
 	}
 
+	utils.Debugf("Preparing to push %s with the following images and tags\n", localRepo)
+	for _, data := range imageIndex {
+		utils.Debugf("Pushing ID: %s with Tag: %s\n", data.ID, data.Tag)
+	}
+
+	// Register all the images in a repository with the registry
+	// If an image is not in this list it will not be associated with the repository
 	repoData, err = r.PushImageJSONIndex(remoteName, imageIndex, false, nil)
 	if err != nil {
 		return err
