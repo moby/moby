@@ -1082,7 +1082,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		}
 
 		if version == 0 || version > APIVERSION {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, fmt.Errorf("client and server don't have same version (client : %g, server: %g)", version, APIVERSION).Error(), http.StatusNotFound)
 			return
 		}
 
