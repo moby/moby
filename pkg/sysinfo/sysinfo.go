@@ -1,7 +1,7 @@
 package sysinfo
 
 import (
-	"github.com/dotcloud/docker/cgroups" // FIXME: move cgroups in pkg
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"io/ioutil"
 	"log"
 	"os"

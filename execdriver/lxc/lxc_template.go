@@ -1,7 +1,7 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"strings"
 	"text/template"
 )
