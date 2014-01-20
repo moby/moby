@@ -6,7 +6,7 @@ if 'TRAVIS' not in os.environ:
 	exit(127)
 
 if os.environ['TRAVIS_PULL_REQUEST'] != 'false':
-	commit_range = [os.environ['TRAVIS_BRANCH'], 'FETCH_HEAD']
+	commit_range = ['upstream/' + os.environ['TRAVIS_BRANCH'], 'FETCH_HEAD']
 else:
 	try:
 		subprocess.check_call([
