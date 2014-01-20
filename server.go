@@ -1209,122 +1209,98 @@ func (srv *Server) ImagePull(localName string, tag string, out io.Writer, sf *ut
 }
 
 // Retrieve the all the images to be uploaded in the correct order
-// Note: we can't use a map as it is not ordered
-func (srv *Server) getImageList(localRepo map[string]string) ([][]*registry.ImgData, error) {
-	imgList := map[string]*registry.ImgData{}
-	depGraph := utils.NewDependencyGraph()
+func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[string][]string, error) {
+	var (
+		imageList   []string
+		imagesSeen  map[string]bool     = make(map[string]bool)
+		tagsByImage map[string][]string = make(map[string][]string)
+	)
 
 	for tag, id := range localRepo {
-		img, err := srv.runtime.graph.Get(id)
-		if err != nil {
-			return nil, err
-		}
-		depGraph.NewNode(img.ID)
-		img.WalkHistory(func(current *Image) error {
-			imgList[current.ID] = &registry.ImgData{
-				ID:  current.ID,
-				Tag: tag,
-			}
-			parent, err := current.GetParent()
+		var imageListForThisTag []string
+
+		tagsByImage[id] = append(tagsByImage[id], tag)
+
+		for img, err := srv.runtime.graph.Get(id); img != nil; img, err = img.GetParent() {
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
-			if parent == nil {
-				return nil
+
+			if imagesSeen[img.ID] {
+				// This image is already on the list, we can ignore it and all its parents
+				break
 			}
-			depGraph.NewNode(parent.ID)
-			depGraph.AddDependency(current.ID, parent.ID)
-			return nil
-		})
-	}
 
-	traversalMap, err := depGraph.GenerateTraversalMap()
-	if err != nil {
-		return nil, err
-	}
-
-	utils.Debugf("Traversal map: %v", traversalMap)
-	result := [][]*registry.ImgData{}
-	for _, round := range traversalMap {
-		dataRound := []*registry.ImgData{}
-		for _, imgID := range round {
-			dataRound = append(dataRound, imgList[imgID])
+			imagesSeen[img.ID] = true
+			imageListForThisTag = append(imageListForThisTag, img.ID)
 		}
-		result = append(result, dataRound)
-	}
-	return result, nil
-}
 
-func flatten(slc [][]*registry.ImgData) []*registry.ImgData {
-	result := []*registry.ImgData{}
-	for _, x := range slc {
-		result = append(result, x...)
+		// reverse the image list for this tag (so the "most"-parent image is first)
+		for i, j := 0, len(imageListForThisTag)-1; i < j; i, j = i+1, j-1 {
+			imageListForThisTag[i], imageListForThisTag[j] = imageListForThisTag[j], imageListForThisTag[i]
+		}
+
+		// append to main image list
+		imageList = append(imageList, imageListForThisTag...)
 	}
-	return result
+
+	utils.Debugf("Image list: %v", imageList)
+	utils.Debugf("Tags by image: %v", tagsByImage)
+
+	return imageList, tagsByImage, nil
 }
 
 func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
-	imgList, err := srv.getImageList(localRepo)
+	utils.Debugf("Local repo: %s", localRepo)
+	imgList, tagsByImage, err := srv.getImageList(localRepo)
 	if err != nil {
 		return err
 	}
-	flattenedImgList := flatten(imgList)
+
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
 	var repoData *registry.RepositoryData
-	repoData, err = r.PushImageJSONIndex(remoteName, flattenedImgList, false, nil)
+	var imageIndex []*registry.ImgData
+
+	for imgId, tags := range tagsByImage {
+		for _, tag := range tags {
+			imageIndex = append(imageIndex, &registry.ImgData{
+				ID:  imgId,
+				Tag: tag,
+			})
+		}
+	}
+
+	repoData, err = r.PushImageJSONIndex(remoteName, imageIndex, false, nil)
 	if err != nil {
 		return err
 	}
 
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, len(localRepo)))
-		// This section can not be parallelized (each round depends on the previous one)
-		for i, round := range imgList {
-			// FIXME: This section can be parallelized
-			for _, elem := range round {
-				var pushTags func() error
-				pushTags = func() error {
-					if i < (len(imgList) - 1) {
-						// Only tag the top layer in the repository
-						return nil
-					}
 
-					out.Write(sf.FormatStatus("", "Pushing tags for rev [%s] on {%s}", utils.TruncateID(elem.ID), ep+"repositories/"+remoteName+"/tags/"+elem.Tag))
-					if err := r.PushRegistryTag(remoteName, elem.ID, elem.Tag, ep, repoData.Tokens); err != nil {
-						return err
-					}
-					return nil
-				}
-				if _, exists := repoData.ImgList[elem.ID]; exists {
-					if err := pushTags(); err != nil {
-						return err
-					}
-					out.Write(sf.FormatProgress(utils.TruncateID(elem.ID), "Image already pushed, skipping", nil))
-					continue
-				} else if r.LookupRemoteImage(elem.ID, ep, repoData.Tokens) {
-					if err := pushTags(); err != nil {
-						return err
-					}
-					out.Write(sf.FormatProgress(utils.TruncateID(elem.ID), "Image already pushed, skipping", nil))
-					continue
-				}
-				checksum, err := srv.pushImage(r, out, remoteName, elem.ID, ep, repoData.Tokens, sf)
-				if err != nil {
+		for _, imgId := range imgList {
+			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
+				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
+			} else {
+				if _, err := srv.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
-				elem.Checksum = checksum
+			}
 
-				if err := pushTags(); err != nil {
+			for _, tag := range tagsByImage[imgId] {
+				out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+remoteName+"/tags/"+tag))
+
+				if err := r.PushRegistryTag(remoteName, imgId, tag, ep, repoData.Tokens); err != nil {
 					return err
 				}
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(remoteName, flattenedImgList, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(remoteName, imageIndex, true, repoData.Endpoints); err != nil {
 		return err
 	}
 
