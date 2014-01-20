@@ -120,7 +120,6 @@ The test suite will also download a small test container, so you will need inter
 
 To run properly, docker needs the following software to be installed at runtime:
 
-* GNU Tar version 1.26 or later
 * iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
 * iptables version 1.4 or later
 * The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
