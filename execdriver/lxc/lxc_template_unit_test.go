@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -40,7 +39,7 @@ func TestLXCConfig(t *testing.T) {
 	}
 	process := &execdriver.Process{
 		ID: "1",
-		Cgroups: &cgroups.Values{
+		Resources: &execdriver.Resources{
 			Memory:    int64(mem),
 			CpuShares: int64(cpu),
 		},

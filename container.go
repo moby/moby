@@ -7,7 +7,6 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -671,7 +670,7 @@ func (container *Container) Start() (err error) {
 			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
 		}
 	}
-	cgroupValues := &cgroups.Values{
+	resources := &execdriver.Resources{
 		Memory:     container.Config.Memory,
 		MemorySwap: container.Config.MemorySwap,
 		CpuShares:  container.Config.CpuShares,
@@ -689,7 +688,7 @@ func (container *Container) Start() (err error) {
 		Tty:        container.Config.Tty,
 		User:       container.Config.User,
 		Config:     driverConfig,
-		Cgroups:    cgroupValues,
+		Resources:  resources,
 	}
 	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
