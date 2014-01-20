@@ -205,15 +205,18 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 }
 
 // Check if an image exists in the Registry
+// TODO: This method should return the errors instead of masking them and returning false
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
+		utils.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
+		utils.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	res.Body.Close()
