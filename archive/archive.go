@@ -97,16 +97,20 @@ func DecompressStream(archive io.Reader) (io.Reader, error) {
 	}
 }
 
-func (compression *Compression) Flag() string {
-	switch *compression {
-	case Bzip2:
-		return "j"
+func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteCloser, error) {
+
+	switch compression {
+	case Uncompressed:
+		return dest, nil
 	case Gzip:
-		return "z"
-	case Xz:
-		return "J"
+		return gzip.NewWriter(dest), nil
+	case Bzip2, Xz:
+		// archive/bzip2 does not support writing, and there is no xz support at all
+		// However, this is not a problem as docker only currently generates gzipped tars
+		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+	default:
+		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
-	return ""
 }
 
 func (compression *Compression) Extension() string {
@@ -130,7 +134,7 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	}
 
 	link := ""
-	if fi.Mode() & os.ModeSymlink != 0 {
+	if fi.Mode()&os.ModeSymlink != 0 {
 		if link, err = os.Readlink(path); err != nil {
 			return err
 		}
@@ -274,19 +278,55 @@ func escapeName(name string) string {
 
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
-func TarFilter(path string, options *TarOptions) (io.Reader, error) {
-	args := []string{"tar", "--numeric-owner", "-f", "-", "-C", path, "-T", "-"}
-	if options.Includes == nil {
-		options.Includes = []string{"."}
-	}
-	args = append(args, "-c"+options.Compression.Flag())
+func TarFilter(srcPath string, options *TarOptions) (io.Reader, error) {
+	pipeReader, pipeWriter := io.Pipe()
 
-	files := ""
-	for _, f := range options.Includes {
-		files = files + escapeName(f) + "\n"
+	compressWriter, err := CompressStream(pipeWriter, options.Compression)
+	if err != nil {
+		return nil, err
 	}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), bytes.NewBufferString(files))
+	tw := tar.NewWriter(compressWriter)
+
+	go func() {
+		// In general we log errors here but ignore them because
+		// during e.g. a diff operation the container can continue
+		// mutating the filesystem and we can see transient errors
+		// from this
+
+		if options.Includes == nil {
+			options.Includes = []string{"."}
+		}
+
+		for _, include := range options.Includes {
+			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
+				if err != nil {
+					utils.Debugf("Tar: Can't stat file %s to tar: %s\n", srcPath, err)
+					return nil
+				}
+
+				relFilePath, err := filepath.Rel(srcPath, filePath)
+				if err != nil {
+					return nil
+				}
+
+				if err := addTarFile(filePath, relFilePath, tw); err != nil {
+					utils.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
+				}
+				return nil
+			})
+		}
+
+		// Make sure to check the error on Close.
+		if err := tw.Close(); err != nil {
+			utils.Debugf("Can't close tar writer: %s\n", err)
+		}
+		if err := compressWriter.Close(); err != nil {
+			utils.Debugf("Can't close compress writer: %s\n", err)
+		}
+	}()
+
+	return pipeReader, nil
 }
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,

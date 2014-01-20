@@ -89,6 +89,16 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 	if _, err := os.Stat(tmp); err != nil {
 		return err
 	}
+
+	changes, err := ChangesDirs(origin, tmp)
+	if err != nil {
+		return err
+	}
+
+	if len(changes) != 0 {
+		t.Fatalf("Unexpected differences after tarUntar: %v", changes)
+	}
+
 	return nil
 }
 
@@ -108,8 +118,6 @@ func TestTarUntar(t *testing.T) {
 	for _, c := range []Compression{
 		Uncompressed,
 		Gzip,
-		Bzip2,
-		Xz,
 	} {
 		if err := tarUntar(t, origin, c); err != nil {
 			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
