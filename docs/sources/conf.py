@@ -235,8 +235,10 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('commandline/cli', 'docker', u'Docker Documentation',
-     [u'Team Docker'], 1)
+    ('reference/commandline/cli', 'docker', u'Docker CLI Documentation',
+     [u'Team Docker'], 1),
+    ('reference/builder', 'Dockerfile', u'Dockerfile Documentation',
+     [u'Team Docker'], 5),
 ]
 
 # If true, show URL addresses after external links.
