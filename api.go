@@ -751,8 +751,9 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
+	// TODO: replace the buffer by job.AddEnv()
 	var (
-		job    = srv.Eng.Job("inspect_container", vars["name"])
+		job    = srv.Eng.Job("inspect", vars["name"], "container")
 		buffer = bytes.NewBuffer(nil)
 		c      Container
 	)
@@ -819,7 +820,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if err := srv.Eng.Job("inspect_container", vars["name"]).Run(); err != nil {
+	if err := srv.Eng.Job("inspect", vars["name"], "container").Run(); err != nil {
 		return err
 	}
 
@@ -847,42 +848,20 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		buffer = bytes.NewBuffer(nil)
-		job    = srv.Eng.Job("inspect_container", vars["name"])
-	)
-
-	job.Stdout.Add(buffer)
-	if err := job.Run(); err != nil {
-		return err
-	}
-
-	if err := srv.Eng.Job("inspect_image", vars["name"]).Run(); err == nil {
-		return fmt.Errorf("Conflict between containers and images")
-	}
-	_, err := io.Copy(w, buffer)
-	return err
+	var job = srv.Eng.Job("inspect", vars["name"], "container")
+	job.Stdout.Add(w)
+	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
+	return job.Run()
 }
 
 func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		buffer = bytes.NewBuffer(nil)
-		job    = srv.Eng.Job("inspect_image", vars["name"])
-	)
-
-	job.Stdout.Add(buffer)
-	if err := job.Run(); err != nil {
-		return err
-	}
-
-	if err := srv.Eng.Job("inspect_container", vars["name"]).Run(); err == nil {
-		return fmt.Errorf("Conflict between containers and images")
-	}
-	_, err := io.Copy(w, buffer)
-	return err
+	var job = srv.Eng.Job("inspect", vars["name"], "image")
+	job.Stdout.Add(w)
+	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
+	return job.Run()
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

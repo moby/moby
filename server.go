@@ -100,6 +100,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"pull":             srv.ImagePull,
 		"import":           srv.ImageImport,
 		"image_delete":     srv.ImageDelete,
+		"inspect":          srv.JobInspect,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -334,14 +335,6 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	}
 
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("inspect_image", srv.JobImageInspect); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	if err := job.Eng.Register("inspect_container", srv.JobContainerInspect); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -2311,29 +2304,6 @@ func (srv *Server) ContainerInspect(name string) (*Container, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) JobContainerInspect(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s CONTAINER", job.Name)
-		return engine.StatusErr
-	}
-	container, err := srv.ContainerInspect(job.Args[0])
-	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-
-	b, err := json.Marshal(&struct {
-		*Container
-		HostConfig *HostConfig
-	}{container, container.hostConfig})
-	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
-	job.Stdout.Write(b)
-	return engine.StatusOK
-}
-
 func (srv *Server) ImageInspect(name string) (*Image, error) {
 	if image, err := srv.runtime.repositories.LookupImage(name); err == nil && image != nil {
 		return image, nil
@@ -2341,17 +2311,48 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 	return nil, fmt.Errorf("No such image: %s", name)
 }
 
-func (srv *Server) JobImageInspect(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s IMAGE", job.Name)
+func (srv *Server) JobInspect(job *engine.Job) engine.Status {
+	// TODO: deprecate KIND/conflict
+	if n := len(job.Args); n != 2 {
+		job.Errorf("Usage: %s CONTAINER|IMAGE KIND", job.Name)
 		return engine.StatusErr
 	}
-	image, err := srv.ImageInspect(job.Args[0])
-	if err != nil {
-		job.Error(err)
+	var (
+		name                    = job.Args[0]
+		kind                    = job.Args[1]
+		object                  interface{}
+		conflict                = job.GetenvBool("conflict") //should the job detect conflict between containers and images
+		image, errImage         = srv.ImageInspect(name)
+		container, errContainer = srv.ContainerInspect(name)
+	)
+
+	if conflict && image != nil && container != nil {
+		job.Errorf("Conflict between containers and images")
 		return engine.StatusErr
 	}
-	b, err := json.Marshal(image)
+
+	switch kind {
+	case "image":
+		if errImage != nil {
+			job.Error(errImage)
+			return engine.StatusErr
+		}
+		object = image
+	case "container":
+		if errContainer != nil {
+			job.Error(errContainer)
+			return engine.StatusErr
+		}
+		object = &struct {
+			*Container
+			HostConfig *HostConfig
+		}{container, container.hostConfig}
+	default:
+		job.Errorf("Unknown kind: %s", kind)
+		return engine.StatusErr
+	}
+
+	b, err := json.Marshal(object)
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
