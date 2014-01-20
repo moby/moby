@@ -165,6 +165,13 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
+
+	}
+
+	capability, _ := Lgetxattr(path, "security.capability")
+	if capability != nil {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
