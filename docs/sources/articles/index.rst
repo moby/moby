@@ -10,3 +10,4 @@ Contents:
    :maxdepth: 1
 
    security
+   baseimages
