@@ -36,6 +36,7 @@ const (
 )
 
 type HttpApiFunc func(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
+type LegacyFunc func(*engine.Table) *engine.Table
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -61,6 +62,28 @@ func parseForm(r *http.Request) error {
 func parseMultipartForm(r *http.Request) error {
 	if err := r.ParseMultipartForm(4096); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
 		return err
+	}
+	return nil
+}
+
+func runJobAsJSONStream(job *engine.Job, h http.Header, w http.ResponseWriter, legacy LegacyFunc) (err error) {
+	var outs *engine.Table
+
+	if strings.Contains(h.Get("Accept"), "application/jsonstream") {
+		job.Stdout.Add(w)
+	} else if outs, err = job.Stdout.AddTable(); err != nil {
+		return err
+	}
+	if err = job.Run(); err != nil {
+		return err
+	}
+	if legacy != nil {
+		outs = legacy(outs)
+	}
+	if outs != nil {
+		if _, err = outs.WriteListTo(w); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -184,26 +207,15 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	}
 
 	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("images")
+		job    = srv.Eng.Job("images")
+		legacy LegacyFunc
 	)
 
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
 
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-
-	if err = job.Run(); err != nil {
-		return err
-	}
-
-	if version < 1.9 { // Send as a valid JSON array
-		if version < 1.8 { // Convert to legacy format
+	if version < 1.8 { // Convert to legacy format
+		legacy = func(outs *engine.Table) *engine.Table {
 			outsLegacy := engine.NewTable("Created", 0)
 			for _, out := range outs.Data {
 				for _, repoTag := range out.GetList("RepoTags") {
@@ -218,15 +230,11 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 					outsLegacy.Add(outLegacy)
 				}
 			}
-			if _, err = outsLegacy.WriteListTo(w); err != nil {
-				return err
-			}
-		} else if _, err = outs.WriteListTo(w); err != nil {
-			return err
+			return outsLegacy
 		}
 	}
 
-	return nil
+	return runJobAsJSONStream(job, r.Header, w, legacy)
 }
 
 func getImagesViz(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -306,53 +314,14 @@ func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("history", vars["name"])
-	)
-
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	return runJobAsJSONStream(srv.Eng.Job("history", vars["name"]), r.Header, w, nil)
 }
 
 func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("changes", vars["name"])
-	)
-
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	return runJobAsJSONStream(srv.Eng.Job("changes", vars["name"]), r.Header, w, nil)
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -500,26 +469,7 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 	if err := parseForm(r); err != nil {
 		return err
 	}
-
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("search", r.Form.Get("term"))
-	)
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	return runJobAsJSONStream(srv.Eng.Job("search", r.Form.Get("term")), r.Header, w, nil)
 }
 
 func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

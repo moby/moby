@@ -2271,6 +2271,7 @@ func (cli *DockerCli) call(method, path string, data interface{}) (io.ReadCloser
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
 	req.Host = cli.addr
+	req.Header.Set("Accept", "application/jsonstream")
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
