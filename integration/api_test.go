@@ -161,6 +161,7 @@ func TestGetImagesJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Add("Accept", "application/jsonstream")
 
 	r := httptest.NewRecorder()
 
@@ -199,6 +200,8 @@ func TestGetImagesJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req2.Header.Add("Accept", "application/jsonstream")
+
 	if err := docker.ServeRequest(srv, docker.APIVERSION, r2, req2); err != nil {
 		t.Fatal(err)
 	}
@@ -231,6 +234,7 @@ func TestGetImagesJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req3.Header.Add("Accept", "application/jsonstream")
 
 	if err := docker.ServeRequest(srv, docker.APIVERSION, r3, req3); err != nil {
 		t.Fatal(err)
@@ -258,6 +262,8 @@ func TestGetImagesHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Add("Accept", "application/jsonstream")
+
 	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
@@ -404,6 +410,7 @@ func TestGetContainersChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Header.Add("Accept", "application/jsonstream")
 	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
