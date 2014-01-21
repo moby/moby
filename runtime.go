@@ -809,7 +809,7 @@ func (runtime *Runtime) Kill(c *Container, sig int) error {
 	return runtime.execDriver.Kill(c.command, sig)
 }
 
-func (runtime *Runtime) WaitGhost(c *Container) error {
+func (runtime *Runtime) RestoreCommand(c *Container) error {
 	return runtime.execDriver.Restore(c.command)
 }
 
