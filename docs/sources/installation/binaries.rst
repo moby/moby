@@ -16,15 +16,29 @@ Before following these directions, you should really check if a packaged version
 of Docker is already available for your distribution.  We have packages for many
 distributions, and more keep showing up all the time!
 
-Check Your Kernel
------------------
 
-Your host's Linux kernel must meet the Docker :ref:`kernel`
-
-Check for User Space Tools
+Check runtime dependencies
 --------------------------
 
-You must have a working installation of the `lxc <http://linuxcontainers.org>`_ utilities and library.
+To run properly, docker needs the following software to be installed at runtime:
+
+- GNU Tar version 1.26 or later
+- iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
+- iptables version 1.4 or later
+- The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
+- Git version 1.7 or later
+- XZ Utils 4.9 or later
+
+
+Check kernel dependencies
+-------------------------
+
+Docker in daemon mode has specific kernel requirements. For details, see
+http://docs.docker.io/en/latest/articles/kernel/
+
+Note that Docker also has a client mode, which can run on virtually any linux kernel (it even builds
+on OSX!).
+
 
 Get the docker binary:
 ----------------------
@@ -42,6 +56,17 @@ Run the docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
     sudo ./docker -d &
+
+Upgrades
+--------
+
+To upgrade your manual installation of Docker, first kill the docker daemon:
+
+.. code-block:: bash
+
+   killall docker
+
+Then follow the regular installation steps.
 
 
 Run your first container!

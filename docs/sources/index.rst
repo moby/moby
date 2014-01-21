@@ -12,8 +12,7 @@ dependencies.
 
 ``docker`` runs three ways:
 
-* as a daemon to manage LXC containers on your :ref:`Linux host
-  <kernel>` (``sudo docker -d``)
+* as a daemon to manage LXC containers on your host machine (``sudo docker -d``)
 * as a :ref:`CLI <cli>` which talks to the daemon's `REST API
   <api/docker_remote_api>`_ (``docker run ...``)
 * as a client of :ref:`Repositories <working_with_the_repository>`
