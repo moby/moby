@@ -9,25 +9,23 @@ Hello World
 
 .. _running_examples:
 
-Running the Examples
-====================
+Check your Docker install
+-------------------------
 
-All the examples assume your machine is running the ``docker`` daemon. To
-run the ``docker`` daemon in the background, simply type:
-
-.. code-block:: bash
-
-   sudo docker -d &
-
-Now you can run Docker in client mode: by default all commands will be
-forwarded to the ``docker`` daemon via a protected Unix socket, so you
-must run as the ``root`` or via the ``sudo`` command.
+This guide assumes you have a working installation of Docker. To check
+your Docker install, run the following command:
 
 .. code-block:: bash
 
-   sudo docker help
+    # Check that you have a working install
+    docker info
 
-----
+If you get ``docker: command not found`` or something like
+``/var/lib/docker/repositories: permission denied`` you may have an incomplete
+Docker installation or insufficient privileges to access docker on your machine.
+
+Please refer to :ref:`installation_list` for installation instructions.
+
 
 .. _hello_world:
 
@@ -88,9 +86,7 @@ Hello World Daemon
 
 And now for the most boring daemon ever written!
 
-This example assumes you have Docker installed and the Ubuntu
-image already imported with ``docker pull ubuntu``.  We will use the Ubuntu
-image to run a simple hello world daemon that will just print hello
+We will use the Ubuntu image to run a simple hello world daemon that will just print hello
 world to standard out every second. It will continue to do this until
 we stop it.
 

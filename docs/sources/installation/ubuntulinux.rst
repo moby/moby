@@ -35,7 +35,7 @@ Dependencies
 
 **Linux kernel 3.8**
 
-Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
+Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise
 comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll
 install when following these steps comes with AUFS built in. We also
 include the generic headers to enable packages that depend on them,
@@ -167,7 +167,43 @@ Type ``exit`` to exit
 
 **Done!**, now continue with the :ref:`hello_world` example.
 
-Upgrades
+
+Giving non-root access
+----------------------
+
+The ``docker`` daemon always runs as the root user, and since Docker version
+0.5.2, the ``docker`` daemon binds to a Unix socket instead of a TCP port. By
+default that Unix socket is owned by the user *root*, and so, by default, you
+can access it with ``sudo``.
+
+Starting in version 0.5.3, if you (or your Docker installer) create a
+Unix group called *docker* and add users to it, then the ``docker``
+daemon will make the ownership of the Unix socket read/writable by the
+*docker* group when the daemon starts. The ``docker`` daemon must
+always run as the root user, but if you run the ``docker`` client as a user in
+the *docker* group then you don't need to add ``sudo`` to all the
+client commands.  
+
+.. warning:: The *docker* group is root-equivalent.
+
+**Example:**
+
+.. code-block:: bash
+
+  # Add the docker group if it doesn't already exist.
+  sudo groupadd docker
+
+  # Add the connected user "${USER}" to the docker group.
+  # Change the user name to match your preferred user.
+  # You may have to logout and log back in again for
+  # this to take effect.
+  sudo gpasswd -a ${USER} docker
+
+  # Restart the Docker daemon.
+  sudo service docker restart
+
+
+Upgrade
 --------
 
 To install the latest version of docker, use the standard ``apt-get`` method:

@@ -14,7 +14,6 @@ Contents:
 
    basics
    workingwithrepository
-   baseimages
    port_redirection
    networking
    host_integration
