@@ -46,14 +46,6 @@ Full Documentation
 What's new
 ----------
 
-.. http:get:: /images/json
-
-   **New!** This endpoint now returns a list of json message, like the events endpoint
-
-.. http:get:: /images/(name)/history
-
-   **New!** This endpoint now returns a list of json message, like the events endpoint
-
 .. http:post:: /build
 
    **New!** This endpoint now takes a serialized ConfigFile which it uses to
