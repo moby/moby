@@ -15,7 +15,6 @@ This documentation has the following resources:
    use/index
    examples/index
    reference/index
-   commandline/index
    contributing/index
    terms/index
    articles/index
