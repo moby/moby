@@ -609,28 +609,22 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
-		parts [3]int
-		err   error
+		kernel, major, minor, parsed int
+		err                          error
 	)
 
-	re := regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)`)
-	subs := re.FindStringSubmatch(release)
-
-	if len(subs) < 4 {
+	parsed, err = fmt.Sscanf(release, "%d.%d.%d", &kernel, &major, &minor)
+	if err != nil {
+		return nil, err
+	}
+	if parsed < 3 {
 		return nil, errors.New("Can't parse kernel version " + release)
 	}
 
-	for i := 0; i < 3; i++ {
-		parts[i], err = strconv.Atoi(subs[i+1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &KernelVersionInfo{
-		Kernel: parts[0],
-		Major:  parts[1],
-		Minor:  parts[2],
+		Kernel: kernel,
+		Major:  major,
+		Minor:  minor,
 	}, nil
 }
 
