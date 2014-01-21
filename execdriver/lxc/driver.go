@@ -176,9 +176,9 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return d.kill(c, sig)
 }
 
-func (d *driver) Wait(id string) error {
+func (d *driver) Restore(c *execdriver.Command) error {
 	for {
-		output, err := exec.Command("lxc-info", "-n", id).CombinedOutput()
+		output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
 		if err != nil {
 			return err
 		}
