@@ -5,7 +5,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/coreos/go-systemd/activation"
+	"github.com/dotcloud/docker/pkg/systemd/activation"
 )
 
 // ListenFD returns the specified socket activated files as a slice of
