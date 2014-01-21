@@ -869,7 +869,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	}
 
 	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(stream); err != nil {
 		return err
 	}
 
@@ -1147,7 +1147,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadFrom(stream); err != nil {
+		if _, err := outs.ReadListFrom(stream); err != nil {
 			return err
 		}
 
@@ -1219,7 +1219,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadFrom(stream); err != nil {
+		if _, err := outs.ReadListFrom(stream); err != nil {
 			return err
 		}
 
@@ -1540,7 +1540,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 	}
 
 	outs := engine.NewTable("", 0)
-	if _, err := outs.ReadFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(stream); err != nil {
 		return err
 	}
 	for _, change := range outs.Data {
@@ -1681,7 +1681,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 	outs := engine.NewTable("star_count", 0)
-	if _, err := outs.ReadFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(stream); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)

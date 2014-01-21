@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sort"
 	"strconv"
 	"strings"
@@ -322,6 +323,31 @@ func (t *Table) WriteTo(dst io.Writer) (n int64, err error) {
 		n += bytes
 	}
 	return n, nil
+}
+
+func (t *Table) ReadListFrom(src io.Reader) (n int64, err error) {
+	var array []interface{}
+
+	content, err := ioutil.ReadAll(src)
+	if err != nil {
+		return -1, err
+	}
+
+	if err := json.Unmarshal(content, &array); err != nil {
+		return -1, err
+	}
+
+	for _, item := range array {
+		if m, ok := item.(map[string]interface{}); ok {
+			env := &Env{}
+			for key, value := range m {
+				env.SetAuto(key, value)
+			}
+			t.Add(env)
+		}
+	}
+
+	return int64(len(content)), nil
 }
 
 func (t *Table) ReadFrom(src io.Reader) (n int64, err error) {
