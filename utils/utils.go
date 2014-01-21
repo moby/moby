@@ -553,10 +553,11 @@ type KernelVersionInfo struct {
 	Kernel int
 	Major  int
 	Minor  int
+	Flavor string
 }
 
 func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d", k.Kernel, k.Major, k.Minor)
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
 // Compare two KernelVersionInfo struct.
@@ -610,13 +611,10 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
 		kernel, major, minor, parsed int
-		err                          error
+		flavor                       string
 	)
 
-	parsed, err = fmt.Sscanf(release, "%d.%d.%d", &kernel, &major, &minor)
-	if err != nil {
-		return nil, err
-	}
+	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
 	if parsed < 3 {
 		return nil, errors.New("Can't parse kernel version " + release)
 	}
@@ -625,6 +623,7 @@ func ParseRelease(release string) (*KernelVersionInfo, error) {
 		Kernel: kernel,
 		Major:  major,
 		Minor:  minor,
+		Flavor: flavor,
 	}, nil
 }
 
