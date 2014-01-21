@@ -374,7 +374,7 @@ func TestGetContainersExport(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if h.Name == "./test" {
+		if h.Name == "test" {
 			found = true
 			break
 		}
