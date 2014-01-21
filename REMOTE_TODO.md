@@ -24,7 +24,7 @@ ok      "/commit":                              postCommit,             0
 TODO    "/build":                               postBuild,              0                       yes
 TODO    "/images/create":                       postImagesCreate,       N                       yes             yes (pull)
 ok      "/images/{name:.*}/insert":             postImagesInsert,       N                       yes             yes
-...     "/images/load":                         postImagesLoad,         1                                       yes (stdin)
+ok      "/images/load":                         postImagesLoad,         1                                       yes (stdin)
 TODO    "/images/{name:.*}/push":               postImagesPush,         N                                       yes
 ok      "/images/{name:.*}/tag":                postImagesTag,          0
 ok      "/containers/create":                   postContainersCreate,   0

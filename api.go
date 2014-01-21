@@ -608,7 +608,9 @@ func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.R
 }
 
 func postImagesLoad(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return srv.ImageLoad(r.Body)
+	job := srv.Eng.Job("load")
+	job.Stdin.Add(r.Body)
+	return job.Run()
 }
 
 func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
