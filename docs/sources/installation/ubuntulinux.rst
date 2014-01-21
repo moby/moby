@@ -35,7 +35,7 @@ Dependencies
 
 **Linux kernel 3.8**
 
-Due to a bug in LXC, docker works best on the 3.8 kernel. Precise
+Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise
 comes with a 3.2 kernel, so we need to upgrade it. The kernel you'll
 install when following these steps comes with AUFS built in. We also
 include the generic headers to enable packages that depend on them,
@@ -199,7 +199,7 @@ client commands.
   # this to take effect.
   sudo gpasswd -a ${USER} docker
 
-  # Restart the docker daemon.
+  # Restart the Docker daemon.
   sudo service docker restart
 
 

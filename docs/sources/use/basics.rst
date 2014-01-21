@@ -6,11 +6,11 @@
 First steps with Docker
 =======================
 
-Check your docker install
+Check your Docker install
 -------------------------
 
 This guide assumes you have a working installation of Docker. To check
-your docker install, run the following command:
+your Docker install, run the following command:
 
 .. code-block:: bash
 
@@ -19,7 +19,7 @@ your docker install, run the following command:
 
 If you get ``docker: command not found`` or something like
 ``/var/lib/docker/repositories: permission denied`` you may have an incomplete
-docker installation or insufficient privileges to access docker on your machine.
+docker installation or insufficient privileges to access Docker on your machine.
 
 Please refer to :ref:`installation_list` for installation instructions.
 
